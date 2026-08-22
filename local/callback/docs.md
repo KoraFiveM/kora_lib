@@ -12,7 +12,7 @@ Registers `handler` to run when a client calls `QB.callback.trigger(name, ...)`.
 
 ##### Parameters
 - `name: string` — Logical callback name (must be non-empty).
-- `handler: fun(src: integer, ...: any): any` — Called with the triggering player's server ID, followed by whatever arguments the client sent. Its return value (only the first, if it returns more than one) resolves the client's promise.
+- `handler: fun(src: integer, ...: any): any` — Called with the triggering player's server ID, followed by whatever arguments the client sent. Every value it returns resolves the client's promise — a handler can `return false, 'reason'` and the caller gets both values back.
 
 #### `QB.callback.trigger(name, ...)` — client
 Triggers the callback registered under `name` on the server.
@@ -22,23 +22,28 @@ Triggers the callback registered under `name` on the server.
 - `...: any` — Forwarded to the server-side handler after `src`.
 
 ##### Returns
-- The handler's return value, once it answers. `nil` if the handshake never completed, the request timed out (`Config.callback.timeout` (10s by default) with no response), or the handler itself errored — check qblib's own console for which, since that detail doesn't cross the exports boundary. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the answer arrives.
+- Every value the handler returned, once it answers — in full, not just the first. No values (an empty return) if the handshake never completed, the request timed out (`Config.callback.timeout` (10s by default) with no response), or the handler itself errored — check qblib's own console for which, since that detail doesn't cross the exports boundary. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the answer arrives.
 
 ##### Example
 Server:
 ```lua
-QB.callback.register('inventory:hasItem', function(src, itemName)
-    return Inventory.HasItem(src, itemName)
+QB.callback.register('inventory:removeItem', function(src, itemName)
+    if not Inventory.HasItem(src, itemName) then
+        return false, "you don't have that item"
+    end
+
+    Inventory.RemoveItem(src, itemName)
+    return true
 end)
 ```
 
 Client:
 ```lua
 CreateThread(function()
-    local hasItem = QB.callback.trigger('inventory:hasItem', 'water_bottle')
-    if hasItem == nil then return print('callback failed (see qblib\'s own console for the error)') end
+    local ok, reason = QB.callback.trigger('inventory:removeItem', 'water_bottle')
+    if not ok then return print('removeItem failed:', reason) end
 
-    print('has item:', hasItem)
+    print('item removed')
 end)
 ```
 
@@ -49,7 +54,7 @@ Registers `handler` to run when the server calls `QB.callback.trigger(target, na
 
 ##### Parameters
 - `name: string` — Logical callback name (must be non-empty).
-- `handler: fun(...: any): any` — Called with whatever arguments the server sent. Its return value resolves the server's promise.
+- `handler: fun(...: any): any` — Called with whatever arguments the server sent. Every value it returns resolves the server's promise.
 
 #### `QB.callback.trigger(target, name, ...)` — server
 Triggers the callback registered under `name` on a specific client.
@@ -60,7 +65,7 @@ Triggers the callback registered under `name` on a specific client.
 - `...: any` — Forwarded to the client-side handler.
 
 ##### Returns
-- The client handler's return value, once it answers. `nil` if the request times out (`Config.callback.timeout` (10s by default) with no response) or the handler errored — check qblib's own console for which. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the answer arrives.
+- Every value the client handler returned, once it answers — in full, not just the first. No values if the request times out (`Config.callback.timeout` (10s by default) with no response) or the handler errored — check qblib's own console for which. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the answer arrives.
 
 ##### Example
 Client:
@@ -93,9 +98,9 @@ Unregisters a handler previously registered with `QB.callback.register` on that 
 Most callers don't need this: a registered callback is automatically unregistered when the resource that registered it stops (`onResourceStop`/`onClientResourceStop`, matching realm). Call it explicitly if a resource wants to stop answering a specific callback without restarting.
 
 ## Notes
-- `QB.callback.trigger`, called the normal way (from your own resource, like any other `QB.*` function), already `Citizen.Await`s the answer internally and hands you back the plain result — a failure (timeout, dropped handshake, handler error) comes back as `nil` rather than a promise you'd `pcall`/`Citizen.Await` yourself, since a rejected promise doesn't survive being handed back across the exports boundary any better than a resolved one would. (If you're calling this from **within qblib itself**, another module in this same resource, you still get the raw promise back and still need your own `Citizen.Await`/`pcall` — the auto-await only kicks in for a genuine cross-resource caller, which is what every consumer resource always is.)
+- `QB.callback.trigger`, called the normal way (from your own resource, like any other `QB.*` function), already `Citizen.Await`s the answer internally and hands you back the handler's own return values, in full, as real multiple return values — `local ok, reason = QB.callback.trigger(...)` works exactly like calling the handler directly. A failure (timeout, dropped handshake, handler error) comes back as no values at all (everything you assign reads as `nil`) rather than a promise you'd `pcall`/`Citizen.Await` yourself, since a rejected promise doesn't survive being handed back across the exports boundary any better than a resolved one would. (If you're calling this from **within qblib itself**, another module in this same resource, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await/multi-value forwarding only kicks in for a genuine cross-resource caller, which is what every consumer resource always is. That raw promise resolves with only the handler's FIRST return value, same as it always has — if you need every value from a same-VM context too, read `p.qblibCallbackResults` after awaiting, a `table.pack`'d `{n = count, ...}` envelope.)
 - The client→server direction is protected by a per-player session token (its own handshake, separate from `local/events/`'s). The server→client direction needs no token — the server is always the trusted party for its own `TriggerClientEvent` calls — but a client's response is only accepted from the player it was actually addressed to.
 - One handler per name per realm: registering a name another resource already claimed replaces it and logs a warning naming both resources. Namespace your names (`inventory:hasItem`, not `check`). Re-registering your own name — what happens on a resource restart — is normal and silent.
 - The client-side and server-side callback registries are independent — a client `QB.callback.register('foo', ...)` and a server `QB.callback.register('foo', ...)` don't collide, since they only ever answer requests coming from the other side.
-- If a handler returns more than one value, only the first is sent back — wrap multiple values in a table if you need them all.
+- A handler can return more than one value — all of them are sent back to the caller, in order. Only genuine Lua errors (an uncaught `error(...)` inside the handler) reject the promise instead; a deliberate `return false, "reason"` is just the handler's own return values like any other.
 - A registered handler is torn down automatically if its owning resource stops, so a stopped/restarting resource can't keep answering requests with a stale handler.

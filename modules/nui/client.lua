@@ -220,9 +220,9 @@ end
 
 ---Opens a searchable list menu. Grants NUI focus while open and releases it
 ---when the menu closes (selection, cancel, or timeout).
----@param items table[] `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean }[]`
+---@param items table[] `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean, submenu?: { title?: string, items: table[] } }[]`
 ---@param title? string
----@return promise|any result Resolves/returns `{ selectedId: string }` or `{ cancelled: true }`. See QB.nui.request's return doc.
+---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
 function QB.nui.openMenu(items, title)
     assert(type(items) == "table", "openMenu requires an items table.")
     -- timeout = false: these three wait on a HUMAN, and there's no sensible
@@ -237,14 +237,39 @@ end
 
 ---Opens a context menu anchored at (x, y) -- or centered, if omitted. Grants
 ---NUI focus while open and releases it when the menu closes.
----@param items table[] Same shape as openMenu's `items`.
+---@param items table[] Same shape as openMenu's `items`; submenus are ignored because a context menu is one level only.
 ---@param x? number
 ---@param y? number
----@return promise|any result Resolves/returns `{ selectedId: string }` or `{ cancelled: true }`. See QB.nui.request's return doc.
+---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
 function QB.nui.openContextMenu(items, x, y)
     assert(type(items) == "table", "openContextMenu requires an items table.")
     -- No timeout, same reasoning as openMenu above.
     return settleForExport(focusUntilSettled(requestPromise("openContextMenu", { items = items, x = x, y = y }, false)))
+end
+
+---Opens an anchored radial menu. Items share openMenu's schema, including
+---nested submenus; the NUI handles navigation and returns one MenuResult.
+---@param items table[] Same shape as openMenu's `items`.
+---@param opts? table `{ x?: number, y?: number, radius?: number }`
+---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
+function QB.nui.openRadialMenu(items, opts)
+    assert(type(items) == "table", "openRadialMenu requires an items table.")
+    assert(opts == nil or type(opts) == "table", "openRadialMenu options must be a table.")
+
+    opts = opts or {}
+    assert(opts.x == nil or type(opts.x) == "number", "openRadialMenu x must be a number.")
+    assert(opts.y == nil or type(opts.y) == "number", "openRadialMenu y must be a number.")
+    assert(opts.radius == nil or (type(opts.radius) == "number" and opts.radius > 0),
+        "openRadialMenu radius must be a positive number.")
+
+    -- No timeout, same reasoning as openMenu: a human owns dismissal, and
+    -- timing out would leave a still-visible radial with no awaiting caller.
+    return settleForExport(focusUntilSettled(requestPromise("openRadialMenu", {
+        items = items,
+        x = opts.x,
+        y = opts.y,
+        radius = opts.radius,
+    }, false)))
 end
 
 ---Opens a confirmation dialog. Grants NUI focus while open and releases it

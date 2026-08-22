@@ -89,6 +89,40 @@ Opens a context menu anchored at `(x, y)`, or centered if omitted. Manages focus
 #### Returns
 - Same as `openMenu`: `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
 
+### `QB.nui.openRadialMenu(items, opts)`
+Opens an anchored radial menu. It uses the same recursive item tree and result shape as `openMenu`, so a caller can reuse its item-building logic. It manages NUI focus for its entire lifetime.
+
+#### Parameters
+- `items: table[]` — same `MenuItem` shape as `openMenu`, including `submenu = { title?, items }`.
+- `opts?: table` — optional geometry: `x?: number`, `y?: number` (screen pixels; defaults to centre), `radius?: positive number` (defaults to the NUI's safe radial size).
+
+#### Returns
+- `{ selectedId: string, path: string[] }` or `{ cancelled: true }`; `nil` on timeout/error. `path` is root-first, so a `vehicle -> repair` selection returns `{ selectedId = "repair", path = { "vehicle", "repair" } }`.
+
+Items sit clockwise from the top. A submenu replaces the ring locally and adds a centre Back control; Escape/backdrop/centre Close cancel the whole request. Long item lists page through a More wedge rather than silently dropping items. Disabled items stay visible but cannot be chosen.
+
+#### Example
+```lua
+local result = QB.nui.openRadialMenu({
+    { id = "engine", label = "Engine", icon = "Wrench" },
+    {
+        id = "doors",
+        label = "Doors",
+        icon = "Car",
+        submenu = {
+            items = {
+                { id = "lock", label = "Lock", icon = "Lock" },
+                { id = "unlock", label = "Unlock", icon = "Unlock" },
+            },
+        },
+    },
+}, { radius = 160 })
+
+if result and not result.cancelled then
+    print(table.concat(result.path, " -> "))
+end
+```
+
 ### `QB.nui.openInputDialog(fields, title, description)`
 Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 
@@ -119,5 +153,5 @@ end
 ## Notes
 - `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`qblib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
 - A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.
-- `openMenu`/`openContextMenu`/`openInputDialog` are thin wrappers over `QB.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.values`, and for `nil` before that (timeout/error).
+- `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `QB.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
 - These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `QB.nui.*` from **within qblib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.

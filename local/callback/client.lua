@@ -65,12 +65,26 @@ end
 -- raised error on rejection/timeout, which -- like every other qblib error --
 -- surfaces to that caller as a printed export-call error and a nil return,
 -- not a catchable Lua error) instead of a promise it can't usefully await.
--- Deliberately duplicated per-file -- see local/callback/server.lua,
--- local/events/{client,server}.lua, and modules/{cache,zones,nui}/client.lua
--- for the other copies.
+--
+-- UNLIKE every other module's identical copy of this helper (see
+-- local/callback/server.lua, local/events/{client,server}.lua, and
+-- modules/{cache,zones,nui}/client.lua), this copy also forwards every
+-- extra return value a callback handler produced (e.g.
+-- `return false, "you didn't have a proper item"`), not just the first --
+-- see p.qblibCallbackResults on the events.response handler below. The
+-- promise itself still resolves with ONLY the handler's first return value,
+-- deliberately unchanged from before this existed, so every EXISTING
+-- same-VM caller inside qblib (e.g. modules/minigames/client.lua's own
+-- `Citizen.Await(QB.callback.trigger(...))`) keeps working exactly as it did
+-- -- only a genuine cross-resource caller, reached here, gets the extra
+-- values, by reading the side-channel field Citizen.Await(p) itself can't
+-- carry (a promise only ever resolves with ONE value).
 local function settleForExport(p)
     if GetInvokingResource() then
-        return Citizen.Await(p)
+        Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
+        local packed = p.qblibCallbackResults
+        if packed == nil then return p.value end -- not a QB.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
+        return table.unpack(packed, 1, packed.n)
     end
     return p
 end
@@ -110,8 +124,11 @@ end
 ---Waits for the initial handshake token if it hasn't arrived yet.
 ---@param name string
 ---@param ... any
----@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before); the
----already-settled result value directly for a genuine cross-resource caller (see settleForExport above).
+---@return promise|any ... A promise for a same-VM caller (unchanged, awaitable as before -- it resolves
+---with a `table.pack`'d `{n=, ...}` envelope, since the handler can return more than one value; unpack it
+---yourself). For a genuine cross-resource caller, the handler's own return values themselves, unpacked --
+---e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
+---settleForExport above).
 function QB.callback.trigger(name, ...)
     QB.callback.assertName(name)
 
@@ -139,16 +156,30 @@ function QB.callback.trigger(name, ...)
     return settleForExport(p)
 end
 
-RegisterNetEvent(events.response, function(requestId, ok, result)
+RegisterNetEvent(events.response, function(requestId, ok, ...)
     local p = pending[requestId]
     if p == nil then return end
 
     pending[requestId] = nil
 
     if ok then
-        p:resolve(result)
+        -- The FULL result is stashed as a plain field on the promise table
+        -- (not part of its own resolve/reject state machine) before
+        -- resolving -- settleForExport above reads it back out for a
+        -- cross-resource caller. The promise itself still resolves with only
+        -- the handler's FIRST return value, unchanged from before this
+        -- existed, so a same-VM `Citizen.Await(QB.callback.trigger(...))`
+        -- caller (e.g. modules/minigames/client.lua) sees no behavior change
+        -- at all.
+        local packed = table.pack(...)
+        p.qblibCallbackResults = packed
+        p:resolve(packed[1])
     else
-        p:reject(result)
+        -- The error path only ever carries a single value (server.lua's
+        -- events.invoke handler sends just the pcall error message here), so
+        -- there's nothing to pack -- a rejected promise's `.value` already
+        -- is the one thing that matters.
+        p:reject((...))
     end
 end)
 
@@ -158,8 +189,13 @@ RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
     local handler = registry[name]
     if handler == nil then return end
 
-    local ok, result = pcall(handler, ...)
+    -- table.pack, not `local ok, result = pcall(...)` -- see the identical
+    -- comment on server.lua's events.invoke handler for why a two-variable
+    -- capture would silently drop everything past a handler's first return
+    -- value.
+    local results = table.pack(pcall(handler, ...))
+    local ok = results[1]
 
-    TriggerServerEvent(events.clientResponse, requestId, ok, result)
+    TriggerServerEvent(events.clientResponse, requestId, ok, table.unpack(results, 2, results.n))
 end)
 

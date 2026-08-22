@@ -10,6 +10,8 @@ import { ZoneConfirmDialog } from "@/components/zones/ZoneConfirmDialog"
 import { MinigameContainer } from "@/components/minigames/MinigameContainer"
 import { DevHarness } from "@/components/dev/DevHarness"
 import { ThemeSynchronizer } from "@/components/theme/ThemeSynchronizer"
+import { InteractSelect } from "@/components/interact/InteractSelect"
+import { RadialMenuContainer } from "@/components/menu/RadialMenu"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -23,8 +25,10 @@ export default function App() {
     return (
         <>
             <ThemeSynchronizer />
+            <InteractSelect />
             <MenuContainer />
             <ContextMenuContainer />
+            <RadialMenuContainer />
             <InputDialogContainer />
             <AlertDialogContainer />
             <ClipboardHandler />

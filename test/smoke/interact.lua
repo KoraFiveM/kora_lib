@@ -1,0 +1,215 @@
+local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
+local testDir = scriptDir .. "../"
+local repoRoot = testDir .. "../"
+package.path = testDir .. "?.lua;" .. package.path
+
+local harness = require("harness")
+local mocks = require("mocks")
+
+local mockHandle = mocks.install()
+
+dofile(repoRoot .. "config.lua")
+dofile(repoRoot .. "build/initiate.lua")
+
+local nuiCallbacks = {}
+local nuiMessages = {}
+local focusCalls = {}
+local pressedControls = {}
+local disabledControls = {}
+local sphereOptions = {}
+local boxOptions = {}
+local player = { job = { name = "police" }, gang = { name = "ballas" }, citizenid = "CID-1" }
+local inventory = { key = true }
+local removedZones = 0
+
+_G.RegisterNUICallback = function(name, fn) nuiCallbacks[name] = fn end
+_G.SendNUIMessage = function(message) nuiMessages[#nuiMessages + 1] = message end
+_G.SetNuiFocus = function(mouse, keyboard) focusCalls[#focusCalls + 1] = { mouse, keyboard } end
+_G.DisableControlAction = function(_, control) disabledControls[control] = true end
+_G.IsDisabledControlJustPressed = function(_, control) return pressedControls[control] == true end
+
+_G.exports = {
+    ["qb-core"] = {
+        GetPlayerData = function() return player end,
+    },
+    ["qb-inventory"] = {
+        HasItem = function(_, item) return inventory[item] == true end,
+    },
+}
+
+local function newZone(options)
+    return {
+        remove = function()
+            removedZones = removedZones + 1
+        end,
+        options = options,
+    }
+end
+
+QB.zones = {
+    sphere = function(options)
+        sphereOptions[#sphereOptions + 1] = options
+        return newZone(options)
+    end,
+    box = function(options)
+        boxOptions[#boxOptions + 1] = options
+        return newZone(options)
+    end,
+}
+
+_G.GetGamePool = function() return { 101 } end
+_G.GetEntityModel = function(entity) return entity == 101 and 12345 or 0 end
+_G.GetHashKey = function(model) return model == "prop_locker" and 12345 or 0 end
+_G.GetEntityCoords = function(entity) return { x = entity, y = 20, z = 30 } end
+_G.GetEntityHeading = function() return 45 end
+
+dofile(repoRoot .. "modules/nui/client.lua")
+dofile(repoRoot .. "modules/interact/client.lua")
+
+local function reset()
+    QB.interact.close()
+    Config.ui.interact = true
+    nuiMessages = {}
+    focusCalls = {}
+    pressedControls = {}
+    disabledControls = {}
+    sphereOptions = {}
+    boxOptions = {}
+    removedZones = 0
+    player = { job = { name = "police" }, gang = { name = "ballas" }, citizenid = "CID-1" }
+    inventory = { key = true }
+end
+
+local function lastMessage()
+    return nuiMessages[#nuiMessages]
+end
+
+harness.test("open sends compact labels without taking NUI focus", function()
+    reset()
+
+    local opened = QB.interact.open({
+        { label = "Inspect", event = "ignored", args = { "private" } },
+        { label = "Open", action = function() end },
+    })
+
+    harness.assertTrue(opened, "an available option should open the selector")
+    harness.assertEqual(lastMessage().action, "openInteract", "the selector should receive its legacy open action")
+    harness.assertEqual(lastMessage().data[1].label, "Inspect", "only labels should reach the browser")
+    harness.assertTrue(lastMessage().data[1].event == nil, "NUI must never receive a dispatch event")
+    harness.assertEqual(#focusCalls, 0, "a game-input selector must never change NUI focus")
+
+    for _, control in ipairs(Config.interact.selectControls) do
+        harness.assertTrue(disabledControls[control] == true, "active selector controls should be disabled at the game layer")
+    end
+end)
+
+harness.test("selectOption dispatches the selected client event once and hides", function()
+    reset()
+    local dispatches = 0
+    AddEventHandler("interact:client", function(value)
+        if value == "hello" then dispatches = dispatches + 1 end
+    end)
+
+    QB.interact.open({
+        { label = "First" },
+        { label = "Second", event = "interact:client", args = { "hello" } },
+    })
+
+    local response
+    nuiCallbacks.selectOption(2, function(value) response = value end)
+
+    harness.assertEqual(dispatches, 1, "the selected option should dispatch its client event")
+    harness.assertFalse(QB.interact.isActive(), "selection should settle the active session")
+    harness.assertEqual(lastMessage().action, "hideInteract", "selection should close the selector before dispatch")
+    harness.assertTrue(type(response) == "table", "the NUI callback should always respond")
+end)
+
+harness.test("game controls scroll, select, and cancel without NUI focus", function()
+    reset()
+    QB.interact.open({ { label = "First" }, { label = "Second" } })
+
+    pressedControls[Config.interact.nextControls[1]] = true
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "scroll", "down control should send a scroll message")
+    harness.assertEqual(lastMessage().data, 1, "down control should move forward")
+
+    pressedControls = { [Config.interact.cancelControls[1]] = true }
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "hideInteract", "cancel should hide the selector")
+    harness.assertFalse(QB.interact.isActive(), "cancel should clear the session")
+    harness.assertEqual(#focusCalls, 0, "control handling must remain focus-free")
+end)
+
+harness.test("circle zones filter unavailable options and close only their own session", function()
+    reset()
+    local zone = QB.interact.addCircleZone("locker", { x = 0, y = 0, z = 0 }, 2, {}, {
+        options = {
+            { label = "Police locker", job = "police", item = "key" },
+            { label = "Ballas locker", gang = "lostmc" },
+            { label = "Unavailable", canInteract = function() return false end },
+        },
+    })
+
+    harness.assertTrue(zone ~= nil, "circle zone should be created through QB.zones")
+    sphereOptions[1].onEnter()
+    harness.assertEqual(lastMessage().action, "openInteract", "zone entry should open the selector")
+    harness.assertEqual(#lastMessage().data, 1, "unavailable options must be omitted without sparse-array holes")
+    harness.assertEqual(lastMessage().data[1].label, "Police locker", "the matching option should remain")
+
+    sphereOptions[1].onExit()
+    harness.assertEqual(lastMessage().action, "hideInteract", "leaving the active zone should close its selector")
+end)
+
+harness.test("box zones use qb-target length, width, and vertical bounds", function()
+    reset()
+    QB.interact.addBoxZone("counter", { x = 10, y = 20, z = 30 }, 6, 4, {
+        heading = 90,
+        minZ = 25,
+        maxZ = 35,
+    }, { options = { { label = "Use" } } })
+
+    local box = boxOptions[1]
+    harness.assertEqual(box.coords.z, 30, "the zone centre should be the midpoint of minZ/maxZ")
+    harness.assertEqual(box.size.x, 4, "qb-target width maps to qblib's X extent")
+    harness.assertEqual(box.size.y, 6, "qb-target length maps to qblib's Y extent")
+    harness.assertEqual(box.size.z, 10, "vertical bounds should become a full Z extent")
+    harness.assertEqual(box.rotation, 90, "heading should map to qblib rotation")
+end)
+
+harness.test("named zones replace and remove cleanly", function()
+    reset()
+    QB.interact.addCircleZone("replace-me", { x = 0, y = 0, z = 0 }, 1, {}, { options = { { label = "One" } } })
+    QB.interact.addCircleZone("replace-me", { x = 1, y = 1, z = 1 }, 1, {}, { options = { { label = "Two" } } })
+
+    harness.assertEqual(removedZones, 1, "replacing a name should remove its prior zone")
+    harness.assertTrue(QB.interact.removeZone("replace-me"), "removing an existing name should succeed")
+    harness.assertEqual(removedZones, 2, "removeZone should call the underlying handle")
+    harness.assertFalse(QB.interact.removeZone("replace-me"), "removed names should not be removed twice")
+end)
+
+harness.test("target model and entity helpers create static box zones", function()
+    reset()
+    local modelZones = QB.interact.addTargetModel("prop_locker", {
+        size = { x = 2, y = 4, z = 6 },
+        options = { { label = "Open" } },
+    })
+    local entityZone = QB.interact.addTargetEntity(202, { options = { { label = "Use" } } })
+
+    harness.assertEqual(#modelZones, 1, "a streamed matching object should receive a zone")
+    harness.assertTrue(entityZone ~= nil, "an entity should receive a static zone")
+    harness.assertEqual(boxOptions[1].size.x, 2, "model helper should preserve custom X size")
+    harness.assertEqual(boxOptions[1].size.y, 4, "model helper should preserve custom Y size")
+    harness.assertEqual(boxOptions[1].size.z, 6, "model helper should preserve custom Z size")
+end)
+
+harness.test("disabled interact mode creates no zones or UI", function()
+    reset()
+    Config.ui.interact = false
+
+    harness.assertFalse(QB.interact.open({ { label = "Nope" } }), "open should no-op while disabled")
+    harness.assertTrue(QB.interact.addCircleZone("off", { x = 0, y = 0, z = 0 }, 1, {}, { options = { { label = "Nope" } } }) == nil,
+        "zones should not be created while disabled")
+    harness.assertEqual(#nuiMessages, 0, "disabled mode should leave the NUI untouched")
+end)
+
+harness.report("interact")

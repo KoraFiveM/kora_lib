@@ -405,6 +405,20 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 - Use popover background, 10px radius, 4px padding, and the floating shadow.
 - Preserve roving focus, outside-click dismissal, Escape handling, and viewport flipping. Visual changes must not weaken those behaviors.
 
+### Radial menu
+
+- The radial menu is an interactive, temporary overlay: use the standard modal overlay and opaque charcoal ring, but keep every control compact, neutral, and free of blur or gradients.
+- Place icon buttons clockwise from twelve o'clock. The active wedge uses brand-soft and a brand border; crimson remains a focused selection detail, never the ring or backdrop itself.
+- The centre control closes at root and goes Back inside a submenu. Escape and a backdrop click cancel the entire request. Paging through long lists belongs to a labelled `More` wedge; never overcrowd or silently discard an item.
+- Render real buttons with visible keyboard focus. Disabled items remain visible but cannot receive focus or selection; arrow keys, Home/End, Enter, and Space must remain usable alongside pointer input.
+
+### Interact selector
+
+- The interact selector is a display-only, left-edge gameplay overlay. Keep it pointer-transparent and do not grant NUI focus; its owning resource retains all game-control behavior.
+- Use the compact HUD surface, a 10px radius, low neutral shadow, and 40px minimum rows. The current row uses brand-soft plus the shared slim crimson rail; do not turn the whole panel crimson.
+- The selected row may carry one compact confirm-key chip. Labels truncate rather than widening the panel into the gameplay centre.
+- Its qblib interaction contract is `openInteract` carrying `[{ label }]`, `scroll` carrying `1` or `-1`, `select` confirming the highlighted row, and `hideInteract` hiding it. Confirmation POSTs the one-based numeric choice to `selectOption`.
+
 ### Input dialog
 
 - Keep fields in a 12px vertical rhythm and separate the form from footer actions by 16-20px.

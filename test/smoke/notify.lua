@@ -3,8 +3,8 @@ local testDir = scriptDir .. "../"
 local repoRoot = testDir .. "../"
 package.path = testDir .. "?.lua;" .. package.path
 
-local harness = require("harness")
-local mocks = require("mocks")
+local harness = require("resources.[test].qbhud.test.harness")
+local mocks = require("resources.[test].qbhud.test.mocks")
 
 mocks.install()
 

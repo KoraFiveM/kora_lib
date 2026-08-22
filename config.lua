@@ -6,6 +6,17 @@ Config.third_party_notify = false
 -- derives hover, pressed, soft, border, and focus tokens from this one value.
 Config.ui = {
     accentColor = "#DC143C", -- QBCore crimson; e.g. "#7C3AED" for a server-specific brand
+    interact = true, -- set false to disable the qblib interact-zone module entirely
+}
+
+-- Controls are consumed only while a qblib interact selector is visible.
+-- Keeping them here makes the gameplay-side interaction rebindable without
+-- changing the NUI, which remains a pointer-transparent display layer.
+Config.interact = {
+    previousControls = { 27 }, -- INPUT_PHONE / Up
+    nextControls = { 173 }, -- INPUT_CELLPHONE_DOWN / Down
+    selectControls = { 38, 18 }, -- E, Enter
+    cancelControls = { 322, 177, 200 }, -- Escape, Backspace, Pause
 }
 
 Config.callback = {

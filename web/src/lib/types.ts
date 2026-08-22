@@ -7,7 +7,7 @@
 //
 // Keep this file in sync with every Lua-side QB.nui.send/request call site:
 // modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
-// openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
+// openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
 // zoneCreator:* actions), modules/notify/client.lua (the "notify" action),
 // and modules/minigames/client.lua (the minigames:* actions) -- this file is
 // the one place the whole contract is written down on the NUI side.
@@ -44,6 +44,17 @@ export interface NuiThemePayload {
     accentColor?: string
 }
 
+// qblib interact contract. The browser renders the selector but never owns
+// game controls, focus, or selection state outside the visible row.
+export interface InteractOption {
+    label: string
+}
+
+// action: "openInteract". `scroll` carries -1 or 1; `select` confirms the
+// highlighted row; `hideInteract` closes it. The selection POSTs its one-based
+// index straight to the `selectOption` NUI callback.
+export type InteractOpenPayload = InteractOption[]
+
 /**
  * A nested level, opened when its parent item is selected instead of
  * resolving the request. Navigation happens entirely inside the NUI -- Lua
@@ -74,6 +85,15 @@ export interface OpenContextMenuPayload {
     items: MenuItem[]
     x?: number
     y?: number
+}
+
+// action: "openRadialMenu" (request). Items and results deliberately reuse
+// openMenu's schema so callers can share their item trees between both views.
+export interface OpenRadialMenuPayload {
+    items: MenuItem[]
+    x?: number
+    y?: number
+    radius?: number
 }
 
 // `path` is every id walked through to reach the selection, root-first, so a

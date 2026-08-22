@@ -205,6 +205,58 @@ harness.test("openContextMenu forwards items and an (x, y) anchor", function()
     harness.assertEqual(sent.data.payload.y, 200, "y should be forwarded as-is")
 end)
 
+harness.test("openRadialMenu forwards shared menu items and optional geometry", function()
+    local items = { { id = "repair", label = "Repair", icon = "Wrench" } }
+    local p = QB.nui.openRadialMenu(items, { x = 320, y = 240, radius = 180 })
+
+    local sent = sentMessages[#sentMessages]
+    harness.assertEqual(sent.action, "openRadialMenu", "openRadialMenu should send its dedicated action")
+    harness.assertEqual(sent.data.payload.items, items, "radial items should preserve the shared MenuItem table")
+    harness.assertEqual(sent.data.payload.x, 320, "x should be forwarded as-is")
+    harness.assertEqual(sent.data.payload.y, 240, "y should be forwarded as-is")
+    harness.assertEqual(sent.data.payload.radius, 180, "radius should be forwarded as-is")
+
+    local grant = focusCalls[#focusCalls]
+    harness.assertTrue(grant.mouse and grant.keyboard, "a radial menu should grant focus while visible")
+
+    respondOk(lastRequestId(), { selectedId = "repair", path = { "repair" } })
+    harness.assertEqual(p.value.selectedId, "repair", "the selected radial result should pass through unchanged")
+    harness.assertEqual(p.value.path[1], "repair", "the result should preserve its root-first path")
+
+    local release = focusCalls[#focusCalls]
+    harness.assertFalse(release.mouse or release.keyboard, "focus should release when the radial selection settles")
+end)
+
+harness.test("openRadialMenu preserves nested paths and releases focus on cancel", function()
+    local p = QB.nui.openRadialMenu({
+        {
+            id = "vehicle",
+            label = "Vehicle",
+            submenu = { items = { { id = "repair", label = "Repair" } } },
+        },
+    })
+
+    respondOk(lastRequestId(), { selectedId = "repair", path = { "vehicle", "repair" } })
+    harness.assertEqual(p.value.path[1], "vehicle", "a submenu result should retain the parent id")
+    harness.assertEqual(p.value.path[2], "repair", "a submenu result should end with the selected leaf")
+
+    local selectedRelease = focusCalls[#focusCalls]
+    harness.assertFalse(selectedRelease.mouse or selectedRelease.keyboard, "nested selection should release focus only after its final result")
+
+    local cancelled = QB.nui.openRadialMenu({ { id = "close", label = "Close" } })
+    respondOk(lastRequestId(), { cancelled = true })
+    harness.assertTrue(cancelled.value.cancelled, "backdrop/Escape cancellation should pass through unchanged")
+
+    local cancelRelease = focusCalls[#focusCalls]
+    harness.assertFalse(cancelRelease.mouse or cancelRelease.keyboard, "cancel should release radial focus immediately")
+end)
+
+harness.test("openRadialMenu rejects malformed geometry before sending", function()
+    harness.assertThrows(function()
+        QB.nui.openRadialMenu({}, { radius = 0 })
+    end, "a non-positive radius should be rejected")
+end)
+
 harness.test("openInputDialog forwards fields/title/description and resolves with the NUI's raw result", function()
     local fields = { { id = "amount", label = "Amount", type = "number" } }
     local p = QB.nui.openInputDialog(fields, "Enter amount", "How much?")

@@ -8,10 +8,12 @@ import type {
     OpenAlertPayload,
     OpenInputDialogPayload,
     OpenMenuPayload,
+    OpenRadialMenuPayload,
     ProgressStartPayload,
     ZoneCreatorConfirmPayload,
     ZoneCreatorHudSnapshot,
     ZoneCreatorStartPayload,
+    InteractOpenPayload,
 } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 
@@ -102,6 +104,22 @@ const actions: { label: string; run: () => void }[] = [
         run: () => postRequest<OpenMenuPayload>("openMenu", { title: "Sample Menu", items: SAMPLE_ITEMS }),
     },
     {
+        label: "Interact selector",
+        run: () => post<InteractOpenPayload>("openInteract", [
+            { label: "Inspect vehicle" },
+            { label: "Open storage" },
+            { label: "Cancel interaction" },
+        ]),
+    },
+    {
+        label: "Interact next row",
+        run: () => post<number>("scroll", 1),
+    },
+    {
+        label: "Interact select",
+        run: () => post<undefined>("select", undefined),
+    },
+    {
         label: "Menu (nested)",
         run: () =>
             postRequest<OpenMenuPayload>("openMenu", {
@@ -146,6 +164,25 @@ const actions: { label: string; run: () => void }[] = [
                     { id: "top", label: "Top-level action", description: "No submenu — resolves immediately" },
                 ],
             }),
+    },
+    {
+        label: "Radial menu",
+        run: () => postRequest<OpenRadialMenuPayload>("openRadialMenu", {
+            items: [
+                { id: "engine", label: "Engine", icon: "Wrench", description: "Check the engine bay" },
+                { id: "doors", label: "Doors", icon: "Car", submenu: { items: [{ id: "lock", label: "Lock", icon: "Lock" }, { id: "unlock", label: "Unlock", icon: "Unlock" }] } },
+                { id: "disabled", label: "Unavailable", icon: "Ban", disabled: true },
+            ],
+        }),
+    },
+    {
+        label: "Radial menu (paged edge)",
+        run: () => postRequest<OpenRadialMenuPayload>("openRadialMenu", {
+            x: window.innerWidth - 8,
+            y: 8,
+            radius: 170,
+            items: Array.from({ length: 12 }, (_, index) => ({ id: `option-${index + 1}`, label: `Option ${index + 1}`, icon: "Star" })),
+        }),
     },
     {
         label: "Context menu",
