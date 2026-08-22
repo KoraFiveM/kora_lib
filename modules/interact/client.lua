@@ -222,23 +222,21 @@ end
 ---@param name string
 ---@param coords any
 ---@param radius number
----@param zoneOptions? table `{ debugPoly?: boolean }`
+---@param debug boolean
 ---@param targetOptions table `{ options: QBInteractOption[] }`
 ---@return QBZoneHandle? zone
-function QB.interact.addCircleZone(name, coords, radius, zoneOptions, targetOptions)
+function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
-    assert(type(targetOptions) == "table" and type(targetOptions.options) == "table",
+    assert(type(targetOptions) == "table",
         "interact target options require an options array.")
-    zoneOptions = zoneOptions or {}
 
     if zonesByName[name] then zonesByName[name].remove() end
-
     local zone = QB.zones.sphere({
         coords = coords,
         radius = radius or 5.0,
-        debug = zoneOptions.debugPoly == true,
-        onEnter = function() open(targetOptions.options, name) end,
+        debug = debug,
+        onEnter = function() open(targetOptions, name) end,
         onExit = function()
             if active and active.source == name then hide(active) end
         end,
@@ -251,32 +249,26 @@ end
 ---Adds a qblib box zone using qb-target-compatible length/width/minZ/maxZ arguments.
 ---@param name string
 ---@param coords any
----@param length number
----@param width number
----@param zoneOptions? table `{ heading?: number, minZ?: number, maxZ?: number, debugPoly?: boolean }`
+---@param size vector4
 ---@param targetOptions table `{ options: QBInteractOption[] }`
+---@param debug boolean
 ---@return QBZoneHandle? zone
-function QB.interact.addBoxZone(name, coords, length, width, zoneOptions, targetOptions)
+function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
-    assert(type(coords) == "table" and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assert(type(coords) == "vector3" and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
         "interact box coordinates must be vector-like.")
-    assert(type(targetOptions) == "table" and type(targetOptions.options) == "table",
+    assert(type(targetOptions) == "table",
         "interact target options require an options array.")
-    zoneOptions = zoneOptions or {}
-
-    local minZ = zoneOptions.minZ or (coords.z - 2.0)
-    local maxZ = zoneOptions.maxZ or (coords.z + 2.0)
-    assert(maxZ > minZ, "interact box maxZ must exceed minZ.")
 
     if zonesByName[name] then zonesByName[name].remove() end
 
     local zone = QB.zones.box({
-        coords = { x = coords.x, y = coords.y, z = (minZ + maxZ) / 2 },
-        size = { x = width, y = length, z = maxZ - minZ },
-        rotation = zoneOptions.heading or 0.0,
-        debug = zoneOptions.debugPoly == true,
-        onEnter = function() open(targetOptions.options, name) end,
+        coords = { x = coords.x, y = coords.y, z = coords.z },
+        size = { x = size.x, y = size.y, z = size.z },
+        rotation = size.w or 0.0,
+        debug = debug,
+        onEnter = function() open(targetOptions, name) end,
         onExit = function()
             if active and active.source == name then hide(active) end
         end,
@@ -303,12 +295,14 @@ end
 ---Dynamic entities are intentionally not followed; call addTargetEntity after
 ---the entity exists for a one-off target.
 ---@param models string|number|(string|number)[]
----@param targetOptions table `{ options: QBInteractOption[], size?: any, debugPoly?: boolean }`
+---@param size table `{ x: number, y: number, z: number, w: number }`
+---@param targetOptions table 
+---@param debug boolean
 ---@return QBZoneHandle[] zones
-function QB.interact.addTargetModel(models, targetOptions)
+function QB.interact.addTargetModel(models, size, targetOptions, debug)
     if not isEnabled() then return {} end
     assert(type(targetOptions) == "table", "interact target options are required.")
-    assert(type(targetOptions.options) == "table", "interact target options require an options array.")
+    assert(type(targetOptions) == "table", "interact target options require an options array.")
 
     if type(models) ~= "table" then models = { models } end
     local wanted = {}
@@ -321,18 +315,11 @@ function QB.interact.addTargetModel(models, targetOptions)
     for _, entity in ipairs(GetGamePool("CObject")) do
         if wanted[GetEntityModel(entity)] then
             local coords = GetEntityCoords(entity)
-            local size = targetOptions.size or { x = 3.0, y = 3.0, z = 4.0 }
-            assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number",
+            local size = size or  { x = 3.0, y = 3.0, z = 4.0, w = GetEntityHeading(entity) }
+            assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
                 "interact target model size must be vector-like.")
 
-            zones[#zones + 1] = QB.interact.addBoxZone(("model:%s"):format(entity), coords, size.y, size.x, {
-                heading = GetEntityHeading(entity),
-                debugPoly = targetOptions.debugPoly,
-                minZ = coords.z - size.z / 2,
-                maxZ = coords.z + size.z / 2,
-            }, {
-                options = targetOptions.options,
-            })
+            zones[#zones + 1] = QB.interact.addBoxZone(("model:%s"):format(entity), coords, size, targetOptions, debug)
         end
     end
 
@@ -341,24 +328,18 @@ end
 
 ---Adds a static box zone at an entity's current position.
 ---@param entity number
+---@param size table `{ x: number, y: number, z: number, w: number }`
 ---@param targetOptions table `{ options: QBInteractOption[], size?: any, debugPoly?: boolean }`
+---@param debug boolean
 ---@return QBZoneHandle? zone
-function QB.interact.addTargetEntity(entity, targetOptions)
+function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
     if not isEnabled() then return nil end
-    assert(type(targetOptions) == "table" and type(targetOptions.options) == "table",
+    assert(type(targetOptions) == "table",
         "interact target options require an options array.")
 
-    local size = targetOptions.size or { x = 3.0, y = 3.0, z = 3.0 }
-    assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number",
+    size = size or { x = 3.0, y = 3.0, z = 4.0, w = GetEntityHeading(entity) }
+    assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
         "interact target entity size must be vector-like.")
-
     local coords = GetEntityCoords(entity)
-    return QB.interact.addBoxZone(("entity:%s"):format(entity), coords, size.y, size.x, {
-        heading = GetEntityHeading(entity),
-        minZ = coords.z - size.z / 2,
-        maxZ = coords.z + size.z / 2,
-        debugPoly = targetOptions.debugPoly,
-    }, {
-        options = targetOptions.options,
-    })
+    return QB.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
 end
