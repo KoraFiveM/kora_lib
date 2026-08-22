@@ -407,8 +407,8 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 
 ### Radial menu
 
-- The radial menu is an interactive, temporary overlay: use the standard modal overlay and opaque charcoal ring, but keep every control compact, neutral, and free of blur or gradients.
-- Place icon buttons clockwise from twelve o'clock. The active wedge uses brand-soft and a brand border; crimson remains a focused selection detail, never the ring or backdrop itself.
+- The radial menu is an interactive, temporary overlay: use the standard modal overlay with a transparent graph interior—never an opaque circular plate. Keep every control compact, neutral, and free of blur or gradients.
+- Place icon nodes clockwise from twelve o'clock and connect each to the central action node with a crisp neutral-grey line. On hover or keyboard focus, only that node's linked line and endpoint change to the configured brand; other links remain grey. Crimson remains a focused selection detail, never a ring or backdrop treatment.
 - The centre control closes at root and goes Back inside a submenu. Escape and a backdrop click cancel the entire request. Paging through long lists belongs to a labelled `More` wedge; never overcrowd or silently discard an item.
 - Render real buttons with visible keyboard focus. Disabled items remain visible but cannot receive focus or selection; arrow keys, Home/End, Enter, and Space must remain usable alongside pointer input.
 

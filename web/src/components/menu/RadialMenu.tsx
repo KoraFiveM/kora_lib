@@ -191,11 +191,48 @@ export function RadialMenuContainer() {
                 className="pointer-events-none fixed z-overlay select-none duration-dialog ease-entry animate-in zoom-in-95"
                 style={{ left: anchorX, top: anchorY }}
             >
-                <div
+                <svg
                     aria-hidden="true"
-                    className="absolute left-1/2 top-1/2 rounded-full border border-border bg-popover/90 shadow-floating"
-                    style={{ width: radius * 2, height: radius * 2, transform: "translate(-50%, -50%)" }}
-                />
+                    className="pointer-events-none absolute left-1/2 top-1/2 overflow-visible"
+                    width={radius * 2}
+                    height={radius * 2}
+                    viewBox={`0 0 ${radius * 2} ${radius * 2}`}
+                    style={{ transform: "translate(-50%, -50%)" }}
+                >
+                    {entries.map((entry, index) => {
+                        const angle = (index / entries.length) * Math.PI * 2 - Math.PI / 2
+                        const isActive = index === activeIndex && (entry.kind === "more" || !entry.item.disabled)
+                        const start = 46
+                        const end = Math.max(start, radius - ITEM_HALF_SIZE - 6)
+                        const center = radius
+                        const x1 = center + Math.cos(angle) * start
+                        const y1 = center + Math.sin(angle) * start
+                        const x2 = center + Math.cos(angle) * end
+                        const y2 = center + Math.sin(angle) * end
+                        const stroke = isActive ? "hsl(var(--primary))" : "hsl(var(--border-strong))"
+
+                        return (
+                            <g key={entry.kind === "more" ? "__more__-link" : entry.item.id}>
+                                <line
+                                    x1={x1}
+                                    y1={y1}
+                                    x2={x2}
+                                    y2={y2}
+                                    stroke={stroke}
+                                    strokeWidth={isActive ? 2 : 1}
+                                    className="transition-[stroke,stroke-width] duration-fast ease-entry"
+                                />
+                                <circle
+                                    cx={x2}
+                                    cy={y2}
+                                    r={isActive ? 3 : 2}
+                                    fill={stroke}
+                                    className="transition-[fill,r] duration-fast ease-entry"
+                                />
+                            </g>
+                        )
+                    })}
+                </svg>
 
                 {entries.map((entry, index) => {
                     const angle = (index / entries.length) * Math.PI * 2 - Math.PI / 2
@@ -218,6 +255,7 @@ export function RadialMenuContainer() {
                             aria-label={item?.description ? `${label}: ${item.description}` : label}
                             title={item?.description ?? label}
                             onMouseEnter={() => !disabled && setActiveIndex(index)}
+                            onFocus={() => !disabled && setActiveIndex(index)}
                             onClick={() => activateEntry(entry)}
                             className={cn(
                                 "focus-ring pointer-events-auto absolute flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-xl border bg-card px-2 text-center text-xs font-medium text-card-foreground shadow-low transition-[background-color,border-color,color,box-shadow,transform] duration-fast ease-entry",
@@ -235,11 +273,11 @@ export function RadialMenuContainer() {
                     )
                 })}
 
-                <div className="pointer-events-auto absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-border bg-background p-2 text-center shadow-low">
+                <div className="pointer-events-auto absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-xl border border-border bg-card p-2 text-center shadow-low">
                     <button
                         type="button"
                         onClick={canGoBack ? goBack : dismiss}
-                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-[background-color,color,transform] duration-fast ease-entry hover:bg-surface-hover hover:text-foreground active:scale-[0.98]"
+                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,transform] duration-fast ease-entry hover:bg-surface-hover hover:text-foreground active:scale-[0.98]"
                         aria-label={canGoBack ? "Back" : "Close radial menu"}
                         title={canGoBack ? "Back" : "Close"}
                     >
