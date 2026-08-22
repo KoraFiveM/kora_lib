@@ -98,13 +98,13 @@ export function MenuContainer() {
             {/* DialogContent (ui/dialog.tsx) already carries pointer-events-auto
                 for the page-wide pointer-events: none default -- nothing extra
                 to opt into here. */}
-            <DialogContent className="max-w-md overflow-hidden p-0">
+            <DialogContent className="grid h-[75dvh] max-h-[calc(100dvh-2rem)] max-w-md grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
                 <DialogHeader className={cn("mx-4 mt-4 pb-3", !level.title && "sr-only")}>
                     <DialogTitle>{level.title ?? "Menu"}</DialogTitle>
                 </DialogHeader>
-                <Command className="rounded-none border-0 bg-popover text-popover-foreground">
+                <Command className="min-h-0 rounded-none border-0 bg-popover text-popover-foreground">
                     <CommandInput placeholder="Search..." value={search} onValueChange={setSearch} />
-                    <CommandList>
+                    <CommandList className="min-h-0 max-h-none flex-1">
                         <CommandEmpty>No results</CommandEmpty>
                         <CommandGroup>
                             {canGoBack && (
