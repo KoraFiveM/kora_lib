@@ -61,17 +61,20 @@ end
 -- (same signal modules/zones already relies on for ownership tracking -- see
 -- its AGENTS.md's "Resource ownership" note) -- exactly the distinction that
 -- matters here. Same-VM callers get the real promise back unchanged. A
--- genuine cross-resource caller gets the already-awaited plain value (or a
--- raised error on rejection/timeout, which -- like every other qblib error --
--- surfaces to that caller as a printed export-call error and a nil return,
--- not a catchable Lua error) instead of a promise it can't usefully await.
+-- genuine cross-resource caller gets the already-awaited callback results
+-- unpacked as multiple return values (or a raised error on rejection/timeout,
+-- which -- like every other qblib error -- surfaces to that caller as a
+-- printed export-call error and a nil return, not a catchable Lua error)
+-- instead of a promise it can't usefully await.
 -- Deliberately duplicated per-file -- see local/callback/server.lua,
 -- local/events/{client,server}.lua, and modules/{cache,zones,nui}/client.lua
 -- for the other copies.
 local function settleForExport(p)
     if GetInvokingResource() then
-        return Citizen.Await(p)
+        local results = Citizen.Await(p)
+        return table.unpack(results, 1, results.n)
     end
+
     return p
 end
 
@@ -110,8 +113,9 @@ end
 ---Waits for the initial handshake token if it hasn't arrived yet.
 ---@param name string
 ---@param ... any
----@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before); the
----already-settled result value directly for a genuine cross-resource caller (see settleForExport above).
+---@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before);
+---already-settled callback results are returned as multiple values for a genuine
+---cross-resource caller (see settleForExport above).
 function QB.callback.trigger(name, ...)
     QB.callback.assertName(name)
 
@@ -139,16 +143,17 @@ function QB.callback.trigger(name, ...)
     return settleForExport(p)
 end
 
-RegisterNetEvent(events.response, function(requestId, ok, result)
+RegisterNetEvent(events.response, function(requestId, ok, results, resultCount)
     local p = pending[requestId]
     if p == nil then return end
 
     pending[requestId] = nil
 
     if ok then
-        p:resolve(result)
+        results.n = resultCount
+        p:resolve(results)
     else
-        p:reject(result)
+        p:reject(results[1])
     end
 end)
 
@@ -158,8 +163,15 @@ RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
     local handler = registry[name]
     if handler == nil then return end
 
-    local ok, result = pcall(handler, ...)
+    local results = table.pack(pcall(handler, ...))
+    local ok = results[1]
 
-    TriggerServerEvent(events.clientResponse, requestId, ok, result)
+    for i = 1, results.n - 1 do
+        results[i] = results[i + 1]
+    end
+
+    results[results.n] = nil
+    results.n = results.n - 1
+
+    TriggerServerEvent(events.clientResponse,requestId, ok,results,results.n )
 end)
-

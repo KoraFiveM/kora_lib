@@ -45,8 +45,8 @@ end
 -- FXServer's exports boundary hands a cross-resource function argument back
 -- as a table with a __call metamethod, not a plain Lua function -- so a bare
 -- type(x) == "function" check rejects a perfectly callable handler registered
--- from another resource. Deliberately duplicated per-file (separate chunks,
--- no shared locals) -- see local/events/{client,server}.lua and
+-- from another resource. Deliberately duplicated per-file (separate chunks) --
+-- see local/events/{client,server}.lua and
 -- modules/cache/client.lua and modules/zones/client.lua for the other copies.
 local function isCallable(x)
     if type(x) == "function" then return true end
@@ -65,17 +65,18 @@ end
 -- (same signal modules/zones already relies on for ownership tracking -- see
 -- its AGENTS.md's "Resource ownership" note) -- exactly the distinction that
 -- matters here. Same-VM callers get the real promise back unchanged. A
--- genuine cross-resource caller gets the already-awaited plain value (or a
--- raised error on rejection/timeout, which -- like every other qblib error --
--- surfaces to that caller as a printed export-call error and a nil return,
--- not a catchable Lua error) instead of a promise it can't usefully await.
+-- genuine cross-resource caller gets the already-awaited callback results
+-- unpacked as multiple return values (or a raised error on rejection/timeout).
 -- Deliberately duplicated per-file -- see local/callback/client.lua,
 -- local/events/{client,server}.lua, and modules/{cache,zones,nui}/client.lua
 -- for the other copies.
 local function settleForExport(p)
     if GetInvokingResource() then
-        return Citizen.Await(p)
+        local results = Citizen.Await(p)
+
+        return table.unpack(results, 1, results.n)
     end
+
     return p
 end
 
@@ -118,8 +119,9 @@ end
 ---@param target integer Server ID of the player to ask.
 ---@param name string
 ---@param ... any
----@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before); the
----already-settled result value directly for a genuine cross-resource caller (see settleForExport above).
+---@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before);
+---the already-settled callback results as multiple return values for a genuine
+---cross-resource caller (see settleForExport above).
 function QB.callback.trigger(target, name, ...)
     QB.callback.assertName(name)
     assert(type(target) == "number", "target must be a player server ID.")
@@ -129,7 +131,10 @@ function QB.callback.trigger(target, name, ...)
     requestCounter = requestCounter + 1
     local requestId = requestCounter
 
-    pendingClientCallbacks[requestId] = { promise = p, target = target }
+    pendingClientCallbacks[requestId] = {
+        promise = p,
+        target = target
+    }
 
     SetTimeout(Config.callback.timeout, function()
         local pending = pendingClientCallbacks[requestId]
@@ -162,12 +167,20 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     local handler = registry[name]
     if handler == nil then return end
 
-    local ok, result = pcall(handler, src, ...)
+    local results = table.pack(pcall(handler, src, ...))
+    local ok = results[1]
 
-    TriggerClientEvent(events.response, src, requestId, ok, result)
+    for i = 1, results.n - 1 do
+        results[i] = results[i + 1]
+    end
+
+    results[results.n] = nil
+    results.n = results.n - 1
+
+    TriggerClientEvent(events.response, src, requestId, ok, results, results.n)
 end)
 
-RegisterNetEvent(events.clientResponse, function(requestId, ok, result)
+RegisterNetEvent(events.clientResponse, function(requestId, ok, results, resultCount)
     local src = source
     local pending = pendingClientCallbacks[requestId]
 
@@ -177,13 +190,13 @@ RegisterNetEvent(events.clientResponse, function(requestId, ok, result)
     pendingClientCallbacks[requestId] = nil
 
     if ok then
-        pending.promise:resolve(result)
+        results.n = resultCount
+        pending.promise:resolve(results)
     else
-        pending.promise:reject(result)
+        pending.promise:reject(results[1])
     end
 end)
 
 AddEventHandler('playerDropped', function()
     tokens[source] = nil
 end)
-
