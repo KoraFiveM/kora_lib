@@ -12,11 +12,13 @@ function QB.closest.player(src, coords, distance)
     coords, distance = getCoordsAndDistance(src, coords, distance)
     local closestPlayer, closestDistance = nil, nil
     for _, player in ipairs(GetActivePlayers()) do
-        local targetCoords = GetEntityCoords(GetPlayerPed(player))
-        local dist = #(coords - targetCoords)
-        if not closestDistance or dist <= closestDistance then
-            closestDistance = dist
-            closestPlayer = player
+        if tostring(player) ~= tostring(src) then
+            local targetCoords = GetEntityCoords(GetPlayerPed(player))
+            local dist = #(coords - targetCoords)
+            if dist <= distance and (not closestDistance or dist <= closestDistance) then
+                closestDistance = dist
+                closestPlayer = player
+            end
         end
     end
     return { id = closestPlayer, distance = closestDistance }
@@ -28,7 +30,7 @@ function QB.closest.vehicle(src, coords, distance)
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         local targetCoords = GetEntityCoords(vehicle)
         local dist = #(coords - targetCoords)
-        if not closestDistance or dist <= closestDistance then
+        if dist <= distance and (not closestDistance or dist <= closestDistance) then
             closestDistance = dist
             closestVehicle = vehicle
         end
@@ -42,7 +44,7 @@ function QB.closest.ped(src, coords, distance)
     for _, ped in ipairs(GetGamePool('CPed')) do
         local targetCoords = GetEntityCoords(ped)
         local dist = #(coords - targetCoords)
-        if not closestDistance or dist <= closestDistance then
+        if dist <= distance and (not closestDistance or dist <= closestDistance) then
             closestDistance = dist
             closestPed = ped
         end
@@ -56,7 +58,7 @@ function QB.closest.object(src, coords, distance)
     for _, object in ipairs(GetGamePool('CObject')) do
         local targetCoords = GetEntityCoords(object)
         local dist = #(coords - targetCoords)
-        if not closestDistance or dist <= closestDistance then
+        if dist <= distance and (not closestDistance or dist <= closestDistance) then
             closestDistance = dist
             closestObject = object
         end

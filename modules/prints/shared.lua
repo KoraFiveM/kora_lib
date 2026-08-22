@@ -6,11 +6,13 @@ local function handleException(reason, value)
 end
 
 local function formatArgs(...)
-    local args = {...}
+    local args = { ... }
+    local argCount = select('#', ...)
     local formatted = {}
     local jsonOptions = { sort_keys = true, indent = true, exception = handleException }
 
-    for k, v in ipairs(args) do
+    for k = 1, argCount do
+        local v = args[k]
         if type(v) == "table" then
             table.insert(formatted, json.encode(v, jsonOptions))
         elseif type(v) == "boolean" then

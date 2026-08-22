@@ -15,6 +15,7 @@ local RESERVED_KEYS = {
     weapon = true,
     health = true,
     armour = true,
+    coords = true,
 }
 
 -- listenersById[id] = { key = key, entry = entry } -- lets the shared

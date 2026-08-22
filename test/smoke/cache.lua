@@ -29,6 +29,7 @@ end
 _G.GetSelectedPedWeapon = function() return 999 end
 _G.GetEntityHealth = function() return 175 end
 _G.GetPedArmour = function() return 50 end
+_G.GetEntityCoords = function() return { x = 1.0, y = 2.0, z = 3.0 } end
 
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/cache/client.lua")
