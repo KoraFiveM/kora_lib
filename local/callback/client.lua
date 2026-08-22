@@ -66,6 +66,17 @@ end
 -- surfaces to that caller as a printed export-call error and a nil return,
 -- not a catchable Lua error) instead of a promise it can't usefully await.
 --
+-- Callers MUST capture GetInvokingResource() themselves, before doing
+-- anything that can yield, and pass it in as `invoker` -- GetInvokingResource()
+-- only reflects the real cross-resource caller within the SAME synchronous
+-- native-call frame as the exports() invocation. QB.callback.trigger below
+-- can yield inside awaitToken() (polling for the initial handshake token,
+-- very much still in flight on a consumer resource's very first-ever
+-- trigger() call), and by the time control comes back GetInvokingResource()
+-- has already reverted to nil even though the original call was a genuine
+-- cross-resource one -- calling it late here would silently misroute that
+-- caller down the same-VM branch and hand it back a bare, unresolved promise.
+--
 -- UNLIKE every other module's identical copy of this helper (see
 -- local/callback/server.lua, local/events/{client,server}.lua, and
 -- modules/{cache,zones,nui}/client.lua), this copy also forwards every
@@ -79,8 +90,8 @@ end
 -- -- only a genuine cross-resource caller, reached here, gets the extra
 -- values, by reading the side-channel field Citizen.Await(p) itself can't
 -- carry (a promise only ever resolves with ONE value).
-local function settleForExport(p)
-    if GetInvokingResource() then
+local function settleForExport(p, invoker)
+    if invoker then
         Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
         local packed = p.qblibCallbackResults
         if packed == nil then return p.value end -- not a QB.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
@@ -132,11 +143,16 @@ end
 function QB.callback.trigger(name, ...)
     QB.callback.assertName(name)
 
+    -- Captured FIRST, before awaitToken() below gets any chance to yield --
+    -- see the comment on settleForExport above for why calling this any
+    -- later would silently drop a genuine cross-resource caller's identity.
+    local invoker = GetInvokingResource()
+
     local p = promise.new()
 
     if not awaitToken() then
         p:reject("Callback handshake did not complete in time.")
-        return settleForExport(p)
+        return settleForExport(p, invoker)
     end
 
     requestCounter = requestCounter + 1
@@ -153,7 +169,7 @@ function QB.callback.trigger(name, ...)
 
     TriggerServerEvent(events.invoke, token, requestId, name, ...)
 
-    return settleForExport(p)
+    return settleForExport(p, invoker)
 end
 
 RegisterNetEvent(events.response, function(requestId, ok, ...)

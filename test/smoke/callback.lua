@@ -182,4 +182,71 @@ harness.test("server asks client: a handler is dropped when its owning resource 
     harness.assertEqual(p.state, "pending", "no client handler should answer once it's been swept on resource stop")
 end)
 
+harness.test("cross-resource trigger during in-flight handshake resolves to the real value, not a raw promise", function()
+    -- Regression test for the race in QB.callback.trigger (client.lua): a
+    -- genuine cross-resource caller's very first call -- extremely common
+    -- right at a consumer resource's startup/player-connect, before the
+    -- handshake round trip has completed -- used to get the bare unresolved
+    -- promise handed back across the exports() boundary instead of the
+    -- awaited value.
+    --
+    -- GetInvokingResource() only reflects the real caller within the SAME
+    -- synchronous native-call frame as the exports() call. awaitToken()'s
+    -- poll loop yields (via Wait()) while the handshake token is still
+    -- missing, and by the time that resumes, GetInvokingResource() has
+    -- already reverted to nil even though the original call was genuinely
+    -- cross-resource. The fix captures GetInvokingResource() once, before
+    -- awaitToken() gets any chance to yield, and threads it through to
+    -- settleForExport explicitly instead of letting settleForExport
+    -- re-query it late.
+    --
+    -- Fresh mocks + a fresh dofile of both realms are needed here: every
+    -- other test in this file runs after the real handshake already
+    -- completed synchronously during the very first dofile at the top of
+    -- this file, so its `token` local is never nil by the time those tests
+    -- call trigger. Loading client.lua BEFORE server.lua this time means its
+    -- own startup handshake attempt finds no server handler yet and leaves
+    -- the token unset, instead of resolving synchronously.
+    mocks.install()
+
+    ---@type string?
+    local invokerName = "consumer_resource"
+    function _G.GetInvokingResource() return invokerName end
+
+    dofile(repoRoot .. "local/callback/client.lua")
+    local raceClientTrigger = QB.callback.trigger
+
+    dofile(repoRoot .. "local/callback/server.lua")
+    local raceServerRegister = QB.callback.register
+
+    raceServerRegister("smoke:race", function() return "resolved-value" end)
+
+    local result
+    local co = coroutine.create(function()
+        result = raceClientTrigger("smoke:race")
+    end)
+
+    local ok1, err1 = coroutine.resume(co)
+    harness.assertTrue(ok1, ("trigger errored before yielding: %s"):format(tostring(err1)))
+    harness.assertEqual(coroutine.status(co), "suspended",
+        "expected the trigger call to yield inside awaitToken() while the handshake token is still missing")
+
+    -- The real exports() call frame has ended by now -- this is the whole
+    -- hazard: GetInvokingResource() reverts to nil here, exactly as it
+    -- would between a real yield and its resume.
+    invokerName = nil
+
+    _G.TriggerServerEvent("qblib:callback:handshake")
+
+    local ok2, err2 = coroutine.resume(co)
+    harness.assertTrue(ok2, ("trigger errored after resuming: %s"):format(tostring(err2)))
+    harness.assertEqual(coroutine.status(co), "dead",
+        "expected the trigger call to run to completion once the token arrived")
+
+    harness.assertEqual(result, "resolved-value",
+        "a genuine cross-resource caller must get back the real resolved value, never a raw unresolved promise")
+    harness.assertFalse(type(result) == "table" and result.state ~= nil,
+        "the result must not be a raw promise table")
+end)
+
 harness.report("callback")
