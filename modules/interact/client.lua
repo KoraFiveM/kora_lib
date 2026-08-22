@@ -315,7 +315,7 @@ function QB.interact.addTargetModel(models, size, targetOptions, debug)
     for _, entity in ipairs(GetGamePool("CObject")) do
         if wanted[GetEntityModel(entity)] then
             local coords = GetEntityCoords(entity)
-            local size = size or  { x = 3.0, y = 3.0, z = 4.0, w = GetEntityHeading(entity) }
+            local size = {x = size.x or 3.0, y = size.y or 3.0, z = size.z or 4.0, w = size.w or GetEntityHeading(entity)}
             assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
                 "interact target model size must be vector-like.")
 
@@ -336,8 +336,8 @@ function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(targetOptions) == "table",
         "interact target options require an options array.")
-
-    size = size or { x = 3.0, y = 3.0, z = 4.0, w = GetEntityHeading(entity) }
+    size = {x = size.x or 3.0, y = size.y or 3.0, z = size.z or 4.0, w = size.w or GetEntityHeading(entity)}
+    if not size.w then size.w = GetEntityHeading(entity) end
     assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
         "interact target entity size must be vector-like.")
     local coords = GetEntityCoords(entity)
