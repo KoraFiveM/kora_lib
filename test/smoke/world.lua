@@ -210,4 +210,140 @@ harness.test("player type enumerates via GetActivePlayers/GetPlayerPed, not GetG
     harness.assertEqual(matches[1].entity, 51, "the closer player ped should be first")
 end)
 
+-- Every client-realm test above has already run and reported its own
+-- assertions, so dofile-ing server.lua below overwriting
+-- QB.world.getNearbyEntities/getClosestEntity with the server realm's
+-- definitions of the same names (see AGENTS.md's note on this exact
+-- collision) is safe -- nothing after this point needs the client versions.
+
+-- Server has no GetGamePool/GetActivePlayers/own-ped concept -- one native
+-- per entity kind instead, plus GetPlayers for the connected-player list.
+local serverPools = { CPed = {}, CVehicle = {}, CObject = {} }
+local serverPlayers = {}
+local serverPlayerPeds = {}
+
+_G.GetAllPeds = function() return serverPools.CPed end
+_G.GetAllVehicles = function() return serverPools.CVehicle end
+_G.GetAllObjects = function() return serverPools.CObject end
+_G.GetPlayers = function() return serverPlayers end
+_G.GetPlayerPed = function(playerId) return serverPlayerPeds[playerId] end
+
+local function serverReset()
+    entityData = {}
+    serverPools = { CPed = {}, CVehicle = {}, CObject = {} }
+    serverPlayers = {}
+    serverPlayerPeds = {}
+end
+
+local function addToServerPool(poolType, entity, x, y, z, model)
+    entityData[entity] = { coords = { x = x, y = y, z = z }, model = model or 1 }
+    table.insert(serverPools[poolType], entity)
+end
+
+dofile(repoRoot .. "modules/world/server.lua")
+
+local serverGetNearbyEntities = QB.world.getNearbyEntities
+local serverGetClosestEntity = QB.world.getClosestEntity
+
+harness.test("[server] getNearbyEntities sorts matches ascending by distance", function()
+    serverReset()
+    addToServerPool("CVehicle", 30, 5, 0, 0)
+    addToServerPool("CVehicle", 31, 1, 0, 0)
+    addToServerPool("CVehicle", 32, 3, 0, 0)
+
+    local matches = serverGetNearbyEntities("vehicle", ORIGIN, 50.0)
+
+    harness.assertEqual(#matches, 3, "all three vehicles should be within radius")
+    harness.assertEqual(matches[1].entity, 31, "closest vehicle should be first")
+    harness.assertEqual(matches[3].entity, 30, "farthest should be last")
+end)
+
+harness.test("[server] getNearbyEntities excludes matches beyond radius", function()
+    serverReset()
+    addToServerPool("CPed", 10, 5, 0, 0)
+    addToServerPool("CPed", 11, 100, 0, 0)
+
+    local matches = serverGetNearbyEntities("ped", ORIGIN, 10.0)
+
+    harness.assertEqual(#matches, 1, "only the in-range ped should match")
+    harness.assertEqual(matches[1].entity, 10, "the in-range ped should be entity 10")
+end)
+
+harness.test("[server] models filter accepts numeric hashes and joaat-hashed strings", function()
+    serverReset()
+    addToServerPool("CObject", 20, 5, 0, 0, 111)
+    addToServerPool("CObject", 21, 6, 0, 0, joaat("prop_bin_08"))
+
+    local matches = serverGetNearbyEntities("object", ORIGIN, 50.0, { models = { 111 } })
+    harness.assertEqual(#matches, 1, "only the matching numeric model should be returned")
+
+    local hashMatches = serverGetNearbyEntities("object", ORIGIN, 50.0, { models = { "prop_bin_08" } })
+    harness.assertEqual(#hashMatches, 1, "string models should be joaat-hashed before comparing")
+    harness.assertEqual(hashMatches[1].entity, 21, "entity 21 has the requested model")
+end)
+
+harness.test("[server] excludeEntities filters explicit handles", function()
+    serverReset()
+    addToServerPool("CVehicle", 30, 5, 0, 0)
+    addToServerPool("CVehicle", 31, 6, 0, 0)
+
+    local matches = serverGetNearbyEntities("vehicle", ORIGIN, 50.0, { excludeEntities = { 30 } })
+
+    harness.assertEqual(#matches, 1, "the excluded entity should be dropped")
+    harness.assertEqual(matches[1].entity, 31, "only the non-excluded vehicle should remain")
+end)
+
+harness.test("[server] predicate runs last and can reject a candidate that passed every other filter", function()
+    serverReset()
+    addToServerPool("CPed", 10, 5, 0, 0)
+    addToServerPool("CPed", 11, 6, 0, 0)
+
+    local seen = {}
+    local matches = serverGetNearbyEntities("ped", ORIGIN, 50.0, {
+        predicate = function(entity, coords, distance)
+            table.insert(seen, entity)
+            return entity == 10
+        end,
+    })
+
+    harness.assertEqual(#matches, 1, "only the predicate-accepted entity should be returned")
+    harness.assertEqual(#seen, 2, "the predicate should have run against every candidate that reached it")
+end)
+
+harness.test("[server] getClosestEntity returns false when nothing is within range, otherwise entity/coords/distance", function()
+    serverReset()
+    addToServerPool("CPed", 10, 100, 0, 0)
+    harness.assertFalse(serverGetClosestEntity("ped", ORIGIN, { radius = 10.0 }), "no ped is within the given radius")
+
+    serverReset()
+    addToServerPool("CPed", 10, 5, 0, 0)
+    addToServerPool("CPed", 11, 1, 0, 0)
+    local entity, coords, distance = serverGetClosestEntity("ped", ORIGIN, { radius = 50.0 })
+    harness.assertEqual(entity, 11, "the nearest ped should be returned")
+    harness.assertEqual(coords.x, 1, "the returned coords should belong to the nearest ped")
+    harness.assertEqual(distance, 1, "the returned distance should match the nearest ped")
+end)
+
+harness.test("[server] getClosestEntity falls back to Config.world.defaultRadius when radius is omitted", function()
+    serverReset()
+    addToServerPool("CPed", 10, Config.world.defaultRadius + 10, 0, 0)
+    addToServerPool("CPed", 11, Config.world.defaultRadius - 1, 0, 0)
+
+    local entity = serverGetClosestEntity("ped", ORIGIN)
+    harness.assertEqual(entity, 11, "only the ped within the default radius should match")
+end)
+
+harness.test("[server] player type enumerates via GetPlayers/GetPlayerPed, not GetAllPeds", function()
+    serverReset()
+    serverPlayers = { "0", "1" }
+    serverPlayerPeds = { ["0"] = 50, ["1"] = 51 }
+    entityData[50] = { coords = { x = 5, y = 0, z = 0 }, model = 1 }
+    entityData[51] = { coords = { x = 1, y = 0, z = 0 }, model = 1 }
+
+    local matches = serverGetNearbyEntities("player", ORIGIN, 50.0)
+
+    harness.assertEqual(#matches, 2, "both player peds should be returned")
+    harness.assertEqual(matches[1].entity, 51, "the closer player ped should be first")
+end)
+
 harness.report("world")

@@ -1,67 +1,45 @@
 ---@diagnostic disable: duplicate-doc-field
 
-local function getCoordsAndDistance(src, coords, distance)
-    if not coords then
-        coords = GetEntityCoords(GetPlayerPed(src))
+-- See the identical note in modules/closest/client.lua: QB.world's "player"
+-- entityType returns a ped, but QB.closest.player's contract is a player id.
+local function pedToPlayerId(ped)
+    for _, playerId in ipairs(GetPlayers()) do
+        if GetPlayerPed(playerId) == ped then return playerId end
     end
-    if not distance then distance = 15.0 end
-    return coords, distance
+    return nil
+end
+
+local function resolveCoords(src, coords)
+    return coords or GetEntityCoords(GetPlayerPed(src))
 end
 
 function QB.closest.player(src, coords, distance)
-    coords, distance = getCoordsAndDistance(src, coords, distance)
-    local closestPlayer, closestDistance = nil, nil
-    for _, player in ipairs(GetActivePlayers()) do
-        if tostring(player) ~= tostring(src) then
-            local targetCoords = GetEntityCoords(GetPlayerPed(player))
-            local dist = #(coords - targetCoords)
-            if dist <= distance and (not closestDistance or dist <= closestDistance) then
-                closestDistance = dist
-                closestPlayer = player
-            end
-        end
-    end
-    return { id = closestPlayer, distance = closestDistance }
+    local ped, _, dist = QB.world.getClosestEntity('player', resolveCoords(src, coords), {
+        radius = distance or 15.0,
+        excludeEntities = { GetPlayerPed(src) },
+    })
+    if not ped then return { id = nil, distance = nil } end
+    return { id = pedToPlayerId(ped), distance = dist }
 end
 
 function QB.closest.vehicle(src, coords, distance)
-    coords, distance = getCoordsAndDistance(src, coords, distance)
-    local closestVehicle, closestDistance = nil, nil
-    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-        local targetCoords = GetEntityCoords(vehicle)
-        local dist = #(coords - targetCoords)
-        if dist <= distance and (not closestDistance or dist <= closestDistance) then
-            closestDistance = dist
-            closestVehicle = vehicle
-        end
-    end
-    return { id = closestVehicle, distance = closestDistance }
+    local entity, _, dist = QB.world.getClosestEntity('vehicle', resolveCoords(src, coords), {
+        radius = distance or 15.0,
+    })
+    return { id = entity or nil, distance = dist }
 end
 
 function QB.closest.ped(src, coords, distance)
-    coords, distance = getCoordsAndDistance(src, coords, distance)
-    local closestPed, closestDistance = nil, nil
-    for _, ped in ipairs(GetGamePool('CPed')) do
-        local targetCoords = GetEntityCoords(ped)
-        local dist = #(coords - targetCoords)
-        if dist <= distance and (not closestDistance or dist <= closestDistance) then
-            closestDistance = dist
-            closestPed = ped
-        end
-    end
-    return { id = closestPed, distance = closestDistance }
+    local entity, _, dist = QB.world.getClosestEntity('ped', resolveCoords(src, coords), {
+        radius = distance or 15.0,
+        excludeEntities = { GetPlayerPed(src) },
+    })
+    return { id = entity or nil, distance = dist }
 end
 
 function QB.closest.object(src, coords, distance)
-    coords, distance = getCoordsAndDistance(src, coords, distance)
-    local closestObject, closestDistance = nil, nil
-    for _, object in ipairs(GetGamePool('CObject')) do
-        local targetCoords = GetEntityCoords(object)
-        local dist = #(coords - targetCoords)
-        if dist <= distance and (not closestDistance or dist <= closestDistance) then
-            closestDistance = dist
-            closestObject = object
-        end
-    end
-    return { id = closestObject, distance = closestDistance }
+    local entity, _, dist = QB.world.getClosestEntity('object', resolveCoords(src, coords), {
+        radius = distance or 15.0,
+    })
+    return { id = entity or nil, distance = dist }
 end
