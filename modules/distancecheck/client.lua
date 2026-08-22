@@ -49,4 +49,3 @@ function QB.distance.xy(point, distance)
 
     return dist <= (distance or 5.0)
 end
-QB.print.info('a', nil, 'b', function() return 'c' end, 1, "1")
