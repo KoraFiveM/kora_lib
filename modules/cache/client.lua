@@ -98,6 +98,7 @@ local function refresh()
     setValue("vehicle", vehicle)
     setValue("seat", computeSeat(vehicle, ped))
     setValue("weapon", GetSelectedPedWeapon(ped))
+    setValue('coords', GetEntityCoords(ped))
 end
 
 refresh()
