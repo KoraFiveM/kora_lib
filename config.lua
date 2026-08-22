@@ -80,6 +80,7 @@ Config.zones = {
         defaultThickness = 4.0,  -- meters; starting height band for a new poly
         sizeStep = 0.25,         -- meters per scroll tick when adjusting size/height/radius/thickness
         rotationStep = 5.0,      -- degrees per scroll tick when adjusting box rotation
+        shiftMultiplier = 2.5,   -- multiplies sizeStep/rotationStep while Shift is held, for faster adjustment
         maxPolyPoints = 64,      -- hard cap so placement can't run away
         confirmTimeout = 120000, -- ms the confirm dialog waits for a response before the promise rejects
         hideRadar = true,        -- hide the minimap while placing, so it can't cover the shape you're drawing

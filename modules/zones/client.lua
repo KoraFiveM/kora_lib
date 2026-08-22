@@ -895,24 +895,43 @@ local function resolveCreator(value)
     if state then state.promise:resolve(value) end
 end
 
+-- Shift reverses the cycle direction (Shift+Tab steps backwards) and speeds up
+-- scroll-adjustment (Shift+scroll moves shiftMultiplier times faster) -- rotate
+-- in particular is painfully slow to dial in a full turn one rotationStep at a
+-- time, and the same goes for nudging size/zOffset/etc. in bigger increments.
+-- Checked at keypress/scroll time rather than being its own keybind because
+-- RegisterKeyMapping has no modifier syntax to bind "Shift+Tab"/"Shift+Scroll"
+-- with in the first place.
+--
+-- IsRawKeyPressed reads the physical Shift key (VK_SHIFT = 0x10) and so can't
+-- be thrown off by a rebound sprint control, but it isn't present on every
+-- client build -- hence the guarded call and the INPUT_SPRINT (21) fallback.
+local function shiftHeld()
+    local ok, pressed = pcall(function() return IsRawKeyPressed(16) end)
+    if ok and type(pressed) == "boolean" then return pressed end
+
+    return IsControlPressed(0, 21)
+end
+
 local function adjustActiveParam(state, direction)
     local param = creatorParamCycles[state.type][state.activeParam]
     local step = Config.zones.creator
+    local multiplier = shiftHeld() and step.shiftMultiplier or 1
 
     if param == "editPoint" then
         -- A mode, not a value: which point is grabbed follows the aim, so
         -- there's nothing for the scroll wheel to nudge here.
         return
     elseif param == "rotation" then
-        state.rotation = (state.rotation + direction * step.rotationStep) % 360
+        state.rotation = (state.rotation + direction * step.rotationStep * multiplier) % 360
     elseif param == "zOffset" then
         -- Signed on purpose -- unlike the size params below, negative is
         -- meaningful (sinking a zone beneath the surface it was placed on).
-        state.zOffset = state.zOffset + direction * step.sizeStep
+        state.zOffset = state.zOffset + direction * step.sizeStep * multiplier
     else
         -- size/height/radius/thickness all move the same way: nudge by
         -- sizeStep, clamped so it can never reach zero/negative.
-        state[param] = math.max(step.sizeStep, state[param] + direction * step.sizeStep)
+        state[param] = math.max(step.sizeStep, state[param] + direction * step.sizeStep * multiplier)
     end
 
     state.dirty = true
@@ -1036,22 +1055,10 @@ local function creatorUndo(state)
     state.dirty = true
 end
 
--- Shift reverses the cycle direction (Shift+Tab steps backwards), which
+-- Shift also reverses the cycle direction (Shift+Tab steps backwards), which
 -- matters once a shape has 4 parameters -- tabbing forward three times to get
--- back one is miserable. Checked at keypress time rather than being its own
--- keybind because RegisterKeyMapping has no modifier syntax to bind
--- "Shift+Tab" with in the first place.
---
--- IsRawKeyPressed reads the physical Shift key (VK_SHIFT = 0x10) and so can't
--- be thrown off by a rebound sprint control, but it isn't present on every
--- client build -- hence the guarded call and the INPUT_SPRINT (21) fallback.
-local function shiftHeld()
-    local ok, pressed = pcall(function() return IsRawKeyPressed(16) end)
-    if ok and type(pressed) == "boolean" then return pressed end
-
-    return IsControlPressed(0, 21)
-end
-
+-- back one is miserable. shiftHeld() itself is defined above, next to
+-- adjustActiveParam, which is its other caller.
 local function creatorCycleParam(state)
     local cycle = creatorParamCycles[state.type]
     local step = shiftHeld() and -1 or 1
