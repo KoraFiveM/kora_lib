@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 
-import type { LockpickAttempt, LockpickPress, LockpickPuzzle } from "@/lib/types"
+import type { CancelledAttempt, LockpickAttempt, LockpickPress, LockpickPuzzle } from "@/lib/types"
 import { triangleWave } from "@/lib/triangleWave"
 import { cn } from "@/lib/cn"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -11,7 +11,7 @@ interface LockpickGameProps {
     attempts: number
     timeLimit: number
     lastResult?: "fail"
-    respond: (attempt: LockpickAttempt) => void
+    respond: (attempt: LockpickAttempt | CancelledAttempt) => void
 }
 
 /**
@@ -27,6 +27,12 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
     const pressesRef = useRef<LockpickPress[]>([])
     const [elapsed, setElapsed] = useState(0)
     const [pinIndex, setPinIndex] = useState(0)
+    // Purely cosmetic: which already-locked pins landed inside their target
+    // zone, keyed by pin index. The server independently re-derives real
+    // pass/fail from the same triangleWave formula and never trusts this --
+    // see modules/minigames/AGENTS.md's "report timestamps, never positions"
+    // note. This only decides whether a track glows green or amber.
+    const [pinHits, setPinHits] = useState<Record<number, boolean>>({})
 
     useEffect(() => {
         let raf: number
@@ -44,6 +50,12 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
         respond({ presses })
     }
 
+    function cancel() {
+        if (doneRef.current) return
+        doneRef.current = true
+        respond({ cancelled: true })
+    }
+
     useEffect(() => {
         if (elapsed >= timeLimit) finish(pressesRef.current)
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,8 +67,13 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
             event.preventDefault()
             if (doneRef.current || pinIndex >= puzzle.pinCount) return
 
-            const press: LockpickPress = { index: pinIndex + 1, elapsed: performance.now() - startRef.current }
+            const pressElapsed = performance.now() - startRef.current
+            const press: LockpickPress = { index: pinIndex + 1, elapsed: pressElapsed }
             pressesRef.current = [...pressesRef.current, press]
+
+            const pin = puzzle.pins[pinIndex]
+            const hit = Math.abs(triangleWave(pressElapsed, puzzle.speed) - pin.target) <= puzzle.tolerance
+            setPinHits((prev) => ({ ...prev, [pinIndex]: hit }))
 
             if (pinIndex + 1 >= puzzle.pinCount) {
                 finish(pressesRef.current)
@@ -67,12 +84,12 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
 
         window.addEventListener("keydown", onKeyDown)
         return () => window.removeEventListener("keydown", onKeyDown)
-    }, [pinIndex, puzzle.pinCount])
+    }, [pinIndex, puzzle])
 
     const position = triangleWave(elapsed, puzzle.speed)
 
     return (
-        <Dialog open>
+        <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
@@ -90,6 +107,7 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
                             key={pin.index}
                             active={i === pinIndex}
                             done={i < pinIndex}
+                            hit={pinHits[i]}
                             target={pin.target}
                             tolerance={puzzle.tolerance}
                             position={i === pinIndex ? position : undefined}
@@ -99,6 +117,7 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
 
                 <p className="text-xs text-muted-foreground">
                     Press <span className="font-medium text-foreground">Space</span> when the indicator is inside the highlighted zone.
+                    Press <span className="font-medium text-foreground">Esc</span> to cancel.
                 </p>
             </DialogContent>
         </Dialog>
@@ -108,18 +127,26 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
 function PinTrack({
     active,
     done,
+    hit,
     target,
     tolerance,
     position,
 }: {
     active: boolean
     done: boolean
+    hit?: boolean
     target: number
     tolerance: number
     position?: number
 }) {
     return (
-        <div className={cn("relative h-3 overflow-hidden rounded-full bg-secondary", active && "ring-2 ring-primary")}>
+        <div
+            className={cn(
+                "relative h-3 overflow-hidden rounded-full bg-secondary transition-shadow",
+                active && "ring-2 ring-primary",
+                done && hit && "ring-2 ring-success"
+            )}
+        >
             <div
                 className="absolute inset-y-0 rounded-full border border-brand-border bg-brand-soft"
                 style={{ left: `${(target - tolerance) * 100}%`, width: `${tolerance * 2 * 100}%` }}
@@ -131,8 +158,13 @@ function PinTrack({
                 />
             )}
             {done && (
-                <div className="absolute inset-0 flex items-center justify-end pr-2 text-[10px] font-semibold text-success">
-                    done
+                <div
+                    className={cn(
+                        "absolute inset-0 flex items-center justify-end pr-2 text-[10px] font-semibold",
+                        hit ? "text-success" : "text-muted-foreground"
+                    )}
+                >
+                    {hit ? "got it" : "done"}
                 </div>
             )}
         </div>

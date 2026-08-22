@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 
-import type { CircuitAttempt, CircuitConnection, CircuitNode, CircuitPuzzle } from "@/lib/types"
+import type { CancelledAttempt, CircuitAttempt, CircuitConnection, CircuitNode, CircuitPuzzle } from "@/lib/types"
 import { cn } from "@/lib/cn"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -10,7 +10,7 @@ interface CircuitGameProps {
     attempts: number
     timeLimit: number
     lastResult?: "fail"
-    respond: (attempt: CircuitAttempt) => void
+    respond: (attempt: CircuitAttempt | CancelledAttempt) => void
 }
 
 /**
@@ -43,6 +43,12 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         respond({ connections: conns })
     }
 
+    function cancel() {
+        if (doneRef.current) return
+        doneRef.current = true
+        respond({ cancelled: true })
+    }
+
     useEffect(() => {
         if (elapsed >= timeLimit) finish(connections)
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,7 +75,7 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
     }
 
     return (
-        <Dialog open>
+        <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
@@ -106,7 +112,10 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                     </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">Click an input, then the output with the matching color.</p>
+                <p className="text-xs text-muted-foreground">
+                    Click an input, then the output with the matching color. Press{" "}
+                    <span className="font-medium text-foreground">Esc</span> to cancel.
+                </p>
             </DialogContent>
         </Dialog>
     )

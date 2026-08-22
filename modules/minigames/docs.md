@@ -20,7 +20,10 @@ Plays one round-based minigame session, opening a full-screen overlay and blocki
 Opens NUI focus once and keeps the same overlay mounted for every attempt -- a failed attempt with tries remaining re-renders a **freshly generated** puzzle in place (anti-farming: the target can't be memorized and repeated), it doesn't close and reopen. Each round is individually time-limited (`timeLimit`, per type); the overlay is expected to auto-submit whatever partial input it has once that time is up, which counts as a failed attempt like any other.
 
 #### Returns
-- `promise|any result` -- resolves/returns `{ success: boolean, attempts: integer }` (`attempts` = how many tries it took) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. Rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, or the round trip fails outright.
+- `promise|any result` -- resolves/returns `{ success: boolean, attempts: integer, cancelled?: true }` (`attempts` = how many tries it took before success/exhaustion/cancellation) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. `cancelled` is present (and `success` false) when the player backed out early -- see "Cancelling" below. Rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, or the round trip fails outright.
+
+## Cancelling
+Every minigame's dialog closes on Escape or a backdrop click, same as `QB.nui.openMenu`/`openInputDialog`. Cancelling ends the round immediately -- it does **not** consume an attempt, and the server session is freed right away (not left to its `sessionTTL`), so the player can start a fresh `QB.minigames.play()` call right after cancelling instead of hitting "already in progress" until the old session would have expired. A round that instead simply runs out of `timeLimit` still auto-submits and counts as a normal failed attempt, exactly as before.
 
 #### Example
 ```lua

@@ -323,8 +323,12 @@ export interface MashAttempt {
     pressTimestamps: number[]
 }
 
+export interface CancelledAttempt {
+    cancelled: true
+}
+
 export type MinigamePuzzle = LockpickPuzzle | SkillbarPuzzle | CircuitPuzzle | MashPuzzle
-export type MinigameAttempt = LockpickAttempt | SkillbarAttempt | CircuitAttempt | MashAttempt
+export type MinigameAttempt = LockpickAttempt | SkillbarAttempt | CircuitAttempt | MashAttempt | CancelledAttempt
 
 // action: "minigames:round" (request) -- mount/update MinigameContainer. Sent
 // once per round: the FIRST round after QB.minigames.play() starts, and again

@@ -3,8 +3,8 @@ local testDir = scriptDir .. "../"
 local repoRoot = testDir .. "../"
 package.path = testDir .. "?.lua;" .. package.path
 
-local harness = require("harness")
-local mocks = require("mocks")
+local harness = require("resources.[test].qbhud.test.harness")
+local mocks = require("resources.[test].qbhud.test.mocks")
 
 -- Same dual-realm-in-one-process trick test/smoke/callback.lua uses: load the
 -- server half of local/callback while QB.callback.register/trigger still
@@ -131,6 +131,34 @@ harness.test("mash: fails and exhausts every attempt when never enough presses a
     harness.assertEqual(p.state, "resolved", "running out of attempts should still resolve, not reject")
     harness.assertFalse(p.value.success, "should fail when never enough presses are reported")
     harness.assertEqual(p.value.attempts, 2, "should have used every allotted attempt")
+end)
+
+harness.test("cancelling a round ends the session immediately without consuming an attempt", function()
+    sentMessages = {}
+    roundResponder = function() return { cancelled = true } end
+
+    local p = QB.minigames.play("mash", { attempts = 3 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "a cancel should resolve cleanly, not reject")
+    harness.assertFalse(p.value.success, "a cancelled session cannot succeed")
+    harness.assertTrue(p.value.cancelled, "the result should be flagged cancelled")
+    harness.assertEqual(p.value.attempts, 0, "cancelling before ever submitting should have used zero attempts")
+
+    local closedWithCancelled = false
+    for _, msg in ipairs(sentMessages) do
+        if msg.action == "minigames:close" and msg.data and msg.data.result == "cancelled" then
+            closedWithCancelled = true
+        end
+    end
+    harness.assertTrue(closedWithCancelled, "the overlay should close with result = cancelled")
+
+    -- Proves the SERVER session was actually freed right away rather than
+    -- left for expiresAt/the 30s sweep -- a fresh session must be obtainable
+    -- immediately, not rejected by the per-player concurrency guard.
+    local fresh = Citizen.Await(QB.callback.trigger("qblib:minigames:start", "mash", { attempts = 1 }))
+    harness.assertTrue(fresh.sessionId ~= nil, "a fresh session should start immediately after cancelling, proving the old one was freed")
+    Citizen.Await(QB.callback.trigger("qblib:minigames:submit", fresh.sessionId, { pressTimestamps = {} }))
 end)
 
 harness.test("skillbar: succeeds when the reported elapsed lands in the target zone", function()

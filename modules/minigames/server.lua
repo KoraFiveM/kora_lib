@@ -371,3 +371,17 @@ QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
         public = public,
     }
 end)
+
+-- Player-initiated early exit (Escape in the NUI, see client.lua's beginPlay)
+-- -- distinct from letting the round's own timeLimit lapse, which is still a
+-- normal failed attempt via submit above. Ending the session here immediately
+-- rather than leaving it for expiresAt/the 30s sweep matters for
+-- maxConcurrentPerPlayer: without this, a player who cancels and immediately
+-- retries would spuriously hit "already in progress" for up to sessionTTL.
+-- Does NOT consume an attempt -- a cancel isn't a failed guess at the puzzle.
+QB.callback.register("qblib:minigames:cancel", function(src, sessionId)
+    local session = sessions[sessionId]
+    if session == nil or session.src ~= src then return false end
+    endSession(session)
+    return true
+end)

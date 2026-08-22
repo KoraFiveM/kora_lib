@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 
-import type { SkillbarAttempt, SkillbarPuzzle } from "@/lib/types"
+import type { CancelledAttempt, SkillbarAttempt, SkillbarPuzzle } from "@/lib/types"
 import { triangleWave } from "@/lib/triangleWave"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -10,7 +10,7 @@ interface SkillbarGameProps {
     attempts: number
     timeLimit: number
     lastResult?: "fail"
-    respond: (attempt: SkillbarAttempt) => void
+    respond: (attempt: SkillbarAttempt | CancelledAttempt) => void
 }
 
 /**
@@ -39,6 +39,12 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
         respond({ elapsed: elapsedAtPress })
     }
 
+    function cancel() {
+        if (doneRef.current) return
+        doneRef.current = true
+        respond({ cancelled: true })
+    }
+
     useEffect(() => {
         if (elapsed >= timeLimit) finish(elapsed)
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,7 +64,7 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
     const position = triangleWave(elapsed, puzzle.speed)
 
     return (
-        <Dialog open>
+        <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
@@ -83,6 +89,7 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
 
                 <p className="text-xs text-muted-foreground">
                     Press <span className="font-medium text-foreground">Space</span> when the indicator is inside the zone.
+                    Press <span className="font-medium text-foreground">Esc</span> to cancel.
                 </p>
             </DialogContent>
         </Dialog>

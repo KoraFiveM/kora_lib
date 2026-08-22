@@ -85,6 +85,18 @@ local function beginPlay(gameType, opts, resource)
                         puzzle = round.public,
                     }, round.timeLimit + Config.minigames.roundTimeoutBuffer))
 
+                    -- Player pressed Escape (every minigame's Dialog resolves
+                    -- {cancelled = true} on Escape/backdrop, same vocabulary
+                    -- modules/nui's own menus use) -- distinct from a round
+                    -- simply timing out (attempt == nil), which still submits
+                    -- as a normal failed attempt below. Ends the server
+                    -- session immediately rather than waiting on its TTL, and
+                    -- doesn't consume an attempt.
+                    if attempt ~= nil and attempt.cancelled then
+                        Citizen.Await(QB.callback.trigger("qblib:minigames:cancel", round.sessionId))
+                        return { success = false, cancelled = true, attempts = round.attempt - 1 }
+                    end
+
                     local submitResult = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, attempt))
 
                     if submitResult.done then
@@ -110,7 +122,9 @@ local function beginPlay(gameType, opts, resource)
             return
         end
 
-        QB.nui.send("minigames:close", { result = result.success and "success" or "exhausted" })
+        local closeResult = "exhausted"
+        if result.success then closeResult = "success" elseif result.cancelled then closeResult = "cancelled" end
+        QB.nui.send("minigames:close", { result = closeResult })
         p:resolve(result)
     end)
 
@@ -127,11 +141,14 @@ end
 ---AGENTS.md.
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash"
 ---@param opts? table Per-type difficulty overrides merged over Config.minigames.<type> and clamped server-side -- see docs.md for the accepted fields per type.
----@return promise|any result Resolves/returns { success: boolean, attempts: integer } (attempts = how
----many tries it took) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource
----caller respectively (see settleForExport above). Rejects/errors if a minigame is already in progress for
----this player (checked both here and, in case a modified client skips this, server-side), gameType is
----invalid, or the underlying NUI/callback round trip fails.
+---@return promise|any result Resolves/returns { success: boolean, attempts: integer, cancelled?: true }
+---(attempts = how many tries it took before success/exhaustion/cancellation) for a same-VM caller
+---(unchanged, awaitable as before) or a genuine cross-resource caller respectively (see settleForExport
+---above). `cancelled` is present (and `success` false) when the player backed out via Escape/backdrop
+---instead of exhausting their attempts or the round trip failing outright -- see docs.md's "Cancelling"
+---note. Rejects/errors if a minigame is already in progress for this player (checked both here and, in
+---case a modified client skips this, server-side), gameType is invalid, or the underlying NUI/callback
+---round trip fails.
 function QB.minigames.play(gameType, opts)
     assert(QB.minigames.GAME_TYPES[gameType], "minigame type must be 'lockpick', 'skillbar', 'circuit', or 'mash'.")
     assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 
-import type { MashAttempt, MashPuzzle } from "@/lib/types"
+import type { CancelledAttempt, MashAttempt, MashPuzzle } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface MashKeyGameProps {
@@ -9,7 +9,7 @@ interface MashKeyGameProps {
     attempts: number
     timeLimit: number
     lastResult?: "fail"
-    respond: (attempt: MashAttempt) => void
+    respond: (attempt: MashAttempt | CancelledAttempt) => void
 }
 
 /**
@@ -40,6 +40,12 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         respond({ pressTimestamps })
     }
 
+    function cancel() {
+        if (doneRef.current) return
+        doneRef.current = true
+        respond({ cancelled: true })
+    }
+
     useEffect(() => {
         if (elapsed >= timeLimit) finish(pressesRef.current)
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,7 +70,7 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
     const progress = Math.min(1, pressCount / puzzle.requiredPresses)
 
     return (
-        <Dialog open>
+        <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
@@ -85,7 +91,8 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                 </p>
 
                 <p className="text-xs text-muted-foreground">
-                    Press <span className="font-medium text-foreground">Space</span> as fast as you can.
+                    Press <span className="font-medium text-foreground">Space</span> as fast as you can. Press{" "}
+                    <span className="font-medium text-foreground">Esc</span> to cancel.
                 </p>
             </DialogContent>
         </Dialog>
