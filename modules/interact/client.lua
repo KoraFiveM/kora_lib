@@ -256,7 +256,8 @@ end
 function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
-    assert(type(coords) == "vector3" and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assert(type(coords) == "table" or type(coords) == "vector3", "interact box coordinates must be vector-like.")
+    assert(type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
         "interact box coordinates must be vector-like.")
     assert(type(targetOptions) == "table",
         "interact target options require an options array.")
@@ -301,7 +302,6 @@ end
 ---@return QBZoneHandle[] zones
 function QB.interact.addTargetModel(models, size, targetOptions, debug)
     if not isEnabled() then return {} end
-    assert(type(targetOptions) == "table", "interact target options are required.")
     assert(type(targetOptions) == "table", "interact target options require an options array.")
 
     if type(models) ~= "table" then models = { models } end

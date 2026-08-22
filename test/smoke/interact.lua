@@ -142,13 +142,11 @@ end)
 
 harness.test("circle zones filter unavailable options and close only their own session", function()
     reset()
-    local zone = QB.interact.addCircleZone("locker", { x = 0, y = 0, z = 0 }, 2, {}, {
-        options = {
-            { label = "Police locker", job = "police", item = "key" },
-            { label = "Ballas locker", gang = "lostmc" },
-            { label = "Unavailable", canInteract = function() return false end },
-        },
-    })
+    local zone = QB.interact.addCircleZone("locker", { x = 0, y = 0, z = 0 }, 2, {
+        { label = "Police locker", job = "police", item = "key" },
+        { label = "Ballas locker", gang = "lostmc" },
+        { label = "Unavailable", canInteract = function() return false end },
+    }, false)
 
     harness.assertTrue(zone ~= nil, "circle zone should be created through QB.zones")
     sphereOptions[1].onEnter()
@@ -160,20 +158,19 @@ harness.test("circle zones filter unavailable options and close only their own s
     harness.assertEqual(lastMessage().action, "hideInteract", "leaving the active zone should close its selector")
 end)
 
-harness.test("box zones use qb-target length, width, and vertical bounds", function()
+harness.test("box zones pass coords, size, and rotation straight through", function()
     reset()
-    QB.interact.addBoxZone("counter", { x = 10, y = 20, z = 30 }, 6, 4, {
-        heading = 90,
-        minZ = 25,
-        maxZ = 35,
-    }, { options = { { label = "Use" } } })
+    QB.interact.addBoxZone("counter", { x = 10, y = 20, z = 30 }, { x = 4, y = 6, z = 10, w = 90 },
+        { { label = "Use" } }, false)
 
     local box = boxOptions[1]
-    harness.assertEqual(box.coords.z, 30, "the zone centre should be the midpoint of minZ/maxZ")
-    harness.assertEqual(box.size.x, 4, "qb-target width maps to qblib's X extent")
-    harness.assertEqual(box.size.y, 6, "qb-target length maps to qblib's Y extent")
-    harness.assertEqual(box.size.z, 10, "vertical bounds should become a full Z extent")
-    harness.assertEqual(box.rotation, 90, "heading should map to qblib rotation")
+    harness.assertEqual(box.coords.x, 10, "the zone centre x should match the given coords")
+    harness.assertEqual(box.coords.y, 20, "the zone centre y should match the given coords")
+    harness.assertEqual(box.coords.z, 30, "the zone centre z should match the given coords")
+    harness.assertEqual(box.size.x, 4, "size.x should pass through unchanged")
+    harness.assertEqual(box.size.y, 6, "size.y should pass through unchanged")
+    harness.assertEqual(box.size.z, 10, "size.z should pass through unchanged")
+    harness.assertEqual(box.rotation, 90, "size.w should map to qblib rotation")
 end)
 
 harness.test("named zones replace and remove cleanly", function()
@@ -189,11 +186,10 @@ end)
 
 harness.test("target model and entity helpers create static box zones", function()
     reset()
-    local modelZones = QB.interact.addTargetModel("prop_locker", {
-        size = { x = 2, y = 4, z = 6 },
-        options = { { label = "Open" } },
-    })
-    local entityZone = QB.interact.addTargetEntity(202, { options = { { label = "Use" } } })
+    local modelZones = QB.interact.addTargetModel("prop_locker", { x = 2, y = 4, z = 6, w = 45 },
+        { { label = "Open" } }, false)
+    local entityZone = QB.interact.addTargetEntity(202, { x = 3, y = 3, z = 4, w = 45 },
+        { { label = "Use" } }, false)
 
     harness.assertEqual(#modelZones, 1, "a streamed matching object should receive a zone")
     harness.assertTrue(entityZone ~= nil, "an entity should receive a static zone")

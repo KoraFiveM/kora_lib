@@ -3,8 +3,8 @@ local testDir = scriptDir .. "../"
 local repoRoot = testDir .. "../"
 package.path = testDir .. "?.lua;" .. package.path
 
-local harness = require("resources.[test].qbhud.test.harness")
-local mocks = require("resources.[test].qbhud.test.mocks")
+local harness = require("harness")
+local mocks = require("mocks")
 
 -- Same dual-realm-in-one-process trick test/smoke/callback.lua uses: load the
 -- server half of local/callback while QB.callback.register/trigger still
