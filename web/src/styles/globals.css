@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * This NUI is a fixed overlay composited over live gameplay, not a
+ * user-configurable app -- there's no light/dark toggle to serve, and a light
+ * theme would look wrong over gameplay in virtually every case. :root is the
+ * permanent neutral-charcoal QBCore palette defined in web/AGENTS.md.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 6.3%;
+    --foreground: 0 0% 96.1%;
+
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 96.1%;
+
+    --popover: 0 0% 10.6%;
+    --popover-foreground: 0 0% 96.1%;
+
+    --primary: 348 83.3% 47.1%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 14.1%;
+    --secondary-foreground: 0 0% 96.1%;
+
+    --muted: 0 0% 14.1%;
+    --muted-foreground: 0 0% 58%;
+
+    --accent: 0 0% 16.5%;
+    --accent-foreground: 0 0% 96.1%;
+
+    --destructive: 0 85.1% 60.4%;
+    --destructive-foreground: 0 0% 6.3%;
+
+    --border: 0 0% 20.4%;
+    --input: 0 0% 40%;
+    --ring: 348 83.3% 47.1%;
+
+    --radius: 0.625rem;
+
+    --brand-hover: 348 83.2% 42%;
+    --brand-pressed: 347.9 82.8% 36.5%;
+    --brand-soft: 348 83.3% 47.1% / 0.14;
+    --brand-border: 348 83.3% 47.1% / 0.45;
+    --surface-raised: 0 0% 14.1%;
+    --surface-hover: 0 0% 16.5%;
+    --border-strong: 0 0% 26.7%;
+    --control-border: 0 0% 40%;
+    --control-border-hover: 0 0% 47.8%;
+    --modal-overlay: 0 0% 0% / 0.68;
+    --hud: 0 0% 9% / 0.92;
+    --success: 142.1 70.6% 45.3%;
+    --warning: 37.7 92.1% 50.2%;
+    --info: 0 0% 83.1%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    color: hsl(var(--foreground));
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+}
+
+@layer utilities {
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--ring));
+  }
+
+  .focus-within-ring:has(:focus-visible) {
+    outline: none;
+    box-shadow: inset 0 0 0 2px hsl(var(--ring));
+    border-color: hsl(var(--ring));
+  }
+
+  .search-focus:has(:focus-visible) {
+    border-color: hsl(var(--primary));
+    box-shadow: inset 0 -2px 0 hsl(var(--primary));
+  }
+
+  /* A compact brand detail for dialog and menu headings, never a filled bar. */
+  .title-rail {
+    position: relative;
+    padding-left: 0.75rem;
+  }
+
+  .title-rail::before {
+    position: absolute;
+    top: 0.125rem;
+    bottom: 0.125rem;
+    left: 0;
+    width: 0.1875rem;
+    border-radius: 9999px;
+    background: hsl(var(--primary));
+    content: "";
+  }
+
+  /* Gameplay overlays need legibility over changing scenes, not a backdrop. */
+  .overlay-text {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 90%);
+  }
+
+  .hud-chip {
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--hud));
+    box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+  }
+
+  .hud-chip-accent {
+    border-color: hsl(var(--brand-border));
+    background: hsl(var(--brand-soft));
+  }
+
+  .code-frame {
+    border-color: hsl(var(--border-strong));
+    background: hsl(var(--background));
+    box-shadow: inset 0 1px 0 hsl(var(--border));
+  }
+
+  .number-field {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .number-field::-webkit-inner-spin-button,
+  .number-field::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+
+  @keyframes toast-lifetime {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+
+  .toast-lifetime {
+    transform-origin: left;
+    animation: toast-lifetime var(--toast-duration, 5000ms) linear forwards;
+  }
+
+  @keyframes progress-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .progress-fill {
+    transform-origin: left;
+    animation: progress-fill var(--progress-duration, 3000ms) linear forwards;
+  }
+
+  * {
+    scrollbar-color: hsl(var(--control-border)) transparent;
+  }
+
+  *::-webkit-scrollbar,
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner,
+  *::-webkit-scrollbar-button,
+  *::-webkit-resizer {
+    background: transparent;
+    border: 0;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--control-border));
+    border: 0;
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--control-border-hover));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .toast-lifetime {
+      animation: none;
+    }
+
+    .progress-fill {
+      animation: none;
+    }
+  }
+}
+
+/*
+ * NUI headless overlay requirement -- this page is composited over live
+ * gameplay in the CEF browser at all times, not just while a menu/dialog is
+ * open. It must render fully transparent and click-through by default so it
+ * never blocks the player's view or mouse/keyboard input. Individual mounted
+ * components (menu, input dialog, zone creator HUD, etc.) are responsible for
+ * opting themselves back into `pointer-events: auto` once visible.
+ */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent !important;
+  pointer-events: none;
+  overflow: hidden;
+}

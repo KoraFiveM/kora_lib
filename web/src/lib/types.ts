@@ -1,0 +1,333 @@
+// The full Lua <-> NUI message contract. Every message from Lua arrives as a
+// `window` `message` event shaped like NuiWireMessage below (see
+// useNuiEvent.ts). Fire-and-forget messages (QB.nui.send) put the raw payload
+// directly in `data`; request/response messages (QB.nui.request) wrap it as
+// NuiRequestEnvelope, and expect the reply POSTed to the "qblib:nui:response"
+// NUI callback (see respondToNui in fetchNui.ts) as a NuiResponseEnvelope.
+//
+// Keep this file in sync with every Lua-side QB.nui.send/request call site:
+// modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
+// openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
+// zoneCreator:* actions), modules/notify/client.lua (the "notify" action),
+// and modules/minigames/client.lua (the minigames:* actions) -- this file is
+// the one place the whole contract is written down on the NUI side.
+
+// The outer wire envelope every Lua->NUI message travels in.
+export interface NuiWireMessage<T = unknown> {
+    action: string
+    data: T
+}
+
+export interface NuiRequestEnvelope<T = unknown> {
+    requestId: number
+    // Random per-request secret that must be echoed back in the response --
+    // FiveM's NUI callback routing isn't scoped to the frame that issued a
+    // given request, so this is what stops another resource's NUI page from
+    // spoofing a response for a guessable sequential requestId. See
+    // modules/nui/AGENTS.md.
+    token: string
+    payload: T
+}
+
+export interface NuiResponseEnvelope<T = unknown> {
+    requestId: number
+    token: string
+    ok: boolean
+    result?: T
+    error?: string
+}
+
+// qblib:nui:theme callback and optional fire-and-forget refresh action. The
+// configured hex is converted into the existing semantic HSL token family in
+// ThemeSynchronizer; no component receives a raw server-configured colour.
+export interface NuiThemePayload {
+    accentColor?: string
+}
+
+/**
+ * A nested level, opened when its parent item is selected instead of
+ * resolving the request. Navigation happens entirely inside the NUI -- Lua
+ * sends the whole tree in one openMenu call and gets one answer back, so
+ * there's no per-level round trip (which would flicker focus on every step).
+ *
+ * openContextMenu ignores `submenu`: it's an anchored one-shot list with
+ * nowhere sensible to put a back row.
+ */
+export interface MenuItem {
+    id: string
+    label: string
+    description?: string
+    icon?: string
+    disabled?: boolean
+    /** Opens a nested level instead of resolving. `title` defaults to this item's label. */
+    submenu?: { title?: string; items: MenuItem[] }
+}
+
+// action: "openMenu" (request)
+export interface OpenMenuPayload {
+    title?: string
+    items: MenuItem[]
+}
+
+// action: "openContextMenu" (request)
+export interface OpenContextMenuPayload {
+    items: MenuItem[]
+    x?: number
+    y?: number
+}
+
+// `path` is every id walked through to reach the selection, root-first, so a
+// leaf inside a submenu is unambiguous even when two branches reuse an id
+// (a "remove" under both "vehicle" and "player", say). For a top-level pick
+// it's just { selectedId }. Flat callers can keep reading selectedId alone.
+export type MenuResult = { selectedId: string; path: string[] } | { cancelled: true }
+
+export type FieldValue = string | number | boolean
+
+export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "range"
+
+export interface InputField {
+    id: string
+    label: string
+    type: InputFieldType
+    options?: { value: string; label: string }[]
+    default?: FieldValue
+    placeholder?: string
+    // textarea only; ignored by every other field type.
+    rows?: number
+    // Validation, all optional and opt-in -- a field with none of these set
+    // behaves exactly as before. Checked client-side before Confirm is
+    // allowed to respond; Lua-side validation is still the caller's job for
+    // anything that actually matters (this only saves a round trip).
+    required?: boolean
+    min?: number
+    max?: number
+    pattern?: string
+    /**
+     * Slider granularity, `range` only (default 1). `min`/`max` are not
+     * optional for a range in practice -- a slider with no bounds has nothing
+     * to slide between -- so they fall back to 0/100.
+     */
+    step?: number
+}
+
+// action: "openInputDialog" (request)
+export interface OpenInputDialogPayload {
+    title?: string
+    description?: string
+    fields: InputField[]
+}
+
+export type InputDialogResult = { values: Record<string, FieldValue> } | { cancelled: true }
+
+// action: "openAlert" (request) -- mount AlertDialog.
+export interface OpenAlertPayload {
+    title?: string
+    message: string
+    /** Confirm button label. Defaults to "Confirm". */
+    confirmLabel?: string
+    /**
+     * Cancel button label. Defaults to "Cancel". Pass `cancellable: false` to
+     * drop the cancel button entirely, for an acknowledge-only alert.
+     */
+    cancelLabel?: string
+    /** Default true. When false there is no cancel button, and Escape/backdrop can't dismiss. */
+    cancellable?: boolean
+    /** Styles Confirm as a destructive action. Purely cosmetic. */
+    destructive?: boolean
+}
+
+// `confirmed: false` covers every "no" -- cancel button, Escape, backdrop --
+// deliberately NOT a separate `cancelled` shape like the menu/input results:
+// a confirmation only ever has two outcomes for the caller, and collapsing
+// them means no call site can forget to handle one of them.
+export type AlertResult = { confirmed: boolean }
+
+// action: "copyToClipboard" (request) -- resolves `result: true` on success.
+export interface CopyToClipboardPayload {
+    text: string
+}
+
+export type ZoneType = "box" | "sphere" | "poly"
+
+// action: "zoneCreator:start" (fire-and-forget) -- mount ZoneCreatorHud.
+export interface ZoneCreatorStartPayload {
+    type: ZoneType
+}
+
+// Which numeric parameter the scroll wheel currently adjusts -- mirrors
+// creatorParamCycles in modules/zones/client.lua.
+// "editPoint" is the odd one out: a MODE, not a numeric value (the placement
+// key moves the grabbed poly point instead of appending one), so there's no
+// matching number on the snapshot -- ZoneCreatorHud special-cases it.
+export type ZoneCreatorParam = "size" | "height" | "rotation" | "radius" | "thickness" | "zOffset" | "editPoint"
+
+// action: "zoneCreator:hud" (fire-and-forget) -- update ZoneCreatorHud, or
+// unmount it when the payload is nullish (the creator session ended). NOTE:
+// Lua sends the teardown as `data = nil`, and a nil-valued Lua table key is
+// simply absent when serialized -- so the teardown arrives as `undefined`,
+// never a literal `null`. Always check with `== null`/`!snapshot`, not `=== null`.
+export interface ZoneCreatorHudSnapshot {
+    type: ZoneType
+    pointCount: number
+    hasCenter: boolean
+    activeParam: ZoneCreatorParam
+    size: number
+    height: number
+    rotation: number
+    radius: number
+    thickness: number
+    /** Vertical offset from the placement raycast hit. Signed -- negative sinks the zone. */
+    zOffset: number
+    /** 1-based poly point the "editPoint" mode would move; 0 when nothing is grabbed. */
+    editIndex: number
+    canConfirm: boolean
+    aiming: boolean
+}
+
+// action: "zoneCreator:confirm" (request) -- mount ZoneConfirmDialog.
+export interface ZoneCreatorConfirmPayload {
+    type: ZoneType
+    snippet: string
+}
+
+export type ZoneCreatorConfirmResult = { confirmed: boolean }
+
+// action: "progressStart" (fire-and-forget) -- mount ProgressBar. See
+// modules/progressbar/. Lua owns the actual timing/completion decision (a
+// per-frame poll, not this component) -- this payload only drives the
+// visual fill, which is why there is no response to send back.
+export interface ProgressStartPayload {
+    label: string
+    duration: number
+}
+
+// action: "progressCancel" (fire-and-forget, no payload) -- hides the bar
+// immediately instead of waiting for its own fill animation to finish.
+// Lua sends this on every early-exit path (death, the cancel key,
+// QB.progressbar.cancel(), or QB.progressbar.start itself erroring), so the
+// visual can never keep filling past the point the real bar it represents
+// already ended.
+
+export type NotifyType = "info" | "success" | "warning" | "error"
+
+export type NotifyPosition =
+    | "top-left"
+    | "top-center"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-center"
+    | "bottom-right"
+
+// action: "notify" (fire-and-forget) -- see modules/notify/. QB.notify.send
+// resolves duration/type/position from Config.notify before sending (see
+// QB.notify.withDefaults), so they arrive populated in practice; they stay
+// optional here because the Toast component must not trust that -- any
+// resource can post a bare payload straight to this action.
+export interface NotifyPayload {
+    title?: string
+    message?: string
+    duration?: number
+    type?: NotifyType
+    position?: NotifyPosition
+    // Overrides the variant's default icon; resolved against the curated set
+    // in lib/icon.ts, so an unknown name simply renders no icon.
+    icon?: string
+}
+
+export type MinigameType = "lockpick" | "skillbar" | "circuit" | "mash"
+
+export interface LockpickPin {
+    index: number
+    /** 0..1 position on the shared triangle-wave track this pin's indicator must be over when pressed. */
+    target: number
+}
+
+export interface LockpickPuzzle {
+    pinCount: number
+    /** +/- window around each pin's target, 0..1 scale -- also the rendered width of its target zone. */
+    tolerance: number
+    /** Triangle-wave cycles per second every pin's indicator moves at. */
+    speed: number
+    pins: LockpickPin[]
+}
+
+export interface LockpickPress {
+    index: number
+    /** Milliseconds since the round started -- never a position; the server recomputes that itself. */
+    elapsed: number
+}
+
+export interface LockpickAttempt {
+    presses: LockpickPress[]
+}
+
+export interface SkillbarPuzzle {
+    zoneStart: number
+    zoneEnd: number
+    speed: number
+}
+
+export interface SkillbarAttempt {
+    /** Milliseconds since the round started when the player pressed -- never a position. */
+    elapsed: number
+}
+
+export interface CircuitNode {
+    id: string
+    color: string
+    side: "input" | "output"
+}
+
+export interface CircuitPuzzle {
+    /** Correctness is inherent in the colors -- connect every input to the output sharing its color. */
+    nodes: CircuitNode[]
+}
+
+export interface CircuitConnection {
+    from: string
+    to: string
+    elapsed: number
+}
+
+export interface CircuitAttempt {
+    connections: CircuitConnection[]
+}
+
+export interface MashPuzzle {
+    requiredPresses: number
+    timeLimit: number
+}
+
+export interface MashAttempt {
+    pressTimestamps: number[]
+}
+
+export type MinigamePuzzle = LockpickPuzzle | SkillbarPuzzle | CircuitPuzzle | MashPuzzle
+export type MinigameAttempt = LockpickAttempt | SkillbarAttempt | CircuitAttempt | MashAttempt
+
+// action: "minigames:round" (request) -- mount/update MinigameContainer. Sent
+// once per round: the FIRST round after QB.minigames.play() starts, and again
+// after every failed-but-not-exhausted attempt, in the SAME mounted overlay
+// (Lua never closes and reopens it between rounds -- see
+// modules/minigames/AGENTS.md). `puzzle` is the server-generated round to
+// render; it is NEVER the pass/fail answer itself -- see the per-type Puzzle
+// comments above for what's actually visible vs. hidden.
+export interface MinigamesRoundPayload {
+    type: MinigameType
+    sessionId: number
+    /** 1-based current attempt number. */
+    attempt: number
+    /** Max attempts allowed for this play() call, constant across every round. */
+    attempts: number
+    /** ms budget for this round -- the component is expected to auto-submit once this elapses. */
+    timeLimit: number
+    /** Set from the second round on, when the previous attempt failed; absent on the first round. */
+    lastResult?: "fail"
+    puzzle: MinigamePuzzle
+}
+
+// action: "minigames:close" (fire-and-forget) -- unmount MinigameContainer.
+export interface MinigamesClosePayload {
+    result?: "success" | "exhausted" | "cancelled"
+}

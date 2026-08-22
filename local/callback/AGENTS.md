@@ -1,0 +1,41 @@
+# callback module guide
+
+## Purpose
+This module provides promise-based request/response calls in both directions: client asks server (`QB.callback.register`/`trigger`, mirroring the client→server half of `local/events/`) and server asks a specific client (the same function names, called the other way, with a `target` argument on the server side since it has to say which client it's asking). Points-in-the-network-call sense aside, this is the callback counterpart to `local/events/`'s fire-and-forget `register`/`trigger` — same names, promise-returning instead of boolean-returning.
+
+## Public API
+- `QB.callback.register(name, handler)` (server)
+  - Registers `handler(src, ...)` to run when a client calls `QB.callback.trigger(name, ...)`.
+  - `handler`'s return value (only the first, if it returns more than one) resolves the client's promise. An error raised inside `handler` rejects it instead.
+- `QB.callback.trigger(name, ...)` (client)
+  - Triggers the handler registered under `name` on the server, attaching the local player's session token. Waits up to 10 seconds for the initial handshake token if it hasn't arrived yet.
+  - Returns a `promise` — resolves with the handler's return value, rejects with a string error if the handshake/request times out or the handler errored.
+- `QB.callback.register(name, handler)` (client)
+  - Registers `handler(...)` to run when the server calls `QB.callback.trigger(target, name, ...)` for this client.
+  - `handler`'s return value resolves the server's promise; an error rejects it.
+- `QB.callback.trigger(target, name, ...)` (server)
+  - Triggers the handler registered on a specific client (`target`, a server ID) and returns a `promise`.
+  - Not token-gated on the way out (the server is always trusted for its own `TriggerClientEvent`), but the client's response is only accepted from the same player it was addressed to — `source` on the response event is network-authoritative and can't be spoofed.
+- `QB.callback.unregister(name)` (either realm)
+  - Removes a handler registered with `QB.callback.register` on that realm. Rarely needed directly — see resource-scoped cleanup below.
+- `QB.callback.assertName(name)` (shared)
+  - Name validation (non-empty string, raises otherwise). Used internally, but exported like every `QB.*` function.
+
+## Implementation notes
+- **Own handshake, deliberately separate from `local/events/`.** This module doesn't reuse `local/events/`'s per-player token — it runs an independent handshake (`qblib:callback:handshake` / `qblib:callback:handshake:response`) with its own token store. This keeps the two modules fully decoupled (neither can break the other by changing its internal token scheme) at the cost of one extra handshake round-trip per client session. Matches this codebase's existing precedent of duplicating small amounts of infrastructure per module rather than reaching into another module's file-local state (which isn't possible anyway — see below).
+- **Why a new module and not more functions on `QB.events`**: same reasoning as `local/events/`'s own `AGENTS.md` documents for its client/server split — `shared.lua` and `client.lua`/`server.lua` are separate Lua chunks, so nothing declared `local` in one module's files is reachable from another module's files. Sharing `local/events/`'s token would have required exposing new public accessors off `QB.events` for a second module to poke at, muddying that module's boundary — worse than a small amount of duplicated handshake code.
+- **Client→server direction** (`register` server-side / `trigger` client-side) is token-gated exactly like `QB.events.trigger`: the gateway (`qblib:callback:invoke`) drops any request whose token doesn't match the triggering player's stored token, silently (never asserted — the payload is untrusted client input).
+- **Server→client direction** (`register` client-side / `trigger` server-side) needs no token at all for the outbound request (`qblib:callback:clientInvoke`) — the server is always the trusted party for `TriggerClientEvent`. The inbound response (`qblib:callback:clientResponse`) is validated by checking the responding `source` matches the `target` the server originally addressed; that's sufficient because `source` is set by the network stack and can't be forged by client-side Lua.
+- Both directions use a fixed gateway event and dispatch by `name` through an internal registry — no per-callback-name `RegisterNetEvent` is created.
+- Both directions guard against a response that never arrives with a `Config.callback.timeout` (10s default) `SetTimeout` per request that rejects the pending promise — otherwise a promise could hang forever under `Citizen.Await`.
+- **One name, one handler — with a warning on cross-resource collisions**, same mechanism and reasoning as `local/events/` (see its `AGENTS.md`): a differing owner registering an existing name prints a warning naming both resources; re-registering your own name stays silent. Note the client and server registries are independent, so a client-side and server-side handler sharing a name never collide with each other.
+- **Resource-scoped cleanup** is delegated to `QB.resources.registry`(client)/`serverRegistry`(server) (`local/resources`) rather than hand-rolled here. `QB.callback.register` captures `GetInvokingResource() or GetCurrentResourceName()` at registration time (same reasoning as `modules/zones`/`modules/entities`) and tracks the callback name against it; the registry's own sweep removes every handler owned by a resource that stops. Mirrors `local/events/`'s identical approach for `QB.events.register`/`onPush` — a registered handler shouldn't keep answering requests after its owning resource is gone.
+- Request IDs (both directions) are plain incrementing counters, not random/global IDs — the client→server counter only needs to be unique within one client's own `pending` table (the server always replies to the `source` that asked); the server→client counter only needs to be unique within the server's own `pendingClientCallbacks` table (the server is the one issuing and tracking them).
+- `QB.callback.trigger` (client-side) reuses `QB.loops.controlled` from the loops module (`modules/loops/`) via its own internal `awaitToken()`, same technique `local/events/` uses.
+- Tokens (client→server direction) are cleared on `playerDropped`, same as `local/events/`.
+
+## Best practices
+- Treat all arguments a server-side handler receives as untrusted client input, same as any `RegisterNetEvent` payload.
+- Keep registered names namespaced/descriptive (e.g. `inventory:hasItem`) to avoid collisions in the shared registry — the client and server registries are independent, so a client-side and server-side handler can safely share the same name without colliding with each other.
+- If a handler needs to return more than one value, wrap them in a table — only the first return value is sent back, since the caller resolves a single-value promise.
+- Prefer `QB.events.register`/`trigger` (or `push`/`onPush`) when you don't need a response — the callback machinery costs a round trip and a pending-promise slot that fire-and-forget doesn't need.

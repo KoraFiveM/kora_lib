@@ -1,0 +1,161 @@
+local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
+local testDir = scriptDir .. "../"
+local repoRoot = testDir .. "../"
+package.path = testDir .. "?.lua;" .. package.path
+
+local harness = require("harness")
+local mocks = require("mocks")
+
+mocks.install()
+
+dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/loops/shared.lua")
+
+-- A model only "loads" after RequestModel has been called for it, except
+-- entries in neverLoads, which stay unloaded forever (to exercise the
+-- request -> poll -> timeout path deterministically).
+local loadedModels = {}
+local neverLoads = { [9999] = true }
+local removedModels = {}
+
+local invalidModelHash = joaat("totally-invalid")
+function _G.IsModelValid(model) return model ~= invalidModelHash end
+function _G.HasModelLoaded(model) return loadedModels[model] == true end
+function _G.RequestModel(model) loadedModels[model] = not neverLoads[model] end
+function _G.SetModelAsNoLongerNeeded(model) removedModels[model] = true end
+
+local animDicts = { ["move_m@generic"] = true }
+function _G.DoesAnimDictExist(dict) return animDicts[dict] == true end
+function _G.RequestAnimDict() end
+function _G.HasAnimDictLoaded() return true end
+function _G.RemoveAnimDict() end
+
+function _G.RequestNamedPtfxAsset() end
+function _G.HasNamedPtfxAssetLoaded() return true end
+function _G.RemoveNamedPtfxAsset() end
+
+function _G.IsWeaponValid() return true end
+function _G.RequestWeaponAsset() end
+function _G.HasWeaponAssetLoaded() return true end
+function _G.RemoveWeaponAsset() end
+
+-- Audio banks have no separate Has...Loaded native: RequestScriptAudioBank
+-- itself reports readiness, so the mock counts calls to prove the module uses
+-- it as both request and poll predicate. "never_loads" never reports ready.
+local audioBankRequests = 0
+local releasedAudioBanks = {}
+function _G.RequestScriptAudioBank(bank)
+    audioBankRequests = audioBankRequests + 1
+    return bank ~= "never_loads"
+end
+function _G.ReleaseNamedScriptAudioBank(bank) releasedAudioBanks[bank] = true end
+
+-- Collision reports ready only after RequestCollisionAtCoord has been called
+-- for the coords below, so the poll loop has to actually issue the request.
+local requestedCollisionAt = nil
+function _G.RequestCollisionAtCoord(x, y, z) requestedCollisionAt = { x = x, y = y, z = z } end
+function _G.HasCollisionLoadedAroundEntity() return requestedCollisionAt ~= nil end
+function _G.PlayerPedId() return 1 end
+
+dofile(repoRoot .. "modules/stream/client.lua")
+
+harness.test("loadModel converts a string model to a numeric hash", function()
+    local hash = QB.stream.loadModel("prop_test")
+    harness.assertTrue(type(hash) == "number", "string models should resolve via joaat")
+end)
+
+harness.test("loadModel requests, waits, runs the callback, then releases the model", function()
+    local seen
+    local model = joaat("prop_test_2")
+    local result = QB.stream.loadModel(model, function(m) seen = m end)
+
+    harness.assertEqual(result, model, "loadModel should return the model on success")
+    harness.assertEqual(seen, model, "the callback should receive the loaded model")
+    harness.assertTrue(removedModels[model], "the model should be released after the callback runs")
+end)
+
+harness.test("loadModel rejects a model IsModelValid refuses", function()
+    harness.assertThrows(function()
+        QB.stream.loadModel("totally-invalid")
+    end, "an invalid model should raise instead of silently failing")
+end)
+
+harness.test("loadModel gives up and still cleans up when a model never streams in", function()
+    local model, err = QB.stream.loadModel(9999)
+    harness.assertFalse(model, "should report failure for a model that never loads")
+    harness.assertTrue(err ~= nil, "the failure should come with a reason")
+    harness.assertTrue(removedModels[9999], "the stuck request should still be released")
+end)
+
+harness.test("loadModel re-raises a callback error after cleaning up", function()
+    local model = joaat("prop_test_3")
+    harness.assertThrows(function()
+        QB.stream.loadModel(model, function() error("callback exploded") end)
+    end, "a callback error should propagate to the caller")
+    harness.assertTrue(removedModels[model], "cleanup should still happen even when the callback errors")
+end)
+
+harness.test("loadAnimDict validates the dict exists before requesting it", function()
+    harness.assertThrows(function()
+        QB.stream.loadAnimDict("does-not-exist")
+    end, "an unknown anim dict should raise")
+end)
+
+harness.test("loadAnimDict loads a known dict and runs its callback", function()
+    local ran = false
+    local result = QB.stream.loadAnimDict("move_m@generic", function() ran = true end)
+    harness.assertEqual(result, "move_m@generic", "should return the dict name")
+    harness.assertTrue(ran, "the callback should run once the dict is loaded")
+end)
+
+harness.test("loadPtfx loads and runs its callback", function()
+    local ran = false
+    QB.stream.loadPtfx("core", function() ran = true end)
+    harness.assertTrue(ran, "the ptfx callback should run once the asset is loaded")
+end)
+
+harness.test("loadWeaponAsset converts a string weapon name and runs its callback", function()
+    local seen
+    QB.stream.loadWeaponAsset("weapon_pistol", function(hash) seen = hash end)
+    harness.assertTrue(type(seen) == "number", "the weapon name should resolve to a numeric hash")
+end)
+
+harness.test("loadAudioBank loads, runs its callback, then releases the bank", function()
+    audioBankRequests = 0
+    local ran = false
+
+    local result = QB.stream.loadAudioBank("DLC_TEST_SOUNDSET", function() ran = true end)
+
+    harness.assertEqual(result, "DLC_TEST_SOUNDSET", "should return the bank name")
+    harness.assertTrue(ran, "the callback should run once the bank is loaded")
+    harness.assertTrue(audioBankRequests > 0, "RequestScriptAudioBank doubles as the poll predicate, so it must be called")
+    harness.assertTrue(releasedAudioBanks["DLC_TEST_SOUNDSET"], "the bank should be released right after the callback")
+end)
+
+harness.test("loadAudioBank gives up on a bank that never reports ready", function()
+    local result, err = QB.stream.loadAudioBank("never_loads")
+    harness.assertFalse(result, "a bank that never loads should report failure")
+    harness.assertTrue(err ~= nil, "a failed load should come with an error message")
+end)
+
+harness.test("loadAudioBank rejects a non-string bank", function()
+    harness.assertThrows(function() QB.stream.loadAudioBank(123) end, "a numeric audio bank should raise")
+end)
+
+harness.test("loadCollision requests at the given coords and runs its callback", function()
+    requestedCollisionAt = nil
+    local ran = false
+
+    local ok = QB.stream.loadCollision({ x = 10, y = 20, z = 30 }, function() ran = true end)
+
+    harness.assertTrue(ok, "collision should report success once loaded")
+    harness.assertTrue(ran, "the callback should run once collision is ready")
+    harness.assertEqual(requestedCollisionAt.x, 10, "the request should use the given coords")
+    harness.assertEqual(requestedCollisionAt.z, 30, "the request should use the given coords")
+end)
+
+harness.test("loadCollision rejects malformed coords", function()
+    harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2 }) end, "coords missing z should raise")
+end)
+
+harness.report("stream")

@@ -1,0 +1,67 @@
+-- Plain { x, y, z } tables, not glm.vec3 -- the `glm` global isn't
+-- guaranteed to exist on every FiveM client build, and this file never needs
+-- vector-math operators (subtraction, scalar multiply, etc.), only field
+-- access and construction, so there's nothing glm buys here.
+local function toVec3(v)
+    assert(type(v.x) == "number" and type(v.y) == "number" and type(v.z) == "number",
+        "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
+    return { x = v.x, y = v.y, z = v.z }
+end
+
+---@param rot table Euler angles in degrees, { x = pitch, y = roll, z = yaw } (GetGameplayCamRot's shape).
+local function rotationToDirection(rot)
+    local z = math.rad(rot.z)
+    local x = math.rad(rot.x)
+    local flatLength = math.abs(math.cos(x))
+
+    return { x = -math.sin(z) * flatLength, y = math.cos(z) * flatLength, z = math.sin(x) }
+end
+
+---Fires a world-geometry raycast between two points.
+---@param startCoords table vector3-like { x, y, z }
+---@param endCoords table vector3-like { x, y, z }
+---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
+---@param ignoreEntity? number Entity handle to exclude from the test; defaults to `PlayerPedId()`.
+---@return boolean hit
+---@return table? coords {x, y, z} table, only present when hit is true
+---@return number? entityHit Entity handle the ray struck, only present when hit is true
+---@return table? surfaceNormal {x, y, z} table, only present when hit is true
+function QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)
+    startCoords = toVec3(startCoords)
+    endCoords = toVec3(endCoords)
+    flags = flags or -1
+    ignoreEntity = ignoreEntity or PlayerPedId()
+
+    local rayHandle = StartShapeTestRay(
+        startCoords.x, startCoords.y, startCoords.z,
+        endCoords.x, endCoords.y, endCoords.z,
+        flags, ignoreEntity, 0
+    )
+    local _, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
+
+    if hit == 0 then return false, nil, nil, nil end
+    return true, toVec3(hitCoords), entityHit, toVec3(surfaceNormal)
+end
+
+---Aims from the gameplay camera and raycasts against world geometry, so
+---"look at it" is enough to know what a player is aiming at -- no coordinate
+---typing required.
+---@param maxDistance number
+---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
+---@param ignoreEntity? number Entity handle to exclude from the test; defaults to `PlayerPedId()`.
+---@return boolean hit
+---@return table? coords {x, y, z} table, only present when hit is true
+---@return number? entityHit Entity handle the ray struck, only present when hit is true
+---@return table? surfaceNormal {x, y, z} table, only present when hit is true
+function QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)
+    local camCoord = toVec3(GetGameplayCamCoord())
+    local direction = rotationToDirection(GetGameplayCamRot(2))
+
+    local destination = {
+        x = camCoord.x + direction.x * maxDistance,
+        y = camCoord.y + direction.y * maxDistance,
+        z = camCoord.z + direction.z * maxDistance,
+    }
+
+    return QB.raycast.fromCoords(camCoord, destination, flags, ignoreEntity)
+end

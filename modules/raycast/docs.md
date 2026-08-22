@@ -1,0 +1,53 @@
+# Raycast module
+
+## Overview
+The raycast module fires world-geometry raycasts and reports what they hit -- coordinates, the struck entity (if any), and the surface normal. It was extracted out of `modules/zones`' in-world zone creator, which used a private camera-aim raycast purely to let a player place a zone point by looking at it. Promoted to its own module and public API so other resources (e.g. a targeting system) can reuse the same raycast primitive across resource boundaries.
+
+## API
+
+### `QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
+Fires a raycast between two explicit points.
+
+#### Parameters
+- `startCoords: vector3 | {x, y, z}` -- Ray origin.
+- `endCoords: vector3 | {x, y, z}` -- Ray destination.
+- `flags: number | nil` -- `StartShapeTestRay` intersect flags. Defaults to `-1` (test against everything: world, vehicles, peds, objects, water).
+- `ignoreEntity: number | nil` -- Entity handle excluded from the test. Defaults to `PlayerPedId()`.
+
+#### Returns
+- `boolean` -- `true` if the ray hit something.
+- `table | nil` -- {x, y, z} hit coordinates, only present on a hit.
+- `number | nil` -- The entity handle struck, only present on a hit (`0` if the ray hit bare world geometry, not an entity).
+- `table | nil` -- {x, y, z} surface normal at the hit point, only present on a hit.
+
+### `QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)`
+Convenience wrapper: builds the ray from the gameplay camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Lets a player "look at it" instead of supplying coordinates.
+
+#### Parameters
+- `maxDistance: number` -- Maximum ray length, in meters.
+- `flags: number | nil` -- Same as `fromCoords`.
+- `ignoreEntity: number | nil` -- Same as `fromCoords`.
+
+#### Returns
+Same as `fromCoords`.
+
+#### Example
+```lua
+local hit, coords, entity = QB.raycast.fromCamera(50.0)
+if hit then
+    print(('aiming at %s at %.1f, %.1f, %.1f'):format(entity ~= 0 and ('entity ' .. entity) or 'world', coords.x, coords.y, coords.z))
+end
+```
+
+Called cross-resource via export (e.g. from a targeting resource):
+```lua
+local hit, coords, entity = exports.qblib:raycast_fromCamera(3.0)
+if hit and entity ~= 0 then
+    -- entity is what the player is currently aiming at
+end
+```
+
+## Notes
+- `entityHit` is `0` (not `nil`) when the ray strikes bare world geometry rather than an entity -- check `entity ~= 0` before treating it as an entity handle.
+- Client-only: raycasting only makes sense against the calling client's own rendered world/camera, so this module has no `shared.lua`/`server.lua`, the same shape as `modules/stream` and `modules/zones`.
+- `modules/zones`' zone creator now calls `QB.raycast.fromCamera` instead of its own private copy; behavior there is unchanged.

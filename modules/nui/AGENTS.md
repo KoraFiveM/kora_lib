@@ -1,0 +1,26 @@
+# nui module guide
+
+## Purpose
+This module is the one place every other module talks to the NUI (`web/`) through — focus management, the callback-registration boilerplate, and a promise-based request/response bridge. See the root [AGENTS.md](../../AGENTS.md) "UI conventions" section for the headless-UI rule this module exists to enforce: the NUI renders nothing and holds no focus except in direct response to a message from here.
+
+## Public API
+- `QB.nui.send(action, data)` — thin `SendNUIMessage` wrapper (the capital-NUI table-accepting runtime helper — NOT the `SendNuiMessage` native, which takes a pre-encoded JSON string and would stringify a table into garbage). Every message to the NUI is `{ action, data }`.
+- `QB.nui.setFocus(mouse, keyboard)` — thin `SetNuiFocus` wrapper for callers that need to hold focus across several calls (e.g. a HUD).
+- `QB.nui.withFocus(mouse, keyboard, fn)` — runs `fn` with focus set, always releasing it afterward (even if `fn` errors) — the guaranteed-release path most callers should use instead of `setFocus`.
+- `QB.nui.registerCallback(name, handler)` — wraps `RegisterNUICallback`'s raw `(data, cb)` signature; `handler` just returns a value (or nil).
+- `QB.nui.request(action, data, timeout)` — sends `action` and returns a promise resolving with the NUI's response. `timeout` defaults to 30000ms; pass `false` to disable.
+- `QB.nui.copyToClipboard(text)` — `QB.nui.request("copyToClipboard", { text = text })`. Resolves `true`, since the browser is the only place with real clipboard access.
+- `QB.nui.openMenu(items, title)` / `QB.nui.openContextMenu(items, x, y)` / `QB.nui.openInputDialog(fields, title, description)` — `QB.nui.request` wrappers over the NUI's built-in menu/context-menu/input-dialog components (`web/src/components/menu/`, `web/src/components/input/`), so callers don't need to know the raw action name or payload shape. Each grants mouse+keyboard focus for the request's lifetime via a private `focusUntilSettled` helper (focus released the moment the promise settles — answered, cancelled, or timed out; the request timeout doubles as the can't-get-stuck guarantee). Without this the components would render but never receive a click or keystroke. `copyToClipboard` deliberately does NOT take focus — it's invisible.
+
+## Implementation notes
+- **File layout**: client-only, same reasoning as `modules/zones` and `modules/stream` — nothing here crosses the client/server boundary, so no `shared.lua`/`server.lua`.
+- **One shared response channel, not one callback per request**: `QB.nui.request` doesn't register a new `RegisterNUICallback` per call. Every request is tagged with a `requestId`, and a single `qblib:nui:response` callback (registered once, at module load) looks that id up in a `pendingRequests` table and resolves/rejects the matching promise. The NUI side is expected to POST its result back to that one callback name, not to a per-request name.
+- **Per-request token, not just a sequential `requestId`**: FiveM's NUI-callback routing (the `https://<resource>/<callback>` fetch every NUI page uses) isn't scoped to the frame that issued a given request — another installed resource's own NUI page could in principle spoof a response for a guessable sequential id. Each request also gets a random token (`generateToken`, deliberately duplicated from `local/callback`/`local/events`' server copies — keep the three in sync); the response handler ignores anything whose `token` doesn't match. The RNG is seeded **once at module load**, never per call — per-call reseeding from a time-derived value would hand two same-millisecond requests identical RNG state and therefore identical "secrets".
+- **Timeout is a `SetTimeout`, not `QB.loops.controlled`**: the duration is already known up front (it's not "poll until some external state changes"), so a single native `SetTimeout(timeout, function() ... end)` per request — the same idiom `local/callback/server.lua` already uses — is both simpler and cheaper than either polling a predicate or spawning a `CreateThread` coroutine that just sits waiting: `SetTimeout` doesn't cost a thread, and this timeout is a safety net that's expected to almost never actually fire (the response callback settles it first).
+- **Promises resolve/reject exactly once**: both the response callback and the timeout delete `pendingRequests[requestId]` before settling the promise, so a late response arriving after a timeout (or vice versa) is a no-op rather than a double-resolve.
+- **`copyToClipboard` returns a promise like every other request**, not a synchronously-awaited boolean — callers running inside something that can `Citizen.Await` (an NUI callback handler, a command handler) can await it inline; callers that want fire-and-forget can ignore the return value.
+
+## Best practices
+- Go through `QB.nui.request`/`copyToClipboard` rather than `SendNUIMessage`/`RegisterNUICallback` directly — the response-routing and timeout handling only exist once, here.
+- Prefer `QB.nui.withFocus` over `QB.nui.setFocus` unless you genuinely need focus held across multiple `QB.nui.request` calls — it's the only version that can't leak focus on an error.
+- Keep `QB.nui.request` timeouts short enough that a player closing the game/resource without responding doesn't leave a caller hanging indefinitely.
