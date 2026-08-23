@@ -43,6 +43,20 @@ _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
 _G.StartShapeTestRay = function() return 1 end
 _G.GetShapeTestResult = function() return 0, 0, { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }, 0 end
 _G.IsControlJustPressed = function() return false end
+_G.IsControlPressed = function() return false end
+_G.CreateCamWithParams = function() return 1 end
+_G.SetCamActive = function() end
+_G.RenderScriptCams = function() end
+_G.DestroyCam = function() end
+_G.FreezeEntityPosition = function() end
+_G.DisableControlAction = function() end
+_G.GetDisabledControlNormal = function() return 0.0 end
+_G.GetFrameTime = function() return 0.0 end
+_G.GetGameplayCamFov = function() return 50.0 end
+_G.SetCamCoord = function() end
+_G.SetCamRot = function() end
+_G.GetCamCoord = function() return { x = 0, y = 0, z = 0 } end
+_G.GetCamRot = function() return { x = 0, y = 0, z = 0 } end
 -- Recorded rather than ignored: hiding the minimap during placement is only
 -- correct if it's also restored on teardown, and a creator that leaves a
 -- player with no map is exactly the kind of thing that goes unnoticed in a
@@ -52,6 +66,11 @@ _G.DisplayRadar = function(shown) radarCalls[#radarCalls + 1] = shown end
 
 dofile(repoRoot .. "modules/raycast/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+-- QB.theme isn't otherwise loaded by this test file -- the debug/creator-preview
+-- draw path now reads QB.theme.accentColor() (see zoneDebugColor in
+-- modules/zones/client.lua), and without this the QB proxy in build/initiate.lua
+-- would auto-vivify QB.theme as an empty table, leaving accentColor nil.
+dofile(repoRoot .. "modules/theme/shared.lua")
 dofile(repoRoot .. "modules/zones/client.lua")
 
 -- Real QB.nui isn't loaded here (that's modules/nui's own smoke test) -- the
@@ -376,6 +395,50 @@ harness.test("a debug poly zone draws a wall face per edge", function()
     harness.assertEqual(drawPolyCalls, 12, "each of the poly's 3 edges should draw one wall x 2 triangles x 2 windings")
 
     zone.remove()
+end)
+
+harness.test("starting the creator activates a scripted camera with an eased transition", function()
+    local renderCalls = {}
+    local originalRender = RenderScriptCams
+    _G.RenderScriptCams = function(...) table.insert(renderCalls, { ... }) end
+
+    local p = QB.zones.startCreator("box")
+    net.step()
+
+    harness.assertTrue(#renderCalls >= 1, "starting the creator should activate its scripted camera")
+    harness.assertEqual(renderCalls[1][1], true, "the camera should render on")
+    harness.assertEqual(renderCalls[1][2], true, "the transition into the creator's camera should ease")
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    net.step()
+
+    harness.assertTrue(#renderCalls >= 2, "cancelling should hand the view back to the gameplay camera")
+    harness.assertEqual(renderCalls[#renderCalls][1], false, "the camera should render off on teardown")
+    harness.assertEqual(renderCalls[#renderCalls][2], true, "the transition back out should also ease")
+
+    _G.RenderScriptCams = originalRender
+end)
+
+harness.test("cancelling the creator eventually destroys its scripted camera", function()
+    -- Only a positive claim ("it does get destroyed"), not a timing claim
+    -- ("not yet") -- net.step() resumes every still-suspended coroutine ever
+    -- created in this file, including leftover ease-out threads from earlier
+    -- start/cancel tests above, so asserting an exact call count/timing here
+    -- would be testing thread-pool leakage rather than this feature.
+    local destroyedCams = {}
+    local originalDestroy = DestroyCam
+    _G.DestroyCam = function(cam) table.insert(destroyedCams, cam) end
+
+    local p = QB.zones.startCreator("box")
+    net.step()
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    net.step() -- outer thread falls through to teardown, spawns the ease-out thread
+    net.step() -- the ease-out thread's Wait(cameraTransitionMs) elapses, DestroyCam runs
+
+    harness.assertTrue(#destroyedCams >= 1, "the camera should eventually be destroyed once the ease-out finishes")
+
+    _G.DestroyCam = originalDestroy
 end)
 
 harness.report("zones")

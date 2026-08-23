@@ -45,6 +45,9 @@ The NUI has exactly one permanent theme (dark) — it's a fixed game overlay, no
 
 `Config.ui.accentColor` and the HSL tokens derived from it live in `modules/theme`, not inline in `modules/nui` — that's what lets an external resource pull the same tokens for its own NUI (`QB.theme.tokens()`) instead of only qblib's own frontend being able to match the configured brand.
 
+### Legacy compat (`compat/`)
+The standalone `qb-menu` and `qb-input` resources are deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog`. `compat/client/qb-menu.lua` and `compat/client/qb-input.lua` keep `exports['qb-menu']:openMenu/closeMenu` and `exports['qb-input']:ShowInput` working unmodified by translating them onto those same `QB.nui.*` calls and registering under the `qb-menu`/`qb-input` export identities (`provide 'qb-menu'`/`provide 'qb-input'` plus the `__cfx_export_` hijack — same pattern as `qbtarget/client/compat/ox-target.lua` and `qbcore/compat/*`). They load after `modules/**/client.lua` (they call `QB.nui.*`) and before `build/finalise.lua`, same ordering rule qbcore's own `compat/*` uses. See `modules/nui/docs.md`'s "Legacy compat" section for the full field mapping and caveats.
+
 ## Naming guidance
 - Module names should be nouns or domain names such as `stream`, `inventory`, `player`, `vehicle`.
 - Function names should be camelCase, with descriptive verbs where possible.

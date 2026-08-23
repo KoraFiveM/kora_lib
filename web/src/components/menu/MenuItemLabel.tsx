@@ -11,7 +11,9 @@ export function MenuItemLabel({ item }: { item: MenuItem }) {
 
     return (
         <>
-            {Icon ? <Icon aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> : null}
+            {item.image ? (
+                <img aria-hidden src={item.image} className="mt-0.5 h-5 w-5 shrink-0 rounded-sm object-contain" />
+            ) : Icon ? <Icon aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> : null}
             <span className="flex min-w-0 flex-col items-start gap-0.5">
                 <span className="w-full truncate">{item.label}</span>
                 {item.description ? (

@@ -90,11 +90,11 @@ Opens a context menu anchored at `(x, y)`, or centered if omitted. Manages focus
 - Same as `openMenu`: `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
 
 ### `QB.nui.openRadialMenu(items, opts)`
-Opens an anchored radial menu. It uses the same recursive item tree and result shape as `openMenu`, so a caller can reuse its item-building logic. It manages NUI focus for its entire lifetime.
+Opens a radial menu, always centred on screen. It uses the same recursive item tree and result shape as `openMenu`, so a caller can reuse its item-building logic. It manages NUI focus for its entire lifetime.
 
 #### Parameters
 - `items: table[]` — same `MenuItem` shape as `openMenu`, including `submenu = { title?, items }`.
-- `opts?: table` — optional geometry: `x?: number`, `y?: number` (screen pixels; defaults to centre), `radius?: positive number` (defaults to the NUI's safe radial size).
+- `opts?: table` — optional geometry: `radius?: positive number` (defaults to the NUI's safe radial size).
 
 #### Returns
 - `{ selectedId: string, path: string[] }` or `{ cancelled: true }`; `nil` on timeout/error. `path` is root-first, so a `vehicle -> repair` selection returns `{ selectedId = "repair", path = { "vehicle", "repair" } }`.
@@ -149,6 +149,62 @@ if result and not result.cancelled then
     print("amount:", result.values.amount)
 end
 ```
+
+## Legacy compat: `qb-menu` / `qb-input` / `qb-radialmenu`
+
+`qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `QB.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `qbtarget/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.
+
+### `exports['qb-menu']:openMenu(menu)`
+Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, fires the item's legacy `params.event` the same way real qb-menu does.
+
+| qb-menu field | Mapped to | Notes |
+|---|---|---|
+| `header` | `label` | |
+| `txt` | `description` | |
+| `disabled` / `isMenuHeader` | `disabled` | Real qb-menu's `isMenuHeader` rows are unselectable section labels; the new menu has no dedicated header row type, so this is the closest equivalent. |
+| `icon` | *(dropped)* | Real qb-menu icons are Font Awesome classes; `QB.nui.openMenu`'s `icon` expects a lucide-react name (`web/src/lib/icon.ts`) — the two vocabularies don't overlap, so the icon is dropped rather than mistranslated. One warning per resource run, not per item. |
+| *(none)* | `id` | Real qb-menu items have no stable id; the 1-based position in the array is used. |
+| `params.event` / `params.isServer` / `params.args` | — | Fired via `TriggerEvent`/`TriggerServerEvent` on selection, exactly as real qb-menu's own `selectMenuItem` NUI callback does. |
+
+`exports['qb-menu']:closeMenu()` and the `qb-menu:client:openMenu`/`qb-menu:client:closeMenu` net events are also registered. `closeMenu` dismisses the active list menu through its normal cancellation response, which also releases focus and settles the awaiting request.
+
+### `exports['qb-input']:ShowInput(data)`
+Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the calling coroutine until the player answers, returning either a `{ [name]: value }` table (submit) or `false` (cancel) — exactly real qb-input's own return shape, never a promise.
+
+| qb-input `inputs[]` field | Mapped to | Notes |
+|---|---|---|
+| `name` | `id` | Kept identical so the legacy `result[name]` lookup needs zero reshaping. |
+| `text` | `label` | Falls back to `name` if absent. |
+| `isRequired` | `required` | |
+| `default` / `checked` | `default` | `checked` (some forks' checkbox convention) wins over `default` when both are set. |
+| `min` / `max` | `min` / `max` | `number`, `slider` only. |
+| `type = "text" \| "password" \| "textarea"` | same | |
+| `type = "number"` | `number` | |
+| `type = "checkbox"` | `checkbox` | |
+| `type = "radio" \| "select"` | `select` | No dedicated radio-group widget exists on the new dialog — `radio` collapses onto `select`, the closest equivalent (single value from a fixed list). |
+| `type = "slider"` | `range` | Newer qb-input forks only; `step` passes through. |
+| `options[].value` / `.text`/`.label` | `options[].value` / `.label` | Both stringified — the new `select` field is string-keyed throughout. |
+| `icon` | *(dropped)* | Same reasoning as qb-menu's `icon` above — no equivalent field exists at all on `InputField`. One warning per resource run. |
+| any other `type` | `text` | One warning per unrecognized type name per resource run, naming the type, rather than silently misrendering it. |
+
+### `exports['qb-radialmenu']:AddOption(option, shouldClose)` / `RemoveOption(id)`
+
+**Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `QB.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no QB.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `QB.nui.openRadialMenu` when its own keybind (`qblib_radialmenu_open`, default `F2` — a guess, see the file's header comment; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
+- There is no script-triggered "open now" call — matching real qb-radialmenu's own keybind-driven UX, but unlike every other `QB.nui.open*` wrapper, which is always caller-initiated.
+- `option.shouldClose == false` is approximated by immediately re-issuing a fresh `QB.nui.openRadialMenu` request after dispatch, rather than a truly persistent NUI state staying open across the selection.
+
+| qb-radialmenu `option` field | Mapped to | Notes |
+|---|---|---|
+| `id` | `id` | Kept if supplied; auto-generated (`radial_<n>`) and returned from `AddOption` otherwise, same as most real forks. |
+| `title` / `label` | `label` | `title` wins if both are set. |
+| `top` | *(ordering)* | `top` options are moved to the front of the translated items list, stable within each group — the closest flat-list equivalent of "pin near the top of the wheel"; there's no ring-position concept to replicate against QB.nui's own radial layout. |
+| `icon` | *(dropped)* | Same reasoning as qb-menu/qb-input's `icon` above — Font Awesome vs. lucide vocabularies don't overlap. One warning per resource run. |
+| `iconAnimation` | *(dropped)* | Purely decorative on top of the already-dropped icon; no equivalent field exists at all, and it doesn't get its own warning on top of the icon one. |
+| `type` (`"client"` / `"server"`) + `event` | — | Fired via `TriggerEvent`/`TriggerServerEvent(event)` on selection when `onSelect` isn't set — `type == "server"` triggers server-side, anything else client-side, mirroring qb-menu's `params.isServer`. |
+| `onSelect` (function) | — | Called directly (`pcall`-wrapped) instead of firing `event`, when present. |
+| `shouldClose` (field, or `AddOption`'s 2nd positional arg) | — | The field wins when both are set. Defaults to `true`. `false` triggers the reopen-after-select approximation described above. |
+
+`exports['qb-radialmenu']:RemoveOption(id)` and the `qb-radialmenu:client:AddOption`/`qb-radialmenu:client:RemoveOption` net events are also registered, mirroring `AddOption`/`RemoveOption` 1:1.
 
 ## Notes
 - `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`qblib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.

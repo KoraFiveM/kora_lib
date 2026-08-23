@@ -69,18 +69,21 @@ Config.zones = {
     tickInside = 0,              -- ms Wait() while inside a zone with an `inside` callback
     defaultPointRadius = 1.0,    -- meters; QB.zones.point() default
     defaultPolyThickness = 4.0,  -- meters; QB.zones.poly() default height band
-    debugColor = { r = 255, g = 0, b = 0, a = 200 }, -- alpha bumped from 100: was easy to lose against terrain at the old value
-    debugWallAlpha = 40,         -- 0-255; translucent fill for box/poly walls, deliberately lower than debugColor.a so it doesn't bury the wireframe it complements
+    debugAlpha = 200, -- 0-255; wireframe/marker alpha for debug zones and the creator's live preview (colour itself follows QB.theme.accentColor(), not a fixed value)
+    debugWallAlpha = 40,         -- 0-255; translucent fill for box/poly walls, deliberately lower than debugAlpha so it doesn't bury the wireframe it complements
 
     creator = {
         raycastDistance = 50.0,  -- meters; max distance a placement raycast will reach
+        cameraMoveSpeed = 6.0,        -- meters/second the creator's scripted camera flies at (before the Shift boost)
+        cameraLookSensitivity = 5.0,  -- degrees per raw mouse-look unit while flying the creator's camera
+        cameraTransitionMs = 800,     -- ms to smoothly blend the gameplay camera into the creator's scripted camera, and back on exit
         defaultBoxSize = 4.0,    -- meters; starting X/Y size for a new box, before scroll-adjustment
         defaultBoxHeight = 3.0,  -- meters; starting Z size for a new box
         defaultRadius = 3.0,     -- meters; starting radius for a new sphere
         defaultThickness = 4.0,  -- meters; starting height band for a new poly
         sizeStep = 0.25,         -- meters per scroll tick when adjusting size/height/radius/thickness
         rotationStep = 5.0,      -- degrees per scroll tick when adjusting box rotation
-        shiftMultiplier = 2.5,   -- multiplies sizeStep/rotationStep while Shift is held, for faster adjustment
+        shiftMultiplier = 2.5,   -- multiplies sizeStep/rotationStep/cameraMoveSpeed while Shift is held, for faster adjustment/flying
         maxPolyPoints = 64,      -- hard cap so placement can't run away
         confirmTimeout = 120000, -- ms the confirm dialog waits for a response before the promise rejects
         hideRadar = true,        -- hide the minimap while placing, so it can't cover the shape you're drawing
@@ -90,6 +93,7 @@ Config.zones = {
 
 Config.minigames = {
     sessionTTL = 60000,          -- ms; server-side session expiry, checked on every submit and swept every 30s
+    proofTTL = 15000,            -- ms a successful single-use proof remains consumable by a server gameplay resource
     maxConcurrentPerPlayer = 1,  -- max simultaneous QB.minigames.play() sessions per player, server-enforced
     maxAttemptsCap = 10,         -- hard ceiling on opts.attempts, regardless of per-type default or client override
     roundTimeoutBuffer = 5000,   -- ms added to a round's timeLimit for the client-side NUI request timeout (safety net -- the NUI is expected to auto-submit on its own clock well before this)

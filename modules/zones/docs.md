@@ -86,7 +86,9 @@ QB.zones.point({ coords = vector3(100.0, 200.0, 30.0) })
 ```
 
 ### `QB.zones.startCreator(zoneType, existingOpts)`
-Starts the in-world zone creator: aim and press the placement key to mark points against the world (no coordinate typing), adjust size/rotation/radius/thickness with the scroll wheel, then confirm to open a summary dialog with the generated `QB.zones.<type>({...})` snippet and a copy-to-clipboard button.
+Starts the in-world zone creator: fly its own scripted camera to survey the build site, aim and press the placement key to mark points against the world (no coordinate typing), adjust size/rotation/radius/thickness with the scroll wheel, then confirm to open a summary dialog with the generated `QB.zones.<type>({...})` snippet and a copy-to-clipboard button.
+
+The creator spins up its own free-flying camera rather than using your normal view, so you can survey a build site from angles walking wouldn't reach. It blends in smoothly from wherever the gameplay camera already was, and blends back out the same way when the creator ends (cancel or confirm) — both eased over `Config.zones.creator.cameraTransitionMs`.
 
 #### Parameters
 - `zoneType: "box" | "sphere" | "poly"`
@@ -95,14 +97,18 @@ Starts the in-world zone creator: aim and press the placement key to mark points
 #### Default controls
 | Key | Action |
 |---|---|
+| Mouse | Look around (drives the creator's own scripted camera) |
+| `W`/`A`/`S`/`D` | Fly the creator's camera |
 | `E` | Place a point at whatever you're aiming at |
 | `Backspace` | Undo the last placed point |
+| `Tab` (poly, cycled to "edit point") + `E` | Pick up the hovered point, fly anywhere, then `E` again to drop it at the new aim — `Backspace` cancels the pick-up instead of deleting a point while one is held |
 | `Tab` | Cycle which parameter the scroll wheel adjusts |
 | Scroll wheel | Adjust the active parameter |
+| `Shift` | Hold for faster camera movement, and to adjust the active parameter in bigger steps |
 | `Enter` | Confirm (once placement is valid) and open the summary dialog |
 | `X` | Cancel |
 
-All of the above are registered via `RegisterKeyMapping`, so they're rebindable through FiveM's own keybind settings like any other resource's keybinds.
+All of the above are registered via `RegisterKeyMapping`, so they're rebindable through FiveM's own keybind settings like any other resource's keybinds — except mouse-look/WASD and Shift, which drive the freecam directly and aren't independently rebindable.
 
 #### Returns
 - `{ type, opts }` once confirmed (`opts` matches that shape's own constructor options, so `QB.zones.<type>(result.opts)` recreates it), or `nil` if cancelled, if a creator was already running, or if the creator is disabled (`Config.zones.creator.enabled = false`) -- check qblib's own console to tell which, since that detail doesn't cross the exports boundary. An invalid `zoneType` (or malformed `existingOpts`) raises a synchronous error instead, exactly like the zone constructors themselves. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the player confirms or cancels.

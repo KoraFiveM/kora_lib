@@ -29,6 +29,7 @@ end
 _G.GetSelectedPedWeapon = function() return 999 end
 _G.GetEntityHealth = function() return 175 end
 _G.GetPedArmour = function() return 50 end
+_G.GetPlayerStamina = function() return 87.5 end
 _G.GetEntityCoords = function() return { x = 1.0, y = 2.0, z = 3.0 } end
 
 dofile(repoRoot .. "local/resources/client.lua")
@@ -57,8 +58,15 @@ harness.test("health/armour are read from the mocked natives via the shared ped 
     harness.assertEqual(QB.cache.armour(), 50, "armour should come from GetPedArmour(ped)")
 end)
 
+harness.test("stamina is read from the PLAYER index, not the ped", function()
+    -- The one built-in keyed off PlayerId() rather than PlayerPedId(); a HUD
+    -- reads it every tick while sprinting, so a wrong argument here would be a
+    -- silently constant bar rather than an error.
+    harness.assertEqual(QB.cache.stamina(), 87.5, "stamina should come from GetPlayerStamina(playerId)")
+end)
+
 harness.test("set rejects every reserved built-in key outright", function()
-    local reservedKeys = { "playerId", "serverId", "ped", "vehicle", "seat", "weapon", "health", "armour" }
+    local reservedKeys = { "playerId", "serverId", "ped", "vehicle", "seat", "weapon", "health", "armour", "stamina" }
 
     for _, key in ipairs(reservedKeys) do
         local before = QB.cache.get(key)

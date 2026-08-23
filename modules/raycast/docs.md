@@ -47,6 +47,26 @@ if hit and entity ~= 0 then
 end
 ```
 
+### `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
+Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this is for a caller that manages its own `CreateCam`/`CreateCamWithParams` camera handle -- for example, `modules/zones`' zone creator's freecam, which raycasts from wherever the freecam is currently pointed rather than the player's gameplay camera.
+
+#### Parameters
+- `cam: number` -- Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
+- `maxDistance: number` -- Maximum ray length, in meters.
+- `flags: number | nil` -- Same as `fromCoords`.
+- `ignoreEntity: number | nil` -- Same as `fromCoords`.
+
+#### Returns
+Same as `fromCoords`.
+
+#### Example
+```lua
+local hit, coords, entity = QB.raycast.fromCam(freecamHandle, 50.0)
+if hit then
+    print(('freecam aiming at %s at %.1f, %.1f, %.1f'):format(entity ~= 0 and ('entity ' .. entity) or 'world', coords.x, coords.y, coords.z))
+end
+```
+
 ## Notes
 - `entityHit` is `0` (not `nil`) when the ray strikes bare world geometry rather than an entity -- check `entity ~= 0` before treating it as an entity handle.
 - Client-only: raycasting only makes sense against the calling client's own rendered world/camera, so this module has no `shared.lua`/`server.lua`, the same shape as `modules/stream` and `modules/zones`.

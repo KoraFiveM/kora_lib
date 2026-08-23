@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { Minus, Plus } from "lucide-react"
 
 import type { FieldValue, InputDialogResult, InputField, OpenInputDialogPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
@@ -360,7 +360,7 @@ function NumberField({
                 disabled={field.min !== undefined && parsed <= field.min}
                 onClick={() => adjust(-1)}
             >
-                <ChevronDown aria-hidden />
+                <Minus aria-hidden />
             </Button>
             <Button
                 type="button"
@@ -370,7 +370,7 @@ function NumberField({
                 disabled={field.max !== undefined && parsed >= field.max}
                 onClick={() => adjust(1)}
             >
-                <ChevronUp aria-hidden />
+                <Plus aria-hidden />
             </Button>
         </div>
     )

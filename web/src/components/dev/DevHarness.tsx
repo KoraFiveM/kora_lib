@@ -66,6 +66,8 @@ const SAMPLE_HUD_SNAPSHOT: ZoneCreatorHudSnapshot = {
     editIndex: 0,
     canConfirm: true,
     aiming: true,
+    isShiftHeld: false,
+    stepSize: 0.25,
 }
 
 const actions: { label: string; run: () => void }[] = [
@@ -176,10 +178,8 @@ const actions: { label: string; run: () => void }[] = [
         }),
     },
     {
-        label: "Radial menu (paged edge)",
+        label: "Radial menu (paged)",
         run: () => postRequest<OpenRadialMenuPayload>("openRadialMenu", {
-            x: window.innerWidth - 8,
-            y: 8,
             radius: 170,
             items: Array.from({ length: 12 }, (_, index) => ({ id: `option-${index + 1}`, label: `Option ${index + 1}`, icon: "Star" })),
         }),
@@ -263,6 +263,17 @@ const actions: { label: string; run: () => void }[] = [
         run: () => {
             post<ZoneCreatorStartPayload>("zoneCreator:start", { type: "box" })
             post<ZoneCreatorHudSnapshot>("zoneCreator:hud", SAMPLE_HUD_SNAPSHOT)
+        },
+    },
+    {
+        label: "Zone HUD (shift fast-adjust)",
+        run: () => {
+            post<ZoneCreatorStartPayload>("zoneCreator:start", { type: "box" })
+            post<ZoneCreatorHudSnapshot>("zoneCreator:hud", {
+                ...SAMPLE_HUD_SNAPSHOT,
+                isShiftHeld: true,
+                stepSize: 0.625, // sizeStep (0.25) * shiftMultiplier (2.5), per config.lua
+            })
         },
     },
     {

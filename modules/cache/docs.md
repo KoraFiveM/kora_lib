@@ -1,7 +1,7 @@
 # Cache module
 
 ## Overview
-A cheap, continuously-refreshed cache of local-player state — player id, server id, current ped, vehicle, seat, weapon, health, and armour — plus a general `get`/`set`/`onChange` store any module or resource can use for its own local values. Reading `QB.cache.ped()` is a plain table lookup; it never calls a native itself.
+A cheap, continuously-refreshed cache of local-player state — player id, server id, current ped, vehicle, seat, weapon, health, armour, and stamina — plus a general `get`/`set`/`onChange` store any module or resource can use for its own local values. Reading `QB.cache.ped()` is a plain table lookup; it never calls a native itself.
 
 ## API
 
@@ -12,7 +12,7 @@ Returns the cached value for `key`, or `nil` if nothing has set it yet.
 - `key: string`
 
 ### `QB.cache.set(key, value)`
-Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
+Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour`/`stamina`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
 
 #### Parameters
 - `key: string`

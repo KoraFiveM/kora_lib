@@ -69,6 +69,8 @@ export interface MenuItem {
     label: string
     description?: string
     icon?: string
+    /** Trusted legacy/resource supplied item artwork URL (e.g. nui://). */
+    image?: string
     disabled?: boolean
     /** Opens a nested level instead of resolving. `title` defaults to this item's label. */
     submenu?: { title?: string; items: MenuItem[] }
@@ -79,6 +81,9 @@ export interface OpenMenuPayload {
     title?: string
     items: MenuItem[]
 }
+
+// action: "closeMenu" (fire-and-forget)
+export type CloseMenuPayload = Record<string, never>
 
 // action: "openContextMenu" (request)
 export interface OpenContextMenuPayload {
@@ -91,8 +96,6 @@ export interface OpenContextMenuPayload {
 // openMenu's schema so callers can share their item trees between both views.
 export interface OpenRadialMenuPayload {
     items: MenuItem[]
-    x?: number
-    y?: number
     radius?: number
 }
 
@@ -203,6 +206,10 @@ export interface ZoneCreatorHudSnapshot {
     editIndex: number
     canConfirm: boolean
     aiming: boolean
+    /** Whether Shift is currently held (speeds up scroll-adjustment; see shiftHeld() in client.lua). */
+    isShiftHeld: boolean
+    /** What one scroll tick currently moves the active param by, already shiftMultiplier-scaled. 0 for "editPoint" (no step). */
+    stepSize: number
 }
 
 // action: "zoneCreator:confirm" (request) -- mount ZoneConfirmDialog.

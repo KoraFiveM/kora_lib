@@ -65,3 +65,27 @@ function QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)
 
     return QB.raycast.fromCoords(camCoord, destination, flags, ignoreEntity)
 end
+
+---Aims from a scripted camera and raycasts against world geometry, for a
+---caller that manages its own camera (e.g. a freecam) instead of the
+---gameplay camera.
+---@param cam number Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
+---@param maxDistance number
+---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
+---@param ignoreEntity? number Entity handle to exclude from the test; defaults to `PlayerPedId()`.
+---@return boolean hit
+---@return table? coords {x, y, z} table, only present when hit is true
+---@return number? entityHit Entity handle the ray struck, only present when hit is true
+---@return table? surfaceNormal {x, y, z} table, only present when hit is true
+function QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
+    local camCoord = toVec3(GetCamCoord(cam))
+    local direction = rotationToDirection(GetCamRot(cam, 2))
+
+    local destination = {
+        x = camCoord.x + direction.x * maxDistance,
+        y = camCoord.y + direction.y * maxDistance,
+        z = camCoord.z + direction.z * maxDistance,
+    }
+
+    return QB.raycast.fromCoords(camCoord, destination, flags, ignoreEntity)
+end

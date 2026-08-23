@@ -1,7 +1,7 @@
 # cache module guide
 
 ## Purpose
-A cheap, always-fresh cache of frequently-needed local-player state (`playerId`, `serverId`, `ped`, `vehicle`, `seat`, `weapon`, `health`, `armour`) so callers don't hit natives like `PlayerPedId()`/`GetVehiclePedIsIn()` repeatedly, plus a general `get`/`set`/`onChange` key-value store other modules or resources can piggyback on for their own local state.
+A cheap, always-fresh cache of frequently-needed local-player state (`playerId`, `serverId`, `ped`, `vehicle`, `seat`, `weapon`, `health`, `armour`, `stamina`) so callers don't hit natives like `PlayerPedId()`/`GetVehiclePedIsIn()` repeatedly, plus a general `get`/`set`/`onChange` key-value store other modules or resources can piggyback on for their own local state.
 
 ## Public API
 - `QB.cache.get(key)` — Returns the cached value for `key`, or `nil` if never set.
@@ -29,6 +29,6 @@ A cheap, always-fresh cache of frequently-needed local-player state (`playerId`,
 
 ## Best practices
 - Prefer `QB.cache.ped()`/`vehicle()`/etc. over calling `PlayerPedId()`/`GetVehiclePedIsIn()` yourself in any per-tick/per-frame code — that's the whole point of this module.
-- Keep `onChange` handlers cheap; they run inline (synchronously) from the per-tick refresh thread for ped/vehicle/seat/weapon/health/armour.
+- Keep `onChange` handlers cheap; they run inline (synchronously) from the per-tick refresh thread for ped/vehicle/seat/weapon/health/armour/stamina. `stamina` in particular fires on most ticks during a sprint.
 - Namespace custom `QB.cache.set` keys (e.g. `"myresource:something"`) to avoid colliding with another resource's own cached values or a future built-in key.
-- Don't try to write `playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour` via `QB.cache.set` — it's rejected. Read-only for everyone except this module's own `refresh()`.
+- Don't try to write `playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour`/`stamina` via `QB.cache.set` — it's rejected. Read-only for everyone except this module's own `refresh()`.

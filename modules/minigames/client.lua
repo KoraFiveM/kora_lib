@@ -100,7 +100,7 @@ local function beginPlay(gameType, opts, resource)
                     local submitResult = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, attempt))
 
                     if submitResult.done then
-                        return { success = submitResult.success, attempts = submitResult.attemptsUsed }
+                        return { success = submitResult.success, attempts = submitResult.attemptsUsed, proof = submitResult.proof }
                     end
 
                     -- Anti-farming regeneration happened server-side (see

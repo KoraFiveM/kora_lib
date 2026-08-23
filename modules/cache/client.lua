@@ -15,6 +15,7 @@ local RESERVED_KEYS = {
     weapon = true,
     health = true,
     armour = true,
+    stamina = true,
     coords = true,
 }
 
@@ -94,6 +95,12 @@ local function refresh()
     setValue("ped", ped)
     setValue("health", GetEntityHealth(ped))
     setValue("armour", GetPedArmour(ped))
+    -- Keyed off the PLAYER index, not the ped -- GetPlayerStamina takes a
+    -- player, unlike the two above. Cached here rather than left to consumers
+    -- because it changes CONTINUOUSLY while sprinting: a HUD that polls it on
+    -- its own timer either lags visibly or runs a second always-on thread
+    -- alongside this one. onChange off this shared tick gives it neither.
+    setValue("stamina", GetPlayerStamina(playerId))
 
     local vehicle = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or false
     setValue("vehicle", vehicle)
@@ -271,4 +278,13 @@ end
 ---@return integer
 function QB.cache.armour()
     return cache.armour
+end
+
+---The local player's remaining sprint stamina (GetPlayerStamina(playerId)),
+---0-100. Unlike health/armour this is keyed off the PLAYER index, not the ped.
+---Falls while sprinting and regenerates back to 100 at rest, so onChange for
+---this key fires on most ticks during a sprint and none at all standing still.
+---@return number
+function QB.cache.stamina()
+    return cache.stamina
 end

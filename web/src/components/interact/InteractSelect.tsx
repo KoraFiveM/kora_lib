@@ -58,7 +58,7 @@ export function InteractSelect() {
     if (!state) return null
 
     return (
-        <div className="pointer-events-none fixed left-[5%] top-1/2 z-hud w-64 max-w-[calc(100vw-2rem)] -translate-y-1/2 select-none rounded-xl border bg-hud p-2 text-card-foreground shadow-low">
+        <div className="pointer-events-none fixed bottom-[2vh] left-1/2 z-hud w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none rounded-xl border bg-hud p-2 text-card-foreground shadow-low">
             {state.options.map((option, index) => {
                 const selected = index === state.selectedIndex
 

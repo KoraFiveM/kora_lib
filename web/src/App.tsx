@@ -1,4 +1,5 @@
 import { MenuContainer } from "@/components/menu/Menu"
+import { MenuHeader } from "@/components/menu/MenuHeader"
 import { ContextMenuContainer } from "@/components/menu/ContextMenu"
 import { InputDialogContainer } from "@/components/input/InputDialog"
 import { AlertDialogContainer } from "@/components/alert/AlertDialog"
@@ -27,6 +28,7 @@ export default function App() {
             <ThemeSynchronizer />
             <InteractSelect />
             <MenuContainer />
+            <MenuHeader />
             <ContextMenuContainer />
             <RadialMenuContainer />
             <InputDialogContainer />

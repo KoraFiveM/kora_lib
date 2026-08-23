@@ -7,6 +7,33 @@ math.randomseed(GetGameTimer() + math.floor(os.clock() * 1000000))
 local sessions = {}
 local sessionCountBySrc = {}
 local nextSessionId = 0
+local proofs = {}
+local nextProofId = 0
+
+local function createProof(session)
+    nextProofId = nextProofId + 1
+    local token = ('%s:%s:%s:%s'):format(session.src, session.id, nextProofId, math.random(100000, 999999))
+    proofs[token] = {
+        src = session.src,
+        gameType = session.gameType,
+        expiresAt = GetGameTimer() + Config.minigames.proofTTL,
+    }
+    return token
+end
+
+---Consumes a successful minigame proof exactly once. Gameplay resources call
+---this on the server instead of accepting a client-computed success boolean.
+---@param src integer
+---@param token string
+---@param gameType string
+---@return boolean
+function QB.minigames.consumeProof(src, token, gameType)
+    if type(token) ~= 'string' or type(gameType) ~= 'string' then return false end
+    local proof = proofs[token]
+    if not proof then return false end
+    proofs[token] = nil
+    return proof.src == src and proof.gameType == gameType and proof.expiresAt >= GetGameTimer()
+end
 
 local function randomFloat(min, max)
     return min + math.random() * (max - min)
@@ -275,6 +302,9 @@ AddEventHandler("playerDropped", function()
     for _, session in pairs(sessions) do
         if session.src == src then endSession(session) end
     end
+    for token, proof in pairs(proofs) do
+        if proof.src == src then proofs[token] = nil end
+    end
 end)
 
 -- Backstop for a session nobody ever submits against again (the owning
@@ -290,6 +320,9 @@ CreateThread(function()
         local now = GetGameTimer()
         for _, session in pairs(sessions) do
             if now > session.expiresAt then endSession(session) end
+        end
+        for token, proof in pairs(proofs) do
+            if now > proof.expiresAt then proofs[token] = nil end
         end
     end
 end)
@@ -345,8 +378,9 @@ QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
 
     if ok and passed == true then
         local attemptsUsed = session.attemptsUsed
+        local proof = createProof(session)
         endSession(session)
-        return { done = true, success = true, attemptsUsed = attemptsUsed }
+        return { done = true, success = true, attemptsUsed = attemptsUsed, proof = proof }
     end
 
     if session.attemptsUsed >= session.maxAttempts then

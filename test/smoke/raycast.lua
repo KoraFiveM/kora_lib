@@ -14,6 +14,8 @@ dofile(repoRoot .. "build/initiate.lua")
 _G.PlayerPedId = function() return 1 end
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
 _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
+_G.GetCamCoord = function(cam) return { x = 0, y = 0, z = 0 } end
+_G.GetCamRot = function(cam, order) return { x = 0, y = 0, z = 0 } end
 
 -- Configurable per-test: what the next StartShapeTestRay/GetShapeTestResult
 -- pair reports, and the raw args StartShapeTestRay was called with (so a
@@ -88,6 +90,20 @@ harness.test("fromCamera delegates to fromCoords using the gameplay camera", fun
     harness.assertTrue(hit, "fromCamera should report the same hit as the underlying ray")
     harness.assertEqual(coords.x, 1, "fromCamera should surface the hit coords")
     harness.assertEqual(entity, 0, "entity 0 (bare world geometry) should still be returned, not nil")
+end)
+
+harness.test("fromCam delegates to fromCoords using the given camera handle", function()
+    nextResult = {
+        hit = 1,
+        coords = { x = 4, y = 5, z = 6 },
+        surfaceNormal = { x = 1, y = 0, z = 0 },
+        entityHit = 7,
+    }
+    local hit, coords, entity = QB.raycast.fromCam(999, 50.0)
+
+    harness.assertTrue(hit, "fromCam should report the same hit as the underlying ray")
+    harness.assertEqual(coords.x, 4, "fromCam should surface the hit coords")
+    harness.assertEqual(entity, 7, "the struck entity handle should be returned")
 end)
 
 harness.report("raycast")

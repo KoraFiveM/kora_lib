@@ -13,6 +13,7 @@
 local active
 local callbackRegistered = false
 local zonesByName = {}
+local reopenFns = {}
 
 local function isCallable(value)
     if type(value) == "function" then return true end
@@ -121,6 +122,37 @@ local function dispatch(option)
     end
 end
 
+-- Selecting an option only hides the compact selector -- it never resets the
+-- zone's isInside state, and onEnter (the only thing that calls open()) fires
+-- solely on a false->true transition. Without this, a player who never left
+-- the zone's radius has no way to see the prompt again after picking an
+-- option: onExit/onEnter can't refire while they're still standing inside.
+-- Polls IsNuiFocused() rather than requiring the dispatched action to report
+-- back, so this works for any option (an external menu, a server roundtrip,
+-- or nothing at all) without qbinventory/other resources needing to know
+-- interact exists. The grace period before the first check gives an
+-- externally-opened menu (e.g. a shop, which grabs focus only after a server
+-- roundtrip) time to actually take focus, so the prompt doesn't flash back on
+-- screen in that gap.
+local function watchForReopen(name)
+    local zone = zonesByName[name]
+    if not zone then return end
+
+    CreateThread(function()
+        Wait(500)
+
+        while zonesByName[name] == zone and zone.isInside() and not active do
+            if not IsNuiFocused() then
+                local reopen = reopenFns[name]
+                if reopen then reopen() end
+                return
+            end
+
+            Wait(250)
+        end
+    end)
+end
+
 -- interact loads before nui under the manifest's alphabetical module glob,
 -- so callbacks register lazily once a zone opens at runtime.
 local function ensureCallbacks()
@@ -134,8 +166,10 @@ local function ensureCallbacks()
         local option = session.options[choice]
         if not option then return {} end
 
+        local zoneName = session.source
         hide(session)
         dispatch(option)
+        if zoneName then watchForReopen(zoneName) end
         return {}
     end)
 
@@ -232,11 +266,15 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
         "interact target options require an options array.")
 
     if zonesByName[name] then zonesByName[name].remove() end
+
+    local function enter() open(targetOptions, name) end
+    reopenFns[name] = enter
+
     local zone = QB.zones.sphere({
         coords = coords,
         radius = radius or 5.0,
         debug = debug,
-        onEnter = function() open(targetOptions, name) end,
+        onEnter = enter,
         onExit = function()
             if active and active.source == name then hide(active) end
         end,
@@ -264,12 +302,15 @@ function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
 
     if zonesByName[name] then zonesByName[name].remove() end
 
+    local function enter() open(targetOptions, name) end
+    reopenFns[name] = enter
+
     local zone = QB.zones.box({
         coords = { x = coords.x, y = coords.y, z = coords.z },
         size = { x = size.x, y = size.y, z = size.z },
         rotation = size.w or 0.0,
         debug = debug,
-        onEnter = function() open(targetOptions, name) end,
+        onEnter = enter,
         onExit = function()
             if active and active.source == name then hide(active) end
         end,
@@ -287,6 +328,7 @@ function QB.interact.removeZone(name)
     if not zone then return false end
 
     zonesByName[name] = nil
+    reopenFns[name] = nil
     if active and active.source == name then hide(active) end
     zone.remove()
     return true
