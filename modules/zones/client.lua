@@ -209,6 +209,75 @@ local function buildHandle(zone)
     }
 end
 
+local function editZone(handle, opts)
+    assert(type(handle) == "table", "Zone handle must be a table.")
+    assert(type(opts) == "table", "Zone edit options must be a table.")
+
+    local zone = zoneRegistry[handle.id]
+
+    assert(zone and not zone.removed, "Zone handle is invalid or the zone has been removed.")
+
+    -- Only these fields are allowed to be edited.
+    for key in pairs(opts) do
+        assert(
+            key == "coords" or key == "onEnter" or key == "onExit",
+            ("Zone edit does not allow changing '%s'. Only coords, onEnter, and onExit can be edited."):format(key)
+        )
+    end
+
+    if opts.coords ~= nil then
+        assert(zone.type ~= "poly", "Poly zones do not have editable coords; edit their points instead.")
+        local coords = toVec3(opts.coords)
+
+        removeFromGrid(zone)
+
+        zone.coords = coords
+
+        if zone.type == "box" then
+            local worldHalfX, worldHalfY = rotatedHalfExtents(
+                zone.halfX,
+                zone.halfY,
+                zone.cosR,
+                zone.sinR
+            )
+
+            zone.aabb = makeAabb(
+                coords.x - worldHalfX, coords.x + worldHalfX,
+                coords.y - worldHalfY, coords.y + worldHalfY,
+                coords.z - zone.halfZ, coords.z + zone.halfZ
+            )
+        elseif zone.type == "sphere" then
+            zone.aabb = makeAabb(
+                coords.x - zone.radius, coords.x + zone.radius,
+                coords.y - zone.radius, coords.y + zone.radius,
+                coords.z - zone.radius, coords.z + zone.radius
+            )
+        end
+
+        insertIntoGrid(zone)
+    end
+
+    if opts.onEnter ~= nil then
+        assert(
+            opts.onEnter == false or isCallable(opts.onEnter),
+            "onEnter must be a function or false."
+        )
+
+        zone.onEnter = opts.onEnter == false and nil or opts.onEnter
+    end
+
+    if opts.onExit ~= nil then
+        assert(
+            opts.onExit == false or isCallable(opts.onExit),
+            "onExit must be a function or false."
+        )
+
+        zone.onExit = opts.onExit == false and nil or opts.onExit
+    end
+
+    return zone.handle
+end
+
 local function safeCall(zone, label, fn, ...)
     local ok, err = pcall(fn, ...)
 
@@ -1226,6 +1295,25 @@ function QB.zones.startCreator(zoneType, existingOpts)
     -- player actually confirms (seconds/minutes later, via a keypress with no
     -- export call in progress), GetInvokingResource() would just return nil.
     return settleForExport(beginCreator(zoneType, GetInvokingResource() or GetCurrentResourceName(), existingOpts))
+end
+
+---@class QBZoneEditOptions
+---@field coords? any New center coordinates. Only supported by box and sphere zones.
+---@field onEnter? fun(zone: table)|false New enter callback, or false to remove it.
+---@field onExit? fun(zone: table)|false New exit callback, or false to remove it.
+
+---Edits an existing zone without replacing its handle.
+---
+---Only `coords`, `onEnter`, and `onExit` can be changed.
+---Shape properties such as size, radius, rotation, points, and thickness
+---cannot be modified through this function.
+---
+---Pass `false` for `onEnter` or `onExit` to remove the existing callback.
+---@param handle QBZoneHandle
+---@param opts QBZoneEditOptions
+---@return QBZoneHandle handle The same handle passed to the function.
+function QB.zones.edit(handle, opts)
+    return editZone(handle, opts)
 end
 
 RegisterCommand("qb_zonecreator", function(_, args)
