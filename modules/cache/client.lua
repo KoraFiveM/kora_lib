@@ -129,7 +129,7 @@ end
 ---registered for `key` if the value actually changed. Lets other modules (or
 ---other resources, via exports.qblib:cache_set) piggyback on the same cache +
 ---change-notification system for their own local state. Writing a built-in
----key (playerId/serverId/ped/vehicle/seat/weapon/health/armour) is rejected
+---key (playerId/serverId/ped/vehicle/seat/weapon/health/armour/stamina/coords) is rejected
 ---outright -- logged and ignored -- rather than merely self-healing on the
 ---next refresh tick, so no caller (this resource or another) can ever observe
 ---even a transient poisoned value for one of them.
@@ -239,6 +239,14 @@ end
 ---@return integer
 function QB.cache.ped()
     return cache.ped
+end
+
+---The local player's last sampled world coordinates. Refreshed on the shared
+---cache tick; use this for interval/event work, not frame-critical movement,
+---aiming, or placement where a fresh native read is required.
+---@return vector3|table
+function QB.cache.coords()
+    return cache.coords
 end
 
 ---The vehicle the local player is currently in, or false if on foot.

@@ -3,6 +3,18 @@ local active = {}
 local changeListeners = {}
 local nextListenerId = 0
 
+-- FXServer's exports boundary hands a cross-resource function argument back
+-- as a table with a __call metamethod, not a plain Lua function -- so a bare
+-- type(x) == "function" check rejects a perfectly callable handler registered
+-- from another resource. Deliberately duplicated per-file (separate chunks,
+-- no shared locals) -- see local/callback/{client,server}.lua, local/events/{client,server}.lua,
+-- modules/zones/client.lua, and modules/cache/client.lua for the other copies.
+local function isCallable(x)
+    if type(x) == "function" then return true end
+    local mt = type(x) == "table" and getmetatable(x) or nil
+    return mt ~= nil and mt.__call ~= nil
+end
+
 local statusRegistry = QB.resources.registry(function(name)
     QB.status.remove(name)
 end)
@@ -173,7 +185,7 @@ end
 ---@param handler fun(name: string, applied: boolean)
 ---@return integer listenerId Pass to QB.status.offChange to unregister.
 function QB.status.onChange(handler)
-    assert(type(handler) == "function", "QB.status.onChange requires a function.")
+    assert(isCallable(handler), "QB.status.onChange requires a function.")
     local owner = GetInvokingResource() or GetCurrentResourceName()
     nextListenerId = nextListenerId + 1
     changeListeners[nextListenerId] = handler

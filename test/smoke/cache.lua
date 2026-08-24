@@ -44,6 +44,13 @@ harness.test("ped is read from PlayerPedId()", function()
     harness.assertEqual(QB.cache.ped(), 100, "ped should come from PlayerPedId()")
 end)
 
+harness.test("coords are exposed through the named cached getter", function()
+    local coords = QB.cache.coords()
+    harness.assertEqual(coords.x, 1.0, "coords.x should come from the shared cache refresh")
+    harness.assertEqual(coords.y, 2.0, "coords.y should come from the shared cache refresh")
+    harness.assertEqual(coords.z, 3.0, "coords.z should come from the shared cache refresh")
+end)
+
 harness.test("vehicle/seat are computed from the mocked scenario", function()
     harness.assertEqual(QB.cache.vehicle(), 200, "vehicle should come from GetVehiclePedIsIn")
     harness.assertEqual(QB.cache.seat(), 1, "seat should be found by scanning, not hardcoded to the driver seat")
@@ -66,7 +73,7 @@ harness.test("stamina is read from the PLAYER index, not the ped", function()
 end)
 
 harness.test("set rejects every reserved built-in key outright", function()
-    local reservedKeys = { "playerId", "serverId", "ped", "vehicle", "seat", "weapon", "health", "armour", "stamina" }
+    local reservedKeys = { "playerId", "serverId", "ped", "vehicle", "seat", "weapon", "health", "armour", "stamina", "coords" }
 
     for _, key in ipairs(reservedKeys) do
         local before = QB.cache.get(key)
