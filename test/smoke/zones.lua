@@ -208,6 +208,143 @@ harness.test("getInside rejects a non-string resource filter", function()
     harness.assertThrows(function() QB.zones.getInside(42) end, "a numeric resource filter should raise")
 end)
 
+harness.test("QB.zones.edit moves a box zone's coords, updating containment and the grid", function()
+    local zone = QB.zones.box({ coords = { x = 300, y = 300, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+
+    harness.assertTrue(zone.contains({ x = 300, y = 300, z = 0 }), "the zone should start at its original coords")
+    harness.assertFalse(zone.contains({ x = 0, y = 0, z = 0 }), "the zone should not yet contain the origin")
+
+    local result = QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
+    harness.assertEqual(result, zone, "edit should return the same handle it was given")
+
+    harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "contains() should reflect the new coords")
+    harness.assertFalse(zone.contains({ x = 300, y = 300, z = 0 }), "contains() should no longer match the old coords")
+
+    -- The mock player sits at the origin. isInside() only flips true if the
+    -- zone was actually reinserted into the grid at its new position -- the
+    -- tick loop's candidate search is grid-cell based, not a full scan -- so
+    -- this proves the grid was updated, not just zone.coords/aabb.
+    net.step()
+    harness.assertTrue(zone.isInside(), "the zone should now be tracked as containing the player at its new position")
+
+    zone.remove()
+end)
+
+harness.test("QB.zones.edit rejects poly zone coords edits", function()
+    local zone = QB.zones.poly({
+        points = {
+            { x = 0,  y = 0,  z = 0 },
+            { x = 10, y = 0,  z = 0 },
+            { x = 0,  y = 10, z = 0 },
+        },
+    })
+
+    harness.assertThrows(function() QB.zones.edit(zone, { coords = { x = 1, y = 1, z = 0 } }) end,
+        "poly zones should reject a coords edit")
+
+    harness.assertTrue(zone.contains({ x = 2, y = 2, z = 0 }), "the poly's containment should be unaffected by the rejected edit")
+
+    zone.remove()
+end)
+
+harness.test("QB.zones.edit can attach onEnter/onExit to a zone, and false detaches them", function()
+    local zone = QB.zones.sphere({ coords = { x = 300, y = 300, z = 0 }, radius = 5 })
+    local enterCount, exitCount = 0, 0
+
+    QB.zones.edit(zone, {
+        onEnter = function() enterCount = enterCount + 1 end,
+        onExit = function() exitCount = exitCount + 1 end,
+    })
+
+    QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } }) -- move it onto the player
+    net.step()
+    harness.assertEqual(enterCount, 1, "the newly attached onEnter should fire once the player is inside")
+
+    QB.zones.edit(zone, { onExit = false }) -- detach onExit while still inside
+
+    -- Move it just outside its own radius, but still within the same grid
+    -- cell as the player -- keeps it a tick-loop candidate so the exit
+    -- transition actually gets evaluated (moving it far outside the
+    -- candidate cell neighborhood entirely, like back to 300/300, would
+    -- leave isInside stale until it happens to become a candidate again --
+    -- the same tick-loop characteristic QB.zones.remove() already has, not
+    -- something this edit-attach/detach test is about).
+    QB.zones.edit(zone, { coords = { x = 20, y = 0, z = 0 } })
+    net.step()
+    harness.assertFalse(zone.isInside(), "the zone should be tracked as exited even with no onExit callback attached")
+    harness.assertEqual(exitCount, 0, "onExit was detached, so it must not fire")
+    harness.assertEqual(enterCount, 1, "detaching onExit must not affect the already-attached onEnter")
+
+    zone.remove()
+end)
+
+harness.test("QB.zones.edit rejects an invalid onEnter and leaves coords unchanged", function()
+    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+    net.step()
+    harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
+
+    harness.assertThrows(function()
+        QB.zones.edit(zone, { coords = { x = 500, y = 500, z = 0 }, onEnter = "not-a-function" })
+    end, "an invalid onEnter should reject the whole edit, including the coords change")
+
+    harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "coords must not have moved just because the call ultimately threw")
+    harness.assertFalse(zone.contains({ x = 500, y = 500, z = 0 }), "the zone must not have moved to the rejected coords")
+
+    net.step()
+    harness.assertTrue(zone.isInside(), "the grid must never have been touched by the rejected edit")
+
+    zone.remove()
+end)
+
+harness.test("QB.zones.edit rejects an invalid onExit and leaves coords unchanged", function()
+    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+    net.step()
+    harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
+
+    harness.assertThrows(function()
+        QB.zones.edit(zone, { coords = { x = 500, y = 500, z = 0 }, onExit = 42 })
+    end, "an invalid onExit should reject the whole edit, including the coords change")
+
+    harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "coords must not have moved just because the call ultimately threw")
+    harness.assertFalse(zone.contains({ x = 500, y = 500, z = 0 }), "the zone must not have moved to the rejected coords")
+
+    net.step()
+    harness.assertTrue(zone.isInside(), "the grid must never have been touched by the rejected edit")
+
+    zone.remove()
+end)
+
+harness.test("QB.zones.edit with unchanged coords is a no-op that doesn't disturb grid tracking", function()
+    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+    net.step()
+    harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
+
+    -- A fresh table with the same numeric values, not the same Lua object --
+    -- exercises the value-equality short-circuit rather than trivially
+    -- skipping via reference equality.
+    QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
+
+    harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "the zone should still contain the origin")
+    net.step()
+    harness.assertTrue(zone.isInside(), "a same-coords edit must not have dropped the zone from the grid")
+
+    zone.remove()
+end)
+
+harness.test("QB.zones.edit allows onEnter/onExit edits on a poly zone", function()
+    local zone = QB.zones.poly({
+        points = {
+            { x = 0,  y = 0,  z = 0 },
+            { x = 10, y = 0,  z = 0 },
+            { x = 0,  y = 10, z = 0 },
+        },
+    })
+
+    QB.zones.edit(zone, { onEnter = function() end })
+
+    zone.remove()
+end)
+
 harness.test("generateSnippet formats a box zone", function()
     local snippet = QB.zones.generateSnippet("box", {
         coords = { x = 100, y = 200, z = 30 },

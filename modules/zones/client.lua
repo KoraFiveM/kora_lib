@@ -225,10 +225,34 @@ local function editZone(handle, opts)
         )
     end
 
+    -- Validate every field before mutating anything, so a rejected edit (e.g.
+    -- a bad onEnter alongside a valid coords) never leaves the zone
+    -- half-changed -- either every requested field applies, or none do.
+    local coords
     if opts.coords ~= nil then
         assert(zone.type ~= "poly", "Poly zones do not have editable coords; edit their points instead.")
-        local coords = toVec3(opts.coords)
+        coords = toVec3(opts.coords)
+    end
 
+    if opts.onEnter ~= nil then
+        assert(
+            opts.onEnter == false or isCallable(opts.onEnter),
+            "onEnter must be a function or false."
+        )
+    end
+
+    if opts.onExit ~= nil then
+        assert(
+            opts.onExit == false or isCallable(opts.onExit),
+            "onExit must be a function or false."
+        )
+    end
+
+    -- Every validation above passed: apply. Skip the grid churn (and the aabb
+    -- recompute, which would come out identical) when the new coords equal
+    -- the zone's current ones -- e.g. a caller re-editing onEnter/onExit
+    -- while re-passing the coords it already has.
+    if coords ~= nil and (coords.x ~= zone.coords.x or coords.y ~= zone.coords.y or coords.z ~= zone.coords.z) then
         removeFromGrid(zone)
 
         zone.coords = coords
@@ -258,20 +282,10 @@ local function editZone(handle, opts)
     end
 
     if opts.onEnter ~= nil then
-        assert(
-            opts.onEnter == false or isCallable(opts.onEnter),
-            "onEnter must be a function or false."
-        )
-
         zone.onEnter = opts.onEnter == false and nil or opts.onEnter
     end
 
     if opts.onExit ~= nil then
-        assert(
-            opts.onExit == false or isCallable(opts.onExit),
-            "onExit must be a function or false."
-        )
-
         zone.onExit = opts.onExit == false and nil or opts.onExit
     end
 
