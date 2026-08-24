@@ -162,9 +162,11 @@ Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, 
 | `header` | `label` | |
 | `txt` | `description` | |
 | `disabled` / `isMenuHeader` | `disabled` | Real qb-menu's `isMenuHeader` rows are unselectable section labels; the new menu has no dedicated header row type, so this is the closest equivalent. |
-| `icon` | *(dropped)* | Real qb-menu icons are Font Awesome classes; `QB.nui.openMenu`'s `icon` expects a lucide-react name (`web/src/lib/icon.ts`) — the two vocabularies don't overlap, so the icon is dropped rather than mistranslated. One warning per resource run, not per item. |
+| `icon` | `image` / `icon` | Item artwork URLs and known shared-item images render directly; qblib-native icon names retain their curated lucide rendering. |
 | *(none)* | `id` | Real qb-menu items have no stable id; the 1-based position in the array is used. |
 | `params.event` / `params.isServer` / `params.args` | — | Fired via `TriggerEvent`/`TriggerServerEvent` on selection, exactly as real qb-menu's own `selectMenuItem` NUI callback does. |
+
+`openMenu(menu, sort, skipFirst)` also honours hidden rows and upstream sorting. `action`, command, QB-command and function-action rows follow qb-menu dispatch precedence, and `showHeader`/`playerfocus`/`qb-menu:client:menuClosed` are supplied alongside the two original exports.
 
 `exports['qb-menu']:closeMenu()` and the `qb-menu:client:openMenu`/`qb-menu:client:closeMenu` net events are also registered. `closeMenu` dismisses the active list menu through its normal cancellation response, which also releases focus and settles the awaiting request.
 

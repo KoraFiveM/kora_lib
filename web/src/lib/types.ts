@@ -9,8 +9,10 @@
 // modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
 // openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
 // zoneCreator:* actions), modules/notify/client.lua (the "notify" action),
-// and modules/minigames/client.lua (the minigames:* actions) -- this file is
-// the one place the whole contract is written down on the NUI side.
+// and modules/minigames/client.lua (the minigames:* actions), plus
+// qbtarget/client/loop.lua (the qbtarget:target display action and the
+// qbtarget:select candidate-picker action) -- this file is the one place the
+// whole contract is written down on the NUI side.
 
 // The outer wire envelope every Lua->NUI message travels in.
 export interface NuiWireMessage<T = unknown> {
@@ -54,6 +56,32 @@ export interface InteractOption {
 // highlighted row; `hideInteract` closes it. The selection POSTs its one-based
 // index straight to the `selectOption` NUI callback.
 export type InteractOpenPayload = InteractOption[]
+
+// action: "qbtarget:target" (fire-and-forget) -- a transparent, game-input
+// driven target reticle/prompt. qbtarget owns raycasts, eligibility, controls,
+// and selection; this payload is display-only and never requests NUI focus.
+export interface TargetHudPayload {
+    active: boolean
+    label?: string
+    optionCount?: number
+}
+
+// action: "qbtarget:select" (fire-and-forget) -- the compact candidate picker
+// shown when more than one option is available under the reticle. Mirrors
+// InteractOpenPayload's display-only, pointer-transparent contract, but is
+// qbtarget's own action name/payload shape: qbtarget cycles/confirms/cancels
+// entirely via its own control polling in client/loop.lua (no NUI focus, no
+// selectOption callback round trip -- Lua already knows the active index).
+export interface TargetSelectOption {
+    label: string
+    icon?: string
+}
+
+export interface TargetSelectPayload {
+    active: boolean
+    items?: TargetSelectOption[]
+    activeIndex?: number
+}
 
 /**
  * A nested level, opened when its parent item is selected instead of

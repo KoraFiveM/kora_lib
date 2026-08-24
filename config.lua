@@ -24,7 +24,11 @@ Config.callback = {
 }
 
 Config.cache = {
-    tickInterval = 100, -- ms Wait() between QB.cache ped/vehicle/seat/weapon refreshes; 0 = every frame
+    -- 5Hz keeps HUD health/armour/stamina and local distance helpers feeling
+    -- immediate, while halving the shared native/cache work previously done
+    -- at 10Hz. Never set this to 0: the cache is deliberately telemetry, not
+    -- a per-frame game-control loop.
+    tickInterval = 200,
 }
 
 Config.notify = {
