@@ -281,6 +281,17 @@ harness.test("startCreator rejects a second call while a creator is already runn
     harness.assertEqual(first.value, nil, "a cancelled creator should resolve with nil, not an error")
 end)
 
+harness.test("isCreatorActive reflects whether a creator session is running", function()
+    harness.assertFalse(QB.zones.isCreatorActive(), "no creator has been started yet")
+
+    local p = QB.zones.startCreator("box")
+    harness.assertTrue(QB.zones.isCreatorActive(), "a creator is now pending")
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
+    harness.assertFalse(QB.zones.isCreatorActive(), "cancelling should clear the active session")
+end)
+
 harness.test("the creator restores the minimap when it ends", function()
     radarCalls = {}
 

@@ -1463,6 +1463,16 @@ function QB.zones.startCreator(zoneType, existingOpts)
     return settleForExport(beginCreator(zoneType, GetInvokingResource() or GetCurrentResourceName(), existingOpts))
 end
 
+---Whether a zone creator session currently owns player input (camera fly,
+---place/undo/cycle keybinds). Consulted by other resources whose own
+---keybind collides with a creator keybind by default -- e.g. qbinventory's
+---TAB-bound inventory toggle vs. qblib_zonecreator_cycle -- so the second
+---handler can bail instead of firing alongside the creator's.
+---@return boolean
+function QB.zones.isCreatorActive()
+    return creatorState ~= nil
+end
+
 RegisterCommand("qb_zonecreator", function(_, args)
     local zoneType = args[1] or "box"
     local ok, result = pcall(function() return Citizen.Await(QB.zones.startCreator(zoneType)) end)
