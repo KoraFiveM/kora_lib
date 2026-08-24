@@ -1,0 +1,4 @@
+theme: jekyll-theme-cayman
+title: qblib
+description: "Lightweight Lua library exposing a shared QB namespace over FiveM exports"
+show_downloads: false
