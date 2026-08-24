@@ -1,26 +1,30 @@
-
-
 local function handleException(reason, value)
     if type(value) == 'function' then return tostring(value) end
     return reason
 end
 
 local function formatArgs(...)
-    local args = { ... }
-    local argCount = select('#', ...)
+    local args = table.pack(...)
     local formatted = {}
-    local jsonOptions = { sort_keys = true, indent = true, exception = handleException }
+    local jsonOptions = {
+        sort_keys = true,
+        indent = true,
+        exception = handleException
+    }
 
-    for k = 1, argCount do
-        local v = args[k]
-        if type(v) == "table" then
-            table.insert(formatted, json.encode(v, jsonOptions))
-        elseif type(v) == "boolean" then
-            table.insert(formatted, tostring(v))
-        elseif v == nil then
-            table.insert(formatted, 'nil')
+    for i = 1, args.n do
+        local value = args[i]
+
+        if type(value) == "table" then
+            formatted[i] = json.encode(value, jsonOptions)
+        elseif type(value) == "boolean" then
+            formatted[i] = tostring(value)
+        elseif value == nil then
+            formatted[i] = 'nil'
+        elseif type(value) == 'number' then
+            formatted[i] = '^7' .. tostring(value) .. '^0'
         else
-            table.insert(formatted, tostring(v))
+            formatted[i] = tostring(value)
         end
     end
 
