@@ -63,6 +63,36 @@ local function translateOptions(options)
     return translated
 end
 
+-- Real qb-input's "checkbox" type is a CHECKBOX GROUP, not a single boolean:
+-- an `inputs[]` entry of type "checkbox" carries its own `options[]` list
+-- (each `{value, text, checked}`, same shape as radio/select), and the
+-- submitted result is keyed by EACH OPTION'S OWN `value` -- never by the
+-- input's own `name` at all. See qbcore-framework/qb-input's
+-- html/script.js: `renderCheckboxInput` sets `formInputs[option.value] =
+-- option.checked and "true" or "false"` for every option, and `name` is
+-- only used to group the `<input>` elements in the DOM, not as a result key.
+-- QB.nui.openInputDialog's `checkbox` field type is a single boolean keyed
+-- by its own `id` -- there is no multi-option checkbox-group widget to route
+-- to -- so one real checkbox input with options expands into N separate
+-- boolean fields here, one per option, each keyed by that option's OWN
+-- value exactly like upstream, with the group's own `text` prefixed onto
+-- each option's label for context since the flat field list can't show
+-- visual grouping. A checkbox input with no `options` (some simplified
+-- qb-input forks use a single scalar `checked`/`default` boolean instead of
+-- a group) still falls through to the single-boolean field below, keyed by
+-- `name` as before.
+local function translateCheckboxOptions(input, fields)
+    local prefix = (input.text and input.text ~= "") and (input.text .. ": ") or ""
+    for _, option in ipairs(input.options) do
+        fields[#fields + 1] = {
+            id = tostring(option.value),
+            label = prefix .. (option.text or option.label or tostring(option.value)),
+            type = "checkbox",
+            default = option.checked == true,
+        }
+    end
+end
+
 -- Maps one real qb-input `inputs[]` entry onto an InputField. `name` becomes
 -- `id` directly -- QB.nui.openInputDialog's result is `{ values = { [id] = value } }`,
 -- so keeping id == name means the legacy `result[name]` lookup keeps working
@@ -89,6 +119,9 @@ local function translateField(input)
         field.min = input.min
         field.max = input.max
     elseif inputType == "checkbox" then
+        -- Only reached for a checkbox with no `options` -- see
+        -- translateCheckboxOptions above for the (real, upstream) group case,
+        -- which ShowInput routes there before this function ever runs.
         field.type = "checkbox"
         -- Some qb-input forks use `checked`, others `default` -- honour
         -- whichever is actually set.
@@ -129,8 +162,12 @@ local function ShowInput(data)
     if type(data) ~= "table" or type(data.inputs) ~= "table" or inputOpen then return nil end
 
     local fields = {}
-    for i, input in ipairs(data.inputs) do
-        fields[i] = translateField(input)
+    for _, input in ipairs(data.inputs) do
+        if input.type == "checkbox" and type(input.options) == "table" and #input.options > 0 then
+            translateCheckboxOptions(input, fields)
+        else
+            fields[#fields + 1] = translateField(input)
+        end
     end
 
     inputOpen = true

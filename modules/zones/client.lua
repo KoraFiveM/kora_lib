@@ -10,6 +10,12 @@ local destroyZone
 local zoneOwnership
 local debugZones = {}
 
+-- setZoneDebug (below ensureDebugThread, since it needs to call it) is
+-- likewise forward-declared: both the handle's setDebug method (buildHandle,
+-- right below) and QB.zones.setDebug need to call it, and buildHandle runs
+-- long before ensureDebugThread is defined.
+local setZoneDebug
+
 local nextZoneId = 0
 local tickThreadStarted = false
 local debugThreadStarted = false
@@ -206,6 +212,7 @@ local function buildHandle(zone)
         remove = function() destroyZone(zone) end,
         contains = function(coords) return containsFn[zone.type](zone, toVec3(coords)) end,
         isInside = function() return zone.isInside end,
+        setDebug = function(enabled) setZoneDebug(zone, enabled) end,
     }
 end
 
@@ -461,6 +468,21 @@ local function ensureDebugThread()
     end)
 end
 
+-- Shared by the handle's own setDebug method and QB.zones.setDebug (both a
+-- single-id call and the nil-id "every zone" fan-out) -- one place that keeps
+-- zone.debug, debugZones, and the debug thread's running-or-not state
+-- consistent, rather than three copies of the same add/remove-from-set logic.
+setZoneDebug = function(zone, enabled)
+    zone.debug = enabled
+
+    if enabled then
+        debugZones[zone.id] = zone
+        ensureDebugThread()
+    else
+        debugZones[zone.id] = nil
+    end
+end
+
 local tickLoop
 
 local function ensureTickThread()
@@ -478,7 +500,7 @@ local function createZone(zoneType, opts, initShape, resourceOverride)
         onEnter = opts.onEnter,
         onExit = opts.onExit,
         inside = opts.inside,
-        debug = opts.debug or false,
+        debug = false,
         data = opts.data,
         resource = resourceOverride or GetInvokingResource() or GetCurrentResourceName(),
         isInside = false,
@@ -493,9 +515,12 @@ local function createZone(zoneType, opts, initShape, resourceOverride)
 
     zoneOwnership.track(zone.resource, zone.id)
 
-    if zone.debug then
-        debugZones[zone.id] = zone
-        ensureDebugThread()
+    -- Config.zones.debug is a server-wide default OR'd in here, same pattern
+    -- qbtarget's own Config.target.debug already uses on top of this --
+    -- opts.debug still wins on its own (a zone can opt in even with the
+    -- global default off), it just isn't the only way in anymore.
+    if Config.zones.debug == true or opts.debug == true then
+        setZoneDebug(zone, true)
     end
 
     ensureTickThread()
@@ -516,6 +541,7 @@ end
 ---@field remove fun() Tears the zone down. Same teardown path a resource stop uses.
 ---@field contains fun(coords: any): boolean Exact containment test against an arbitrary point.
 ---@field isInside fun(): boolean Whether the local player is currently inside, read live.
+---@field setDebug fun(enabled: boolean) Toggles this zone's debug wireframe at runtime. Equivalent to `QB.zones.setDebug(zone.id, enabled)`.
 
 ---@class QBZoneCommonOptions
 ---@field onEnter? fun(zone: table)
@@ -593,6 +619,28 @@ function QB.zones.getInside(resource)
     end
 
     return inside
+end
+
+---Toggles debug wireframe drawing on an already-created zone (or every
+---currently-registered zone at once) at runtime -- unlike `opts.debug`,
+---which only ever gets read once, at creation. Also reachable per-zone as
+---`zone.setDebug(enabled)` on the handle itself, and globally via the
+---`qb_zonedebug` command below.
+---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
+---@param enabled boolean
+function QB.zones.setDebug(id, enabled)
+    assert(id == nil or type(id) == "number", "id must be a zone id or nil.")
+    assert(type(enabled) == "boolean", "enabled must be a boolean.")
+
+    if id ~= nil then
+        local zone = zoneRegistry[id]
+        if zone then setZoneDebug(zone, enabled) end
+        return
+    end
+
+    for _, zone in pairs(zoneRegistry) do
+        setZoneDebug(zone, enabled)
+    end
 end
 
 tickLoop = function()
@@ -1472,6 +1520,31 @@ end
 function QB.zones.isCreatorActive()
     return creatorState ~= nil
 end
+
+-- No-args toggle direction: "any zone currently drawing debug" flips
+-- everything off, otherwise flips everything on. Reads debugZones directly
+-- (rather than tracking a separate on/off flag of its own) so it stays
+-- correct even after a resource has been calling QB.zones.setDebug per-zone
+-- behind this command's back -- there's no separate piece of state that
+-- could drift out of sync with what's actually drawing.
+RegisterCommand("qb_zonedebug", function(_, args)
+    local arg = args[1] and tostring(args[1]):lower() or nil
+    local enabled
+
+    if arg == "on" then
+        enabled = true
+    elseif arg == "off" then
+        enabled = false
+    elseif arg == nil then
+        enabled = next(debugZones) == nil
+    else
+        creatorLog(("qb_zonedebug: unrecognised argument '%s' -- use 'on', 'off', or no argument to toggle."):format(arg))
+        return
+    end
+
+    QB.zones.setDebug(nil, enabled)
+    creatorLog(("zone debug drawing %s for every registered zone."):format(enabled and "enabled" or "disabled"))
+end, false)
 
 RegisterCommand("qb_zonecreator", function(_, args)
     local zoneType = args[1] or "box"

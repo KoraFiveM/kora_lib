@@ -17,6 +17,27 @@ local function rotationToDirection(rot)
     return { x = -math.sin(z) * flatLength, y = math.cos(z) * flatLength, z = math.sin(x) }
 end
 
+-- Shape tests are asynchronous even though the public helper returns a
+-- settled result. Reading once immediately after StartShapeTestRay can return
+-- status 1 (pending); its other output slots are not valid yet and have been
+-- observed to surface as stale entity handles. Keep the wait bounded so a
+-- broken/invalid test can never strand its caller.
+local SHAPE_TEST_TIMEOUT_MS = 1000
+
+local function awaitShapeTest(rayHandle)
+    local deadline = GetGameTimer() + SHAPE_TEST_TIMEOUT_MS
+    local status, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
+
+    while status == 1 and GetGameTimer() < deadline do
+        Wait(0)
+        status, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
+    end
+
+    if status ~= 2 then return false, nil, nil, nil end
+    if hit == 0 then return false, nil, nil, nil end
+    return true, toVec3(hitCoords), entityHit, toVec3(surfaceNormal)
+end
+
 ---Fires a world-geometry raycast between two points.
 ---@param startCoords table vector3-like { x, y, z }
 ---@param endCoords table vector3-like { x, y, z }
@@ -37,10 +58,7 @@ function QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)
         endCoords.x, endCoords.y, endCoords.z,
         flags, ignoreEntity, 0
     )
-    local _, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
-
-    if hit == 0 then return false, nil, nil, nil end
-    return true, toVec3(hitCoords), entityHit, toVec3(surfaceNormal)
+    return awaitShapeTest(rayHandle)
 end
 
 ---Aims from the gameplay camera and raycasts against world geometry, so

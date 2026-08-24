@@ -2,12 +2,18 @@ import { useEffect, useState } from "react"
 
 import type {
     CircuitPuzzle,
+    HackingPuzzle,
+    KeysPuzzle,
     LockpickPuzzle,
     MashPuzzle,
     MinigameAttempt,
     MinigamesClosePayload,
     MinigamesRoundPayload,
+    PinpadPuzzle,
+    QuizPuzzle,
     SkillbarPuzzle,
+    WordGuessPuzzle,
+    WordScramblePuzzle,
 } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 import { useNuiRequest } from "@/lib/useNuiRequest"
@@ -15,6 +21,12 @@ import { LockpickGame } from "./LockpickGame"
 import { SkillbarGame } from "./SkillbarGame"
 import { CircuitGame } from "./CircuitGame"
 import { MashKeyGame } from "./MashKeyGame"
+import { PinpadGame } from "./PinpadGame"
+import { QuizGame } from "./QuizGame"
+import { WordGuessGame } from "./WordGuessGame"
+import { WordScrambleGame } from "./WordScrambleGame"
+import { KeysGame } from "./KeysGame"
+import { HackingGame } from "./HackingGame"
 
 /**
  * Headless dispatcher for QB.minigames.play (modules/minigames/client.lua).
@@ -61,6 +73,18 @@ export function MinigameContainer() {
             return <CircuitGame key={roundKey} puzzle={payload.puzzle as CircuitPuzzle} {...shared} />
         case "mash":
             return <MashKeyGame key={roundKey} puzzle={payload.puzzle as MashPuzzle} {...shared} />
+        case "pinpad":
+            return <PinpadGame key={roundKey} puzzle={payload.puzzle as PinpadPuzzle} {...shared} />
+        case "quiz":
+            return <QuizGame key={roundKey} puzzle={payload.puzzle as QuizPuzzle} {...shared} />
+        case "wordguess":
+            return <WordGuessGame key={roundKey} puzzle={payload.puzzle as WordGuessPuzzle} {...shared} />
+        case "wordscramble":
+            return <WordScrambleGame key={roundKey} puzzle={payload.puzzle as WordScramblePuzzle} {...shared} />
+        case "keys":
+            return <KeysGame key={roundKey} puzzle={payload.puzzle as KeysPuzzle} {...shared} />
+        case "hacking":
+            return <HackingGame key={roundKey} puzzle={payload.puzzle as HackingPuzzle} {...shared} />
         default:
             return null
     }

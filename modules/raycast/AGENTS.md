@@ -5,7 +5,7 @@ This module fires world-geometry raycasts and reports what they hit -- coordinat
 
 ## Public API
 - `QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
-  - Thin wrapper around `StartShapeTestRay`/`GetShapeTestResult`.
+  - Starts an asynchronous `StartShapeTestRay`, waits for `GetShapeTestResult` to report completion, then returns the settled result.
   - Returns `hit, coords, entityHit, surfaceNormal`.
 - `QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)`
   - Builds a ray from `GetGameplayCamCoord`/`GetGameplayCamRot(2)` out to `maxDistance`, then delegates to `fromCoords`.
@@ -17,6 +17,7 @@ This module fires world-geometry raycasts and reports what they hit -- coordinat
 ## Implementation notes
 - `flags` defaults to `-1` (test against everything) and `ignoreEntity` defaults to `PlayerPedId()` -- these were the zone creator's original hardcoded values, kept as defaults rather than required params so existing callers don't need to change, while still letting a caller (e.g. a targeting resource that wants to ignore vehicles) override either.
 - `GetShapeTestResult` always returns `surfaceNormal`/`entityHit` regardless of flags; the previous zones-only version discarded both. They're now returned because the whole reason to promote this out of zones is that a target resource needs to know *what entity* the ray struck, not just where it landed.
+- `GetShapeTestResult` status `1` is pending. Its hit/entity output slots are not consumed until status `2`; doing so can leak an invalid entity handle into consumers such as qbtarget. Polling is bounded to one second and yields once per pending frame.
 - `entityHit` comes back as `0` (not `nil`) on a hit against bare world geometry -- only `hit` itself distinguishes a miss.
 - `fromCam` shares `rotationToDirection`/`toVec3` with `fromCamera`; the only difference is it reads position/rotation from a caller-supplied scripted camera handle (`GetCamCoord`/`GetCamRot`) instead of the gameplay camera (`GetGameplayCamCoord`/`GetGameplayCamRot`).
 - `toVec3`/`rotationToDirection` are private copies of the same helpers in `modules/zones/client.lua`. They're duplicated rather than shared because Lua `local`s don't cross files and this repo has no shared-utils convention (see top-level `AGENTS.md`) -- every other client-only module (`stream`, `zones`) duplicates its own small helpers the same way.

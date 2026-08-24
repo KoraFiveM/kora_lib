@@ -101,6 +101,98 @@ function resolveConfig.mash(opts)
 end
 
 ------------------------------------------------------------------------------
+-- The six types below back compat/client/qb-minigames.lua. Unlike
+-- lockpick/skillbar/circuit/mash, their puzzle CONTENT (the PIN, the word,
+-- the quiz questions) is supplied by the calling script via opts, exactly
+-- like the real qb-minigames exports it's standing in for -- so resolveConfig
+-- here validates/carries that content through in addition to clamping the
+-- usual difficulty/timing numbers.
+------------------------------------------------------------------------------
+
+function resolveConfig.pinpad(opts)
+    local cfg = Config.minigames.pinpad
+    local numbers = opts and opts.numbers
+    local digits = clampInt(opts and opts.digits, cfg.digits, 3, 8)
+    if type(numbers) == "number" or type(numbers) == "string" then
+        digits = #tostring(numbers)
+    end
+
+    return {
+        attempts = clampInt(opts and opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
+        numbers = numbers,
+        digits = clampInt(digits, cfg.digits, 3, 8),
+        timeLimit = clampNumber(opts and opts.timeLimit, cfg.timeLimit, 3000, 60000),
+    }
+end
+
+function resolveConfig.quiz(opts)
+    local cfg = Config.minigames.quiz
+    assert(opts and type(opts.questions) == "table" and #opts.questions > 0, "quiz requires a non-empty questions list.")
+
+    local questions = {}
+    for i, q in ipairs(opts.questions) do
+        assert(type(q.question) == "string" and type(q.answer) == "string" and type(q.options) == "table",
+            "malformed quiz question.")
+        questions[i] = { question = q.question, answer = q.answer, options = q.options }
+    end
+
+    local timePerQuestion = clampNumber(opts.timer and opts.timer * 1000, cfg.timePerQuestion, 2000, 120000)
+
+    return {
+        attempts = clampInt(opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
+        questions = questions,
+        correctRequired = clampInt(opts.correctRequired, cfg.correctRequired, 1, #questions),
+        timePerQuestion = timePerQuestion,
+        timeLimit = clampNumber(timePerQuestion * #questions, cfg.timePerQuestion * #questions, 2000, 600000),
+    }
+end
+
+function resolveConfig.wordguess(opts)
+    local cfg = Config.minigames.wordguess
+    assert(opts and type(opts.word) == "string" and opts.word ~= "", "wordguess requires a non-empty word.")
+
+    return {
+        attempts = clampInt(opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
+        word = opts.word:lower(),
+        hint = type(opts.hint) == "string" and opts.hint or "",
+        guesses = clampInt(opts.guesses, cfg.guesses, 1, 26),
+        timeLimit = clampNumber(opts.timeLimit, cfg.timeLimit, 5000, 300000),
+    }
+end
+
+function resolveConfig.wordscramble(opts)
+    local cfg = Config.minigames.wordscramble
+    assert(opts and type(opts.word) == "string" and opts.word ~= "", "wordscramble requires a non-empty word.")
+
+    return {
+        attempts = clampInt(opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
+        word = opts.word:lower(),
+        hint = type(opts.hint) == "string" and opts.hint or "",
+        timeLimit = clampNumber(opts.timer and opts.timer * 1000, cfg.timeLimit, 3000, 300000),
+    }
+end
+
+function resolveConfig.keys(opts)
+    local cfg = Config.minigames.keys
+    local amount = clampInt(opts and opts.amount, cfg.amount, 1, 30)
+    return {
+        attempts = 1, -- upstream's KeyMinigame always runs to completion once, never retries
+        amount = amount,
+        timeLimit = amount * cfg.perKeyWindow,
+    }
+end
+
+function resolveConfig.hacking(opts)
+    local cfg = Config.minigames.hacking
+    local timeout = clampNumber(opts and opts.timeout, cfg.timeout, 5, 120)
+    return {
+        attempts = 1, -- upstream's Hacking is a single pass/fail against a countdown, not a multi-attempt puzzle
+        solutionsize = clampInt(opts and opts.solutionsize, cfg.solutionsize, 2, 10),
+        timeLimit = timeout * 1000,
+    }
+end
+
+------------------------------------------------------------------------------
 -- Per-type generation/validation. `generate` returns solution (kept
 -- server-side only, never sent to the client) and public (exactly what's
 -- sent to the NUI to render the round). `validate` recomputes correctness
@@ -273,6 +365,238 @@ function validate.mash(session, attempt)
     return #attempt.pressTimestamps >= solution.requiredPresses
 end
 
+-- The PIN's digits are exactly what a real keypad shows the player (there's
+-- no "hidden" pinpad face) -- what's never sent is which digits the player
+-- has already entered, so a forged submission still has to reproduce the
+-- correct sequence with human-plausible spacing.
+function generate.pinpad(cfg)
+    local digits = {}
+    if cfg.numbers ~= nil then
+        for ch in tostring(cfg.numbers):gmatch("%d") do
+            digits[#digits + 1] = tonumber(ch)
+        end
+    end
+    if #digits == 0 then
+        for i = 1, cfg.digits do digits[i] = math.random(0, 9) end
+    end
+
+    local solution = { digits = digits }
+    local public = { digitCount = #digits }
+
+    return solution, public
+end
+
+function validate.pinpad(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.digits) == "table", "malformed pinpad attempt.")
+
+    local solution = session.solution
+    assert(#attempt.digits == #solution.digits, "pinpad attempt must submit every digit exactly once.")
+
+    local floor = Config.minigames.pinpad.minTimePerDigit
+    local lastElapsed = -floor
+    local allMatch = true
+
+    for i, entry in ipairs(attempt.digits) do
+        assert(type(entry.value) == "number" and type(entry.elapsed) == "number", "malformed pinpad digit.")
+        assert(entry.elapsed >= 0 and entry.elapsed <= session.timeLimit, "pinpad digit outside the round's time limit.")
+        assert(entry.elapsed >= lastElapsed + floor, "pinpad digits are too close together to be human.")
+        lastElapsed = entry.elapsed
+
+        if entry.value ~= solution.digits[i] then allMatch = false end
+    end
+
+    return allMatch
+end
+
+-- The questions/options ARE the puzzle the client renders (same reasoning as
+-- circuit's colors); what's stripped out of `public` and kept only in
+-- `solution` is each question's `answer`, which is what the client must
+-- never be trusted to grade itself.
+function generate.quiz(cfg)
+    local publicQuestions = {}
+    for i, q in ipairs(cfg.questions) do
+        publicQuestions[i] = { numb = i, question = q.question, options = q.options }
+    end
+
+    local solution = { questions = cfg.questions, correctRequired = cfg.correctRequired }
+    local public = { questions = publicQuestions, correctRequired = cfg.correctRequired, timePerQuestion = cfg.timePerQuestion }
+
+    return solution, public
+end
+
+function validate.quiz(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.answers) == "table", "malformed quiz attempt.")
+
+    local solution = session.solution
+    assert(#attempt.answers == #solution.questions, "quiz attempt must answer every question exactly once.")
+
+    local floor = Config.minigames.quiz.minTimePerAnswer
+    local lastElapsed = -floor
+    local correct = 0
+
+    for i, entry in ipairs(attempt.answers) do
+        assert(type(entry.choice) == "string" and type(entry.elapsed) == "number", "malformed quiz answer.")
+        assert(entry.elapsed >= 0 and entry.elapsed <= session.timeLimit, "quiz answer outside the round's time limit.")
+        assert(entry.elapsed >= lastElapsed + floor, "quiz answers are too close together to be human.")
+        lastElapsed = entry.elapsed
+
+        if entry.choice == solution.questions[i].answer then correct = correct + 1 end
+    end
+
+    return correct >= solution.correctRequired
+end
+
+-- Only `hint` and the word's length are sent to the client -- the word
+-- itself stays server-side in `solution` and is only ever revealed one
+-- letter at a time, as the player's own correct guesses accumulate.
+function generate.wordguess(cfg)
+    local solution = { word = cfg.word, guesses = cfg.guesses }
+    local public = { hint = cfg.hint, length = #cfg.word, guesses = cfg.guesses }
+
+    return solution, public
+end
+
+function validate.wordguess(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.guesses) == "table", "malformed wordguess attempt.")
+
+    local solution = session.solution
+    local floor = Config.minigames.wordguess.minTimePerGuess
+    local lastElapsed = -floor
+    local wrong = {}
+    local found = {}
+    for i = 1, #solution.word do found[i] = false end
+
+    for _, g in ipairs(attempt.guesses) do
+        assert(type(g.letter) == "string" and #g.letter == 1 and type(g.elapsed) == "number", "malformed wordguess letter.")
+        assert(g.elapsed >= 0 and g.elapsed <= session.timeLimit, "wordguess letter outside the round's time limit.")
+        assert(g.elapsed >= lastElapsed + floor, "wordguess letters are too close together to be human.")
+        lastElapsed = g.elapsed
+
+        local letter = g.letter:lower()
+        local hitAny = false
+        for i = 1, #solution.word do
+            if solution.word:sub(i, i) == letter then
+                found[i] = true
+                hitAny = true
+            end
+        end
+        if not hitAny then wrong[letter] = true end
+    end
+
+    local wrongCount = 0
+    for _ in pairs(wrong) do wrongCount = wrongCount + 1 end
+    if wrongCount > solution.guesses then return false end
+
+    for i = 1, #solution.word do
+        if not found[i] then return false end
+    end
+
+    return true
+end
+
+-- The scramble is generated server-side (never trust a client-provided
+-- shuffle) so the answer stays hidden until the player actually solves it --
+-- only the scrambled form + hint are sent as `public`.
+function generate.wordscramble(cfg)
+    local letters = {}
+    for i = 1, #cfg.word do letters[i] = cfg.word:sub(i, i) end
+    for i = #letters, 2, -1 do
+        local j = math.random(1, i)
+        letters[i], letters[j] = letters[j], letters[i]
+    end
+
+    local solution = { word = cfg.word }
+    local public = { scrambled = table.concat(letters), hint = cfg.hint }
+
+    return solution, public
+end
+
+function validate.wordscramble(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.guess) == "string" and type(attempt.elapsed) == "number",
+        "malformed wordscramble attempt.")
+    assert(attempt.elapsed >= 0 and attempt.elapsed <= session.timeLimit, "wordscramble submit outside the round's time limit.")
+    assert(attempt.elapsed >= Config.minigames.wordscramble.minSubmitTime, "wordscramble submitted too fast to be human.")
+
+    return attempt.guess:lower() == session.solution.word
+end
+
+local ARROW_KEYS = { "up", "down", "left", "right" }
+
+-- The prompt sequence is revealed in full up front (public.pattern ==
+-- solution.pattern) -- the player has to SEE which key is being asked for
+-- next, same reasoning lockpick reveals each pin's target zone. What can't
+-- be forged is reacting to each prompt with human-plausible timing.
+function generate.keys(cfg)
+    local pattern = {}
+    for i = 1, cfg.amount do pattern[i] = ARROW_KEYS[math.random(1, #ARROW_KEYS)] end
+
+    local solution = { pattern = pattern }
+    local public = { pattern = pattern }
+
+    return solution, public
+end
+
+-- Unlike every other type here, this always "passes" (mirrors upstream
+-- KeyMinigame, which has no pass/fail concept of its own -- the calling
+-- script decides what `faults` count is acceptable, per the real
+-- resource's README example `if result.faults > 3 then ...`). `faults`
+-- rides back to the caller as the submit handler's `extra` return value.
+function validate.keys(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.presses) == "table", "malformed keys attempt.")
+
+    local solution = session.solution
+    local floor = Config.minigames.keys.minTimePerPress
+    local lastElapsed = -floor
+    local faults = 0
+
+    for i, key in ipairs(solution.pattern) do
+        local press = attempt.presses[i]
+        if press == nil or type(press.key) ~= "string" or type(press.elapsed) ~= "number" then
+            faults = faults + 1
+        else
+            assert(press.elapsed >= 0 and press.elapsed <= session.timeLimit, "keys press outside the round's time limit.")
+            assert(press.elapsed >= lastElapsed + floor, "keys presses are too close together to be human.")
+            lastElapsed = press.elapsed
+            if press.key ~= key then faults = faults + 1 end
+        end
+    end
+
+    return true, faults
+end
+
+local HEX_CHARS = "0123456789ABCDEF"
+
+local function randomHex(length)
+    local chars = {}
+    for i = 1, length do
+        local idx = math.random(1, #HEX_CHARS)
+        chars[i] = HEX_CHARS:sub(idx, idx)
+    end
+    return table.concat(chars)
+end
+
+-- Simplified relative to upstream's dual hex-grid panel (two simultaneous
+-- codes to find in a big noise grid): one code, revealed directly in
+-- `public` exactly like lockpick's target zone or keys' pattern -- the skill
+-- is submitting it before the countdown, not decrypting a hidden value.
+function generate.hacking(cfg)
+    local code = randomHex(cfg.solutionsize)
+
+    local solution = { code = code }
+    local public = { code = code, solutionsize = cfg.solutionsize }
+
+    return solution, public
+end
+
+function validate.hacking(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.submitted) == "string" and type(attempt.elapsed) == "number",
+        "malformed hacking attempt.")
+    assert(attempt.elapsed >= 0 and attempt.elapsed <= session.timeLimit, "hacking submit outside the round's time limit.")
+    assert(attempt.elapsed >= Config.minigames.hacking.minTimePerFind, "hacking submitted too fast to be human.")
+
+    return attempt.submitted == session.solution.code
+end
+
 ------------------------------------------------------------------------------
 -- Session lifecycle
 ------------------------------------------------------------------------------
@@ -373,14 +697,17 @@ QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
         return { done = true, success = false, attemptsUsed = attemptsUsed }
     end
 
-    local ok, passed = pcall(validate[session.gameType], session, attempt)
+    -- `extra` is only ever set by validate.keys (its faults count) -- every
+    -- other type's validate returns just the boolean, so `extra` is nil for
+    -- them and this field is simply absent from their result.
+    local ok, passed, extra = pcall(validate[session.gameType], session, attempt)
     session.attemptsUsed = session.attemptsUsed + 1
 
     if ok and passed == true then
         local attemptsUsed = session.attemptsUsed
         local proof = createProof(session)
         endSession(session)
-        return { done = true, success = true, attemptsUsed = attemptsUsed, proof = proof }
+        return { done = true, success = true, attemptsUsed = attemptsUsed, proof = proof, faults = extra }
     end
 
     if session.attemptsUsed >= session.maxAttempts then

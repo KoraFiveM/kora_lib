@@ -2,7 +2,18 @@
 -- than each repeating its own "lockpick or skillbar or circuit or mash"
 -- chain. A plain table, not a function, so build/finalise.lua's `pairs(QB.minigames)`
 -- export walk (which only exports function values) leaves it alone.
-QB.minigames.GAME_TYPES = { lockpick = true, skillbar = true, circuit = true, mash = true }
+QB.minigames.GAME_TYPES = {
+    lockpick = true,
+    skillbar = true,
+    circuit = true,
+    mash = true,
+    pinpad = true,
+    quiz = true,
+    wordguess = true,
+    wordscramble = true,
+    keys = true,
+    hacking = true,
+}
 
 ---Deterministic back-and-forth motion every lockpick/skillbar puzzle animates
 ---by. Attached to QB.minigames (not left as a shared.lua local) because

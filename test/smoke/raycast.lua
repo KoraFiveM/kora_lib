@@ -21,6 +21,7 @@ _G.GetCamRot = function(cam, order) return { x = 0, y = 0, z = 0 } end
 -- pair reports, and the raw args StartShapeTestRay was called with (so a
 -- test can assert on the flags/ignoreEntity actually passed through).
 local nextResult = { hit = 0 }
+local pendingReads = 0
 local lastRayArgs
 
 _G.StartShapeTestRay = function(...)
@@ -29,10 +30,14 @@ _G.StartShapeTestRay = function(...)
 end
 
 _G.GetShapeTestResult = function()
-    if nextResult.hit == 0 then
-        return 0, 0, nil, nil, nil
+    if pendingReads > 0 then
+        pendingReads = pendingReads - 1
+        return 1, 1, { x = 999, y = 999, z = 999 }, { x = 9, y = 9, z = 9 }, 999999
     end
-    return 0, 1, nextResult.coords, nextResult.surfaceNormal, nextResult.entityHit
+    if nextResult.hit == 0 then
+        return 2, 0, nil, nil, nil
+    end
+    return 2, 1, nextResult.coords, nextResult.surfaceNormal, nextResult.entityHit
 end
 
 dofile(repoRoot .. "modules/raycast/client.lua")
@@ -60,6 +65,36 @@ harness.test("fromCoords reports coords, entity, and normal on a hit", function(
     harness.assertEqual(coords.x, 5, "hit coords should come from GetShapeTestResult")
     harness.assertEqual(entity, 42, "the struck entity handle should be returned")
     harness.assertEqual(normal.z, 1, "the surface normal should be returned")
+end)
+
+harness.test("fromCoords waits for a pending shape test before reading its entity handle", function()
+    pendingReads = 2
+    nextResult = {
+        hit = 1,
+        coords = { x = 5, y = 6, z = 7 },
+        surfaceNormal = { x = 0, y = 0, z = 1 },
+        entityHit = 42,
+    }
+
+    local hit, coords, entity = QB.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 })
+
+    harness.assertTrue(hit, "the completed shape test should be returned")
+    harness.assertEqual(coords.x, 5, "pending output coordinates must be ignored")
+    harness.assertEqual(entity, 42, "pending output entity handles must be ignored")
+end)
+
+harness.test("fromCoords treats a shape test that never settles as a miss", function()
+    pendingReads = math.huge
+
+    local hit, coords, entity, normal = QB.raycast.fromCoords(
+        { x = 0, y = 0, z = 0 },
+        { x = 10, y = 0, z = 0 }
+    )
+
+    pendingReads = 0
+    harness.assertFalse(hit, "a timed-out shape test must not expose pending output")
+    harness.assertTrue(coords == nil and entity == nil and normal == nil,
+        "a timed-out shape test must return no stale result fields")
 end)
 
 harness.test("fromCoords defaults flags to -1 and ignoreEntity to PlayerPedId()", function()

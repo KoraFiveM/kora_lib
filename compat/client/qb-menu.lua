@@ -45,9 +45,25 @@ local function imageFor(item)
     shared = ok and shared or {}
     local definition = shared[item.icon]
     if definition and type(definition.imageUrl) == 'string' and definition.imageUrl ~= '' then return definition.imageUrl end
-    if definition and type(definition.image) == 'string' and definition.image ~= '' then
-        return ('nui://qb-inventory/html/images/%s'):format(definition.image)
-    end
+    -- `definition.image` (e.g. "bread.png") is the LEGACY local-file field --
+    -- real qb-inventory served it from its own html/images/ folder, but
+    -- qbinventory (the resource that actually `provide`s the 'qb-inventory'
+    -- identity in this codebase) ships no such files: its fxmanifest.lua
+    -- `files{}` block only exposes web/build/**, nothing under
+    -- html/images/. A `nui://qb-inventory/html/images/%s` URL therefore
+    -- always 404s in the NUI -- it used to be built here as a fallback, which
+    -- is dead weight, not a fallback.
+    --
+    -- qbcore's own seed data (shared/items.lua) already does the real
+    -- resolution: every seeded item gets `imageUrl = QBCoreSeed.imageUrl(name)`
+    -- at load time, which looks the item name up in `itemImagePaths` and
+    -- returns a real, fetchable itemImageBaseUrl+path URL when one exists, or
+    -- nil otherwise. So by the time `definition.imageUrl` is missing/empty
+    -- here, qbcore has already told us there is no real artwork for this
+    -- item -- re-deriving through itemImagePaths ourselves would just
+    -- reproduce that same nil. Match this function's own "the icon is simply
+    -- dropped" philosophy (see the Font-Awesome-vs-lucide comment above) and
+    -- drop it here too instead of returning a URL known to 404.
     return nil
 end
 
@@ -62,7 +78,12 @@ local function sorted(menu, sort, skipFirst)
 end
 
 local function translateItems(menu, sort, skipFirst)
-    assert(type(menu) == "table", "qb-menu compat: openMenu requires a menu table.")
+    -- Real qb-menu's openMenu/showHeader silently no-op on `if not data or
+    -- not next(data) then return end` -- a caller passing nil (or building an
+    -- empty menu conditionally) gets nothing shown, not an error. Match that:
+    -- a non-table menu translates to zero items instead of asserting, so
+    -- openMenu/showHeader's own `#items == 0` guard below does the no-op.
+    if type(menu) ~= "table" then return {}, {} end
 
     local items, byId = {}, {}
 

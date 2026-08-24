@@ -91,6 +91,61 @@ harness.test("checkbox honours 'checked' over 'default' when both are set", func
     harness.assertTrue(fieldById("flag").default, "checked should win over default")
 end)
 
+-- Real qb-input's "checkbox" type is a GROUP of checkboxes, each carrying
+-- its own `options[]` entry, and the submitted result is keyed by EACH
+-- OPTION'S value -- not by the input's own `name` at all (see
+-- qbcore-framework/qb-input's html/script.js renderCheckboxInput). This must
+-- expand into one InputField per option, keyed by that option's value, so a
+-- script written against the real resource gets the same result shape back.
+harness.test("a checkbox WITH options expands into one field per option, keyed by option value", function()
+    nextResult = { cancelled = true }
+    ShowInput({ inputs = { {
+        name = "perms",
+        text = "Permissions",
+        type = "checkbox",
+        options = {
+            { value = "canOpen", text = "Can Open", checked = true },
+            { value = "canClose", text = "Can Close", checked = false },
+        },
+    } } })
+
+    harness.assertTrue(fieldById("perms") == nil, "the group's own name should not become a field id")
+
+    local canOpen = fieldById("canOpen")
+    harness.assertTrue(canOpen ~= nil, "each option's value should become its own field id")
+    harness.assertEqual(canOpen.type, "checkbox")
+    harness.assertTrue(canOpen.default, "the option's own 'checked' should seed the field default")
+    harness.assertEqual(canOpen.label, "Permissions: Can Open", "the group text should prefix each option's label")
+
+    local canClose = fieldById("canClose")
+    harness.assertTrue(canClose ~= nil)
+    harness.assertFalse(canClose.default)
+end)
+
+harness.test("submitting a checkbox group returns each option's value as its own key, matching upstream", function()
+    nextResult = { values = { canOpen = true, canClose = false } }
+    local result = ShowInput({ inputs = { {
+        name = "perms",
+        type = "checkbox",
+        options = { { value = "canOpen" }, { value = "canClose" } },
+    } } })
+
+    harness.assertTrue(result.canOpen, "the legacy result[option.value] lookup should work, not result[name]")
+    harness.assertFalse(result.canClose)
+end)
+
+-- A checkbox with no `options` at all (some simplified qb-input forks use a
+-- single scalar boolean instead of a group) must keep working exactly as
+-- before -- this is the case the pre-existing "checked' over 'default'" test
+-- above already covers; this one just pins down that it stays keyed by name.
+harness.test("a checkbox with no options stays a single field keyed by name", function()
+    nextResult = { cancelled = true }
+    ShowInput({ inputs = { { name = "flag", type = "checkbox", default = true } } })
+
+    harness.assertEqual(#sentFields, 1, "a plain checkbox should not expand")
+    harness.assertEqual(sentFields[1].id, "flag")
+end)
+
 harness.test("radio and select both collapse onto 'select' with translated options", function()
     nextResult = { cancelled = true }
     ShowInput({ inputs = {

@@ -100,7 +100,16 @@ local function beginPlay(gameType, opts, resource)
                     local submitResult = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, attempt))
 
                     if submitResult.done then
-                        return { success = submitResult.success, attempts = submitResult.attemptsUsed, proof = submitResult.proof }
+                        -- `faults` is nil for every type except `keys`
+                        -- (see server.lua's validate.keys) -- harmless to
+                        -- always thread through, since a nil table field is
+                        -- simply absent from the result.
+                        return {
+                            success = submitResult.success,
+                            attempts = submitResult.attemptsUsed,
+                            proof = submitResult.proof,
+                            faults = submitResult.faults,
+                        }
                     end
 
                     -- Anti-farming regeneration happened server-side (see
@@ -131,26 +140,26 @@ local function beginPlay(gameType, opts, resource)
     return p
 end
 
----Plays one round-based minigame session -- lockpick, skillbar, circuit, or
----mash -- against the server, which independently generates and validates
----every round (see modules/minigames/server.lua and this module's AGENTS.md).
----The client only ever renders the puzzle and reports raw input timestamps
----(and, for circuit, which nodes were connected); it never computes or
----reports a pass/fail itself, so the result can't be forged by a modified
----client beyond the basic timestamp-plausibility floor documented in
----AGENTS.md.
----@param gameType "lockpick" | "skillbar" | "circuit" | "mash"
----@param opts? table Per-type difficulty overrides merged over Config.minigames.<type> and clamped server-side -- see docs.md for the accepted fields per type.
----@return promise|any result Resolves/returns { success: boolean, attempts: integer, cancelled?: true }
----(attempts = how many tries it took before success/exhaustion/cancellation) for a same-VM caller
----(unchanged, awaitable as before) or a genuine cross-resource caller respectively (see settleForExport
----above). `cancelled` is present (and `success` false) when the player backed out via Escape/backdrop
----instead of exhausting their attempts or the round trip failing outright -- see docs.md's "Cancelling"
----note. Rejects/errors if a minigame is already in progress for this player (checked both here and, in
----case a modified client skips this, server-side), gameType is invalid, or the underlying NUI/callback
----round trip fails.
+---Plays one round-based minigame session -- lockpick, skillbar, circuit,
+---mash, pinpad, quiz, wordguess, wordscramble, keys, or hacking -- against
+---the server, which independently generates and validates every round (see
+---modules/minigames/server.lua and this module's AGENTS.md). The client only
+---ever renders the puzzle and reports raw input timestamps/selections (and,
+---for circuit, which nodes were connected); it never computes or reports a
+---pass/fail itself, so the result can't be forged by a modified client beyond
+---the basic timestamp-plausibility floor documented in AGENTS.md.
+---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
+---@param opts? table Per-type overrides merged over Config.minigames.<type> and clamped/validated server-side -- see docs.md for the accepted fields per type. For pinpad/quiz/wordguess/wordscramble, opts also carries the puzzle's actual CONTENT (numbers/questions/word), since the caller supplies it rather than the server randomizing it.
+---@return promise|any result Resolves/returns { success: boolean, attempts: integer, cancelled?: true, faults?: integer }
+---(attempts = how many tries it took before success/exhaustion/cancellation; faults is only ever present for
+---"keys", see server.lua's validate.keys) for a same-VM caller (unchanged, awaitable as before) or a genuine
+---cross-resource caller respectively (see settleForExport above). `cancelled` is present (and `success` false)
+---when the player backed out via Escape/backdrop instead of exhausting their attempts or the round trip
+---failing outright -- see docs.md's "Cancelling" note. Rejects/errors if a minigame is already in progress for
+---this player (checked both here and, in case a modified client skips this, server-side), gameType is
+---invalid, or the underlying NUI/callback round trip fails.
 function QB.minigames.play(gameType, opts)
-    assert(QB.minigames.GAME_TYPES[gameType], "minigame type must be 'lockpick', 'skillbar', 'circuit', or 'mash'.")
+    assert(QB.minigames.GAME_TYPES[gameType], "invalid minigame type -- see QB.minigames.GAME_TYPES.")
     assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
 
     if activeSession then

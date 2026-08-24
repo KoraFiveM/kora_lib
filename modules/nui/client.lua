@@ -288,7 +288,7 @@ end
 
 ---Opens a schema-driven input form. Grants NUI focus while open and releases
 ---it when the dialog closes (submit, cancel, or timeout).
----@param fields table[] `{ id: string, label: string, type: "text"|"password"|"textarea"|"number"|"checkbox"|"select", options?, rows?, default?, placeholder?, required?, min?, max?, pattern? }[]` -- see modules/nui/docs.md for what applies to which type.
+---@param fields table[] `{ id: string, label: string, type: "text"|"password"|"textarea"|"number"|"checkbox"|"select"|"range"|"combobox", options?, rows?, default?, placeholder?, required?, min?, max?, pattern? }[]` -- see modules/nui/docs.md for what applies to which type.
 ---@param title? string
 ---@param description? string
 ---@return promise|any result Resolves/returns `{ values: table<string, any> }` or `{ cancelled: true }`. See QB.nui.request's return doc.

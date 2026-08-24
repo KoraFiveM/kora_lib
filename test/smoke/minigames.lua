@@ -329,4 +329,145 @@ harness.test("resource-stop cleanup clears the client-side guard and closes the 
     harness.assertTrue(closedWithCancelled, "the dispose handler should close the overlay with result = cancelled")
 end)
 
+harness.test("pinpad: succeeds when the submitted digits match, with human-plausible spacing", function()
+    roundResponder = function(data)
+        local digits = {}
+        for i = 1, data.puzzle.digitCount do
+            digits[i] = { value = (i == 1) and 1 or 2, elapsed = i * (Config.minigames.pinpad.minTimePerDigit + 10) }
+        end
+        return { digits = digits }
+    end
+
+    local p = QB.minigames.play("pinpad", { numbers = 1222 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertTrue(p.value.success, "matching the caller-supplied PIN should succeed")
+end)
+
+harness.test("pinpad: fails when a digit is wrong", function()
+    roundResponder = function(data)
+        local digits = {}
+        for i = 1, data.puzzle.digitCount do
+            digits[i] = { value = 9, elapsed = i * (Config.minigames.pinpad.minTimePerDigit + 10) }
+        end
+        return { digits = digits }
+    end
+
+    local p = QB.minigames.play("pinpad", { numbers = 1234, attempts = 1 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertFalse(p.value.success, "a wrong digit sequence should fail")
+end)
+
+harness.test("quiz: succeeds once enough answers are correct", function()
+    local questions = {
+        { question = "2+2?", answer = "4", options = { "3", "4", "5" } },
+        { question = "3+3?", answer = "6", options = { "5", "6", "7" } },
+    }
+    roundResponder = function(data)
+        local answers = {}
+        for i in ipairs(data.puzzle.questions) do
+            answers[i] = { choice = questions[i].answer, elapsed = i * (Config.minigames.quiz.minTimePerAnswer + 10) }
+        end
+        return { answers = answers }
+    end
+
+    local p = QB.minigames.play("quiz", { questions = questions, correctRequired = 2, timer = 10 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertTrue(p.value.success, "answering every question correctly should meet correctRequired")
+end)
+
+harness.test("wordguess: succeeds once every letter of the word is found", function()
+    roundResponder = function()
+        local letters = { "c", "a", "t" }
+        local guesses = {}
+        for i, letter in ipairs(letters) do
+            guesses[i] = { letter = letter, elapsed = i * (Config.minigames.wordguess.minTimePerGuess + 10) }
+        end
+        return { guesses = guesses }
+    end
+
+    local p = QB.minigames.play("wordguess", { word = "cat", hint = "an animal", guesses = 5 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertTrue(p.value.success, "guessing every letter of the word should succeed")
+end)
+
+harness.test("wordguess: fails once wrong guesses exceed the allowance", function()
+    roundResponder = function()
+        local letters = { "x", "y", "z" }
+        local guesses = {}
+        for i, letter in ipairs(letters) do
+            guesses[i] = { letter = letter, elapsed = i * (Config.minigames.wordguess.minTimePerGuess + 10) }
+        end
+        return { guesses = guesses }
+    end
+
+    local p = QB.minigames.play("wordguess", { word = "cat", hint = "an animal", guesses = 2, attempts = 1 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertFalse(p.value.success, "exceeding the wrong-guess allowance should fail")
+end)
+
+harness.test("wordscramble: succeeds when the submitted guess matches the original word", function()
+    roundResponder = function()
+        return { guess = "fivem", elapsed = Config.minigames.wordscramble.minSubmitTime + 10 }
+    end
+
+    local p = QB.minigames.play("wordscramble", { word = "fivem", hint = "the game modification", timer = 30 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertTrue(p.value.success, "matching the original word should succeed")
+end)
+
+harness.test("keys: always succeeds and reports a faults count", function()
+    roundResponder = function(data)
+        local presses = {}
+        for i, key in ipairs(data.puzzle.pattern) do
+            -- Deliberately get the first key wrong to prove faults is counted.
+            local wrongOnFirst = (i == 1) and (key == "up" and "down" or "up") or key
+            presses[i] = { key = wrongOnFirst, elapsed = i * (Config.minigames.keys.minTimePerPress + 10) }
+        end
+        return { presses = presses }
+    end
+
+    local p = QB.minigames.play("keys", { amount = 4 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertTrue(p.value.success, "keys always completes -- there is no pass/fail concept upstream")
+    harness.assertEqual(p.value.faults, 1, "exactly one deliberately-wrong press should be counted")
+end)
+
+harness.test("hacking: succeeds when the submitted code matches the generated one", function()
+    roundResponder = function(data)
+        return { submitted = data.puzzle.code, elapsed = Config.minigames.hacking.minTimePerFind + 10 }
+    end
+
+    local p = QB.minigames.play("hacking", { solutionsize = 5, timeout = 30 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertTrue(p.value.success, "submitting the revealed code should succeed")
+end)
+
+harness.test("hacking: fails when the submitted code is wrong", function()
+    roundResponder = function()
+        return { submitted = "ZZZZZ", elapsed = Config.minigames.hacking.minTimePerFind + 10 }
+    end
+
+    local p = QB.minigames.play("hacking", { solutionsize = 5, timeout = 30 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertFalse(p.value.success, "a wrong code should fail")
+end)
+
 harness.report("minigames")

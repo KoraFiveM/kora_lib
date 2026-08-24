@@ -11,6 +11,20 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
+-- Controllable mock qbcore shared-item registry -- imageFor (in
+-- compat/client/qb-menu.lua) reads item definitions via
+-- exports.qbcore:getShared('Items'), pcall-guarded, same pattern as
+-- compat_qb_radialmenu.lua's exports.qbcore mock.
+local sharedItems = {}
+_G.exports = {
+    qbcore = {
+        getShared = function(_, collection)
+            if collection == 'Items' then return sharedItems end
+            return nil
+        end,
+    },
+}
+
 -- Real modules/nui/client.lua isn't loaded here (that's modules/nui's own
 -- smoke test) -- same "mock QB.nui directly, resolve synchronously" trick
 -- test/smoke/minigames.lua uses, since compat/client/qb-menu.lua's openMenu
@@ -109,8 +123,23 @@ harness.test("a cancelled result fires nothing", function()
     harness.assertEqual(#net.triggeredServerEvents, before, "cancelling should never dispatch an event")
 end)
 
-harness.test("openMenu rejects a non-table menu", function()
-    harness.assertThrows(function() openMenu("not a table") end, "a non-table menu should be rejected")
+-- Real qb-menu's openMenu/showHeader do `if not data or not next(data) then
+-- return end` -- a nil (or non-table) menu is a silent no-op, not an error.
+-- A script that conditionally builds a menu and passes nil when there's
+-- nothing to show must keep working exactly like it does against the real
+-- resource, not crash.
+harness.test("openMenu silently no-ops on a non-table menu, matching real qb-menu", function()
+    sentItems = nil
+    local ok = pcall(openMenu, "not a table")
+    harness.assertTrue(ok, "a non-table menu should not error")
+    harness.assertTrue(sentItems == nil, "QB.nui.openMenu should never be reached for a non-table menu")
+end)
+
+harness.test("openMenu silently no-ops on nil, matching real qb-menu", function()
+    sentItems = nil
+    local ok = pcall(openMenu, nil)
+    harness.assertTrue(ok, "a nil menu should not error")
+    harness.assertTrue(sentItems == nil, "QB.nui.openMenu should never be reached for a nil menu")
 end)
 
 harness.test("closeMenu force-dismisses through the NUI cancellation action", function()
@@ -131,6 +160,34 @@ end)
 harness.test("the qb-menu:client:closeMenu net event does not error", function()
     local ok = pcall(net.fire, "qb-menu:client:closeMenu")
     harness.assertTrue(ok, "the closeMenu net event should not error")
+end)
+
+-- Real qb-menu items sometimes carry a shared-item NAME as `icon` rather
+-- than a real icon; imageFor looks that name up via
+-- exports.qbcore:getShared('Items'). If the matched definition has a real
+-- `imageUrl`, it's used as-is (not exercised here). But if the definition
+-- only has the LEGACY local-file `image` field (no `imageUrl`), imageFor
+-- used to fall back to building a `nui://qb-inventory/html/images/%s` URL --
+-- dead, because qbinventory (the resource that actually provides the
+-- 'qb-inventory' identity) ships no such files and never exposes that path
+-- in its fxmanifest.lua `files{}` block. That URL always 404s in the NUI, so
+-- imageFor now drops the icon entirely in this case instead, matching its
+-- own "the icon is simply dropped" philosophy for the Font-Awesome-vs-lucide
+-- case above it.
+harness.test("an icon naming a shared item with only a legacy `image` field is dropped, not translated to a dead nui:// URL", function()
+    sharedItems = { bread = { name = "bread", image = "bread.png" } }
+    nextMenuResult = { cancelled = true }
+    openMenu({ { header = "Eat Bread", icon = "bread" } })
+
+    harness.assertTrue(sentItems[1].image == nil, "a bare `image` filename with no imageUrl should resolve to nil, not a nui://qb-inventory/... URL")
+end)
+
+harness.test("an icon naming a shared item with a real imageUrl is used directly", function()
+    sharedItems = { bread = { name = "bread", image = "bread.png", imageUrl = "https://example.com/bread.png" } }
+    nextMenuResult = { cancelled = true }
+    openMenu({ { header = "Eat Bread", icon = "bread" } })
+
+    harness.assertEqual(sentItems[1].image, "https://example.com/bread.png", "a real imageUrl should be used as-is")
 end)
 
 harness.report("compat_qb_menu")
