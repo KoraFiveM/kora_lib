@@ -124,6 +124,38 @@ harness.test("selectOption dispatches the selected client event once and hides",
     harness.assertTrue(type(response) == "table", "the NUI callback should always respond")
 end)
 
+-- exports.qblib:addCircleZone(...)/addBoxZone(...) are real cross-resource
+-- entry points -- a `function` value another resource puts on `option.action`
+-- or `option.canInteract` crosses that boundary as a table with a __call
+-- metamethod, not a real function (FXServer's own funcref marshalling; see
+-- compat/client/qb-menu.lua's identical fix and its test for the same
+-- pattern). dispatch()/isAvailable() already route both fields through the
+-- local isCallable() here, but nothing exercised that until now.
+harness.test("dispatch still invokes a masked cross-resource function action", function()
+    reset()
+    local fired = 0
+    local maskedAction = setmetatable({}, { __call = function(_) fired = fired + 1 end })
+
+    QB.interact.open({ { label = "Only", action = maskedAction } })
+    nuiCallbacks.selectOption(1, function() end)
+
+    harness.assertEqual(fired, 1, "a masked cross-resource function action should still be invoked")
+end)
+
+harness.test("isAvailable still honours a masked cross-resource canInteract", function()
+    reset()
+    local maskedAllow = setmetatable({}, { __call = function(_) return true end })
+    local maskedDeny = setmetatable({}, { __call = function(_) return false end })
+
+    QB.interact.open({
+        { label = "Allowed", canInteract = maskedAllow },
+        { label = "Denied", canInteract = maskedDeny },
+    })
+
+    harness.assertEqual(#lastMessage().data, 1, "only the option whose masked canInteract returns true should be offered")
+    harness.assertEqual(lastMessage().data[1].label, "Allowed", "the allowed option should be the one that reaches the NUI")
+end)
+
 harness.test("game controls scroll, select, and cancel without NUI focus", function()
     reset()
     QB.interact.open({ { label = "First" }, { label = "Second" } })
