@@ -105,13 +105,19 @@ local function translateItems(menu, sort, skipFirst)
     return items, byId
 end
 
+local function isMaskedFunction(value)
+    if type(value) == 'table' then
+        return value.__cfx_functionReference ~= nil and type(value.__cfx_functionReference) == 'string'
+    end
+    return type(value) == 'function'
+end
 -- Selecting an item in real qb-menu fires `params.event` (TriggerServerEvent
 -- if `params.isServer`, TriggerEvent otherwise) with `params.args` unpacked
 -- as positional arguments -- an item with no `params`/`params.event` just
 -- closes the menu, same as here. Matches qb-menu's own
 -- `RegisterNUICallback('selectMenuItem', ...)` handler.
 local function dispatch(item)
-    if type(item.action) == 'function' then
+    if type(item.action) == 'function' or isMaskedFunction(item.action) then
         item.action()
         return
     end
@@ -149,12 +155,11 @@ local function openMenu(menu, sort, skipFirst)
     if #items == 0 then return end
     if headerShown then QB.nui.send('hideMenuHeader', {}); headerShown = false end
 
-    local result = Citizen.Await(QB.nui.openMenu(items))
+    local result = QB.nui.openMenu(items)
     if not result or result.cancelled then
         TriggerEvent('qb-menu:client:menuClosed')
         return
     end
-
     dispatch(byId[result.selectedId])
 end
 
