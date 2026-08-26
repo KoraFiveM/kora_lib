@@ -1,4 +1,5 @@
 import { MenuContainer } from "@/components/menu/Menu"
+import { MenuHeader } from "@/components/menu/MenuHeader"
 import { ContextMenuContainer } from "@/components/menu/ContextMenu"
 import { InputDialogContainer } from "@/components/input/InputDialog"
 import { AlertDialogContainer } from "@/components/alert/AlertDialog"
@@ -12,6 +13,8 @@ import { DevHarness } from "@/components/dev/DevHarness"
 import { ThemeSynchronizer } from "@/components/theme/ThemeSynchronizer"
 import { InteractSelect } from "@/components/interact/InteractSelect"
 import { RadialMenuContainer } from "@/components/menu/RadialMenu"
+import { TargetHud } from "@/components/target/TargetHud"
+import { TargetSelect } from "@/components/target/TargetSelect"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -26,7 +29,10 @@ export default function App() {
         <>
             <ThemeSynchronizer />
             <InteractSelect />
+            <TargetHud />
+            <TargetSelect />
             <MenuContainer />
+            <MenuHeader />
             <ContextMenuContainer />
             <RadialMenuContainer />
             <InputDialogContainer />

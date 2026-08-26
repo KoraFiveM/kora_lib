@@ -6,7 +6,9 @@ The raycast module fires world-geometry raycasts and reports what they hit -- co
 ## API
 
 ### `QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
-Fires a raycast between two explicit points.
+Fires a raycast between two explicit points. The helper yields while the
+asynchronous shape test is pending and returns only after status `2`
+(complete); a result that remains pending for one second is treated as a miss.
 
 #### Parameters
 - `startCoords: vector3 | {x, y, z}` -- Ray origin.
@@ -47,7 +49,31 @@ if hit and entity ~= 0 then
 end
 ```
 
+### `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
+Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this is for a caller that manages its own `CreateCam`/`CreateCamWithParams` camera handle -- for example, `modules/zones`' zone creator's freecam, which raycasts from wherever the freecam is currently pointed rather than the player's gameplay camera.
+
+#### Parameters
+- `cam: number` -- Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
+- `maxDistance: number` -- Maximum ray length, in meters.
+- `flags: number | nil` -- Same as `fromCoords`.
+- `ignoreEntity: number | nil` -- Same as `fromCoords`.
+
+#### Returns
+Same as `fromCoords`.
+
+#### Example
+```lua
+local hit, coords, entity = QB.raycast.fromCam(freecamHandle, 50.0)
+if hit then
+    print(('freecam aiming at %s at %.1f, %.1f, %.1f'):format(entity ~= 0 and ('entity ' .. entity) or 'world', coords.x, coords.y, coords.z))
+end
+```
+
 ## Notes
+- Shape-test output values are undefined while `GetShapeTestResult` reports
+  status `1`. qblib never exposes those pending coordinates/entity handles to
+  callers; this prevents stale handles reaching entity natives such as
+  `GetEntityModel`.
 - `entityHit` is `0` (not `nil`) when the ray strikes bare world geometry rather than an entity -- check `entity ~= 0` before treating it as an entity handle.
 - Client-only: raycasting only makes sense against the calling client's own rendered world/camera, so this module has no `shared.lua`/`server.lua`, the same shape as `modules/stream` and `modules/zones`.
 - `modules/zones`' zone creator now calls `QB.raycast.fromCamera` instead of its own private copy; behavior there is unchanged.

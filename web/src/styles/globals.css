@@ -119,6 +119,47 @@
     background: hsl(var(--brand-soft));
   }
 
+  /* qbtarget is display-only NUI: compact neutral geometry with crimson only
+     when a valid option is under the crosshair. No blur or opaque backdrop. */
+  .target-reticle {
+    display: grid;
+    width: 1.35rem;
+    height: 1.35rem;
+    place-items: center;
+    border: 1px solid hsl(var(--border-strong));
+    border-radius: 0.375rem;
+    background: hsl(var(--hud));
+    box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+    transform: rotate(45deg);
+    transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+  }
+
+  .target-reticle-active {
+    border-color: hsl(var(--brand-border));
+    background: hsl(var(--brand-soft));
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2), 0 2px 10px rgb(0 0 0 / 50%);
+  }
+
+  .target-reticle-dot {
+    width: 0.25rem;
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: hsl(var(--muted-foreground));
+    transform: rotate(-45deg);
+  }
+
+  .target-reticle-active .target-reticle-dot {
+    background: hsl(var(--primary));
+  }
+
+  .target-prompt {
+    border: 1px solid hsl(var(--border));
+    border-left: 3px solid hsl(var(--primary));
+    border-radius: var(--radius);
+    background: hsl(var(--hud));
+    box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+  }
+
   .code-frame {
     border-color: hsl(var(--border-strong));
     background: hsl(var(--background));

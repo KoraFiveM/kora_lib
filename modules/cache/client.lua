@@ -15,6 +15,7 @@ local RESERVED_KEYS = {
     weapon = true,
     health = true,
     armour = true,
+    stamina = true,
     coords = true,
 }
 
@@ -94,6 +95,12 @@ local function refresh()
     setValue("ped", ped)
     setValue("health", GetEntityHealth(ped))
     setValue("armour", GetPedArmour(ped))
+    -- Keyed off the PLAYER index, not the ped -- GetPlayerStamina takes a
+    -- player, unlike the two above. Cached here rather than left to consumers
+    -- because it changes CONTINUOUSLY while sprinting: a HUD that polls it on
+    -- its own timer either lags visibly or runs a second always-on thread
+    -- alongside this one. onChange off this shared tick gives it neither.
+    setValue("stamina", GetPlayerStamina(playerId))
 
     local vehicle = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or false
     setValue("vehicle", vehicle)
@@ -122,7 +129,7 @@ end
 ---registered for `key` if the value actually changed. Lets other modules (or
 ---other resources, via exports.qblib:cache_set) piggyback on the same cache +
 ---change-notification system for their own local state. Writing a built-in
----key (playerId/serverId/ped/vehicle/seat/weapon/health/armour) is rejected
+---key (playerId/serverId/ped/vehicle/seat/weapon/health/armour/stamina/coords) is rejected
 ---outright -- logged and ignored -- rather than merely self-healing on the
 ---next refresh tick, so no caller (this resource or another) can ever observe
 ---even a transient poisoned value for one of them.
@@ -234,6 +241,14 @@ function QB.cache.ped()
     return cache.ped
 end
 
+---The local player's last sampled world coordinates. Refreshed on the shared
+---cache tick; use this for interval/event work, not frame-critical movement,
+---aiming, or placement where a fresh native read is required.
+---@return vector3|table
+function QB.cache.coords()
+    return cache.coords
+end
+
 ---The vehicle the local player is currently in, or false if on foot.
 ---@return integer | false
 function QB.cache.vehicle()
@@ -271,4 +286,13 @@ end
 ---@return integer
 function QB.cache.armour()
     return cache.armour
+end
+
+---The local player's remaining sprint stamina (GetPlayerStamina(playerId)),
+---0-100. Unlike health/armour this is keyed off the PLAYER index, not the ped.
+---Falls while sprinting and regenerates back to 100 at rest, so onChange for
+---this key fires on most ticks during a sprint and none at all standing still.
+---@return number
+function QB.cache.stamina()
+    return cache.stamina
 end

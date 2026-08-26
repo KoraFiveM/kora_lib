@@ -247,18 +247,17 @@ function QB.nui.openContextMenu(items, x, y)
     return settleForExport(focusUntilSettled(requestPromise("openContextMenu", { items = items, x = x, y = y }, false)))
 end
 
----Opens an anchored radial menu. Items share openMenu's schema, including
----nested submenus; the NUI handles navigation and returns one MenuResult.
+---Opens a radial menu, always centred on screen. Items share openMenu's
+---schema, including nested submenus; the NUI handles navigation and returns
+---one MenuResult.
 ---@param items table[] Same shape as openMenu's `items`.
----@param opts? table `{ x?: number, y?: number, radius?: number }`
+---@param opts? table `{ radius?: number }`
 ---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
 function QB.nui.openRadialMenu(items, opts)
     assert(type(items) == "table", "openRadialMenu requires an items table.")
     assert(opts == nil or type(opts) == "table", "openRadialMenu options must be a table.")
 
     opts = opts or {}
-    assert(opts.x == nil or type(opts.x) == "number", "openRadialMenu x must be a number.")
-    assert(opts.y == nil or type(opts.y) == "number", "openRadialMenu y must be a number.")
     assert(opts.radius == nil or (type(opts.radius) == "number" and opts.radius > 0),
         "openRadialMenu radius must be a positive number.")
 
@@ -266,8 +265,6 @@ function QB.nui.openRadialMenu(items, opts)
     -- timing out would leave a still-visible radial with no awaiting caller.
     return settleForExport(focusUntilSettled(requestPromise("openRadialMenu", {
         items = items,
-        x = opts.x,
-        y = opts.y,
         radius = opts.radius,
     }, false)))
 end
@@ -291,7 +288,7 @@ end
 
 ---Opens a schema-driven input form. Grants NUI focus while open and releases
 ---it when the dialog closes (submit, cancel, or timeout).
----@param fields table[] `{ id: string, label: string, type: "text"|"password"|"textarea"|"number"|"checkbox"|"select", options?, rows?, default?, placeholder?, required?, min?, max?, pattern? }[]` -- see modules/nui/docs.md for what applies to which type.
+---@param fields table[] `{ id: string, label: string, type: "text"|"password"|"textarea"|"number"|"checkbox"|"select"|"range"|"combobox", options?, rows?, default?, placeholder?, required?, min?, max?, pattern? }[]` -- see modules/nui/docs.md for what applies to which type.
 ---@param title? string
 ---@param description? string
 ---@return promise|any result Resolves/returns `{ values: table<string, any> }` or `{ cancelled: true }`. See QB.nui.request's return doc.

@@ -1,7 +1,7 @@
 # Cache module
 
 ## Overview
-A cheap, continuously-refreshed cache of local-player state — player id, server id, current ped, vehicle, seat, weapon, health, and armour — plus a general `get`/`set`/`onChange` store any module or resource can use for its own local values. Reading `QB.cache.ped()` is a plain table lookup; it never calls a native itself.
+A cheap, continuously-refreshed cache of local-player state — player id, server id, current ped, vehicle, seat, weapon, health, armour, and stamina — plus a general `get`/`set`/`onChange` store any module or resource can use for its own local values. Reading `QB.cache.ped()` is a plain table lookup; it never calls a native itself.
 
 ## API
 
@@ -12,7 +12,7 @@ Returns the cached value for `key`, or `nil` if nothing has set it yet.
 - `key: string`
 
 ### `QB.cache.set(key, value)`
-Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
+Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour`/`stamina`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
 
 #### Parameters
 - `key: string`
@@ -84,7 +84,7 @@ end)
 ```
 
 ## Notes
-- All eight built-in keys refresh every `Config.cache.tickInterval` ms (`0` by default — every frame) — including `playerId`/`serverId`, which never legitimately change mid-session.
+- Built-in telemetry refreshes every `Config.cache.tickInterval` ms (200ms by default). It is intentionally a bounded shared poll rather than a frame loop; use direct per-frame natives only for controls that the engine requires to be reasserted every frame.
 - `QB.cache.set` rejects writes to any built-in key outright (logged, ignored) — it isn't just that the next refresh tick would overwrite a bogus value back, the write never lands in the first place.
 - `onChange` handlers only fire when a value actually changes, not on every refresh tick — comparing every frame is what makes the refresh cheap to leave running.
 - `onChange` handlers are removed automatically when the resource that registered them stops.

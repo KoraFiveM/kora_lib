@@ -2,8 +2,9 @@ import { useCallback, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { cn } from "@/lib/cn"
-import type { MenuItem, MenuResult, OpenMenuPayload } from "@/lib/types"
+import type { CloseMenuPayload, MenuItem, MenuResult, OpenMenuPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
+import { useNuiEvent } from "@/lib/useNuiEvent"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { MenuItemLabel } from "@/components/menu/MenuItemLabel"
@@ -43,6 +44,10 @@ export function MenuContainer() {
 
     const level = stack[stack.length - 1]
     const canGoBack = stack.length > 1
+
+    useNuiEvent<CloseMenuPayload>("closeMenu", useCallback(() => {
+        if (isOpen) respond({ cancelled: true })
+    }, [isOpen, respond]))
 
     const goBack = useCallback(() => {
         setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev))

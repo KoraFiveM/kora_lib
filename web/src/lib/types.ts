@@ -9,8 +9,10 @@
 // modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
 // openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
 // zoneCreator:* actions), modules/notify/client.lua (the "notify" action),
-// and modules/minigames/client.lua (the minigames:* actions) -- this file is
-// the one place the whole contract is written down on the NUI side.
+// and modules/minigames/client.lua (the minigames:* actions), plus
+// qbtarget/client/loop.lua (the qbtarget:target display action and the
+// qbtarget:select candidate-picker action) -- this file is the one place the
+// whole contract is written down on the NUI side.
 
 // The outer wire envelope every Lua->NUI message travels in.
 export interface NuiWireMessage<T = unknown> {
@@ -55,6 +57,32 @@ export interface InteractOption {
 // index straight to the `selectOption` NUI callback.
 export type InteractOpenPayload = InteractOption[]
 
+// action: "qbtarget:target" (fire-and-forget) -- a transparent, game-input
+// driven target reticle/prompt. qbtarget owns raycasts, eligibility, controls,
+// and selection; this payload is display-only and never requests NUI focus.
+export interface TargetHudPayload {
+    active: boolean
+    label?: string
+    optionCount?: number
+}
+
+// action: "qbtarget:select" (fire-and-forget) -- the compact candidate picker
+// shown when more than one option is available under the reticle. Mirrors
+// InteractOpenPayload's display-only, pointer-transparent contract, but is
+// qbtarget's own action name/payload shape: qbtarget cycles/confirms/cancels
+// entirely via its own control polling in client/loop.lua (no NUI focus, no
+// selectOption callback round trip -- Lua already knows the active index).
+export interface TargetSelectOption {
+    label: string
+    icon?: string
+}
+
+export interface TargetSelectPayload {
+    active: boolean
+    items?: TargetSelectOption[]
+    activeIndex?: number
+}
+
 /**
  * A nested level, opened when its parent item is selected instead of
  * resolving the request. Navigation happens entirely inside the NUI -- Lua
@@ -69,6 +97,8 @@ export interface MenuItem {
     label: string
     description?: string
     icon?: string
+    /** Trusted legacy/resource supplied item artwork URL (e.g. nui://). */
+    image?: string
     disabled?: boolean
     /** Opens a nested level instead of resolving. `title` defaults to this item's label. */
     submenu?: { title?: string; items: MenuItem[] }
@@ -79,6 +109,9 @@ export interface OpenMenuPayload {
     title?: string
     items: MenuItem[]
 }
+
+// action: "closeMenu" (fire-and-forget)
+export type CloseMenuPayload = Record<string, never>
 
 // action: "openContextMenu" (request)
 export interface OpenContextMenuPayload {
@@ -91,8 +124,6 @@ export interface OpenContextMenuPayload {
 // openMenu's schema so callers can share their item trees between both views.
 export interface OpenRadialMenuPayload {
     items: MenuItem[]
-    x?: number
-    y?: number
     radius?: number
 }
 
@@ -104,12 +135,14 @@ export type MenuResult = { selectedId: string; path: string[] } | { cancelled: t
 
 export type FieldValue = string | number | boolean
 
-export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "range"
+export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "range" | "combobox"
 
 export interface InputField {
     id: string
     label: string
     type: InputFieldType
+    // `select` (fixed choice) and `combobox` (free text + filtered
+    // suggestions from this same list) both use this.
     options?: { value: string; label: string }[]
     default?: FieldValue
     placeholder?: string
@@ -203,6 +236,10 @@ export interface ZoneCreatorHudSnapshot {
     editIndex: number
     canConfirm: boolean
     aiming: boolean
+    /** Whether Shift is currently held (speeds up scroll-adjustment; see shiftHeld() in client.lua). */
+    isShiftHeld: boolean
+    /** What one scroll tick currently moves the active param by, already shiftMultiplier-scaled. 0 for "editPoint" (no step). */
+    stepSize: number
 }
 
 // action: "zoneCreator:confirm" (request) -- mount ZoneConfirmDialog.
@@ -255,7 +292,17 @@ export interface NotifyPayload {
     icon?: string
 }
 
-export type MinigameType = "lockpick" | "skillbar" | "circuit" | "mash"
+export type MinigameType =
+    | "lockpick"
+    | "skillbar"
+    | "circuit"
+    | "mash"
+    | "pinpad"
+    | "quiz"
+    | "wordguess"
+    | "wordscramble"
+    | "keys"
+    | "hacking"
 
 export interface LockpickPin {
     index: number
@@ -327,8 +374,124 @@ export interface CancelledAttempt {
     cancelled: true
 }
 
-export type MinigamePuzzle = LockpickPuzzle | SkillbarPuzzle | CircuitPuzzle | MashPuzzle
-export type MinigameAttempt = LockpickAttempt | SkillbarAttempt | CircuitAttempt | MashAttempt | CancelledAttempt
+// The six types below back the qb-minigames compat shim
+// (compat/client/qb-minigames.lua). Their puzzle CONTENT (the PIN, the word,
+// the quiz questions) comes from the calling script via opts, so -- unlike
+// lockpick/skillbar/circuit/mash's purely config-randomized puzzles -- the
+// Puzzle types below carry that content straight through from the server.
+
+export interface PinpadPuzzle {
+    digitCount: number
+}
+
+export interface PinpadDigit {
+    value: number
+    /** Milliseconds since the round started -- never which digit is "correct". */
+    elapsed: number
+}
+
+export interface PinpadAttempt {
+    digits: PinpadDigit[]
+}
+
+export interface QuizQuestion {
+    numb: number
+    question: string
+    /** The correct answer is never sent -- see server.lua's generate.quiz. */
+    options: string[]
+}
+
+export interface QuizPuzzle {
+    questions: QuizQuestion[]
+    correctRequired: number
+    /** ms budget per question, informational only -- the round's own `timeLimit` covers the whole quiz. */
+    timePerQuestion: number
+}
+
+export interface QuizAnswer {
+    choice: string
+    /** Milliseconds since the round started when this question was answered. */
+    elapsed: number
+}
+
+export interface QuizAttempt {
+    answers: QuizAnswer[]
+}
+
+export interface WordGuessPuzzle {
+    hint: string
+    length: number
+    guesses: number
+}
+
+export interface WordGuessLetter {
+    letter: string
+    elapsed: number
+}
+
+export interface WordGuessAttempt {
+    guesses: WordGuessLetter[]
+}
+
+export interface WordScramblePuzzle {
+    scrambled: string
+    hint: string
+}
+
+export interface WordScrambleAttempt {
+    guess: string
+    elapsed: number
+}
+
+export interface KeysPuzzle {
+    /** Revealed in full up front -- the player has to see which key is being asked for next. */
+    pattern: string[]
+}
+
+export interface KeysPress {
+    key: string
+    elapsed: number
+}
+
+export interface KeysAttempt {
+    presses: KeysPress[]
+}
+
+export interface HackingPuzzle {
+    /** Revealed directly, same reasoning as lockpick's target zone or keys' pattern. */
+    code: string
+    solutionsize: number
+}
+
+export interface HackingAttempt {
+    submitted: string
+    elapsed: number
+}
+
+export type MinigamePuzzle =
+    | LockpickPuzzle
+    | SkillbarPuzzle
+    | CircuitPuzzle
+    | MashPuzzle
+    | PinpadPuzzle
+    | QuizPuzzle
+    | WordGuessPuzzle
+    | WordScramblePuzzle
+    | KeysPuzzle
+    | HackingPuzzle
+
+export type MinigameAttempt =
+    | LockpickAttempt
+    | SkillbarAttempt
+    | CircuitAttempt
+    | MashAttempt
+    | PinpadAttempt
+    | QuizAttempt
+    | WordGuessAttempt
+    | WordScrambleAttempt
+    | KeysAttempt
+    | HackingAttempt
+    | CancelledAttempt
 
 // action: "minigames:round" (request) -- mount/update MinigameContainer. Sent
 // once per round: the FIRST round after QB.minigames.play() starts, and again

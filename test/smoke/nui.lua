@@ -207,13 +207,11 @@ end)
 
 harness.test("openRadialMenu forwards shared menu items and optional geometry", function()
     local items = { { id = "repair", label = "Repair", icon = "Wrench" } }
-    local p = QB.nui.openRadialMenu(items, { x = 320, y = 240, radius = 180 })
+    local p = QB.nui.openRadialMenu(items, { radius = 180 })
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openRadialMenu", "openRadialMenu should send its dedicated action")
     harness.assertEqual(sent.data.payload.items, items, "radial items should preserve the shared MenuItem table")
-    harness.assertEqual(sent.data.payload.x, 320, "x should be forwarded as-is")
-    harness.assertEqual(sent.data.payload.y, 240, "y should be forwarded as-is")
     harness.assertEqual(sent.data.payload.radius, 180, "radius should be forwarded as-is")
 
     local grant = focusCalls[#focusCalls]

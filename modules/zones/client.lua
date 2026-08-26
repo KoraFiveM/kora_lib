@@ -10,6 +10,12 @@ local destroyZone
 local zoneOwnership
 local debugZones = {}
 
+-- setZoneDebug (below ensureDebugThread, since it needs to call it) is
+-- likewise forward-declared: both the handle's setDebug method (buildHandle,
+-- right below) and QB.zones.setDebug need to call it, and buildHandle runs
+-- long before ensureDebugThread is defined.
+local setZoneDebug
+
 local nextZoneId = 0
 local tickThreadStarted = false
 local debugThreadStarted = false
@@ -206,6 +212,7 @@ local function buildHandle(zone)
         remove = function() destroyZone(zone) end,
         contains = function(coords) return containsFn[zone.type](zone, toVec3(coords)) end,
         isInside = function() return zone.isInside end,
+        setDebug = function(enabled) setZoneDebug(zone, enabled) end,
     }
 end
 
@@ -456,6 +463,19 @@ local function wallColor(color)
     return { r = color.r, g = color.g, b = color.b, a = Config.zones.debugWallAlpha }
 end
 
+local function hexToRgb(hex)
+    return tonumber(hex:sub(2, 3), 16), tonumber(hex:sub(4, 5), 16), tonumber(hex:sub(6, 7), 16)
+end
+
+-- Debug zones and the creator's live preview should look like the rest of
+-- qblib's UI, not carry their own hardcoded colour -- so the colour tracks
+-- QB.theme.accentColor() live (a config change takes effect on the very next
+-- draw) instead of being baked into Config.zones at load time.
+local function zoneDebugColor()
+    local r, g, b = hexToRgb(QB.theme.accentColor())
+    return { r = r, g = g, b = b, a = Config.zones.debugAlpha }
+end
+
 local function drawDebugBox(zone, color)
     local corners = {}
 
@@ -521,7 +541,7 @@ local function ensureDebugThread()
     CreateThread(function()
         while next(debugZones) ~= nil do
             for _, zone in pairs(debugZones) do
-                drawDebugFn[zone.type](zone, Config.zones.debugColor)
+                drawDebugFn[zone.type](zone, zoneDebugColor())
             end
 
             Wait(0)
@@ -529,6 +549,21 @@ local function ensureDebugThread()
 
         debugThreadStarted = false
     end)
+end
+
+-- Shared by the handle's own setDebug method and QB.zones.setDebug (both a
+-- single-id call and the nil-id "every zone" fan-out) -- one place that keeps
+-- zone.debug, debugZones, and the debug thread's running-or-not state
+-- consistent, rather than three copies of the same add/remove-from-set logic.
+setZoneDebug = function(zone, enabled)
+    zone.debug = enabled
+
+    if enabled then
+        debugZones[zone.id] = zone
+        ensureDebugThread()
+    else
+        debugZones[zone.id] = nil
+    end
 end
 
 local tickLoop
@@ -548,7 +583,7 @@ local function createZone(zoneType, opts, initShape, resourceOverride)
         onEnter = opts.onEnter,
         onExit = opts.onExit,
         inside = opts.inside,
-        debug = opts.debug or false,
+        debug = false,
         data = opts.data,
         resource = resourceOverride or GetInvokingResource() or GetCurrentResourceName(),
         isInside = false,
@@ -563,9 +598,12 @@ local function createZone(zoneType, opts, initShape, resourceOverride)
 
     zoneOwnership.track(zone.resource, zone.id)
 
-    if zone.debug then
-        debugZones[zone.id] = zone
-        ensureDebugThread()
+    -- Config.zones.debug is a server-wide default OR'd in here, same pattern
+    -- qbtarget's own Config.target.debug already uses on top of this --
+    -- opts.debug still wins on its own (a zone can opt in even with the
+    -- global default off), it just isn't the only way in anymore.
+    if Config.zones.debug == true or opts.debug == true then
+        setZoneDebug(zone, true)
     end
 
     ensureTickThread()
@@ -586,6 +624,7 @@ end
 ---@field remove fun() Tears the zone down. Same teardown path a resource stop uses.
 ---@field contains fun(coords: any): boolean Exact containment test against an arbitrary point.
 ---@field isInside fun(): boolean Whether the local player is currently inside, read live.
+---@field setDebug fun(enabled: boolean) Toggles this zone's debug wireframe at runtime. Equivalent to `QB.zones.setDebug(zone.id, enabled)`.
 
 ---@class QBZoneCommonOptions
 ---@field onEnter? fun(zone: table)
@@ -665,8 +704,30 @@ function QB.zones.getInside(resource)
     return inside
 end
 
+---Toggles debug wireframe drawing on an already-created zone (or every
+---currently-registered zone at once) at runtime -- unlike `opts.debug`,
+---which only ever gets read once, at creation. Also reachable per-zone as
+---`zone.setDebug(enabled)` on the handle itself, and globally via the
+---`qb_zonedebug` command below.
+---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
+---@param enabled boolean
+function QB.zones.setDebug(id, enabled)
+    assert(id == nil or type(id) == "number", "id must be a zone id or nil.")
+    assert(type(enabled) == "boolean", "enabled must be a boolean.")
+
+    if id ~= nil then
+        local zone = zoneRegistry[id]
+        if zone then setZoneDebug(zone, enabled) end
+        return
+    end
+
+    for _, zone in pairs(zoneRegistry) do
+        setZoneDebug(zone, enabled)
+    end
+end
+
 tickLoop = function()
-    while true do
+    while next(zoneRegistry) ~= nil do
         local ped = PlayerPedId()
         local coords = GetEntityCoords(ped)
         local p = { x = coords.x, y = coords.y, z = coords.z }
@@ -733,6 +794,8 @@ tickLoop = function()
 
         Wait(interval)
     end
+
+    tickThreadStarted = false
 end
 
 ------------------------------------------------------------------------------
@@ -752,11 +815,12 @@ local ZONE_TYPES = { box = true, sphere = true, poly = true }
 -- on solid geometry, so without it a zone is permanently stuck at ground level
 -- and there'd be no way to build one over a floor, a rooftop, or water.
 -- "editPoint" is a mode rather than a number: while it's the active entry the
--- placement key MOVES the point nearest your aim instead of appending a new
--- one. It lives on this cycle (rather than being its own keybind) so the one
--- thing Tab already means -- "what does the next keypress/scroll act on" --
--- keeps covering everything, and the HUD keeps being the single place that
--- says what mode you're in.
+-- placement key picks up the point nearest your aim and, on a second press,
+-- drops it at the new aim -- instead of appending a new point. It lives on
+-- this cycle (rather than being its own keybind) so the one thing Tab already
+-- means -- "what does the next keypress/scroll act on" -- keeps covering
+-- everything, and the HUD keeps being the single place that says what mode
+-- you're in.
 local creatorParamCycles = {
     box = { "size", "height", "rotation", "zOffset" },
     sphere = { "radius", "zOffset" },
@@ -836,6 +900,14 @@ local function newCreatorState(zoneType, resource)
         resource = resource,
         center = nil,
         points = {},
+        -- The creator's own scripted freecam -- set by startCreatorCamera in
+        -- beginCreator, immediately after this table is built. Listed here
+        -- purely for documentation/consistency with every other field this
+        -- state table tracks.
+        cam = nil,
+        camCoords = nil,
+        camPitch = 0.0,
+        camYaw = 0.0,
         size = creator.defaultBoxSize,
         height = creator.defaultBoxHeight,
         rotation = 0.0,
@@ -845,10 +917,19 @@ local function newCreatorState(zoneType, resource)
         -- below the surface it was placed on is as valid as raising it.
         zOffset = 0.0,
         activeParam = 1,
-        -- Which point "editPoint" mode is currently grabbing. Recomputed from
-        -- the aim every frame while that mode is active, so it never goes
+        -- Which point "editPoint" mode currently has under its crosshair (while
+        -- hovering) or has picked up (while grabbing) -- see `grabbing` below.
+        -- Recomputed from the aim every frame while hovering, so it never goes
         -- stale against a points list that undo/place just changed.
         editIndex = nil,
+        -- false: editIndex just tracks whatever point is nearest the aim (a
+        -- hover highlight). true: the place key has picked that point up --
+        -- editIndex is now frozen on it regardless of where the camera flies
+        -- until place (drop it at the new aim) or undo (cancel the grab)
+        -- releases it. Without this, flying away to look at a placement spot
+        -- immediately re-targets editIndex at whatever's nearest THAT spot
+        -- instead, so there was never a way to actually move a distant point.
+        grabbing = false,
         promise = promise.new(),
         -- dirty starts true so the first frame builds an (empty, since nothing's
         -- placed yet) preview; cachedPreview/lastHud let the per-frame thread
@@ -986,14 +1067,43 @@ end
 -- RegisterKeyMapping has no modifier syntax to bind "Shift+Tab"/"Shift+Scroll"
 -- with in the first place.
 --
--- IsRawKeyPressed reads the physical Shift key (VK_SHIFT = 0x10) and so can't
--- be thrown off by a rebound sprint control, but it isn't present on every
+-- IsRawKeyDown reads the physical Shift key (VK_SHIFT = 0x10) and so can't be
+-- thrown off by a rebound sprint control, but it isn't present on every
 -- client build -- hence the guarded call and the INPUT_SPRINT (21) fallback.
+--
+-- IMPORTANT: this must be IsRawKeyDown, not IsRawKeyPressed. Despite the
+-- name, IS_RAW_KEY_PRESSED is edge-triggered -- true only on the single frame
+-- the key transitions from up to down, mirroring IS_RAW_KEY_RELEASED's "was
+-- just released" -- while IS_RAW_KEY_DOWN is the level/held check ("is
+-- currently down"). Using PRESSED here meant shiftHeld() was true for at
+-- most one frame per keypress, so it essentially never lined up with a
+-- scroll tick and the multiplier was never perceptible.
+-- Both signals are checked and OR'd together, not "raw first, control as
+-- fallback-on-error": IsRawKeyDown(16) can exist and execute without erroring
+-- yet still never report true for a real Shift press (its raw key codes don't
+-- reliably line up with the generic VK_SHIFT constant on every client build),
+-- and a pcall can't tell "the native is missing" apart from "the native ran
+-- and says false". Trusting a clean `false` from it unconditionally silently
+-- disabled Shift detection entirely on those builds. IsControlPressed(0, 21)
+-- (Sprint, bound to Shift by default) is checked unconditionally instead, so
+-- a working raw-key build gains nothing and a broken one still gets Shift.
 local function shiftHeld()
-    local ok, pressed = pcall(function() return IsRawKeyPressed(16) end)
-    if ok and type(pressed) == "boolean" then return pressed end
+    local ok, pressed = pcall(function() return IsRawKeyDown(16) end)
+    if ok and pressed == true then return true end
 
     return IsControlPressed(0, 21)
+end
+
+-- Unmultiplied per-tick step for whichever param is currently active -- 0 for
+-- "editPoint" since it's a mode, not a value. Shared by adjustActiveParam
+-- (which still applies its own direction/shiftMultiplier/clamping) and
+-- creatorHudSnapshot, so the HUD's displayed step can never drift out of
+-- sync with what a scroll tick actually does.
+local function activeParamBaseStep(state)
+    local param = creatorParamCycles[state.type][state.activeParam]
+    if param == "editPoint" then return 0 end
+    if param == "rotation" then return Config.zones.creator.rotationStep end
+    return Config.zones.creator.sizeStep
 end
 
 local function adjustActiveParam(state, direction)
@@ -1002,8 +1112,9 @@ local function adjustActiveParam(state, direction)
     local multiplier = shiftHeld() and step.shiftMultiplier or 1
 
     if param == "editPoint" then
-        -- A mode, not a value: which point is grabbed follows the aim, so
-        -- there's nothing for the scroll wheel to nudge here.
+        -- A mode, not a value: point selection is driven by the place/undo
+        -- keys (pick up/drop/cancel), so there's nothing for the scroll wheel
+        -- to nudge here.
         return
     elseif param == "rotation" then
         state.rotation = (state.rotation + direction * step.rotationStep * multiplier) % 360
@@ -1021,6 +1132,8 @@ local function adjustActiveParam(state, direction)
 end
 
 local function creatorHudSnapshot(state, aiming)
+    local shift = shiftHeld()
+
     return {
         type = state.type,
         pointCount = #state.points,
@@ -1035,8 +1148,15 @@ local function creatorHudSnapshot(state, aiming)
         -- 0 rather than nil: a nil-valued key is simply absent once serialized,
         -- so the HUD could never tell "no point grabbed" from "field missing".
         editIndex = state.editIndex or 0,
+        grabbing = state.grabbing,
         canConfirm = creatorCanConfirm(state),
         aiming = aiming,
+        -- Surfaced so the HUD can actually show shift doing something instead
+        -- of it being an invisible, easy-to-doubt modifier: isShiftHeld drives
+        -- a visible indicator, stepSize is what one scroll tick currently
+        -- moves the active param by (already shiftMultiplier-scaled).
+        isShiftHeld = shift,
+        stepSize = activeParamBaseStep(state) * (shift and Config.zones.creator.shiftMultiplier or 1),
     }
 end
 
@@ -1057,8 +1177,11 @@ local function hudSnapshotsEqual(a, b)
         and a.thickness == b.thickness
         and a.zOffset == b.zOffset
         and a.editIndex == b.editIndex
+        and a.grabbing == b.grabbing
         and a.canConfirm == b.canConfirm
         and a.aiming == b.aiming
+        and a.isShiftHeld == b.isShiftHeld
+        and a.stepSize == b.stepSize
 end
 
 -- Runs inside a RegisterCommand handler's own coroutine, so Citizen.Await
@@ -1090,32 +1213,60 @@ local function openConfirmDialog(state)
     -- otherwise ("keep editing"): creatorState is untouched, the preview thread carries on
 end
 
+-- In editPoint mode the place key is a two-step pick-up/drop instead of a
+-- single click: the first press grabs whichever point is currently hovered
+-- (freezing it in `grabbing`, below, so flying elsewhere doesn't re-target
+-- it), the second press drops it at the NEW aim and releases the grab. A
+-- single-press "move nearest point to wherever you're aiming right now"
+-- can't express "carry this one specific point over there" at all, since
+-- the moment the camera turns away from the point, it's no longer nearest
+-- its own aim.
+local function creatorPlaceEditPoint(state)
+    if state.grabbing then
+        local hit, coords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
+        if not hit then
+            creatorLog("nothing to drop the point on -- aim at solid ground/geometry.")
+            return
+        end
+
+        local index = state.editIndex
+        if index == nil or state.points[index] == nil then
+            -- The points list changed out from under a grab (e.g. undo while
+            -- grabbing already released it) -- nothing left to drop.
+            state.grabbing = false
+            return
+        end
+
+        -- Stored raw, exactly like a freshly placed point: zOffset is
+        -- re-applied on top in creatorOpts, so moving a point on a lifted
+        -- zone doesn't bake the lift in twice.
+        state.points[index] = coords
+        state.grabbing = false
+        state.dirty = true
+        return
+    end
+
+    if state.editIndex == nil then
+        creatorLog("no point nearby to select -- aim closer to a placed point.")
+        return
+    end
+
+    state.grabbing = true
+end
+
 local function creatorPlace(state)
-    local hit, coords = QB.raycast.fromCamera(Config.zones.creator.raycastDistance)
+    if state.type == "poly" and isEditingPoints(state) then
+        creatorPlaceEditPoint(state)
+        return
+    end
+
+    local hit, coords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
     if not hit then
         creatorLog("nothing to place a point on -- aim at solid ground/geometry.")
         return
     end
 
     if state.type == "poly" then
-        -- In editPoint mode the key MOVES the grabbed point rather than adding
-        -- one, so a mis-click while repositioning can't quietly grow the shape.
-        if isEditingPoints(state) then
-            local index = state.editIndex
-
-            if index == nil or state.points[index] == nil then
-                creatorLog("no point to move -- place at least one point first.")
-                return
-            end
-
-            -- Stored raw, exactly like a freshly placed point: zOffset is
-            -- re-applied on top in creatorOpts, so moving a point on a lifted
-            -- zone doesn't bake the lift in twice.
-            state.points[index] = coords
-            state.dirty = true
-            return
-        end
-
         if #state.points >= Config.zones.creator.maxPolyPoints then
             creatorLog(("poly zones are capped at %d points."):format(Config.zones.creator.maxPolyPoints))
             return
@@ -1130,7 +1281,15 @@ end
 
 local function creatorUndo(state)
     if state.type == "poly" then
-        table.remove(state.points)
+        -- While a point is grabbed, undo cancels the grab (drop it back where
+        -- it started) rather than deleting the last point in the list -- that
+        -- last point is very likely a completely different one from whatever
+        -- is currently being carried around.
+        if state.grabbing then
+            state.grabbing = false
+        else
+            table.remove(state.points)
+        end
     else
         state.center = nil
     end
@@ -1186,8 +1345,47 @@ registerCreatorKeybind("qblib_zonecreator_cancel", "Zone Creator: Cancel", "X", 
 -- that's a confirm, a cancel, or the resource stopping entirely.
 local function ensureCreatorThread(state)
     CreateThread(function()
+        -- pcall-wrapped: this loop calls a lot of natives every frame, and
+        -- any one of them erroring would otherwise silently kill this
+        -- coroutine right there, skipping every cleanup step below
+        -- (unfreezing the ped, destroying the scripted camera, restoring the
+        -- radar) -- leaving the player stuck frozen with no way out.
+        local ok, err = pcall(function()
         while creatorState == state do
-            local hit, aimCoords = QB.raycast.fromCamera(Config.zones.creator.raycastDistance)
+            DisableControlAction(0, 1, true)  -- LookLeftRight (mouse X)
+            DisableControlAction(0, 2, true)  -- LookUpDown (mouse Y)
+            DisableControlAction(0, 30, true) -- MoveLeftRight (A/D)
+            DisableControlAction(0, 31, true) -- MoveUpDown (W/S)
+
+            local lookX = GetDisabledControlNormal(0, 1)
+            local lookY = GetDisabledControlNormal(0, 2)
+            local strafe = GetDisabledControlNormal(0, 30)
+            local forwardBack = GetDisabledControlNormal(0, 31)
+
+            state.camYaw = (state.camYaw - lookX * Config.zones.creator.cameraLookSensitivity) % 360.0
+            state.camPitch = math.max(-89.0, math.min(89.0, state.camPitch - lookY * Config.zones.creator.cameraLookSensitivity))
+
+            local yawRad, pitchRad = math.rad(state.camYaw), math.rad(state.camPitch)
+            local flat = math.cos(pitchRad)
+            local forward = { x = -math.sin(yawRad) * flat, y = math.cos(yawRad) * flat, z = math.sin(pitchRad) }
+            local right = { x = math.cos(yawRad), y = math.sin(yawRad), z = 0.0 }
+
+            -- Shift reuses the exact same 2.5x multiplier the size/rotation scroll-step already
+            -- uses (Config.zones.creator.shiftMultiplier) -- one speed-boost knob, not two.
+            local speed = Config.zones.creator.cameraMoveSpeed * (shiftHeld() and Config.zones.creator.shiftMultiplier or 1)
+            local distance = speed * GetFrameTime()
+            local moveForward, moveRight = -forwardBack * distance, strafe * distance
+
+            state.camCoords = {
+                x = state.camCoords.x + forward.x * moveForward + right.x * moveRight,
+                y = state.camCoords.y + forward.y * moveForward + right.y * moveRight,
+                z = state.camCoords.z + forward.z * moveForward,
+            }
+
+            SetCamCoord(state.cam, state.camCoords.x, state.camCoords.y, state.camCoords.z)
+            SetCamRot(state.cam, state.camPitch, 0.0, state.camYaw, 2)
+
+            local hit, aimCoords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
 
             if IsControlJustPressed(0, 14) then adjustActiveParam(state, 1) end
             if IsControlJustPressed(0, 15) then adjustActiveParam(state, -1) end
@@ -1205,36 +1403,53 @@ local function ensureCreatorThread(state)
                 state.dirty = false
             end
 
-            if state.cachedPreview then drawDebugFn[state.cachedPreview.type](state.cachedPreview, Config.zones.debugColor) end
+            if state.cachedPreview then drawDebugFn[state.cachedPreview.type](state.cachedPreview, zoneDebugColor()) end
 
             local editing = isEditingPoints(state)
 
-            -- Which point the placement key would move, refreshed from the aim
-            -- every frame so it tracks the crosshair rather than needing its
-            -- own selection keybind.
-            if editing then
+            if not editing then
+                -- Leaving edit-point mode always drops any in-progress grab --
+                -- there's nowhere left to see/confirm it once the HUD/markers
+                -- for it stop being drawn below.
+                state.grabbing = false
+            elseif not state.grabbing then
+                -- Only re-tracked while hovering, not while grabbing: a
+                -- grabbed point stays exactly the one that was picked no
+                -- matter where the camera flies afterward -- only place
+                -- (drop it) or undo (cancel the grab) changes it again.
                 state.editIndex = (hit and aimCoords) and nearestPointIndex(state.points, aimCoords) or nil
             end
 
             -- Points are drawn individually in two cases: below 3, because
             -- there's no polygon to preview yet and the first two placements
             -- would otherwise leave the screen unchanged; and while editing,
-            -- because you need to see which vertex you're about to grab. In
+            -- because you need to see which vertex is hovered/grabbed. In
             -- between, the real preview's own debug draw already marks them.
             if state.type == "poly" and (editing or #state.points < 3) then
                 for i, point in ipairs(state.points) do
-                    local grabbed = editing and i == state.editIndex
+                    local grabbedHere = editing and state.grabbing and i == state.editIndex
+                    local hoveredHere = editing and not state.grabbing and i == state.editIndex
 
-                    -- zOffset is applied here too, so a raised poly's markers
-                    -- sit where the finished zone's floor will be rather than
-                    -- back down on the ground. The grabbed point is drawn
-                    -- bigger and in white so it stands out against both the red
-                    -- pending markers and the red debug wireframe.
-                    local size = grabbed and 0.45 or 0.25
+                    -- A grabbed point's marker follows the CURRENT aim rather
+                    -- than its last confirmed position -- a live preview of
+                    -- where place (E) will drop it, which is the whole point
+                    -- of being able to fly away and still be "holding" it.
+                    local drawAt = (grabbedHere and hit and aimCoords) and aimCoords or point
+
+                    -- zOffset only applies to the point's own stored position,
+                    -- not to the aim-following ghost above (the aim is already
+                    -- a real world coordinate, not one that needs raising).
+                    local drawZ = drawAt.z + (drawAt == point and state.zOffset or 0.0)
+
+                    -- Grabbed draws in blue (actively being carried) so it
+                    -- reads as a distinct state from hovered (white, "this is
+                    -- what place would grab next") and idle (red).
+                    local size = (grabbedHere or hoveredHere) and 0.45 or 0.25
                     local r, g, b = 255, 60, 60
-                    if grabbed then r, g, b = 255, 255, 255 end
+                    if hoveredHere then r, g, b = 255, 255, 255 end
+                    if grabbedHere then r, g, b = 60, 180, 255 end
 
-                    DrawMarker(28, point.x, point.y, point.z + state.zOffset, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    DrawMarker(28, drawAt.x, drawAt.y, drawZ, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                         size, size, size, r, g, b, 200, false, false, 2, false, nil, nil, false)
                 end
             end
@@ -1256,20 +1471,88 @@ local function ensureCreatorThread(state)
 
             Wait(0)
         end
+        end)
+
+        if not ok then
+            creatorLog(("zone creator crashed and was cleaned up: %s"):format(tostring(err)))
+
+            -- A crash left creatorState pointing at this now-dead session --
+            -- clear it so a fresh QB.zones.startCreator isn't rejected as
+            -- "already running" forever, and reject the dangling promise
+            -- rather than leaving a caller's Await suspended indefinitely.
+            if creatorState == state then
+                creatorState = nil
+                state.promise:reject(("zone creator crashed: %s"):format(tostring(err)))
+            end
+        end
 
         -- Unconditionally restored, even if hideRadar was switched off
-        -- mid-session, so the creator can never be what leaves a player
-        -- staring at a missing minimap.
+        -- mid-session or the loop above crashed, so the creator can never be
+        -- what leaves a player staring at a missing minimap.
         DisplayRadar(true)
 
         QB.nui.send("zoneCreator:hud", nil)
+
+        -- A separate thread, not inline here: DestroyCam must wait out the ease so the
+        -- transition back to the gameplay camera isn't cut short, but everything above
+        -- (radar, hud) must restore in this same tick, not delayed by that wait.
+        local cam = state.cam
+        CreateThread(function()
+            RenderScriptCams(false, true, Config.zones.creator.cameraTransitionMs, true, true)
+            Wait(Config.zones.creator.cameraTransitionMs)
+            DestroyCam(cam, false)
+            FreezeEntityPosition(PlayerPedId(), false)
+        end)
     end)
+end
+
+-- A restart of THIS resource (qblib itself, not whichever resource called
+-- QB.zones.startCreator) kills the creator's thread outright -- no pcall, no
+-- loop-exit path, and no cleanup below either runs for that, since the
+-- coroutine is simply gone. Without this, a player mid-session when qblib
+-- restarts is left frozen in place with a scripted camera stuck on screen
+-- until they reconnect. Immediate, not eased: there's no gameplay camera
+-- transition worth easing into when the resource providing it is already gone.
+AddEventHandler('onClientResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    if not creatorState then return end
+
+    FreezeEntityPosition(PlayerPedId(), false)
+    DestroyCam(creatorState.cam, false)
+    RenderScriptCams(false, false, 0, true, true)
+    DisplayRadar(true)
+end)
+
+-- The creator flies its own scripted camera rather than relying on the
+-- player's own view -- started from wherever the gameplay camera already is
+-- (RenderScriptCams' own ease handles the visual handoff) so entering the
+-- creator is a smooth blend, not a cut.
+local function startCreatorCamera()
+    local camCoord = GetGameplayCamCoord()
+    local camRot = GetGameplayCamRot(2)
+
+    local cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA",
+        camCoord.x, camCoord.y, camCoord.z,
+        camRot.x, camRot.y, camRot.z,
+        GetGameplayCamFov(), false, 0)
+
+    SetCamActive(cam, true)
+    RenderScriptCams(true, true, Config.zones.creator.cameraTransitionMs, true, true)
+    FreezeEntityPosition(PlayerPedId(), true)
+
+    return cam, { x = camCoord.x, y = camCoord.y, z = camCoord.z }, camRot.x, camRot.z
 end
 
 local function beginCreator(zoneType, resource, existingOpts)
     local state = newCreatorState(zoneType, resource)
     if existingOpts then seedCreatorState(state, existingOpts) end
     creatorState = state
+
+    -- Created here, before the per-frame thread starts, so state.cam is
+    -- guaranteed to exist before any keybind handler (creatorPlace, in
+    -- particular) could possibly run -- rather than racing the thread's own
+    -- startup.
+    state.cam, state.camCoords, state.camPitch, state.camYaw = startCreatorCamera()
 
     ensureCreatorThread(state)
     QB.nui.send("zoneCreator:start", { type = zoneType })
@@ -1310,6 +1593,41 @@ function QB.zones.startCreator(zoneType, existingOpts)
     -- export call in progress), GetInvokingResource() would just return nil.
     return settleForExport(beginCreator(zoneType, GetInvokingResource() or GetCurrentResourceName(), existingOpts))
 end
+
+---Whether a zone creator session currently owns player input (camera fly,
+---place/undo/cycle keybinds). Consulted by other resources whose own
+---keybind collides with a creator keybind by default -- e.g. qbinventory's
+---TAB-bound inventory toggle vs. qblib_zonecreator_cycle -- so the second
+---handler can bail instead of firing alongside the creator's.
+---@return boolean
+function QB.zones.isCreatorActive()
+    return creatorState ~= nil
+end
+
+-- No-args toggle direction: "any zone currently drawing debug" flips
+-- everything off, otherwise flips everything on. Reads debugZones directly
+-- (rather than tracking a separate on/off flag of its own) so it stays
+-- correct even after a resource has been calling QB.zones.setDebug per-zone
+-- behind this command's back -- there's no separate piece of state that
+-- could drift out of sync with what's actually drawing.
+RegisterCommand("qb_zonedebug", function(_, args)
+    local arg = args[1] and tostring(args[1]):lower() or nil
+    local enabled
+
+    if arg == "on" then
+        enabled = true
+    elseif arg == "off" then
+        enabled = false
+    elseif arg == nil then
+        enabled = next(debugZones) == nil
+    else
+        creatorLog(("qb_zonedebug: unrecognised argument '%s' -- use 'on', 'off', or no argument to toggle."):format(arg))
+        return
+    end
+
+    QB.zones.setDebug(nil, enabled)
+    creatorLog(("zone debug drawing %s for every registered zone."):format(enabled and "enabled" or "disabled"))
+end, false)
 
 ---@class QBZoneEditOptions
 ---@field coords? any New center coordinates. Only supported by box and sphere zones.

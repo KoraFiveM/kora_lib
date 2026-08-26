@@ -32,6 +32,7 @@ function M.install()
     local triggeredServerEvents = {}
     local triggeredClientEvents = {}
     local threads = {}
+    local commands = {}
 
     _G.source = nil
 
@@ -43,6 +44,35 @@ function M.install()
     function _G.AddEventHandler(name, cb)
         eventHandlers[name] = eventHandlers[name] or {}
         table.insert(eventHandlers[name], cb)
+    end
+
+    -- Real RegisterCommand(name, handler, restricted) takes the invoking
+    -- player's source, the raw args array, and the raw command string --
+    -- `commands[name]` below stores the handler function as-is (same
+    -- bare-callback convention as eventHandlers/netHandlers) so a test can
+    -- invoke it directly with whatever it needs. `restricted` is accepted
+    -- but never enforced (no ACE system in this mock environment).
+    function _G.RegisterCommand(name, cb, restricted)
+        commands[name] = cb
+    end
+
+    -- Keymappings have no meaning outside a real client -- recorded only so
+    -- code that calls RegisterKeyMapping doesn't error when dofile'd here.
+    function _G.RegisterKeyMapping(_, _, _, _) end
+
+    -- Real ExecuteCommand("name arg1 arg2") parses the string and invokes
+    -- the matching RegisterCommand handler synchronously, exactly like a
+    -- player typing "/name arg1 arg2" in chat -- mirrored here (whitespace
+    -- split, no quoting support -- none of this codebase's compat dispatch
+    -- needs it) so a `type = "command"` dispatch path can be tested
+    -- end-to-end instead of just asserting the call happened.
+    local executedCommands = {}
+    function _G.ExecuteCommand(command)
+        table.insert(executedCommands, command)
+        local args = {}
+        for word in tostring(command):gmatch("%S+") do args[#args + 1] = word end
+        local handler = commands[args[1]]
+        if handler then handler(_G.source or 0, { table.unpack(args, 2) }, command) end
     end
 
     function _G.TriggerEvent(name, ...)
@@ -178,6 +208,8 @@ function M.install()
         eventHandlers = eventHandlers,
         triggeredServerEvents = triggeredServerEvents,
         triggeredClientEvents = triggeredClientEvents,
+        commands = commands,
+        executedCommands = executedCommands,
         -- Fires both AddEventHandler and RegisterNetEvent handlers for `name`,
         -- for tests that need to simulate lifecycle events directly
         -- (playerDropped, onResourceStop, onClientResourceStop).

@@ -41,8 +41,22 @@ _G.RegisterKeyMapping = function() end
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
 _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
 _G.StartShapeTestRay = function() return 1 end
-_G.GetShapeTestResult = function() return 0, 0, { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }, 0 end
+_G.GetShapeTestResult = function() return 2, 0, { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }, 0 end
 _G.IsControlJustPressed = function() return false end
+_G.IsControlPressed = function() return false end
+_G.CreateCamWithParams = function() return 1 end
+_G.SetCamActive = function() end
+_G.RenderScriptCams = function() end
+_G.DestroyCam = function() end
+_G.FreezeEntityPosition = function() end
+_G.DisableControlAction = function() end
+_G.GetDisabledControlNormal = function() return 0.0 end
+_G.GetFrameTime = function() return 0.0 end
+_G.GetGameplayCamFov = function() return 50.0 end
+_G.SetCamCoord = function() end
+_G.SetCamRot = function() end
+_G.GetCamCoord = function() return { x = 0, y = 0, z = 0 } end
+_G.GetCamRot = function() return { x = 0, y = 0, z = 0 } end
 -- Recorded rather than ignored: hiding the minimap during placement is only
 -- correct if it's also restored on teardown, and a creator that leaves a
 -- player with no map is exactly the kind of thing that goes unnoticed in a
@@ -52,6 +66,11 @@ _G.DisplayRadar = function(shown) radarCalls[#radarCalls + 1] = shown end
 
 dofile(repoRoot .. "modules/raycast/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+-- QB.theme isn't otherwise loaded by this test file -- the debug/creator-preview
+-- draw path now reads QB.theme.accentColor() (see zoneDebugColor in
+-- modules/zones/client.lua), and without this the QB proxy in build/initiate.lua
+-- would auto-vivify QB.theme as an empty table, leaving accentColor nil.
+dofile(repoRoot .. "modules/theme/shared.lua")
 dofile(repoRoot .. "modules/zones/client.lua")
 
 -- Real QB.nui isn't loaded here (that's modules/nui's own smoke test) -- the
@@ -399,6 +418,17 @@ harness.test("startCreator rejects a second call while a creator is already runn
     harness.assertEqual(first.value, nil, "a cancelled creator should resolve with nil, not an error")
 end)
 
+harness.test("isCreatorActive reflects whether a creator session is running", function()
+    harness.assertFalse(QB.zones.isCreatorActive(), "no creator has been started yet")
+
+    local p = QB.zones.startCreator("box")
+    harness.assertTrue(QB.zones.isCreatorActive(), "a creator is now pending")
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
+    harness.assertFalse(QB.zones.isCreatorActive(), "cancelling should clear the active session")
+end)
+
 harness.test("the creator restores the minimap when it ends", function()
     radarCalls = {}
 
@@ -513,6 +543,175 @@ harness.test("a debug poly zone draws a wall face per edge", function()
     harness.assertEqual(drawPolyCalls, 12, "each of the poly's 3 edges should draw one wall x 2 triangles x 2 windings")
 
     zone.remove()
+end)
+
+harness.test("QB.zones.setDebug(id, true) makes an already-created zone start drawing", function()
+    -- Drain the debug thread the poly test above left running (suspended at
+    -- its Wait(0)): that test's zone is already removed, so this resumed
+    -- iteration finds debugZones empty and the thread quietly stops itself
+    -- -- leaving debugThreadStarted false again before this test relies on
+    -- setDebug starting a fresh one.
+    net.step()
+
+    local zone = QB.zones.box({ coords = { x = 300, y = 300, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = false })
+
+    drawLineCalls = 0
+    zone.setDebug(true)
+
+    -- setDebug(true) starts a fresh debug thread (none was running), and the
+    -- mock CreateThread resumes it once immediately -- same as a zone
+    -- created with debug = true directly, no net.step() needed for this
+    -- first draw pass.
+    harness.assertEqual(drawLineCalls, 12, "turning debug on for an existing zone should draw its 12 box edges")
+
+    zone.setDebug(false)
+    zone.remove()
+end)
+
+harness.test("QB.zones.setDebug(nil, true) flips every registered zone at once", function()
+    net.step() -- drain the previous test's now-empty debug thread, same as above
+
+    -- zoneRegistry may already hold a zone this file's earlier
+    -- "startCreator(type, existingOpts) seeds the creator" test left behind
+    -- (a real confirmed zone this file never got a handle back for, so
+    -- there's nothing to call remove() on) -- QB.zones.setDebug(nil, ...)
+    -- deliberately reaches every registered zone, that one included, so
+    -- "baseline" below measures whatever that already draws before this
+    -- test's own two zones exist. The assertions then check the DELTA those
+    -- two contribute rather than assuming the registry is otherwise empty.
+    QB.zones.setDebug(nil, true)
+    drawLineCalls = 0
+    net.step()
+    local baseline = drawLineCalls
+    QB.zones.setDebug(nil, false)
+    net.step()
+
+    local a = QB.zones.box({ coords = { x = 320, y = 320, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+    local b = QB.zones.box({ coords = { x = 340, y = 340, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+
+    -- setDebug(nil, true) starts a fresh debug thread mid-loop, over
+    -- whichever zone it had already flipped into debugZones at that exact
+    -- point -- so its own synchronous first draw pass can legitimately miss
+    -- some of them. Every zone is unconditionally in debugZones by the time
+    -- the call returns though, so resetting the counter and letting the
+    -- now-running thread's next resumed iteration draw is what actually
+    -- proves "every zone".
+    QB.zones.setDebug(nil, true)
+    drawLineCalls = 0
+    net.step()
+
+    harness.assertEqual(drawLineCalls - baseline, 24,
+        "both new zones' 12 edges each should draw once debug is flipped on globally, on top of whatever else is already registered")
+
+    QB.zones.setDebug(nil, false)
+    drawLineCalls = 0
+    net.step()
+
+    harness.assertEqual(drawLineCalls, 0, "flipping debug back off globally should stop drawing every zone, baseline included")
+
+    a.remove()
+    b.remove()
+end)
+
+harness.test("Config.zones.debug defaults new zones into debug drawing without opts.debug", function()
+    net.step() -- drain again, same reasoning as above
+
+    local priorDefault = Config.zones.debug
+    Config.zones.debug = true
+
+    drawLineCalls = 0
+    local zone = QB.zones.box({ coords = { x = 360, y = 360, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+
+    harness.assertEqual(drawLineCalls, 12,
+        "Config.zones.debug = true should enable debug drawing on a newly created zone even without opts.debug")
+
+    Config.zones.debug = priorDefault
+    zone.remove()
+end)
+
+harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", function()
+    net.step() -- drain again, same reasoning as above
+
+    -- Same reasoning as the QB.zones.setDebug(nil, ...) test above:
+    -- qb_zonedebug reaches every registered zone, including the confirmed
+    -- creator zone this file never got a handle back for, so baseline
+    -- captures whatever that already draws before this test's own zone is
+    -- added -- the assertions below check the delta that one zone
+    -- contributes, not an absolute total.
+    QB.zones.setDebug(nil, true)
+    drawLineCalls = 0
+    net.step()
+    local baseline = drawLineCalls
+    QB.zones.setDebug(nil, false)
+    net.step()
+
+    local zone = QB.zones.box({ coords = { x = 380, y = 380, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+
+    registeredCommands["qb_zonedebug"](nil, {})
+    drawLineCalls = 0
+    net.step()
+    harness.assertEqual(drawLineCalls - baseline, 12, "no-arg toggle should turn debug on when nothing is currently drawing")
+
+    registeredCommands["qb_zonedebug"](nil, {})
+    drawLineCalls = 0
+    net.step()
+    harness.assertEqual(drawLineCalls, 0, "no-arg toggle should turn debug back off when a zone is currently drawing")
+
+    registeredCommands["qb_zonedebug"](nil, { "on" })
+    drawLineCalls = 0
+    net.step()
+    harness.assertEqual(drawLineCalls - baseline, 12, "'on' should enable debug drawing regardless of the current state")
+
+    registeredCommands["qb_zonedebug"](nil, { "off" })
+    drawLineCalls = 0
+    net.step()
+    harness.assertEqual(drawLineCalls, 0, "'off' should disable debug drawing regardless of the current state")
+
+    zone.remove()
+end)
+
+harness.test("starting the creator activates a scripted camera with an eased transition", function()
+    local renderCalls = {}
+    local originalRender = RenderScriptCams
+    _G.RenderScriptCams = function(...) table.insert(renderCalls, { ... }) end
+
+    local p = QB.zones.startCreator("box")
+    net.step()
+
+    harness.assertTrue(#renderCalls >= 1, "starting the creator should activate its scripted camera")
+    harness.assertEqual(renderCalls[1][1], true, "the camera should render on")
+    harness.assertEqual(renderCalls[1][2], true, "the transition into the creator's camera should ease")
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    net.step()
+
+    harness.assertTrue(#renderCalls >= 2, "cancelling should hand the view back to the gameplay camera")
+    harness.assertEqual(renderCalls[#renderCalls][1], false, "the camera should render off on teardown")
+    harness.assertEqual(renderCalls[#renderCalls][2], true, "the transition back out should also ease")
+
+    _G.RenderScriptCams = originalRender
+end)
+
+harness.test("cancelling the creator eventually destroys its scripted camera", function()
+    -- Only a positive claim ("it does get destroyed"), not a timing claim
+    -- ("not yet") -- net.step() resumes every still-suspended coroutine ever
+    -- created in this file, including leftover ease-out threads from earlier
+    -- start/cancel tests above, so asserting an exact call count/timing here
+    -- would be testing thread-pool leakage rather than this feature.
+    local destroyedCams = {}
+    local originalDestroy = DestroyCam
+    _G.DestroyCam = function(cam) table.insert(destroyedCams, cam) end
+
+    local p = QB.zones.startCreator("box")
+    net.step()
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    net.step() -- outer thread falls through to teardown, spawns the ease-out thread
+    net.step() -- the ease-out thread's Wait(cameraTransitionMs) elapses, DestroyCam runs
+
+    harness.assertTrue(#destroyedCams >= 1, "the camera should eventually be destroyed once the ease-out finishes")
+
+    _G.DestroyCam = originalDestroy
 end)
 
 harness.report("zones")

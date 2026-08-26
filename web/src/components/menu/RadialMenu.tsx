@@ -26,12 +26,6 @@ function firstEnabled(entries: RingEntry[]): number {
     return entries.findIndex((entry) => entry.kind === "more" || !entry.item.disabled)
 }
 
-function clampAnchor(value: number, viewport: number, radius: number): number {
-    const safeInset = radius + ITEM_HALF_SIZE + EDGE_GUTTER
-    if (viewport <= safeInset * 2) return viewport / 2
-    return Math.min(Math.max(safeInset, value), viewport - safeInset)
-}
-
 /**
  * The visual half of QB.nui.openRadialMenu. The whole nested tree is delivered
  * once; changing levels/pages is local React state and only a terminal choice
@@ -173,10 +167,13 @@ export function RadialMenuContainer() {
     const requestedRadius = payload.radius ?? DEFAULT_RADIUS
     const maximumRadius = Math.max(48, Math.min(window.innerWidth, window.innerHeight) / 2 - ITEM_HALF_SIZE - EDGE_GUTTER)
     const radius = Math.min(Math.max(96, requestedRadius), maximumRadius)
-    const anchorX = clampAnchor(payload.x ?? window.innerWidth / 2, window.innerWidth, radius)
-    const anchorY = clampAnchor(payload.y ?? window.innerHeight / 2, window.innerHeight, radius)
     const activeEntry = entries[activeIndex]
-    const activeDescription = activeEntry?.kind === "item" ? activeEntry.item.description : undefined
+    const activeItem = activeEntry?.kind === "item" ? activeEntry.item : undefined
+    // Disabled items don't carry a reason field, so falling back to a plain
+    // "unavailable" note is better than the previous silence -- hovering one
+    // used to update nothing in the hub at all.
+    const activeDescriptionIsFallback = Boolean(activeItem?.disabled && !activeItem.description)
+    const activeDescription = activeItem?.description ?? (activeItem?.disabled ? "Unavailable right now" : undefined)
     const closeIcon = resolveIcon("X")
     const backIcon = resolveIcon("ChevronLeft")
     const moreIcon = resolveIcon("ChevronRight")
@@ -188,8 +185,7 @@ export function RadialMenuContainer() {
             <div
                 role="menu"
                 aria-label={level.title ?? "Radial menu"}
-                className="pointer-events-none fixed z-overlay select-none duration-dialog ease-entry animate-in zoom-in-95"
-                style={{ left: anchorX, top: anchorY }}
+                className="pointer-events-none fixed left-1/2 top-1/2 z-overlay select-none duration-dialog ease-entry animate-in zoom-in-95"
             >
                 <svg
                     aria-hidden="true"
@@ -220,14 +216,14 @@ export function RadialMenuContainer() {
                                     y2={y2}
                                     stroke={stroke}
                                     strokeWidth={isActive ? 2 : 1}
-                                    className="transition-[stroke,stroke-width] duration-fast ease-entry"
+                                    className="transition-[stroke,stroke-width] duration-fast"
                                 />
                                 <circle
                                     cx={x2}
                                     cy={y2}
                                     r={isActive ? 3 : 2}
                                     fill={stroke}
-                                    className="transition-[fill,r] duration-fast ease-entry"
+                                    className="transition-[fill,r] duration-fast"
                                 />
                             </g>
                         )
@@ -250,21 +246,28 @@ export function RadialMenuContainer() {
                             type="button"
                             role="menuitem"
                             tabIndex={index === activeIndex ? 0 : -1}
-                            disabled={disabled}
+                            // aria-disabled instead of the native `disabled` attribute:
+                            // a natively-disabled button suppresses mouse/focus events
+                            // entirely, so hovering a disabled item could never explain
+                            // why it's unavailable. selectItem()/activateEntry() already
+                            // no-op for disabled items, so this stays inert to clicks.
+                            aria-disabled={disabled || undefined}
                             aria-haspopup={item?.submenu ? "menu" : undefined}
                             aria-label={item?.description ? `${label}: ${item.description}` : label}
                             title={item?.description ?? label}
-                            onMouseEnter={() => !disabled && setActiveIndex(index)}
-                            onFocus={() => !disabled && setActiveIndex(index)}
+                            onMouseEnter={() => setActiveIndex(index)}
+                            onFocus={() => setActiveIndex(index)}
                             onClick={() => activateEntry(entry)}
                             className={cn(
-                                "focus-ring pointer-events-auto absolute flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-xl border bg-card px-2 text-center text-xs font-medium text-card-foreground shadow-low transition-[background-color,border-color,color,box-shadow,transform] duration-fast ease-entry",
+                                "focus-ring pointer-events-auto absolute flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-xl border bg-card px-2 text-center text-xs font-medium text-card-foreground shadow-low transition-[background-color,border-color,color,transform] duration-fast",
                                 disabled
                                     ? "cursor-not-allowed border-border opacity-[0.48]"
-                                    : "cursor-pointer hover:border-control-border-hover hover:bg-surface-hover active:scale-[0.98]",
+                                    : "cursor-pointer hover:border-control-border-hover hover:bg-surface-hover",
                                 index === activeIndex && !disabled && "border-brand-border bg-brand-soft text-foreground",
                             )}
-                            style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+                            style={{
+                                transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
+                            }}
                         >
                             {Icon ? <Icon aria-hidden className="h-5 w-5 shrink-0" /> : <span aria-hidden className="font-mono text-sm">{index + 1}</span>}
                             <span className="max-w-full truncate leading-4">{label}</span>
@@ -273,18 +276,29 @@ export function RadialMenuContainer() {
                     )
                 })}
 
-                <div className="pointer-events-auto absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-xl border border-border bg-card p-2 text-center shadow-low">
+                <div
+                    className={cn(
+                        "pointer-events-auto absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-xl border bg-card p-2 text-center shadow-low transition-colors duration-fast",
+                        // Ties the hub visually to whichever spoke is highlighted,
+                        // instead of only updating the description text below.
+                        activeItem && !activeItem.disabled ? "border-brand-border" : "border-border",
+                    )}
+                >
                     <button
                         type="button"
                         onClick={canGoBack ? goBack : dismiss}
-                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,transform] duration-fast ease-entry hover:bg-surface-hover hover:text-foreground active:scale-[0.98]"
+                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,transform] duration-fast hover:bg-surface-hover hover:text-foreground active:scale-[0.98]"
                         aria-label={canGoBack ? "Back" : "Close radial menu"}
                         title={canGoBack ? "Back" : "Close"}
                     >
                         {CenterIcon ? <CenterIcon aria-hidden className="h-4 w-4" /> : <span aria-hidden>×</span>}
                     </button>
                     <span className="max-w-full truncate text-[10px] font-semibold text-foreground">{canGoBack ? "Back" : level.title ?? "Actions"}</span>
-                    {activeDescription ? <span className="mt-0.5 line-clamp-2 text-[9px] leading-3 text-muted-foreground">{activeDescription}</span> : null}
+                    {activeDescription ? (
+                        <span className={cn("mt-0.5 line-clamp-2 text-[9px] leading-3 text-muted-foreground", activeDescriptionIsFallback && "italic")}>
+                            {activeDescription}
+                        </span>
+                    ) : null}
                 </div>
             </div>
         </>

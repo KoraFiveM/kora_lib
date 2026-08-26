@@ -18,6 +18,15 @@ function formatParamValue(param: string, value: number): string {
     return value.toFixed(2)
 }
 
+// Same units as formatParamValue, but a step is never signed (it's always a
+// positive per-scroll-tick amount), so this deliberately skips the zOffset
+// "+" branch above.
+function formatStepValue(param: string, value: number): string {
+    if (param === "rotation") return `${value.toFixed(1)}°`
+    if (param === "zOffset") return `${value.toFixed(2)}m`
+    return value.toFixed(2)
+}
+
 // "zOffset" reads as a field name, not a thing you're adjusting.
 const PARAM_LABELS: Record<string, string> = {
     zOffset: "height offset",
@@ -65,6 +74,11 @@ export function ZoneCreatorHud() {
             {snapshot && (
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     <ActiveParam snapshot={snapshot} />
+                    {snapshot.isShiftHeld && (
+                        <span className="rounded-sm border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">
+                            Shift: fast adjust
+                        </span>
+                    )}
                     {snapshot.canConfirm && (
                         <span className="rounded-sm border border-brand-border bg-brand-soft px-2 py-1 text-xs font-semibold text-foreground">
                             Enter confirm
@@ -129,6 +143,12 @@ function ActiveParam({ snapshot }: { snapshot: ZoneCreatorHudSnapshot }) {
         <span className="rounded-sm border border-brand-border border-l-[3px] border-l-primary bg-brand-soft px-2 py-1 text-xs">
             <span className="capitalize">{PARAM_LABELS[snapshot.activeParam] ?? snapshot.activeParam}</span>:{" "}
             <span className="font-mono tabular-nums">{formatParamValue(snapshot.activeParam, value)}</span>
+            {/* Makes Shift's effect visible rather than a silent multiplier
+                the player has to take on faith -- this is what one scroll
+                tick moves the value by right now, shiftMultiplier included. */}
+            <span className="ml-1 text-muted-foreground">
+                (±{formatStepValue(snapshot.activeParam, snapshot.stepSize)}/scroll)
+            </span>
         </span>
     )
 }

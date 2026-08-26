@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { Minus, Plus } from "lucide-react"
 
 import type { FieldValue, InputDialogResult, InputField, OpenInputDialogPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
@@ -36,10 +36,17 @@ function defaultValueFor(field: InputField): FieldValue {
         case "password":
         case "textarea":
         case "select":
+        case "combobox":
         default:
             return ""
     }
 }
+
+// How many filtered suggestions a combobox shows at once -- matches
+// web/src/components/menu/Menu.tsx's own reasoning for capping a searchable
+// list rather than rendering every option (an addon-heavy Config.shared
+// vehicle list can run into the hundreds).
+const COMBOBOX_MAX_SUGGESTIONS = 8
 
 // Only used when a `range` field omits its bounds, which is really a caller
 // mistake -- a slider needs somewhere to slide. Picked over erroring so one
@@ -48,7 +55,10 @@ const RANGE_FALLBACK_MIN = 0
 const RANGE_FALLBACK_MAX = 100
 
 // Every field type whose value is free text, and so can carry a `pattern`.
-const TEXTUAL_TYPES = new Set<InputField["type"]>(["text", "password", "textarea"])
+// combobox included -- its value is always whatever's typed (a suggestion
+// click just fills that same text), never constrained to `options` the way
+// `select` is.
+const TEXTUAL_TYPES = new Set<InputField["type"]>(["text", "password", "textarea", "combobox"])
 
 // Patterns come from the (trusted, same-server) Lua caller, but the values
 // they run against can be player-typed -- and a catastrophic-backtracking
@@ -280,6 +290,16 @@ export function InputDialogContainer() {
                                                     </SelectContent>
                                                 </Select>
                                             )}
+
+                                            {field.type === "combobox" && (
+                                                <ComboboxField
+                                                    field={field}
+                                                    value={values[field.id]}
+                                                    error={error}
+                                                    errorId={errorId}
+                                                    onChange={(value) => updateValue(field.id, value)}
+                                                />
+                                            )}
                                         </>
                                     )}
                                     <span
@@ -360,7 +380,7 @@ function NumberField({
                 disabled={field.min !== undefined && parsed <= field.min}
                 onClick={() => adjust(-1)}
             >
-                <ChevronDown aria-hidden />
+                <Minus aria-hidden />
             </Button>
             <Button
                 type="button"
@@ -370,8 +390,96 @@ function NumberField({
                 disabled={field.max !== undefined && parsed >= field.max}
                 onClick={() => adjust(1)}
             >
-                <ChevronUp aria-hidden />
+                <Plus aria-hidden />
             </Button>
+        </div>
+    )
+}
+
+/**
+ * A text field backed by a filtered suggestion list from `field.options` --
+ * unlike `select`, typing a value that matches nothing in `options` is still
+ * a perfectly valid submission (e.g. spawning an addon vehicle model that
+ * isn't in Config.shared's own list). Picking a suggestion just fills the
+ * same text box with that option's `value`; it never becomes a separate,
+ * distinct "selected" state the way `select` has one.
+ */
+function ComboboxField({
+    field,
+    value,
+    error,
+    errorId,
+    onChange,
+}: {
+    field: InputField
+    value: FieldValue
+    error: string | undefined
+    errorId: string
+    onChange: (value: string) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const text = String(value ?? "")
+
+    const suggestions = useMemo(() => {
+        const options = field.options ?? []
+        const needle = text.trim().toLowerCase()
+        const matches = needle
+            ? options.filter(
+                  (option) => option.label.toLowerCase().includes(needle) || option.value.toLowerCase().includes(needle),
+              )
+            : options
+        return matches.slice(0, COMBOBOX_MAX_SUGGESTIONS)
+    }, [field.options, text])
+
+    return (
+        <div className="relative">
+            <Input
+                id={field.id}
+                type="text"
+                placeholder={field.placeholder}
+                value={text}
+                onChange={(e) => onChange(e.target.value)}
+                onFocus={() => setOpen(true)}
+                // A plain onBlur fires on mousedown, before a suggestion
+                // button's onClick would land -- deferred slightly so the
+                // click registers first. Same "close on outside interaction"
+                // outcome as a real popover, without needing a portal.
+                onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+                required={field.required}
+                autoComplete="off"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? errorId : undefined}
+                aria-expanded={open && suggestions.length > 0}
+                role="combobox"
+            />
+            {open && suggestions.length > 0 && (
+                <div
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-low"
+                >
+                    {suggestions.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            role="option"
+                            aria-selected={option.value === text}
+                            className="focus-ring flex min-h-10 w-full cursor-default select-none items-center gap-2 rounded-sm px-3 py-1.5 text-left text-sm outline-none transition-colors duration-fast hover:bg-surface-hover"
+                            // onMouseDown (not onClick), with preventDefault,
+                            // fires before the input's onBlur -- keeps focus
+                            // on the input and lands the value before blur's
+                            // own timeout would otherwise have hidden this
+                            // list first.
+                            onMouseDown={(event) => {
+                                event.preventDefault()
+                                onChange(option.value)
+                                setOpen(false)
+                            }}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

@@ -25,6 +25,7 @@ _G.GetPedInVehicleSeat = function() return 0 end
 _G.GetSelectedPedWeapon = function() return 0 end
 _G.GetEntityHealth = function() return 200 end
 _G.GetPedArmour = function() return 0 end
+_G.GetPlayerStamina = function() return 100 end
 _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
 
 dofile(repoRoot .. "local/resources/client.lua")
