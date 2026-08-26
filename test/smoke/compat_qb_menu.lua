@@ -107,6 +107,35 @@ harness.test("selecting an item with isServer fires TriggerServerEvent", functio
     harness.assertEqual(sent[1][1], "water", "args should remain one server-event table")
 end)
 
+-- A `function` value on `item.action` set by ANOTHER resource crosses the
+-- exports['qb-menu']:openMenu(...) boundary as a table with a __call
+-- metamethod, not a real function -- FXServer's own funcref marshalling, the
+-- same shape test/smoke/funcref.lua in qbinventory exercises for the
+-- identical reason. A masked action must still fire, matching a real
+-- (same-resource, unmasked) function action.
+harness.test("selecting an item with a masked cross-resource function action still fires it", function()
+    local fired = 0
+    local maskedAction = setmetatable({}, { __call = function(_) fired = fired + 1 end })
+
+    nextMenuResult = { selectedId = "1" }
+    openMenu({ { header = "Do it", action = maskedAction } })
+
+    harness.assertEqual(fired, 1, "a masked cross-resource function action should still be invoked")
+end)
+
+-- Same masking, but through the isAction/params.event path (dispatch's
+-- second, independent callable check) rather than item.action directly.
+harness.test("selecting an item with isAction and a masked cross-resource event function still fires it", function()
+    local receivedArgs
+    local maskedEvent = setmetatable({}, { __call = function(_, args) receivedArgs = args end })
+
+    nextMenuResult = { selectedId = "1" }
+    openMenu({ { header = "Do it", params = { isAction = true, event = maskedEvent, args = { "x" } } } })
+
+    harness.assertTrue(receivedArgs ~= nil, "a masked cross-resource isAction event should still be invoked")
+    harness.assertEqual(receivedArgs[1], "x", "the isAction event should receive params.args")
+end)
+
 harness.test("selecting an item with no params fires nothing and does not error", function()
     local before = #net.triggeredServerEvents
     nextMenuResult = { selectedId = "1" }

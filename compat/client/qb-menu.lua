@@ -105,19 +105,29 @@ local function translateItems(menu, sort, skipFirst)
     return items, byId
 end
 
-local function isMaskedFunction(value)
-    if type(value) == 'table' then
-        return value.__cfx_functionReference ~= nil and type(value.__cfx_functionReference) == 'string'
-    end
-    return type(value) == 'function'
+-- FXServer hands a function that crossed an exports boundary back as a TABLE
+-- with a __call metamethod, not a real function -- a bare `type(x) ==
+-- 'function'` guard rejects every item/action built by another resource and
+-- handed to this one via exports['qb-menu']:openMenu(...). Same fix, same
+-- reasoning, as qblib's own isCallable (local/events, local/callback,
+-- modules/cache, modules/status, modules/zones, modules/interact) and
+-- qbcore/qbinventory/qbtarget's copies -- duplicated per-file rather than
+-- shared, like all of those. See the qbinventory funcref bug in
+-- qbcore-compat-parity/inventory-compat-identities memory for the live crash
+-- this pattern was discovered from.
+local function isCallable(value)
+    if type(value) == 'function' then return true end
+    local mt = type(value) == 'table' and getmetatable(value) or nil
+    return mt ~= nil and mt.__call ~= nil
 end
+
 -- Selecting an item in real qb-menu fires `params.event` (TriggerServerEvent
 -- if `params.isServer`, TriggerEvent otherwise) with `params.args` unpacked
 -- as positional arguments -- an item with no `params`/`params.event` just
 -- closes the menu, same as here. Matches qb-menu's own
 -- `RegisterNUICallback('selectMenuItem', ...)` handler.
 local function dispatch(item)
-    if type(item.action) == 'function' or isMaskedFunction(item.action) then
+    if isCallable(item.action) then
         item.action()
         return
     end
@@ -130,7 +140,7 @@ local function dispatch(item)
         ExecuteCommand(params.event)
     elseif params.isQBCommand then
         TriggerServerEvent('QBCore:CallCommand', params.event, params.args)
-    elseif params.isAction and type(params.event) == 'function' then
+    elseif params.isAction and isCallable(params.event) then
         params.event(params.args)
     else
         TriggerEvent(params.event, params.args)
