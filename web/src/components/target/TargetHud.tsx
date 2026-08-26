@@ -39,10 +39,11 @@ export function TargetHud() {
             </div>
             {/* A SEPARATE element, not sharing a centered container with the
                 reticle above -- anchored at a fixed offset below screen-centre
-                (half the reticle's 1.35rem box plus a small gap) so it can
-                appear/disappear without moving the reticle's own centered box. */}
+                so it can appear/disappear without moving the reticle's own
+                centered box. The larger offset keeps the prompt distinct from
+                the target icon rather than crowding it. */}
             {state.label && (
-                <div className="target-prompt overlay-text absolute left-1/2 top-[calc(50%+1.5rem)] min-w-36 max-w-64 -translate-x-1/2 px-3 py-2 text-center">
+                <div className="target-prompt overlay-text absolute left-1/2 top-[calc(50%+3rem)] min-w-36 max-w-64 -translate-x-1/2 px-3 py-2 text-center">
                     <p className="truncate text-sm font-semibold text-foreground">{state.label}</p>
                     <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                         {state.optionCount && state.optionCount > 1 ? "Press E to choose" : "Press E to interact"}
