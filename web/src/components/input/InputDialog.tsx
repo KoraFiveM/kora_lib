@@ -127,6 +127,11 @@ export function InputDialogContainer() {
     )
 
     const fields = payload?.fields ?? []
+    // A combobox's suggestions commonly include both a display name and a
+    // spawn/model code. Give that picker enough horizontal room to show both
+    // at once (notably qbadmin's vehicle catalogue), while concise prompts
+    // such as a free-text spawn code retain the normal dialog width.
+    const hasCombobox = fields.some((field) => field.type === "combobox")
 
     const errors = useMemo(() => {
         const result: Record<string, string> = {}
@@ -165,7 +170,7 @@ export function InputDialogContainer() {
                 if (!open) handleCancel()
             }}
         >
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className={hasCombobox ? "sm:max-w-2xl" : "sm:max-w-md"}>
                 {(payload.title || payload.description) && (
                     <DialogHeader>
                         {payload.title && <DialogTitle>{payload.title}</DialogTitle>}

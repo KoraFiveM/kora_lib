@@ -160,7 +160,15 @@ harness.test("game controls scroll, select, and cancel without NUI focus", funct
     reset()
     QB.interact.open({ { label = "First" }, { label = "Second" } })
 
-    pressedControls[Config.interact.nextControls[1]] = true
+    pressedControls[22] = true -- INPUT_JUMP / Space
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "openInteract", "Space must not select the highlighted option")
+
+    pressedControls = { [Config.interact.selectControls[1]] = true }
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "select", "E should select the highlighted option")
+
+    pressedControls = { [Config.interact.nextControls[1]] = true }
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "scroll", "down control should send a scroll message")
     harness.assertEqual(lastMessage().data, 1, "down control should move forward")

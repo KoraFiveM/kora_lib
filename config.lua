@@ -15,7 +15,7 @@ Config.ui = {
 Config.interact = {
     previousControls = { 27 }, -- INPUT_PHONE / Up
     nextControls = { 173 }, -- INPUT_CELLPHONE_DOWN / Down
-    selectControls = { 38, 18 }, -- E, Enter
+    selectControls = { 38 }, -- INPUT_PICKUP / E
     cancelControls = { 322, 177, 200 }, -- Escape, Backspace, Pause
 }
 

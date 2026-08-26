@@ -32,6 +32,8 @@ Each option needs a non-empty `label`. On selection it calls `action()`, or trig
 
 `QB.interact.open(options)` opens the same selector without a zone and returns `true` only if at least one option is currently available. `QB.interact.close()` hides it without selection.
 
+While the selector is visible, E confirms the highlighted option. Space and Enter do not confirm it. Up/Down changes the highlighted option, and Escape/Backspace/Pause closes the selector.
+
 ## UI contract
 
 The module sends `openInteract` with `{ { label = "..." } }`, `scroll` with `-1` or `1`, `select`, and `hideInteract`. The NUI POSTs the selected one-based number to `selectOption`; `closeInteract` simply hides it. No option actions, events, restrictions, or raw target data are sent to the browser.
