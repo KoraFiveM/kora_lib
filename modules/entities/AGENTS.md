@@ -7,8 +7,8 @@ This module spawns local, non-networked entities (ped/object/vehicle) that are v
 - `QB.entities.create(model, coords, options)`
   - Loads `model` via `QB.stream.loadModel` and creates a non-networked ped/object/vehicle at `coords`.
   - The entity kind is auto-detected from `model` (`IsModelAPed` / `IsModelAVehicle`, falling back to object) -- callers never specify a type.
-  - `options.preset` applies a named bundle of setup behavior (currently only `"static"`).
-  - `options.freeze` / `options.blockNonTempEvents` explicitly override whatever the preset would set; `blockNonTempEvents` only applies to peds.
+  - `options.preset` applies a named bundle of setup behavior (currently only `"static"`: frozen, non-reactive, and invincible).
+  - `options.freeze` / `options.blockNonTempEvents` / `options.invincible` explicitly override whatever the preset would set; `blockNonTempEvents` only applies to peds.
   - Returns the entity handle, or `false, error` if the model never loaded or the entity failed to create.
 - `QB.entities.remove(entity)`
   - Deletes one tracked entity immediately and drops it from tracking.
@@ -22,10 +22,10 @@ This module spawns local, non-networked entities (ped/object/vehicle) that are v
 - Heading is resolved by a private `resolveHeading(options, coords)` helper: `options.heading` wins if set, otherwise `coords.w` (a real FiveM `vector4`'s only heading-shaped field), otherwise `coords.heading` (the field name plain "coords with heading" tables commonly use instead, since `vector4` itself has no `.heading`), otherwise `0.0`.
 - Entity creation happens inside `QB.stream.loadModel`'s callback, following that function's own documented pattern for building an entity via closure upvalue.
 - Ownership tracking is delegated to `QB.resources.registry` (`local/resources`) rather than hand-rolled here — see that module's `AGENTS.md`. Each created entity is tracked against the resource that invoked `create` (`GetInvokingResource()`, falling back to `GetCurrentResourceName()` for direct/non-export calls); the registry's own sweep deletes every entity a resource still owns when it stops, guarded by `DoesEntityExist` since deleting an already-gone handle is undefined behavior.
-- `SetBlockingOfNonTemporaryEvents` is a ped-only native; it is silently skipped for objects/vehicles rather than erroring, since `options` has the same shape regardless of `type`.
+- `SetBlockingOfNonTemporaryEvents` is a ped-only native; it is silently skipped for objects/vehicles rather than erroring, since `options` has the same shape regardless of `type`. `SetEntityInvincible` applies to every entity type.
 
 ## Best practices
-- Prefer `options.preset = "static"` for decorative props/inert NPCs instead of setting `freeze`/`blockNonTempEvents` by hand, unless you need to deviate from one of them.
+- Prefer `options.preset = "static"` for decorative props/inert NPCs instead of setting `freeze`/`blockNonTempEvents`/`invincible` by hand, unless you need to deviate from one of them.
 - Don't rely on these entities being networked -- other clients will never see them; use a proper networked spawn (outside this module) if that's required.
 - Call `QB.entities.remove` for anything that needs to disappear before your resource stops; don't just drop your reference to the handle.
 - `blockNonTempEvents` is safe to pass regardless of what `model` turns out to be -- it's silently ignored for anything detection doesn't classify as a ped.

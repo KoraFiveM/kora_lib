@@ -3,14 +3,16 @@
 
 ---@class QBEntitiesCreateOptions
 ---@field heading? number World heading in degrees. Overrides any heading on `coords` (`.w` or `.heading`) when set. Defaults to `coords.w`, then `coords.heading`, then 0.0 -- see `resolveHeading`.
----@field preset? QBEntitiesPreset Named bundle of setup behavior applied before `freeze`/`blockNonTempEvents` below. Currently only "static" is defined (freeze = true, blockNonTempEvents = true) -- an inert decorative prop/NPC that doesn't move or react to nearby events.
+---@field preset? QBEntitiesPreset Named bundle of setup behavior applied before `freeze`/`blockNonTempEvents`/`invincible` below. Currently only "static" is defined (freeze = true, blockNonTempEvents = true, invincible = true) -- an inert decorative prop/NPC that doesn't move, react, or take damage.
 ---@field freeze? boolean Explicit override for FreezeEntityPosition. Independent of any preset, and takes precedence over one when set (even to `false`).
 ---@field blockNonTempEvents? boolean Explicit override for SetBlockingOfNonTemporaryEvents. Independent of any preset, and takes precedence over one when set (even to `false`). Peds only -- silently ignored for objects/vehicles since the native itself is ped-specific.
+---@field invincible? boolean Explicit override for SetEntityInvincible. Independent of any preset, and takes precedence over one when set (even to `false`).
 
 local presets = {
     static = {
         freeze = true,
         blockNonTempEvents = true,
+        invincible = true,
     },
 }
 
@@ -121,6 +123,7 @@ function QB.entities.create(model, coords, options)
 
     local freeze = resolveOverride(options.freeze, preset and preset.freeze)
     local blockNonTempEvents = resolveOverride(options.blockNonTempEvents, preset and preset.blockNonTempEvents)
+    local invincible = resolveOverride(options.invincible, preset and preset.invincible)
     local heading = resolveHeading(options, coords)
 
     local entity
@@ -134,6 +137,7 @@ function QB.entities.create(model, coords, options)
         if blockNonTempEvents and entityType == "ped" then
             SetBlockingOfNonTemporaryEvents(created, true)
         end
+        if invincible then SetEntityInvincible(created, true) end
 
         entityRegistry.track(invokingResource, created)
         entity = created

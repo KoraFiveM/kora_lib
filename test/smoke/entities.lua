@@ -54,16 +54,22 @@ function _G.SetBlockingOfNonTemporaryEvents(e, on)
     entityCalls[e].blockNonTempEvents = on
 end
 
+function _G.SetEntityInvincible(e, on)
+    entityCalls[e] = entityCalls[e] or {}
+    entityCalls[e].invincible = on
+end
+
 dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/entities/client.lua")
 
-harness.test("creates a ped with the static preset frozen and blocked", function()
+harness.test("creates a ped with the static preset frozen, blocked, and invincible", function()
     local entity, err = QB.entities.create(PED_MODEL, { x = 1, y = 2, z = 3 }, { preset = "static" })
     harness.assertTrue(entity ~= false, "expected a real entity handle, got error: " .. tostring(err))
     harness.assertTrue(_G.DoesEntityExist(entity), "the created entity should exist")
     harness.assertEqual(entityCalls[entity].freeze, true, "the static preset should freeze the ped")
     harness.assertEqual(entityCalls[entity].blockNonTempEvents, true, "the static preset should block non-temp events on a ped")
+    harness.assertEqual(entityCalls[entity].invincible, true, "the static preset should make the ped invincible")
 end)
 
 harness.test("creates an object without freezing it by default", function()
@@ -75,6 +81,11 @@ end)
 harness.test("an explicit freeze overrides having no preset", function()
     local entity = QB.entities.create(VEHICLE_MODEL, { x = 0, y = 0, z = 0 }, { freeze = true })
     harness.assertEqual(entityCalls[entity].freeze, true, "explicit freeze=true should apply even without a preset")
+end)
+
+harness.test("an explicit invincible=false overrides the static preset", function()
+    local entity = QB.entities.create(PED_MODEL, { x = 0, y = 0, z = 0 }, { preset = "static", invincible = false })
+    harness.assertTrue(entityCalls[entity].invincible == nil, "explicit invincible=false should prevent the static preset applying it")
 end)
 
 harness.test("remove deletes a tracked entity", function()

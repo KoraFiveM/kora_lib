@@ -13,9 +13,10 @@ Creates a local entity.
 - `coords: vector3 | vector4 | {x, y, z, w?, heading?}` -- World coordinates. `x`/`y`/`z` are always read; a heading on `coords` (`.w` for a real `vector4`, or `.heading` for a plain table using that convention) is used unless `options.heading` overrides it.
 - `options: table | nil`
   - `heading: number` -- Overrides any heading on `coords`. Falls back to `coords.w`, then `coords.heading`, then `0.0`.
-  - `preset: "static"` -- Applies `freeze = true` and `blockNonTempEvents = true` before any explicit overrides below.
+  - `preset: "static"` -- Applies `freeze = true`, `blockNonTempEvents = true`, and `invincible = true` before any explicit overrides below.
   - `freeze: boolean` -- Overrides the preset's freeze value, in either direction.
   - `blockNonTempEvents: boolean` -- Overrides the preset's value, in either direction. Peds only; ignored for objects/vehicles.
+  - `invincible: boolean` -- Overrides the preset's invincibility value, in either direction.
 
 #### Returns
 - `number | false` -- The created entity handle, or `false` if the model never loaded or the entity failed to create.
@@ -25,12 +26,12 @@ Creates a local entity.
 1. The calling resource is captured immediately via `GetInvokingResource()` (falling back to `GetCurrentResourceName()`), before any streaming wait happens.
 2. `model` is streamed with `QB.stream.loadModel`; inside its callback, the now-resolved model hash is classified with `IsModelAPed`/`IsModelAVehicle` (anything else falls back to `object`), the matching entity is created, and the model asset is released automatically right after, exactly as `loadModel` already documents.
 3. The entity is created non-networked and is not registered as a script-host mission entity -- it exists only for the local client.
-4. `freeze`/`blockNonTempEvents` (resolved from `preset` + explicit overrides) are applied immediately after creation. `blockNonTempEvents` only takes effect if the model was classified as a ped.
+4. `freeze`/`blockNonTempEvents`/`invincible` (resolved from `preset` + explicit overrides) are applied immediately after creation. `blockNonTempEvents` only takes effect if the model was classified as a ped.
 5. The entity is tracked against the invoking resource and automatically deleted if that resource stops.
 
 #### Example
 ```lua
--- A frozen, non-reactive decorative ped -- type is detected from the model
+-- A frozen, invincible, non-reactive decorative ped -- type is detected from the model
 local entity, err = QB.entities.create('a_m_y_beach_01', GetEntityCoords(PlayerPedId()), {
     preset = 'static',
 })
