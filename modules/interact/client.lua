@@ -14,6 +14,13 @@ local active
 local callbackRegistered = false
 local zonesByName = {}
 local reopenFns = {}
+local targetRegistry = QB.resources.registry(function(handle)
+    if handle.kind == 'entity' then
+        exports.qbtarget:removeEntity(handle.value, handle.id)
+    else
+        exports.qbtarget:removeModel(handle.value, handle.id)
+    end
+end)
 
 local function isCallable(value)
     if type(value) == "function" then return true end
@@ -53,12 +60,12 @@ local function hasItem(item)
     return ok and result == true
 end
 
-local function isAvailable(option, data)
+local function isAvailable(option, data, ...)
     if type(option) ~= "table" or type(option.label) ~= "string" or #option.label == 0 then return false end
 
     if option.canInteract then
         if not isCallable(option.canInteract) then return false end
-        local ok, allowed = pcall(option.canInteract)
+        local ok, allowed = pcall(option.canInteract, ...)
         if not ok or allowed ~= true then return false end
     end
 
@@ -384,4 +391,74 @@ function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
         "interact target entity size must be vector-like.")
     local coords = GetEntityCoords(entity)
     return QB.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
+end
+
+-- Registers an aim-targeted entity through qbtarget, while keeping qblib's
+-- option vocabulary (`action`/`event`) and resource-stop ownership at this
+-- public boundary. Unlike addTargetEntity this follows a moving entity.
+---@param entity number|number[]
+---@param options QBInteractOption[]
+---@param distance? number
+---@return integer id
+function QB.interact.addEntity(entity, options, distance)
+    assert(type(options) == 'table' and #options > 0, 'interact entity options must be a non-empty array.')
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    local translated = {}
+    for i, option in ipairs(options) do
+        translated[i] = {
+            label = option.label,
+            icon = option.icon,
+            distance = option.distance,
+            bones = option.bones,
+            data = option.data,
+            canInteract = function(target, targetDistance, data)
+                return isAvailable(option, playerData(), target, targetDistance, data)
+            end,
+            onSelect = function() dispatch(option) end,
+        }
+    end
+    local id = exports.qbtarget:addEntity(entity, translated, distance)
+    -- qbtarget's removeEntity takes one entity even when registration covered
+    -- several; removing by id tears down that whole registration.
+    targetRegistry.track(owner, { kind = 'entity', value = type(entity) == 'table' and entity[1] or entity, id = id })
+    return id
+end
+
+---@param entity number
+---@param id? integer
+---@return boolean
+function QB.interact.removeEntity(entity, id)
+    return exports.qbtarget:removeEntity(entity, id)
+end
+
+---@param model string|number|(string|number)[]
+---@param options QBInteractOption[]
+---@param distance? number
+---@return integer id
+function QB.interact.addModel(model, options, distance)
+    assert(type(options) == 'table' and #options > 0, 'interact model options must be a non-empty array.')
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    local translated = {}
+    for i, option in ipairs(options) do
+        translated[i] = {
+            label = option.label,
+            icon = option.icon,
+            distance = option.distance,
+            bones = option.bones,
+            canInteract = function(target, targetDistance, data)
+                return isAvailable(option, playerData(), target, targetDistance, data)
+            end,
+            onSelect = function() dispatch(option) end,
+        }
+    end
+    local id = exports.qbtarget:addModel(model, translated, distance)
+    targetRegistry.track(owner, { kind = 'model', value = model, id = id })
+    return id
+end
+
+---@param model string|number|(string|number)[]
+---@param id? integer
+---@return boolean
+function QB.interact.removeModel(model, id)
+    return exports.qbtarget:removeModel(model, id)
 end

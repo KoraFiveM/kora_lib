@@ -180,3 +180,37 @@ function QB.entities.remove(entity)
 
     return true
 end
+
+---Requests network control of an existing entity. This is intentionally
+---separate from `create`: qblib-created entities are local, while gameplay
+---resources often need to clean up a server-authorized networked entity.
+---@param entity number
+---@param timeout? integer Defaults to 1000ms.
+---@return boolean controlled
+---@return string? error
+function QB.entities.requestControl(entity, timeout)
+    assert(type(entity) == 'number' and entity ~= 0, ('Invalid entity: %s'):format(entity))
+    if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
+    if NetworkHasControlOfEntity(entity) then return true end
+
+    local controlled, err = QB.loops.controlled(function()
+        NetworkRequestControlOfEntity(entity)
+        return NetworkHasControlOfEntity(entity)
+    end, false, timeout or 1000, true)
+    return controlled ~= false, err
+end
+
+---Deletes an entity only after network control is acquired. Unlike `remove`,
+---this is for an existing networked gameplay entity and does not require that
+---qblib created it; callers must already have server authorization.
+---@param entity number
+---@param timeout? integer
+---@return boolean deleted
+---@return string? error
+function QB.entities.delete(entity, timeout)
+    local controlled, err = QB.entities.requestControl(entity, timeout)
+    if not controlled then return false, err or 'Could not acquire entity control.' end
+    SetEntityAsMissionEntity(entity, true, true)
+    DeleteEntity(entity)
+    return not DoesEntityExist(entity), DoesEntityExist(entity) and 'Entity deletion failed.' or nil
+end

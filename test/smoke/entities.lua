@@ -58,6 +58,9 @@ function _G.SetEntityInvincible(e, on)
     entityCalls[e] = entityCalls[e] or {}
     entityCalls[e].invincible = on
 end
+function _G.NetworkHasControlOfEntity() return true end
+function _G.NetworkRequestControlOfEntity() end
+function _G.SetEntityAsMissionEntity() end
 
 dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
@@ -132,6 +135,14 @@ harness.test("entities are auto-deleted when their owning resource stops", funct
     net.fire("onClientResourceStop", "some_other_resource")
 
     harness.assertFalse(_G.DoesEntityExist(entity), "the entity should be deleted once its owning resource stops")
+end)
+
+harness.test('delete removes an authorized networked entity', function()
+    local foreignEntity = 424243
+    existingEntities[foreignEntity] = true
+    local ok, err = QB.entities.delete(foreignEntity)
+    harness.assertTrue(ok, tostring(err))
+    harness.assertFalse(_G.DoesEntityExist(foreignEntity), 'the authorized entity should be deleted')
 end)
 
 harness.report("entities")

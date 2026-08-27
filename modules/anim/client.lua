@@ -237,3 +237,22 @@ function QB.anim.detachProp(prop)
 
     return true
 end
+
+---Starts a scenario on an entity. Scenarios have no streamed dictionary and
+---are therefore deliberately separate from QB.anim.play's tracked lifecycle.
+---@param entity number
+---@param scenario string
+---@param enterVehicle? boolean Defaults to false.
+function QB.anim.playScenario(entity, scenario, enterVehicle)
+    assert(type(entity) == 'number' and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
+    assert(type(scenario) == 'string' and #scenario > 0, 'QB.anim.playScenario requires a scenario.')
+    TaskStartScenarioInPlace(entity, scenario, 0, enterVehicle == true)
+end
+
+---@param entity number
+---@param immediate? boolean Defaults to false.
+function QB.anim.clear(entity, immediate)
+    assert(type(entity) == 'number' and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
+    QB.anim.stop(entity)
+    if immediate then ClearPedTasksImmediately(entity) else ClearPedTasks(entity) end
+end

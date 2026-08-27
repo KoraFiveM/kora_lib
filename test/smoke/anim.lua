@@ -20,6 +20,8 @@ local stopCalls = {}
 local existingEntities = { [1] = true, [2] = true }
 local existingProps = {}
 local propAttach = {}
+local scenarios = {}
+local clearedTasks = {}
 local nextProp = 100
 
 function _G.DoesAnimDictExist() return true end
@@ -62,6 +64,9 @@ end
 
 function _G.DetachEntity(prop) propAttach[prop] = nil end
 function _G.DeleteEntity(e) existingProps[e] = nil end
+function _G.TaskStartScenarioInPlace(entity, scenario) scenarios[entity] = scenario end
+function _G.ClearPedTasks(entity) clearedTasks[entity] = 'normal' end
+function _G.ClearPedTasksImmediately(entity) clearedTasks[entity] = 'immediate' end
 
 dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
@@ -144,6 +149,13 @@ harness.test("detachProp refuses a prop this module never created", function()
     harness.assertTrue(_G.DoesEntityExist(foreignProp), "the foreign prop must still exist")
 
     existingProps[foreignProp] = nil
+end)
+
+harness.test('playScenario and clear use the task helpers', function()
+    QB.anim.playScenario(1, 'WORLD_HUMAN_STAND_IMPATIENT')
+    harness.assertEqual(scenarios[1], 'WORLD_HUMAN_STAND_IMPATIENT', 'scenario should start on the entity')
+    QB.anim.clear(1, true)
+    harness.assertEqual(clearedTasks[1], 'immediate', 'immediate clear should use ClearPedTasksImmediately')
 end)
 
 harness.report("anim")

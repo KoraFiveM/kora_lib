@@ -21,6 +21,7 @@ local boxOptions = {}
 local player = { job = { name = "police" }, gang = { name = "ballas" }, citizenid = "CID-1" }
 local inventory = { key = true }
 local removedZones = 0
+local targetRegistrations = {}
 
 _G.RegisterNUICallback = function(name, fn) nuiCallbacks[name] = fn end
 _G.SendNUIMessage = function(message) nuiMessages[#nuiMessages + 1] = message end
@@ -34,6 +35,18 @@ _G.exports = {
     },
     ["qb-inventory"] = {
         HasItem = function(_, item) return inventory[item] == true end,
+    },
+    qbtarget = {
+        addEntity = function(_, entity, options, distance)
+            targetRegistrations[#targetRegistrations + 1] = { kind = 'entity', value = entity, options = options, distance = distance }
+            return #targetRegistrations
+        end,
+        addModel = function(_, model, options, distance)
+            targetRegistrations[#targetRegistrations + 1] = { kind = 'model', value = model, options = options, distance = distance }
+            return #targetRegistrations
+        end,
+        removeEntity = function() return true end,
+        removeModel = function() return true end,
     },
 }
 
@@ -64,6 +77,7 @@ _G.GetEntityCoords = function(entity) return { x = entity, y = 20, z = 30 } end
 _G.GetEntityHeading = function() return 45 end
 
 dofile(repoRoot .. "modules/nui/client.lua")
+dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/interact/client.lua")
 
 local function reset()
@@ -76,6 +90,7 @@ local function reset()
     sphereOptions = {}
     boxOptions = {}
     removedZones = 0
+    targetRegistrations = {}
     player = { job = { name = "police" }, gang = { name = "ballas" }, citizenid = "CID-1" }
     inventory = { key = true }
 end
@@ -101,6 +116,20 @@ harness.test("open sends compact labels without taking NUI focus", function()
     for _, control in ipairs(Config.interact.selectControls) do
         harness.assertTrue(disabledControls[control] == true, "active selector controls should be disabled at the game layer")
     end
+end)
+
+harness.test('aim-target facade translates qblib actions and restrictions', function()
+    reset()
+    local selected = 0
+    local id = QB.interact.addEntity(202, {
+        { label = 'Use', job = 'police', action = function() selected = selected + 1 end },
+    }, 2.0)
+    local registration = targetRegistrations[id]
+    harness.assertEqual(registration.kind, 'entity', 'should register through qbtarget')
+    harness.assertEqual(registration.distance, 2.0, 'should retain default distance')
+    harness.assertTrue(registration.options[1].canInteract(202, 1.0, {}), 'job restriction should be evaluated by qblib')
+    registration.options[1].onSelect(202, {})
+    harness.assertEqual(selected, 1, 'target selection should dispatch the qblib action')
 end)
 
 harness.test("selectOption dispatches the selected client event once and hides", function()

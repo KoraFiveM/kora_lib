@@ -80,6 +80,14 @@ local ok, err = QB.entities.remove(entity)
 if not ok then print('remove failed:', err) end
 ```
 
+### Networked entities
+
+`QB.entities.requestControl(entity, timeout?)` requests control of an existing
+networked entity. `QB.entities.delete(entity, timeout?)` obtains control,
+marks it as mission-owned, then deletes it. These functions intentionally do
+not require qblib ownership; call them only after your resource's server has
+authorized the operation.
+
 ## Notes
 - Entities from this module are never networked -- each client that calls `create` spawns its own independent copy, invisible to other players.
 - Entity kind is always auto-detected from `model` -- there's no way to force a mismatched interpretation (e.g. spawn a vehicle model as a ped).

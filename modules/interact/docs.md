@@ -32,6 +32,10 @@ Each option needs a non-empty `label`. On selection it calls `action()`, or trig
 
 `QB.interact.open(options)` opens the same selector without a zone and returns `true` only if at least one option is currently available. `QB.interact.close()` hides it without selection.
 
+## Aim targets
+
+`addEntity(entity, options, distance?)` and `addModel(model, options, distance?)` are qblib's facade over qbtarget. They use the same `label`, `action`, `event`, `args`, and restriction fields as zones, follow moving entities, and clean up automatically when the invoking resource stops. Use `removeEntity(entity, id?)` or `removeModel(model, id?)` for early teardown.
+
 While the selector is visible, E confirms the highlighted option. Space and Enter do not confirm it. Up/Down changes the highlighted option, and Escape/Backspace/Pause closes the selector.
 
 ## UI contract

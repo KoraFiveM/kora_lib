@@ -123,6 +123,19 @@ harness.test("selecting an item with a masked cross-resource function action sti
     harness.assertEqual(fired, 1, "a masked cross-resource function action should still be invoked")
 end)
 
+-- Some CFX versions expose the export-boundary callable through the legacy
+-- marker field too. The real runtime makes that object invocable; the mock
+-- adds __call so we can exercise both recognition and dispatch here.
+harness.test('a __cfx_functionReference action remains compatible', function()
+    local fired = 0
+    local funcref = setmetatable({ __cfx_functionReference = 'smoke-ref' }, {
+        __call = function() fired = fired + 1 end,
+    })
+    nextMenuResult = { selectedId = '1' }
+    openMenu({ { header = 'Do it', action = funcref } })
+    harness.assertEqual(fired, 1, 'a CFX funcref action should still be invoked')
+end)
+
 -- Same masking, but through the isAction/params.event path (dispatch's
 -- second, independent callable check) rather than item.action directly.
 harness.test("selecting an item with isAction and a masked cross-resource event function still fires it", function()
