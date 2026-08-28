@@ -166,7 +166,7 @@ local function openMenu(menu, sort, skipFirst)
     if #items == 0 then return end
     if headerShown then QB.nui.send('hideMenuHeader', {}); headerShown = false end
 
-    local result = Citizen.Await(QB.nui.openMenu(items))
+    local result = QB.nui.openMenu(items)
     if not result or result.cancelled then
         TriggerEvent('qb-menu:client:menuClosed')
         return

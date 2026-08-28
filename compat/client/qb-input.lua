@@ -172,7 +172,7 @@ local function ShowInput(data)
 
     inputOpen = true
     local ok, result = pcall(function()
-        return Citizen.Await(QB.nui.openInputDialog(fields, data.header))
+        return QB.nui.openInputDialog(fields, data.header)
     end)
     inputOpen = false
     if not ok then error(result, 0) end

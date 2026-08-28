@@ -33,7 +33,7 @@ end
 -- compat/client/qb-menu.lua's openMenu uses for the identical reason.
 local function playSafely(gameType, opts)
     local ok, result = pcall(function()
-        return Citizen.Await(QB.minigames.play(gameType, opts))
+        return QB.minigames.play(gameType, opts)
     end)
     if not ok then return { success = false, cancelled = true, attempts = 0 } end
     return result

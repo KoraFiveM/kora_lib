@@ -542,7 +542,7 @@ local function openRegisteredRadial()
     if #items == 0 then return end
 
     isOpen = true
-    local result = Citizen.Await(QB.nui.openRadialMenu(items))
+    local result = QB.nui.openRadialMenu(items)
     isOpen = false
 
     if not result or result.cancelled then return end
