@@ -29,6 +29,7 @@ QB.nui = {
     end,
 }
 
+dofile(repoRoot .. "compat/client/exports.lua")
 dofile(repoRoot .. "compat/client/qb-input.lua")
 
 -- Mirrors what a real cross-resource exports['qb-input']:Fn() call does

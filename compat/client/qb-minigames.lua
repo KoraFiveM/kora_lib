@@ -11,16 +11,9 @@
 -- See modules/minigames/docs.md's "Legacy compat" section for the full
 -- export-by-export mapping table and the caveats flagged below.
 
--- `provide 'qb-minigames'` in fxmanifest.lua alone only satisfies another
--- resource's `dependency 'qb-minigames'` check -- it does NOT make
--- exports['qb-minigames']:Fn() resolve here. Deliberately duplicated per
--- compat file rather than shared -- separate Lua chunks can't share a local.
--- See compat/client/qb-menu.lua's header comment for the full explanation.
-local function provideExport(providedResource, exportName, func)
-    AddEventHandler(('__cfx_export_%s_%s'):format(providedResource, exportName), function(setCB)
-        setCB(func)
-    end)
-end
+-- QB.compat.provideExport registers the hidden CFX export event under the
+-- legacy `qb-minigames` identity; `provide 'qb-minigames'` alone only
+-- satisfies dependency checks.
 
 -- QB.minigames.play rejects/errors (never returns a plain falsy value) when
 -- a minigame is already in progress, gameType is invalid, or the round trip
@@ -104,11 +97,11 @@ local function WordScramble(word, hint, timer)
     return result.success
 end
 
-provideExport("qb-minigames", "Hacking", Hacking)
-provideExport("qb-minigames", "KeyMinigame", KeyMinigame)
-provideExport("qb-minigames", "Lockpick", Lockpick)
-provideExport("qb-minigames", "StartPinpad", StartPinpad)
-provideExport("qb-minigames", "Quiz", Quiz)
-provideExport("qb-minigames", "Skillbar", Skillbar)
-provideExport("qb-minigames", "WordGuess", WordGuess)
-provideExport("qb-minigames", "WordScramble", WordScramble)
+QB.compat.provideExport("qb-minigames", "Hacking", Hacking)
+QB.compat.provideExport("qb-minigames", "KeyMinigame", KeyMinigame)
+QB.compat.provideExport("qb-minigames", "Lockpick", Lockpick)
+QB.compat.provideExport("qb-minigames", "StartPinpad", StartPinpad)
+QB.compat.provideExport("qb-minigames", "Quiz", Quiz)
+QB.compat.provideExport("qb-minigames", "Skillbar", Skillbar)
+QB.compat.provideExport("qb-minigames", "WordGuess", WordGuess)
+QB.compat.provideExport("qb-minigames", "WordScramble", WordScramble)

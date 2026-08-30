@@ -10,21 +10,9 @@
 -- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
 -- mapping table and the caveats flagged below.
 
--- `provide 'qb-menu'` in fxmanifest.lua alone only satisfies another
--- resource's `dependency 'qb-menu'` check -- it does NOT make
--- exports['qb-menu']:Fn() resolve here. That resolution is itself just an
--- event under the hood: exports('name', fn) is sugar for
--- AddEventHandler(('__cfx_export_%s_%s'):format(GetCurrentResourceName(), name), function(setCB) setCB(fn) end).
--- This registers that exact event under the STRING 'qb-menu' instead of this
--- resource's real name ('qblib'), which is what actually makes
--- exports['qb-menu']:openMenu(...), called from any other resource, reach
--- the function below. Deliberately duplicated per compat file rather than
--- shared -- separate Lua chunks can't share a local.
-local function provideExport(providedResource, exportName, func)
-    AddEventHandler(('__cfx_export_%s_%s'):format(providedResource, exportName), function(setCB)
-        setCB(func)
-    end)
-end
+-- QB.compat.provideExport registers the hidden CFX export event under the
+-- legacy `qb-menu` identity; `provide 'qb-menu'` alone only satisfies
+-- dependency checks.
 
 -- Warned once per resource run (not per menu/item) -- real qb-menu items
 -- carry a Font Awesome class string (e.g. "fas fa-car"); QB.nui.openMenu's
@@ -201,9 +189,9 @@ if RegisterCommand then
 end
 if RegisterKeyMapping then RegisterKeyMapping('playerfocus', 'Give Menu Focus', 'keyboard', 'LMENU') end
 
-provideExport("qb-menu", "openMenu", openMenu)
-provideExport("qb-menu", "closeMenu", closeMenu)
-provideExport("qb-menu", "showHeader", showHeader)
+QB.compat.provideExport("qb-menu", "openMenu", openMenu)
+QB.compat.provideExport("qb-menu", "closeMenu", closeMenu)
+QB.compat.provideExport("qb-menu", "showHeader", showHeader)
 
 RegisterNetEvent("qb-menu:client:openMenu", openMenu)
 RegisterNetEvent("qb-menu:client:closeMenu", closeMenu)

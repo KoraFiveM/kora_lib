@@ -9,16 +9,9 @@
 -- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
 -- mapping table and the caveats flagged below.
 
--- See compat/client/qb-menu.lua's identical copy of this helper for why it's
--- needed (`provide` in fxmanifest.lua alone doesn't make
--- exports['qb-input']:Fn() resolve here -- only registering the underlying
--- __cfx_export_qb-input_<name> event does). Duplicated rather than shared --
--- separate Lua chunks can't share a local.
-local function provideExport(providedResource, exportName, func)
-    AddEventHandler(('__cfx_export_%s_%s'):format(providedResource, exportName), function(setCB)
-        setCB(func)
-    end)
-end
+-- QB.compat.provideExport registers the hidden CFX export event under the
+-- legacy `qb-input` identity; `provide 'qb-input'` alone only satisfies
+-- dependency checks.
 
 -- Warned once per resource run -- same reasoning as qb-menu compat's
 -- warnIconOnce: real qb-input inputs carry a Font Awesome `icon` class that
@@ -184,4 +177,4 @@ local function ShowInput(data)
     return result.values
 end
 
-provideExport("qb-input", "ShowInput", ShowInput)
+QB.compat.provideExport("qb-input", "ShowInput", ShowInput)

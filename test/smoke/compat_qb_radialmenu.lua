@@ -42,6 +42,8 @@ QB.nui = {
 local progressCompletes = true
 QB.progressbar = { start = function() return progressCompletes end }
 
+dofile(repoRoot .. "compat/client/exports.lua")
+
 -- Controllable mock qbcore PlayerData -- the built-in job/vehicle content
 -- reads job/metadata via exports.qbcore:getPlayerData/getShared (pcall-
 -- guarded in the compat file itself, same pattern as qb-menu compat's

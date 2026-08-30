@@ -45,6 +45,7 @@ QB.nui = {
     end,
 }
 
+dofile(repoRoot .. "compat/client/exports.lua")
 dofile(repoRoot .. "compat/client/qb-menu.lua")
 
 -- Mirrors what a real cross-resource exports['qb-menu']:Fn() call does under

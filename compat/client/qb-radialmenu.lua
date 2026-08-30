@@ -56,16 +56,9 @@
 -- recursively onto QB.nui's native `item.submenu = {title, items}` -- see
 -- translateOption below.
 
--- See compat/client/qb-menu.lua's identical copy of this helper for why it's
--- needed (`provide` in fxmanifest.lua alone doesn't make
--- exports['qb-radialmenu']:Fn() resolve here -- only registering the
--- underlying __cfx_export_qb-radialmenu_<name> event does). Duplicated
--- rather than shared -- separate Lua chunks can't share a local.
-local function provideExport(providedResource, exportName, func)
-    AddEventHandler(('__cfx_export_%s_%s'):format(providedResource, exportName), function(setCB)
-        setCB(func)
-    end)
-end
+-- QB.compat.provideExport registers the hidden CFX export event under the
+-- legacy `qb-radialmenu` identity; `provide 'qb-radialmenu'` alone only
+-- satisfies dependency checks.
 
 -- Warned once per resource run -- same reasoning as qb-menu compat's
 -- warnIconOnce: real qb-radialmenu options carry a Font Awesome `icon` class
@@ -558,8 +551,8 @@ local function openRegisteredRadial()
     end
 end
 
-provideExport("qb-radialmenu", "AddOption", AddOption)
-provideExport("qb-radialmenu", "RemoveOption", RemoveOption)
+QB.compat.provideExport("qb-radialmenu", "AddOption", AddOption)
+QB.compat.provideExport("qb-radialmenu", "RemoveOption", RemoveOption)
 
 RegisterNetEvent("qb-radialmenu:client:AddOption", AddOption)
 RegisterNetEvent("qb-radialmenu:client:RemoveOption", RemoveOption)

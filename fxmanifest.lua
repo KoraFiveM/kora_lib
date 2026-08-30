@@ -75,6 +75,7 @@ client_scripts {
     'local/callback/client.lua',
     'local/events/client.lua',
     'modules/**/client.lua',
+    'compat/client/exports.lua',
     'compat/client/qb-menu.lua',
     'compat/client/qb-input.lua',
     'compat/client/qb-radialmenu.lua',
