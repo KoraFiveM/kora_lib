@@ -27,13 +27,15 @@ end
 -- fails outright -- upstream has no equivalent failure mode (its exports
 -- always resolve). pcall here so a caller written only against upstream's
 -- "always get a result" contract doesn't crash on the one new failure path;
--- treated the same as a losing round. Explicitly Citizen.Await'd (rather than
--- relying on QB.minigames.play's own settleForExport) so this behaves
--- correctly regardless of how it ends up being called -- same idiom
--- compat/client/qb-menu.lua's openMenu uses for the identical reason.
+-- treated the same as a losing round. QB.minigames.play already awaits for an
+-- external compatibility-export caller, while an in-resource caller receives
+-- its promise directly. Capture that context before the operation can yield.
 local function playSafely(gameType, opts)
+    local calledFromExport = GetInvokingResource() ~= nil
     local ok, result = pcall(function()
-        return Citizen.Await(QB.minigames.play(gameType, opts))
+        local response = QB.minigames.play(gameType, opts)
+        if not calledFromExport then return Citizen.Await(response) end
+        return response
     end)
     if not ok then return { success = false, cancelled = true, attempts = 0 } end
     return result

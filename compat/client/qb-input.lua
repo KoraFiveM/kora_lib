@@ -149,12 +149,9 @@ end
 
 -- Real ShowInput blocks the calling coroutine and returns either a table of
 -- `{ [name]: value }` (submit) or `false` (cancel) -- never a promise the
--- caller has to unwrap. Matched here exactly, via an unconditional
--- Citizen.Await: same idiom as compat/client/qb-menu.lua's openMenu and
--- modules/minigames/client.lua's beginPlay (Citizen.Await passes an
--- already-settled value straight through and genuinely awaits a pending
--- promise, so this is correct regardless of whether QB.nui.openInputDialog
--- decided to hand back a promise or an awaited value underneath).
+-- caller has to unwrap. QB.nui.openInputDialog already performs that wait when
+-- this compatibility export was invoked by another resource. A direct qblib
+-- invocation still returns a promise, so retain the await for that path.
 local function ShowInput(data)
     -- Upstream returns nil for an empty request or while its one dialog is
     -- already active. Preserve that non-reentrant contract instead of opening
@@ -170,9 +167,15 @@ local function ShowInput(data)
         end
     end
 
+    -- Capture before the NUI wrapper can yield; the original export runtime
+    -- might not still be present when this coroutine resumes.
+    local calledFromExport = GetInvokingResource() ~= nil
+
     inputOpen = true
     local ok, result = pcall(function()
-        return Citizen.Await(QB.nui.openInputDialog(fields, data.header))
+        local response = QB.nui.openInputDialog(fields, data.header)
+        if not calledFromExport then return Citizen.Await(response) end
+        return response
     end)
     inputOpen = false
     if not ok then error(result, 0) end

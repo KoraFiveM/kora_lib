@@ -212,4 +212,19 @@ harness.test("a field with no name is rejected", function()
     end, "an input with no name should be rejected")
 end)
 
+-- QB.nui.openInputDialog returns an already-awaited result while the
+-- compatibility export is handling a call from another resource. Awaiting
+-- that table a second time would silently turn it into nil in real CfxLua.
+harness.test("the export path consumes QB.nui.openInputDialog's plain result directly", function()
+    _G.GetInvokingResource = function() return "consumer-resource" end
+    QB.nui.openInputDialog = function()
+        return { values = { amount = 42 } }
+    end
+
+    local result = ShowInput({ inputs = { { name = "amount", type = "number" } } })
+
+    harness.assertEqual(result.amount, 42, "the legacy values table should survive the export path")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.report("compat_qb_input")
