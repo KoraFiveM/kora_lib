@@ -10,12 +10,17 @@
 ---@field blendIn? number Defaults to 8.0.
 ---@field blendOut? number Defaults to 8.0.
 
+---@class QBProgressBarScenario
+---@field name string Scenario name to play, e.g. `"WORLD_HUMAN_HAMMERING"`.
+---@field playEnter? boolean Whether to play the scenario's enter animation. Defaults to true.
+
 ---@class QBProgressBarPayload
 ---@field label string Text shown above the bar.
 ---@field duration integer Milliseconds the bar takes to fill. Must be > 0 and <= Config.progressbar.maxDuration.
 ---@field canCancel? boolean Lets the player abort early by pressing Config.progressbar.cancelControl. Defaults to false.
 ---@field disable? QBProgressBarDisable
----@field anim? QBProgressBarAnim Played for the duration, stopped and released automatically when the bar ends.
+---@field anim? QBProgressBarAnim Played for the duration, stopped and released automatically when the bar ends. Mutually exclusive with `scenario`.
+---@field scenario? QBProgressBarScenario Played in place for the duration, stopped automatically when the bar ends. Mutually exclusive with `anim`.
 
 -- Only one bar at a time -- see QB.progressbar.start's doc comment for why
 -- that's a hard rule rather than a queue/stack.
@@ -39,6 +44,13 @@ local function assertPayload(payload)
         assert(type(payload.anim.dict) == "string" and type(payload.anim.clip) == "string",
             "Progress bar anim requires string dict/clip fields.")
     end
+
+    if payload.scenario then
+        assert(type(payload.scenario.name) == "string" and #payload.scenario.name > 0,
+            "Progress bar scenario requires a string name field.")
+    end
+
+    assert(not (payload.anim and payload.scenario), "Progress bar cannot play both anim and scenario -- pick one.")
 end
 
 ---@param dict string
@@ -50,8 +62,8 @@ local function ensureAnimDict(dict)
 end
 
 ---Shows a filling progress bar for `payload.duration` ms, optionally playing
----an animation and disabling controls, and reports whether it ran to
----completion or was cancelled.
+---an animation or scenario and disabling controls, and reports whether it
+---ran to completion or was cancelled.
 ---
 ---Only one bar can be active at once: calling this while another is already
 ---running does not queue or interrupt it, it just fails immediately -- a
@@ -75,11 +87,16 @@ function QB.progressbar.start(payload)
         local ped = PlayerPedId()
         local disable = payload.disable or {}
         local anim = payload.anim
+        local scenario = payload.scenario
         local animLoaded = false
+        local scenarioStarted = false
 
         QB.nui.send("progressStart", { label = payload.label, duration = payload.duration })
 
-        if anim then
+        if scenario then
+            TaskStartScenarioInPlace(ped, scenario.name, 0, scenario.playEnter ~= false)
+            scenarioStarted = true
+        elseif anim then
             animLoaded = ensureAnimDict(anim.dict)
             if animLoaded then
                 TaskPlayAnim(ped, anim.dict, anim.clip, anim.blendIn or 8.0, anim.blendOut or 8.0, -1, anim.flag or 1, 0, false, false, false)
@@ -113,7 +130,9 @@ function QB.progressbar.start(payload)
 
         if disable.move then FreezeEntityPosition(ped, false) end
 
-        if animLoaded then
+        if scenarioStarted then
+            ClearPedTasks(ped)
+        elseif animLoaded then
             StopAnimTask(ped, anim.dict, anim.clip, anim.blendOut or 8.0)
             RemoveAnimDict(anim.dict)
         end
