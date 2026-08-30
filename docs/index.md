@@ -237,7 +237,8 @@ QB.distance.entity(entity, distance)  QB.distance.x/y/xy(point, distance)
 ```lua
 QB.blips.create(coords, options)  QB.blips.remove(blip)
 QB.drawing.text3d(coords, text, options)
-QB.visuals.fade(coords, duration)
+QB.visuals.fade(duration, fn)  -- legacy visuals.fade(coords, duration) remains supported
+QB.teleport.player(coords, opts)  QB.teleport.entity(entity, coords, opts)
 ```
 
 ### Minigames

@@ -117,16 +117,46 @@ local function runStaminaDrugEffect(options, duration)
     endSprintEffect(playerId, token)
 end
 
-function QB.visuals.fade(coords, duration)
+-- Cross-resource function references arrive as callable tables rather than
+-- plain Lua functions. Public callback-taking APIs must accept both shapes.
+local function isCallable(value)
+    if type(value) == 'function' then return true end
+    local mt = type(value) == 'table' and getmetatable(value) or nil
+    return mt ~= nil and mt.__call ~= nil
+end
+
+local function isCoords(value)
+    local kind = type(value)
+    return kind == 'table' or kind == 'vector3' or kind == 'vector4'
+end
+
+---Fades the screen around `fn`, running it while the screen is fully black.
+---The legacy `(coords, duration)` form remains supported; new movement code
+---should use `QB.teleport.entity`/`QB.teleport.player` instead.
+---@param duration number|vector3|vector4|table|nil Fade duration in milliseconds, or legacy destination coords.
+---@param fn function|table|number|nil Work to perform while faded out, a masked callable, or legacy duration.
+function QB.visuals.fade(duration, fn)
+    if isCoords(duration) then
+        local coords, legacyDuration = duration, fn
+        return QB.visuals.fade(legacyDuration, function()
+            SetEntityCoords(QB.cache.ped(), coords.x, coords.y, coords.z)
+            if type(coords.w) == 'number' then SetEntityHeading(QB.cache.ped(), coords.w) end
+        end)
+    end
+
     duration = tonumber(duration) or 500
     DoScreenFadeOut(duration)
     while not IsScreenFadedOut() do
         Wait(10)
     end
-    if coords then
-        SetEntityCoords(PlayerPedId(),coords.x,coords.y, coords.z)
-    end
+
+    local ok, err = true
+    if isCallable(fn) then ok, err = pcall(fn) end
+
+    -- Never strand the player behind a black screen when work performed at
+    -- full fade errors. Restore the display first, then preserve the error.
     DoScreenFadeIn(duration)
+    if not ok then error(err, 0) end
 end
 
 function QB.visuals.trevor(duration)

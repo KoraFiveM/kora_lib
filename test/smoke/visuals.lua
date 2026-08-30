@@ -220,6 +220,34 @@ harness.test("fade moves the ped via SetEntityCoords between fade-out and fade-i
     _G.SetEntityCoords = original
 end)
 
+harness.test("fade executes a masked cross-resource callable", function()
+    local called = false
+    local masked = setmetatable({}, {
+        __call = function() called = true end,
+    })
+
+    QB.visuals.fade(100, masked)
+
+    harness.assertTrue(called, "a callable table from the exports boundary should run while faded out")
+end)
+
+harness.test("fade restores the screen before re-raising a callback error", function()
+    local fadeIns = 0
+    local original = _G.DoScreenFadeIn
+    _G.DoScreenFadeIn = function() fadeIns = fadeIns + 1 end
+
+    local ok, err = pcall(function()
+        QB.visuals.fade(100, function() error("expected fade callback failure") end)
+    end)
+
+    _G.DoScreenFadeIn = original
+
+    harness.assertFalse(ok, "the callback error should still reach the caller")
+    harness.assertTrue(tostring(err):find("expected fade callback failure", 1, true) ~= nil,
+        "fade should preserve the original callback error")
+    harness.assertEqual(fadeIns, 1, "fade-in must run even when the callback fails")
+end)
+
 harness.test("trevor/alien each play their own screen effect prefix", function()
     resetRecorders()
     QB.visuals.trevor(1000)
