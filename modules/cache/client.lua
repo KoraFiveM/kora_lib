@@ -12,8 +12,11 @@ local RESERVED_KEYS = {
     ped = true,
     vehicle = true,
     seat = true,
+    enteringVehicle = true,
+    enteringSeat = true,
     weapon = true,
     health = true,
+    isDead = true,
     armour = true,
     stamina = true,
     coords = true,
@@ -102,11 +105,34 @@ local function refresh()
     -- alongside this one. onChange off this shared tick gives it neither.
     setValue("stamina", GetPlayerStamina(playerId))
 
+    -- Capture the attempted-entry state alongside the actual vehicle state so
+    -- consumers can react to the full Entering -> Entered/Aborted lifecycle
+    -- without running a second polling loop (the former separate vehicle
+    -- lifecycle use case).
+    -- The native is always present in FiveM; the guard keeps cache consumers
+    -- independently smoke-testable under the deliberately minimal Lua mocks.
+    local enteringVehicle = GetVehiclePedIsTryingToEnter and GetVehiclePedIsTryingToEnter(ped) or 0
+    if enteringVehicle == 0 then enteringVehicle = false end
+    local enteringSeat = enteringVehicle and GetSeatPedIsTryingToEnter and GetSeatPedIsTryingToEnter(ped) or false
+
     local vehicle = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or false
+    local seat = computeSeat(vehicle, ped)
+
+    -- Order matters to onChange consumers: an entering attempt is reported
+    -- before an actual entry, while the current seat is updated before the
+    -- vehicle change so an "Entered" handler sees the correct seat directly.
+    setValue("enteringSeat", enteringSeat)
+    setValue("enteringVehicle", enteringVehicle)
+    setValue("seat", seat)
     setValue("vehicle", vehicle)
-    setValue("seat", computeSeat(vehicle, ped))
     setValue("weapon", GetSelectedPedWeapon(ped))
     setValue('coords', GetEntityCoords(ped))
+    -- Use the engine's death predicate rather than inferring death from a
+    -- health threshold. Set it after coords so an isDead observer receives
+    -- this refresh's location when the alive -> dead edge occurs.
+    -- The native is always available in FiveM; retain a false fallback so
+    -- consumers can load the cache with intentionally minimal Lua mocks.
+    setValue("isDead", IsPedFatallyInjured and IsPedFatallyInjured(ped) or false)
 end
 
 refresh()
@@ -262,6 +288,20 @@ function QB.cache.seat()
     return cache.seat
 end
 
+---The vehicle the local player is trying to enter, or false when no entry
+---animation is active. Use onChange rather than polling this value.
+---@return integer | false
+function QB.cache.enteringVehicle()
+    return cache.enteringVehicle
+end
+
+---The seat the local player is trying to enter, or false when no entry
+---animation is active.
+---@return integer | false
+function QB.cache.enteringSeat()
+    return cache.enteringSeat
+end
+
 ---The local player's currently selected weapon hash. Always a hash --
 ---GetSelectedPedWeapon reports `WEAPON_UNARMED`'s hash when holding nothing,
 ---never a false/nil sentinel.
@@ -279,6 +319,14 @@ end
 ---@return integer
 function QB.cache.health()
     return cache.health
+end
+
+---Whether the local player's ped is fatally injured according to FiveM's
+---IsPedFatallyInjured native. Subscribe to onChange('isDead', ...) for the
+---alive -> dead edge; this is not a health-threshold heuristic.
+---@return boolean
+function QB.cache.isDead()
+    return cache.isDead
 end
 
 ---The local player's current armour (GetPedArmour(ped)). 0 when no armour is

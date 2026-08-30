@@ -1,7 +1,7 @@
 # Cache module
 
 ## Overview
-A cheap, continuously-refreshed cache of local-player state — player id, server id, current ped, vehicle, seat, weapon, health, armour, and stamina — plus a general `get`/`set`/`onChange` store any module or resource can use for its own local values. Reading `QB.cache.ped()` is a plain table lookup; it never calls a native itself.
+A cheap, continuously-refreshed cache of local-player state — player id, server id, current ped, vehicle/seat, vehicle-entry attempt/seat, weapon, health, fatal-injury state, armour, and stamina — plus a general `get`/`set`/`onChange` store any module or resource can use for its own local values. Reading `QB.cache.ped()` is a plain table lookup; it never calls a native itself.
 
 ## API
 
@@ -12,7 +12,7 @@ Returns the cached value for `key`, or `nil` if nothing has set it yet.
 - `key: string`
 
 ### `QB.cache.set(key, value)`
-Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`weapon`/`health`/`armour`/`stamina`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
+Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`enteringVehicle`/`enteringSeat`/`weapon`/`health`/`isDead`/`armour`/`stamina`/`coords`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
 
 #### Parameters
 - `key: string`
@@ -24,7 +24,7 @@ QB.cache.set('nearestShop', shopId)
 ```
 
 ### `QB.cache.onChange(key, handler)`
-Registers `handler(newValue, oldValue)` to run whenever `key`'s cached value changes — whether from `QB.cache.set` or the module's own per-tick refresh of `ped`/`vehicle`/`seat`/`weapon`.
+Registers `handler(newValue, oldValue)` to run whenever `key`'s cached value changes — whether from `QB.cache.set` or the module's own per-tick refresh of `ped`/`vehicle`/`seat`/`enteringVehicle`/`weapon`.
 
 #### Parameters
 - `key: string`
@@ -62,11 +62,20 @@ Returns the vehicle the local player is currently in, or `false` if on foot.
 ### `QB.cache.seat()`
 Returns the seat the local player currently occupies (`-1` = driver, `0+` = passenger), or `false` if not in a vehicle.
 
+### `QB.cache.enteringVehicle()`
+Returns the vehicle the local player is currently trying to enter, or `false`. Pair this with `onChange('enteringVehicle', ...)` to react once per entry attempt instead of polling.
+
+### `QB.cache.enteringSeat()`
+Returns the seat the local player is currently trying to enter, or `false`.
+
 ### `QB.cache.weapon()`
 Returns the local player's currently selected weapon hash. Always a hash — when holding nothing this is `WEAPON_UNARMED`'s hash (`GetSelectedPedWeapon` never reports a false/nil sentinel).
 
 ### `QB.cache.health()`
 Returns the local player's current health (`GetEntityHealth(ped)`). GTA's death threshold is commonly 100, not 0 — don't assume 0 is reachable when checking for death.
+
+### `QB.cache.isDead()`
+Returns whether `IsPedFatallyInjured(ped)` is true. Use `QB.cache.onChange('isDead', handler)` to react once when the local player becomes fatally injured; do not infer death from a health threshold.
 
 ### `QB.cache.armour()`
 Returns the local player's current armour (`GetPedArmour(ped)`). `0` when no armour is equipped.

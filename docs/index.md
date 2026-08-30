@@ -128,7 +128,8 @@ QB.cache.get(key)  QB.cache.set(key, value)
 QB.cache.onChange(key, handler)  QB.cache.offChange(key)
 QB.cache.playerId()  QB.cache.serverId()
 QB.cache.ped()  QB.cache.vehicle()  QB.cache.seat()
-QB.cache.weapon()  QB.cache.health()  QB.cache.armour()  QB.cache.stamina()
+QB.cache.enteringVehicle()  QB.cache.enteringSeat()
+QB.cache.weapon()  QB.cache.health()  QB.cache.isDead()  QB.cache.armour()  QB.cache.stamina()
 ```
 Refreshes every `Config.cache.tickInterval` (200ms default); the built-in keys
 cannot be overwritten via `set`.

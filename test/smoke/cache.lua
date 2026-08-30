@@ -21,6 +21,8 @@ _G.GetPlayerServerId = function(playerId) return playerId == 5 and 42 or -1 end
 _G.PlayerPedId = function() return 100 end
 _G.IsPedInAnyVehicle = function() return true end
 _G.GetVehiclePedIsIn = function() return 200 end
+_G.GetVehiclePedIsTryingToEnter = function() return 0 end
+_G.GetSeatPedIsTryingToEnter = function() return -1 end
 _G.GetVehicleMaxNumberOfPassengers = function() return 2 end
 _G.GetPedInVehicleSeat = function(vehicle, seat)
     if seat == 1 then return 100 end -- our ped
@@ -28,6 +30,7 @@ _G.GetPedInVehicleSeat = function(vehicle, seat)
 end
 _G.GetSelectedPedWeapon = function() return 999 end
 _G.GetEntityHealth = function() return 175 end
+_G.IsPedFatallyInjured = function() return false end
 _G.GetPedArmour = function() return 50 end
 _G.GetPlayerStamina = function() return 87.5 end
 _G.GetEntityCoords = function() return { x = 1.0, y = 2.0, z = 3.0 } end
@@ -56,6 +59,25 @@ harness.test("vehicle/seat are computed from the mocked scenario", function()
     harness.assertEqual(QB.cache.seat(), 1, "seat should be found by scanning, not hardcoded to the driver seat")
 end)
 
+harness.test("enteringVehicle/enteringSeat expose a current entry attempt", function()
+    _G.GetVehiclePedIsTryingToEnter = function() return 300 end
+    _G.GetSeatPedIsTryingToEnter = function() return -1 end
+
+    local enteringVehicle, enteringSeat
+    QB.cache.onChange("enteringVehicle", function(vehicle) enteringVehicle = vehicle end)
+    QB.cache.onChange("enteringSeat", function(seat) enteringSeat = seat end)
+
+    net.step()
+
+    harness.assertEqual(QB.cache.enteringVehicle(), 300, "the attempted vehicle should be cached")
+    harness.assertEqual(QB.cache.enteringSeat(), -1, "the attempted seat should be cached")
+    harness.assertEqual(enteringVehicle, 300, "enteringVehicle should notify once on the edge")
+    harness.assertEqual(enteringSeat, -1, "enteringSeat should notify once on the edge")
+
+    _G.GetVehiclePedIsTryingToEnter = function() return 0 end
+    net.step()
+end)
+
 harness.test("weapon is read from GetSelectedPedWeapon()", function()
     harness.assertEqual(QB.cache.weapon(), 999, "weapon should come from GetSelectedPedWeapon()")
 end)
@@ -63,6 +85,23 @@ end)
 harness.test("health/armour are read from the mocked natives via the shared ped local", function()
     harness.assertEqual(QB.cache.health(), 175, "health should come from GetEntityHealth(ped)")
     harness.assertEqual(QB.cache.armour(), 50, "armour should come from GetPedArmour(ped)")
+end)
+
+harness.test("isDead follows IsPedFatallyInjured and notifies on the death edge", function()
+    local fatallyInjured = false
+    _G.IsPedFatallyInjured = function() return fatallyInjured end
+
+    local seenNew, seenOld
+    QB.cache.onChange("isDead", function(newValue, oldValue)
+        seenNew, seenOld = newValue, oldValue
+    end)
+
+    fatallyInjured = true
+    net.step()
+
+    harness.assertTrue(QB.cache.isDead(), "isDead should use IsPedFatallyInjured rather than a health threshold")
+    harness.assertTrue(seenNew, "the fatal-injury edge should notify subscribers")
+    harness.assertFalse(seenOld, "the previous state should be alive")
 end)
 
 harness.test("stamina is read from the PLAYER index, not the ped", function()
@@ -73,7 +112,7 @@ harness.test("stamina is read from the PLAYER index, not the ped", function()
 end)
 
 harness.test("set rejects every reserved built-in key outright", function()
-    local reservedKeys = { "playerId", "serverId", "ped", "vehicle", "seat", "weapon", "health", "armour", "stamina", "coords" }
+    local reservedKeys = { "playerId", "serverId", "ped", "vehicle", "seat", "enteringVehicle", "enteringSeat", "weapon", "health", "isDead", "armour", "stamina", "coords" }
 
     for _, key in ipairs(reservedKeys) do
         local before = QB.cache.get(key)
