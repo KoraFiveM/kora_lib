@@ -232,4 +232,24 @@ harness.test("an icon naming a shared item with a real imageUrl is used directly
     harness.assertEqual(sentItems[1].image, "https://example.com/bread.png", "a real imageUrl should be used as-is")
 end)
 
+-- During a genuine export call, QB.nui.openMenu has already awaited its own
+-- promise before returning here. A second Citizen.Await on this plain result
+-- would return nil in CfxLua, so the compatibility layer must consume it
+-- directly. The event-path test above separately covers the promise path.
+harness.test("the export path consumes QB.nui.openMenu's already-settled result directly", function()
+    local received
+    AddEventHandler("export:test:fired", function() received = true end)
+
+    _G.GetInvokingResource = function() return "consumer-resource" end
+    QB.nui.openMenu = function(items)
+        sentItems = items
+        return { selectedId = "1" }
+    end
+
+    openMenu({ { header = "Go", params = { event = "export:test:fired" } } })
+
+    harness.assertTrue(received, "the selected item should dispatch from the plain export result")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.report("compat_qb_menu")

@@ -153,4 +153,16 @@ harness.test("a QB.minigames.play rejection is treated as a losing round, not a 
     harness.assertFalse(ok, "a rejected play() call should surface as success = false, not error the caller")
 end)
 
+-- QB.minigames.play already waits when reached through a compatibility export.
+-- A second Citizen.Await on its plain result would yield nil under CfxLua.
+harness.test("the export path consumes QB.minigames.play's plain result directly", function()
+    _G.GetInvokingResource = function() return "consumer-resource" end
+    QB.minigames.play = function()
+        return { success = true, attempts = 1 }
+    end
+
+    harness.assertTrue(Hacking(5, 30), "the success result should survive the export path")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.report("compat_qb_minigames")

@@ -541,6 +541,9 @@ local function openRegisteredRadial()
 
     if #items == 0 then return end
 
+    -- This is invoked from qblib's own command/keybind, not from the resource
+    -- that originally registered an option. QB.nui.openRadialMenu therefore
+    -- returns its pending same-resource promise and must be awaited here.
     isOpen = true
     local result = Citizen.Await(QB.nui.openRadialMenu(items))
     isOpen = false

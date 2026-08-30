@@ -151,14 +151,11 @@ end
 -- Real qb-menu's openMenu is fire-and-forget from the caller's point of view
 -- (nothing reads its return value; selection is entirely event-driven) -- so
 -- this doesn't return anything either, matching that shape. It still has to
--- consume QB.nui.openMenu's result itself to know which event to fire,
--- which is why it awaits unconditionally rather than passing settleForExport's
--- either-a-promise-or-a-value ambiguity up to its own caller: same idiom
--- modules/minigames/client.lua's beginPlay uses for `Citizen.Await(QB.nui.request(...))`
--- -- Citizen.Await is a no-op passthrough on an already-settled value (the
--- real cross-resource case) and a genuine await on a pending promise (every
--- other case, incl. this file's own smoke test and the net-event path below),
--- so this is correct regardless of how openMenu ended up being called.
+-- consume QB.nui.openMenu's result itself to know which event to fire. When
+-- reached through this compatibility export, QB.nui.openMenu already awaits
+-- its promise for the external caller; a second Citizen.Await would turn that
+-- plain result table into nil. The legacy net-event path has no external
+-- caller, so it receives the pending promise and must await it here instead.
 local headerShown = false
 
 local function openMenu(menu, sort, skipFirst)
@@ -166,7 +163,12 @@ local function openMenu(menu, sort, skipFirst)
     if #items == 0 then return end
     if headerShown then QB.nui.send('hideMenuHeader', {}); headerShown = false end
 
-    local result = Citizen.Await(QB.nui.openMenu(items))
+    -- Capture this before QB.nui.openMenu can yield. Once the coroutine resumes,
+    -- the original export runtime is no longer necessarily on FiveM's runtime
+    -- stack, so querying GetInvokingResource afterwards is not reliable.
+    local calledFromExport = GetInvokingResource() ~= nil
+    local result = QB.nui.openMenu(items)
+    if not calledFromExport then result = Citizen.Await(result) end
     if not result or result.cancelled then
         TriggerEvent('qb-menu:client:menuClosed')
         return
