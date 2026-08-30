@@ -228,6 +228,7 @@ const actions: { label: string; run: () => void }[] = [
             postRequest<OpenAlertPayload>("openAlert", {
                 title: "Delete everything?",
                 message: "A destructive confirmation with both buttons.",
+                image: "https://placehold.co/640x320/171717/F5F5F5?text=Alert+artwork",
                 confirmLabel: "Delete",
                 cancelLabel: "Keep it",
                 destructive: true,

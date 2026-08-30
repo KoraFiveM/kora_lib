@@ -67,6 +67,35 @@ Copies `text` to the system clipboard via the NUI — the browser is the only pa
 QB.nui.copyToClipboard("QB.zones.box({ ... })")
 ```
 
+### `QB.nui.openAlert(opts)`
+Opens a confirmation or acknowledgement dialog. It manages mouse and keyboard focus for its lifetime.
+
+#### Parameters
+- `opts: table`
+  - `message: string` — required dialog copy.
+  - `title?: string`
+  - `image?: string` — trusted artwork URL, including `nui://` paths. Artwork is contained in a fixed-height frame and hidden if it cannot load.
+  - `confirmLabel?: string`, `cancelLabel?: string`
+  - `cancellable?: boolean` — defaults to `true`; when `false`, hides Cancel and prevents Escape/backdrop dismissal.
+  - `destructive?: boolean` — styles the confirm button as destructive.
+
+#### Returns
+- `{ confirmed: boolean }`; `nil` on timeout/error.
+
+#### Example
+```lua
+local result = QB.nui.openAlert({
+    title = "Replace artwork?",
+    message = "This change cannot be undone.",
+    image = "nui://my-resource/web/images/preview.png",
+    confirmLabel = "Replace",
+})
+
+if result and result.confirmed then
+    -- continue
+end
+```
+
 ### `QB.nui.openMenu(items, title)`
 Opens a searchable list menu. Grants mouse+keyboard NUI focus while open and releases it as soon as the menu closes (selection, cancel, or timeout) — no `withFocus` wrap needed.
 

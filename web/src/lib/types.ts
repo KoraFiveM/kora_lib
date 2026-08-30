@@ -177,6 +177,8 @@ export type InputDialogResult = { values: Record<string, FieldValue> } | { cance
 export interface OpenAlertPayload {
     title?: string
     message: string
+    /** Trusted alert artwork URL (for example, an `nui://` path). Hidden if it fails to load. */
+    image?: string
     /** Confirm button label. Defaults to "Confirm". */
     confirmLabel?: string
     /**

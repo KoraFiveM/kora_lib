@@ -271,7 +271,7 @@ end
 
 ---Opens a confirmation dialog. Grants NUI focus while open and releases it
 ---when the dialog closes.
----@param opts table `{ message: string, title?: string, confirmLabel?: string, cancelLabel?: string, cancellable?: boolean, destructive?: boolean }`
+---@param opts table `{ message: string, title?: string, image?: string, confirmLabel?: string, cancelLabel?: string, cancellable?: boolean, destructive?: boolean }`
 ---@return promise|any result Resolves/returns `{ confirmed: boolean }` -- `confirmed = false` covers
 ---the cancel button, Escape and the backdrop alike. With `cancellable = false` there is no cancel
 ---button and neither Escape nor the backdrop dismisses it, so it can only resolve `true`.

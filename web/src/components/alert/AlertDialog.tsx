@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import type { AlertResult, OpenAlertPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
@@ -24,6 +24,11 @@ import {
  */
 export function AlertDialogContainer() {
     const { payload, isOpen, respond } = useNuiRequest<OpenAlertPayload, AlertResult>("openAlert")
+    const [imageFailed, setImageFailed] = useState(false)
+
+    useEffect(() => {
+        setImageFailed(false)
+    }, [payload?.image])
 
     // Escape and backdrop clicks route here. For a non-cancellable alert they
     // must NOT resolve: the whole point is that the player has to pick the
@@ -41,6 +46,7 @@ export function AlertDialogContainer() {
     if (!isOpen || !payload) return null
 
     const cancellable = payload.cancellable !== false
+    const image = typeof payload.image === "string" && payload.image.length > 0 ? payload.image : undefined
 
     return (
         <Dialog open onOpenChange={handleOpenChange}>
@@ -50,6 +56,16 @@ export function AlertDialogContainer() {
                 // non-cancellable alert that's another way out we don't want.
                 hideClose={!cancellable}
             >
+                {image && !imageFailed && (
+                    <div className="flex h-40 items-center justify-center overflow-hidden rounded-lg border bg-surface-raised p-2">
+                        <img
+                            aria-hidden
+                            src={image}
+                            className="h-full w-full object-contain"
+                            onError={() => setImageFailed(true)}
+                        />
+                    </div>
+                )}
                 <DialogHeader>
                     {payload.title && <DialogTitle>{payload.title}</DialogTitle>}
                     <DialogDescription className="whitespace-pre-line">{payload.message}</DialogDescription>

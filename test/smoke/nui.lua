@@ -268,6 +268,24 @@ harness.test("openInputDialog forwards fields/title/description and resolves wit
     harness.assertEqual(p.value.values.amount, 5, "should resolve with the NUI's raw InputDialogResult")
 end)
 
+harness.test("openAlert forwards optional artwork and manages focus until answered", function()
+    local image = "nui://example-resource/web/images/preview.png"
+    local p = QB.nui.openAlert({ message = "Proceed?", image = image })
+
+    local sent = sentMessages[#sentMessages]
+    harness.assertEqual(sent.action, "openAlert", "openAlert should send the openAlert action")
+    harness.assertEqual(sent.data.payload.image, image, "the optional artwork URL should be forwarded unchanged")
+
+    local grant = focusCalls[#focusCalls]
+    harness.assertTrue(grant.mouse and grant.keyboard, "an alert should grant focus while visible")
+
+    respondOk(lastRequestId(), { confirmed = true })
+    harness.assertTrue(p.value.confirmed, "the alert result should pass through unchanged")
+
+    local release = focusCalls[#focusCalls]
+    harness.assertFalse(release.mouse or release.keyboard, "focus should release once the alert is answered")
+end)
+
 harness.test("copyToClipboard requires a string", function()
     harness.assertThrows(function() QB.nui.copyToClipboard(123) end, "a non-string should be rejected before anything is sent")
 end)
