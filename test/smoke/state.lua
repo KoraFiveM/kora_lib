@@ -21,6 +21,7 @@ end
 _G.GetEntityFromStateBagName = function(bagName)
     if bagName == 'entity:42' then return 420 end
     if bagName == 'entity:error' then error('resolver failed') end
+    if bagName == 'player:7' then return 999 end
     return 0
 end
 
@@ -59,6 +60,16 @@ harness.test('wildcards, resolver failure, handler errors, and explicit removal 
     harness.assertTrue(clientOffChange(id))
     harness.assertTrue(removed[id])
     harness.assertFalse(clientOffChange(id))
+end)
+
+harness.test('player and global bags expose entity zero without native resolution', function()
+    local seen = {}
+    local id = clientOnChange(nil, nil, function(context) seen[#seen + 1] = context.entity end)
+    nativeHandlers[id].handler('player:7', 'x', 1, 0, true)
+    nativeHandlers[id].handler('global', 'x', 2, 0, true)
+    harness.assertEqual(seen[1], 0, 'player bags should not masquerade as entities')
+    harness.assertEqual(seen[2], 0, 'global bags should expose entity zero')
+    clientOffChange(id)
 end)
 
 harness.test('client resource stop removes only that owners listeners', function()

@@ -10,8 +10,9 @@ covers the ground every FiveM resource needs: a headless NUI framework (menus,
 context menus, radial menus, input dialogs, alerts) with matching theme
 tokens, notifications, progress bars, box/sphere/poly zones with an in-world
 creator, keyboard-driven world-object interaction, a per-tick local-player
-cache, reference-counted control leases, streaming/anim/fx/raycast/world helpers, status effects, commands,
-permissions, and logging. Also ships drop-in compat for the deprecated
+cache, reference-counted control leases, streaming/anim/fx/raycast/world helpers,
+vehicle properties, keybinds, state-bag subscriptions, text UI, status effects,
+commands, permissions, and logging. Also ships drop-in compat for the deprecated
 `qb-menu`, `qb-input`, and `qb-radialmenu` standalone resources.
 
 ## Requirements
@@ -31,6 +32,10 @@ shared_script '@qblib/init.lua'
 ```
 That's what makes `QB.notify.send(...)`, `QB.cache.ped()`, etc. resolve —
 under the hood each call compiles down to `exports.qblib:<module>_<function>(...)`.
+
+`types.lua` describes the complete public API for Lua language servers. It is
+annotation-only and is deliberately not loaded by consumer resources at runtime;
+the `QB` proxy in `init.lua` points editors at those definitions.
 
 ## Usage examples
 
@@ -109,14 +114,14 @@ if result and not result.cancelled then
 end
 ```
 
-### World interaction zone (qb-target-style options)
+### World interaction zone
 ```lua
 -- client
-QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {}, {
+QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
     options = {
         { label = "Open locker", event = "my-resource:client:openLocker", args = { "police" } },
     },
-})
+}, false)
 ```
 
 ## API reference
@@ -172,19 +177,41 @@ QB.controls.release(lease)
 QB.zones.box(opts)  QB.zones.sphere(opts)  QB.zones.poly(opts)  QB.zones.point(opts)
 QB.zones.getInside(resource)
 QB.zones.startCreator(zoneType, existingOpts)   -- in-world creator, /qb_zonecreator
+QB.zones.isCreatorActive()  QB.zones.edit(handle, opts)  QB.zones.setDebug(id, enabled)
 QB.zones.generateSnippet(zoneType, opts)
 ```
 Each handle: `{ id, type, resource, data, remove(), contains(coords), isInside() }`.
 
 ### Interact (`QB.interact`)
 ```lua
-QB.interact.addCircleZone(name, coords, radius, zoneOptions, targetOptions)
-QB.interact.addBoxZone(name, coords, length, width, zoneOptions, targetOptions)
-QB.interact.addTargetEntity(entity, targetOptions)
-QB.interact.addTargetModel(models, targetOptions)
+QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
+QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
+QB.interact.addTargetEntity(entity, size, targetOptions, debug)
+QB.interact.addTargetModel(models, size, targetOptions, debug)
 QB.interact.removeZone(name)
 QB.interact.open(options)  QB.interact.close()  QB.interact.isActive()
 ```
+
+### Keybinds / text UI (`QB.keybind`, `QB.textui`)
+```lua
+local bind = QB.keybind.add({
+    name = 'my_resource_menu',
+    description = 'Open menu',
+    defaultKey = 'HOME',
+    secondaryKey = 'F6',
+    onPressed = function(handle) print(handle.getCurrentBinding()) end,
+    onReleased = function(handle) print(handle.isPressed()) end,
+})
+bind.disable(true)  bind.isDisabled()  bind.remove()
+
+local prompt = QB.textui.show('Open the vehicle', {
+    key = 'E', icon = 'Key', position = 'right-center',
+})
+QB.textui.update(prompt, 'Enter the vehicle', { key = 'E' })
+QB.textui.isOpen(prompt)  QB.textui.isVisible(prompt)  QB.textui.hide(prompt)
+```
+Keybind callbacks are protected and registrations are owned by the invoking
+resource. Text UI entries form a stack: only the newest live handle is visible.
 
 ### Theme (`QB.theme`)
 ```lua
@@ -233,6 +260,10 @@ QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
 ```lua
 QB.world.getNearbyEntities(entityType, coords, radius, options)   -- client + server
 QB.world.getClosestEntity(entityType, coords, options)            -- client + server
+QB.world.isSpawnClear(coords, radius, options)                    -- client + server
+QB.world.getGroundCoords(coords, options)  QB.world.getStreetNames(coords)
+QB.world.getZoneName(coords)  QB.world.getCardinalDirection(heading, options)
+QB.world.getWaypointCoords()
 QB.entities.create(model, coords, options)  QB.entities.remove(entity)
 QB.closest.player(coords, distance)  QB.closest.vehicle(coords, distance)
 QB.closest.ped(coords, distance)  QB.closest.object(coords, distance)   -- client + server (server takes src)
@@ -246,7 +277,20 @@ QB.blips.create(coords, options)  QB.blips.remove(blip)
 QB.drawing.text3d(coords, text, options)
 QB.visuals.fade(duration, fn)  -- legacy visuals.fade(coords, duration) remains supported
 QB.teleport.player(coords, opts)  QB.teleport.entity(entity, coords, opts)
+QB.teleport.toWaypoint(opts)
+QB.vehicle.plate(vehicle)  QB.vehicle.label(vehicle)
+QB.vehicle.getProperties(vehicle)  QB.vehicle.setProperties(vehicle, properties, opts)
 ```
+
+### State bags (`QB.state`)
+```lua
+local listener = QB.state.onChange('locked', nil, function(change)
+    print(change.entity, change.bagName, change.key, change.value)
+end)
+QB.state.offChange(listener)
+```
+Filters may be `nil` wildcards. The context also includes `reserved` and
+`replicated`; non-entity bags resolve `entity` to `0`.
 
 ### Minigames
 ```lua
@@ -261,6 +305,9 @@ QB.commands.remove(name)  QB.commands.refresh(src)  QB.commands.list()
 QB.permissions.getLevel(src, levels, prefix)  QB.permissions.hasPermission(src, permission, prefix)
 QB.logging.event(category, src, data)  QB.logging.getStats()
 ```
+`opts.keybind` can define `description`, primary mapper/key, and secondary
+mapper/key. qblib synchronizes a client mapping, but every press still executes
+the registered server command through its normal permissions and argument path.
 
 ### Discord (server)
 ```lua
@@ -306,12 +353,17 @@ QB.lang(key, ...)
 
 ### Callbacks / events (`QB.callback`, `QB.events`)
 ```lua
-QB.callback.register(name, handler)  QB.callback.unregister(name)
+QB.callback.register(name, handler, { rateLimit = { max = 5, window = 1000 } })
+QB.callback.unregister(name)
 QB.callback.trigger(name, ...)                    -- client
 QB.callback.trigger(target, name, ...)            -- server
-QB.events.register(name, handler)  QB.events.unregister(name)  QB.events.push(target, name, ...)   -- server
+QB.events.register(name, handler, { rateLimit = { max = 10, window = 1000 } })
+QB.events.unregister(name)  QB.events.push(target, name, ...)   -- server
 QB.events.onPush(name, handler)  QB.events.offPush(name)  QB.events.trigger(name, ...)             -- client
 ```
+Server registration limits are optional, per-player and per-name sliding
+windows. Limited events are dropped; limited callbacks immediately reject with
+their retry delay.
 
 ## Legacy compat
 

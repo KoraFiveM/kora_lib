@@ -62,6 +62,15 @@ end
 - Only one `QB.minigames.play()` session can be active per player at a time; a second concurrent call rejects immediately rather than queuing.
 - A server-side session expires after `Config.minigames.sessionTTL` (60s by default) if abandoned -- an expired session's next submit (if any) fails cleanly, and an unclaimed session is swept automatically even if the client never submits again.
 
+## Supporting APIs
+
+`QB.minigames.consumeProof(src, token, gameType)` is the server-side one-use
+proof consumer for a successful result. It returns `true` once, then rejects
+reuse, expiry, a player mismatch, or a game-type mismatch.
+
+`QB.minigames.triangleWave(elapsedMs, speedHz)` is the shared deterministic
+0–1 motion formula used by both the renderer and server validation.
+
 ## Legacy compat
 `compat/client/qb-minigames.lua` keeps scripts written against the real `github.com/qbcore-fivem/qb-minigames` resource working unmodified via `provide 'qb-minigames'` plus the same `__cfx_export_` identity-hijack `compat/client/qb-menu.lua` uses. Mapping table:
 

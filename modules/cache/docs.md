@@ -56,6 +56,9 @@ Returns `GetPlayerServerId(PlayerId())`. Stable for the whole session.
 ### `QB.cache.ped()`
 Returns the local player's current ped handle, refreshed every tick — safe to use across a death/respawn without re-fetching `PlayerPedId()` yourself.
 
+### `QB.cache.coords()`
+Returns the local player's current coordinates.
+
 ### `QB.cache.vehicle()`
 Returns the vehicle the local player is currently in, or `false` if on foot.
 
@@ -79,6 +82,9 @@ Returns whether `IsPedFatallyInjured(ped)` is true. Use `QB.cache.onChange('isDe
 
 ### `QB.cache.armour()`
 Returns the local player's current armour (`GetPedArmour(ped)`). `0` when no armour is equipped.
+
+### `QB.cache.stamina()`
+Returns the current player stamina value from `GetPlayerStamina(PlayerId())`.
 
 #### Example
 ```lua

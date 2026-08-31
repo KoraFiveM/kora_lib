@@ -38,6 +38,12 @@ _G.DrawPoly = function() drawPolyCalls = drawPolyCalls + 1 end
 local registeredCommands = {}
 _G.RegisterCommand = function(name, handler) registeredCommands[name] = handler end
 _G.RegisterKeyMapping = function() end
+QB.keybind = {
+    add = function(options)
+        registeredCommands[options.name] = options.onPressed
+        return { remove = function() return true end }
+    end,
+}
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
 _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
 _G.StartShapeTestRay = function() return 1 end

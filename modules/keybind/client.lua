@@ -183,18 +183,8 @@ end
 ---Registers a rebindable press/release action.
 ---@param options QBKeybindOptions
 ---@return QBKeybindHandle handle
-function QB.keybind.add(options, ...)
-    if type(options) == 'table' then return add(options) end
-
-    -- Compatibility for the brief pre-options API used by early adopters.
-    local label, defaultKey, handler, mapper = ...
-    return add({
-        name = options,
-        description = label,
-        defaultKey = defaultKey,
-        defaultMapper = mapper,
-        onPressed = handler,
-    })
+function QB.keybind.add(options)
+    return add(options)
 end
 
 ---@param name string

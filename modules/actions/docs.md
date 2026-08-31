@@ -23,3 +23,6 @@ QB.actions.run({
 
 Only one action can run at a time. A rejected `begin` returns `false, reason`;
 otherwise the first return is `true` after `complete` has been called.
+
+`QB.actions.isActive()` reports whether this client currently has an action in
+progress.

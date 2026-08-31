@@ -24,6 +24,20 @@ dofile(repoRoot .. "local/events/client.lua") -- its startup CreateThread comple
 
 local GATEWAY = "qblib:events:invoke"
 
+local function namedUpvalue(fn, wanted)
+    local index = 1
+    while true do
+        local name, value = debug.getupvalue(fn, index)
+        if not name then return nil end
+        if name == wanted then return value end
+        index = index + 1
+    end
+end
+
+local consumeRateLimit = namedUpvalue(net.netHandlers[GATEWAY][1], 'consumeRateLimit')
+local rateBuckets = consumeRateLimit and namedUpvalue(consumeRateLimit, 'rateBuckets')
+assert(rateBuckets, 'could not inspect event rate buckets')
+
 harness.test("the handshake completes on load, so trigger succeeds immediately", function()
     local ok, err = QB.events.trigger("smoke:noop")
     harness.assertTrue(ok, "trigger should succeed once the handshake token has arrived")
@@ -82,6 +96,48 @@ harness.test('server event rate limits use a sliding per-handler window', functi
     harness.assertEqual(calls, 3, 'an expired window should admit a new request')
 end)
 
+harness.test('event rate buckets expire automatically and stale timers cannot clear replacements', function()
+    local realSetTimeout = SetTimeout
+    local timers = {}
+    _G.SetTimeout = function(delay, callback)
+        timers[#timers + 1] = { delay = delay, callback = callback }
+    end
+
+    QB.events.register('smoke:timer-cleanup', function() end, {
+        rateLimit = { max = 1, window = 100 },
+    })
+    QB.events.trigger('smoke:timer-cleanup')
+    local expiringTimer = timers[#timers]
+    local existed = rateBuckets['smoke:timer-cleanup'] ~= nil
+    Wait(100)
+    expiringTimer.callback()
+    local expired = rateBuckets['smoke:timer-cleanup'] == nil
+
+    timers = {}
+    QB.events.register('smoke:stale-timer', function() end, {
+        rateLimit = { max = 1, window = 100 },
+    })
+    QB.events.trigger('smoke:stale-timer')
+    local staleTimer = timers[#timers]
+    QB.events.register('smoke:stale-timer', function() end, {
+        rateLimit = { max = 1, window = 1000 },
+    })
+    QB.events.trigger('smoke:stale-timer')
+    local replacementBucket = rateBuckets['smoke:stale-timer'][mocks.SOURCE]
+    Wait(100)
+    staleTimer.callback()
+    local replacementPreserved = rateBuckets['smoke:stale-timer']
+        and rateBuckets['smoke:stale-timer'][mocks.SOURCE] == replacementBucket
+
+    QB.events.unregister('smoke:timer-cleanup')
+    QB.events.unregister('smoke:stale-timer')
+    _G.SetTimeout = realSetTimeout
+
+    harness.assertTrue(existed, 'an accepted request should create a bucket')
+    harness.assertTrue(expired, 'the expiry timer should clear an idle bucket')
+    harness.assertTrue(replacementPreserved, 'an old timer must not clear a replacement handler bucket')
+end)
+
 harness.test('invalid tokens do not consume event rate quota', function()
     local calls = 0
     QB.events.register('smoke:invalid-free', function() calls = calls + 1 end, {
@@ -93,6 +149,34 @@ harness.test('invalid tokens do not consume event rate quota', function()
     _G.source = nil
     QB.events.trigger('smoke:invalid-free')
     harness.assertEqual(calls, 1, 'the authenticated request should still have the full quota')
+end)
+
+harness.test('event quotas are independent per player and handler name', function()
+    local firstCalls, secondCalls = 0, 0
+    local limit = { rateLimit = { max = 1, window = 5000 } }
+    QB.events.register('smoke:independent-a', function() firstCalls = firstCalls + 1 end, limit)
+    QB.events.register('smoke:independent-b', function() secondCalls = secondCalls + 1 end, limit)
+
+    QB.events.trigger('smoke:independent-a')
+    QB.events.trigger('smoke:independent-a')
+    QB.events.trigger('smoke:independent-b')
+    harness.assertEqual(firstCalls, 1, 'one name should exhaust only its own quota')
+    harness.assertEqual(secondCalls, 1, 'a different name should retain independent quota')
+
+    _G.source = mocks.SOURCE + 1
+    for _, fn in ipairs(net.netHandlers['qblib:events:handshake']) do fn() end
+    _G.source = nil
+    local handshake = mocks.lastEntry(net.triggeredClientEvents, 'qblib:events:handshake:response')
+    local secondToken = handshake[1]
+    _G.source = mocks.SOURCE + 1
+    for _, fn in ipairs(net.netHandlers[GATEWAY]) do fn(secondToken, 'smoke:independent-a') end
+    _G.source = nil
+    harness.assertEqual(firstCalls, 2, 'a different player should retain independent quota')
+
+    -- Restore the single-process client's token to its ordinary source.
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers['qblib:events:handshake']) do fn() end
+    _G.source = nil
 end)
 
 harness.test('unregister and replacement clear event rate buckets', function()
@@ -121,10 +205,13 @@ end)
 
 harness.test("playerDropped clears the token, so an old request is dropped afterwards", function()
     local ran = false
-    QB.events.register("smoke:after-drop", function() ran = true end)
+    QB.events.register("smoke:after-drop", function() ran = true end, {
+        rateLimit = { max = 2, window = 5000 },
+    })
 
     QB.events.trigger("smoke:after-drop")
     harness.assertTrue(ran, "sanity check: the real token should still work before the player drops")
+    harness.assertTrue(rateBuckets['smoke:after-drop'] ~= nil, 'sanity check: the player should have a rate bucket')
 
     local gatewayEntry = mocks.lastEntry(net.triggeredServerEvents, GATEWAY)
     harness.assertTrue(gatewayEntry ~= nil, "expected to capture the real token from the trigger above")
@@ -133,6 +220,7 @@ harness.test("playerDropped clears the token, so an old request is dropped after
     _G.source = mocks.SOURCE
     net.fire("playerDropped")
     _G.source = nil
+    harness.assertEqual(rateBuckets['smoke:after-drop'], nil, 'player drop should clear the rate bucket')
 
     ran = false
     _G.source = mocks.SOURCE
@@ -199,8 +287,14 @@ end)
 
 harness.test("register: a handler is dropped when its owning resource stops", function()
     local ran = false
-    QB.events.register("smoke:dropped-on-stop", function() ran = true end)
+    QB.events.register("smoke:dropped-on-stop", function() ran = true end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    QB.events.trigger('smoke:dropped-on-stop')
+    harness.assertTrue(rateBuckets['smoke:dropped-on-stop'] ~= nil, 'sanity check: the handler should own a rate bucket')
+    ran = false
     net.fire("onResourceStop", "qblib_test")
+    harness.assertEqual(rateBuckets['smoke:dropped-on-stop'], nil, 'owner cleanup should clear the rate bucket')
 
     QB.events.trigger("smoke:dropped-on-stop")
     harness.assertFalse(ran, "no handler should run once it's been swept on resource stop")

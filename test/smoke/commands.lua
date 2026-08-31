@@ -277,6 +277,9 @@ harness.test('command keybind dispatch uses the same permission and required-arg
     QB.commands.add('bounddenied', '', nil, false, function() deniedRan = true end, {
         permission = 'admin', keybind = { defaultKey = 'F9' },
     })
+    local deniedMapping = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    harness.assertEqual(deniedMapping[2].description, 'bounddenied',
+        'an empty help string should fall back to the command name for the mapping label')
     QB.commands.add('boundrequired', '', { { name = 'value' } }, true, function() requiredRan = true end, {
         keybind = { defaultKey = 'F10' },
     })

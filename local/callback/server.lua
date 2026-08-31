@@ -38,7 +38,13 @@ local function consumeRateLimit(name, src, limit)
     local bySource = rateBuckets[name]
     if not bySource then bySource = {}; rateBuckets[name] = bySource end
 
-    local timestamps = bySource[src] or {}
+    local bucket = bySource[src]
+    if not bucket then
+        bucket = { timestamps = {} }
+        bySource[src] = bucket
+    end
+
+    local timestamps = bucket.timestamps
     local now = GetGameTimer()
     local cutoff = now - limit.window
     local retained = {}
@@ -46,12 +52,33 @@ local function consumeRateLimit(name, src, limit)
         if timestamps[i] > cutoff then retained[#retained + 1] = timestamps[i] end
     end
     timestamps = retained
-    bySource[src] = timestamps
+    bucket.timestamps = timestamps
 
     if #timestamps >= limit.max then
         return false, math.max(1, math.ceil(limit.window - (now - timestamps[1])))
     end
     timestamps[#timestamps + 1] = now
+
+    SetTimeout(limit.window, function()
+        local currentBySource = rateBuckets[name]
+        local currentBucket = currentBySource and currentBySource[src]
+        -- A replacement/cleanup/reconnect may have created a new bucket for
+        -- the same name and source. An old timer must never prune that quota.
+        if currentBucket ~= bucket then return end
+
+        local expiryCutoff = GetGameTimer() - limit.window
+        local live = {}
+        for i = 1, #currentBucket.timestamps do
+            if currentBucket.timestamps[i] > expiryCutoff then live[#live + 1] = currentBucket.timestamps[i] end
+        end
+
+        if #live > 0 then
+            currentBucket.timestamps = live
+        else
+            currentBySource[src] = nil
+            if next(currentBySource) == nil then rateBuckets[name] = nil end
+        end
+    end)
     return true
 end
 

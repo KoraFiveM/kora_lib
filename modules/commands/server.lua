@@ -116,7 +116,8 @@ function QB.commands.add(name, help, args, argsRequired, handler, opts)
     local permission = opts.permission or 'user'
     local owner = opts.resource or GetInvokingResource() or GetCurrentResourceName()
     local notify = opts.notify or defaultNotify
-    local keybind = normalizeKeybind(opts.keybind, help or name, owner)
+    local keybindDescription = type(help) == 'string' and help ~= '' and help or name
+    local keybind = normalizeKeybind(opts.keybind, keybindDescription, owner)
     local previous = commands[name]
 
     commands[name] = {
@@ -156,7 +157,17 @@ end
 function QB.commands.list()
     local out = {}
     for name, def in pairs(commands) do
-        out[#out + 1] = { name = name, help = def.help, permission = def.permission, keybind = def.keybind }
+        local keybind
+        if def.keybind then
+            keybind = {
+                description = def.keybind.description,
+                defaultKey = def.keybind.defaultKey,
+                defaultMapper = def.keybind.defaultMapper,
+                secondaryKey = def.keybind.secondaryKey,
+                secondaryMapper = def.keybind.secondaryMapper,
+            }
+        end
+        out[#out + 1] = { name = name, help = def.help, permission = def.permission, keybind = keybind }
     end
     return out
 end

@@ -26,7 +26,8 @@ end
 
 local function rounded(value)
     if type(value) ~= 'number' then return value end
-    return math.floor(value * 10 + (value >= 0 and 0.5 or -0.5)) / 10
+    local scaled = value * 10
+    return (scaled >= 0 and math.floor(scaled + 0.5) or math.ceil(scaled - 0.5)) / 10
 end
 
 local function colorComponents(color)

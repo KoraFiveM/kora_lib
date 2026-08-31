@@ -51,7 +51,7 @@ end
 - Every player gets a unique token issued over a private per-source handshake when they connect — it isn't shared across players and can't be guessed from the (fixed, non-secret) gateway event name.
 - The gateway event name itself (`qblib:events:invoke`) is fixed and public; the per-player token is what's checked, not the event name.
 - Rate buckets are cleared on player drop, unregister/replacement/ownership
-  cleanup, and once an expired bucket is next observed.
+  cleanup, and window expiry.
 - This is a mitigation against blind/static exploits and cross-player spoofing, not a substitute for validating the actual data a handler receives.
 
 Need a response back instead of fire-and-forget? See the `callback` module (`local/callback/`) — `QB.callback.register`/`QB.callback.trigger` work the same way but return a promise, and also support the reverse direction (server asking a client).

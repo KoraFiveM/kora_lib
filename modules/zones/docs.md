@@ -108,7 +108,10 @@ The creator spins up its own free-flying camera rather than using your normal vi
 | `Enter` | Confirm (once placement is valid) and open the summary dialog |
 | `X` | Cancel |
 
-All of the above are registered via `RegisterKeyMapping`, so they're rebindable through FiveM's own keybind settings like any other resource's keybinds — except mouse-look/WASD and Shift, which drive the freecam directly and aren't independently rebindable.
+All discrete actions above are registered through `QB.keybind`, so they're
+rebindable through FiveM's own keybind settings. Mouse-look/WASD, Shift, and
+the scroll wheel still drive the freecam directly and aren't independent
+key mappings.
 
 Mouse-look and movement are suppressed through a `QB.controls` lease while the creator is active. Confirm, cancel, an internal error, or either owning resource stopping releases the lease.
 
@@ -164,6 +167,13 @@ for _, zone in ipairs(QB.zones.getInside()) do
     print(('inside %s zone %d (owned by %s)'):format(zone.type, zone.id, zone.resource))
 end
 ```
+
+### Creator and debug state
+
+- `QB.zones.isCreatorActive()` reports whether the in-world creator is active.
+- `QB.zones.edit(handle, opts?)` reopens the creator using a live handle's
+  current options, replacing that handle only after confirmation.
+- `QB.zones.setDebug(id, enabled)` changes debug rendering for a live zone.
 
 ### Zone handle
 Every constructor above returns the same shape:

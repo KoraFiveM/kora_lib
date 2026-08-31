@@ -587,7 +587,7 @@
 ---@class QBLibCache
 ---@field get fun(key: string): any [client]
 ---@field set fun(key: string, value: any) [client]
----@field onChange fun(key: string, handler: fun(newValue: any, oldValue: any)): integer [client]
+---@field onChange fun(key: string, handler: fun(newValue: any, oldValue: any)) [client]
 ---@field offChange fun(key: string) [client]
 ---@field playerId fun(): integer [client]
 ---@field serverId fun(): integer [client]

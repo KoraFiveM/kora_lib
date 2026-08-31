@@ -1325,8 +1325,8 @@ local function creatorCycleParam(state)
     -- already catches an activeParam change without needing a preview rebuild.
 end
 
----Registers a zone-creator keybind: a RegisterCommand+RegisterKeyMapping pair
----that only calls `handler(creatorState)` while a creator session is active.
+---Registers an owner-tracked zone-creator keybind that only calls
+---`handler(creatorState)` while a creator session is active.
 ---Every qblib_zonecreator_* command follows this exact shape, so it's defined
 ---once instead of five times.
 ---@param command string
@@ -1334,10 +1334,15 @@ end
 ---@param key string
 ---@param handler fun(state: table)
 local function registerCreatorKeybind(command, label, key, handler)
-    RegisterCommand(command, function()
-        if creatorState then handler(creatorState) end
-    end, false)
-    RegisterKeyMapping(command, label, "keyboard", key)
+    QB.keybind.add({
+        name = command,
+        description = label,
+        defaultMapper = 'keyboard',
+        defaultKey = key,
+        onPressed = function()
+            if creatorState then handler(creatorState) end
+        end,
+    })
 end
 
 registerCreatorKeybind("qblib_zonecreator_place", "Zone Creator: Place Point", "E", creatorPlace)

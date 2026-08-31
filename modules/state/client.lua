@@ -22,7 +22,7 @@ local ownership = QB.resources.registry(removeListener)
 ---Subscribe to state-bag changes in the client realm.
 ---@param keyFilter? string
 ---@param bagFilter? string
----@param handler fun(context: QBStateChangeContext)
+---@param handler fun(context: QBStateChange)
 ---@return integer listenerId
 function QB.state.onChange(keyFilter, bagFilter, handler)
     assert(keyFilter == nil or type(keyFilter) == 'string', 'State keyFilter must be a string or nil.')
@@ -32,8 +32,11 @@ function QB.state.onChange(keyFilter, bagFilter, handler)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local cookie
     cookie = AddStateBagChangeHandler(keyFilter, bagFilter, function(bagName, key, value, reserved, replicated)
-        local okEntity, entity = pcall(GetEntityFromStateBagName, bagName)
-        if not okEntity or type(entity) ~= 'number' then entity = 0 end
+        local entity = 0
+        if type(bagName) == 'string' and bagName:sub(1, 7) == 'entity:' then
+            local okEntity, resolved = pcall(GetEntityFromStateBagName, bagName)
+            if okEntity and type(resolved) == 'number' then entity = resolved end
+        end
 
         local ok, err = pcall(handler, {
             entity = entity,

@@ -26,12 +26,27 @@ dofile(repoRoot .. "local/callback/shared.lua")
 dofile(repoRoot .. "local/callback/server.lua")
 local serverRegister = QB.callback.register
 local serverTrigger = QB.callback.trigger
+local serverUnregister = QB.callback.unregister
 
 dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread completes the client->server handshake synchronously
 local clientRegister = QB.callback.register
 local clientTrigger = QB.callback.trigger
 
 local INVOKE = "qblib:callback:invoke"
+
+local function namedUpvalue(fn, wanted)
+    local index = 1
+    while true do
+        local name, value = debug.getupvalue(fn, index)
+        if not name then return nil end
+        if name == wanted then return value end
+        index = index + 1
+    end
+end
+
+local consumeRateLimit = namedUpvalue(net.netHandlers[INVOKE][1], 'consumeRateLimit')
+local rateBuckets = consumeRateLimit and namedUpvalue(consumeRateLimit, 'rateBuckets')
+assert(rateBuckets, 'could not inspect callback rate buckets')
 
 harness.test("client asks server: resolves with the handler's return value", function()
     serverRegister("smoke:double", function(src, n)
@@ -86,6 +101,54 @@ harness.test('client-to-server callbacks reject immediately when rate limited', 
     harness.assertEqual(calls, 2, 'the sliding window should expire')
 end)
 
+harness.test('callback rate buckets expire automatically and stale timers cannot clear replacements', function()
+    local realSetTimeout = SetTimeout
+    local timers = {}
+    _G.SetTimeout = function(delay, callback)
+        timers[#timers + 1] = { delay = delay, callback = callback }
+    end
+
+    serverRegister('smoke:timer-cleanup', function() return true end, {
+        rateLimit = { max = 1, window = 100 },
+    })
+    clientTrigger('smoke:timer-cleanup')
+    local expiringTimer
+    for _, timer in ipairs(timers) do
+        if timer.delay == 100 then expiringTimer = timer end
+    end
+    local existed = rateBuckets['smoke:timer-cleanup'] ~= nil
+    Wait(100)
+    expiringTimer.callback()
+    local expired = rateBuckets['smoke:timer-cleanup'] == nil
+
+    timers = {}
+    serverRegister('smoke:stale-timer', function() return true end, {
+        rateLimit = { max = 1, window = 100 },
+    })
+    clientTrigger('smoke:stale-timer')
+    local staleTimer
+    for _, timer in ipairs(timers) do
+        if timer.delay == 100 then staleTimer = timer end
+    end
+    serverRegister('smoke:stale-timer', function() return true end, {
+        rateLimit = { max = 1, window = 1000 },
+    })
+    clientTrigger('smoke:stale-timer')
+    local replacementBucket = rateBuckets['smoke:stale-timer'][mocks.SOURCE]
+    Wait(100)
+    staleTimer.callback()
+    local replacementPreserved = rateBuckets['smoke:stale-timer']
+        and rateBuckets['smoke:stale-timer'][mocks.SOURCE] == replacementBucket
+
+    serverUnregister('smoke:timer-cleanup')
+    serverUnregister('smoke:stale-timer')
+    _G.SetTimeout = realSetTimeout
+
+    harness.assertTrue(existed, 'an accepted request should create a callback bucket')
+    harness.assertTrue(expired, 'the expiry timer should clear an idle callback bucket')
+    harness.assertTrue(replacementPreserved, 'an old timer must not clear a replacement callback bucket')
+end)
+
 harness.test('invalid callback tokens do not consume quota', function()
     local calls = 0
     serverRegister('smoke:invalid-free', function() calls = calls + 1; return true end, {
@@ -130,6 +193,19 @@ harness.test('callback quotas are independent per player', function()
     _G.source = nil
 end)
 
+harness.test('callback quotas are independent per handler name', function()
+    local firstCalls, secondCalls = 0, 0
+    local limit = { rateLimit = { max = 1, window = 5000 } }
+    serverRegister('smoke:independent-a', function() firstCalls = firstCalls + 1; return true end, limit)
+    serverRegister('smoke:independent-b', function() secondCalls = secondCalls + 1; return true end, limit)
+
+    clientTrigger('smoke:independent-a')
+    clientTrigger('smoke:independent-a')
+    clientTrigger('smoke:independent-b')
+    harness.assertEqual(firstCalls, 1, 'one callback name should exhaust only its own quota')
+    harness.assertEqual(secondCalls, 1, 'a different callback name should retain independent quota')
+end)
+
 harness.test('callback replacement clears old rate buckets and limiting is opt-in', function()
     local calls = 0
     serverRegister('smoke:rate-reset', function() calls = calls + 1; return true end, {
@@ -153,10 +229,13 @@ end)
 
 harness.test("client asks server: playerDropped clears the token", function()
     local ran = false
-    serverRegister("smoke:after-drop", function() ran = true end)
+    serverRegister("smoke:after-drop", function() ran = true; return true end, {
+        rateLimit = { max = 2, window = 5000 },
+    })
 
     clientTrigger("smoke:after-drop")
     harness.assertTrue(ran, "sanity check: the real token should still work before the player drops")
+    harness.assertTrue(rateBuckets['smoke:after-drop'] ~= nil, 'sanity check: the player should have a callback bucket')
 
     local invokeEntry = mocks.lastEntry(net.triggeredServerEvents, INVOKE)
     harness.assertTrue(invokeEntry ~= nil, "expected to capture the real token from the trigger above")
@@ -165,6 +244,7 @@ harness.test("client asks server: playerDropped clears the token", function()
     _G.source = mocks.SOURCE
     net.fire("playerDropped")
     _G.source = nil
+    harness.assertEqual(rateBuckets['smoke:after-drop'], nil, 'player drop should clear the callback bucket')
 
     ran = false
     _G.source = mocks.SOURCE
@@ -252,8 +332,13 @@ harness.test("client asks server: a handler survives an unrelated resource stopp
 end)
 
 harness.test("client asks server: a handler is dropped when its owning resource stops", function()
-    serverRegister("smoke:dropped-on-stop", function() return "should not run" end)
+    serverRegister("smoke:dropped-on-stop", function() return "should not run" end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    clientTrigger('smoke:dropped-on-stop')
+    harness.assertTrue(rateBuckets['smoke:dropped-on-stop'] ~= nil, 'sanity check: the callback should own a rate bucket')
     net.fire("onResourceStop", "qblib_test")
+    harness.assertEqual(rateBuckets['smoke:dropped-on-stop'], nil, 'owner cleanup should clear the callback bucket')
 
     local p = clientTrigger("smoke:dropped-on-stop")
     harness.assertEqual(p.state, "pending", "no server handler should answer once it's been swept on resource stop")

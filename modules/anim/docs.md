@@ -1,7 +1,8 @@
 # Anim module
 
-`QB.anim.play` streams and tracks a normal animation, while `stop` and
-`stopHandle` safely end it. `attachProp`/`detachProp` manage local attached
+`QB.anim.play` streams and tracks a normal animation, while `QB.anim.stop` and
+`QB.anim.stopHandle` safely end it. `QB.anim.isPlaying(entity)` reads its live
+native state. `QB.anim.attachProp`/`QB.anim.detachProp` manage local attached
 props and resource-stop cleanup.
 
 For native scenario/task flows, use:

@@ -36,3 +36,6 @@ for (const [key, value] of Object.entries(tokens)) {
 ## Notes
 - `QB.theme.tokens()` only covers the accent-derived subset of qblib's palette (the tokens `ThemeSynchronizer.tsx` actually computes). It does not return the static base palette (`--background`, `--card`, `--popover`, etc.) — ship those as sane CSS defaults in your own resource, the same way qblib's own `globals.css` does, and let `QB.theme.tokens()` override just the accent-derived subset at runtime.
 - qblib's own NUI still fetches this via the `qblib:nui:theme` NUI callback and the `qblib:theme` push event (both unchanged, now backed by this module) — a resource with its *own* NUI should call `QB.theme.tokens()` directly from Lua instead, since it never needs a round trip through qblib's NUI frame at all.
+
+`QB.theme.push()` is the client-side refresh hook that sends the current token
+set to qblib's own NUI.

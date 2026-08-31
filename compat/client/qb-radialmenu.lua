@@ -567,15 +567,15 @@ end)
 
 -- Real qb-radialmenu opens on a fixed keybind rather than a script-triggered
 -- call -- there's no QB.nui hook for "open whatever's registered", so this
--- defines its own command + default keybind, same pattern
--- modules/zones/client.lua's registerCreatorKeybind uses. "F1" matches
+-- owns one QB.keybind definition. "F1" matches
 -- qbcore-framework/qb-radialmenu's own config.lua default (`Config.Keybind =
 -- 'F1'`) -- some forks differ, and it's always rebindable by the player from
 -- FiveM's own Settings > Key Bindings regardless of what's set here, so this
 -- is a best-effort default rather than a guarantee every fork matches it.
--- Guarded like compat/client/qb-menu.lua's 'playerfocus' registration --
--- keeps this file `dofile`-able in a plain-Lua test harness that hasn't
--- mocked these two (RegisterCommand/RegisterKeyMapping are natives with no
--- meaning outside a real client/server).
-if RegisterCommand then RegisterCommand("qblib_radialmenu_open", openRegisteredRadial, false) end
-if RegisterKeyMapping then RegisterKeyMapping("qblib_radialmenu_open", "Open Radial Menu", "keyboard", "F1") end
+QB.keybind.add({
+    name = 'qblib_radialmenu_open',
+    description = 'Open Radial Menu',
+    defaultMapper = 'keyboard',
+    defaultKey = 'F1',
+    onPressed = openRegisteredRadial,
+})

@@ -44,6 +44,7 @@ QB.nui = {
         harness.assertEqual(action, 'closeMenu', 'closeMenu should ask the active menu to cancel')
     end,
 }
+QB.keybind = { add = function() return { remove = function() return true end } end }
 
 dofile(repoRoot .. "compat/client/exports.lua")
 dofile(repoRoot .. "compat/client/qb-menu.lua")

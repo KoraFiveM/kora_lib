@@ -25,13 +25,19 @@ harness.test('client startup requests the current server-command mappings', func
     harness.assertTrue(sync ~= nil, 'the client should request command keybind synchronization')
 end)
 
-harness.test('public positional API registers a protected press handler and mapper', function()
+harness.test('options API registers a protected press handler and mapper', function()
     local calls = 0
     invokingResource = 'qbchat'
-    local handle = QB.keybind.add('qbchat_open', 'Open chat', 'T', function(bind)
-        calls = calls + 1
-        harness.assertEqual(bind.name, 'qbchat_open')
-    end, 'keyboard')
+    local handle = QB.keybind.add({
+        name = 'qbchat_open',
+        description = 'Open chat',
+        defaultKey = 'T',
+        defaultMapper = 'keyboard',
+        onPressed = function(bind)
+            calls = calls + 1
+            harness.assertEqual(bind.name, 'qbchat_open')
+        end,
+    })
     invokingResource = nil
 
     net.commands['+qbchat_open']()
@@ -149,7 +155,10 @@ harness.test('an owner restart reactivates the stable wrapper without duplicate 
     local firstCalls, restartedCalls = 0, 0
     local beforeMappings = #mappings
     invokingResource = 'restarting_resource'
-    QB.keybind.add('restart_action', 'Restart action', 'F6', function() firstCalls = firstCalls + 1 end)
+    QB.keybind.add({
+        name = 'restart_action', description = 'Restart action', defaultKey = 'F6',
+        onPressed = function() firstCalls = firstCalls + 1 end,
+    })
     invokingResource = nil
 
     net.fire('onClientResourceStop', 'restarting_resource')
@@ -157,7 +166,10 @@ harness.test('an owner restart reactivates the stable wrapper without duplicate 
     harness.assertEqual(firstCalls, 0, 'the stale wrapper must be inert while its owner is stopped')
 
     invokingResource = 'restarting_resource'
-    QB.keybind.add('restart_action', 'Restart action', 'F6', function() restartedCalls = restartedCalls + 1 end)
+    QB.keybind.add({
+        name = 'restart_action', description = 'Restart action', defaultKey = 'F6',
+        onPressed = function() restartedCalls = restartedCalls + 1 end,
+    })
     invokingResource = nil
     net.commands['+restart_action']()
     net.commands['-restart_action']()
@@ -189,8 +201,8 @@ end)
 harness.test('malformed options are rejected', function()
     harness.assertFalse(pcall(QB.keybind.add, { name = 'bad name', description = 'Bad', onPressed = function() end }))
     harness.assertFalse(pcall(QB.keybind.add, { name = 'bad', description = 'Bad' }))
-    harness.assertFalse(pcall(QB.keybind.add, 'bad name', 'Bad', 'B', function() end))
-    harness.assertFalse(pcall(QB.keybind.add, 'bad_handler', 'Bad', 'B', 'not callable'))
+    harness.assertFalse(pcall(QB.keybind.add, 'not an options table'))
+    harness.assertFalse(pcall(QB.keybind.add, { name = 'bad_handler', description = 'Bad', onPressed = 'not callable' }))
 end)
 
 harness.report('keybind')

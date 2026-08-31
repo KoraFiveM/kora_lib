@@ -182,12 +182,15 @@ local function showHeader(menu)
     QB.nui.send('showMenuHeader', items)
 end
 
-if RegisterCommand then
-    RegisterCommand('playerfocus', function()
+QB.keybind.add({
+    name = 'playerfocus',
+    description = 'Give Menu Focus',
+    defaultMapper = 'keyboard',
+    defaultKey = 'LMENU',
+    onPressed = function()
         if headerShown then QB.nui.setFocus(true, true) end
-    end, false)
-end
-if RegisterKeyMapping then RegisterKeyMapping('playerfocus', 'Give Menu Focus', 'keyboard', 'LMENU') end
+    end,
+})
 
 QB.compat.provideExport("qb-menu", "openMenu", openMenu)
 QB.compat.provideExport("qb-menu", "closeMenu", closeMenu)

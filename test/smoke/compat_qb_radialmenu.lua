@@ -41,6 +41,12 @@ QB.nui = {
 -- `progressCompletes`.
 local progressCompletes = true
 QB.progressbar = { start = function() return progressCompletes end }
+QB.keybind = {
+    add = function(options)
+        net.commands[options.name] = options.onPressed
+        return { remove = function() return true end }
+    end,
+}
 
 dofile(repoRoot .. "compat/client/exports.lua")
 
@@ -129,9 +135,8 @@ local function itemById(items, id)
     return nil
 end
 
--- The wheel only opens via the registered command/keybind handler, not a
--- direct export -- RegisterCommand's callback is the one actually under
--- test here, grabbed straight from the mock's own command registry.
+-- The wheel only opens via its QB.keybind handler, not a direct export. The
+-- keybind stub above records that callback in the mock command registry.
 local function openRadial()
     harness.assertTrue(net.commands ~= nil and net.commands["qblib_radialmenu_open"] ~= nil,
         "qblib_radialmenu_open should be registered")
