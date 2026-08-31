@@ -26,6 +26,10 @@ provide 'qb-minigames'
 files {
     'init.lua',
     'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
+    -- Lookup bundles are loaded on demand with LoadResourceFile; source JSON
+    -- stays out of the runtime resource (source.json only records provenance).
+    'modules/lookup/data/*.lua',
+    'modules/lookup/data/source.json',
     'modules/discord/sql/*.sql',
     'web/build/index.html',
     -- A bare trailing '**' does NOT match files in FiveM's resource globber --

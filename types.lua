@@ -525,6 +525,37 @@
 ---@class QBStreamResult
 ---@field [integer] any
 
+---@alias QBLookupNamespace 'vehicle'|'ped'|'object'|'weapon'|'weapon_component'|'pickup'
+---@alias QBLookupModelNamespace 'vehicle'|'ped'|'object'
+---@alias QBLookupFailure 'catalog_pending'|'not_found'|'ambiguous'
+---@alias QBLookupSource 'base'|'custom'|'base+custom'
+
+---@class QBLookupMetadata
+---@field class? string Vehicle class.
+---@field manufacturer? string Vehicle manufacturer key.
+---@field type? string Vehicle type.
+---@field seats? integer Vehicle seat count.
+---@field pedType? string Ped type.
+---@field modelName? string Weapon or pickup model name.
+---@field damageType? string Weapon damage type.
+---@field weaponNames? string[] Weapons that own a component.
+---@field componentType? string Weapon-component type.
+---@field attachBone? string Weapon-component attachment bone.
+
+---@class QBLookupRecord
+---@field namespace QBLookupNamespace
+---@field hash integer Unsigned 32-bit hash.
+---@field signedHash integer Signed 32-bit representation.
+---@field hexHash string Eight-digit hexadecimal representation.
+---@field name string Canonical spawn/archetype/hash-key name.
+---@field label? string English display label.
+---@field labelKey? string GXT label key.
+---@field category? string
+---@field dlc? string
+---@field source QBLookupSource
+---@field resources? string[] Sorted custom resources contributing this entry.
+---@field metadata? QBLookupMetadata Namespace-specific curated metadata.
+
 ---@class QBLib
 ---@field actions QBLibActions
 ---@field anim QBLibAnim
@@ -543,6 +574,7 @@
 ---@field interact QBLibInteract
 ---@field keybind QBLibKeybind
 ---@field logging QBLibLogging
+---@field lookup QBLibLookup
 ---@field loops QBLibLoops
 ---@field minigames QBLibMinigames
 ---@field notify QBLibNotify
@@ -715,6 +747,16 @@
 ---@class QBLibLogging
 ---@field event fun(category: string, src: integer, data?: table) [server]
 ---@field getStats fun(): table [server]
+
+---@class QBLibLookup
+---@field get fun(namespace: QBLookupNamespace, value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
+---@field model fun(value: integer|string, kind?: QBLookupModelNamespace): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
+---@field weapon fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
+---@field weaponComponent fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
+---@field pickup fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
+---@field preload fun(namespaces?: QBLookupNamespace|QBLookupNamespace[]): boolean [shared]
+---@field ready fun(): boolean [shared]
+---@field awaitReady fun(timeout?: integer): boolean, string? [shared]
 
 ---@class QBLibLoops
 ---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean): any, string? [shared]

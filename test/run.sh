@@ -16,4 +16,12 @@ for file in "$dir"/smoke/*.lua; do
     echo
 done
 
+echo "== lookup generator =="
+# Keep the test path relative: Node treats square brackets in an absolute path
+# as glob syntax, and this checkout lives under resources/[test]/.
+if ! (cd "$dir/.." && node --test tools/lookup/generate.test.mjs); then
+    status=1
+fi
+echo
+
 exit "$status"

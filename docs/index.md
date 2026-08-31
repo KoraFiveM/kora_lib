@@ -12,7 +12,7 @@ tokens, notifications, progress bars, box/sphere/poly zones with an in-world
 creator, keyboard-driven world-object interaction, a per-tick local-player
 cache, reference-counted control leases, streaming/anim/fx/raycast/world helpers,
 vehicle properties, keybinds, state-bag subscriptions, text UI, status effects,
-commands, permissions, and logging. Also ships drop-in compat for the deprecated
+commands, permissions, hash-to-name lookup catalogs, and logging. Also ships drop-in compat for the deprecated
 `qb-menu`, `qb-input`, and `qb-radialmenu` standalone resources.
 
 ## Requirements
@@ -139,6 +139,21 @@ QB.cache.weapon()  QB.cache.health()  QB.cache.isDead()  QB.cache.armour()  QB.c
 ```
 Refreshes every `Config.cache.tickInterval` (200ms default); the built-in keys
 cannot be overwritten via `set`.
+
+### Hash lookup (`QB.lookup`)
+```lua
+local vehicle = QB.lookup.model(GetEntityModel(entity), 'vehicle')
+local weapon = QB.lookup.weapon('0x1B06D571')
+
+QB.lookup.preload({ 'vehicle', 'weapon' })
+QB.lookup.ready()  QB.lookup.awaitReady(10000)
+```
+Shared client/server lookup for `vehicle`, `ped`, `object`, `weapon`,
+`weapon_component`, and `pickup`. Inputs may be signed/unsigned hashes,
+decimal/hexadecimal strings, or canonical names. Base namespaces load lazily;
+the startup-scanned custom-resource overlay is synchronized to clients in
+bounded atomic batches. See [`modules/lookup/docs.md`](../modules/lookup/docs.md)
+for return reasons, record fields, custom overrides, and regeneration.
 
 ### NUI (`QB.nui`)
 ```lua
