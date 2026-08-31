@@ -140,3 +140,13 @@ function QB.world.getClosestEntity(entityType, coords, options)
 
     return closest.entity, closest.coords, closest.distance
 end
+
+---Reports whether no vehicle occupies the requested spawn radius.
+---@param coords vector3|{x:number,y:number,z:number}
+---@param radius number
+---@param options? QBWorldQueryOptions
+---@return boolean clear
+function QB.world.isSpawnClear(coords, radius, options)
+    assert(type(radius) == 'number' and radius > 0, 'radius must be a positive number.')
+    return #collectCandidates('vehicle', coords, radius * radius, options) == 0
+end

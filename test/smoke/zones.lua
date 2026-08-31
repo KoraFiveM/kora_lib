@@ -49,7 +49,12 @@ _G.SetCamActive = function() end
 _G.RenderScriptCams = function() end
 _G.DestroyCam = function() end
 _G.FreezeEntityPosition = function() end
-_G.DisableControlAction = function() end
+local disabledControls = {}
+_G.DisableControlAction = function(group, control)
+    disabledControls[("%d:%d"):format(group, control)] = true
+end
+_G.PlayerId = function() return 1 end
+_G.DisablePlayerFiring = function() end
 _G.GetDisabledControlNormal = function() return 0.0 end
 _G.GetFrameTime = function() return 0.0 end
 _G.GetGameplayCamFov = function() return 50.0 end
@@ -66,6 +71,7 @@ _G.DisplayRadar = function(shown) radarCalls[#radarCalls + 1] = shown end
 
 dofile(repoRoot .. "modules/raycast/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+dofile(repoRoot .. "modules/controls/client.lua")
 -- QB.theme isn't otherwise loaded by this test file -- the debug/creator-preview
 -- draw path now reads QB.theme.accentColor() (see zoneDebugColor in
 -- modules/zones/client.lua), and without this the QB proxy in build/initiate.lua
@@ -443,6 +449,51 @@ harness.test("the creator restores the minimap when it ends", function()
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
     harness.assertTrue(radarCalls[#radarCalls] == true,
         "the minimap must be restored on teardown -- leaving it hidden strands the player with no map")
+end)
+
+harness.test("the creator holds and releases its camera control lease", function()
+    disabledControls = {}
+    local p = QB.zones.startCreator("box")
+
+    harness.assertTrue(disabledControls["0:1"] == true and disabledControls["0:31"] == true,
+        "creator camera controls should be disabled before startCreator returns")
+
+    registeredCommands["qblib_zonecreator_cancel"]()
+    disabledControls = {}
+    net.step()
+
+    harness.assertEqual(p.state, "resolved", "the creator should cancel normally")
+    harness.assertTrue(next(disabledControls) == nil, "cancel should release every creator control")
+end)
+
+harness.test("creator controls release when the owning resource stops", function()
+    local currentResource = "creator_consumer"
+    _G.GetCurrentResourceName = function() return currentResource end
+    local p = QB.zones.startCreator("box")
+    currentResource = "qblib_test"
+
+    net.fire("onClientResourceStop", "creator_consumer")
+    harness.assertEqual(p.state, "resolved", "owner shutdown should cancel the creator")
+
+    disabledControls = {}
+    net.step()
+    harness.assertTrue(next(disabledControls) == nil, "owner shutdown should release creator controls")
+
+    _G.GetCurrentResourceName = function() return "qblib_test" end
+end)
+
+harness.test("a creator loop crash releases its control lease", function()
+    local originalGetFrameTime = GetFrameTime
+    local p = QB.zones.startCreator("box")
+    _G.GetFrameTime = function() error("simulated camera failure") end
+
+    net.step()
+    harness.assertEqual(p.state, "rejected", "the crashed creator should reject its promise")
+
+    _G.GetFrameTime = originalGetFrameTime
+    disabledControls = {}
+    net.step()
+    harness.assertTrue(next(disabledControls) == nil, "crash cleanup should release creator controls")
 end)
 
 harness.test("startCreator rejects an invalid zone type", function()

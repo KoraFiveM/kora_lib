@@ -4,12 +4,11 @@
 
 ## Zone API
 
-`addCircleZone` and `addBoxZone` accept qb-target-style option arguments and return the normal `QB.zones` handle. Zone names are unique within this module; adding a duplicate replaces the old zone.
+The zone helpers return normal `QB.zones` handles. Zone names are unique within
+this module; adding a duplicate replaces the old zone.
 
 ```lua
 QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
-    debugPoly = false,
-}, {
     options = {
         {
             label = "Open locker",
@@ -17,12 +16,24 @@ QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
             args = { "police" },
         },
     },
-})
+}, false)
 ```
 
-`addBoxZone(name, coords, length, width, zoneOptions, targetOptions)` accepts qb-target-compatible `heading`, `minZ`, `maxZ`, and `debugPoly` fields. `removeZone(name)` returns `true` only when a named zone existed.
+The current signatures are:
 
-`addTargetEntity(entity, targetOptions)` and `addTargetModel(models, targetOptions)` create static zones at currently streamed entities/objects. They do not track moving entities; recreate the target zone if the entity moves.
+- `QB.interact.addCircleZone(name, coords, radius, targetOptions, debug?)`
+- `QB.interact.addBoxZone(name, coords, size, targetOptions, debug?)`
+- `QB.interact.addTargetEntity(entity, size, targetOptions, debug?)`
+- `QB.interact.addTargetModel(models, size, targetOptions, debug?)`
+
+`size` is a vector-like `{x, y, z}` table. The target helpers create static
+zones around the current entity/model positions. They do not follow moving
+entities; use the aim-target facade below when movement tracking is required.
+`QB.interact.removeZone(name)` returns `true` only when a named zone existed.
+
+`QB.interact.open(options)` opens the selector without a zone.
+`QB.interact.close()` closes it, and `QB.interact.isActive()` reports whether a
+selector is currently open.
 
 ## Options
 
@@ -34,9 +45,16 @@ Each option needs a non-empty `label`. On selection it calls `action()`, or trig
 
 ## Aim targets
 
-`addEntity(entity, options, distance?)` and `addModel(model, options, distance?)` are qblib's facade over qbtarget. They use the same `label`, `action`, `event`, `args`, and restriction fields as zones, follow moving entities, and clean up automatically when the invoking resource stops. Use `removeEntity(entity, id?)` or `removeModel(model, id?)` for early teardown.
+`QB.interact.addEntity(entity, options, distance?)` and
+`QB.interact.addModel(model, options, distance?)` are qblib's facade over
+qbtarget. They use the same `label`, `action`, `event`, `args`, and restriction
+fields as zones, follow moving entities, and clean up automatically when the
+invoking resource stops. Use `QB.interact.removeEntity(entity, id?)` or
+`QB.interact.removeModel(model, id?)` for early teardown.
 
 While the selector is visible, E confirms the highlighted option. Space and Enter do not confirm it. Up/Down changes the highlighted option, and Escape/Backspace/Pause closes the selector.
+
+These inputs are held through one reference-counted `QB.controls` lease for the selector's lifetime. Closing, replacing, selecting from, or losing the owning resource releases that lease without disturbing another qblib system that disabled the same control.
 
 ## UI contract
 

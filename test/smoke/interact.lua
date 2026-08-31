@@ -27,6 +27,8 @@ _G.RegisterNUICallback = function(name, fn) nuiCallbacks[name] = fn end
 _G.SendNUIMessage = function(message) nuiMessages[#nuiMessages + 1] = message end
 _G.SetNuiFocus = function(mouse, keyboard) focusCalls[#focusCalls + 1] = { mouse, keyboard } end
 _G.DisableControlAction = function(_, control) disabledControls[control] = true end
+_G.PlayerId = function() return 1 end
+_G.DisablePlayerFiring = function() end
 _G.IsDisabledControlJustPressed = function(_, control) return pressedControls[control] == true end
 
 _G.exports = {
@@ -78,6 +80,7 @@ _G.GetEntityHeading = function() return 45 end
 
 dofile(repoRoot .. "modules/nui/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/interact/client.lua")
 
 local function reset()
@@ -207,6 +210,32 @@ harness.test("game controls scroll, select, and cancel without NUI focus", funct
     harness.assertEqual(lastMessage().action, "hideInteract", "cancel should hide the selector")
     harness.assertFalse(QB.interact.isActive(), "cancel should clear the session")
     harness.assertEqual(#focusCalls, 0, "control handling must remain focus-free")
+end)
+
+harness.test("closing and replacing a selector release its control lease", function()
+    reset()
+    QB.interact.open({ { label = "First" } })
+    QB.interact.open({ { label = "Replacement" } })
+    QB.interact.close()
+
+    disabledControls = {}
+    mockHandle.step()
+    harness.assertTrue(next(disabledControls) == nil,
+        "no interaction controls should remain disabled after the replacement closes")
+end)
+
+harness.test("the invoking resource stopping closes its selector and releases controls", function()
+    reset()
+    _G.GetInvokingResource = function() return "consumer_resource" end
+    QB.interact.open({ { label = "Owned" } })
+    _G.GetInvokingResource = function() return nil end
+
+    mockHandle.fire("onClientResourceStop", "consumer_resource")
+    harness.assertFalse(QB.interact.isActive(), "the stopped resource's selector should close")
+
+    disabledControls = {}
+    mockHandle.step()
+    harness.assertTrue(next(disabledControls) == nil, "resource cleanup should release the selector's controls")
 end)
 
 harness.test("circle zones filter unavailable options and close only their own session", function()

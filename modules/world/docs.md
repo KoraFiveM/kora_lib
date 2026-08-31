@@ -55,5 +55,37 @@ end
 ## Notes
 - `"player"` is not a `GetGamePool` pool type — it's enumerated via `GetActivePlayers()`/`GetPlayerPed`, one ped per connected player (including the local one, subject to `includeOwnPed` like `"ped"`).
 - Filters run cheapest-first (self-exclusion, explicit exclude list, model set, visibility) before `predicate`, which may be arbitrarily expensive — same discipline `modules/zones` documents for its own AABB-then-exact-shape containment tests.
-- Client-only: pool queries only make sense against the calling client's own streamed-in world, so this module has no `shared.lua`/`server.lua`, the same shape as `modules/raycast`/`modules/stream`/`modules/zones`.
+- Pool queries are available on both realms. Client queries inspect streamed entities; server queries inspect OneSync's server entity pools.
 - This module reads the world; it doesn't own or track anything, unlike `modules/entities` (which only ever reports entities it created itself) or `modules/zones` (which owns registered volumes). There's nothing to clean up on resource stop here.
+
+## Small helpers
+
+### `QB.world.getGroundCoords(coords, options?)` (client)
+
+Requests collision and performs a bounded ground search. Options are `height`,
+`attempts`, and `retryDelay`; defaults come from `Config.world`. Returns the
+resolved `{x, y, z}`, or `false, error`.
+
+### `QB.world.getStreetNames(coords?)` (client)
+
+Returns `street, crossing?` using the cached player coordinates when omitted.
+
+### `QB.world.getZoneName(coords?)` (client)
+
+Returns `localizedLabel, zoneCode` for the given or cached coordinates.
+
+### `QB.world.getCardinalDirection(value?, options?)` (client)
+
+Returns one of `N`, `NW`, `W`, `SW`, `S`, `SE`, `E`, or `NE`. `value` is a
+heading in degrees. With `{ entity = true }`, it is treated as an entity
+handle; when omitted the cached player ped is used.
+
+### `QB.world.getWaypointCoords()` (client)
+
+Returns the active waypoint as `{x, y, z}`, or `false, error` when none is set.
+
+### `QB.world.isSpawnClear(coords, radius, options?)` (client/server)
+
+Returns whether no vehicle is within the radius. It accepts the normal world
+query filters; the client intentionally includes invisible streamed vehicles
+because they still occupy the spawn point.

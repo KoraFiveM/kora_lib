@@ -7,12 +7,21 @@ The callback module gives you promise-based request/response calls in both direc
 
 ### Client asks server
 
-#### `QB.callback.register(name, handler)` — server
+#### `QB.callback.register(name, handler, opts?)` — server
 Registers `handler` to run when a client calls `QB.callback.trigger(name, ...)`.
 
 ##### Parameters
 - `name: string` — Logical callback name (must be non-empty).
 - `handler: fun(src: integer, ...: any): any` — Called with the triggering player's server ID, followed by whatever arguments the client sent. Every value it returns resolves the client's promise — a handler can `return false, 'reason'` and the caller gets both values back.
+- `opts.rateLimit: { max: integer, window: integer } | false | nil` — optional
+  per-player, per-callback sliding window in milliseconds. Omitted/`false`
+  remains unlimited. This option only applies to server registrations that
+  receive client requests.
+
+Authentication and callback resolution happen before quota is consumed. An
+over-limit request receives an immediate failed response containing its retry
+delay instead of waiting for the ordinary callback timeout. Buckets are cleared
+on player drop, unregister/replacement/ownership cleanup, and window expiry.
 
 #### `QB.callback.trigger(name, ...)` — client
 Triggers the callback registered under `name` on the server.

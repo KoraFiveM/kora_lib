@@ -9,32 +9,169 @@ require('mocks').install()
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/loops/shared.lua')
 
-local exists = { [10] = true }
-local control = false
-local deleted = false
-function _G.DoesEntityExist(entity) return exists[entity] == true end
-function _G.NetworkHasControlOfEntity() return control end
-function _G.NetworkRequestControlOfEntity() control = true end
-function _G.IsEntityAVehicle(entity) return entity == 10 end
+local VEHICLE = 10
+local state, calls, requestSucceeds
+
+local function reset()
+    state = {
+        exists = true, control = false, plate = '  TEST42  ', plateIndex = 2,
+        colors = { 1, 2 }, extras = { [0] = true, [20] = false },
+        mods = {}, toggles = { [18] = true, [20] = true, [22] = true },
+    }
+    for id = 0, 49 do state.mods[id] = id - 1 end
+    calls, requestSucceeds = {}, true
+end
+
+local function record(name, ...)
+    calls[name] = calls[name] or {}
+    calls[name][#calls[name] + 1] = { ... }
+end
+
+reset()
+function _G.DoesEntityExist(entity) return entity == VEHICLE and state.exists end
+function _G.IsEntityAVehicle(entity) return entity == VEHICLE end
+function _G.NetworkHasControlOfEntity() return state.control end
+function _G.NetworkRequestControlOfEntity() if requestSucceeds then state.control = true end end
 function _G.SetEntityAsMissionEntity() end
-function _G.DeleteVehicle(entity) exists[entity] = nil; deleted = true end
-function _G.GetPedInVehicleSeat(vehicle) return vehicle == 10 and 50 or 0 end
+function _G.DeleteVehicle() state.exists = false; record('DeleteVehicle') end
+function _G.GetPedInVehicleSeat() return 50 end
 function _G.PlayerPedId() return 50 end
 function _G.GetEntityModel() return 1234 end
+function _G.GetVehicleNumberPlateText() return state.plate end
+function _G.GetDisplayNameFromVehicleModel() return 'ADDER' end
+function _G.GetLabelText() return 'Adder' end
+function _G.GetVehicleExtraColours() return 3, 4 end
+function _G.GetVehicleColours() return state.colors[1], state.colors[2] end
+function _G.GetIsVehiclePrimaryColourCustom() return false end
+function _G.GetIsVehicleSecondaryColourCustom() return false end
+function _G.GetVehicleCustomPrimaryColour() return 10, 20, 30 end
+function _G.GetVehicleCustomSecondaryColour() return 40, 50, 60 end
+function _G.DoesExtraExist(_, id) return id == 0 or id == 20 end
+function _G.IsVehicleExtraTurnedOn(_, id) return state.extras[id] and 1 or 0 end
+function _G.GetVehicleWheelHealth(_, id) return 900 + id end
+function _G.IsVehicleTyreBurst(_, id, complete) return id == 1 and not complete end
+function _G.IsVehicleWindowIntact(_, id) return id ~= 2 end
+function _G.IsVehicleDoorDamaged(_, id) return id == 3 end
+function _G.GetVehicleXenonLightsCustomColor() return false, 0, 0, 0 end
+function _G.GetVehicleXenonLightsColor() return 6 end
+function _G.GetVehicleMod(_, id) return state.mods[id] end
+function _G.GetVehicleLivery() return 5 end
+function _G.GetVehicleNumberPlateTextIndex() return state.plateIndex end
+function _G.GetVehicleBodyHealth() return 999.94 end
+function _G.GetVehicleEngineHealth() return 888.86 end
+function _G.GetVehiclePetrolTankHealth() return 777.74 end
+function _G.GetVehicleFuelLevel() return 55.55 end
+function _G.GetVehicleDirtLevel() return 4.44 end
+function _G.GetVehicleOilLevel() return 3.33 end
+function _G.GetVehicleDashboardColour() return 8 end
+function _G.GetVehicleWheelType() return 7 end
+function _G.GetVehicleWheelSize() return 1.1 end
+function _G.GetVehicleWheelWidth() return 1.2 end
+function _G.GetVehicleWindowTint() return 3 end
+function _G.IsVehicleNeonLightEnabled(_, id) return id % 2 == 0 end
+function _G.GetVehicleNeonLightsColour() return 1, 2, 3 end
+function _G.GetVehicleInteriorColour() return 9 end
+function _G.GetVehicleTyreSmokeColor() return 4, 5, 6 end
+function _G.IsToggleModOn(_, id) return state.toggles[id] end
+function _G.GetVehicleModVariation(_, id) return id == 23 end
+function _G.GetVehicleRoofLivery() return 2 end
+
+local setters = {
+    'SetVehicleModKit', 'SetVehicleNumberPlateText', 'SetVehicleNumberPlateTextIndex',
+    'SetVehicleBodyHealth', 'SetVehicleEngineHealth', 'SetVehiclePetrolTankHealth',
+    'SetVehicleFuelLevel', 'SetVehicleDirtLevel', 'SetVehicleOilLevel',
+    'ClearVehicleCustomPrimaryColour', 'ClearVehicleCustomSecondaryColour', 'SetVehicleColours',
+    'SetVehicleCustomPrimaryColour', 'SetVehicleCustomSecondaryColour', 'SetVehicleExtraColours',
+    'SetVehicleDashboardColour', 'SetVehicleInteriorColour', 'SetVehicleWheelType',
+    'SetVehicleWheelSize', 'SetVehicleWheelWidth', 'SetVehicleExtra', 'SetVehicleWheelHealth',
+    'SetVehicleTyreBurst', 'SetVehicleTyreFixed', 'SetVehicleWindowTint', 'FixVehicleWindow',
+    'SmashVehicleWindow', 'SetVehicleDoorBroken', 'SetVehicleDoorShut',
+    'SetVehicleNeonLightEnabled', 'SetVehicleNeonLightsColour', 'SetVehicleTyreSmokeColor',
+    'SetVehicleMod', 'ToggleVehicleMod', 'SetVehicleLivery', 'SetVehicleRoofLivery',
+    'SetVehicleXenonLightsCustomColor', 'SetVehicleXenonLightsColor',
+}
+for _, name in ipairs(setters) do
+    _G[name] = function(...) record(name, ...) end
+end
 
 dofile(repoRoot .. 'modules/vehicle/client.lua')
 
 harness.test('vehicle delete acquires control before deleting', function()
-    local ok, err = QB.vehicle.delete(10)
+    reset()
+    local ok, err = QB.vehicle.delete(VEHICLE)
     harness.assertTrue(ok, tostring(err))
-    harness.assertTrue(deleted, 'DeleteVehicle should be called')
-    harness.assertTrue(control, 'network control should be requested')
+    harness.assertEqual(#calls.DeleteVehicle, 1)
+    harness.assertTrue(state.control, 'network control should be requested')
 end)
 
-harness.test('vehicle helpers identify local driver and model', function()
-    exists[10] = true
-    harness.assertTrue(QB.vehicle.isDriver(10), 'player should be the driver')
-    harness.assertEqual(QB.vehicle.model(10), 1234, 'should return model hash')
+harness.test('identity helpers validate, trim, and localize vehicles', function()
+    reset()
+    harness.assertTrue(QB.vehicle.isDriver(VEHICLE))
+    harness.assertEqual(QB.vehicle.model(VEHICLE), 1234)
+    harness.assertEqual(QB.vehicle.plate(VEHICLE), 'TEST42')
+    harness.assertEqual(QB.vehicle.label(VEHICLE), 'Adder')
+    harness.assertFalse(QB.vehicle.plate(99))
+end)
+
+harness.test('getProperties returns the complete compatible shape including extras 0 through 20', function()
+    reset()
+    local props, err = QB.vehicle.getProperties(VEHICLE)
+    harness.assertTrue(props ~= false, tostring(err))
+    harness.assertEqual(props.model, 1234)
+    harness.assertEqual(props.plate, 'TEST42')
+    harness.assertEqual(props.extras['0'], true)
+    harness.assertEqual(props.extras['20'], false)
+    harness.assertEqual(props.tireHealth[5], 905)
+    harness.assertEqual(props.windowStatus[2], false)
+    harness.assertEqual(props.doorStatus[3], true)
+    harness.assertEqual(props.modSpoilers, -1)
+    harness.assertEqual(props.modKit49, 48)
+    harness.assertEqual(props.modTurbo, true)
+    harness.assertEqual(props.modCustomTiresF, true)
+    harness.assertEqual(props.xenonColor, 6)
+end)
+
+harness.test('setProperties obtains control and preserves explicit false and zero values', function()
+    reset()
+    local ok, err = QB.vehicle.setProperties(VEHICLE, {
+        plate = '', plateIndex = 0, fuelLevel = 0, dirtLevel = 0,
+        color1 = 0, pearlescentColor = 0, wheelColor = 0,
+        wheelSize = 0, wheelWidth = 0, windowTint = 0,
+        extras = { ['0'] = false, ['20'] = true },
+        tireBurstState = { ['1'] = false },
+        windowStatus = { [2] = false, [3] = true },
+        doorStatus = { [3] = false, [4] = true },
+        neonEnabled = { false, true, false, true },
+        modSpoilers = 0, modTurbo = false, modSmokeEnabled = false, modXenon = false,
+        modFrontWheels = 0, modCustomTiresF = false, modLivery = 0, liveryRoof = 0,
+    })
+    harness.assertTrue(ok, tostring(err))
+    harness.assertTrue(state.control)
+    harness.assertEqual(calls.SetVehicleNumberPlateText[1][2], '')
+    harness.assertEqual(calls.SetVehicleFuelLevel[1][2], 0)
+    harness.assertEqual(calls.SetVehicleWindowTint[1][2], 0)
+    harness.assertEqual(calls.SetVehicleExtra[1][3], 1, 'false extra state uses disable=1')
+    harness.assertEqual(calls.SetVehicleExtra[2][3], 0, 'true extra state uses disable=0')
+    harness.assertEqual(calls.ToggleVehicleMod[1][3], false)
+    harness.assertEqual(calls.SetVehicleMod[#calls.SetVehicleMod - 1][3], 0)
+    harness.assertTrue(calls.SetVehicleTyreFixed ~= nil, 'false burst state should repair the tyre')
+end)
+
+harness.test('setProperties returns a bounded control failure without mutating', function()
+    reset()
+    requestSucceeds = false
+    local ok, err = QB.vehicle.setProperties(VEHICLE, { fuelLevel = 0 }, { timeout = 1 })
+    harness.assertFalse(ok)
+    harness.assertTrue(type(err) == 'string')
+    harness.assertEqual(calls.SetVehicleFuelLevel, nil)
+end)
+
+harness.test('property helpers reject invalid entities', function()
+    reset()
+    local props = QB.vehicle.getProperties(99)
+    harness.assertFalse(props)
+    local ok = QB.vehicle.setProperties(99, {})
+    harness.assertFalse(ok)
 end)
 
 harness.report('vehicle')

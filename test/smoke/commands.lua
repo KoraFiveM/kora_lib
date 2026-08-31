@@ -166,4 +166,143 @@ harness.test("resource stop disposes exactly the commands still owned by that re
     harness.assertTrue(aGone, "a_cmd should no longer be listed after its owning resource stopped")
 end)
 
+harness.test('suggestion payloads strip providers but advertise dynamic arguments', function()
+    QB.commands.add('lookup', 'Lookup a player', {
+        { name = 'player', help = 'Player name', provider = function() return {} end },
+    }, true, function() end)
+
+    local suggestion = mocks.lastEntry(net.triggeredClientEvents, 'chat:addSuggestion')
+    harness.assertTrue(suggestion[3][1].hasSuggestions)
+    harness.assertEqual(suggestion[3][1].provider, nil)
+end)
+
+harness.test('suggest resolves, filters, normalizes and de-duplicates provider values', function()
+    local context
+    QB.commands.add('complete', '', {
+        {
+            name = 'target',
+            values = { 'Alice', 'Bob' },
+            provider = function(src, ctx)
+                context = { src = src, ctx = ctx }
+                return {
+                    { value = 'Alicia', label = 'Alicia (3)', help = 'server id 3' },
+                    'Alice',
+                    { value = string.rep('x', 129) },
+                }
+            end,
+        },
+    }, false, function() end)
+
+    local results = QB.commands.suggest(7, 'complete', 1, 'ali', { 'ali' })
+    harness.assertEqual(#results, 2)
+    harness.assertEqual(results[1].value, 'Alice')
+    harness.assertEqual(results[2].value, 'Alicia')
+    harness.assertEqual(context.src, 7)
+    harness.assertEqual(context.ctx.query, 'ali')
+end)
+
+harness.test('suggest does not expose values for a denied command', function()
+    QB.commands.add('secretlookup', '', {
+        { name = 'secret', values = { 'classified' } },
+    }, false, function() end, { permission = 'admin' })
+
+    harness.assertEqual(#QB.commands.suggest(1, 'secretlookup', 1, '', {}), 0)
+end)
+
+harness.test('suggest contains provider errors and returns static values', function()
+    QB.commands.add('providererror', '', {
+        { name = 'value', values = { 'safe' }, provider = function() error('boom') end },
+    }, false, function() end)
+
+    local ok, results = pcall(QB.commands.suggest, 1, 'providererror', 1, '', {})
+    harness.assertTrue(ok)
+    harness.assertEqual(results[1].value, 'safe')
+end)
+
+harness.test('suggest caps normalized responses at twenty entries', function()
+    local values = {}
+    for index = 1, 25 do values[index] = ('value-%02d'):format(index) end
+    QB.commands.add('cappedcomplete', '', {
+        { name = 'value', values = values },
+    }, false, function() end)
+
+    harness.assertEqual(#QB.commands.suggest(1, 'cappedcomplete', 1, '', {}), 20)
+end)
+
+harness.test('suggest fails closed when a permission callback errors', function()
+    QB.commands.add('permissionerror', '', {
+        { name = 'value', values = { 'secret' } },
+    }, false, function() end, {
+        permission = 'admin', checkPermission = function() error('permission failure') end,
+    })
+
+    local ok, results = pcall(QB.commands.suggest, 1, 'permissionerror', 1, '', {})
+    harness.assertTrue(ok)
+    harness.assertEqual(#results, 0)
+end)
+
+harness.test('a command keybind is published, listed, synchronized, and securely dispatched', function()
+    local seen
+    QB.commands.add('boundcommand', 'Run bound command', nil, false, function(src, args, raw)
+        seen = { src = src, args = args, raw = raw }
+    end, {
+        keybind = { defaultKey = 'F7', secondaryKey = 'F8' },
+    })
+
+    local published = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    harness.assertEqual(published[1], 'boundcommand')
+    harness.assertEqual(published[2].description, 'Run bound command')
+    harness.assertEqual(published[2].defaultKey, 'F7')
+    harness.assertEqual(published[2].secondaryKey, 'F8')
+
+    local listed
+    for _, entry in ipairs(QB.commands.list()) do
+        if entry.name == 'boundcommand' then listed = entry end
+    end
+    harness.assertEqual(listed.keybind.defaultKey, 'F7')
+
+    TriggerServerEvent('qblib:commands:keybind:execute', 'boundcommand')
+    harness.assertEqual(seen.src, mocks.SOURCE)
+    harness.assertEqual(#seen.args, 0, 'key mappings invoke commands without arguments')
+    harness.assertEqual(seen.raw, 'boundcommand')
+
+    TriggerServerEvent('qblib:commands:keybind:sync')
+    local synced = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    harness.assertEqual(synced.target, mocks.SOURCE)
+    harness.assertEqual(synced[1], 'boundcommand')
+end)
+
+harness.test('command keybind dispatch uses the same permission and required-argument gates', function()
+    local deniedRan, requiredRan = false, false
+    QB.commands.add('bounddenied', '', nil, false, function() deniedRan = true end, {
+        permission = 'admin', keybind = { defaultKey = 'F9' },
+    })
+    QB.commands.add('boundrequired', '', { { name = 'value' } }, true, function() requiredRan = true end, {
+        keybind = { defaultKey = 'F10' },
+    })
+
+    notifyCalls = {}
+    TriggerServerEvent('qblib:commands:keybind:execute', 'bounddenied')
+    TriggerServerEvent('qblib:commands:keybind:execute', 'boundrequired')
+    harness.assertFalse(deniedRan)
+    harness.assertFalse(requiredRan)
+    harness.assertEqual(#notifyCalls, 2, 'both ordinary command gates should notify through the usual path')
+
+    local before = #notifyCalls
+    TriggerServerEvent('qblib:commands:keybind:execute', 'complete')
+    harness.assertEqual(#notifyCalls, before, 'an unbound command must not be reachable through the keybind transport')
+end)
+
+harness.test('removing or replacing a bound command removes its client mapping', function()
+    QB.commands.add('bindingcleanup', '', nil, false, function() end, { keybind = { defaultKey = 'F11' } })
+    QB.commands.add('bindingcleanup', '', nil, false, function() end)
+    local removed = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:remove')
+    harness.assertEqual(removed[1], 'bindingcleanup')
+
+    QB.commands.add('bindingcleanup', '', nil, false, function() end, { keybind = { defaultKey = 'F11' } })
+    QB.commands.remove('bindingcleanup')
+    removed = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:remove')
+    harness.assertEqual(removed[1], 'bindingcleanup')
+end)
+
 harness.report("commands")

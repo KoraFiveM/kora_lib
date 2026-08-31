@@ -11,6 +11,8 @@ dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
 
 local currentPed, moved, heading, fadeOut, fadeIn = 42, nil, nil, 0, 0
+local moves, freezes, focusCleared = {}, {}, 0
+local waypoint, ground, waitingForCollision = nil, nil, false
 _G.PlayerId = function() return 1 end
 _G.GetPlayerServerId = function() return 1 end
 _G.PlayerPedId = function() return currentPed end
@@ -23,9 +25,18 @@ _G.GetEntityHealth = function() return 200 end
 _G.GetPedArmour = function() return 0 end
 _G.GetPlayerStamina = function() return 100 end
 _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
+_G.GetEntityHeading = function() return 33 end
 _G.DoesEntityExist = function(entity) return entity == currentPed or entity == 99 end
-_G.SetEntityCoords = function(entity, x, y, z) moved = { entity = entity, x = x, y = y, z = z } end
+_G.SetEntityCoords = function(entity, x, y, z)
+    moved = { entity = entity, x = x, y = y, z = z }
+    moves[#moves + 1] = moved
+end
 _G.SetEntityHeading = function(entity, value) heading = { entity = entity, value = value } end
+_G.FreezeEntityPosition = function(entity, toggle) freezes[#freezes + 1] = { entity = entity, toggle = toggle } end
+_G.RequestCollisionAtCoord = function() end
+_G.IsEntityWaitingForWorldCollision = function() return waitingForCollision end
+_G.SetFocusPosAndVel = function() end
+_G.ClearFocus = function() focusCleared = focusCleared + 1 end
 _G.DoScreenFadeOut = function() fadeOut = fadeOut + 1 end
 _G.DoScreenFadeIn = function() fadeIn = fadeIn + 1 end
 _G.IsScreenFadedOut = function() return true end
@@ -33,6 +44,14 @@ _G.IsScreenFadedOut = function() return true end
 dofile(repoRoot .. 'local/resources/client.lua')
 dofile(repoRoot .. 'modules/cache/client.lua')
 dofile(repoRoot .. 'modules/visuals/client.lua')
+QB.world.getWaypointCoords = function()
+    if waypoint then return waypoint end
+    return false, 'No waypoint is set.'
+end
+QB.world.getGroundCoords = function()
+    if ground then return ground end
+    return false, 'Ground was not found.'
+end
 dofile(repoRoot .. 'modules/teleport/client.lua')
 
 harness.test('player moves the cached ped behind the default fade and applies vector4 heading', function()
@@ -50,6 +69,58 @@ harness.test('entity can move without a fade', function()
     harness.assertEqual(moved.entity, 99, 'entity teleport should move the requested entity')
     harness.assertEqual(fadeOut, 0, 'fade=false should not fade out')
     harness.assertEqual(fadeIn, 0, 'fade=false should not fade in')
+end)
+
+harness.test('toWaypoint reports a missing waypoint without moving or fading', function()
+    waypoint, moves, fadeOut, fadeIn = nil, {}, 0, 0
+    local ok, err = QB.teleport.toWaypoint()
+    harness.assertFalse(ok, 'missing waypoint should fail')
+    harness.assertTrue(err:find('No waypoint', 1, true) ~= nil, 'failure should explain the missing waypoint')
+    harness.assertEqual(#moves, 0, 'missing waypoint should not move the player')
+    harness.assertEqual(fadeOut, 0, 'missing waypoint should not start a fade')
+end)
+
+harness.test('toWaypoint lands on resolved ground and always unfreezes and restores the screen', function()
+    waypoint, ground = { x = 100, y = 200, z = 0 }, { x = 100, y = 200, z = 18 }
+    moves, freezes, fadeOut, fadeIn, focusCleared = {}, {}, 0, 0, 0
+    waitingForCollision = false
+
+    local ok = QB.teleport.toWaypoint({ launchHeight = 500 })
+    harness.assertTrue(ok, 'resolved waypoint should succeed')
+    harness.assertEqual(moves[1].z, 500, 'entity should first move to the configured launch height')
+    harness.assertEqual(moves[#moves].z, 18, 'entity should finish at resolved ground height')
+    harness.assertFalse(freezes[#freezes].toggle, 'entity should be unfrozen after success')
+    harness.assertEqual(fadeIn, 1, 'screen should fade back in after success')
+    harness.assertEqual(focusCleared, 1, 'streaming focus should be cleared after success')
+end)
+
+harness.test('toWaypoint restores the origin after ground resolution fails', function()
+    waypoint, ground = { x = 100, y = 200, z = 0 }, nil
+    moves, freezes, fadeOut, fadeIn = {}, {}, 0, 0
+    waitingForCollision = false
+
+    local ok, err = QB.teleport.toWaypoint()
+    harness.assertFalse(ok, 'missing ground should fail')
+    harness.assertTrue(err:find('Ground was not found', 1, true) ~= nil, 'ground error should propagate')
+    harness.assertEqual(moves[#moves].x, 0, 'failure should restore original x')
+    harness.assertEqual(moves[#moves].z, 0, 'failure should restore original z')
+    harness.assertEqual(heading.value, 33, 'failure should restore original heading')
+    harness.assertFalse(freezes[#freezes].toggle, 'failure should still unfreeze the entity')
+    harness.assertEqual(fadeIn, 1, 'failure should still restore the screen')
+end)
+
+harness.test('toWaypoint treats collision timeout as a failure and restores the origin', function()
+    waypoint, ground = { x = 100, y = 200, z = 0 }, { x = 100, y = 200, z = 18 }
+    moves, freezes, fadeOut, fadeIn = {}, {}, 0, 0
+    waitingForCollision = true
+
+    local ok, err = QB.teleport.toWaypoint({ collisionTimeout = 16 })
+    waitingForCollision = false
+    harness.assertFalse(ok, 'collision timeout should fail')
+    harness.assertTrue(err:find('collision', 1, true) ~= nil, 'timeout should identify collision loading')
+    harness.assertEqual(moves[#moves].x, 0, 'collision failure should restore original position')
+    harness.assertFalse(freezes[#freezes].toggle, 'collision failure should still unfreeze')
+    harness.assertEqual(fadeIn, 1, 'collision failure should still fade back in')
 end)
 
 harness.report('teleport')

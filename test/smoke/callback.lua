@@ -66,6 +66,91 @@ harness.test("client asks server: the gateway drops a request carrying the wrong
     harness.assertFalse(ran, "the handler must not run when the token is wrong")
 end)
 
+harness.test('client-to-server callbacks reject immediately when rate limited', function()
+    local calls = 0
+    serverRegister('smoke:limited', function()
+        calls = calls + 1
+        return calls
+    end, { rateLimit = { max = 1, window = 1000 } })
+
+    local first = clientTrigger('smoke:limited')
+    local second = clientTrigger('smoke:limited')
+    harness.assertEqual(first.state, 'resolved')
+    harness.assertEqual(second.state, 'rejected', 'a limited callback must reject instead of timing out')
+    harness.assertTrue(tostring(second.value):find('retry in', 1, true) ~= nil)
+    harness.assertEqual(calls, 1)
+
+    Wait(1000)
+    local third = clientTrigger('smoke:limited')
+    harness.assertEqual(third.state, 'resolved')
+    harness.assertEqual(calls, 2, 'the sliding window should expire')
+end)
+
+harness.test('invalid callback tokens do not consume quota', function()
+    local calls = 0
+    serverRegister('smoke:invalid-free', function() calls = calls + 1; return true end, {
+        rateLimit = { max = 1, window = 1000 },
+    })
+
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers[INVOKE]) do
+        fn('invalid-token', 991, 'smoke:invalid-free')
+    end
+    _G.source = nil
+
+    local result = clientTrigger('smoke:invalid-free')
+    harness.assertEqual(result.state, 'resolved')
+    harness.assertEqual(calls, 1)
+end)
+
+harness.test('callback quotas are independent per player', function()
+    local calls = 0
+    serverRegister('smoke:per-player', function() calls = calls + 1; return true end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    clientTrigger('smoke:per-player')
+
+    _G.source = mocks.SOURCE + 1
+    for _, fn in ipairs(net.netHandlers['qblib:callback:handshake']) do fn() end
+    _G.source = nil
+    local handshake = mocks.lastEntry(net.triggeredClientEvents, 'qblib:callback:handshake:response')
+    local secondToken = handshake[1]
+
+    _G.source = mocks.SOURCE + 1
+    for _, fn in ipairs(net.netHandlers[INVOKE]) do
+        fn(secondToken, 992, 'smoke:per-player')
+    end
+    _G.source = nil
+    harness.assertEqual(calls, 2, 'a different source should have its own quota')
+
+    -- Restore the simulated client's token to its ordinary source for all
+    -- subsequent round trips in this single-process harness.
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers['qblib:callback:handshake']) do fn() end
+    _G.source = nil
+end)
+
+harness.test('callback replacement clears old rate buckets and limiting is opt-in', function()
+    local calls = 0
+    serverRegister('smoke:rate-reset', function() calls = calls + 1; return true end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    clientTrigger('smoke:rate-reset')
+    clientTrigger('smoke:rate-reset')
+    harness.assertEqual(calls, 1)
+
+    serverRegister('smoke:rate-reset', function() calls = calls + 1; return true end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    clientTrigger('smoke:rate-reset')
+    harness.assertEqual(calls, 2)
+
+    local unlimited = 0
+    serverRegister('smoke:unlimited', function() unlimited = unlimited + 1; return true end)
+    for _ = 1, 5 do clientTrigger('smoke:unlimited') end
+    harness.assertEqual(unlimited, 5)
+end)
+
 harness.test("client asks server: playerDropped clears the token", function()
     local ran = false
     serverRegister("smoke:after-drop", function() ran = true end)

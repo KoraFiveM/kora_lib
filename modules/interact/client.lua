@@ -106,7 +106,9 @@ local function hide(session)
     if session and active ~= session then return false end
     if not active then return false end
 
+    local controlLease = active.controlLease
     active = nil
+    if controlLease then QB.controls.release(controlLease) end
     QB.nui.send("hideInteract")
     return true
 end
@@ -186,12 +188,6 @@ local function ensureCallbacks()
     end)
 end
 
-local function disableControls(controls)
-    for _, control in ipairs(controls) do
-        DisableControlAction(0, control, true)
-    end
-end
-
 local function isPressed(controls)
     for _, control in ipairs(controls) do
         if IsDisabledControlJustPressed(0, control) then return true end
@@ -201,11 +197,6 @@ end
 
 local function controls(session)
     while active == session do
-        disableControls(Config.interact.previousControls)
-        disableControls(Config.interact.nextControls)
-        disableControls(Config.interact.selectControls)
-        disableControls(Config.interact.cancelControls)
-
         if isPressed(Config.interact.previousControls) then
             QB.nui.send("scroll", -1)
         elseif isPressed(Config.interact.nextControls) then
@@ -220,7 +211,27 @@ local function controls(session)
     end
 end
 
-local function open(options, source)
+local function interactionControls()
+    local controls, seen = {}, {}
+
+    for _, list in ipairs({
+        Config.interact.previousControls,
+        Config.interact.nextControls,
+        Config.interact.selectControls,
+        Config.interact.cancelControls,
+    }) do
+        for _, control in ipairs(list) do
+            if not seen[control] then
+                seen[control] = true
+                controls[#controls + 1] = control
+            end
+        end
+    end
+
+    return controls
+end
+
+local function open(options, source, owner)
     if not isEnabled() then return false end
 
     local available = visibleOptions(options)
@@ -228,7 +239,14 @@ local function open(options, source)
 
     ensureCallbacks()
 
-    local session = { options = available, source = source }
+    if active then hide(active) end
+
+    local session = {
+        options = available,
+        source = source,
+        owner = owner or GetCurrentResourceName(),
+        controlLease = QB.controls.acquire(interactionControls()),
+    }
     active = session
 
     local labels = {}
@@ -237,7 +255,13 @@ local function open(options, source)
     end
 
     QB.nui.send("openInteract", labels)
-    CreateThread(function() controls(session) end)
+    CreateThread(function()
+        local ok, err = pcall(controls, session)
+        if not ok then
+            print(("[qblib:interact] input loop stopped after an error: %s"):format(tostring(err)))
+            hide(session)
+        end
+    end)
     return true
 end
 
@@ -245,7 +269,7 @@ end
 ---@param options QBInteractOption[]
 ---@return boolean opened False when disabled or no option passes its restrictions.
 function QB.interact.open(options)
-    return open(options)
+    return open(options, nil, GetInvokingResource() or GetCurrentResourceName())
 end
 
 ---Hides any active selector without invoking an option.
@@ -274,7 +298,8 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
 
     if zonesByName[name] then zonesByName[name].remove() end
 
-    local function enter() open(targetOptions, name) end
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    local function enter() open(targetOptions, name, owner) end
     reopenFns[name] = enter
 
     local zone = QB.zones.sphere({
@@ -309,7 +334,8 @@ function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
 
     if zonesByName[name] then zonesByName[name].remove() end
 
-    local function enter() open(targetOptions, name) end
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    local function enter() open(targetOptions, name, owner) end
     reopenFns[name] = enter
 
     local zone = QB.zones.box({
@@ -462,3 +488,9 @@ end
 function QB.interact.removeModel(model, id)
     return exports.qbtarget:removeModel(model, id)
 end
+
+AddEventHandler("onClientResourceStop", function(resourceName)
+    if active and (active.owner == resourceName or resourceName == GetCurrentResourceName()) then
+        hide(active)
+    end
+end)

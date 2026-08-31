@@ -66,6 +66,59 @@ harness.test("the gateway drops a request carrying the wrong token", function()
     harness.assertFalse(ran, "the handler must not run when the token is wrong")
 end)
 
+harness.test('server event rate limits use a sliding per-handler window', function()
+    local calls = 0
+    QB.events.register('smoke:limited', function() calls = calls + 1 end, {
+        rateLimit = { max = 2, window = 1000 },
+    })
+
+    QB.events.trigger('smoke:limited')
+    QB.events.trigger('smoke:limited')
+    QB.events.trigger('smoke:limited')
+    harness.assertEqual(calls, 2, 'the third request inside the window should be dropped')
+
+    Wait(1000)
+    QB.events.trigger('smoke:limited')
+    harness.assertEqual(calls, 3, 'an expired window should admit a new request')
+end)
+
+harness.test('invalid tokens do not consume event rate quota', function()
+    local calls = 0
+    QB.events.register('smoke:invalid-free', function() calls = calls + 1 end, {
+        rateLimit = { max = 1, window = 1000 },
+    })
+
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers[GATEWAY]) do fn('wrong-token', 'smoke:invalid-free') end
+    _G.source = nil
+    QB.events.trigger('smoke:invalid-free')
+    harness.assertEqual(calls, 1, 'the authenticated request should still have the full quota')
+end)
+
+harness.test('unregister and replacement clear event rate buckets', function()
+    local calls = 0
+    QB.events.register('smoke:rate-reset', function() calls = calls + 1 end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    QB.events.trigger('smoke:rate-reset')
+    QB.events.trigger('smoke:rate-reset')
+    harness.assertEqual(calls, 1)
+
+    QB.events.unregister('smoke:rate-reset')
+    QB.events.register('smoke:rate-reset', function() calls = calls + 1 end, {
+        rateLimit = { max = 1, window = 5000 },
+    })
+    QB.events.trigger('smoke:rate-reset')
+    harness.assertEqual(calls, 2, 'a replacement must not inherit the previous handler quota')
+end)
+
+harness.test('rate limiting remains opt-in', function()
+    local calls = 0
+    QB.events.register('smoke:unlimited', function() calls = calls + 1 end)
+    for _ = 1, 5 do QB.events.trigger('smoke:unlimited') end
+    harness.assertEqual(calls, 5)
+end)
+
 harness.test("playerDropped clears the token, so an old request is dropped afterwards", function()
     local ran = false
     QB.events.register("smoke:after-drop", function() ran = true end)

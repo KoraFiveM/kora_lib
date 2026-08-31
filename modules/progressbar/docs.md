@@ -1,7 +1,7 @@
 # Progress bar module
 
 ## Overview
-Shows a filling progress bar to the local player for a fixed duration, optionally playing an animation and disabling controls, and reports whether it ran to completion or was cancelled. Client-only — there is no server API, and no round trip to the NUI: Lua owns the timing and the completion decision, the NUI is purely the visual.
+Shows a filling progress bar to the local player for a fixed duration, optionally playing an animation or scenario, attaching network-visible props, and disabling controls. Client-only — there is no server API, and no round trip to the NUI: Lua owns the timing and the completion decision, while the NUI is purely visual.
 
 ## API
 
@@ -21,6 +21,17 @@ Runs a progress bar for `payload.duration` ms.
     - `dict: string`, `clip: string` — Animation dictionary/clip.
     - `flag?: number` — `TaskPlayAnim` AnimFlags bitmask. Defaults to `1` (loop).
     - `blendIn?: number`, `blendOut?: number` — Default `8.0` each.
+  - `scenario?: table` — Alternative to `anim`; the two cannot be combined.
+    - `name: string` — Scenario name, such as `WORLD_HUMAN_HAMMERING`.
+    - `playEnter?: boolean` — Whether to play its enter animation. Defaults to `true`.
+  - `props?: table[]` — Up to `Config.progressbar.maxProps` network-visible objects (2 by default), created before the timer begins and deleted when it ends.
+    - `model: string | integer` — Model name or hash. Required.
+    - `bone?: string | integer` — Ped bone name or ID. Defaults to `60309`.
+    - `offset?: vector3 | {x, y, z}` and `rotation?: vector3 | {x, y, z}` — Default to zero.
+    - `softPinning?: boolean` — Defaults to `true`.
+    - `collision?: boolean` — Defaults to `false`.
+    - `rotationOrder?: integer` — `0` through `5`; defaults to `0`.
+    - `syncRotation?: boolean` — Defaults to `true`.
 
 #### Returns
 - `boolean completed` — `false` if the bar never started, or was cancelled (death, the cancel key, `QB.progressbar.cancel()`, or an internal error) before `duration` elapsed.
@@ -34,6 +45,14 @@ local completed = QB.progressbar.start({
     canCancel = true,
     disable = { move = true, combat = true, car = true },
     anim = { dict = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", clip = "machinic_loop_mechandplayer" },
+    props = {
+        {
+            model = "prop_tool_screwdvr01",
+            bone = 60309,
+            offset = vector3(0.05, 0.0, 0.0),
+            rotation = vector3(0.0, 0.0, 0.0),
+        },
+    },
 })
 
 if completed then
@@ -56,5 +75,7 @@ Returns `true` while a progress bar started by this module is currently running.
 - Only one bar can be active at a time. Calling `start` while one is already running does not queue or interrupt it — it fails immediately with `completed = false, error = "A progress bar is already active."` — a progress bar represents "the player is busy doing one specific thing right now", and silently stacking a second one on top would make both visually and mechanically incoherent (which anim plays, whose controls win).
 - Dying always cancels the bar, regardless of `disable`/`canCancel`.
 - If `anim.dict` fails to load within 5 seconds, the bar still runs (and can still complete) — it just runs without the animation, and a warning is printed to the client console.
-- `disable.move`/`disable.combat`/`disable.car` control-disabling and death/cancel checks all happen on a per-frame poll (`QB.loops.controlled`, no `tries` limit, `duration` as the timeout) — `DisableControlAction` only holds for the frame it's called in, so this can't be a slower interval without the disable visibly lapsing between ticks.
+- Prop models are streamed before the progress timer and NUI animation start. A malformed descriptor is rejected up front; a runtime streaming/object/attachment failure logs a warning and lets the action continue without that prop.
+- Props are networked mission entities configured for visibility on all machines and stable creator ownership. They are detached and deleted on completion, cancellation, internal errors, or resource shutdown.
+- Combat and vehicle suppression use reference-counted `QB.controls` leases, so they can overlap other qblib input owners without releasing those owners' controls.
 - The NUI side (`web/src/components/progressbar/ProgressBar.tsx`) is fire-and-forget: `QB.nui.send("progressStart", { label, duration })` starts its own CSS fill animation timed to `duration` and hides itself when that finishes; `QB.nui.send("progressCancel")` (no payload) hides it immediately for every early-exit path. Lua's own timing is authoritative either way — the NUI never reports back.

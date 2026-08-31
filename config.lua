@@ -23,6 +23,12 @@ Config.callback = {
     timeout = 10000, -- ms a QB.callback.trigger() request (either direction) waits before rejecting
 }
 
+Config.discord = {
+    roleSyncInterval = 300000, -- ms; refresh the guild role catalog and every online player's roles (5 minutes)
+    cacheMaxAge = 600000,      -- ms; hasRole/hasRoles fail closed once a member snapshot is older than this
+    databaseTimeout = 60000,   -- ms to wait for optional qbsql before continuing with memory-only caching
+}
+
 Config.cache = {
     -- 5Hz keeps HUD health/armour/stamina and local distance helpers feeling
     -- immediate, while halving the shared native/cache work previously done
@@ -47,6 +53,7 @@ Config.blips = {
 
 Config.progressbar = {
     maxDuration = 600000, -- ms; the hard ceiling QB.progressbar.start() enforces (10 minutes)
+    maxProps = 2,         -- maximum number of networked props one progress bar may attach
     cancelControl = 73,   -- control id checked when payload.canCancel is true -- 73 = INPUT_VEH_EXIT, the "X" key
 }
 
@@ -99,6 +106,17 @@ Config.radialmenuCompat = {
 
 Config.world = {
     defaultRadius = 50.0, -- meters; QB.world.getClosestEntity's search radius when options.radius is omitted
+    groundHeight = 1000.0, -- starting Z used by QB.world.getGroundCoords when no explicit options.height is supplied
+    groundAttempts = 20, -- bounded collision/ground probes before getGroundCoords reports failure
+    groundRetryDelay = 50, -- milliseconds between ground probes
+}
+
+Config.teleport = {
+    fadeTime = 500,
+    waypointLaunchHeight = 1000.0,
+    waypointCollisionTimeout = 2000,
+    waypointGroundAttempts = 20,
+    waypointGroundRetryDelay = 50,
 }
 
 Config.drawing = {

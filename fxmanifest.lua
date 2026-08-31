@@ -25,6 +25,8 @@ provide 'qb-minigames'
 -- It must be listed here so the client can fetch it.
 files {
     'init.lua',
+    'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
+    'modules/discord/sql/*.sql',
     'web/build/index.html',
     -- A bare trailing '**' does NOT match files in FiveM's resource globber --
     -- it needs the '/*' (compare citizen's own system_resources/monitor, which

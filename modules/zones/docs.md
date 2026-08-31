@@ -110,6 +110,8 @@ The creator spins up its own free-flying camera rather than using your normal vi
 
 All of the above are registered via `RegisterKeyMapping`, so they're rebindable through FiveM's own keybind settings like any other resource's keybinds — except mouse-look/WASD and Shift, which drive the freecam directly and aren't independently rebindable.
 
+Mouse-look and movement are suppressed through a `QB.controls` lease while the creator is active. Confirm, cancel, an internal error, or either owning resource stopping releases the lease.
+
 #### Returns
 - `{ type, opts }` once confirmed (`opts` matches that shape's own constructor options, so `QB.zones.<type>(result.opts)` recreates it), or `nil` if cancelled, if a creator was already running, or if the creator is disabled (`Config.zones.creator.enabled = false`) -- check qblib's own console to tell which, since that detail doesn't cross the exports boundary. An invalid `zoneType` (or malformed `existingOpts`) raises a synchronous error instead, exactly like the zone constructors themselves. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the player confirms or cancels.
 

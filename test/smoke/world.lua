@@ -210,6 +210,78 @@ harness.test("player type enumerates via GetActivePlayers/GetPlayerPed, not GetG
     harness.assertEqual(matches[1].entity, 51, "the closer player ped should be first")
 end)
 
+harness.test('getGroundCoords retries collision probes and returns a plain coordinate table', function()
+    local probes = 0
+    _G.RequestCollisionAtCoord = function() probes = probes + 1 end
+    _G.GetGroundZFor_3dCoord = function()
+        return probes >= 2, 27.5
+    end
+
+    local coords = QB.world.getGroundCoords({ x = 10, y = 20, z = 5 }, {
+        height = 100,
+        attempts = 3,
+        retryDelay = 0,
+    })
+
+    harness.assertEqual(probes, 2, 'ground search should stop on the first successful probe')
+    harness.assertEqual(coords.x, 10, 'ground coords should preserve x')
+    harness.assertEqual(coords.z, 27.5, 'ground coords should use the native ground Z')
+end)
+
+harness.test('getGroundCoords reports a bounded failure', function()
+    local probes = 0
+    _G.RequestCollisionAtCoord = function() probes = probes + 1 end
+    _G.GetGroundZFor_3dCoord = function() return false, 0 end
+
+    local coords, err = QB.world.getGroundCoords(ORIGIN, { attempts = 2, retryDelay = 0 })
+    harness.assertFalse(coords, 'failed ground resolution should return false')
+    harness.assertEqual(probes, 2, 'ground resolution should stop at the configured bound')
+    harness.assertTrue(err:find('2 attempts', 1, true) ~= nil, 'failure should explain the attempted bound')
+end)
+
+harness.test('street and zone helpers resolve engine labels', function()
+    _G.GetStreetNameAtCoord = function() return 101, 202 end
+    _G.GetStreetNameFromHashKey = function(hash) return hash == 101 and 'Alta Street' or 'Vespucci Boulevard' end
+    _G.GetNameOfZone = function() return 'DOWNT' end
+    _G.GetLabelText = function(code) return code == 'DOWNT' and 'Downtown' or 'NULL' end
+
+    local street, crossing = QB.world.getStreetNames(ORIGIN)
+    local zone, code = QB.world.getZoneName(ORIGIN)
+    harness.assertEqual(street, 'Alta Street', 'street should be localized from its hash')
+    harness.assertEqual(crossing, 'Vespucci Boulevard', 'crossing street should be returned when present')
+    harness.assertEqual(zone, 'Downtown', 'zone should return its localized label')
+    harness.assertEqual(code, 'DOWNT', 'zone should also expose the stable engine code')
+end)
+
+harness.test('getCardinalDirection covers all eight GTA heading sectors', function()
+    local expected = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
+    for i, direction in ipairs(expected) do
+        harness.assertEqual(QB.world.getCardinalDirection((i - 1) * 45), direction,
+            ('heading sector %d should resolve correctly'):format(i))
+    end
+    harness.assertEqual(QB.world.getCardinalDirection(359), 'N', 'heading should wrap around north')
+end)
+
+harness.test('getWaypointCoords distinguishes missing and active waypoints', function()
+    local blip = 0
+    _G.GetFirstBlipInfoId = function() return blip end
+    _G.DoesBlipExist = function(value) return value == blip and value ~= 0 end
+    _G.GetBlipInfoIdCoord = function() return { x = 4, y = 5, z = 6 } end
+
+    harness.assertFalse(QB.world.getWaypointCoords(), 'no waypoint should return false')
+    blip = 7
+    local coords = QB.world.getWaypointCoords()
+    harness.assertEqual(coords.y, 5, 'active waypoint coordinates should be returned')
+end)
+
+harness.test('isSpawnClear sees invisible vehicles and honours exclusions', function()
+    reset()
+    addToPool('CVehicle', 80, 1, 0, 0, 1, false)
+    harness.assertFalse(QB.world.isSpawnClear(ORIGIN, 3), 'an invisible streamed vehicle still blocks spawning')
+    harness.assertTrue(QB.world.isSpawnClear(ORIGIN, 3, { excludeEntities = { 80 } }),
+        'explicitly excluded vehicles should not block spawning')
+end)
+
 -- Every client-realm test above has already run and reported its own
 -- assertions, so dofile-ing server.lua below overwriting
 -- QB.world.getNearbyEntities/getClosestEntity with the server realm's
@@ -244,6 +316,7 @@ dofile(repoRoot .. "modules/world/server.lua")
 
 local serverGetNearbyEntities = QB.world.getNearbyEntities
 local serverGetClosestEntity = QB.world.getClosestEntity
+local serverIsSpawnClear = QB.world.isSpawnClear
 
 harness.test("[server] getNearbyEntities sorts matches ascending by distance", function()
     serverReset()
@@ -344,6 +417,13 @@ harness.test("[server] player type enumerates via GetPlayers/GetPlayerPed, not G
 
     harness.assertEqual(#matches, 2, "both player peds should be returned")
     harness.assertEqual(matches[1].entity, 51, "the closer player ped should be first")
+end)
+
+harness.test('[server] isSpawnClear detects nearby vehicles', function()
+    serverReset()
+    addToServerPool('CVehicle', 60, 2, 0, 0)
+    harness.assertFalse(serverIsSpawnClear(ORIGIN, 3), 'nearby server vehicle should block spawning')
+    harness.assertTrue(serverIsSpawnClear(ORIGIN, 1), 'vehicle outside the radius should leave spawn clear')
 end)
 
 harness.report("world")

@@ -38,6 +38,7 @@ local function makeColonCall(name)
     end
 end
 
+---@type QBLib
 QB = setmetatable({}, {
     __index = function(t, k)
         -- Computed once per module access, not per call -- __call's own

@@ -12,14 +12,55 @@ local events = {
 
 local tokens = {}
 local registry = {}
+local rateBuckets = {}
 local pendingClientCallbacks = {}
 local requestCounter = 0
+
+local function normalizeRateLimit(opts)
+    if opts == nil then return nil end
+    assert(type(opts) == 'table', 'Callback registration options must be a table.')
+    local limit = opts.rateLimit
+    if limit == nil or limit == false then return nil end
+    assert(type(limit) == 'table', 'Callback rateLimit must be a table or false.')
+    assert(type(limit.max) == 'number' and limit.max >= 1 and limit.max % 1 == 0,
+        'Callback rateLimit.max must be a positive integer.')
+    assert(type(limit.window) == 'number' and limit.window > 0 and limit.window % 1 == 0,
+        'Callback rateLimit.window must be a positive integer in milliseconds.')
+    return { max = limit.max, window = limit.window }
+end
+
+local function clearRateLimit(name)
+    rateBuckets[name] = nil
+end
+
+local function consumeRateLimit(name, src, limit)
+    if not limit then return true end
+    local bySource = rateBuckets[name]
+    if not bySource then bySource = {}; rateBuckets[name] = bySource end
+
+    local timestamps = bySource[src] or {}
+    local now = GetGameTimer()
+    local cutoff = now - limit.window
+    local retained = {}
+    for i = 1, #timestamps do
+        if timestamps[i] > cutoff then retained[#retained + 1] = timestamps[i] end
+    end
+    timestamps = retained
+    bySource[src] = timestamps
+
+    if #timestamps >= limit.max then
+        return false, math.max(1, math.ceil(limit.window - (now - timestamps[1])))
+    end
+    timestamps[#timestamps + 1] = now
+    return true
+end
 
 -- Ownership tracking (which resource registered a given callback name, and
 -- bulk cleanup when that resource stops) is delegated to the shared registry
 -- -- see local/resources/AGENTS.md.
 local callbackOwnership = QB.resources.serverRegistry(function(name)
     registry[name] = nil
+    clearRateLimit(name)
 end)
 
 -- Seeded ONCE at load, not per token: reseeding from a time-derived value on
@@ -98,9 +139,11 @@ end
 ---most callers don't need to call QB.callback.unregister themselves.
 ---@param name string
 ---@param handler fun(src: integer, ...: any): any
-function QB.callback.register(name, handler)
+---@param opts? {rateLimit?: {max: integer, window: integer}|false}
+function QB.callback.register(name, handler, opts)
     QB.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")
+    local rateLimit = normalizeRateLimit(opts)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
@@ -112,7 +155,8 @@ function QB.callback.register(name, handler)
             :format(name, previousOwner, owner))
     end
 
-    registry[name] = handler
+    registry[name] = { handler = handler, rateLimit = rateLimit }
+    clearRateLimit(name)
     callbackOwnership.track(owner, name)
 end
 
@@ -121,6 +165,7 @@ end
 function QB.callback.unregister(name)
     QB.callback.assertName(name)
     registry[name] = nil
+    clearRateLimit(name)
     callbackOwnership.untrack(name)
 end
 
@@ -175,8 +220,14 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     if type(token) ~= "string" or type(requestId) ~= "number" or type(name) ~= "string" then return end
     if tokens[src] == nil or tokens[src] ~= token then return end
 
-    local handler = registry[name]
-    if handler == nil then return end
+    local definition = registry[name]
+    if definition == nil then return end
+    local allowed, retryAfter = consumeRateLimit(name, src, definition.rateLimit)
+    if not allowed then
+        TriggerClientEvent(events.response, src, requestId, false,
+            ('Callback rate limit exceeded; retry in %dms.'):format(retryAfter))
+        return
+    end
 
     -- table.pack, not `local ok, result = pcall(...)` -- a handler is free
     -- to return more than one value (e.g.
@@ -185,7 +236,7 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     -- `results[1]` is pcall's OWN success flag (did the handler raise a Lua
     -- error) -- a different thing from whatever the handler itself chose to
     -- return as its first value.
-    local results = table.pack(pcall(handler, src, ...))
+    local results = table.pack(pcall(definition.handler, src, ...))
     local ok = results[1]
 
     TriggerClientEvent(events.response, src, requestId, ok, table.unpack(results, 2, results.n))
@@ -222,5 +273,8 @@ end)
 
 AddEventHandler('playerDropped', function()
     tokens[source] = nil
+    for name, bySource in pairs(rateBuckets) do
+        bySource[source] = nil
+        if next(bySource) == nil then rateBuckets[name] = nil end
+    end
 end)
-

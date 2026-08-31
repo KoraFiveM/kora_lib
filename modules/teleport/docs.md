@@ -19,3 +19,23 @@ or `false` to move immediately without fading.
 QB.teleport.player(vector4(1073.0, -3102.49, -39.0, 266.61))
 QB.teleport.entity(vehicle, destination, { fade = false })
 ```
+
+## `QB.teleport.toWaypoint(opts?)`
+
+Moves the current vehicle when the local player is its driver, otherwise the
+player ped, to the active map waypoint. It launches the entity above the
+destination while collision loads, performs a bounded ground search, then
+places it on the resolved ground.
+
+Options:
+
+- `entity`: override the entity to move.
+- `fade`: `false` disables fading; a number sets its duration.
+- `launchHeight`: initial Z used while loading the destination.
+- `collisionTimeout`: maximum collision wait in milliseconds.
+- `groundAttempts`: maximum ground probes.
+- `groundRetryDelay`: milliseconds between ground probes.
+
+It returns `true` on success. A failure returns `false, error`, restores the
+original position and heading, unfreezes the entity, clears streaming focus,
+and restores the screen even when a native call fails.

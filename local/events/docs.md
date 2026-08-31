@@ -5,15 +5,18 @@ The events module lets client code call server-side logic through a single, toke
 
 ## API
 
-### `QB.events.register(name, handler)` — server
+### `QB.events.register(name, handler, opts?)` — server
 Registers `handler` to run when a client calls `QB.events.trigger(name, ...)`.
 
 #### Parameters
 - `name: string` — Logical action name (must be non-empty).
 - `handler: fun(src: integer, ...: any)` — Called with the triggering player's server ID, followed by whatever arguments the client sent.
+- `opts.rateLimit: { max: integer, window: integer } | false | nil` — optional
+  per-player, per-handler sliding window in milliseconds. Omitted/`false`
+  remains unlimited.
 
 #### Behavior
-Requests are only dispatched to `handler` if the triggering client's session token (established during the handshake) matches what the server has stored for that player. Anything else — no token, wrong token, wrong types — is dropped without running `handler` or raising an error.
+Requests are only dispatched to `handler` if the triggering client's session token (established during the handshake) matches what the server has stored for that player. Anything else — no token, wrong token, wrong types — is dropped without running `handler` or raising an error. Authentication and handler resolution happen before rate quota is consumed. Over-limit events are silently dropped.
 
 ### `QB.events.trigger(name, ...)` — client
 Triggers the handler registered under `name` on the server.
@@ -47,6 +50,8 @@ end
 - One handler per name: registering a name another resource already claimed replaces it and logs a warning naming both resources. Namespace your names (`inventory:useItem`, not `use`) to avoid it. Re-registering your own name — what happens on a resource restart — is normal and silent.
 - Every player gets a unique token issued over a private per-source handshake when they connect — it isn't shared across players and can't be guessed from the (fixed, non-secret) gateway event name.
 - The gateway event name itself (`qblib:events:invoke`) is fixed and public; the per-player token is what's checked, not the event name.
+- Rate buckets are cleared on player drop, unregister/replacement/ownership
+  cleanup, and once an expired bucket is next observed.
 - This is a mitigation against blind/static exploits and cross-player spoofing, not a substitute for validating the actual data a handler receives.
 
 Need a response back instead of fire-and-forget? See the `callback` module (`local/callback/`) — `QB.callback.register`/`QB.callback.trigger` work the same way but return a promise, and also support the reverse direction (server asking a client).

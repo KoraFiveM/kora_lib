@@ -10,7 +10,7 @@ covers the ground every FiveM resource needs: a headless NUI framework (menus,
 context menus, radial menus, input dialogs, alerts) with matching theme
 tokens, notifications, progress bars, box/sphere/poly zones with an in-world
 creator, keyboard-driven world-object interaction, a per-tick local-player
-cache, streaming/anim/fx/raycast/world helpers, status effects, commands,
+cache, reference-counted control leases, streaming/anim/fx/raycast/world helpers, status effects, commands,
 permissions, and logging. Also ships drop-in compat for the deprecated
 `qb-menu`, `qb-input`, and `qb-radialmenu` standalone resources.
 
@@ -64,6 +64,7 @@ local completed = QB.progressbar.start({
     canCancel = true,
     disable = { move = true, combat = true, car = true },
     anim = { dict = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@", clip = "machinic_loop_mechandplayer" },
+    props = { { model = "prop_tool_screwdvr01", bone = 60309 } },
 })
 
 if completed then
@@ -158,6 +159,12 @@ QB.notify.assert(payload)  QB.notify.withDefaults(payload)   -- shared
 ```lua
 QB.progressbar.start(payload)   -- returns completed, error
 QB.progressbar.cancel()  QB.progressbar.isActive()
+```
+
+### Controls (`QB.controls`)
+```lua
+local lease = QB.controls.acquire({ 24, 25 }, { inputGroup = 0, disablePlayerFiring = true })
+QB.controls.release(lease)
 ```
 
 ### Zones (`QB.zones`)
@@ -255,6 +262,39 @@ QB.permissions.getLevel(src, levels, prefix)  QB.permissions.hasPermission(src, 
 QB.logging.event(category, src, data)  QB.logging.getStats()
 ```
 
+### Discord (server)
+```lua
+QB.discord.createEmbed(options)  QB.discord.sendWebhook(url, payload, callback)
+QB.discord.botEnabled()  QB.discord.botRequest(method, route, payload, callback, auditReason)
+QB.discord.getGuild(guildId, callback)  QB.discord.getMember(guildId, userId, callback)
+QB.discord.fetchGuildRoles(guildId, callback)
+QB.discord.setMemberRoles(guildId, userId, roleIds, callback, auditReason)
+QB.discord.addMemberRole(guildId, userId, roleId, callback, auditReason)
+QB.discord.removeMemberRole(guildId, userId, roleId, callback, auditReason)
+QB.discord.createRole(guildId, role, callback, auditReason)
+QB.discord.updateRole(guildId, roleId, role, callback, auditReason)
+QB.discord.deleteRole(guildId, roleId, callback, auditReason)
+QB.discord.getChannels(guildId, callback)  QB.discord.getChannel(channelId, callback)
+QB.discord.createChannel(guildId, channel, callback, auditReason)
+QB.discord.updateChannel(channelId, attributes, callback, auditReason)
+QB.discord.deleteChannel(channelId, callback, auditReason)
+QB.discord.sendMessage(channelId, payload, callback)
+QB.discord.editMessage(channelId, messageId, payload, callback)
+QB.discord.deleteMessage(channelId, messageId, callback, auditReason)
+QB.discord.syncRoles(callback)  QB.discord.refreshMember(id, callback)
+QB.discord.getGuildRoles(guildId)  QB.discord.getRole(role, guildId)
+QB.discord.getRoles(id)  QB.discord.hasRole(id, role)  QB.discord.hasRoles(id, roles, requireAll)
+QB.discord.hasAnyRole(id, roles)  QB.discord.hasAllRoles(id, roles)
+QB.discord.giveRole(id, role, callback, auditReason)
+QB.discord.removeRole(id, role, callback, auditReason)
+```
+The bot helpers make no HTTP request unless `qblib_discord_bot_token` is set.
+`qblib_discord_guild_id` and `qblib_discord_webhook` provide optional defaults;
+the console-only `qblib_discord_sync` command plus a five-minute heartbeat keep
+online-player roles cached and (when qbsql is running) persisted. See
+[`modules/discord/docs.md`](../modules/discord/docs.md) for setup, permissions,
+payloads, cache behavior, and callbacks.
+
 ### Utilities (shared)
 ```lua
 QB.util.clamp(value, min, max)  QB.util.round(value, decimals)  QB.util.randomFloat(min, max)
@@ -287,7 +327,7 @@ Everything routes onto the `QB.nui.open*` calls above.
 
 `Config.ui.accentColor` (brand colour driving `QB.theme.tokens()`),
 `Config.notify.defaultDuration/maxDuration/defaultType/defaultPosition`,
-`Config.progressbar.maxDuration/cancelControl`, `Config.cache.tickInterval`,
+`Config.progressbar.maxDuration/maxProps/cancelControl`, `Config.cache.tickInterval`,
 `Config.zones.gridSize/tickFar/tickNear/tickInside/creator.enabled`,
 `Config.third_party_notify` (route notifications through an event instead of
 qblib's own NUI toast).

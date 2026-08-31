@@ -83,6 +83,15 @@ export interface TargetSelectPayload {
     activeIndex?: number
 }
 
+// action: "textui:set" (fire-and-forget). `false` hides the display.
+export interface TextUiPayload {
+    id: number
+    text: string
+    key?: string
+    icon?: string
+    position: "left-center" | "right-center" | "top-center" | "bottom-center"
+}
+
 /**
  * A nested level, opened when its parent item is selected instead of
  * resolving the request. Navigation happens entirely inside the NUI -- Lua

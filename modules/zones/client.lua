@@ -908,6 +908,7 @@ local function newCreatorState(zoneType, resource)
         camCoords = nil,
         camPitch = 0.0,
         camYaw = 0.0,
+        controlLease = nil,
         size = creator.defaultBoxSize,
         height = creator.defaultBoxHeight,
         rotation = 0.0,
@@ -1053,10 +1054,19 @@ end
 ---both a successful confirm (`{ type, opts }`) and a cancel (`nil`), which
 ---otherwise differed only in which value they resolved with.
 ---@param value any
+local function releaseCreatorControls(state)
+    if not state or not state.controlLease then return end
+    QB.controls.release(state.controlLease)
+    state.controlLease = nil
+end
+
 local function resolveCreator(value)
     local state = creatorState
     creatorState = nil
-    if state then state.promise:resolve(value) end
+    if state then
+        releaseCreatorControls(state)
+        state.promise:resolve(value)
+    end
 end
 
 -- Shift reverses the cycle direction (Shift+Tab steps backwards) and speeds up
@@ -1352,11 +1362,6 @@ local function ensureCreatorThread(state)
         -- radar) -- leaving the player stuck frozen with no way out.
         local ok, err = pcall(function()
         while creatorState == state do
-            DisableControlAction(0, 1, true)  -- LookLeftRight (mouse X)
-            DisableControlAction(0, 2, true)  -- LookUpDown (mouse Y)
-            DisableControlAction(0, 30, true) -- MoveLeftRight (A/D)
-            DisableControlAction(0, 31, true) -- MoveUpDown (W/S)
-
             local lookX = GetDisabledControlNormal(0, 1)
             local lookY = GetDisabledControlNormal(0, 2)
             local strafe = GetDisabledControlNormal(0, 30)
@@ -1486,6 +1491,8 @@ local function ensureCreatorThread(state)
             end
         end
 
+        releaseCreatorControls(state)
+
         -- Unconditionally restored, even if hideRadar was switched off
         -- mid-session or the loop above crashed, so the creator can never be
         -- what leaves a player staring at a missing minimap.
@@ -1514,9 +1521,16 @@ end
 -- until they reconnect. Immediate, not eased: there's no gameplay camera
 -- transition worth easing into when the resource providing it is already gone.
 AddEventHandler('onClientResourceStop', function(resourceName)
-    if resourceName ~= GetCurrentResourceName() then return end
     if not creatorState then return end
 
+    if resourceName == creatorState.resource and resourceName ~= GetCurrentResourceName() then
+        resolveCreator(nil)
+        return
+    end
+
+    if resourceName ~= GetCurrentResourceName() then return end
+
+    releaseCreatorControls(creatorState)
     FreezeEntityPosition(PlayerPedId(), false)
     DestroyCam(creatorState.cam, false)
     RenderScriptCams(false, false, 0, true, true)
@@ -1552,7 +1566,15 @@ local function beginCreator(zoneType, resource, existingOpts)
     -- guaranteed to exist before any keybind handler (creatorPlace, in
     -- particular) could possibly run -- rather than racing the thread's own
     -- startup.
-    state.cam, state.camCoords, state.camPitch, state.camYaw = startCreatorCamera()
+    state.controlLease = QB.controls.acquire({ 1, 2, 30, 31 })
+
+    local started, cam, camCoords, camPitch, camYaw = pcall(startCreatorCamera)
+    if not started then
+        creatorState = nil
+        releaseCreatorControls(state)
+        error(cam, 0)
+    end
+    state.cam, state.camCoords, state.camPitch, state.camYaw = cam, camCoords, camPitch, camYaw
 
     ensureCreatorThread(state)
     QB.nui.send("zoneCreator:start", { type = zoneType })
