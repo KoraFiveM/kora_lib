@@ -9,3 +9,41 @@ Small shared, dependency-free helpers:
 - `QB.util.weightedChoice(list)` selects from `{ value, positiveWeight }`
   pairs; weights are relative and need not sum to 1 or 100.
 - `QB.util.tableContains(table, value)` scans values for equality.
+- `QB.util.lerp(a, b, t)` linear interpolation; `t` is **not** clamped.
+
+## Vector helpers (shared)
+
+These accept `vector3`/`vector4`/`{x, y, z}` interchangeably and always **return
+a plain `{x, y, z}` table**, never a CfxLua `vector3`. Two reasons: this file is
+shared and loads in the plain-Lua smoke-test harness where `vector3` doesn't
+exist, and a plain table survives `json.encode` and the exports boundary
+unchanged, which a `vector3` does not.
+
+Names are flat (`vecAdd`, not `vec.add`) because `build/finalise.lua` only
+exports functions sitting directly on the module table — a nested sub-table
+would be invisible to every other resource.
+
+- `QB.util.vecAdd(a, b)`, `QB.util.vecSub(a, b)`, `QB.util.vecScale(v, scalar)`
+- `QB.util.vecLength(v)`
+- `QB.util.vecDistance(a, b)` — 3D
+- `QB.util.vecDistance2d(a, b)` — ground-plane, ignoring `z`. The right measure
+  for "how far away is that call": a caller three storeys up isn't 30 metres of
+  driving away.
+- `QB.util.vecNormalize(v)` — a zero-length vector returns `{0, 0, 0}` rather
+  than producing NaNs.
+- `QB.util.headingToDirection(heading)` / `QB.util.directionToHeading(v)` — GTA
+  heading convention (degrees, `0` = north, increasing counter-clockwise).
+- `QB.util.bearing(origin, target)` — compass bearing from one point to another.
+  Pair it with `QB.world.getCardinalDirection(heading)` for an `"N"`/`"NE"`/…
+  label; there is no compass-point helper here because that one already exists.
+
+## Screen projection (client only)
+
+Lives in `modules/util/client.lua`; both files populate the same `QB.util`
+table.
+
+- `QB.util.worldToScreen(coords)` → `x, y, onScreen`. Normalised `0..1`, the
+  range FiveM's own draw natives use — **not** pixels. `x`/`y` are meaningless
+  when `onScreen` is false, so always gate on it.
+- `QB.util.worldToScreenPixels(coords)` → `x, y, onScreen`, using the client's
+  current resolution.

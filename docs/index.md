@@ -373,10 +373,37 @@ payloads, cache behavior, and callbacks.
 ```lua
 QB.util.clamp(value, min, max)  QB.util.round(value, decimals)  QB.util.randomFloat(min, max)
 QB.util.weightedChoice(list)  QB.util.tableContains(t, value)  QB.util.deepClone(value)
+QB.util.lerp(a, b, t)
+QB.util.vecAdd/vecSub/vecScale/vecLength/vecNormalize(...)
+QB.util.vecDistance(a, b)  QB.util.vecDistance2d(a, b)   -- 2d ignores z; the right "how far is that call"
+QB.util.headingToDirection(heading)  QB.util.directionToHeading(v)  QB.util.bearing(origin, target)
+QB.util.worldToScreen(coords)  QB.util.worldToScreenPixels(coords)   -- client
 QB.print.debug/info/warn/error/success(...)
 QB.loops.controlled(call, tries, timeout, backoff)
 QB.lang(key, ...)
 ```
+
+### Timers (`QB.timers`, shared)
+```lua
+QB.timers.setInterval(fn, ms)   QB.timers.clearInterval(id)
+QB.timers.setTimeout(fn, ms)    QB.timers.clearTimeout(id)
+QB.timers.debounce(fn, wait)    -- trailing edge; .cancel() / .isPending()
+QB.timers.throttle(fn, interval)-- leading edge, drops (never queues); .reset() / .remaining()
+```
+Every timer is owned by the resource that created it and cancelled when that
+resource stops. `QB.loops.controlled` is the sibling for "poll until true, then
+stop"; this module is for "run every N ms until I say stop".
+
+### Sound (`QB.sound`, client)
+```lua
+QB.sound.playFrontend(name, set, options)          -- returns a stoppable sound id
+QB.sound.playFromCoords(coords, name, set, options)
+QB.sound.playFromEntity(entity, name, set, options)
+QB.sound.stop(soundId)  QB.sound.isLive(soundId)
+```
+Sound ids are a small finite pool, so every id allocated here is auto-released
+(`Config.sound.defaultReleaseAfter`), released early by `stop`, and swept when
+the owning resource stops.
 
 ### Callbacks / events (`QB.callback`, `QB.events`)
 ```lua

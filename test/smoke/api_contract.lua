@@ -13,17 +13,35 @@ local function readFile(path)
     return contents
 end
 
-local function sourceFiles()
-    local command = ('cd %q && rg -l %q local modules --glob %q'):format(
-        repoRoot,
-        '^function QB\\.',
-        '*.lua'
-    )
-    local pipe = assert(io.popen(command, 'r'))
+local function discover(command)
+    local pipe = io.popen(command, 'r')
+    if not pipe then return nil end
+
     local files = {}
     for path in pipe:lines() do files[#files + 1] = path end
-    local ok = pipe:close()
-    if not ok then error('failed to discover public QB functions', 2) end
+
+    -- io.popen's close status reflects the shell pipeline, so a missing binary
+    -- and a genuine "no matches" both land here -- the emptiness check below is
+    -- what actually distinguishes them.
+    pipe:close()
+
+    if #files == 0 then return nil end
+    return files
+end
+
+local function sourceFiles()
+    -- ripgrep when available, POSIX grep otherwise. rg is not installed
+    -- everywhere this suite runs, and without a fallback this whole contract
+    -- check silently stopped executing -- which is exactly the failure mode it
+    -- exists to catch elsewhere.
+    local files = discover(('cd %q && rg -l %q local modules --glob %q 2>/dev/null'):format(
+        repoRoot, '^function QB\\.', '*.lua'
+    )) or discover(('cd %q && grep -rlE %q --include=%q local modules 2>/dev/null'):format(
+        repoRoot, '^function QB\\.', '*.lua'
+    ))
+
+    if not files then error('failed to discover public QB functions', 2) end
+
     table.sort(files)
     return files
 end

@@ -587,12 +587,14 @@
 ---@field require QBLibRequire
 ---@field resources QBLibResources
 ---@field rewards QBLibRewards
+---@field sound QBLibSound
 ---@field state QBLibState
 ---@field status QBLibStatus
 ---@field stream QBLibStream
 ---@field teleport QBLibTeleport
 ---@field textui QBLibTextUI
 ---@field theme QBLibTheme
+---@field timers QBLibTimers
 ---@field util QBLibUtil
 ---@field vehicle QBLibVehicle
 ---@field visuals QBLibVisuals
@@ -841,6 +843,19 @@
 ---@class QBLibRewards
 ---@field generate fun(items: QBRewardItem[], opts?: QBRewardOptions): table[] [shared]
 
+---@class QBSoundOptions
+---@field network? boolean Play for nearby players too, rather than only locally. Defaults to false.
+---@field range? number Audible range in metres, world sounds only. Defaults to Config.sound.defaultRange.
+---@field bank? string Audio bank to request (and wait for) before playing.
+---@field releaseAfter? number Milliseconds before the sound id is auto-released. Defaults to Config.sound.defaultReleaseAfter.
+
+---@class QBLibSound
+---@field playFrontend fun(name: string, set: string, options?: QBSoundOptions): number|false, string? [client]
+---@field playFromCoords fun(coords: QBCoords, name: string, set: string, options?: QBSoundOptions): number|false, string? [client]
+---@field playFromEntity fun(entity: number, name: string, set: string, options?: QBSoundOptions): number|false, string? [client]
+---@field stop fun(soundId: number): boolean, string? [client]
+---@field isLive fun(soundId: number): boolean [client]
+
 ---@class QBLibState
 ---@field onChange fun(keyFilter: string?, bagFilter: string?, handler: fun(change: QBStateChange)): integer [client/server]
 ---@field offChange fun(listenerId: integer): boolean [client/server]
@@ -885,6 +900,23 @@
 ---@field tokens fun(accentColor?: string): table<string, string> [shared]
 ---@field push fun() [client]
 
+---@class QBDebounced
+---@field cancel fun(): boolean Drops a pending run without firing it.
+---@field isPending fun(): boolean
+
+---@class QBThrottled
+---@field reset fun() Clears the cooldown so the next call passes through.
+---@field remaining fun(): integer Milliseconds until the next call is allowed; 0 when ready.
+
+---@class QBLibTimers
+---@field setInterval fun(fn: fun(), interval: number): integer [shared]
+---@field setTimeout fun(fn: fun(), delay: number): integer [shared]
+---@field clearInterval fun(id: integer): boolean [shared]
+---@field clearTimeout fun(id: integer): boolean [shared]
+---@field debounce fun(fn: fun(...), wait: number): QBDebounced [shared]
+---@field throttle fun(fn: fun(...), interval: number): QBThrottled [shared]
+---@field count fun(): integer [shared]
+
 ---@class QBLibUtil
 ---@field deepClone fun(value: any): any [shared]
 ---@field clamp fun(value: number, min: number, max: number): number [shared]
@@ -892,6 +924,19 @@
 ---@field randomFloat fun(min: number, max: number): number [shared]
 ---@field weightedChoice fun(list: {[1]: any, [2]: number}[]): any [shared]
 ---@field tableContains fun(t: table, value: any): boolean [shared]
+---@field lerp fun(a: number, b: number, t: number): number [shared]
+---@field vecAdd fun(a: QBCoords, b: QBCoords): QBCoords [shared]
+---@field vecSub fun(a: QBCoords, b: QBCoords): QBCoords [shared]
+---@field vecScale fun(v: QBCoords, scalar: number): QBCoords [shared]
+---@field vecLength fun(v: QBCoords): number [shared]
+---@field vecDistance fun(a: QBCoords, b: QBCoords): number [shared]
+---@field vecDistance2d fun(a: QBCoords, b: QBCoords): number [shared]
+---@field vecNormalize fun(v: QBCoords): QBCoords [shared]
+---@field headingToDirection fun(heading: number): QBCoords [shared]
+---@field directionToHeading fun(v: QBCoords): number [shared]
+---@field bearing fun(origin: QBCoords, target: QBCoords): number [shared]
+---@field worldToScreen fun(coords: QBCoords): number, number, boolean [client]
+---@field worldToScreenPixels fun(coords: QBCoords): number, number, boolean [client]
 
 ---@class QBLibVehicle
 ---@field requestControl fun(entity: integer, timeout?: integer): boolean, string? [client]

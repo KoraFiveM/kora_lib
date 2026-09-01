@@ -44,6 +44,17 @@ Config.notify = {
     defaultPosition = "top-right",-- "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"
 }
 
+Config.sound = {
+    -- ms before a sound id allocated by QB.sound is automatically released.
+    -- GTA's sound-id pool is small and finite, so an id that is never released
+    -- permanently reduces how many sounds the client can play at once. Ten
+    -- seconds comfortably outlives every alert tone and UI blip; a longer
+    -- looping sound should pass an explicit `releaseAfter` (or 0 to opt out
+    -- and call QB.sound.stop itself).
+    defaultReleaseAfter = 10000,
+    defaultRange = 30.0, -- metres; audible range for QB.sound.playFromCoords when `range` is omitted
+}
+
 Config.blips = {
     defaultSprite = 1,       -- default SetBlipSprite when options.sprite is omitted
     defaultColor = 0,        -- default SetBlipColour when options.color is omitted
