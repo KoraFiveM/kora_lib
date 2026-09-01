@@ -1,20 +1,50 @@
 # Permissions module
 
 ## Overview
-A thin wrapper over FiveM's ace/principal system for checking a player's privilege level. The level vocabulary (e.g. `'user'`/`'mod'`/`'admin'`/`'god'`) and the ace namespace prefix (e.g. `'qbcore'`) are supplied by the caller, so multiple resources can share this logic under their own principal namespace.
+The central server-side permission gateway for FiveM ACEs and optional Discord
+roles. The level vocabulary (for example `'user'`/`'mod'`/`'admin'`/`'god'`)
+and ACE namespace prefix (for example `'qbcore'`) are supplied by the caller,
+so qblib does not impose a framework-specific permission model.
+
+ACE checks are always active. Discord roles are additive: a configured role
+can grant access, but a disabled bot, stale role cache, or lookup failure
+cannot take away an ACE grant or grant access by accident. In particular,
+`group.admin` is checked directly for the `admin` level even when Discord role
+mapping is enabled.
+
+The final argument may be the legacy prefix string or an options table:
+
+```lua
+local options = {
+    prefix = 'qbcore',
+    discordRoles = {
+        mod = { 'Moderator' },
+        admin = { '123456789012345678' }, -- role IDs avoid duplicate-name ambiguity
+        god = { 'Owner' },
+    },
+}
+```
+
+Omit `discordRoles` (or leave it empty) for ACE-only behavior. Mapped values
+may be one role name/ID or an array; matching any mapped role grants that
+permission. Discord checks use `QB.discord.hasAnyRole`, including its bot,
+identifier, freshness, and fail-closed rules.
 
 ## API
 
-### `QB.permissions.getLevel(src, levels, prefix)` -- server
+### `QB.permissions.getLevel(src, levels, prefixOrOptions?)` -- server
 Resolves the highest privilege level a player holds.
 
 #### Parameters
 - `src: integer` -- player server id.
 - `levels: string[]` -- ordered most-privileged first. `'user'`, if present, always matches.
-- `prefix: string` -- ace/group principal namespace, e.g. `"qbcore"`.
+- `prefixOrOptions: string | table | nil` -- an ACE prefix string, or
+  `{ prefix?: string, discordRoles?: table<string, string|string[]> }`.
 
 #### Returns
-- `string` -- the first (most-privileged) level in `levels` the player has via `<prefix>.<level>` or `group.<level>`, or `'user'` if none match and `'user'` isn't itself in `levels`.
+- `string` -- the first (most-privileged) level in `levels` the player has via
+  `<prefix>.<level>`, `group.<level>`, or a mapped Discord role; otherwise
+  `'user'`.
 
 #### Example
 ```lua
@@ -22,16 +52,31 @@ local LEVELS = { 'god', 'admin', 'mod', 'user' }
 local level = QB.permissions.getLevel(source, LEVELS, 'qbcore')
 ```
 
-### `QB.permissions.hasPermission(src, permission, prefix)` -- server
+### `QB.permissions.hasLevel(src, required, levels, prefixOrOptions?)` -- server
+Checks a ranked requirement using the same ACE/Discord resolution as
+`getLevel`. `levels` is ordered most-privileged first, so an `admin` result
+satisfies a `mod` requirement without ACE principal chaining.
+
+```lua
+local LEVELS = { 'god', 'admin', 'mod', 'user' }
+if QB.permissions.hasLevel(source, 'mod', LEVELS, options) then
+    -- admin and god also pass
+end
+```
+
+### `QB.permissions.hasPermission(src, permission, prefixOrOptions?)` -- server
 Checks whether a player holds one specific permission.
 
 #### Parameters
 - `src: integer`
 - `permission: string` -- `'user'` always returns `true`.
-- `prefix: string` -- ace/group/command principal namespace.
+- `prefixOrOptions: string | table | nil` -- an ACE prefix string, or the
+  options table described above.
 
 #### Returns
-- `boolean` -- `true` if `permission == 'user'`, or the player has `<prefix>.<permission>`, `group.<permission>`, or `command.<permission>`.
+- `boolean` -- `true` if `permission == 'user'`, or the player has
+  `<prefix>.<permission>`, `group.<permission>`, `command.<permission>`, or a
+  mapped Discord role.
 
 #### Example
 ```lua
@@ -47,4 +92,6 @@ exports.qblib:permissions_hasPermission(source, 'admin', 'myresource')
 
 ## Notes
 - Grants are ordinary ace principals -- add them with `add_ace`/`add_principal` in `server.cfg` or at runtime via `ExecuteCommand`, same as any other FXServer permission.
+- ACEs are evaluated before Discord, so `group.admin` continues to work when
+  the bot is disabled or its cache is unavailable.
 - This module only *checks* permissions. Granting a runtime permission (e.g. tying it to a player identity) is left to the caller -- qbcore's `Core.permissions.addPermission` is one example.

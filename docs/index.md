@@ -181,6 +181,16 @@ QB.progressbar.start(payload)   -- returns completed, error
 QB.progressbar.cancel()  QB.progressbar.isActive()
 ```
 
+### Entity placement (`QB.placement`)
+```lua
+local result = QB.placement.start('prop_bin_08') -- or /qb_place prop_bin_08
+QB.placement.isActive()
+QB.placement.generateSnippet(result)
+```
+Temporary local preview with a free camera, arrow/Page-key movement,
+pitch/roll/yaw rotation, and a copyable transform summary. The preview is
+always deleted when the session finishes.
+
 ### Controls (`QB.controls`)
 ```lua
 local lease = QB.controls.acquire({ 24, 25 }, { inputGroup = 0, disablePlayerFiring = true })
@@ -317,7 +327,9 @@ QB.minigames.consumeProof(src, token, gameType) -- server
 ```lua
 QB.commands.add(name, help, args, argsRequired, handler, opts)
 QB.commands.remove(name)  QB.commands.refresh(src)  QB.commands.list()
-QB.permissions.getLevel(src, levels, prefix)  QB.permissions.hasPermission(src, permission, prefix)
+QB.permissions.getLevel(src, levels, prefixOrOptions)
+QB.permissions.hasLevel(src, required, levels, prefixOrOptions)
+QB.permissions.hasPermission(src, permission, prefixOrOptions)
 QB.logging.event(category, src, data)  QB.logging.getStats()
 ```
 `opts.keybind` can define `description`, primary mapper/key, and secondary

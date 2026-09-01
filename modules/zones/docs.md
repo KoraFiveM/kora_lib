@@ -88,6 +88,8 @@ QB.zones.point({ coords = vector3(100.0, 200.0, 30.0) })
 ### `QB.zones.startCreator(zoneType, existingOpts)`
 Starts the in-world zone creator: fly its own scripted camera to survey the build site, aim and press the placement key to mark points against the world (no coordinate typing), adjust size/rotation/radius/thickness with the scroll wheel, then confirm to open a summary dialog with the generated `QB.zones.<type>({...})` snippet and a copy-to-clipboard button.
 
+The creator is a coordinate/configuration builder only. Confirming removes its preview and returns the generated options; it does **not** register a live zone. Create one explicitly with `QB.zones[result.type](result.opts)` if the calling resource needs it at runtime.
+
 The creator spins up its own free-flying camera rather than using your normal view, so you can survey a build site from angles walking wouldn't reach. It blends in smoothly from wherever the gameplay camera already was, and blends back out the same way when the creator ends (cancel or confirm) — both eased over `Config.zones.creator.cameraTransitionMs`.
 
 #### Parameters
@@ -124,7 +126,7 @@ RegisterCommand('my_zone_tool', function()
     local result = QB.zones.startCreator("box")
     if not result then return print("cancelled (or failed -- see qblib's own console)") end
 
-    print("created:", QB.zones.generateSnippet(result.type, result.opts))
+    print("captured:", QB.zones.generateSnippet(result.type, result.opts))
 end, false)
 ```
 

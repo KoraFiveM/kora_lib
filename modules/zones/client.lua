@@ -574,7 +574,7 @@ local function ensureTickThread()
     CreateThread(tickLoop)
 end
 
-local function createZone(zoneType, opts, initShape, resourceOverride)
+local function createZone(zoneType, opts, initShape)
     assertCommonOptions(opts)
 
     local zone = {
@@ -585,7 +585,7 @@ local function createZone(zoneType, opts, initShape, resourceOverride)
         inside = opts.inside,
         debug = false,
         data = opts.data,
-        resource = resourceOverride or GetInvokingResource() or GetCurrentResourceName(),
+        resource = GetInvokingResource() or GetCurrentResourceName(),
         isInside = false,
         cells = {},
         removed = false,
@@ -1217,7 +1217,6 @@ local function openConfirmDialog(state)
     end
 
     if response and response.confirmed then
-        createZone(state.type, opts, initFnByType[state.type], state.resource)
         resolveCreator({ type = state.type, opts = opts })
     end
     -- otherwise ("keep editing"): creatorState is untouched, the preview thread carries on
@@ -1608,6 +1607,13 @@ function QB.zones.startCreator(zoneType, existingOpts)
         return settleForExport(p)
     end
 
+    local placement = rawget(QB, "placement")
+    if placement and type(placement.isActive) == "function" and placement.isActive() then
+        local p = promise.new()
+        p:reject("Entity placement is already active.")
+        return settleForExport(p)
+    end
+
     if creatorState then
         local p = promise.new()
         p:reject("A zone creator is already running.")
@@ -1682,7 +1688,7 @@ RegisterCommand("qb_zonecreator", function(_, args)
     if not ok then
         creatorLog(("zone creator failed: %s"):format(tostring(result)))
     elseif result then
-        creatorLog(("created a %s zone."):format(result.type))
+        creatorLog(("captured a %s zone definition; no live zone was registered."):format(result.type))
     else
         creatorLog("zone creator cancelled.")
     end

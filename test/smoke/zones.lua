@@ -44,6 +44,10 @@ QB.keybind = {
         return { remove = function() return true end }
     end,
 }
+local placementActive = false
+QB.placement = {
+    isActive = function() return placementActive end,
+}
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
 _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
 _G.StartShapeTestRay = function() return 1 end
@@ -430,6 +434,14 @@ harness.test("startCreator rejects a second call while a creator is already runn
     harness.assertEqual(first.value, nil, "a cancelled creator should resolve with nil, not an error")
 end)
 
+harness.test("startCreator rejects while entity placement is active", function()
+    placementActive = true
+    local p = QB.zones.startCreator("box")
+    placementActive = false
+
+    harness.assertEqual(p.state, "rejected", "zone creation must not overlap entity placement")
+end)
+
 harness.test("isCreatorActive reflects whether a creator session is running", function()
     harness.assertFalse(QB.zones.isCreatorActive(), "no creator has been started yet")
 
@@ -560,6 +572,31 @@ harness.test("startCreator(type, existingOpts) seeds the creator from an existin
     harness.assertEqual(p.value.opts.rotation, 90, "the seeded rotation should carry through")
 end)
 
+harness.test("confirming a poly creator returns its coordinates without registering a live zone", function()
+    local p = QB.zones.startCreator("poly", {
+        points = {
+            { x = -10, y = -10, z = 0 },
+            { x = 10,  y = -10, z = 0 },
+            { x = 0,   y = 10,  z = 0 },
+        },
+        thickness = 4,
+    })
+
+    nextNuiResponse = { confirmed = true }
+    registeredCommands["qblib_zonecreator_confirm"]()
+    nextNuiResponse = nil
+
+    harness.assertEqual(p.state, "resolved", "confirming should return the completed poly definition")
+    harness.assertEqual(#p.value.opts.points, 3, "all captured poly coordinates should be returned")
+
+    -- The mock player is at the origin, inside the polygon above. Before this
+    -- regression was fixed, confirmation registered that polygon and the next
+    -- zone tick reported it here even though the creator is only a builder.
+    net.step()
+    harness.assertEqual(#QB.zones.getInside(), 0,
+        "the creator preview must disappear without leaving a registered zone behind")
+end)
+
 harness.test("a debug box zone draws one wireframe line per edge plus wall faces", function()
     drawLineCalls = 0
     drawPolyCalls = 0
@@ -628,14 +665,9 @@ end)
 harness.test("QB.zones.setDebug(nil, true) flips every registered zone at once", function()
     net.step() -- drain the previous test's now-empty debug thread, same as above
 
-    -- zoneRegistry may already hold a zone this file's earlier
-    -- "startCreator(type, existingOpts) seeds the creator" test left behind
-    -- (a real confirmed zone this file never got a handle back for, so
-    -- there's nothing to call remove() on) -- QB.zones.setDebug(nil, ...)
-    -- deliberately reaches every registered zone, that one included, so
-    -- "baseline" below measures whatever that already draws before this
-    -- test's own two zones exist. The assertions then check the DELTA those
-    -- two contribute rather than assuming the registry is otherwise empty.
+    -- Measure the existing registry's drawing baseline before adding this
+    -- test's two zones. The assertions then check the delta they contribute
+    -- rather than depending on global test state.
     QB.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
@@ -689,12 +721,8 @@ end)
 harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", function()
     net.step() -- drain again, same reasoning as above
 
-    -- Same reasoning as the QB.zones.setDebug(nil, ...) test above:
-    -- qb_zonedebug reaches every registered zone, including the confirmed
-    -- creator zone this file never got a handle back for, so baseline
-    -- captures whatever that already draws before this test's own zone is
-    -- added -- the assertions below check the delta that one zone
-    -- contributes, not an absolute total.
+    -- Same reasoning as the QB.zones.setDebug(nil, ...) test above: capture
+    -- the current baseline, then assert the delta from this test's own zone.
     QB.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()

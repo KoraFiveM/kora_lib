@@ -44,6 +44,46 @@ harness.test("getLevel also matches via the shared group.<level> namespace", fun
     harness.assertEqual(QB.permissions.getLevel(2, LEVELS, "qbcore"), "god", "a group.god grant should resolve to 'god' regardless of prefix")
 end)
 
+harness.test("group.admin ACE remains authoritative when Discord is enabled", function()
+    grants = {}
+    grant(7, "group.admin")
+    local discordChecks = 0
+    QB.discord.hasAnyRole = function()
+        discordChecks = discordChecks + 1
+        error("Discord cache unavailable")
+    end
+
+    local options = { prefix = "qbcore", discordRoles = { admin = { "Administrator" } } }
+    harness.assertEqual(QB.permissions.getLevel(7, LEVELS, options), "admin", "group.admin must grant admin")
+    harness.assertTrue(QB.permissions.hasPermission(7, "admin", options), "group.admin must pass exact checks")
+    harness.assertEqual(discordChecks, 0, "an ACE grant should not depend on Discord")
+end)
+
+harness.test("Discord roles optionally grant mapped levels and cascade", function()
+    grants = {}
+    QB.discord.hasAnyRole = function(src, roles)
+        return src == 8 and roles[1] == "Administrator"
+    end
+
+    local options = {
+        prefix = "qbcore",
+        discordRoles = { admin = { "Administrator", "Owner" } },
+    }
+    harness.assertEqual(QB.permissions.getLevel(8, LEVELS, options), "admin", "mapped role should resolve its level")
+    harness.assertTrue(QB.permissions.hasLevel(8, "mod", LEVELS, options), "admin should satisfy the lower mod level")
+    harness.assertFalse(QB.permissions.hasLevel(8, "god", LEVELS, options), "admin should not satisfy god")
+    harness.assertTrue(QB.permissions.hasPermission(8, "admin", options), "mapped role should pass an exact check")
+end)
+
+harness.test("Discord failures fail closed without granting access", function()
+    grants = {}
+    QB.discord.hasAnyRole = function() return false, "Discord member role cache is stale." end
+    local options = { prefix = "qbcore", discordRoles = { admin = "Administrator" } }
+
+    harness.assertEqual(QB.permissions.getLevel(10, LEVELS, options), "user", "stale roles must not resolve a level")
+    harness.assertFalse(QB.permissions.hasPermission(10, "admin", options), "stale roles must not grant access")
+end)
+
 harness.test("getLevel is scoped by prefix: a grant under a different prefix does not match", function()
     grants = {}
     grant(3, "otherresource.admin")
@@ -71,6 +111,12 @@ harness.test("hasPermission falls back to command.<permission>", function()
     grants = {}
     grant(6, "command.admin")
     harness.assertTrue(QB.permissions.hasPermission(6, "admin", "qbcore"), "a command-scoped grant should allow just that permission")
+end)
+
+harness.test("prefix is optional while shared group ACEs still work", function()
+    grants = {}
+    grant(11, "group.admin")
+    harness.assertTrue(QB.permissions.hasPermission(11, "admin"), "group.admin should not require a resource prefix")
 end)
 
 harness.report("permissions")

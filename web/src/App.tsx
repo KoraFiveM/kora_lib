@@ -8,6 +8,8 @@ import { Toast } from "@/components/notify/Toast"
 import { ProgressBar } from "@/components/progressbar/ProgressBar"
 import { ZoneCreatorHud } from "@/components/zones/ZoneCreatorHud"
 import { ZoneConfirmDialog } from "@/components/zones/ZoneConfirmDialog"
+import { PlacementHud } from "@/components/placement/PlacementHud"
+import { PlacementConfirmDialog } from "@/components/placement/PlacementConfirmDialog"
 import { MinigameContainer } from "@/components/minigames/MinigameContainer"
 import { DevHarness } from "@/components/dev/DevHarness"
 import { ThemeSynchronizer } from "@/components/theme/ThemeSynchronizer"
@@ -44,6 +46,8 @@ export default function App() {
             <ProgressBar />
             <ZoneCreatorHud />
             <ZoneConfirmDialog />
+            <PlacementHud />
+            <PlacementConfirmDialog />
             <MinigameContainer />
             <DevHarness />
         </>

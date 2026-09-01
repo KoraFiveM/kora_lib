@@ -25,6 +25,9 @@ provide 'qb-minigames'
 -- It must be listed here so the client can fetch it.
 files {
     'init.lua',
+    -- QB.require executes in each consumer's Lua environment rather than as a
+    -- qblib export, so init.lua loads this small factory on demand.
+    'modules/require/loader.lua',
     'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
     -- Lookup bundles are loaded on demand with LoadResourceFile; source JSON
     -- stays out of the runtime resource (source.json only records provenance).

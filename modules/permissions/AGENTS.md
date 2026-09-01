@@ -1,16 +1,29 @@
 # permissions module guide
 
 ## Purpose
-A thin, generic wrapper over FiveM's ace/principal system. Moved out of qbcore: `getLevel`/`hasPermission` never touched qbcore's player/identity model, only ace principals -- the only part of qbcore's old permissions module that genuinely needs the framework is `addPermission` (it resolves a player's identity to grant a runtime principal), which stayed in qbcore.
+The central, generic server-side wrapper over FiveM's ace/principal system and
+optional `QB.discord` role authorization. It remains independent of qbcore's
+player/identity model; runtime principal mutation belongs to consumers such as
+qbcore.
 
 ## Why the level list and prefix are parameters, not config
-qbcore's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its ace namespace (`qbcore.<level>`) are product choices, not something qblib should hardcode -- qblib is a shared resource, and baking in one consumer's vocabulary would make it awkward for anything else (e.g. a standalone admin resource) to use the same ACE-checking logic under its own namespace without colliding with or being confused for qbcore's. `getLevel(src, levels, prefix)` and `hasPermission(src, permission, prefix)` take both as arguments instead; qbcore's own `Core.permissions.getPermission`/`hasPermission` are one-line wrappers that supply its `LEVELS` table and `'qbcore'` prefix.
+qbcore's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its ace namespace (`qbcore.<level>`) are product choices, not something qblib should hardcode. `getLevel`, `hasLevel`, and `hasPermission` take a legacy prefix string or `{ prefix?, discordRoles? }`; qbcore can keep passing `'qbcore'`, while an admin resource can opt into its own Discord role map.
 
 ## Implementation notes
 - **`getLevel` always matches `'user'`** if it's in the `levels` list, regardless of any ace grant -- it's the vocabulary's floor, not something that needs an explicit principal.
 - **Both `group.<level>` and `<prefix>.<level>`/`<prefix>.<permission>` are checked** -- `group.*` lets a server reuse ace groups already granted for other purposes (e.g. a `group.admin` set up for a different resource) without redeclaring them under this prefix too.
 - **`hasPermission` additionally checks `command.<permission>`** -- a narrower principal for granting one specific command/permission string without granting the whole level it would otherwise imply.
+- **Discord is additive and fail-closed.** Only explicitly mapped levels or
+  permissions consult `QB.discord.hasAnyRole`. Bot/cache/identifier errors do
+  not grant access and never suppress an ACE result. Keep ACE checks first so
+  `group.admin` never depends on Discord availability.
+- **`hasLevel` owns cascading.** The supplied level array is ordered highest
+  to lowest; a resolved `admin` therefore satisfies a `mod` requirement without
+  manual ACE principal chaining.
 - **Server-only** -- `IsPlayerAceAllowed` only exists server-side; there's nothing for a client realm to do here.
 
 ## Testing
-`test/smoke/permissions.lua` mocks `IsPlayerAceAllowed` with a settable principal set per test. Covers: `getLevel` returning the highest matching level and falling back to `'user'`, `group.<level>` and `<prefix>.<level>` both granting a level, `hasPermission` always allowing `'user'`, and its `command.<permission>` fallback.
+`test/smoke/permissions.lua` mocks `IsPlayerAceAllowed` and
+`QB.discord.hasAnyRole`. It covers ACE precedence (including `group.admin`),
+Discord mapping/cascading/fail-closed behavior, optional prefixes, and exact
+`command.<permission>` checks.

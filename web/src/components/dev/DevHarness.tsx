@@ -9,6 +9,9 @@ import type {
     OpenInputDialogPayload,
     OpenMenuPayload,
     OpenRadialMenuPayload,
+    PlacementConfirmPayload,
+    PlacementHudSnapshot,
+    PlacementStartPayload,
     ProgressStartPayload,
     ZoneCreatorConfirmPayload,
     ZoneCreatorHudSnapshot,
@@ -68,6 +71,30 @@ const SAMPLE_HUD_SNAPSHOT: ZoneCreatorHudSnapshot = {
     aiming: true,
     isShiftHeld: false,
     stepSize: 0.25,
+}
+
+const SAMPLE_PLACEMENT_START: PlacementStartPayload = {
+    model: "prop_tool_bench02",
+    bindings: {
+        forward: "UP",
+        backward: "DOWN",
+        left: "LEFT",
+        right: "RIGHT",
+        up: "PAGEUP",
+        down: "PAGEDOWN",
+        rotateLeft: "LBRACKET",
+        rotateRight: "RBRACKET",
+        cycle: "TAB",
+        confirm: "RETURN",
+        cancel: "X",
+    },
+}
+
+const SAMPLE_PLACEMENT_HUD: PlacementHudSnapshot = {
+    coords: { x: 100.125, y: 200.5, z: 30.075 },
+    rotation: { pitch: 5, roll: -2.5, yaw: -90 },
+    activeAxis: "yaw",
+    isShiftHeld: false,
 }
 
 const actions: { label: string; run: () => void }[] = [
@@ -321,6 +348,35 @@ const actions: { label: string; run: () => void }[] = [
     maxZ = 35.00,
     metadata = "A deliberately long code value verifies horizontal overflow and the thumb-only scrollbar behavior in the generated preview.",
 })`,
+        }),
+    },
+    {
+        label: "Placement HUD (live)",
+        run: () => {
+            post<PlacementStartPayload>("placement:start", SAMPLE_PLACEMENT_START)
+            post<PlacementHudSnapshot>("placement:hud", SAMPLE_PLACEMENT_HUD)
+        },
+    },
+    {
+        label: "Placement HUD (fast pitch)",
+        run: () => {
+            post<PlacementStartPayload>("placement:start", SAMPLE_PLACEMENT_START)
+            post<PlacementHudSnapshot>("placement:hud", {
+                ...SAMPLE_PLACEMENT_HUD,
+                activeAxis: "pitch",
+                isShiftHeld: true,
+            })
+        },
+    },
+    {
+        label: "Placement HUD teardown",
+        run: () => post<undefined>("placement:hud", undefined),
+    },
+    {
+        label: "Placement confirm",
+        run: () => postRequest<PlacementConfirmPayload>("placement:confirm", {
+            model: "prop_tool_bench02",
+            snippet: "{\n    model = 'prop_tool_bench02',\n    coords = vector3(100.1250, 200.5000, 30.0750),\n    heading = 270.0000,\n    rotation = {\n        pitch = 5.0000,\n        roll = -2.5000,\n        yaw = -90.0000,\n    },\n}",
         }),
     },
 ]

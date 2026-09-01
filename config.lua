@@ -129,6 +129,23 @@ Config.drawing = {
     },
 }
 
+-- Temporary client-side entity placement/capture tool. The preview is always
+-- deleted when the session finishes; these values only control the editor UX.
+Config.placement = {
+    enabled = true,
+    raycastDistance = 50.0,
+    moveSpeed = 1.0,             -- metres/second while an arrow/Page key is held
+    rotationSpeed = 45.0,        -- degrees/second while [ or ] is held
+    shiftMultiplier = 2.5,       -- fast movement/rotation/freecam multiplier
+    cameraMoveSpeed = 6.0,       -- metres/second for the scripted freecam
+    cameraLookSensitivity = 5.0, -- degrees per raw mouse-look unit
+    cameraTransitionMs = 800,
+    previewAlpha = 180,          -- 0-255; translucent enough to read against the world
+    confirmTimeout = 120000,
+    hudUpdateInterval = 100,     -- ms; caps live coordinate/rotation NUI updates at 10Hz
+    hideRadar = true,
+}
+
 Config.zones = {
     gridSize = 50,               -- meters per grid cell (horizontal XY)
     nearProximity = 25,          -- meters; base "near" threshold before speed correction

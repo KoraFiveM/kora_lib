@@ -580,9 +580,11 @@
 ---@field notify QBLibNotify
 ---@field nui QBLibNui
 ---@field permissions QBLibPermissions
+---@field placement QBLibPlacement
 ---@field print QBLibPrint
 ---@field progressbar QBLibProgressbar
 ---@field raycast QBLibRaycast
+---@field require QBLibRequire
 ---@field resources QBLibResources
 ---@field rewards QBLibRewards
 ---@field state QBLibState
@@ -785,9 +787,30 @@
 ---@field openAlert fun(opts: QBAlertOptions): QBAlertResult|promise [client]
 ---@field openInputDialog fun(fields: QBInputField[], title?: string, description?: string): QBInputResult|promise [client]
 
+---@class QBPermissionOptions
+---@field prefix? string ACE object prefix, such as `qbcore` for `qbcore.admin`.
+---@field discordRoles? table<string, string|string[]> Permission/level to Discord role name/ID mappings.
+
 ---@class QBLibPermissions
----@field getLevel fun(src: integer, levels: string[], prefix?: string): string? [server]
----@field hasPermission fun(src: integer, permission: string|string[], prefix?: string): boolean [server]
+---@field getLevel fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): string [server]
+---@field hasLevel fun(src: integer, required: string, levels: string[], prefixOrOptions?: string|QBPermissionOptions): boolean [server]
+---@field hasPermission fun(src: integer, permission: string, prefixOrOptions?: string|QBPermissionOptions): boolean [server]
+
+---@class QBPlacementRotation
+---@field pitch number
+---@field roll number
+---@field yaw number
+
+---@class QBPlacementResult
+---@field model string|integer
+---@field coords QBCoords
+---@field heading number
+---@field rotation QBPlacementRotation
+
+---@class QBLibPlacement
+---@field start fun(model: string|integer): QBPlacementResult|promise|nil [client]
+---@field isActive fun(): boolean [client]
+---@field generateSnippet fun(result: QBPlacementResult): string [client]
 
 ---@class QBLibPrint
 ---@field debug fun(...: any) [shared]
@@ -805,6 +828,11 @@
 ---@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
 ---@field fromCamera fun(maxDistance?: number, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
 ---@field fromCam fun(cam: integer, maxDistance?: number, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
+
+---@class QBLibRequire
+---@field load fun(resource: string, paths: string|string[]): any [shared; an array returns one value per path]
+---@field current fun(paths: string|string[]): any [shared; an array returns one value per path]
+---@field ["local"] fun(paths: string|string[]): any [shared; bracket-form alias of current]
 
 ---@class QBLibResources
 ---@field registry fun(onDispose: fun(id: any)): QBResourcesRegistry [client]

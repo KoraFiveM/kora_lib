@@ -8,7 +8,8 @@
 // Keep this file in sync with every Lua-side QB.nui.send/request call site:
 // modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
 // openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
-// zoneCreator:* actions), modules/notify/client.lua (the "notify" action),
+// zoneCreator:* actions), modules/placement/client.lua (the placement:* actions),
+// modules/notify/client.lua (the "notify" action),
 // and modules/minigames/client.lua (the minigames:* actions), plus
 // qbtarget/client/loop.lua (the qbtarget:target display action and the
 // qbtarget:select candidate-picker action) -- this file is the one place the
@@ -211,6 +212,47 @@ export type AlertResult = { confirmed: boolean }
 export interface CopyToClipboardPayload {
     text: string
 }
+
+export type PlacementRotationAxis = "yaw" | "pitch" | "roll"
+
+export interface PlacementBindings {
+    forward: string
+    backward: string
+    left: string
+    right: string
+    up: string
+    down: string
+    rotateLeft: string
+    rotateRight: string
+    cycle: string
+    confirm: string
+    cancel: string
+}
+
+// action: "placement:start" (fire-and-forget) -- mount PlacementHud.
+export interface PlacementStartPayload {
+    model: string
+    bindings: PlacementBindings
+}
+
+// action: "placement:hud" (fire-and-forget) -- update PlacementHud, or
+// unmount it when the payload is nullish. Lua's nil payload arrives undefined.
+export interface PlacementHudSnapshot {
+    coords: { x: number; y: number; z: number }
+    rotation: { pitch: number; roll: number; yaw: number }
+    activeAxis: PlacementRotationAxis
+    isShiftHeld: boolean
+}
+
+// action: "placement:confirm" (request) -- mount PlacementConfirmDialog.
+export interface PlacementConfirmPayload {
+    model: string
+    snippet: string
+}
+
+export type PlacementConfirmResult = { confirmed: boolean }
+// action: "placement:closeConfirm" (fire-and-forget, no payload) -- answer
+// any open confirmation as Keep Editing so Lua's request releases NUI focus.
 
 export type ZoneType = "box" | "sphere" | "poly"
 

@@ -1,4 +1,24 @@
 local library = exports.qblib
+local requireModule
+
+-- Requiring Lua files is deliberately consumer-local. Running this through a
+-- qblib export would execute the required chunk in qblib's Lua environment,
+-- leaking globals between resources and making the cache survive a consumer
+-- restart. Load the factory into this resource's environment instead.
+local function getRequireModule()
+    if requireModule then return requireModule end
+
+    local path = 'modules/require/loader.lua'
+    local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+    assert(chunk, compileError)
+
+    local createRequire = chunk()
+    assert(type(createRequire) == 'function', ('@qblib/%s must return a factory function'):format(path))
+
+    requireModule = createRequire(GetCurrentResourceName())
+    return requireModule
+end
 
 -- FXServer's export dispatch has a known bug (citizenfx/fivem#2408): calling
 -- an export via dot-style dispatch -- `t[k](t, ...)` or `t.k(...)` -- can
@@ -41,6 +61,12 @@ end
 ---@type QBLib
 QB = setmetatable({}, {
     __index = function(t, k)
+        if k == 'require' then
+            local module = getRequireModule()
+            rawset(t, k, module)
+            return module
+        end
+
         -- Computed once per module access, not per call -- __call's own
         -- implicit self (the proxy table) still has to be stripped below,
         -- since a metamethod always receives it as its first argument
