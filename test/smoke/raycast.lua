@@ -23,13 +23,16 @@ _G.GetCamRot = function(cam, order) return { x = 0, y = 0, z = 0 } end
 local nextResult = { hit = 0 }
 local pendingReads = 0
 local lastRayArgs
+local startedRays, resultReads = 0, 0
 
 _G.StartShapeTestRay = function(...)
     lastRayArgs = { ... }
-    return 1
+    startedRays = startedRays + 1
+    return startedRays
 end
 
 _G.GetShapeTestResult = function()
+    resultReads = resultReads + 1
     if pendingReads > 0 then
         pendingReads = pendingReads - 1
         return 1, 1, { x = 999, y = 999, z = 999 }, { x = 9, y = 9, z = 9 }, 999999
@@ -139,6 +142,76 @@ harness.test("fromCam delegates to fromCoords using the given camera handle", fu
     harness.assertTrue(hit, "fromCam should report the same hit as the underlying ray")
     harness.assertEqual(coords.x, 4, "fromCam should surface the hit coords")
     harness.assertEqual(entity, 7, "the struck entity handle should be returned")
+end)
+
+harness.test("start fires the shape test without reading a result", function()
+    nextResult = { hit = 0 }
+    resultReads = 0
+
+    local handle = QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 26, 5)
+
+    harness.assertTrue(type(handle) == "number", "start should hand back the raw ray handle")
+    harness.assertEqual(resultReads, 0, "start must not consume the result -- that is await/poll's job")
+    harness.assertEqual(lastRayArgs[7], 26, "start should pass flags through like fromCoords")
+    harness.assertEqual(lastRayArgs[8], 5, "start should pass ignoreEntity through like fromCoords")
+end)
+
+harness.test("two rays started together settle in one wait instead of two", function()
+    nextResult = {
+        hit = 1,
+        coords = { x = 2, y = 0, z = 0 },
+        surfaceNormal = { x = 0, y = 0, z = 1 },
+        entityHit = 11,
+    }
+
+    -- Both rays are in flight before either is awaited, which is the whole
+    -- point of the split API: the engine settles shape tests once per frame,
+    -- so the second await finds its result already there.
+    local first = QB.raycast.startFromCamera(10.0, 511)
+    local second = QB.raycast.startFromCamera(10.0, 26)
+    harness.assertTrue(first ~= second, "each started ray should get its own handle")
+
+    pendingReads = 1
+    local hit, coords, entity = QB.raycast.await(first)
+    harness.assertTrue(hit, "the first await should settle its ray")
+    harness.assertEqual(entity, 11, "and report its entity")
+
+    resultReads = 0
+    local secondHit, secondCoords = QB.raycast.await(second)
+    harness.assertTrue(secondHit, "the second ray should settle too")
+    harness.assertEqual(secondCoords.x, 2, "and report its coords")
+    harness.assertEqual(resultReads, 1, "an already-settled ray must not yield another frame")
+end)
+
+harness.test("poll reports an unsettled ray without yielding, and never leaks pending output", function()
+    nextResult = {
+        hit = 1,
+        coords = { x = 3, y = 0, z = 0 },
+        surfaceNormal = { x = 0, y = 0, z = 1 },
+        entityHit = 12,
+    }
+    local handle = QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 5, y = 0, z = 0 })
+
+    pendingReads = 1
+    local settled, hit, coords, entity = QB.raycast.poll(handle)
+    harness.assertFalse(settled, "a pending shape test must report settled = false")
+    harness.assertFalse(hit, "and must not claim a hit")
+    harness.assertTrue(coords == nil and entity == nil, "pending output slots must never reach the caller")
+
+    settled, hit, coords, entity = QB.raycast.poll(handle)
+    harness.assertTrue(settled, "the completed shape test should report settled = true")
+    harness.assertTrue(hit, "and its hit")
+    harness.assertEqual(coords.x, 3, "and its coords")
+    harness.assertEqual(entity, 12, "and its entity handle")
+end)
+
+harness.test("poll reports a settled miss as settled, not pending", function()
+    nextResult = { hit = 0 }
+    local handle = QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 5, y = 0, z = 0 })
+
+    local settled, hit = QB.raycast.poll(handle)
+    harness.assertTrue(settled, "a completed miss is settled -- a caller must not poll it forever")
+    harness.assertFalse(hit, "a miss reports hit = false")
 end)
 
 harness.report("raycast")

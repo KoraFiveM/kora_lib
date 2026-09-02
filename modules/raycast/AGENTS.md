@@ -13,10 +13,17 @@ This module fires world-geometry raycasts and reports what they hit -- coordinat
 - `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
   - Builds a ray from a given scripted camera handle's `GetCamCoord`/`GetCamRot(cam, 2)` out to `maxDistance`, then delegates to `fromCoords`.
   - Same return shape as `fromCoords`.
+- `QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)` / `QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
+  - Fire the shape test and return its raw handle immediately, without settling it.
+- `QB.raycast.await(rayHandle)`
+  - Settles a started handle, yielding a frame at a time under the same one-second bound `fromCoords` uses. Returns immediately for a handle that has already settled.
+- `QB.raycast.poll(rayHandle)`
+  - Non-blocking read. Returns `settled, hit, coords, entityHit, surfaceNormal`; nothing after `settled` is meaningful until it is true.
 
 ## Implementation notes
 - `flags` defaults to `-1` (test against everything) and `ignoreEntity` defaults to `PlayerPedId()` -- these were the zone creator's original hardcoded values, kept as defaults rather than required params so existing callers don't need to change, while still letting a caller (e.g. a targeting resource that wants to ignore vehicles) override either.
 - `GetShapeTestResult` always returns `surfaceNormal`/`entityHit` regardless of flags; the previous zones-only version discarded both. They're now returned because the whole reason to promote this out of zones is that a target resource needs to know *what entity* the ray struck, not just where it landed.
+- `fromCoords`/`fromCamera` are literally `start` + `await`, and `fromCam` is `start` + `await` off a scripted camera. The split exists because the engine settles shape tests **once per frame**: a caller that needs several rays describing the same instant (qbtarget fires a broad `511` world mask and a narrow `26` entity mask every resolver tick) must start them all before awaiting any, or it pays one extra frame of latency AND one extra thread wake-up per ray for information the first frame already had. `poll` covers the other shape of that problem -- a caller with its own tick loop that would rather consume last tick's ray than park a frame inside qblib at all.
 - `GetShapeTestResult` status `1` is pending. Its hit/entity output slots are not consumed until status `2`; doing so can leak an invalid entity handle into consumers such as qbtarget. Polling is bounded to one second and yields once per pending frame.
 - `entityHit` comes back as `0` (not `nil`) on a hit against bare world geometry -- only `hit` itself distinguishes a miss.
 - `fromCam` shares `rotationToDirection`/`toVec3` with `fromCamera`; the only difference is it reads position/rotation from a caller-supplied scripted camera handle (`GetCamCoord`/`GetCamRot`) instead of the gameplay camera (`GetGameplayCamCoord`/`GetGameplayCamRot`).
