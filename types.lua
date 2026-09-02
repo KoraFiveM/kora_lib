@@ -776,6 +776,17 @@
 ---@field assert fun(payload: QBNotifyPayload) [shared]
 ---@field withDefaults fun(payload: QBNotifyPayload): QBNotifyPayload [shared]
 
+---@class QBMenuPosition
+---@field horizontal? 'left'|'center'|'right'
+---@field vertical? 'top'|'center'|'bottom'
+---@field offsetX? positive integer Pixels from the selected horizontal edge.
+---@field offsetY? positive integer Pixels from the selected vertical edge.
+
+---@class QBMenuOptions
+---@field position? QBMenuPosition
+---@field maxWidth? positive integer Pixels.
+---@field maxHeight? positive integer Pixels.
+
 ---@class QBLibNui
 ---@field send fun(action: string, data?: any) [client]
 ---@field setFocus fun(mouse: boolean, keyboard: boolean) [client]
@@ -783,7 +794,7 @@
 ---@field registerCallback fun(name: string, handler: fun(data: any): any) [client]
 ---@field request fun(action: string, data?: any, timeout?: integer|false): promise|any [client]
 ---@field copyToClipboard fun(text: string): promise|any [client]
----@field openMenu fun(items: QBMenuItem[], title?: string): QBMenuResult|promise [client]
+---@field openMenu fun(items: QBMenuItem[], title?: string, opts?: QBMenuOptions): QBMenuResult|promise [client]
 ---@field openContextMenu fun(items: QBMenuItem[], x?: number, y?: number): QBMenuResult|promise [client]
 ---@field openRadialMenu fun(items: QBMenuItem[], opts?: QBRadialMenuOptions): QBMenuResult|promise [client]
 ---@field openAlert fun(opts: QBAlertOptions): QBAlertResult|promise [client]

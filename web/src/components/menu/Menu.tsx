@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useState, type CSSProperties } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { cn } from "@/lib/cn"
@@ -14,6 +14,38 @@ interface Level {
     title?: string
     items: MenuItem[]
     viaId?: string
+}
+
+function positiveNumber(value: unknown): number | undefined {
+    return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined
+}
+
+function menuPlacement(payload: OpenMenuPayload): { className: string; style: CSSProperties } {
+    const horizontal = payload.position?.horizontal ?? "center"
+    const vertical = payload.position?.vertical ?? "center"
+    const offsetX = positiveNumber(payload.position?.offsetX) ?? 32
+    const offsetY = positiveNumber(payload.position?.offsetY) ?? 32
+
+    const horizontalClass = horizontal === "left"
+        ? "left-0 translate-x-0"
+        : horizontal === "right"
+            ? "left-auto right-0 translate-x-0"
+            : "left-1/2 -translate-x-1/2"
+    const verticalClass = vertical === "top"
+        ? "top-0 translate-y-0"
+        : vertical === "bottom"
+            ? "top-auto bottom-0 translate-y-0"
+            : "top-1/2 -translate-y-1/2"
+
+    return {
+        className: `${horizontalClass} ${verticalClass}`,
+        style: {
+            maxWidth: positiveNumber(payload.maxWidth),
+            maxHeight: positiveNumber(payload.maxHeight),
+            ...(horizontal === "left" ? { left: offsetX } : horizontal === "right" ? { right: offsetX } : {}),
+            ...(vertical === "top" ? { top: offsetY } : vertical === "bottom" ? { bottom: offsetY } : {}),
+        },
+    }
 }
 
 /**
@@ -98,12 +130,17 @@ export function MenuContainer() {
 
     if (!isOpen || !payload || !level) return null
 
+    const placement = menuPlacement(payload)
+
     return (
         <Dialog open onOpenChange={handleOpenChange}>
             {/* DialogContent (ui/dialog.tsx) already carries pointer-events-auto
                 for the page-wide pointer-events: none default -- nothing extra
                 to opt into here. */}
-            <DialogContent className="grid h-[75dvh] max-h-[calc(100dvh-2rem)] max-w-md grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
+            <DialogContent
+                className={cn("grid h-[75dvh] max-h-[calc(100dvh-2rem)] max-w-md grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0", placement.className)}
+                style={placement.style}
+            >
                 <DialogHeader className={cn("mx-4 mt-4 pb-3", !level.title && "sr-only")}>
                     <DialogTitle>{level.title ?? "Menu"}</DialogTitle>
                 </DialogHeader>

@@ -167,6 +167,20 @@ harness.test("openMenu sends the items/title and resolves with the NUI's raw res
     harness.assertEqual(p.value.selectedId, "b", "should resolve with the NUI's raw MenuResult")
 end)
 
+harness.test("openMenu forwards optional geometry without changing the existing arguments", function()
+    local opts = {
+        position = { horizontal = "right", vertical = "center", offsetX = 48 },
+        maxWidth = 400,
+        maxHeight = 680,
+    }
+    QB.nui.openMenu({ { id = "a", label = "A" } }, "Compact", opts)
+
+    local payload = sentMessages[#sentMessages].data.payload
+    harness.assertEqual(payload.position, opts.position, "position should be forwarded as-is")
+    harness.assertEqual(payload.maxWidth, 400, "maxWidth should be forwarded")
+    harness.assertEqual(payload.maxHeight, 680, "maxHeight should be forwarded")
+end)
+
 harness.test("openMenu grants focus while open and releases it once answered", function()
     QB.nui.openMenu({ { id = "a", label = "A" } })
 
