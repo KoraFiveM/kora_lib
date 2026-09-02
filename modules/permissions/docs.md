@@ -90,7 +90,41 @@ Called cross-resource via export:
 exports.qblib:permissions_hasPermission(source, 'admin', 'myresource')
 ```
 
+### `QB.permissions.explain(src, levels, prefixOrOptions?)` -- server
+Diagnostics. Reports every ACE object `getLevel` would consult for `src`, in
+order, with the raw value `IsPlayerAceAllowed` returned for each. Nothing gates
+on this -- it exists so a "my ACEs look correct but I have no permissions"
+report can be answered with evidence rather than inference.
+
+#### Parameters
+- `src: integer`
+- `levels: string[]` -- as `getLevel`.
+- `prefixOrOptions: string | table | nil` -- as `getLevel`. Discord roles are
+  ignored here; this reports ACE resolution only.
+
+#### Returns
+- `table[]` -- one entry per object checked:
+  `{ level, object, raw (tostring), type (type()), allowed (boolean) }`.
+  `raw`/`type` are strings so a non-boolean return is visible rather than
+  coerced away.
+- `string` -- the level `getLevel` resolves to for the same inputs.
+
+#### Example
+```lua
+local checks, resolved = QB.permissions.explain(source, LEVELS, 'qbcore')
+for _, check in ipairs(checks) do
+    print(check.object, check.raw, check.type, check.allowed)
+end
+```
+
 ## Notes
+- A permission is denied only when NO checked object matched. Note that a
+  native returning a number could not cause a denial: `0` is truthy in Lua, so
+  a numeric return would make `getLevel` match its FIRST candidate level for
+  everyone -- over-permission, not under. A "no permissions" report is almost
+  always an `add_principal` naming an identifier the player does not hold;
+  `explain` above prints the objects, and qbadmin's console-only
+  `qbadmin_whyperms <id>` prints those alongside the player's real identifiers.
 - Grants are ordinary ace principals -- add them with `add_ace`/`add_principal` in `server.cfg` or at runtime via `ExecuteCommand`, same as any other FXServer permission.
 - ACEs are evaluated before Discord, so `group.admin` continues to work when
   the bot is disabled or its cache is unavailable.

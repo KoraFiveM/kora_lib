@@ -793,10 +793,18 @@
 ---@field prefix? string ACE object prefix, such as `qbcore` for `qbcore.admin`.
 ---@field discordRoles? table<string, string|string[]> Permission/level to Discord role name/ID mappings.
 
+---@class QBPermissionCheck
+---@field level string The level this ACE object would grant.
+---@field object string The ACE object passed to IsPlayerAceAllowed.
+---@field raw string tostring() of what the native returned, so a non-boolean is visible.
+---@field type string type() of what the native returned.
+---@field allowed boolean Normalized result.
+
 ---@class QBLibPermissions
 ---@field getLevel fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): string [server]
 ---@field hasLevel fun(src: integer, required: string, levels: string[], prefixOrOptions?: string|QBPermissionOptions): boolean [server]
 ---@field hasPermission fun(src: integer, permission: string, prefixOrOptions?: string|QBPermissionOptions): boolean [server]
+---@field explain fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): QBPermissionCheck[], string [server] -- diagnostics only; nothing gates on this
 
 ---@class QBPlacementRotation
 ---@field pitch number
