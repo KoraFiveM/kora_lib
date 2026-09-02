@@ -96,17 +96,27 @@ if result and result.confirmed then
 end
 ```
 
-### `QB.nui.openMenu(items, title)`
+### `QB.nui.openMenu(items, title, opts)`
 Opens a searchable list menu. Grants mouse+keyboard NUI focus while open and releases it as soon as the menu closes (selection, cancel, or timeout) — no `withFocus` wrap needed.
 
 #### Parameters
 - `items: table[]` — `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean }[]`
 - `title?: string`
+- `opts?: table` — optional geometry. `position.horizontal` is `left`, `center`, or `right`; `position.vertical` is `top`, `center`, or `bottom`. `offsetX`/`offsetY`, `maxWidth`, and `maxHeight` are positive pixel values. Omit `opts` to keep the existing centred size and position.
 
 #### Returns
 - `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
 
 `icon` resolves against a small curated set of lucide icon names (`web/src/lib/icon.ts`) — a name outside that set just renders with no icon rather than erroring; extend that file's list if you need one that isn't there yet.
+
+```lua
+-- A compact menu, vertically centred on the right with a comfortable inset.
+QB.nui.openMenu(items, "Admin Menu", {
+    position = { horizontal = "right", vertical = "center", offsetX = 48 },
+    maxWidth = 400,
+    maxHeight = 680,
+})
+```
 
 ### `QB.nui.openContextMenu(items, x, y)`
 Opens a context menu anchored at `(x, y)`, or centered if omitted. Manages focus the same way `openMenu` does.

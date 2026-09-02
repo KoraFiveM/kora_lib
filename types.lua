@@ -776,6 +776,17 @@
 ---@field assert fun(payload: QBNotifyPayload) [shared]
 ---@field withDefaults fun(payload: QBNotifyPayload): QBNotifyPayload [shared]
 
+---@class QBMenuPosition
+---@field horizontal? 'left'|'center'|'right'
+---@field vertical? 'top'|'center'|'bottom'
+---@field offsetX? positive integer Pixels from the selected horizontal edge.
+---@field offsetY? positive integer Pixels from the selected vertical edge.
+
+---@class QBMenuOptions
+---@field position? QBMenuPosition
+---@field maxWidth? positive integer Pixels.
+---@field maxHeight? positive integer Pixels.
+
 ---@class QBLibNui
 ---@field send fun(action: string, data?: any) [client]
 ---@field setFocus fun(mouse: boolean, keyboard: boolean) [client]
@@ -783,7 +794,7 @@
 ---@field registerCallback fun(name: string, handler: fun(data: any): any) [client]
 ---@field request fun(action: string, data?: any, timeout?: integer|false): promise|any [client]
 ---@field copyToClipboard fun(text: string): promise|any [client]
----@field openMenu fun(items: QBMenuItem[], title?: string): QBMenuResult|promise [client]
+---@field openMenu fun(items: QBMenuItem[], title?: string, opts?: QBMenuOptions): QBMenuResult|promise [client]
 ---@field openContextMenu fun(items: QBMenuItem[], x?: number, y?: number): QBMenuResult|promise [client]
 ---@field openRadialMenu fun(items: QBMenuItem[], opts?: QBRadialMenuOptions): QBMenuResult|promise [client]
 ---@field openAlert fun(opts: QBAlertOptions): QBAlertResult|promise [client]
@@ -793,10 +804,18 @@
 ---@field prefix? string ACE object prefix, such as `qbcore` for `qbcore.admin`.
 ---@field discordRoles? table<string, string|string[]> Permission/level to Discord role name/ID mappings.
 
+---@class QBPermissionCheck
+---@field level string The level this ACE object would grant.
+---@field object string The ACE object passed to IsPlayerAceAllowed.
+---@field raw string tostring() of what the native returned, so a non-boolean is visible.
+---@field type string type() of what the native returned.
+---@field allowed boolean Normalized result.
+
 ---@class QBLibPermissions
 ---@field getLevel fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): string [server]
 ---@field hasLevel fun(src: integer, required: string, levels: string[], prefixOrOptions?: string|QBPermissionOptions): boolean [server]
 ---@field hasPermission fun(src: integer, permission: string, prefixOrOptions?: string|QBPermissionOptions): boolean [server]
+---@field explain fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): QBPermissionCheck[], string [server] -- diagnostics only; nothing gates on this
 
 ---@class QBPlacementRotation
 ---@field pitch number

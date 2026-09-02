@@ -222,8 +222,9 @@ end
 ---when the menu closes (selection, cancel, or timeout).
 ---@param items table[] `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean, submenu?: { title?: string, items: table[] } }[]`
 ---@param title? string
+---@param opts? table `{ position?: { horizontal?: 'left'|'center'|'right', vertical?: 'top'|'center'|'bottom', offsetX?: positive number, offsetY?: positive number }, maxWidth?: positive number, maxHeight?: positive number }` Geometry in screen pixels; defaults to the existing centred menu.
 ---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
-function QB.nui.openMenu(items, title)
+function QB.nui.openMenu(items, title, opts)
     assert(type(items) == "table", "openMenu requires an items table.")
     -- timeout = false: these three wait on a HUMAN, and there's no sensible
     -- deadline for "how long until they pick something" -- a player can open a
@@ -232,7 +233,13 @@ function QB.nui.openMenu(items, title)
     -- goes on to answer a request nothing is listening for any more. They're
     -- all dismissable (Escape/backdrop/Cancel), so cancelling is always
     -- available as the way out -- see modules/nui/docs.md.
-    return settleForExport(focusUntilSettled(requestPromise("openMenu", { title = title, items = items }, false)))
+    return settleForExport(focusUntilSettled(requestPromise("openMenu", {
+        title = title,
+        items = items,
+        position = opts and opts.position,
+        maxWidth = opts and opts.maxWidth,
+        maxHeight = opts and opts.maxHeight,
+    }, false)))
 end
 
 ---Opens a context menu anchored at (x, y) -- or centered, if omitted. Grants

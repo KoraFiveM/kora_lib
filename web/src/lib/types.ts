@@ -118,6 +118,18 @@ export interface MenuItem {
 export interface OpenMenuPayload {
     title?: string
     items: MenuItem[]
+    /** Optional placement; omitted values retain the existing centred menu. */
+    position?: {
+        horizontal?: "left" | "center" | "right"
+        vertical?: "top" | "center" | "bottom"
+        /** Distance from the chosen horizontal edge, in pixels. */
+        offsetX?: number
+        /** Distance from the chosen vertical edge, in pixels. */
+        offsetY?: number
+    }
+    /** Optional menu limits in pixels. */
+    maxWidth?: number
+    maxHeight?: number
 }
 
 // action: "closeMenu" (fire-and-forget)
