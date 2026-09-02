@@ -69,7 +69,53 @@ if hit then
 end
 ```
 
+### `QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)`
+Fires the same shape test `fromCoords` does but returns immediately, handing back the raw ray handle instead of a settled result. Pair it with `QB.raycast.await` or `QB.raycast.poll`.
+
+The engine resolves shape tests once per frame. A caller that needs several rays describing the same instant -- a targeting resource firing a broad world mask and a narrow entity mask, say -- should start all of them and only then await them: awaiting each ray before starting the next serialises them, costing one extra frame of latency and one extra thread wake-up per ray for information the first frame already had.
+
+#### Parameters
+Identical to `fromCoords`.
+
+#### Returns
+- `number` -- Ray handle. Only meaningful to `await`/`poll`.
+
+### `QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
+The `fromCamera` equivalent of `start`: builds the ray from the gameplay camera and returns its handle without waiting.
+
+#### Returns
+- `number` -- Ray handle.
+
+### `QB.raycast.await(rayHandle)`
+Waits for a handle from `start`/`startFromCamera` to settle (yielding a frame at a time, bounded to one second, exactly like `fromCoords`) and reports it.
+
+A handle that has already settled -- because another ray started in the same frame was awaited first -- returns immediately without yielding at all. That is what makes starting several rays together cheaper than firing them one at a time.
+
+#### Returns
+Same as `fromCoords`.
+
+### `QB.raycast.poll(rayHandle)`
+Non-blocking read of a started ray. Never yields, so a caller driving its own tick loop can start a ray on one tick and consume it on the next without parking a frame inside qblib.
+
+#### Returns
+- `boolean` -- `settled`. Every other value is meaningless while this is `false`.
+- `boolean` -- `hit`.
+- `table | nil` -- {x, y, z} hit coordinates.
+- `number | nil` -- Entity handle struck (`0` for bare world geometry).
+- `table | nil` -- {x, y, z} surface normal.
+
+#### Example
+```lua
+-- Two masks describing the same instant, resolved in one frame instead of two.
+local broad = QB.raycast.startFromCamera(10.0, 511)
+local entities = QB.raycast.startFromCamera(10.0, 26)
+
+local hit, coords, entity = QB.raycast.await(broad)
+local entityHit, entityCoords, entityHandle = QB.raycast.await(entities) -- already settled
+```
+
 ## Notes
+- `fromCoords`/`fromCamera` are `start` + `await` in one call; they exist unchanged and remain the right choice for a one-off ray.
 - Shape-test output values are undefined while `GetShapeTestResult` reports
   status `1`. qblib never exposes those pending coordinates/entity handles to
   callers; this prevents stale handles reaching entity natives such as

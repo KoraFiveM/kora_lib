@@ -830,6 +830,10 @@
 ---@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
 ---@field fromCamera fun(maxDistance?: number, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
 ---@field fromCam fun(cam: integer, maxDistance?: number, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
+---@field start fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
+---@field startFromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
+---@field await fun(rayHandle: integer): QBRaycastResult [client]
+---@field poll fun(rayHandle: integer): boolean, boolean, QBCoords?, integer?, QBCoords? [client; settled, hit, coords, entityHit, surfaceNormal]
 
 ---@class QBLibRequire
 ---@field load fun(resource: string, paths: string|string[]): any [shared; an array returns one value per path]
