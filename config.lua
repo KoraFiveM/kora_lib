@@ -20,7 +20,15 @@ Config.interact = {
 }
 
 Config.callback = {
-    timeout = 10000, -- ms a QB.callback.trigger() request (either direction) waits before rejecting
+    -- ms a QB.callback.trigger() request (either direction) waits before
+    -- rejecting. This has to cover the WORST client, not the average one: a
+    -- cold machine still finishing its join answers its first few round trips
+    -- far slower than a settled one, and a rejection here is indistinguishable
+    -- from a refusal at the call site -- qbmultichar's character select used to
+    -- silently give up on an empty scene catalog because of exactly that.
+    -- Nothing waits on this in the happy path, so a generous value costs only
+    -- how long a genuinely broken callback takes to report itself.
+    timeout = 30000,
 }
 
 Config.discord = {

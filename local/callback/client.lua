@@ -33,9 +33,13 @@ end)
 local function awaitToken()
     if token ~= nil then return true end
 
+    -- Explicitly Config.callback.timeout, not QB.loops.controlled's own 10s
+    -- default: the handshake is the FIRST thing a consumer waits on, on the
+    -- coldest a client will ever be, so it must get the same budget as the
+    -- request it is gating rather than a shorter hidden one.
     return QB.loops.controlled(function()
         return token ~= nil
-    end, false) ~= false
+    end, false, Config.callback.timeout) ~= false
 end
 
 -- FXServer's exports boundary hands a cross-resource function argument back
