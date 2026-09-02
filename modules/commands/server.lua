@@ -22,9 +22,15 @@ end
 
 local function isAllowed(source, definition)
     if source == 0 or definition.permission == 'user' then return true end
-    if not isCallable(definition.checkPermission) then return false end
+    if not isCallable(definition.checkPermission) then
+        return false, ('permission %q has no callable checkPermission (got %s)')
+            :format(definition.permission, type(definition.checkPermission))
+    end
     local ok, allowed = pcall(definition.checkPermission, source, definition.permission)
-    return ok and allowed == true
+    if not ok then
+        return false, ('checkPermission errored: %s'):format(tostring(allowed))
+    end
+    return allowed == true
 end
 
 -- Functions cannot be serialized into chat:addSuggestion. Publish only the
@@ -70,8 +76,16 @@ end
 local function dispatch(name, definition, source, rawArgs, raw)
     -- No checkPermission with a non-'user' permission fails closed: a caller
     -- that declares a gated command without wiring a check must not get it for
-    -- free. Key mappings use this exact same dispatcher.
-    if not isAllowed(source, definition) then
+    -- free. Key mappings use this exact same dispatcher. A denial caused by a
+    -- broken check (missing/erroring checkPermission) is logged here -- only
+    -- on dispatch, not per-keystroke suggestion filtering -- because it is
+    -- otherwise indistinguishable from the player genuinely lacking the
+    -- permission.
+    local allowed, denyReason = isAllowed(source, definition)
+    if not allowed then
+        if denyReason then
+            print(("^3[qblib:commands]^7 /%s denied for %s: %s"):format(name, tostring(source), denyReason))
+        end
         definition.notify(source, 'You do not have permission for this command.', 'error')
         return
     end

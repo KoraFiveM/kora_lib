@@ -137,8 +137,10 @@ QB.cache.ped()  QB.cache.vehicle()  QB.cache.seat()
 QB.cache.enteringVehicle()  QB.cache.enteringSeat()
 QB.cache.weapon()  QB.cache.health()  QB.cache.isDead()  QB.cache.armour()  QB.cache.stamina()
 ```
-Refreshes every `Config.cache.tickInterval` (200ms default); the built-in keys
-cannot be overwritten via `set`.
+Dynamic telemetry refreshes every `Config.cache.tickInterval` (200ms default);
+session-stable player ids are resolved once, and a cached seat is only fully
+rescanned after its current slot becomes invalid. Built-in keys cannot be
+overwritten via `set`.
 
 ### Hash lookup (`QB.lookup`)
 ```lua

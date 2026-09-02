@@ -16,8 +16,13 @@ dofile(repoRoot .. "build/initiate.lua")
 -- computeSeat's scan doesn't just check the first candidate), armed with
 -- weapon hash 999. All specific to this module, so mocked here rather than
 -- in test/mocks.lua per the root AGENTS.md testing convention.
-_G.PlayerId = function() return 5 end
-_G.GetPlayerServerId = function(playerId) return playerId == 5 and 42 or -1 end
+local playerIdReads, serverIdReads, seatReads = 0, 0, 0
+local occupiedSeat = 1
+_G.PlayerId = function() playerIdReads = playerIdReads + 1; return 5 end
+_G.GetPlayerServerId = function(playerId)
+    serverIdReads = serverIdReads + 1
+    return playerId == 5 and 42 or -1
+end
 _G.PlayerPedId = function() return 100 end
 _G.IsPedInAnyVehicle = function() return true end
 _G.GetVehiclePedIsIn = function() return 200 end
@@ -25,7 +30,8 @@ _G.GetVehiclePedIsTryingToEnter = function() return 0 end
 _G.GetSeatPedIsTryingToEnter = function() return -1 end
 _G.GetVehicleMaxNumberOfPassengers = function() return 2 end
 _G.GetPedInVehicleSeat = function(vehicle, seat)
-    if seat == 1 then return 100 end -- our ped
+    seatReads = seatReads + 1
+    if seat == occupiedSeat then return 100 end -- our ped
     return 999999 -- someone/something else, or nobody
 end
 _G.GetSelectedPedWeapon = function() return 999 end
@@ -43,6 +49,13 @@ harness.test("playerId/serverId are read from the natives", function()
     harness.assertEqual(QB.cache.serverId(), 42, "serverId should come from GetPlayerServerId(PlayerId())")
 end)
 
+harness.test("stable player ids are not re-read by the telemetry tick", function()
+    net.step()
+    net.step()
+    harness.assertEqual(playerIdReads, 1, "PlayerId should be resolved once per session")
+    harness.assertEqual(serverIdReads, 1, "a valid server id should be resolved once per session")
+end)
+
 harness.test("ped is read from PlayerPedId()", function()
     harness.assertEqual(QB.cache.ped(), 100, "ped should come from PlayerPedId()")
 end)
@@ -57,6 +70,18 @@ end)
 harness.test("vehicle/seat are computed from the mocked scenario", function()
     harness.assertEqual(QB.cache.vehicle(), 200, "vehicle should come from GetVehiclePedIsIn")
     harness.assertEqual(QB.cache.seat(), 1, "seat should be found by scanning, not hardcoded to the driver seat")
+end)
+
+harness.test("seat refresh validates the cached slot before rescanning", function()
+    local before = seatReads
+    net.step()
+    harness.assertEqual(seatReads - before, 1, "a stable seat should cost one validation lookup")
+
+    occupiedSeat = 0
+    before = seatReads
+    net.step()
+    harness.assertEqual(QB.cache.seat(), 0, "a seat change should still be discovered")
+    harness.assertTrue(seatReads - before > 1, "an invalid cached seat should trigger a full scan")
 end)
 
 harness.test("enteringVehicle/enteringSeat expose a current entry attempt", function()

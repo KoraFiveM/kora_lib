@@ -1,7 +1,7 @@
 local cache = {}
 local listeners = {}
 
--- Built-in keys the per-tick refresh() owns. QB.cache.set rejects writes to
+-- Built-in keys this module owns. QB.cache.set rejects writes to
 -- any of these outright (see below) rather than merely letting refresh()
 -- overwrite a bogus value back within one tick -- a resource (or a future
 -- ambulance job reading `health` to gate treatment) must never observe even a
@@ -72,8 +72,15 @@ end
 
 -- No single native answers "what seat am I in" -- scan every seat (-1 =
 -- driver, 0+ = passenger) and find the one this ped occupies.
-local function computeSeat(vehicle, ped)
+local function computeSeat(vehicle, ped, cachedSeat)
     if not vehicle then return false end
+
+    -- Most refreshes happen while the player remains in the same seat. Check
+    -- that one slot first and only scan the vehicle when it no longer contains
+    -- the ped (vehicle change, seat shuffle, or exit).
+    if type(cachedSeat) == "number" and GetPedInVehicleSeat(vehicle, cachedSeat) == ped then
+        return cachedSeat
+    end
 
     for seat = -1, GetVehicleMaxNumberOfPassengers(vehicle) - 1 do
         if GetPedInVehicleSeat(vehicle, seat) == ped then
@@ -84,16 +91,32 @@ local function computeSeat(vehicle, ped)
     return false
 end
 
--- Every built-in key is re-asserted from its native each tick -- including
--- playerId/serverId, which never legitimately change mid-session. That's
--- deliberate: QB.cache.set is a public export any resource can call, and
--- refreshing ALL built-ins means a bogus write to any of them self-heals
--- within one tick instead of persisting for the rest of the session.
-local function refresh()
-    local playerId = PlayerId()
-    setValue("playerId", playerId)
-    setValue("serverId", GetPlayerServerId(playerId))
+-- Player indices are session constants. Resolve them outside refresh() so the
+-- shared telemetry tick never pays for PlayerId/GetPlayerServerId. During an
+-- early resource start GetPlayerServerId may still be -1; a short-lived startup
+-- worker replaces that sentinel once networking assigns the real id.
+local playerId = PlayerId()
+setValue("playerId", playerId)
 
+local serverId = GetPlayerServerId(playerId)
+setValue("serverId", serverId)
+
+if serverId == -1 and NetworkIsSessionStarted then
+    CreateThread(function()
+        while true do
+            if NetworkIsSessionStarted() then
+                serverId = GetPlayerServerId(playerId)
+                if serverId ~= -1 then
+                    setValue("serverId", serverId)
+                    return
+                end
+            end
+            Wait(0)
+        end
+    end)
+end
+
+local function refresh()
     local ped = PlayerPedId()
     setValue("ped", ped)
     setValue("health", GetEntityHealth(ped))
@@ -116,7 +139,7 @@ local function refresh()
     local enteringSeat = enteringVehicle and GetSeatPedIsTryingToEnter and GetSeatPedIsTryingToEnter(ped) or false
 
     local vehicle = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or false
-    local seat = computeSeat(vehicle, ped)
+    local seat = computeSeat(vehicle, ped, cache.seat)
 
     -- Order matters to onChange consumers: an entering attempt is reported
     -- before an actual entry, while the current seat is updated before the

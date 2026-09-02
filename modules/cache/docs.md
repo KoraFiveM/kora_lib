@@ -48,10 +48,10 @@ Removes every `onChange` handler the calling resource registered for `key`. Rare
 - `key: string`
 
 ### `QB.cache.playerId()`
-Returns `PlayerId()`. Stable for the whole session.
+Returns `PlayerId()`. It is resolved once because the player index is stable for the whole session.
 
 ### `QB.cache.serverId()`
-Returns `GetPlayerServerId(PlayerId())`. Stable for the whole session.
+Returns `GetPlayerServerId(PlayerId())`. It is resolved once when valid because the server id is stable for the whole session; an early `-1` startup sentinel is replaced as soon as the network session is ready.
 
 ### `QB.cache.ped()`
 Returns the local player's current ped handle, refreshed every tick — safe to use across a death/respawn without re-fetching `PlayerPedId()` yourself.
@@ -100,6 +100,7 @@ end)
 
 ## Notes
 - Built-in telemetry refreshes every `Config.cache.tickInterval` ms (200ms by default). It is intentionally a bounded shared poll rather than a frame loop; use direct per-frame natives only for controls that the engine requires to be reasserted every frame.
+- `playerId`/`serverId` are session constants and are not re-read by that telemetry tick. A cached vehicle seat is validated directly; the cache only scans every seat when the cached slot no longer contains the player ped.
 - `QB.cache.set` rejects writes to any built-in key outright (logged, ignored) — it isn't just that the next refresh tick would overwrite a bogus value back, the write never lands in the first place.
 - `onChange` handlers only fire when a value actually changes, not on every refresh tick — comparing every frame is what makes the refresh cheap to leave running.
 - `onChange` handlers are removed automatically when the resource that registered them stops.
