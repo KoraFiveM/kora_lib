@@ -59,6 +59,13 @@ export function InteractSelect() {
 
     // qbhud owns the bottom-centre gauge/vehicle stack in a separate NUI page,
     // so keep this selector above that reserved gameplay-HUD band.
+    //
+    // Two elements deep, and deliberately no deeper: the panel, and one row per
+    // option. The selected row's "E" key chip is the row's own `::before`
+    // pseudo-element rather than a nested <span>, and the accent bar is a left
+    // border rather than a second absolutely-positioned one -- three layers of
+    // boxed chrome (panel, row, badge) around one line of text read as a stack
+    // of panels rather than a menu.
     return (
         <div className="pointer-events-none fixed bottom-36 left-1/2 z-hud w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none rounded-xl border bg-hud p-2 text-card-foreground shadow-low">
             {state.options.map((option, index) => {
@@ -67,13 +74,14 @@ export function InteractSelect() {
                 return (
                     <div
                         key={`${option.label}-${index}`}
-                        className={`relative my-1 flex min-h-10 items-center rounded-md px-3 py-2 text-sm transition-colors duration-fast ${selected ? "bg-brand-soft text-foreground before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-primary" : "text-muted-foreground"}`}
+                        className={`my-1 flex min-h-10 items-center rounded-md border-l-2 px-3 py-2 text-sm transition-colors duration-fast ${selected ? "border-primary bg-brand-soft text-foreground before:mr-2 before:flex before:h-7 before:w-7 before:shrink-0 before:items-center before:justify-center before:rounded-md before:bg-primary before:text-xs before:font-bold before:text-primary-foreground before:content-['E']" : "border-transparent text-muted-foreground"}`}
                     >
-                        {selected && (
-                            <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-                                E
-                            </span>
-                        )}
+                        {/* The label keeps its own element: `truncate` is
+                            text-overflow, which does not apply to a bare text
+                            node inside a flex container -- the anonymous flex
+                            item it becomes is not a block box. Removing this
+                            span would let a long option overflow the panel
+                            instead of ellipsising. */}
                         <span className="min-w-0 truncate font-medium">{option.label}</span>
                     </div>
                 )

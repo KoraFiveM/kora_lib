@@ -58,6 +58,8 @@ Trailing-edge only.
 #### Returns
 - `table` — a **callable table**, not a bare function (Lua functions can't carry
   fields). Call it like a function. It also exposes:
+  - `.run(...)` — schedules a run; the form to use from another resource. See
+    [Calling the handle from another resource](#calling-the-handle-from-another-resource).
   - `.cancel()` → `boolean` — drops a pending run without firing it.
   - `.isPending()` → `boolean`
 
@@ -65,7 +67,7 @@ Trailing-edge only.
 ```lua
 local save = QB.timers.debounce(function(slot) persist(slot) end, 500)
 
-save(3) save(3) save(3)  -- one persist(3), 500ms after the last call
+save.run(3) save.run(3) save.run(3)  -- one persist(3), 500ms after the last call
 ```
 
 ### `QB.timers.throttle(fn, interval)`
@@ -79,6 +81,9 @@ about a moment that has already passed, at coordinates the suspect has left.
 #### Returns
 - `table` — a callable table returning `boolean` (whether the call actually
   ran). It also exposes:
+  - `.run(...)` → `boolean` — runs if the cooldown elapsed; the form to use from
+    another resource. See
+    [Calling the handle from another resource](#calling-the-handle-from-another-resource).
   - `.reset()` — clears the cooldown so the next call passes through.
   - `.remaining()` → `integer` — ms until the next call would be allowed; `0`
     when ready.
@@ -90,8 +95,34 @@ local alertShotsFired = QB.timers.throttle(function(coords)
 end, 15000)
 
 -- in a per-frame detector loop; only one alert every 15s gets through
-if IsPedShooting(ped) then alertShotsFired(GetEntityCoords(ped)) end
+if IsPedShooting(ped) then alertShotsFired.run(GetEntityCoords(ped)) end
 ```
+
+### Calling the handle from another resource
+
+Both handles are callable tables, made callable by a `__call` metamethod. **That
+metamethod does not survive the export boundary.** Any resource other than qblib
+reaches these through the `QB` proxy, which compiles `QB.timers.throttle(...)`
+into `exports.qblib:timers_throttle(...)`; the returned table's *fields* cross
+fine as funcrefs, but its metatable is not carried across. Calling the handle
+directly there fails with:
+
+```
+attempt to call a table value (upvalue 'reportMelee')
+```
+
+So from outside qblib, always use `.run(...)`:
+
+```lua
+local reportMelee = QB.timers.throttle(function() ... end, 30000)
+
+reportMelee()      -- works only inside qblib itself
+reportMelee.run()  -- correct everywhere
+```
+
+`.run()` is the same code path `__call` delegates to, so behaviour and return
+value are identical. Test mocks must mirror the shape — returning a bare
+function from a mocked `throttle` hides this class of bug.
 
 ### `QB.timers.count()`
 Live timer count, for diagnostics and tests. Debounce/throttle wrappers are not

@@ -68,6 +68,17 @@ Config.blips = {
     defaultColor = 0,        -- default SetBlipColour when options.color is omitted
     defaultScale = 1.0,      -- default SetBlipScale when options.scale is omitted
     defaultShortRange = true,-- default SetBlipAsShortRange when options.shortRange is omitted
+
+    -- SetBlipCategory value that collapses every blip sharing a label into one
+    -- named heading in the pause-map legend, instead of listing "Clothing Store"
+    -- six times. Six clothing stores, twenty vending machines and every police
+    -- station are exactly the case this exists for. Documented here rather than
+    -- left as a bare 11 at each call site -- see modules/blips/docs.md.
+    --
+    -- Other resources cannot read this table (it belongs to qblib's own
+    -- resource), so they set `category = 11` in their own config with a pointer
+    -- back to that doc. This value is the reference definition.
+    groupedCategory = 11,
 }
 
 Config.progressbar = {

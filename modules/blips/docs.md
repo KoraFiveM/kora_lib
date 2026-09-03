@@ -42,6 +42,31 @@ if not blip then
 end
 ```
 
+### Grouping repeated blips in the pause-map legend
+
+`category` is a `SetBlipCategory` value. The one worth knowing is **11**: blips
+in that category are grouped in the pause-map legend under a heading taken from
+their own name, so six clothing stores collapse into one "Clothing Store" entry
+instead of six identical rows.
+
+Give every blip in a set the **same `label`** as well as the same category --
+the label is the heading, so a differing label splits the group.
+
+```lua
+for _, store in ipairs(Config.shops) do
+    QB.blips.create(store.coords, {
+        sprite = 73,
+        color = 47,
+        label = 'Clothing Store', -- identical across the set: this is the heading
+        category = 11,            -- Config.blips.groupedCategory
+    })
+end
+```
+
+Categories below 11 are the game's own fixed sections (property, other players,
+activities) and are rarely what a resource wants. Omit `category` entirely for a
+one-off blip -- a lone marker in its own legend group reads as clutter.
+
 ### `QB.blips.remove(blip)`
 Removes one tracked blip immediately.
 

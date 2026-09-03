@@ -200,7 +200,7 @@ end
 ---passed anywhere a handler is accepted.
 ---@param fn fun(...) Callback.
 ---@param wait number Milliseconds of quiet required before firing.
----@return table debounced Call it like a function; `.cancel()` drops a pending run.
+---@return table debounced In-resource, call it like a function; from another resource use `.run(...)`. `.cancel()` drops a pending run.
 function QB.timers.debounce(fn, wait)
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
@@ -227,18 +227,31 @@ function QB.timers.debounce(fn, wait)
         return pendingId ~= nil
     end
 
+    ---Schedules a run, exactly as calling the handle does.
+    ---
+    ---`.run()` exists because the `__call` metamethod below does NOT survive
+    ---the export boundary: a resource reaching this through the `QB` proxy
+    ---(init.lua -> exports.qblib:timers_debounce) receives the table's fields
+    ---but not its metatable, so `debounced(...)` there raises "attempt to call
+    ---a table value". Plain function fields cross as funcrefs and keep
+    ---working, so `.run(...)` is the form every consumer outside qblib must
+    ---use. Same reasoning as QB.timers.throttle's `.run`.
+    function debounced.run(...)
+        pendingArgs = table.pack(...)
+
+        if pendingId then QB.timers.clearInterval(pendingId) end
+
+        pendingId = scheduleTimeout(owner, function()
+            pendingId = nil
+            local args = pendingArgs
+            pendingArgs = nil
+            fn(table.unpack(args, 1, args.n))
+        end, wait)
+    end
+
     return setmetatable(debounced, {
         __call = function(_, ...)
-            pendingArgs = table.pack(...)
-
-            if pendingId then QB.timers.clearInterval(pendingId) end
-
-            pendingId = scheduleTimeout(owner, function()
-                pendingId = nil
-                local args = pendingArgs
-                pendingArgs = nil
-                fn(table.unpack(args, 1, args.n))
-            end, wait)
+            return debounced.run(...)
         end
     })
 end
@@ -252,7 +265,7 @@ end
 ---Returns a callable table, same rationale as debounce.
 ---@param fn fun(...) Callback.
 ---@param interval number Minimum milliseconds between runs.
----@return table throttled Call it like a function; returns whether it ran. `.reset()` clears the cooldown.
+---@return table throttled In-resource, call it like a function; from another resource use `.run(...)`. Either returns whether it ran. `.reset()` clears the cooldown.
 function QB.timers.throttle(fn, interval)
     assert(isCallable(fn), "QB.timers.throttle requires a callable.")
     interval = assertInterval(interval, "QB.timers.throttle")
@@ -274,15 +287,29 @@ function QB.timers.throttle(fn, interval)
         return elapsed >= interval and 0 or (interval - elapsed)
     end
 
+    ---Runs `fn` if the cooldown has elapsed, exactly as calling the handle does.
+    ---
+    ---`.run()` exists because the `__call` metamethod below does NOT survive
+    ---the export boundary: a resource reaching this through the `QB` proxy
+    ---(init.lua -> exports.qblib:timers_throttle) receives the table's fields
+    ---but not its metatable, so `throttled(...)` there raises "attempt to call
+    ---a table value" -- which is exactly how qbpolice's melee detector
+    ---crashed. Plain function fields cross as funcrefs and keep working, so
+    ---`.run(...)` is the form every consumer outside qblib must use.
+    ---@return boolean ran
+    function throttled.run(...)
+        local now = GetGameTimer()
+
+        if lastRun and (now - lastRun) < interval then return false end
+
+        lastRun = now
+        fn(...)
+        return true
+    end
+
     return setmetatable(throttled, {
         __call = function(_, ...)
-            local now = GetGameTimer()
-
-            if lastRun and (now - lastRun) < interval then return false end
-
-            lastRun = now
-            fn(...)
-            return true
+            return throttled.run(...)
         end
     })
 end

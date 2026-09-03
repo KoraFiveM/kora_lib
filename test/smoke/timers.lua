@@ -214,4 +214,49 @@ harness.test("throttle forwards arguments to the wrapped function", function()
     harness.assertEqual(seen[2], 42, "second argument should be forwarded")
 end)
 
+-- The `__call` metamethod does not cross the export boundary, so every handle
+-- must also expose a plain `.run` field -- funcrefs DO cross. Dropping `.run`
+-- is what broke qbpolice's melee detector with "attempt to call a table value".
+harness.test("throttle and debounce handles expose a plain .run field", function()
+    local throttled = QB.timers.throttle(function() end, 1000)
+    local debounced = QB.timers.debounce(function() end, 100)
+
+    harness.assertEqual(type(throttled.run), "function",
+        "throttle must expose .run as a plain function, not only __call")
+    harness.assertEqual(type(debounced.run), "function",
+        "debounce must expose .run as a plain function, not only __call")
+end)
+
+harness.test("throttle .run behaves exactly like calling the handle", function()
+    local runs = 0
+    local seen
+    local alert = QB.timers.throttle(function(...) runs = runs + 1; seen = { ... } end, 1000)
+
+    harness.assertTrue(alert.run("melee", 7), ".run should pass the leading-edge call through")
+    harness.assertEqual(runs, 1, ".run must actually invoke the wrapped function")
+    harness.assertEqual(seen[1], "melee", ".run should forward arguments")
+    harness.assertEqual(seen[2], 7, ".run should forward every argument")
+
+    harness.assertFalse(alert.run(), ".run must respect the cooldown like __call does")
+    harness.assertEqual(runs, 1, "a dropped .run must not invoke the wrapped function")
+
+    Wait(1000)
+    harness.assertTrue(alert.run(), ".run should pass again once the window elapsed")
+    harness.assertEqual(runs, 2, "exactly one more run after the window elapsed")
+end)
+
+harness.test("debounce .run behaves exactly like calling the handle", function()
+    local calls = {}
+    local save = QB.timers.debounce(function(value) calls[#calls + 1] = value end, 100)
+
+    save.run("first")
+    save.run("second")
+
+    harness.assertTrue(save.isPending(), ".run should schedule a pending run")
+    net.step()
+
+    harness.assertEqual(#calls, 1, ".run should collapse rapid calls the same way __call does")
+    harness.assertEqual(calls[1], "second", ".run should keep the LAST call's arguments")
+end)
+
 harness.report("timers")
