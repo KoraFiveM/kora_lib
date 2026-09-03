@@ -313,6 +313,69 @@ harness.test("QB.zones.edit can attach onEnter/onExit to a zone, and false detac
     zone.remove()
 end)
 
+-- The tick memoises its 3x3 candidate scan, since the answer only changes when
+-- the player crosses a cell boundary or the grid itself does. That cache is
+-- keyed off a grid epoch, and these are the three ways the grid can move under
+-- it: a zone appearing, a zone being destroyed, and a zone being relocated.
+-- Get the invalidation wrong and a newly created zone is invisible until the
+-- player happens to walk into a different cell and back.
+harness.test("a zone created after the candidate cache was warmed is still seen", function()
+    local warm = QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 5 })
+    net.step() -- warms the candidate cache for the player's cell
+
+    local entered = 0
+    local late = QB.zones.sphere({
+        coords = { x = 0, y = 0, z = 0 },
+        radius = 5,
+        onEnter = function() entered = entered + 1 end,
+    })
+
+    net.step()
+    harness.assertEqual(entered, 1, "a zone created after the cache was warmed must still be ticked")
+    harness.assertTrue(late.isInside(), "and must be tracked as entered")
+
+    late.remove()
+    net.step()
+    harness.assertTrue(warm.isInside(), "removing one zone must not disturb the others in the same cell")
+
+    warm.remove()
+end)
+
+harness.test("a zone destroyed mid-tick is skipped by the rest of that same tick", function()
+    -- The cached candidate list is a snapshot, so a handler that destroys
+    -- another zone leaves a dead reference in the array the loop is still
+    -- walking. That must be skipped, not ticked.
+    --
+    -- Written so it does not depend on which of the two the loop reaches
+    -- first: EACH removes the other, so whichever wins, the loser must never
+    -- fire. Asserting "exactly one of them entered" is true under both
+    -- orderings, where naming a specific victim would be a coin flip.
+    local first, second
+    local enters = 0
+    local function onEnter(other)
+        return function()
+            enters = enters + 1
+            local target = other()
+            if target then target.remove() end
+        end
+    end
+
+    first = QB.zones.sphere({
+        coords = { x = 0, y = 0, z = 0 }, radius = 5,
+        onEnter = onEnter(function() return second end),
+    })
+    second = QB.zones.sphere({
+        coords = { x = 0, y = 0, z = 0 }, radius = 5,
+        onEnter = onEnter(function() return first end),
+    })
+
+    net.step()
+    harness.assertEqual(enters, 1, "a zone destroyed earlier in the same tick must not then fire onEnter")
+
+    first.remove()
+    second.remove()
+end)
+
 harness.test("QB.zones.edit rejects an invalid onEnter and leaves coords unchanged", function()
     local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
     net.step()
