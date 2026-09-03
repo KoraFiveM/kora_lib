@@ -72,16 +72,19 @@ local function distSq(a, b)
     return dx * dx + dy * dy + dz * dz
 end
 
-local function closestPointOnAabb(p, aabb)
-    return {
-        x = math.max(aabb.minX, math.min(p.x, aabb.maxX)),
-        y = math.max(aabb.minY, math.min(p.y, aabb.maxY)),
-        z = math.max(aabb.minZ, math.min(p.z, aabb.maxZ)),
-    }
-end
-
+-- Squared distance from a point to the nearest point on an AABB, with the
+-- clamp inlined rather than materialising that nearest point. This runs once
+-- per candidate zone per tick -- and the tick runs per FRAME while anyone is
+-- standing in a zone with an `inside` callback -- so the intermediate
+-- {x,y,z} table it used to build was pure per-frame garbage, on a path whose
+-- entire job is to be cheap enough to run every frame.
 local function aabbDistSq(p, aabb)
-    return distSq(p, closestPointOnAabb(p, aabb))
+    local px, py, pz = p.x, p.y, p.z
+    local cx = px < aabb.minX and aabb.minX or (px > aabb.maxX and aabb.maxX or px)
+    local cy = py < aabb.minY and aabb.minY or (py > aabb.maxY and aabb.maxY or py)
+    local cz = pz < aabb.minZ and aabb.minZ or (pz > aabb.maxZ and aabb.maxZ or pz)
+    local dx, dy, dz = px - cx, py - cy, pz - cz
+    return dx * dx + dy * dy + dz * dz
 end
 
 local function makeAabb(minX, maxX, minY, maxY, minZ, maxZ)
@@ -149,7 +152,14 @@ local function worldToCell(x, y)
     return math.floor(x / Config.zones.gridSize), math.floor(y / Config.zones.gridSize)
 end
 
+-- Bumped by every grid mutation (create, destroy, and the re-insert behind
+-- QB.zones.edit). The tick's candidate cache below keys off it, so a stale
+-- candidate list can never outlive the grid it was built from.
+local gridEpoch = 0
+
 local function insertIntoGrid(zone)
+    gridEpoch = gridEpoch + 1
+
     local minCx, minCy = worldToCell(zone.aabb.minX, zone.aabb.minY)
     local maxCx, maxCy = worldToCell(zone.aabb.maxX, zone.aabb.maxY)
 
@@ -170,6 +180,8 @@ local function insertIntoGrid(zone)
 end
 
 local function removeFromGrid(zone)
+    gridEpoch = gridEpoch + 1
+
     for key in pairs(zone.cells) do
         local bucket = grid[key]
 
@@ -726,40 +738,65 @@ function QB.zones.setDebug(id, enabled)
     end
 end
 
-tickLoop = function()
-    while next(zoneRegistry) ~= nil do
-        local ped = PlayerPedId()
-        local coords = GetEntityCoords(ped)
-        local p = { x = coords.x, y = coords.y, z = coords.z }
+-- The 3x3 cell scan is memoised: its result only changes when the player
+-- crosses a 50m cell boundary or the grid itself changes. On foot that is
+-- roughly once every ten seconds, so rebuilding the candidate set on every
+-- tick meant nine hash lookups, a set union and a fresh table to throw away,
+-- per frame, to arrive at the same answer as last frame.
+--
+-- Cached as a dense ARRAY of zone references rather than a set of ids, so the
+-- tick walks it by index and reads each zone directly instead of paying a
+-- second registry lookup per candidate.
+local candidateCell, candidateList, candidateEpoch = nil, nil, -1
 
-        local cx, cy = worldToCell(p.x, p.y)
-        local candidates = {}
+local function candidatesFor(cx, cy)
+    local key = cellKey(cx, cy)
+    if candidateCell == key and candidateEpoch == gridEpoch then return candidateList end
 
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                local bucket = grid[cellKey(cx + dx, cy + dy)]
+    local seen, list = {}, {}
 
-                if bucket then
-                    for zoneId in pairs(bucket) do
-                        candidates[zoneId] = true
+    for dx = -1, 1 do
+        for dy = -1, 1 do
+            local bucket = grid[cellKey(cx + dx, cy + dy)]
+
+            if bucket then
+                for zoneId in pairs(bucket) do
+                    if not seen[zoneId] then
+                        seen[zoneId] = true
+                        local zone = zoneRegistry[zoneId]
+                        if zone then list[#list + 1] = zone end
                     end
                 end
             end
         end
+    end
 
-        -- Widen the "near" threshold for fast-moving entities so a small zone can't be
-        -- skipped entirely between two far-tier ticks.
-        local speed = GetEntitySpeed(ped)
-        local farTravel = speed * (Config.zones.tickFar / 1000) * Config.zones.speedSafetyFactor
-        local effectiveNearSq = math.max(nearProximitySq, farTravel * farTravel)
+    candidateCell, candidateList, candidateEpoch = key, list, gridEpoch
+    return list
+end
+
+tickLoop = function()
+    while next(zoneRegistry) ~= nil do
+        local ped = PlayerPedId()
+        -- The vector3 from the native is used directly. Copying it into a
+        -- {x,y,z} table allocated one more object per tick and bought nothing:
+        -- every reader here (the AABB clamp, all three containment tests) only
+        -- ever reads .x/.y/.z, which a vector3 already answers.
+        local p = GetEntityCoords(ped)
+
+        local list = candidatesFor(worldToCell(p.x, p.y))
 
         local minDistSq = math.huge
         local needsPerFrame = false
 
-        for zoneId in pairs(candidates) do
-            local zone = zoneRegistry[zoneId]
+        for i = 1, #list do
+            local zone = list[i]
 
-            if zone then
+            -- A cached list is a snapshot, and an onEnter/onExit handler is
+            -- free to destroy a zone while this loop is still walking it --
+            -- so liveness is re-checked per zone, off the flag destroyZone
+            -- already sets, rather than by looking the id up again.
+            if not zone.removed then
                 local dSq = aabbDistSq(p, zone.aabb)
                 if dSq < minDistSq then minDistSq = dSq end
 
@@ -786,10 +823,16 @@ tickLoop = function()
 
         if needsPerFrame then
             interval = Config.zones.tickInside
-        elseif minDistSq <= effectiveNearSq then
-            interval = Config.zones.tickNear
-        else
+        elseif minDistSq == math.huge then
+            -- No candidate in any neighbouring cell, so there is nothing to be
+            -- near and no reason to pay for a speed native to prove it.
             interval = Config.zones.tickFar
+        else
+            -- Widen the "near" threshold for fast-moving entities so a small zone can't be
+            -- skipped entirely between two far-tier ticks.
+            local farTravel = GetEntitySpeed(ped) * (Config.zones.tickFar / 1000) * Config.zones.speedSafetyFactor
+            local effectiveNearSq = math.max(nearProximitySq, farTravel * farTravel)
+            interval = minDistSq <= effectiveNearSq and Config.zones.tickNear or Config.zones.tickFar
         end
 
         Wait(interval)
