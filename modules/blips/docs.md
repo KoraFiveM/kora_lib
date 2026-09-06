@@ -16,7 +16,8 @@ Creates a map blip.
   - `scale: number` — Blip scale. Defaults to `Config.blips.defaultScale`.
   - `shortRange: boolean` — Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange` (`true`).
   - `label: string` — Blip name shown on the map/legend. Left as the sprite's own default label when omitted.
-  - `category: number` — Blip category, for legend grouping.
+  - `category: number | string` — A numeric native category, or a named custom
+    legend category shared by every blip using the same string.
   - `route: boolean` — Draws a waypoint route line to the blip. If `color` is also set, the route is colored to match.
 
 #### Returns
@@ -42,16 +43,17 @@ if not blip then
 end
 ```
 
-### Listing service blips in the pause-map legend
+### Grouping service blips in the pause-map legend
 
-`category` is a `SetBlipCategory` value. Use **2** for normal service blips:
-it shows the blip's label in the pause-map legend, letting Clothing Store,
-Barber, Tattoo Artist, Garage, and Shop appear as separate entries. Give every
-branch of the same service the same `label` so the map uses consistent names.
+Pass a string as `category` for normal service blips. qblib assigns it one of
+GTA's named custom categories (12-133), registers the heading, and reuses that
+category for every matching string. This collapses every branch of a service
+under one pause-map legend heading.
 
-Do **not** use **11** for normal services: it is GTA's built-in **Owned
-Property** category. Categories 7, 10, and 11 are reserved GTA groupings, not
-custom legend headings.
+Numeric values are forwarded directly to `SetBlipCategory`. Category **2**
+shows every blip as a separate distance-bearing row; it does not group them.
+Categories 7, 10, and 11 are reserved GTA groupings, and 12-133 are the custom
+range managed by qblib when a string is supplied.
 
 ```lua
 for _, store in ipairs(Config.shops) do
@@ -59,7 +61,7 @@ for _, store in ipairs(Config.shops) do
         sprite = 73,
         color = 47,
         label = 'Clothing Store',
-        category = 2,             -- Config.blips.listedCategory
+        category = 'Clothing Store',
     })
 end
 ```

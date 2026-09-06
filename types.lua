@@ -228,7 +228,7 @@
 ---@field scale? number
 ---@field label? string
 ---@field shortRange? boolean
----@field category? integer
+---@field category? integer|string
 ---@field route? boolean
 
 ---@class QBControlsOptions
@@ -410,6 +410,8 @@
 ---@field pattern? string
 ---@field rows? integer
 ---@field options? QBInputOption[]
+---@field optionsByValue? table<string, QBInputOption[]> Select options keyed by dependsOn's selected value.
+---@field dependsOn? string Id of the select field that controls optionsByValue.
 
 ---@class QBInputResult
 ---@field values? table<string, any>
@@ -425,6 +427,8 @@
 ---@field variant? QBAppActionVariant
 ---@field disabled? boolean
 ---@field data? any
+---@field fields? QBInputField[] Fields collected inline by AppShell before this action runs.
+---@field confirm? string Acknowledgement shown before submitting this action.
 
 ---@class QBAppStat
 ---@field label string
@@ -498,6 +502,7 @@
 ---@field width? number Pixels; clamped to 720-1600.
 ---@field height? number Pixels; clamped to 480-960.
 ---@field footer? string
+---@field accent? string #RRGGBB primary colour applied while this app is open.
 ---@field onAction? fun(actionId: string, context: QBAppActionContext): QBAppActionResult?
 
 ---@class QBAppOpenOptions

@@ -29,9 +29,11 @@
 local function imageFor(item)
     if type(item.icon) ~= 'string' or item.icon == '' then return nil end
     if item.icon:find('://', 1, true) or item.icon:sub(1, 6) == 'nui://' then return item.icon end
-    local ok, shared = pcall(function() return exports.qbcore:getShared('Items') end)
-    shared = ok and shared or {}
-    local definition = shared[item.icon]
+    -- Resolve at render time through the registry getter. Capturing the whole
+    -- Items map here would miss definitions registered after this resource
+    -- started (and getShared expects a lowercase registry plus a record key).
+    local ok, definition = pcall(function() return exports.qbcore:getShared('items', item.icon) end)
+    definition = ok and definition or nil
     if definition and type(definition.imageUrl) == 'string' and definition.imageUrl ~= '' then return definition.imageUrl end
     -- `definition.image` (e.g. "bread.png") is the LEGACY local-file field --
     -- real qb-inventory served it from its own html/images/ folder, but

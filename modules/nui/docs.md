@@ -205,6 +205,7 @@ QB.nui.registerApp({
     title = 'Mobile Data Terminal',
     description = 'Los Santos Police Department',
     icon = 'Shield',
+    accent = '#3B82F6',
     defaultView = 'dashboard',
     footer = 'LSPD secure network',
     navigation = {
@@ -256,7 +257,9 @@ local result = QB.nui.openApp('qbmdt:police', {
 
 - `QB.nui.registerApp(definition)` registers or replaces an owner-tracked app.
   The id should be namespaced (`resource:app`). A registration is removed
-  automatically if its resource stops.
+  automatically if its resource stops. An optional `accent = '#RRGGBB'`
+  applies that primary colour only for the app's open lifetime; closing or
+  superseding the app restores qbtheme's configured palette.
 - `QB.nui.openApp(id, opts?)` opens it and returns after X, Escape, an action,
   or `closeApp` closes it. The result is
   `{ closed = true, reason, viewId?, tabId? }`.
@@ -273,6 +276,26 @@ App actions can appear in `content.actions`, an `actions` block, a list item
 context)`. `context` includes `viewId`, `tabId`, optional `itemId`/`value`, and
 the private `opts.data` passed to `openApp`. Validate action values in Lua as
 you would any other client input.
+
+An action may also declare `fields`, using the same field schema as
+`openInputDialog`. AppShell expands those fields inline below the action and
+sends the resulting `{ [field.id] = value }` as `context.value` only when the
+admin submits it. This keeps a workflow such as player selection plus a reason
+inside the current application instead of stacking separate menus. Set
+`confirm = '…'` to require an explicit acknowledgement before a sensitive
+action; it also works for an action with no fields.
+
+For dependent selects, set `dependsOn` to the controlling field id and provide
+`optionsByValue`, keyed by that field's option values. Changing the controlling
+selection immediately replaces the dependent choices and selects its first
+available option.
+
+```lua
+{ id = 'warn', label = 'Warn player', fields = {
+    { id = 'target', label = 'Player', type = 'select', options = players, required = true },
+    { id = 'reason', label = 'Reason', type = 'textarea', required = true },
+} }
+```
 
 An action handler may return `{ close = true }`, or return a definition patch
 as `{ update = { navigation = newNavigation } }`. The latter is applied to the

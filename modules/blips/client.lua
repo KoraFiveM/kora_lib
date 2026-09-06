@@ -4,7 +4,7 @@
 ---@field scale? number Blip scale. Defaults to `Config.blips.defaultScale`.
 ---@field label? string Blip name shown on the map/legend. Left as the sprite's own default label when omitted.
 ---@field shortRange? boolean Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange`.
----@field category? number Blip category, for legend grouping. Left unset (engine default) when omitted.
+---@field category? number | string Numeric native category, or a named custom category shared by blips with the same string. Left unset (engine default) when omitted.
 ---@field route? boolean Draws a waypoint route line to the blip. Defaults to `false`.
 
 -- blipRegistry tracks every blip this module has created, keyed by the
@@ -14,6 +14,35 @@
 local blipRegistry = QB.resources.registry(function(blip)
     if DoesBlipExist(blip) then RemoveBlip(blip) end
 end)
+
+-- GTA reserves categories 12-133 for named custom legend groups. Allocate
+-- those centrally so callers can group by a stable name without coordinating
+-- numeric ids across resources. The mapping lives for qblib's lifetime, which
+-- also prevents a later resource restart from relabelling an existing group.
+local namedCategories = {}
+local nextNamedCategory = Config.blips.namedCategoryStart
+
+---@param category number | string | nil
+---@return number? category
+local function resolveCategory(category)
+    if category == nil or type(category) == "number" then return category end
+
+    assert(type(category) == "string" and category ~= "",
+        "Invalid category: expected a number or non-empty string.")
+
+    local existing = namedCategories[category]
+    if existing then return existing end
+
+    assert(nextNamedCategory <= Config.blips.namedCategoryEnd,
+        "No named blip categories remain; GTA supports categories 12 through 133.")
+
+    local resolved = nextNamedCategory
+    nextNamedCategory = nextNamedCategory + 1
+    namedCategories[category] = resolved
+    AddTextEntry(("BLIP_CAT_%d"):format(resolved), category)
+
+    return resolved
+end
 
 ---Applies `label` as the blip's display name via the text-command trio FiveM
 ---requires for setting blip names (there's no single-call native for it).
@@ -45,6 +74,8 @@ function QB.blips.create(coords, options)
     assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
 
+    local category = resolveCategory(options.category)
+
     local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
 
     if not blip or blip == 0 then
@@ -59,7 +90,7 @@ function QB.blips.create(coords, options)
     if shortRange == nil then shortRange = Config.blips.defaultShortRange end
     SetBlipAsShortRange(blip, shortRange)
 
-    if options.category then SetBlipCategory(blip, options.category) end
+    if category then SetBlipCategory(blip, category) end
     if options.label then applyLabel(blip, options.label) end
 
     if options.route then

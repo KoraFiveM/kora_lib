@@ -68,6 +68,12 @@ local function respondOk(requestId, result)
     respond(requestId, lastToken(), true, result)
 end
 
+local function lastMessage(action)
+    for index = #sentMessages, 1, -1 do
+        if sentMessages[index].action == action then return sentMessages[index] end
+    end
+end
+
 -- The qblib:nui:theme callback now lives in modules/theme/client.lua (see
 -- test/smoke/theme.lua) -- this file no longer dofiles that module, so those
 -- assertions moved rather than duplicated.
@@ -353,6 +359,7 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
         id = "smoke:records",
         title = "Records",
         icon = "Database",
+        accent = "#3B82F6",
         navigation = {
             { id = "people", label = "People", content = { blocks = { { type = "empty", title = "Find a person" } } } },
         },
@@ -364,6 +371,9 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openApp", "openApp should send its dedicated action")
+    local accent = sentMessages[#sentMessages - 1]
+    harness.assertEqual(accent.action, "qbtheme:override", "the app accent should be applied through qblib's frame")
+    harness.assertEqual(accent.data, definition.accent, "the configured app accent should be forwarded")
     harness.assertEqual(sent.data.payload.app.id, definition.id, "the registered browser definition should be sent")
     harness.assertEqual(sent.data.payload.app.onAction, nil, "Lua action handlers must never enter the JSON payload")
     harness.assertEqual(sent.data.payload.viewId, "people", "the requested initial view should be forwarded")
@@ -374,6 +384,8 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     respond(requestId, token, true, { closed = true, reason = "close", viewId = "people" })
     harness.assertEqual(p.value.reason, "close", "the browser close result should settle openApp")
     harness.assertFalse(QB.nui.isAppOpen(), "settling openApp should clear the active instance")
+    harness.assertEqual(sentMessages[#sentMessages].action, "qbtheme:override", "closing should reset the app accent")
+    harness.assertEqual(sentMessages[#sentMessages].data, nil, "closing should restore the configured palette")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "settling openApp should release NUI focus")
     harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
 end)
@@ -420,6 +432,26 @@ harness.test("AppShell actions require the active token and route context to the
     respond(requestId, token, true, { closed = true, reason = "close" })
 end)
 
+harness.test("AppShell accepts inline action field schemas and forwards submitted values", function()
+    local received
+    QB.nui.registerApp({
+        id = "smoke:inline-fields",
+        title = "Inline fields",
+        navigation = { { id = "home", label = "Home", content = { actions = {
+            { id = "warn", label = "Warn", fields = { { id = "reason", label = "Reason", type = "text", required = true } }, confirm = "This is recorded." },
+        } } } },
+        onAction = function(_, context) received = context.value end,
+    })
+    QB.nui.openApp("smoke:inline-fields")
+    local _, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({
+        appId = "smoke:inline-fields", token = token, actionId = "warn", viewId = "home", value = { reason = "Be civil" },
+    }, function(result) response = result end)
+    harness.assertTrue(response.ok, "an inline-field action should be accepted")
+    harness.assertEqual(received.reason, "Be civil", "submitted inline values should reach the action handler")
+end)
+
 harness.test("updateApp refreshes an active definition and closeApp settles through the browser", function()
     QB.nui.registerApp({
         id = "smoke:lifecycle",
@@ -455,7 +487,7 @@ harness.test("registered apps are removed and closed automatically when their ow
     local requestId, token = lastRequestId(), lastToken()
 
     net.fire("onClientResourceStop", "qblib_test")
-    local close = sentMessages[#sentMessages]
+    local close = lastMessage("closeApp")
     harness.assertEqual(close.action, "closeApp", "owner shutdown should close the visible app")
     harness.assertEqual(close.data.reason, "resourceStop", "owner shutdown should identify the close reason")
     harness.assertEqual(opened.state, "resolved", "owner shutdown should settle immediately without relying on the browser")
@@ -475,7 +507,8 @@ harness.test("opening a second app releases old focus before granting focus to t
     local second = QB.nui.openApp("smoke:second")
     local secondRequestId, secondToken = lastRequestId(), lastToken()
 
-    harness.assertEqual(first.state, "rejected", "the previous app request should be settled before replacement")
+    harness.assertEqual(first.state, "resolved", "the previous app request should close cleanly before replacement")
+    harness.assertEqual(first.value.reason, "superseded", "the replaced app should report the superseded close reason")
     harness.assertEqual(second.state, "pending", "the replacement app should remain active")
     harness.assertTrue(focusCalls[#focusCalls].mouse and focusCalls[#focusCalls].keyboard,
         "the replacement app must own focus after superseding the previous app")
@@ -499,6 +532,15 @@ harness.test("registerApp rejects definitions that would strand focus in an unre
             navigation = { { id = "home", label = "Home", content = { blocks = { { type = "table" } } } } },
         })
     end, "a malformed standard content block must be rejected before opening")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-accent",
+            title = "Invalid accent",
+            accent = "blue",
+            navigation = { { id = "home", label = "Home" } },
+        })
+    end, "an invalid app accent must be rejected before opening")
 end)
 
 harness.report("nui")

@@ -8,7 +8,10 @@ This module creates map blips visible only to the calling client, with automatic
   - Creates a blip at `coords` (`AddBlipForCoord`).
   - `options.sprite` / `options.color` / `options.scale` / `options.shortRange` default from `Config.blips` when omitted.
   - `options.label` sets the blip's display name via the `BeginTextCommandSetBlipName`/`AddTextComponentSubstringPlayerName`/`EndTextCommandSetBlipName` trio (FiveM has no single-call native for this).
-  - `options.category` sets legend grouping; left unset (engine default) when omitted.
+  - `options.category` accepts a numeric native category or a string. A string
+    allocates a named custom category (12-133), and every blip using that same
+    string is grouped beneath one pause-map legend heading. Left unset (engine
+    default) when omitted.
   - `options.route` draws a waypoint line to the blip (`SetBlipRoute`); if `options.color` is also set, the route is colored to match (`SetBlipRouteColour`).
   - Returns the blip handle, or `false, error` if creation failed.
 - `QB.blips.remove(blip)`

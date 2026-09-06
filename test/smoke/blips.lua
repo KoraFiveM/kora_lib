@@ -13,6 +13,7 @@ dofile(repoRoot .. "build/initiate.lua")
 
 local existingBlips = {}
 local blipCalls = {}
+local textEntries = {}
 local nextBlip = 0
 
 local function recordCall(blip, key, value)
@@ -37,6 +38,7 @@ function _G.SetBlipAsShortRange(blip, on) recordCall(blip, "shortRange", on) end
 function _G.SetBlipCategory(blip, category) recordCall(blip, "category", category) end
 function _G.SetBlipRoute(blip, on) recordCall(blip, "route", on) end
 function _G.SetBlipRouteColour(blip, color) recordCall(blip, "routeColor", color) end
+function _G.AddTextEntry(key, value) textEntries[key] = value end
 
 function _G.BeginTextCommandSetBlipName(_) end
 function _G.AddTextComponentSubstringPlayerName(text) _G.__lastLabelText = text end
@@ -79,6 +81,21 @@ harness.test("route without an explicit color does not set a route color", funct
     local blip = QB.blips.create({ x = 0, y = 0, z = 0 }, { route = true })
     harness.assertEqual(blipCalls[blip].route, true, "route should still be enabled")
     harness.assertEqual(blipCalls[blip].routeColor, nil, "route color should be left unset without an explicit color")
+end)
+
+harness.test("groups matching named categories under one custom legend entry", function()
+    local first = QB.blips.create({ x = 0, y = 0, z = 0 }, { category = "Ammu-Nation" })
+    local second = QB.blips.create({ x = 1, y = 1, z = 1 }, { category = "Ammu-Nation" })
+    local third = QB.blips.create({ x = 2, y = 2, z = 2 }, { category = "Clothing Store" })
+
+    harness.assertEqual(blipCalls[first].category, Config.blips.namedCategoryStart,
+        "the first named category should use the start of GTA's custom range")
+    harness.assertEqual(blipCalls[second].category, blipCalls[first].category,
+        "matching category names should share one legend group")
+    harness.assertEqual(blipCalls[third].category, Config.blips.namedCategoryStart + 1,
+        "a different category name should get a different legend group")
+    harness.assertEqual(textEntries["BLIP_CAT_" .. Config.blips.namedCategoryStart], "Ammu-Nation",
+        "the custom category should have a visible legend label")
 end)
 
 harness.test("remove deletes a tracked blip", function()

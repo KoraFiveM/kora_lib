@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react"
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react"
 import { AlertCircle, ChevronRight, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/cn"
 import { fetchNui } from "@/lib/fetchNui"
 import { resolveIcon } from "@/lib/icon"
@@ -12,6 +14,8 @@ import type {
     AppContent,
     AppDefinition,
     AppListItem,
+    FieldValue,
+    InputField,
     AppResult,
     AppTableRow,
     AppTableValue,
@@ -84,16 +88,67 @@ function ActionButtons({
     )
 }
 
+function initialValues(fields: InputField[]) {
+    return Object.fromEntries(fields.map((field) => [field.id, field.default ?? (field.type === "checkbox" ? false : field.type === "number" || field.type === "range" ? field.min ?? 0 : "")])) as Record<string, FieldValue>
+}
+
+function fieldOptions(field: InputField, values: Record<string, FieldValue>) {
+    return field.dependsOn ? field.optionsByValue?.[String(values[field.dependsOn] ?? "")] ?? [] : field.options ?? []
+}
+
+function ActionForm({ action, busy, submit, cancel }: { action: AppAction; busy?: string; submit: (values: Record<string, FieldValue>) => void; cancel: () => void }) {
+    const fields = action.fields ?? []
+    const [values, setValues] = useState<Record<string, FieldValue>>(() => initialValues(fields))
+    useEffect(() => setValues(initialValues(fields)), [fields])
+    const setValue = (id: string, value: FieldValue) => setValues((current) => {
+        const next = { ...current, [id]: value }
+        for (const field of fields) {
+            if (field.dependsOn !== id) continue
+            next[field.id] = fieldOptions(field, next)[0]?.value ?? ""
+        }
+        return next
+    })
+    const submitForm = (event: FormEvent) => { event.preventDefault(); submit(values) }
+
+    return (
+        <form onSubmit={submitForm} className="rounded-lg border border-brand-border bg-brand-soft/30 p-4">
+            <div className="mb-3 flex items-start justify-between gap-4">
+                <div><h3 className="text-sm font-semibold text-foreground">{action.label}</h3>{action.confirm ? <p className="mt-1 text-xs text-warning">{action.confirm}</p> : null}</div>
+                <Button type="button" size="sm" variant="ghost" onClick={cancel} disabled={busy !== undefined}>Cancel</Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {fields.map((field) => (
+                    <label key={field.id} className={cn("flex flex-col gap-1 text-sm font-medium", field.type === "textarea" ? "sm:col-span-2" : "")}>
+                        <span>{field.label}{field.required ? <span className="text-destructive"> *</span> : null}</span>
+                        {field.type === "textarea" ? <Textarea rows={field.rows ?? 3} value={String(values[field.id] ?? "")} placeholder={field.placeholder} required={field.required} onChange={(event) => setValue(field.id, event.target.value)} />
+                            : field.type === "checkbox" ? <input type="checkbox" checked={Boolean(values[field.id])} required={field.required} onChange={(event) => setValue(field.id, event.target.checked)} className="h-4 w-4 accent-primary" />
+                            : field.type === "select" ? <select value={String(values[field.id] ?? "")} required={field.required} onChange={(event) => setValue(field.id, event.target.value)} className="focus-ring h-9 rounded-md border border-input bg-background px-3 text-sm"><option value="" disabled>{field.placeholder ?? "Select…"}</option>{fieldOptions(field, values).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                            : <Input type={field.type === "range" ? "range" : field.type === "combobox" ? "text" : field.type} list={field.type === "combobox" ? `${field.id}-options` : undefined} value={String(values[field.id] ?? "")} placeholder={field.placeholder} required={field.required} min={field.min} max={field.max} step={field.step} onChange={(event) => setValue(field.id, field.type === "number" || field.type === "range" ? Number(event.target.value) : event.target.value)} />}
+                        {field.type === "combobox" ? <datalist id={`${field.id}-options`}>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist> : null}
+                    </label>
+                ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" onClick={cancel} disabled={busy !== undefined}>Cancel</Button><Button type="submit" disabled={busy !== undefined}>{busy === action.id ? "Working…" : action.confirm ? "Confirm" : "Run action"}</Button></div>
+        </form>
+    )
+}
+
 function ContentBlock({
     block,
     index,
     busy,
     runAction,
+    openForm,
+    activeForm,
+    cancelForm,
 }: {
     block: AppBlock
     index: number
     busy?: string
     runAction: (action: AppAction, item?: { itemId?: string; value?: unknown }) => void
+    openForm: (action: AppAction) => void
+    activeForm?: AppAction
+    cancelForm: () => void
 }) {
     if (block.type === "text") {
         return (
@@ -227,7 +282,8 @@ function ContentBlock({
         return (
             <section className="rounded-lg border border-border bg-card p-4">
                 <BlockTitle>{block.title}</BlockTitle>
-                <ActionButtons actions={block.actions} busy={busy} run={(action) => runAction(action)} />
+                <ActionButtons actions={block.actions} busy={busy} run={(action) => action.fields?.length || action.confirm ? openForm(action) : runAction(action)} />
+                {activeForm ? <div className="mt-4"><ActionForm action={activeForm} busy={busy} submit={(values) => runAction(activeForm, { value: values })} cancel={cancelForm} /></div> : null}
             </section>
         )
     }
@@ -253,6 +309,7 @@ export function AppShell() {
     const [tabId, setTabId] = useState<string>()
     const [busy, setBusy] = useState<string>()
     const [error, setError] = useState<string>()
+    const [activeForm, setActiveForm] = useState<AppAction>()
 
     const { payload, token, isOpen, respond } = useNuiRequest<OpenAppPayload, AppResult>(
         "openApp",
@@ -263,6 +320,7 @@ export function AppShell() {
             setTabId(selectedTabId(view, open.tabId))
             setBusy(undefined)
             setError(undefined)
+            setActiveForm(undefined)
         }, []),
     )
 
@@ -322,6 +380,7 @@ export function AppShell() {
             if (response.ok === false) throw new Error(response.error ?? "The action failed.")
             if (response.result?.app) setApp(response.result.app)
             if (response.result?.close) close("action")
+            setActiveForm(undefined)
         } catch (actionError) {
             setError(actionError instanceof Error ? actionError.message : "The action failed.")
         } finally {
@@ -428,7 +487,7 @@ export function AppShell() {
                                     {content.title ? <h2 className="text-base font-semibold">{content.title}</h2> : null}
                                     {content.description ? <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{content.description}</p> : null}
                                 </div>
-                                {content.actions?.length ? <ActionButtons actions={content.actions} busy={busy} run={(action) => runAction(action)} /> : null}
+                                {content.actions?.length ? <ActionButtons actions={content.actions} busy={busy} run={(action) => action.fields?.length || action.confirm ? setActiveForm(action) : runAction(action)} /> : null}
                             </div>
                         ) : null}
 
@@ -436,7 +495,7 @@ export function AppShell() {
 
                         <div className="space-y-4">
                             {content?.blocks?.length ? content.blocks.map((block, index) => (
-                                <ContentBlock key={`${block.type}-${index}`} block={block} index={index} busy={busy} runAction={runAction} />
+                                <ContentBlock key={`${block.type}-${index}`} block={block} index={index} busy={busy} runAction={runAction} openForm={setActiveForm} activeForm={activeForm} cancelForm={() => setActiveForm(undefined)} />
                             )) : (
                                 <section className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 py-12 text-center">
                                     <h3 className="text-base font-semibold">Nothing here yet</h3>

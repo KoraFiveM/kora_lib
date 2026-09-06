@@ -13,13 +13,13 @@ dofile(repoRoot .. "build/initiate.lua")
 
 -- Controllable mock qbcore shared-item registry -- imageFor (in
 -- compat/client/qb-menu.lua) reads item definitions via
--- exports.qbcore:getShared('Items'), pcall-guarded, same pattern as
+-- exports.qbcore:getShared('items', key), pcall-guarded, same pattern as
 -- compat_qb_radialmenu.lua's exports.qbcore mock.
 local sharedItems = {}
 _G.exports = {
     qbcore = {
-        getShared = function(_, collection)
-            if collection == 'Items' then return sharedItems end
+        getShared = function(_, collection, key)
+            if collection == 'items' then return sharedItems[key] end
             return nil
         end,
     },
@@ -208,7 +208,7 @@ end)
 
 -- Real qb-menu items sometimes carry a shared-item NAME as `icon` rather
 -- than a real icon; imageFor looks that name up via
--- exports.qbcore:getShared('Items'). If the matched definition has a real
+-- exports.qbcore:getShared('items', icon). If the matched definition has a real
 -- `imageUrl`, it's used as-is (not exercised here). But if the definition
 -- only has the LEGACY local-file `image` field (no `imageUrl`), imageFor
 -- used to fall back to building a `nui://qb-inventory/html/images/%s` URL --

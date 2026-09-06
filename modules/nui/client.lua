@@ -44,6 +44,17 @@ local function assertAppAction(action, location)
     assert(type(action) == "table", ("%s must contain action tables."):format(location))
     assert(type(action.id) == "string" and action.id ~= "", ("%s action id must be a non-empty string."):format(location))
     assert(type(action.label) == "string" and action.label ~= "", ("%s action label must be a non-empty string."):format(location))
+    if action.fields ~= nil then
+        assert(type(action.fields) == "table", ("%s action fields must be a table."):format(location))
+        for index, field in ipairs(action.fields) do
+            assert(type(field) == "table" and type(field.id) == "string" and field.id ~= ""
+                and type(field.label) == "string" and field.label ~= ""
+                and type(field.type) == "string", ("%s action field %d is invalid."):format(location, index))
+            assert(field.dependsOn == nil or type(field.dependsOn) == "string", ("%s action field %d dependsOn must be a string."):format(location, index))
+            assert(field.optionsByValue == nil or type(field.optionsByValue) == "table", ("%s action field %d optionsByValue must be a table."):format(location, index))
+        end
+    end
+    assert(action.confirm == nil or type(action.confirm) == "string", ("%s action confirm must be a string."):format(location))
 end
 
 local function assertAppContent(content, location)
@@ -81,6 +92,9 @@ end
 local function assertBrowserApp(definition)
     assertAppId(definition.id)
     assert(type(definition.title) == "string" and definition.title ~= "", "App title must be a non-empty string.")
+    assert(definition.accent == nil or (type(definition.accent) == "string"
+        and definition.accent:match("^#%x%x%x%x%x%x$") ~= nil),
+        "App accent must be a #RRGGBB hex colour.")
     assert(type(definition.navigation) == "table" and #definition.navigation > 0,
         "App navigation must contain at least one view.")
     assert(definition.width == nil or (type(definition.width) == "number" and definition.width > 0),
@@ -422,6 +436,10 @@ end
 -- App registrations are owner-tracked like callbacks, zones, and keybinds.
 -- If a consumer stops while its app is open, ask the browser to settle the
 -- request first (which releases focus) and then remove the definition.
+local function applyAppAccent(registration)
+    QB.nui.send("qbtheme:override", registration and registration.browser.accent or nil)
+end
+
 appOwnership = QB.resources.registry(function(id)
     local current = activeApp
     if current and current.id == id then
@@ -463,6 +481,7 @@ function QB.nui.registerApp(definition)
 
     local current = activeApp
     if current and current.id == definition.id then
+        applyAppAccent(registeredApps[definition.id])
         QB.nui.send("updateApp", {
             appId = definition.id,
             token = current.token,
@@ -515,10 +534,15 @@ function QB.nui.openApp(id, opts)
     -- leaving the newly visible app unable to receive input.
     if activeApp then
         local previous = activeApp
-        settlePendingRequest(previous.promise, false, "Superseded by a newer app.")
+        -- Reopening/replacing an app is normal control flow (notably when an
+        -- admin runs /admin again). Resolve the old caller as closed instead
+        -- of rejecting its cross-resource export call, which would otherwise
+        -- print a misleading SCRIPT ERROR in the resource that opened it.
+        settlePendingRequest(previous.promise, true, { closed = true, reason = "superseded" })
     end
 
     opts = opts or {}
+    applyAppAccent(registration)
     local p = requestPromise("openApp", {
         app = registration.browser,
         data = opts.data,
@@ -535,7 +559,9 @@ function QB.nui.openApp(id, opts)
     activeApp = instance
 
     local function clear()
-        if activeApp == instance then activeApp = nil end
+        if activeApp ~= instance then return end
+        activeApp = nil
+        applyAppAccent(nil)
     end
     p:next(clear, clear)
 
@@ -561,6 +587,7 @@ function QB.nui.updateApp(id, update)
 
     local current = activeApp
     if current and current.id == id then
+        applyAppAccent(registration)
         QB.nui.send("updateApp", {
             appId = id,
             token = current.token,
@@ -636,6 +663,7 @@ QB.nui.registerCallback("qblib:app:action", function(data)
                 :format(current.id, data.actionId, tostring(updateError)))
             return { ok = false, error = "The app returned an invalid update." }
         end
+        applyAppAccent(registration)
         result.app = registration.browser
         result.update = nil
     end

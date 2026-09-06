@@ -66,17 +66,22 @@ Config.blips = {
     defaultScale = 1.0,      -- default SetBlipScale when options.scale is omitted
     defaultShortRange = true,-- default SetBlipAsShortRange when options.shortRange is omitted
 
-    -- SetBlipCategory value that displays the blip label in the pause-map
-    -- legend. Category 11 is GTA's built-in "Owned Property" bucket, so service
-    -- resources should use this value for Clothing Store, Barber, Garage, or
-    -- Shop entries.
+    -- Category 2 displays every blip as its own distance-bearing row in the
+    -- pause-map legend; it does not group repeated locations. Prefer passing a
+    -- string to QB.blips.create's `category` option for service groups.
     --
     -- It lives here as documentation rather than being applied by
     -- QB.blips.create: the calling resource decides whether its blip belongs in
     -- the legend.
     listedCategory = 2,
-    -- Backwards-compatible alias for resources that used the old reference name.
+    -- Backwards-compatible alias. Despite the old name, category 2 is a list,
+    -- not a collapsible group.
     groupedCategory = 2,
+
+    -- GTA's range for named custom legend categories. QB.blips.create assigns
+    -- ids from this range to string categories and registers their labels.
+    namedCategoryStart = 12,
+    namedCategoryEnd = 133,
 }
 
 Config.progressbar = {

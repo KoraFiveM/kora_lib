@@ -11,9 +11,8 @@
 // zoneCreator:* actions), modules/placement/client.lua (the placement:* actions),
 // modules/notify/client.lua (the "notify" action),
 // and modules/minigames/client.lua (the minigames:* actions), plus
-// qbtarget/client/loop.lua (the qbtarget:target display action and the
-// qbtarget:select candidate-picker action) -- this file is the one place the
-// whole contract is written down on the NUI side.
+// qbtarget/client/loop.lua (the qbtarget:target display action) -- this file is
+// the one place the whole contract is written down on the NUI side.
 
 // The outer wire envelope every Lua->NUI message travels in.
 export interface NuiWireMessage<T = unknown> {
@@ -58,23 +57,6 @@ export interface TargetHudPayload {
     active: boolean
     label?: string
     optionCount?: number
-}
-
-// action: "qbtarget:select" (fire-and-forget) -- the compact candidate picker
-// shown when more than one option is available under the reticle. Mirrors
-// InteractOpenPayload's display-only, pointer-transparent contract, but is
-// qbtarget's own action name/payload shape: qbtarget cycles/confirms/cancels
-// entirely via its own control polling in client/loop.lua (no NUI focus, no
-// selectOption callback round trip -- Lua already knows the active index).
-export interface TargetSelectOption {
-    label: string
-    icon?: string
-}
-
-export interface TargetSelectPayload {
-    active: boolean
-    items?: TargetSelectOption[]
-    activeIndex?: number
 }
 
 // action: "textui:set" (fire-and-forget). `false` hides the display.
@@ -159,6 +141,10 @@ export interface InputField {
     // `select` (fixed choice) and `combobox` (free text + filtered
     // suggestions from this same list) both use this.
     options?: { value: string; label: string }[]
+    /** Select options keyed by another select field's current value. */
+    optionsByValue?: Record<string, { value: string; label: string }[]>
+    /** Field id that selects this field's `optionsByValue` entry. */
+    dependsOn?: string
     default?: FieldValue
     placeholder?: string
     // textarea only; ignored by every other field type.
@@ -231,6 +217,10 @@ export interface AppAction {
     variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive"
     disabled?: boolean
     data?: unknown
+    /** Optional fields collected in the app shell before this action is sent. */
+    fields?: InputField[]
+    /** A short acknowledgement shown above destructive in-shell actions. */
+    confirm?: string
 }
 
 export interface AppStat {
@@ -306,6 +296,8 @@ export interface AppDefinition {
     width?: number
     height?: number
     footer?: string
+    /** #RRGGBB primary colour applied by Lua for this app's open lifetime. */
+    accent?: string
 }
 
 // action: "openApp" (request)
