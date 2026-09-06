@@ -191,6 +191,109 @@ if result and not result.cancelled then
 end
 ```
 
+### Registered applications (`AppShell`)
+
+`registerApp` defines a full application once; `openApp` opens it later by id,
+with the same automatic focus and dismissal lifecycle as menus and inputs.
+qblib renders the shared application frame, sidebar, tabs, tables, lists,
+summary cards, empty states, and buttons. The registering resource remains the
+owner of its data and handles every action in Lua.
+
+```lua
+QB.nui.registerApp({
+    id = 'qbmdt:police',
+    title = 'Mobile Data Terminal',
+    description = 'Los Santos Police Department',
+    icon = 'Shield',
+    defaultView = 'dashboard',
+    footer = 'LSPD secure network',
+    navigation = {
+        {
+            id = 'dashboard',
+            label = 'Dashboard',
+            icon = 'Home',
+            content = {
+                title = 'Shift overview',
+                description = 'Current operational picture.',
+                actions = {
+                    { id = 'new-report', label = 'New report', icon = 'Plus', variant = 'primary' },
+                },
+                blocks = {
+                    {
+                        type = 'stats',
+                        items = {
+                            { label = 'Active units', value = 12, icon = 'Users', tone = 'success' },
+                            { label = 'Open reports', value = 4, icon = 'FileText', tone = 'warning' },
+                        },
+                    },
+                },
+            },
+        },
+        {
+            id = 'records',
+            label = 'Records',
+            icon = 'Database',
+            tabs = {
+                { id = 'people', label = 'People', content = { blocks = { { type = 'empty', title = 'Search people' } } } },
+                { id = 'vehicles', label = 'Vehicles', content = { blocks = { { type = 'empty', title = 'Search vehicles' } } } },
+            },
+        },
+    },
+    onAction = function(actionId, context)
+        if actionId == 'new-report' then
+            TriggerEvent('qbmdt:client:newReport', context)
+        end
+    end,
+})
+
+local result = QB.nui.openApp('qbmdt:police', {
+    viewId = 'dashboard',
+    data = { characterId = citizenid }, -- private; returned only to onAction
+})
+```
+
+#### Lifecycle API
+
+- `QB.nui.registerApp(definition)` registers or replaces an owner-tracked app.
+  The id should be namespaced (`resource:app`). A registration is removed
+  automatically if its resource stops.
+- `QB.nui.openApp(id, opts?)` opens it and returns after X, Escape, an action,
+  or `closeApp` closes it. The result is
+  `{ closed = true, reason, viewId?, tabId? }`.
+- `QB.nui.updateApp(id, update)` shallow-merges definition fields. Supplying
+  `navigation` replaces the navigation tree as a whole. An open instance
+  refreshes immediately and keeps its view/tab if they still exist.
+- `QB.nui.closeApp(id?)` closes the matching app, or the currently open app
+  when id is omitted. `QB.nui.isAppOpen(id?)` reports its state.
+- `QB.nui.unregisterApp(id)` closes an open instance and removes its
+  registration.
+
+App actions can appear in `content.actions`, an `actions` block, a list item
+(`action`), or a table block (`action`). They all call `onAction(actionId,
+context)`. `context` includes `viewId`, `tabId`, optional `itemId`/`value`, and
+the private `opts.data` passed to `openApp`. Validate action values in Lua as
+you would any other client input.
+
+An action handler may return `{ close = true }`, or return a definition patch
+as `{ update = { navigation = newNavigation } }`. The latter is applied to the
+registration and visible app before the action completes. For asynchronous
+pushes, call `updateApp` directly.
+
+#### Content blocks
+
+- `text`: `title?`, `text`
+- `stats`: `title?`, `items = { { label, value, description?, icon?, tone? } }`
+- `table`: `title?`, `columns`, `rows`, `empty?`, and optional row `action` /
+  `idKey`
+- `list`: `title?`, `items = { { id, label, description?, icon?, badge?,
+  tone?, action?, data? } }`
+- `actions`: `title?`, `actions`
+- `empty`: `title`, `description?`, `icon?`
+
+Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.
+Button variants are `primary`, `secondary`, `outline`, `ghost`, and
+`destructive`. Icon strings use the same curated Lucide resolver as menus.
+
 ## Legacy compat: `qb-menu` / `qb-input` / `qb-radialmenu`
 
 `qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `QB.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `qbtarget/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.

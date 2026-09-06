@@ -10,6 +10,7 @@ local mockHandle = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "local/resources/client.lua")
 
 local nuiCallbacks = {}
 local nuiMessages = {}
@@ -79,7 +80,6 @@ _G.GetEntityCoords = function(entity) return { x = entity, y = 20, z = 30 } end
 _G.GetEntityHeading = function() return 45 end
 
 dofile(repoRoot .. "modules/nui/client.lua")
-dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/interact/client.lua")
 

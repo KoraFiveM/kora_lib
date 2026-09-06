@@ -164,6 +164,8 @@ QB.nui.setFocus(mouse, keyboard)  QB.nui.withFocus(mouse, keyboard, fn)
 QB.nui.registerCallback(name, handler)  QB.nui.copyToClipboard(text)
 QB.nui.openMenu(items, title)  QB.nui.openContextMenu(items, x, y)
 QB.nui.openRadialMenu(items, opts)  QB.nui.openInputDialog(fields, title, description)
+QB.nui.registerApp(definition)  QB.nui.openApp(id, opts)
+QB.nui.updateApp(id, update)  QB.nui.closeApp(id)  QB.nui.unregisterApp(id)
 ```
 Every module that shows something in-browser goes through this rather than
 `SendNUIMessage`/`RegisterNUICallback` directly. Headless: no focus/visibility

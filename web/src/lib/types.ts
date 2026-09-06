@@ -218,6 +218,147 @@ export interface CopyToClipboardPayload {
     text: string
 }
 
+// Registered AppShell contract. qblib owns this frame and its standard
+// content primitives; consumer resources own the definition, data, and Lua
+// action handler. The deliberately small discriminated block set keeps the
+// wire format JSON-safe while leaving room to add richer primitives later.
+export type AppTone = "neutral" | "primary" | "success" | "warning" | "destructive"
+
+export interface AppAction {
+    id: string
+    label: string
+    icon?: string
+    variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive"
+    disabled?: boolean
+    data?: unknown
+}
+
+export interface AppStat {
+    label: string
+    value: string | number
+    description?: string
+    icon?: string
+    tone?: AppTone
+}
+
+export interface AppTableColumn {
+    key: string
+    label: string
+    align?: "left" | "center" | "right"
+}
+
+export type AppTableValue = string | number | boolean | null
+export type AppTableRow = Record<string, AppTableValue>
+
+export interface AppListItem {
+    id: string
+    label: string
+    description?: string
+    icon?: string
+    badge?: string | number
+    tone?: AppTone
+    action?: string
+    data?: unknown
+}
+
+export type AppBlock =
+    | { type: "text"; title?: string; text: string }
+    | { type: "stats"; title?: string; items: AppStat[] }
+    | { type: "table"; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string }
+    | { type: "list"; title?: string; items: AppListItem[]; empty?: string }
+    | { type: "actions"; title?: string; actions: AppAction[] }
+    | { type: "empty"; title: string; description?: string; icon?: string }
+
+export interface AppContent {
+    title?: string
+    description?: string
+    actions?: AppAction[]
+    blocks?: AppBlock[]
+}
+
+export interface AppTab {
+    id: string
+    label: string
+    badge?: string | number
+    content?: AppContent
+}
+
+export interface AppNavigationItem {
+    id: string
+    label: string
+    description?: string
+    icon?: string
+    badge?: string | number
+    group?: string
+    disabled?: boolean
+    defaultTab?: string
+    tabs?: AppTab[]
+    content?: AppContent
+}
+
+export interface AppDefinition {
+    id: string
+    title: string
+    description?: string
+    icon?: string
+    navigation: AppNavigationItem[]
+    defaultView?: string
+    width?: number
+    height?: number
+    footer?: string
+}
+
+// action: "openApp" (request)
+export interface OpenAppPayload {
+    app: AppDefinition
+    data?: unknown
+    viewId?: string
+    tabId?: string
+}
+
+// action: "updateApp" / "closeApp" (fire-and-forget). Both carry the
+// per-open token, so a stale update from an earlier instance cannot touch the
+// currently visible app even when the same id is reopened quickly.
+export interface UpdateAppPayload {
+    appId: string
+    token: string
+    app: AppDefinition
+}
+
+export interface CloseAppPayload {
+    appId: string
+    token: string
+    reason?: string
+}
+
+export interface AppResult {
+    closed: true
+    reason: string
+    viewId?: string
+    tabId?: string
+}
+
+export interface AppActionRequest {
+    appId: string
+    token: string
+    actionId: string
+    viewId: string
+    tabId?: string
+    itemId?: string
+    value?: unknown
+}
+
+export interface AppActionResult {
+    close?: boolean
+    app?: AppDefinition
+}
+
+export interface AppActionResponse {
+    ok: boolean
+    error?: string
+    result?: AppActionResult
+}
+
 export type PlacementRotationAxis = "yaw" | "pitch" | "roll"
 
 export interface PlacementBindings {

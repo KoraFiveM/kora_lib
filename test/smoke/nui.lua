@@ -10,6 +10,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "local/resources/client.lua")
 
 -- RegisterNUICallback/SendNUIMessage/SetNuiFocus are specific to this module,
 -- so (per the root AGENTS.md testing convention) they're mocked here rather
@@ -344,6 +345,160 @@ harness.test("withFocus releases focus even when fn errors, then re-raises", fun
     end, "the error should propagate out of withFocus")
 
     harness.assertEqual(focusCalls[#focusCalls].mouse, false, "focus should still be released after an error")
+end)
+
+harness.test("registerApp stores a headless definition and openApp opens it by id", function()
+    local handled
+    local definition = {
+        id = "smoke:records",
+        title = "Records",
+        icon = "Database",
+        navigation = {
+            { id = "people", label = "People", content = { blocks = { { type = "empty", title = "Find a person" } } } },
+        },
+        onAction = function(actionId) handled = actionId end,
+    }
+
+    harness.assertEqual(QB.nui.registerApp(definition), definition.id, "registerApp should return the stable app id")
+    local p = QB.nui.openApp(definition.id, { viewId = "people", data = { unit = 12 } })
+
+    local sent = sentMessages[#sentMessages]
+    harness.assertEqual(sent.action, "openApp", "openApp should send its dedicated action")
+    harness.assertEqual(sent.data.payload.app.id, definition.id, "the registered browser definition should be sent")
+    harness.assertEqual(sent.data.payload.app.onAction, nil, "Lua action handlers must never enter the JSON payload")
+    harness.assertEqual(sent.data.payload.viewId, "people", "the requested initial view should be forwarded")
+    harness.assertEqual(sent.data.payload.data.unit, 12, "private session data should be retained for the app instance")
+    harness.assertTrue(QB.nui.isAppOpen(definition.id), "isAppOpen should report the active registered app")
+
+    local requestId, token = lastRequestId(), lastToken()
+    respond(requestId, token, true, { closed = true, reason = "close", viewId = "people" })
+    harness.assertEqual(p.value.reason, "close", "the browser close result should settle openApp")
+    harness.assertFalse(QB.nui.isAppOpen(), "settling openApp should clear the active instance")
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "settling openApp should release NUI focus")
+    harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
+end)
+
+harness.test("AppShell actions require the active token and route context to the registered handler", function()
+    local receivedAction, receivedContext
+    QB.nui.registerApp({
+        id = "smoke:actions",
+        title = "Actions",
+        navigation = { { id = "dashboard", label = "Dashboard" } },
+        onAction = function(actionId, context)
+            receivedAction, receivedContext = actionId, context
+            return { update = { footer = "Updated" } }
+        end,
+    })
+    QB.nui.openApp("smoke:actions", { data = { officer = "312" } })
+    local requestId, token = lastRequestId(), lastToken()
+
+    local forged
+    nuiCallbacks["qblib:app:action"]({
+        appId = "smoke:actions", token = "wrong", actionId = "refresh", viewId = "dashboard",
+    }, function(result) forged = result end)
+    harness.assertFalse(forged.ok, "an action with the wrong app token must be rejected")
+    harness.assertEqual(receivedAction, nil, "a forged action must never reach the owning handler")
+
+    local response
+    nuiCallbacks["qblib:app:action"]({
+        appId = "smoke:actions",
+        token = token,
+        actionId = "open-record",
+        viewId = "dashboard",
+        tabId = "recent",
+        itemId = "R-12",
+        value = { id = "R-12" },
+    }, function(result) response = result end)
+
+    harness.assertTrue(response.ok, "a valid app action should succeed")
+    harness.assertEqual(receivedAction, "open-record", "the action id should reach the registered handler")
+    harness.assertEqual(receivedContext.itemId, "R-12", "row/list identity should reach the handler context")
+    harness.assertEqual(receivedContext.data.officer, "312", "openApp's private data should reach the handler context")
+    harness.assertEqual(response.result.app.footer, "Updated", "a handler update should return the refreshed definition")
+    harness.assertEqual(response.result.update, nil, "the private update instruction should not be echoed to the browser")
+
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
+harness.test("updateApp refreshes an active definition and closeApp settles through the browser", function()
+    QB.nui.registerApp({
+        id = "smoke:lifecycle",
+        title = "Lifecycle",
+        navigation = { { id = "home", label = "Home" } },
+    })
+    QB.nui.openApp("smoke:lifecycle")
+    local requestId, token = lastRequestId(), lastToken()
+
+    harness.assertTrue(QB.nui.updateApp("smoke:lifecycle", { footer = "Live" }), "a registered app should update")
+    local update = sentMessages[#sentMessages]
+    harness.assertEqual(update.action, "updateApp", "an active update should be pushed to the browser")
+    harness.assertEqual(update.data.app.footer, "Live", "the merged definition should be pushed")
+    harness.assertEqual(update.data.token, token, "the active instance token should guard updates")
+
+    harness.assertTrue(QB.nui.closeApp("smoke:lifecycle"), "closeApp should start closing the active app")
+    local close = sentMessages[#sentMessages]
+    harness.assertEqual(close.action, "closeApp", "closeApp should ask the shell to settle")
+    harness.assertEqual(close.data.reason, "api", "programmatic closes should identify their reason")
+
+    respond(requestId, token, true, { closed = true, reason = "api" })
+    harness.assertFalse(QB.nui.isAppOpen("smoke:lifecycle"), "the app should no longer be active after its response")
+    harness.assertFalse(QB.nui.closeApp("smoke:lifecycle"), "closing an inactive app should be a harmless false")
+end)
+
+harness.test("registered apps are removed and closed automatically when their owner stops", function()
+    QB.nui.registerApp({
+        id = "smoke:owned",
+        title = "Owned",
+        navigation = { { id = "home", label = "Home" } },
+    })
+    local opened = QB.nui.openApp("smoke:owned")
+    local requestId, token = lastRequestId(), lastToken()
+
+    net.fire("onClientResourceStop", "qblib_test")
+    local close = sentMessages[#sentMessages]
+    harness.assertEqual(close.action, "closeApp", "owner shutdown should close the visible app")
+    harness.assertEqual(close.data.reason, "resourceStop", "owner shutdown should identify the close reason")
+    harness.assertEqual(opened.state, "resolved", "owner shutdown should settle immediately without relying on the browser")
+    harness.assertFalse(QB.nui.isAppOpen(), "owner shutdown should release the active app immediately")
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "owner shutdown should release NUI focus immediately")
+
+    respond(requestId, token, true, { closed = true, reason = "resourceStop" })
+    harness.assertThrows(function() QB.nui.openApp("smoke:owned") end,
+        "an app should no longer be registered after its owner stops")
+end)
+
+harness.test("opening a second app releases old focus before granting focus to the new app", function()
+    QB.nui.registerApp({ id = "smoke:first", title = "First", navigation = { { id = "home", label = "Home" } } })
+    QB.nui.registerApp({ id = "smoke:second", title = "Second", navigation = { { id = "home", label = "Home" } } })
+
+    local first = QB.nui.openApp("smoke:first")
+    local second = QB.nui.openApp("smoke:second")
+    local secondRequestId, secondToken = lastRequestId(), lastToken()
+
+    harness.assertEqual(first.state, "rejected", "the previous app request should be settled before replacement")
+    harness.assertEqual(second.state, "pending", "the replacement app should remain active")
+    harness.assertTrue(focusCalls[#focusCalls].mouse and focusCalls[#focusCalls].keyboard,
+        "the replacement app must own focus after superseding the previous app")
+
+    respond(secondRequestId, secondToken, true, { closed = true, reason = "close" })
+end)
+
+harness.test("registerApp rejects definitions that would strand focus in an unrenderable shell", function()
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:invalid",
+            title = "Invalid",
+            navigation = { { id = "home", label = "Home", disabled = true } },
+        })
+    end, "an app with no enabled view must be rejected")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-block",
+            title = "Invalid block",
+            navigation = { { id = "home", label = "Home", content = { blocks = { { type = "table" } } } } },
+        })
+    end, "a malformed standard content block must be rejected before opening")
 end)
 
 harness.report("nui")

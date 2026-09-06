@@ -74,6 +74,8 @@ export function useNuiRequest<TPayload, TResult = unknown>(
 
     return {
         payload: request?.payload ?? null,
+        requestId: request?.requestId ?? null,
+        token: request?.token ?? null,
         isOpen: request !== null,
         respond,
         respondError,

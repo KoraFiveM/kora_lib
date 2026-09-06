@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "local/resources/client.lua")
 
 local primaryCalls = 0
 local tokenCalls = 0

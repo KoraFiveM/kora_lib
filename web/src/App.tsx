@@ -17,6 +17,7 @@ import { RadialMenuContainer } from "@/components/menu/RadialMenu"
 import { TargetHud } from "@/components/target/TargetHud"
 import { TargetSelect } from "@/components/target/TargetSelect"
 import { TextUi } from "@/components/textui/TextUi"
+import { AppShell } from "@/components/app/AppShell"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -33,6 +34,7 @@ export default function App() {
             <TargetHud />
             <TargetSelect />
             <TextUi />
+            <AppShell />
             <MenuContainer />
             <MenuHeader />
             <ContextMenuContainer />

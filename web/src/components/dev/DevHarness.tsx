@@ -1,5 +1,6 @@
 import { isBrowserEnv } from "@/lib/fetchNui"
 import type {
+    AppDefinition,
     MenuItem,
     NotifyPayload,
     NotifyPosition,
@@ -55,6 +56,86 @@ const SAMPLE_ITEMS: MenuItem[] = [
     { id: "service", label: "Request service" },
 ]
 
+const SAMPLE_APP: AppDefinition = {
+    id: "qbmdt:police",
+    title: "Mobile Data Terminal",
+    description: "Los Santos Police Department",
+    icon: "Shield",
+    defaultView: "dashboard",
+    footer: "LSPD secure network · Unit 312",
+    navigation: [
+        {
+            id: "dashboard",
+            label: "Dashboard",
+            description: "Current operational picture",
+            icon: "Home",
+            group: "Workspace",
+            content: {
+                title: "Shift overview",
+                description: "Live workload and the records requiring attention.",
+                actions: [{ id: "new-report", label: "New report", icon: "Plus", variant: "primary" }],
+                blocks: [
+                    {
+                        type: "stats",
+                        items: [
+                            { label: "Active units", value: 12, description: "3 supervisors", icon: "Users", tone: "success" },
+                            { label: "Open reports", value: 4, description: "1 high priority", icon: "FileText", tone: "warning" },
+                            { label: "Active calls", value: 7, description: "Updated just now", icon: "Radio", tone: "primary" },
+                        ],
+                    },
+                    {
+                        type: "table",
+                        title: "Recent incidents",
+                        action: "open-incident",
+                        idKey: "id",
+                        columns: [
+                            { key: "id", label: "Report" },
+                            { key: "title", label: "Incident" },
+                            { key: "officer", label: "Officer" },
+                            { key: "status", label: "Status", align: "right" },
+                        ],
+                        rows: [
+                            { id: "R-1042", title: "Vehicle theft", officer: "J. Morgan", status: "Open" },
+                            { id: "R-1041", title: "Traffic collision", officer: "A. Silva", status: "Review" },
+                            { id: "R-1038", title: "Property damage", officer: "D. Price", status: "Filed" },
+                        ],
+                    },
+                ],
+            },
+        },
+        {
+            id: "records",
+            label: "Records",
+            description: "People, vehicles, and reports",
+            icon: "Database",
+            group: "Information",
+            badge: 3,
+            tabs: [
+                { id: "people", label: "People", content: { blocks: [{ type: "empty", title: "Find a person", description: "Search and recent records will live here.", icon: "Users" }] } },
+                { id: "vehicles", label: "Vehicles", content: { blocks: [{ type: "empty", title: "Find a vehicle", description: "Search registrations, flags, and ownership.", icon: "Car" }] } },
+                { id: "reports", label: "Reports", badge: 3, content: { blocks: [{ type: "empty", title: "No report selected", description: "Choose a report from the index to review it.", icon: "FileText" }] } },
+            ],
+        },
+        {
+            id: "dispatch",
+            label: "Dispatch",
+            description: "Calls and unit status",
+            icon: "Radio",
+            group: "Operations",
+            content: {
+                blocks: [{
+                    type: "list",
+                    title: "Active calls",
+                    items: [
+                        { id: "C-219", label: "10-31 · Robbery in progress", description: "Strawberry Avenue · 48 seconds ago", badge: "High", tone: "destructive", action: "open-call" },
+                        { id: "C-218", label: "Traffic obstruction", description: "Olympic Freeway · 3 minutes ago", badge: "Normal", action: "open-call" },
+                    ],
+                }],
+            },
+        },
+    ],
+}
+
 const SAMPLE_HUD_SNAPSHOT: ZoneCreatorHudSnapshot = {
     type: "box",
     pointCount: 0,
@@ -98,6 +179,10 @@ const SAMPLE_PLACEMENT_HUD: PlacementHudSnapshot = {
 }
 
 const actions: { label: string; run: () => void }[] = [
+    {
+        label: "App shell",
+        run: () => postRequest("openApp", { app: SAMPLE_APP, viewId: "dashboard", data: { unit: "312" } }),
+    },
     {
         label: "Notify (every variant)",
         run: () => {

@@ -414,6 +414,114 @@
 ---@field values? table<string, any>
 ---@field cancelled? boolean
 
+---@alias QBAppTone 'neutral'|'primary'|'success'|'warning'|'destructive'
+---@alias QBAppActionVariant 'primary'|'secondary'|'outline'|'ghost'|'destructive'
+
+---@class QBAppAction
+---@field id string
+---@field label string
+---@field icon? string
+---@field variant? QBAppActionVariant
+---@field disabled? boolean
+---@field data? any
+
+---@class QBAppStat
+---@field label string
+---@field value string|number
+---@field description? string
+---@field icon? string
+---@field tone? QBAppTone
+
+---@class QBAppTableColumn
+---@field key string
+---@field label string
+---@field align? 'left'|'center'|'right'
+
+---@class QBAppListItem
+---@field id string
+---@field label string
+---@field description? string
+---@field icon? string
+---@field badge? string|number
+---@field tone? QBAppTone
+---@field action? string Action id routed to the registered onAction handler.
+---@field data? any
+
+---@alias QBAppBlockType 'text'|'stats'|'table'|'list'|'actions'|'empty'
+
+---@class QBAppBlock
+---@field type QBAppBlockType
+---@field title? string
+---@field text? string Text block body.
+---@field description? string Empty-state description.
+---@field icon? string Empty-state icon.
+---@field items? QBAppStat[]|QBAppListItem[] Stats/list items.
+---@field actions? QBAppAction[] Action-block buttons.
+---@field columns? QBAppTableColumn[] Table columns.
+---@field rows? table<string, string|number|boolean>[] Table rows.
+---@field empty? string Empty list/table label.
+---@field action? string Action id emitted when a table row is selected.
+---@field idKey? string Table row key copied into action context.itemId.
+
+---@class QBAppContent
+---@field title? string
+---@field description? string
+---@field actions? QBAppAction[]
+---@field blocks? QBAppBlock[]
+
+---@class QBAppTab
+---@field id string
+---@field label string
+---@field badge? string|number
+---@field content? QBAppContent
+
+---@class QBAppNavigationItem
+---@field id string
+---@field label string
+---@field description? string
+---@field icon? string
+---@field badge? string|number
+---@field group? string
+---@field disabled? boolean
+---@field defaultTab? string
+---@field tabs? QBAppTab[]
+---@field content? QBAppContent
+
+---@class QBAppDefinition
+---@field id string Namespaced stable id.
+---@field title string
+---@field description? string
+---@field icon? string
+---@field navigation QBAppNavigationItem[]
+---@field defaultView? string
+---@field width? number Pixels; clamped to 720-1600.
+---@field height? number Pixels; clamped to 480-960.
+---@field footer? string
+---@field onAction? fun(actionId: string, context: QBAppActionContext): QBAppActionResult?
+
+---@class QBAppOpenOptions
+---@field data? any Private session data supplied back to onAction; not rendered.
+---@field viewId? string
+---@field tabId? string
+
+---@class QBAppActionContext
+---@field appId string
+---@field viewId? string
+---@field tabId? string
+---@field itemId? string
+---@field value? any
+---@field data? any The data supplied to openApp.
+
+---@class QBAppActionResult
+---@field update? table Partial QBAppDefinition to merge and render immediately.
+---@field close? boolean Close the app after the action.
+
+---@class QBAppResult
+---@field closed boolean
+---@field reason string
+---@field viewId? string
+---@field tabId? string
+
 ---@class QBInteractOption
 ---@field label string
 ---@field icon? string
@@ -806,6 +914,12 @@
 ---@field openRadialMenu fun(items: QBMenuItem[], opts?: QBRadialMenuOptions): QBMenuResult|promise [client]
 ---@field openAlert fun(opts: QBAlertOptions): QBAlertResult|promise [client]
 ---@field openInputDialog fun(fields: QBInputField[], title?: string, description?: string): QBInputResult|promise [client]
+---@field registerApp fun(definition: QBAppDefinition): string [client]
+---@field unregisterApp fun(id: string): boolean [client]
+---@field openApp fun(id: string, opts?: QBAppOpenOptions): QBAppResult|promise [client]
+---@field updateApp fun(id: string, update: table): boolean [client]
+---@field closeApp fun(id?: string): boolean [client]
+---@field isAppOpen fun(id?: string): boolean [client]
 
 ---@class QBPermissionOptions
 ---@field prefix? string ACE object prefix, such as `qbcore` for `qbcore.admin`.
