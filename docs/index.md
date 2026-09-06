@@ -242,9 +242,9 @@ resource. Text UI entries form a stack: only the newest live handle is visible.
 
 ### Theme (`QB.theme`)
 ```lua
-QB.theme.accentColor()          -- shared, Config.ui.accentColor validated, falls back to #DC143C
-QB.theme.tokens(accentColor)    -- shared, HSL token table for a consuming resource's own NUI
-QB.theme.push()                 -- client
+QB.theme.accentColor()          -- shared, forwards qbtheme's configured primary colour
+QB.theme.tokens(overrides)      -- shared, complete qbtheme CSS-variable map
+QB.theme.push()                 -- client, refresh qblib's frame from qbtheme
 ```
 
 ### Status effects (`QB.status`)
@@ -433,7 +433,8 @@ Everything routes onto the `QB.nui.open*` calls above.
 
 ## Config highlights (`config.lua`)
 
-`Config.ui.accentColor` (brand colour driving `QB.theme.tokens()`),
+`qbtheme/config.lua` owns the shared palette and brand colour. qblib's
+`QB.theme` functions remain compatibility forwards to that resource.
 `Config.notify.defaultDuration/maxDuration/defaultType/defaultPosition`,
 `Config.progressbar.maxDuration/maxProps/cancelControl`, `Config.cache.tickInterval`,
 `Config.zones.gridSize/tickFar/tickNear/tickInside/creator.enabled`,

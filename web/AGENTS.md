@@ -154,11 +154,17 @@ extend: {
 
 ### Server-configured accent
 
-`#DC143C` is the default accent, not a hard-coded component dependency. Server owners may set `Config.ui.accentColor` to a valid `#RRGGBB` value in qblib's `config.lua`. On mount, the NUI obtains that value through `qblib:nui:theme` and derives `primary`, `ring`, brand hover/pressed, brand-soft, and brand-border tokens from it. Components must always use those semantic tokens; do not add literal default-crimson values to a component because they would ignore server branding. The primary button foreground is chosen for contrast automatically.
+`#DC143C` is the default accent, not a hard-coded component dependency. Server
+owners configure semantic colours in `qbtheme/config.lua`; qblib imports
+qbtheme's stylesheet and browser loader. Components must use those semantic
+tokens. qbtheme derives hover, pressed, translucent, focus, and readable
+foreground variants.
 
 Never add raw Tailwind slate, zinc, neutral, grey, sky, or blue utilities inside reusable components when an appropriate semantic token exists. Neutral palette values above are the source of truth even if a Tailwind named colour happens to look close.
 
-Lua-side consumers (another resource's own NUI) should read these tokens via `QB.theme.tokens()` in qblib (`modules/theme`) rather than re-deriving this HSL math themselves — see `modules/theme/docs.md`.
+New UI consumers should depend directly on qbtheme and import its client bridge,
+stylesheet, and loader. `QB.theme.tokens()` remains a qblib compatibility
+forward only; never re-derive the HSL math locally.
 
 ## Foundations
 
@@ -495,7 +501,7 @@ Do not:
 Before considering a UI styling change complete, verify:
 
 - Surfaces are neutral charcoal with no blue cast, and the root is still transparent.
-- The rendered brand matches `Config.ui.accentColor` (default `#DC143C`); hover/pressed and brand-soft states derive from that same token.
+- The rendered brand matches qbtheme's configured primary (default `#DC143C`); hover/pressed and brand-soft states derive from that same token.
 - Text/background pairs meet WCAG AA. In particular, white on the brand is valid, muted copy is not replaced with disabled grey, and semantic text remains on charcoal.
 - Every control has default, hover, focus-visible, pressed/open, disabled, loading, and invalid states where applicable.
 - Mouse, keyboard, Escape, backdrop dismissal, and Radix focus behavior still work.

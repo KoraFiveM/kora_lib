@@ -7,6 +7,8 @@ author 'Jamie'
 version '1.0.0'
 description 'Lightweight Lua library exposing a shared QB namespace over FiveM exports'
 
+dependency 'qbtheme'
+
 -- qb-menu, qb-input, qb-radialmenu and qb-minigames are being deprecated in
 -- favour of QB.nui.openMenu/openContextMenu/openRadialMenu/openInputDialog
 -- and QB.minigames.play -- `provide` only satisfies another resource's
@@ -80,6 +82,7 @@ shared_scripts {
 -- the real external caller (qb-menu/qb-input/qb-radialmenu/qb-minigames
 -- consumer), not to qblib itself.
 client_scripts {
+    '@qbtheme/client/bridge.lua',
     'local/resources/client.lua',
     'local/callback/client.lua',
     'local/events/client.lua',

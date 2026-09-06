@@ -919,9 +919,9 @@
 ---@field isVisible fun(id: integer): boolean [client]
 
 ---@class QBLibTheme
----@field accentColor fun(): string [shared]
----@field tokens fun(accentColor?: string): table<string, string> [shared]
----@field push fun() [client]
+---@field accentColor fun(): string [shared] Forwarded to qbtheme:getPrimaryColor().
+---@field tokens fun(overrides?: string|table<string, string>): table<string, string> [shared] Forwarded to qbtheme:getTokens().
+---@field push fun(): table<string, string> [client] Reapplies qbtheme to qblib's NUI.
 
 ---@class QBDebounced
 ---@field cancel fun(): boolean Drops a pending run without firing it.

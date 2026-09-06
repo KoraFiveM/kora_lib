@@ -170,7 +170,13 @@ export function InputDialogContainer() {
                 if (!open) handleCancel()
             }}
         >
-            <DialogContent className={hasCombobox ? "sm:max-w-2xl" : "sm:max-w-md"}>
+            <DialogContent
+                // Combobox suggestions are an anchored overlay. The dialog's
+                // default vertical scroll container would otherwise clip that
+                // overlay and add a second, competing scrollbar (most visible
+                // in qbadmin's vehicle catalogue).
+                className={hasCombobox ? "overflow-visible sm:max-w-2xl" : "sm:max-w-md"}
+            >
                 {(payload.title || payload.description) && (
                     <DialogHeader>
                         {payload.title && <DialogTitle>{payload.title}</DialogTitle>}

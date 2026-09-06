@@ -10,6 +10,11 @@ local destroyZone
 local zoneOwnership
 local debugZones = {}
 
+local function interactionsLocked()
+    local state = LocalPlayer and LocalPlayer.state
+    return state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false
+end
+
 -- setZoneDebug (below ensureDebugThread, since it needs to call it) is
 -- likewise forward-declared: both the handle's setDebug method (buildHandle,
 -- right below) and QB.zones.setDebug need to call it, and buildHandle runs
@@ -797,6 +802,17 @@ tickLoop = function()
             -- so liveness is re-checked per zone, off the flag destroyZone
             -- already sets, rather than by looking the id up again.
             if not zone.removed then
+                -- Scene/character selection moves a hidden ped through the
+                -- real world. Treat all gameplay zones as exited until that
+                -- mode ends so beds, banks, doors, and similar callbacks
+                -- cannot open over the selection UI.
+                if interactionsLocked() then
+                    if zone.isInside then
+                        zone.isInside = false
+                        if zone.onExit then safeCall(zone, "onExit", zone.onExit, zone) end
+                    end
+                    goto continue
+                end
                 local dSq = aabbDistSq(p, zone.aabb)
                 if dSq < minDistSq then minDistSq = dSq end
 
@@ -816,6 +832,7 @@ tickLoop = function()
                     needsPerFrame = true
                     safeCall(zone, "inside", zone.inside, zone, p)
                 end
+                ::continue::
             end
         end
 

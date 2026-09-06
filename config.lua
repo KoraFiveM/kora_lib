@@ -2,10 +2,7 @@ Config = {}
 
 Config.third_party_notify = false
 
--- Shared NUI branding. This must be a six-digit hex colour; the browser
--- derives hover, pressed, soft, border, and focus tokens from this one value.
 Config.ui = {
-    accentColor = "#DC143C", -- QBCore crimson; e.g. "#7C3AED" for a server-specific brand
     interact = true, -- set false to disable the qblib interact-zone module entirely
 }
 
@@ -69,16 +66,17 @@ Config.blips = {
     defaultScale = 1.0,      -- default SetBlipScale when options.scale is omitted
     defaultShortRange = true,-- default SetBlipAsShortRange when options.shortRange is omitted
 
-    -- SetBlipCategory value that collapses every blip sharing a label into one
-    -- named heading in the pause-map legend, instead of listing "Clothing Store"
-    -- six times. Six clothing stores, twenty vending machines and every police
-    -- station are exactly the case this exists for. Documented here rather than
-    -- left as a bare 11 at each call site -- see modules/blips/docs.md.
+    -- SetBlipCategory value that displays the blip label in the pause-map
+    -- legend. Category 11 is GTA's built-in "Owned Property" bucket, so service
+    -- resources should use this value for Clothing Store, Barber, Garage, or
+    -- Shop entries.
     --
-    -- Other resources cannot read this table (it belongs to qblib's own
-    -- resource), so they set `category = 11` in their own config with a pointer
-    -- back to that doc. This value is the reference definition.
-    groupedCategory = 11,
+    -- It lives here as documentation rather than being applied by
+    -- QB.blips.create: the calling resource decides whether its blip belongs in
+    -- the legend.
+    listedCategory = 2,
+    -- Backwards-compatible alias for resources that used the old reference name.
+    groupedCategory = 2,
 }
 
 Config.progressbar = {
@@ -185,7 +183,7 @@ Config.zones = {
     tickInside = 0,              -- ms Wait() while inside a zone with an `inside` callback
     defaultPointRadius = 1.0,    -- meters; QB.zones.point() default
     defaultPolyThickness = 4.0,  -- meters; QB.zones.poly() default height band
-    debugAlpha = 200, -- 0-255; wireframe/marker alpha for debug zones and the creator's live preview (colour itself follows QB.theme.accentColor(), not a fixed value)
+    debugAlpha = 200, -- 0-255; colour follows qbtheme's configured primary through QB.theme.accentColor()
     debugWallAlpha = 40,         -- 0-255; translucent fill for box/poly walls, deliberately lower than debugAlpha so it doesn't bury the wireframe it complements
     debug = false, -- global default OR'd into every zone's own opts.debug at creation (QB.zones.setDebug can still flip debug on/off for already-created zones at runtime)
 

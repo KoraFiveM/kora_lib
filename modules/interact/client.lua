@@ -29,6 +29,10 @@ local function isCallable(value)
 end
 
 local function isEnabled()
+    local state = LocalPlayer and LocalPlayer.state
+    -- Character/scene selection is a camera preview, not gameplay. Do not let
+    -- a nearby world target open a qblib selector over that NUI.
+    if state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false then return false end
     return Config.ui and Config.ui.interact == true
 end
 

@@ -12,7 +12,6 @@ import { PlacementHud } from "@/components/placement/PlacementHud"
 import { PlacementConfirmDialog } from "@/components/placement/PlacementConfirmDialog"
 import { MinigameContainer } from "@/components/minigames/MinigameContainer"
 import { DevHarness } from "@/components/dev/DevHarness"
-import { ThemeSynchronizer } from "@/components/theme/ThemeSynchronizer"
 import { InteractSelect } from "@/components/interact/InteractSelect"
 import { RadialMenuContainer } from "@/components/menu/RadialMenu"
 import { TargetHud } from "@/components/target/TargetHud"
@@ -30,7 +29,6 @@ import { TextUi } from "@/components/textui/TextUi"
 export default function App() {
     return (
         <>
-            <ThemeSynchronizer />
             <InteractSelect />
             <TargetHud />
             <TargetSelect />

@@ -7,7 +7,9 @@ Per the root [docs](../../AGENTS.md), the NUI is **headless**: it renders nothin
 
 ## UI branding configuration
 
-Set `Config.ui.accentColor` in `config.lua` to any six-digit hex colour (for example `"#7C3AED"`). The NUI requests it on startup through the private `qblib:nui:theme` callback, backed by `modules/theme`. See [modules/theme/docs.md](../theme/docs.md) for how the accent colour is validated and turned into the full token set — including `QB.theme.tokens()`, which any other resource's own NUI can call to match this look.
+Set the shared colours in `qbtheme/config.lua`. qblib imports qbtheme's browser
+loader and bridge, while the permanent `QB.theme` functions forward to qbtheme
+for older Lua consumers. See [modules/theme/docs.md](../theme/docs.md).
 
 ## API
 

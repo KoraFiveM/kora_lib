@@ -40,13 +40,6 @@ export interface NuiResponseEnvelope<T = unknown> {
     error?: string
 }
 
-// qblib:nui:theme callback and optional fire-and-forget refresh action. The
-// configured hex is converted into the existing semantic HSL token family in
-// ThemeSynchronizer; no component receives a raw server-configured colour.
-export interface NuiThemePayload {
-    accentColor?: string
-}
-
 // qblib interact contract. The browser renders the selector but never owns
 // game controls, focus, or selection state outside the visible row.
 export interface InteractOption {
