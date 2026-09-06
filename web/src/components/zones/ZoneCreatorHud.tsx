@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { EditorControlsHud, EditorKey } from "@/components/editor/EditorControlsHud"
 import type { ZoneCreatorHudSnapshot, ZoneCreatorStartPayload, ZoneType } from "@/lib/types"
 import { cn } from "@/lib/cn"
 import { useNuiEvent } from "@/lib/useNuiEvent"
@@ -62,14 +63,22 @@ export function ZoneCreatorHud() {
     const { type, snapshot } = state
 
     return (
-        <div className="pointer-events-none fixed bottom-4 left-4 z-hud w-72 max-w-[calc(100vw-2rem)] select-none rounded-xl border bg-hud p-3 text-card-foreground shadow-low">
-            <div className="title-rail flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold capitalize">Building: {type}</span>
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+        <EditorControlsHud
+            title={<span className="capitalize">Building: {type}</span>}
+            status={
+                <span className="flex items-center gap-2">
                     <AimIndicator aiming={snapshot?.aiming ?? false} />
                     {snapshot ? <ShapeStatus type={type} snapshot={snapshot} /> : "Starting…"}
                 </span>
-            </div>
+            }
+            controls={
+                <p>
+                    <EditorKey>E</EditorKey> place/move &middot; <EditorKey>Backspace</EditorKey> undo &middot;{" "}
+                    <EditorKey>Tab</EditorKey> cycle &middot; <EditorKey>Scroll</EditorKey> adjust &middot;{" "}
+                    <EditorKey>X</EditorKey> cancel
+                </p>
+            }
+        >
 
             {snapshot && (
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -86,11 +95,7 @@ export function ZoneCreatorHud() {
                     )}
                 </div>
             )}
-
-            <p className="mt-3 border-t pt-2 text-xs leading-5 text-card-foreground/80">
-                <span className="font-medium text-foreground">E</span> place/move &middot; <span className="font-medium text-foreground">Backspace</span> undo &middot; <span className="font-medium text-foreground">Tab</span> cycle &middot; <span className="font-medium text-foreground">Scroll</span> adjust &middot; <span className="font-medium text-foreground">X</span> cancel
-            </p>
-        </div>
+        </EditorControlsHud>
     )
 }
 

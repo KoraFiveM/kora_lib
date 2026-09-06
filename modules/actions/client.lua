@@ -1,6 +1,6 @@
 ---@class QBActionsOptions
----@field begin fun(...): any, string? Starts the server-authorized action and returns an opaque token or `nil, reason`.
----@field complete fun(result: {token: any, completed: boolean, proof?: string}, ...): any Reports the UX result to the owning resource.
+---@field begin fun(...): any, string?, string? Starts the server-authorized action and returns an opaque action token, optional failure reason, and optional minigame proof authorization.
+---@field complete fun(result: {token: any, completed: boolean, proof?: string, authorization?: string}, ...): any Reports the UX result to the owning resource.
 ---@field label string
 ---@field duration? integer
 ---@field minigame? string
@@ -10,10 +10,16 @@
 
 local active = false
 
-local function isCallable(value)
-    if type(value) == 'function' then return true end
-    local mt = type(value) == 'table' and getmetatable(value) or nil
-    return mt ~= nil and mt.__call ~= nil
+local isCallable = QB.compat.isCallable
+
+-- QB.minigames.play returns a promise to same-resource callers, but settles
+-- that promise before returning across a real exports boundary because Cfx
+-- cannot faithfully marshal a promise's state. Accept both shapes so actions
+-- compose correctly whether they are called inside qblib or by another
+-- resource through exports.
+local function awaitIfPromise(value)
+    if type(value) ~= 'table' or not isCallable(value.next) then return value end
+    return Citizen.Await(value)
 end
 
 ---Runs one server-authorized player action. `begin` and `complete` are kept
@@ -33,17 +39,22 @@ function QB.actions.run(options, ...)
     active = true
 
     local args = { ... }
+    local token, authorization
+    local began, completionAttempted = false, false
     local ok, started, result = pcall(function()
-        local token, beginErr = options.begin(table.unpack(args))
+        local beginErr
+        token, beginErr, authorization = options.begin(table.unpack(args))
         if not token then return false, beginErr end
+        began = true
 
-        local completed, proof
+        local uxCompleted, proof
         if options.minigame then
-            local minigame = Citizen.Await(QB.minigames.play(options.minigame, { duration = options.duration }))
-            completed = minigame and minigame.success == true
-            proof = completed and minigame.proof or nil
+            local minigame = awaitIfPromise(QB.minigames.play(options.minigame,
+                { duration = options.duration }, authorization))
+            uxCompleted = minigame and minigame.success == true
+            proof = uxCompleted and minigame.proof or nil
         else
-            completed = QB.progressbar.start({
+            uxCompleted = QB.progressbar.start({
                 label = options.label,
                 duration = options.duration or 5000,
                 canCancel = options.canCancel ~= false,
@@ -52,11 +63,29 @@ function QB.actions.run(options, ...)
             })
         end
 
-        return true, options.complete({ token = token, completed = completed == true, proof = proof }, table.unpack(args))
+        completionAttempted = true
+        return true, options.complete({
+            token = token,
+            completed = uxCompleted == true,
+            proof = proof,
+            authorization = authorization,
+        }, table.unpack(args))
     end)
 
     active = false
-    if not ok then error(started, 0) end
+    if not ok then
+        if began and not completionAttempted then
+            local abortOk, abortErr = pcall(options.complete, {
+                token = token,
+                completed = false,
+                authorization = authorization,
+            }, table.unpack(args))
+            if not abortOk then
+                print(('^1[qblib:actions]^7 action abort callback failed: %s'):format(tostring(abortErr)))
+            end
+        end
+        error(started, 0)
+    end
     return started, result
 end
 

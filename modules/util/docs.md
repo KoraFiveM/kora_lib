@@ -3,6 +3,8 @@
 Small shared, dependency-free helpers:
 
 - `QB.util.deepClone(value)` recursively copies plain tables.
+- `QB.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
+  strings, NaN, and positive/negative infinity.
 - `QB.util.clamp(value, min, max)` bounds a number.
 - `QB.util.round(value, decimals?)` rounds to decimal places.
 - `QB.util.randomFloat(min, max)` returns a uniform float in the range.

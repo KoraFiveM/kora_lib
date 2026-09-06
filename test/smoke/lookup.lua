@@ -48,6 +48,7 @@ end
 -- Shared API, normalization, lazy loading, and permanent caching.
 local net = mocks.install()
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 dofile(repoRoot .. 'modules/loops/shared.lua')
 
 local function hash(name) return joaat(name:lower()) % 4294967296 end
@@ -366,6 +367,7 @@ _G.LoadResourceFile = oldLoadResourceFile
 -- retries, atomic readiness, and authoritative replacement.
 net = mocks.install()
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 dofile(repoRoot .. 'modules/loops/shared.lua')
 
 local clientBaseHash = joaat('client_base')

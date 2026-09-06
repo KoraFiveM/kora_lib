@@ -15,6 +15,13 @@ function QB.util.deepClone(value)
     return copy
 end
 
+---Returns whether `value` is a real finite number (not NaN or either infinity).
+---@param value any
+---@return boolean
+function QB.util.isFiniteNumber(value)
+    return type(value) == "number" and value == value and value > -math.huge and value < math.huge
+end
+
 ---@param value number
 ---@param min number
 ---@param max number

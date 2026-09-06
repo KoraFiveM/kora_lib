@@ -81,7 +81,7 @@ Config.blips = {
 
 Config.progressbar = {
     maxDuration = 600000, -- ms; the hard ceiling QB.progressbar.start() enforces (10 minutes)
-    maxProps = 2,         -- maximum number of networked props one progress bar may attach
+    maxProps = 2,         -- maximum number of local cosmetic props one progress bar may attach
     cancelControl = 73,   -- control id checked when payload.canCancel is true -- 73 = INPUT_VEH_EXIT, the "X" key
 }
 
@@ -157,6 +157,18 @@ Config.drawing = {
     },
 }
 
+-- Permission-gated convenience commands for the built-in developer editors.
+-- This keeps the normal server UX admin-only; a modified client can still
+-- call client-side library functions, so gameplay resources must never treat
+-- this gate as an authorization boundary for persistent changes.
+Config.editor = {
+    enabled = true,
+    permission = 'editor',
+    permissionPrefix = 'qblib',
+    zoneCommand = 'qb_zonecreator',
+    placementCommand = 'qb_place',
+}
+
 -- Temporary client-side entity placement/capture tool. The preview is always
 -- deleted when the session finishes; these values only control the editor UX.
 Config.placement = {
@@ -207,11 +219,35 @@ Config.zones = {
 }
 
 Config.minigames = {
-    sessionTTL = 60000,          -- ms; server-side session expiry, checked on every submit and swept every 30s
+    sessionTTL = 60000,          -- ms; minimum abandoned-round lifetime and bounded overall-session cleanup grace
+    authorizationTTL = 60000,    -- ms a server-issued, resource-owned proof authorization remains usable to start a session
     proofTTL = 15000,            -- ms a successful single-use proof remains consumable by a server gameplay resource
     maxConcurrentPerPlayer = 1,  -- max simultaneous QB.minigames.play() sessions per player, server-enforced
     maxAttemptsCap = 10,         -- hard ceiling on opts.attempts, regardless of per-type default or client override
     roundTimeoutBuffer = 5000,   -- ms added to a round's timeLimit for the client-side NUI request timeout (safety net -- the NUI is expected to auto-submit on its own clock well before this)
+
+    -- Hard byte/count bounds for caller/client-provided puzzle content and
+    -- attempt arrays. These cap server work and NUI payload size; they are
+    -- intentionally not overridable per play call.
+    inputLimits = {
+        pinSourceBytes = 32,
+        pinDigits = 8,
+        quizQuestions = 20,
+        quizOptionsPerQuestion = 8,
+        quizQuestionBytes = 512,
+        quizOptionBytes = 128,
+        wordGuessBytes = 32,
+        wordScrambleBytes = 64,
+        hintBytes = 256,
+    },
+
+    -- Per-player callback quotas. The shared callback layer enforces these
+    -- before a minigame handler allocates, validates, or regenerates state.
+    callbackRateLimits = {
+        start = { max = 5, window = 10000 },
+        submit = { max = 20, window = 10000 },
+        cancel = { max = 10, window = 10000 },
+    },
 
     lockpick = {
         attempts = 3,

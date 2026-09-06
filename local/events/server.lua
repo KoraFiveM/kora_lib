@@ -88,37 +88,11 @@ local eventOwnership = QB.resources.serverRegistry(function(name)
     clearRateLimit(name)
 end)
 
--- Seeded ONCE at load, not per token: reseeding from a time-derived value on
--- every call would hand two same-millisecond calls identical RNG state --
--- and therefore identical tokens.
-math.randomseed(GetGameTimer() + math.floor(os.clock() * 1000000))
+local generateToken = QB.compat.generateToken
 
--- Deliberately duplicated in local/callback/server.lua and modules/nui/client.lua
--- (separate chunks; a shared private helper is impossible and QB.* attachments
--- become public exports) -- keep the three copies in sync.
-local function generateToken()
-    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    local parts = {}
-
-    for i = 1, 32 do
-        local index = math.random(1, #chars)
-        parts[i] = chars:sub(index, index)
-    end
-
-    return table.concat(parts)
-end
-
--- FXServer's exports boundary hands a cross-resource function argument back
--- as a table with a __call metamethod, not a plain Lua function -- so a bare
--- type(x) == "function" check rejects a perfectly callable handler registered
--- from another resource. Deliberately duplicated per-file (separate chunks,
--- no shared locals) -- see local/callback/{client,server}.lua, local/events/client.lua,
--- modules/cache/client.lua, and modules/zones/client.lua for the other copies.
-local function isCallable(x)
-    if type(x) == "function" then return true end
-    local mt = type(x) == "table" and getmetatable(x) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+-- The private bootstrap helper normalizes native functions and every Cfx
+-- cross-resource funcref proxy shape consistently across qblib modules.
+local isCallable = QB.compat.isCallable
 
 ---Registers a handler for a secure event, callable from the client via QB.events.trigger.
 ---Requests carrying a missing or invalid per-player token are dropped silently.

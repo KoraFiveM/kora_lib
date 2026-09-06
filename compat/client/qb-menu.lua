@@ -103,12 +103,7 @@ end
 -- shared, like all of those. See the qbinventory funcref bug in
 -- qbcore-compat-parity/inventory-compat-identities memory for the live crash
 -- this pattern was discovered from.
-local function isCallable(value)
-    if type(value) == 'function' then return true end
-    if type(value) == 'table' and type(rawget(value, '__cfx_functionReference')) == 'string' then return true end
-    local mt = type(value) == 'table' and getmetatable(value) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+local isCallable = QB.compat.isCallable
 
 -- Selecting an item in real qb-menu fires `params.event` (TriggerServerEvent
 -- if `params.isServer`, TriggerEvent otherwise) with `params.args` unpacked

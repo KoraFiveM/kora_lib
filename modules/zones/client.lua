@@ -34,17 +34,9 @@ local function toVec3(v)
     return { x = v.x, y = v.y, z = v.z }
 end
 
--- FXServer's exports boundary hands a cross-resource function argument back
--- as a table with a __call metamethod, not a plain Lua function -- so a bare
--- type(x) == "function" check rejects a perfectly callable handler registered
--- from another resource. Deliberately duplicated per-file (separate chunks,
--- no shared locals) -- see local/callback/{client,server}.lua, local/events/{client,server}.lua,
--- and modules/cache/client.lua for the other copies.
-local function isCallable(x)
-    if type(x) == "function" then return true end
-    local mt = type(x) == "table" and getmetatable(x) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+-- The private bootstrap helper normalizes native functions and every Cfx
+-- cross-resource funcref proxy shape consistently across qblib modules.
+local isCallable = QB.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
@@ -1741,8 +1733,8 @@ function QB.zones.edit(handle, opts)
     return editZone(handle, opts)
 end
 
-RegisterCommand("qb_zonecreator", function(_, args)
-    local zoneType = args[1] or "box"
+RegisterNetEvent("qblib:editor:startZoneCreator", function(zoneType)
+    if type(zoneType) ~= "string" then return end
     local ok, result = pcall(function() return Citizen.Await(QB.zones.startCreator(zoneType)) end)
 
     if not ok then
@@ -1752,4 +1744,4 @@ RegisterCommand("qb_zonecreator", function(_, args)
     else
         creatorLog("zone creator cancelled.")
     end
-end, false)
+end)

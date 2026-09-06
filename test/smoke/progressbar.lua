@@ -30,6 +30,7 @@ local inVehicle = false
 local pressedControls = {}
 local disabledControls = {}
 local animDictsLoaded = {}
+local invalidAnimDicts = {}
 local playedAnims = {}
 local stoppedAnims = {}
 local removedAnimDicts = {}
@@ -66,6 +67,7 @@ function _G.IsControlJustPressed(_, control) return pressedControls[control] == 
 function _G.DisableControlAction(_, control, _) disabledControls[control] = true end
 function _G.FreezeEntityPosition(entity, frozen) freezeCalls[#freezeCalls + 1] = { entity = entity, frozen = frozen } end
 function _G.HasAnimDictLoaded(dict) return animDictsLoaded[dict] == true end
+function _G.DoesAnimDictExist(dict) return invalidAnimDicts[dict] ~= true end
 function _G.RequestAnimDict(dict) requestedAnimDicts[dict] = true end
 function _G.RemoveAnimDict(dict) removedAnimDicts[dict] = true end
 function _G.TaskPlayAnim(_, dict, clip, ...) table.insert(playedAnims, { dict = dict, clip = clip }) end
@@ -135,6 +137,7 @@ local function reset()
     stoppedAnims = {}
     removedAnimDicts = {}
     requestedAnimDicts = {}
+    invalidAnimDicts = {}
     firingCalls = 0
     freezeCalls = {}
     scenarioCalls = {}
@@ -306,6 +309,21 @@ harness.test("a bar still completes if its anim dict never loads", function()
     harness.assertTrue(requestedAnimDicts["anim@missing"] == true, "the dict should still have been requested")
 end)
 
+harness.test("an invalid anim dict degrades without making a streaming request", function()
+    reset()
+    invalidAnimDicts["anim@invalid"] = true
+
+    local completed = QB.progressbar.start({
+        label = "Invalid animation",
+        duration = 100,
+        anim = { dict = "anim@invalid", clip = "loop" },
+    })
+
+    harness.assertTrue(completed, "an invalid animation should not abort the gameplay action")
+    harness.assertTrue(requestedAnimDicts["anim@invalid"] == nil,
+        "the shared stream validator should reject the invalid dictionary before requesting it")
+end)
+
 harness.test("a scenario is started and cleared when the bar ends", function()
     reset()
     local completed = QB.progressbar.start({
@@ -320,7 +338,7 @@ harness.test("a scenario is started and cleared when the bar ends", function()
     harness.assertEqual(clearTaskCalls, 1, "the scenario should be cleared afterward")
 end)
 
-harness.test("networked props use defaults, custom attachment fields, and clean up", function()
+harness.test("local props use defaults, custom attachment fields, and clean up", function()
     reset()
     local completed = QB.progressbar.start({
         label = "Working...",
@@ -342,8 +360,8 @@ harness.test("networked props use defaults, custom attachment fields, and clean 
 
     harness.assertTrue(completed, "props should not change successful completion")
     harness.assertEqual(#createdObjects, 2, "both props should be created")
-    harness.assertTrue(createdObjects[1].networked and createdObjects[1].mission,
-        "progress props should be networked mission entities")
+    harness.assertFalse(createdObjects[1].networked, "progress props must remain local under strict entity lockdown")
+    harness.assertFalse(createdObjects[1].mission, "progress props should use qblib lifecycle ownership")
     harness.assertFalse(createdObjects[1].door, "the object door flag should remain false")
     harness.assertEqual(pedBoneCalls[1], 60309, "the default numeric bone should be 60309")
     harness.assertEqual(namedBoneCalls[1], "PH_R_Hand", "named bones should resolve by name")
@@ -358,7 +376,7 @@ harness.test("networked props use defaults, custom attachment fields, and clean 
     harness.assertEqual(attachCalls[2][15], false, "syncRotation should be forwarded")
     harness.assertEqual(#deletedEntities, 2, "both props should be deleted after completion")
     harness.assertEqual(#detachedEntities, 2, "both props should be detached before deletion")
-    harness.assertEqual(#networkCalls, 10, "each prop should receive mission and network configuration calls")
+    harness.assertEqual(#networkCalls, 0, "local progress props must not call network configuration natives")
 end)
 
 harness.test("a prop creation failure is cosmetic and cleans up earlier props", function()

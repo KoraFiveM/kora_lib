@@ -18,6 +18,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/callback/shared.lua")
@@ -59,6 +60,54 @@ QB.nui = {
 
 dofile(repoRoot .. "modules/minigames/client.lua")
 
+-- Each test starts outside every configured callback window so the production
+-- quotas stay enabled without unrelated test cases sharing one mock player's
+-- bucket. Dedicated tests below still exercise a full window deliberately.
+local rawTest = harness.test
+harness.test = function(name, fn)
+    rawTest(name, function()
+        local longestWindow = math.max(
+            Config.minigames.callbackRateLimits.start.window,
+            Config.minigames.callbackRateLimits.submit.window,
+            Config.minigames.callbackRateLimits.cancel.window
+        )
+        Wait(longestWindow + 1)
+        fn()
+    end)
+end
+
+local function findUpvalue(fn, wanted)
+    for index = 1, 100 do
+        local name, value = debug.getupvalue(fn, index)
+        if name == nil then break end
+        if name == wanted then return value end
+    end
+    error("missing upvalue: " .. wanted)
+end
+
+local callbackDefinitions = findUpvalue(net.netHandlers["qblib:callback:invoke"][1], "registry")
+
+local function serverCall(name, src, ...)
+    return callbackDefinitions[name].handler(src, ...)
+end
+
+local defaultGetInvokingResource = _G.GetInvokingResource
+local function asResource(resource, fn)
+    _G.GetInvokingResource = function() return resource end
+    local results = table.pack(pcall(fn))
+    _G.GetInvokingResource = defaultGetInvokingResource
+    if not results[1] then error(results[2], 0) end
+    return table.unpack(results, 2, results.n)
+end
+
+local function mashAttempt(required)
+    local timestamps = {}
+    for i = 1, required do
+        timestamps[i] = (i - 1) * Config.minigames.mash.minPressInterval
+    end
+    return { pressTimestamps = timestamps }
+end
+
 -- Inverts QB.minigames.triangleWave for a known target: pos = phase*2 for
 -- phase < 0.5, so phase = target/2 always lands on the rising branch (target
 -- is always < 1, so phase is always < 0.5) -- lets a test hit an exact,
@@ -94,6 +143,7 @@ harness.test("lockpick: succeeds on the first correct attempt", function()
     harness.assertEqual(p.state, "resolved", "the promise should resolve within the mocked synchronous flow")
     harness.assertTrue(p.value.success, "a correctly-timed single pin should succeed")
     harness.assertEqual(p.value.attempts, 1, "should succeed on the very first attempt")
+    harness.assertTrue(p.value.proof == nil, "a legacy unauthorized success must not mint a proof")
 end)
 
 harness.test("lockpick: a malformed first attempt fails gracefully and a correct retry then succeeds", function()
@@ -211,6 +261,50 @@ harness.test("submit treats an expired session as a clean failure", function()
 
     harness.assertTrue(result.done, "an expired session must end the play() call")
     harness.assertFalse(result.success, "an expired session cannot succeed")
+end)
+
+harness.test("long rounds and retries outlive the minimum abandoned-session TTL", function()
+    local round = Citizen.Await(QB.callback.trigger("qblib:minigames:start", "lockpick", {
+        attempts = 2,
+        pinCount = 1,
+        timeLimit = 60000,
+    }))
+
+    _G.Wait(Config.minigames.sessionTTL + 1)
+    local retry = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, { presses = {} }))
+    harness.assertFalse(retry.done, "the first long round should be processed rather than expired")
+    harness.assertEqual(retry.attempt, 2, "a failed long round should issue the next attempt")
+
+    _G.Wait(Config.minigames.sessionTTL + 1)
+    local result = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, { presses = {} }))
+    harness.assertTrue(result.done, "the final retry should finish normally")
+    harness.assertEqual(result.attemptsUsed, 2, "the refreshed retry deadline should preserve both attempts")
+end)
+
+harness.test("a rejected NUI round cancels its server session before rejecting play", function()
+    local originalRequest = QB.nui.request
+    QB.nui.request = function()
+        local rejected = promise.new()
+        rejected:reject("simulated NUI failure")
+        return rejected
+    end
+
+    local result = QB.minigames.play("mash", { attempts = 1 })
+    QB.nui.request = originalRequest
+    harness.assertEqual(result.state, "rejected", "the NUI error should reject play")
+
+    local fresh = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
+    harness.assertTrue(fresh.sessionId ~= nil, "the failed client round-trip must not block an immediate retry")
+    serverCall("qblib:minigames:cancel", mocks.SOURCE, fresh.sessionId)
+end)
+
+harness.test("start opportunistically reclaims an expired session before its concurrency check", function()
+    serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
+    Wait(Config.minigames.sessionTTL + 1)
+
+    local fresh = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
+    harness.assertTrue(fresh.sessionId ~= nil, "an expired session must not reject a valid retry")
+    serverCall("qblib:minigames:cancel", mocks.SOURCE, fresh.sessionId)
 end)
 
 harness.test("submit rejects a request from a player who doesn't own the session", function()
@@ -468,6 +562,245 @@ harness.test("hacking: fails when the submitted code is wrong", function()
 
     harness.assertEqual(p.state, "resolved", "should resolve")
     harness.assertFalse(p.value.success, "a wrong code should fail")
+end)
+
+harness.test("minigame callbacks retain their configured per-player rate limits", function()
+    for name, expected in pairs(Config.minigames.callbackRateLimits) do
+        local definition = callbackDefinitions["qblib:minigames:" .. name]
+        harness.assertTrue(definition ~= nil, "expected a registered " .. name .. " callback")
+        harness.assertEqual(definition.rateLimit.max, expected.max, name .. " max should match config")
+        harness.assertEqual(definition.rateLimit.window, expected.window, name .. " window should match config")
+    end
+
+    for _ = 1, Config.minigames.callbackRateLimits.start.max do
+        local round = Citizen.Await(QB.callback.trigger("qblib:minigames:start", "mash", { attempts = 1 }))
+        Citizen.Await(QB.callback.trigger("qblib:minigames:cancel", round.sessionId))
+    end
+    local rejected = QB.callback.trigger("qblib:minigames:start", "mash", { attempts = 1 })
+    harness.assertEqual(rejected.state, "rejected", "the next start inside the same window should be rate-limited")
+    harness.assertTrue(tostring(rejected.value):find("rate limit exceeded", 1, true) ~= nil,
+        "the rejection should identify the callback quota")
+end)
+
+harness.test("authorized play ignores client opts and returns a bound opaque proof", function()
+    local authorization = asResource("consumer_a", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", {
+            attempts = 1,
+            requiredPresses = 6,
+            timeLimit = 4000,
+        })
+    end)
+
+    local seen
+    roundResponder = function(data)
+        seen = data
+        return mashAttempt(data.puzzle.requiredPresses)
+    end
+    local p = QB.minigames.play("mash", { attempts = 10, requiredPresses = 3, timeLimit = 1000 }, authorization)
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "the authorized play should resolve")
+    harness.assertTrue(p.value.success, "the trusted round should succeed")
+    harness.assertEqual(seen.puzzle.requiredPresses, 6, "trusted server options must override easier client options")
+    harness.assertEqual(seen.attempts, 1, "trusted attempt count must override the client value")
+    harness.assertTrue(type(p.value.proof) == "string" and #p.value.proof == 32,
+        "an authorized success should return a 32-character opaque proof")
+    harness.assertTrue(p.value.proof:find(":", 1, true) == nil, "the proof must not encode player/session identifiers")
+
+    local proof = p.value.proof
+    harness.assertFalse(asResource("consumer_a", function()
+        return QB.minigames.consumeProof(mocks.SOURCE + 1, proof, "mash", authorization)
+    end), "a player mismatch must fail")
+    harness.assertFalse(asResource("consumer_a", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proof, "lockpick", authorization)
+    end), "a game-type mismatch must fail")
+    harness.assertFalse(asResource("consumer_a", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", "wrong-authorization")
+    end), "an authorization mismatch must fail")
+    harness.assertFalse(asResource("consumer_b", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
+    end), "an issuer mismatch must fail")
+    harness.assertTrue(asResource("consumer_a", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
+    end), "mismatches must not burn the valid proof")
+    harness.assertFalse(asResource("consumer_a", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
+    end), "a proof must be single-use")
+end)
+
+harness.test("authorization mismatches do not burn a valid single-start capability", function()
+    local authorization = asResource("consumer_auth", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE + 1, "mash", nil, authorization)
+    end), "the wrong player must not start an authorized round")
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE, "lockpick", nil, authorization)
+    end), "the wrong game type must not start an authorized round")
+
+    local round = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { requiredPresses = 100 }, authorization)
+    harness.assertEqual(round.public.requiredPresses, 3, "the original trusted config should remain available")
+    serverCall("qblib:minigames:cancel", mocks.SOURCE, round.sessionId)
+
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, authorization)
+    end), "a consumed authorization must not start a second session")
+end)
+
+harness.test("failed and cancelled authorized sessions never return a proof", function()
+    local failedAuthorization = asResource("consumer_outcomes", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    local failedRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, failedAuthorization)
+    local failed = serverCall("qblib:minigames:submit", mocks.SOURCE, failedRound.sessionId, { pressTimestamps = {} })
+    harness.assertFalse(failed.success, "the intentionally empty attempt should fail")
+    harness.assertTrue(failed.proof == nil, "a failed authorized session must not mint a proof")
+
+    local cancelledAuthorization = asResource("consumer_outcomes", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    roundResponder = function() return { cancelled = true } end
+    local cancelled = QB.minigames.play("mash", nil, cancelledAuthorization)
+    roundResponder = nil
+    harness.assertTrue(cancelled.value.cancelled, "the session should report cancellation")
+    harness.assertTrue(cancelled.value.proof == nil, "a cancelled authorized session must not mint a proof")
+end)
+
+harness.test("resource stop removes pending authorizations, live sessions, and proofs", function()
+    local pendingAuthorization = asResource("consumer_cleanup", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    local proofAuthorization = asResource("consumer_cleanup", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    local proofRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
+    local proofResult = serverCall("qblib:minigames:submit", mocks.SOURCE, proofRound.sessionId, mashAttempt(3))
+
+    local activeAuthorization = asResource("consumer_cleanup", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, activeAuthorization)
+
+    net.fire("onResourceStop", "consumer_cleanup")
+
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, pendingAuthorization)
+    end), "a stopped resource's pending authorization must be removed")
+    harness.assertFalse(asResource("consumer_cleanup", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proofResult.proof, "mash", proofAuthorization)
+    end), "a stopped resource's proof must be removed")
+
+    local fresh = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
+    harness.assertTrue(fresh.sessionId ~= nil, "resource cleanup must free its active authorized session")
+    serverCall("qblib:minigames:cancel", mocks.SOURCE, fresh.sessionId)
+end)
+
+harness.test("authorization and proof TTLs are enforced", function()
+    local expiredAuthorization = asResource("consumer_ttl", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    Wait(Config.minigames.authorizationTTL + 1)
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, expiredAuthorization)
+    end), "an expired authorization must not start a session")
+
+    local proofAuthorization = asResource("consumer_ttl", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    local round = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
+    local result = serverCall("qblib:minigames:submit", mocks.SOURCE, round.sessionId, mashAttempt(3))
+    Wait(Config.minigames.proofTTL + 1)
+    harness.assertFalse(asResource("consumer_ttl", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, result.proof, "mash", proofAuthorization)
+    end), "an expired proof must not be consumable")
+end)
+
+harness.test("numeric, string, and dense-array bounds reject pathological input", function()
+    local finiteAuthorization = asResource("consumer_limits", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "skillbar", {
+            speed = 0 / 0,
+            timeLimit = math.huge,
+        })
+    end)
+    local finiteRound = serverCall("qblib:minigames:start", mocks.SOURCE, "skillbar", nil, finiteAuthorization)
+    harness.assertEqual(finiteRound.public.speed, Config.minigames.skillbar.speed,
+        "NaN should fall back to the trusted default")
+    harness.assertEqual(finiteRound.timeLimit, Config.minigames.skillbar.timeLimit,
+        "infinity should fall back to the trusted default")
+    serverCall("qblib:minigames:cancel", mocks.SOURCE, finiteRound.sessionId)
+
+    harness.assertFalse(pcall(function()
+        asResource("consumer_limits", function()
+            QB.minigames.authorizeProof(mocks.SOURCE, "pinpad", { numbers = "123456789" })
+        end)
+    end), "PIN content beyond the digit cap must be rejected")
+    harness.assertFalse(pcall(function()
+        asResource("consumer_limits", function()
+            QB.minigames.authorizeProof(mocks.SOURCE, "wordguess", {
+                word = string.rep("a", Config.minigames.inputLimits.wordGuessBytes + 1),
+            })
+        end)
+    end), "oversized word content must be rejected")
+
+    local questions = {}
+    for i = 1, Config.minigames.inputLimits.quizQuestions + 1 do
+        questions[i] = { question = "q", answer = "a", options = { "a" } }
+    end
+    harness.assertFalse(pcall(function()
+        asResource("consumer_limits", function()
+            QB.minigames.authorizeProof(mocks.SOURCE, "quiz", { questions = questions })
+        end)
+    end), "oversized question arrays must be rejected")
+
+    local sparseRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash",
+        { attempts = 1, requiredPresses = 3 })
+    local sparse = serverCall("qblib:minigames:submit", mocks.SOURCE, sparseRound.sessionId, {
+        pressTimestamps = { [1] = 0, [3] = 120 },
+    })
+    harness.assertFalse(sparse.success, "a sparse attempt array must count as a failed attempt")
+
+    local oversizedRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash",
+        { attempts = 1, requiredPresses = 3 })
+    local oversized = serverCall("qblib:minigames:submit", mocks.SOURCE, oversizedRound.sessionId, {
+        pressTimestamps = { 0, 60, 120, 180 },
+    })
+    harness.assertFalse(oversized.success, "an oversized attempt array must count as a failed attempt")
+end)
+
+harness.test("playerDropped removes every minigame capability and active session", function()
+    local pendingAuthorization = asResource("consumer_player", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    local proofAuthorization = asResource("consumer_player", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    local proofRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
+    local proofResult = serverCall("qblib:minigames:submit", mocks.SOURCE, proofRound.sessionId, mashAttempt(3))
+    local activeAuthorization = asResource("consumer_player", function()
+        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+    end)
+    serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, activeAuthorization)
+
+    _G.source = mocks.SOURCE
+    net.fire("playerDropped")
+    _G.source = nil
+
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, pendingAuthorization)
+    end), "disconnect must remove pending authorizations")
+    harness.assertFalse(asResource("consumer_player", function()
+        return QB.minigames.consumeProof(mocks.SOURCE, proofResult.proof, "mash", proofAuthorization)
+    end), "disconnect must remove proofs")
+    local fresh = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
+    serverCall("qblib:minigames:cancel", mocks.SOURCE, fresh.sessionId)
+
+    -- playerDropped also clears the callback layer's handshake token; restore
+    -- the simulated player's token for any future test appended to this file.
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
+    _G.source = nil
 end)
 
 harness.report("minigames")

@@ -323,9 +323,13 @@ Filters may be `nil` wildcards. The context also includes `reserved` and
 
 ### Minigames
 ```lua
-QB.minigames.play(gameType, opts)              -- client
-QB.minigames.consumeProof(src, token, gameType) -- server
+QB.minigames.play(gameType, opts, authorization)                         -- client
+QB.minigames.authorizeProof(src, gameType, trustedOpts)                   -- server
+QB.minigames.consumeProof(src, proof, gameType, authorization)            -- server
 ```
+Only a session started with a server-issued authorization can return a
+proof. Authorizations and proofs are opaque, single-use, player/game/resource
+bound, and short-lived; see `modules/minigames/docs.md` for the complete flow.
 
 ### Commands / permissions / logging (server)
 ```lua
@@ -438,7 +442,7 @@ Everything routes onto the `QB.nui.open*` calls above.
 `qbtheme/config.lua` owns the shared palette and brand colour. qblib's
 `QB.theme` functions remain compatibility forwards to that resource.
 `Config.notify.defaultDuration/maxDuration/defaultType/defaultPosition`,
-`Config.progressbar.maxDuration/maxProps/cancelControl`, `Config.cache.tickInterval`,
+`Config.progressbar.maxDuration/maxProps/cancelControl`, `Config.minigames.authorizationTTL/proofTTL/inputLimits/callbackRateLimits`, `Config.cache.tickInterval`,
 `Config.zones.gridSize/tickFar/tickNear/tickInside/creator.enabled`,
 `Config.third_party_notify` (route notifications through an event instead of
 qblib's own NUI toast).

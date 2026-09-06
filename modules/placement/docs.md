@@ -62,9 +62,14 @@ settings. The HUD reads the current binding labels at session start.
 - `QB.placement.generateSnippet(result)` formats a ready-to-paste Lua table at
   four decimal places without rounding the returned result itself.
 - `/qb_place <model>` starts the same flow without writing Lua. A numeric
-  argument is treated as a model hash.
+  argument is treated as a model hash. The server command requires the
+  `qblib.editor` ACE by default; configure it through `Config.editor`.
 
 Only one placement may run at a time, and it cannot overlap the zone creator.
 The preview is translucent, frozen, invincible, non-colliding, and visible only
 to the local client. Confirmation copies/returns data; it never persists the
 preview or creates a server/networked entity.
+
+The command permission is an admin UX gate, not a security boundary against a
+modified client. Any resource that persists or applies captured data must
+validate and authorize that change independently on the server.

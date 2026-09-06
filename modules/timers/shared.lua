@@ -59,11 +59,7 @@ local nextId = 0
 ---that accepts a callback carries.
 ---@param value any
 ---@return boolean
-local function isCallable(value)
-    if type(value) == "function" then return true end
-    local meta = getmetatable(value)
-    return type(meta) == "table" and isCallable(meta.__call)
-end
+local isCallable = QB.compat.isCallable
 
 ---@param interval any
 ---@param label string

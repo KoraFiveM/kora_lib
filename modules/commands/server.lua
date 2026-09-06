@@ -14,11 +14,7 @@ local keybindEvents = {
     execute = 'qblib:commands:keybind:execute',
 }
 
-local function isCallable(value)
-    if type(value) == 'function' then return true end
-    local mt = type(value) == 'table' and getmetatable(value) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+local isCallable = QB.compat.isCallable
 
 local function isAllowed(source, definition)
     if source == 0 or definition.permission == 'user' then return true end

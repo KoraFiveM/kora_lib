@@ -31,7 +31,7 @@
 ---@field disable? QBProgressBarDisable
 ---@field anim? QBProgressBarAnim Played for the duration, stopped and released automatically when the bar ends. Mutually exclusive with `scenario`.
 ---@field scenario? QBProgressBarScenario Played in place for the duration, stopped automatically when the bar ends. Mutually exclusive with `anim`.
----@field props? QBProgressBarProp[] Network-visible props attached to the player for the duration.
+---@field props? QBProgressBarProp[] Local cosmetic props attached to the player for the duration.
 
 local busy = false
 local activeSession = nil
@@ -42,7 +42,6 @@ local CAR_CONTROLS = { 63, 64, 71, 72 }
 local function deleteProgressProp(entity)
     if not entity or not DoesEntityExist(entity) then return end
     DetachEntity(entity, true, true)
-    SetEntityAsMissionEntity(entity, true, true)
     DeleteEntity(entity)
 end
 
@@ -129,9 +128,8 @@ end
 ---@param dict string
 ---@return boolean loaded
 local function ensureAnimDict(dict)
-    if HasAnimDictLoaded(dict) then return true end
-    RequestAnimDict(dict)
-    return QB.loops.controlled(function() return HasAnimDictLoaded(dict) end, false, 5000, true) ~= false
+    local ok, loaded = pcall(QB.stream.loadAnimDict, dict)
+    return ok and loaded ~= false
 end
 
 local function safeCleanup(label, fn)
@@ -207,20 +205,13 @@ local function prepareProp(session, definition, index)
             if session.cleaned then return end
 
             local coords = GetEntityCoords(session.ped)
-            entity = CreateObjectNoOffset(hash, coords.x, coords.y, coords.z, true, true, false)
+            entity = CreateObjectNoOffset(hash, coords.x, coords.y, coords.z, false, false, false)
             if not entity or entity == 0 or not DoesEntityExist(entity) then
                 error("CreateObjectNoOffset did not return a valid entity.")
             end
 
             session.props[#session.props + 1] = entity
             propRegistry.track(session.owner, entity)
-            SetEntityAsMissionEntity(entity, true, true)
-
-            local netId = NetworkGetNetworkIdFromEntity(entity)
-            if not netId or netId == 0 then error("the created entity has no network ID.") end
-            SetNetworkIdExistsOnAllMachines(netId, true)
-            NetworkUseHighPrecisionBlending(netId, true)
-            SetNetworkIdCanMigrate(netId, false)
 
             local bone = definition.bone or 60309
             local boneIndex = type(bone) == "string"
@@ -298,7 +289,7 @@ function QB.progressbar.start(payload)
                     -1, payload.anim.flag or 1, 0, false, false, false)
                 session.animStarted = true
             else
-                print(("[qblib:progressbar] anim dict '%s' failed to load in time -- continuing without it.")
+                print(("[qblib:progressbar] anim dict '%s' could not be loaded -- continuing without it.")
                     :format(payload.anim.dict))
             end
         elseif payload.scenario then

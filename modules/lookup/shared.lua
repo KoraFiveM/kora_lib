@@ -48,7 +48,7 @@ local function normalize(value)
     local valueType = type(value)
 
     if valueType == 'number' then
-        assert(value == value and value ~= math.huge and value ~= -math.huge,
+        assert(QB.util.isFiniteNumber(value),
             'Lookup hash must be a finite number.')
         assert(value % 1 == 0, 'Lookup hash must be an integer.')
         assert(value >= INT32_MIN and value <= UINT32_MAX,

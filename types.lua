@@ -328,9 +328,10 @@
 ---@field token any
 ---@field completed boolean
 ---@field proof? string
+---@field authorization? string
 
 ---@class QBActionsOptions
----@field begin fun(...: any): any, string?
+---@field begin fun(...: any): any, string?, string? Returns action token, optional failure reason, and optional minigame proof authorization.
 ---@field complete fun(result: QBActionsResult, ...: any): any
 ---@field label string
 ---@field duration? integer
@@ -584,7 +585,10 @@
 
 ---@class QBMinigameResult
 ---@field success boolean
+---@field attempts integer
 ---@field proof? string
+---@field cancelled? true
+---@field faults? integer
 ---@field reason? string
 
 ---@class QBStatusEffectDef
@@ -881,8 +885,9 @@
 ---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean): any, string? [shared]
 
 ---@class QBLibMinigames
----@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions): QBMinigameResult|promise [client]
----@field consumeProof fun(src: integer, token: string, gameType: QBMinigameType): boolean, string? [server]
+---@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult|promise [client]
+---@field authorizeProof fun(src: integer, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
+---@field consumeProof fun(src: integer, token: string, gameType: QBMinigameType, authorization: string): boolean [server]
 ---@field triangleWave fun(elapsedMs: number, speedHz: number): number [shared]
 
 ---@class QBLibNotify
@@ -1063,6 +1068,7 @@
 
 ---@class QBLibUtil
 ---@field deepClone fun(value: any): any [shared]
+---@field isFiniteNumber fun(value: any): boolean [shared]
 ---@field clamp fun(value: number, min: number, max: number): number [shared]
 ---@field round fun(value: number, decimals?: integer): number [shared]
 ---@field randomFloat fun(min: number, max: number): number [shared]

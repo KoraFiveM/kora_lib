@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { EditorControlsHud, EditorKey } from "@/components/editor/EditorControlsHud"
 import type { PlacementHudSnapshot, PlacementStartPayload } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 
@@ -52,15 +53,33 @@ export function PlacementHud() {
     const bindings = session.bindings
 
     return (
-        <div className="pointer-events-none fixed bottom-4 left-4 z-hud w-80 max-w-[calc(100vw-2rem)] select-none rounded-xl border bg-hud p-3 text-card-foreground shadow-low">
-            <div className="title-rail flex min-w-0 items-center justify-between gap-3">
-                <span className="truncate text-sm font-semibold" title={session.model}>Placing: {session.model}</span>
-                {snapshot?.isShiftHeld && (
+        <EditorControlsHud
+            width="md"
+            title={<span className="block truncate" title={session.model}>Placing: {session.model}</span>}
+            status={snapshot?.isShiftHeld ? (
                     <span className="shrink-0 rounded-sm border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">
                         Fast
                     </span>
-                )}
-            </div>
+            ) : undefined}
+            controls={
+                <>
+                    <p><EditorKey>WASD + mouse</EditorKey> fly camera</p>
+                    <p>
+                        <EditorKey>
+                            {keyLabel(bindings.forward)} {keyLabel(bindings.backward)} {keyLabel(bindings.left)} {keyLabel(bindings.right)}
+                        </EditorKey>{" "}move &middot; <EditorKey>{keyLabel(bindings.up)}/{keyLabel(bindings.down)}</EditorKey> height
+                    </p>
+                    <p>
+                        <EditorKey>{keyLabel(bindings.rotateLeft)} {keyLabel(bindings.rotateRight)}</EditorKey> rotate &middot;{" "}
+                        <EditorKey>{keyLabel(bindings.cycle)}</EditorKey> axis &middot; <EditorKey>Shift</EditorKey> fast
+                    </p>
+                    <p>
+                        <EditorKey>{keyLabel(bindings.confirm)}</EditorKey> finish &middot;{" "}
+                        <EditorKey>{keyLabel(bindings.cancel)}</EditorKey> cancel
+                    </p>
+                </>
+            }
+        >
 
             {snapshot ? (
                 <>
@@ -87,23 +106,6 @@ export function PlacementHud() {
             ) : (
                 <p className="mt-3 text-xs text-muted-foreground">Starting preview…</p>
             )}
-
-            <div className="mt-3 space-y-1 border-t pt-2 text-xs leading-5 text-card-foreground/80">
-                <p><b className="font-medium text-foreground">WASD + mouse</b> fly camera</p>
-                <p>
-                    <b className="font-medium text-foreground">
-                        {keyLabel(bindings.forward)} {keyLabel(bindings.backward)} {keyLabel(bindings.left)} {keyLabel(bindings.right)}
-                    </b>{" "}move · <b className="font-medium text-foreground">{keyLabel(bindings.up)}/{keyLabel(bindings.down)}</b> height
-                </p>
-                <p>
-                    <b className="font-medium text-foreground">{keyLabel(bindings.rotateLeft)} {keyLabel(bindings.rotateRight)}</b> rotate ·{" "}
-                    <b className="font-medium text-foreground">{keyLabel(bindings.cycle)}</b> axis · <b className="font-medium text-foreground">Shift</b> fast
-                </p>
-                <p>
-                    <b className="font-medium text-foreground">{keyLabel(bindings.confirm)}</b> finish ·{" "}
-                    <b className="font-medium text-foreground">{keyLabel(bindings.cancel)}</b> cancel
-                </p>
-            </div>
-        </div>
+        </EditorControlsHud>
     )
 }

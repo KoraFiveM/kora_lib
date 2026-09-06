@@ -17,7 +17,7 @@ Shared infrastructure for the pattern nearly every owned-state module needs: tra
 - **One sweep handler per registry**, not a single shared dispatcher. Each registry is fully self-contained — creating one is enough to get correct cleanup, with no separate registration step and nothing for a consuming module to forget.
 - **`track`'s re-track/move behavior exists for name-keyed registries.** `local/callback` and `local/events` track by callback/event *name*, and a second resource registering the same name is expected to take over ownership of it (with a warning printed by the caller — the registry itself doesn't judge whether an overwrite is suspicious, it just keeps the bookkeeping correct either way).
 - `untrack` is deliberately inert with respect to disposal — it only removes bookkeeping. This mirrors how `modules/entities`'s `untrack` behaved before migrating here: a manual `remove()` call deletes the entity itself and *then* calls `untrack`, rather than `untrack` deleting it.
-- `client.lua` and `server.lua` are two independent implementations, not one shared function — separate Lua chunks can't share file-local state, same reasoning `local/callback`/`local/events` already document for their own small duplicated helpers (e.g. `generateToken`).
+- `client.lua` and `server.lua` are two independent implementations, not one shared function — their resource-stop events and ownership tables are realm-specific. Truly realm-neutral helpers can live under the non-exported `QB.compat` bootstrap namespace; opaque token generation is centralized there.
 
 ## Consumers
 - `modules/entities` — one registry, id = entity handle, `onDispose` deletes the entity.

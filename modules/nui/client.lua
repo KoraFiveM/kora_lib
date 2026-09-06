@@ -9,14 +9,6 @@ local function nextId()
     return nextRequestId
 end
 
--- Seeded ONCE at module load, not per token: reseeding from a time-derived
--- value on every call would hand two same-millisecond requests identical RNG
--- state -- and therefore identical "secrets". GetGameTimer() only (no os.clock()
--- -- the `os` library doesn't exist in FiveM's client-side Lua sandbox, only
--- server-side; local/callback/server.lua and local/events/server.lua can use
--- it because they're server scripts).
-math.randomseed(GetGameTimer())
-
 -- Per-request secret the NUI must echo back in its response. FiveM's NUI
 -- callback routing (the `https://<resource>/<callback>` fetch every NUI page
 -- uses) isn't scoped to the frame that issued a given request -- any other
@@ -26,30 +18,12 @@ math.randomseed(GetGameTimer())
 -- closes that gap the same way local/callback's per-player token does for the
 -- client<->server boundary.
 --
--- Deliberately duplicated from local/callback/server.lua and
--- local/events/server.lua (module files are separate Lua chunks; a shared
--- private helper is impossible and QB.* attachments become public exports) --
--- keep the three copies in sync.
-local function generateToken()
-    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    local parts = {}
-
-    for i = 1, 32 do
-        local index = math.random(1, #chars)
-        parts[i] = chars:sub(index, index)
-    end
-
-    return table.concat(parts)
-end
+local generateToken = QB.compat.generateToken
 
 -- FXServer represents a function passed through an exports boundary as a
 -- callable table rather than a plain Lua function. App action handlers are
 -- registered by consumer resources, so accept both shapes.
-local function isCallable(value)
-    if type(value) == "function" then return true end
-    local mt = type(value) == "table" and getmetatable(value) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+local isCallable = QB.compat.isCallable
 
 local function assertAppId(id)
     assert(type(id) == "string" and id ~= "" and id:match("^[%w_:%.%-]+$"),

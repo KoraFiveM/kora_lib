@@ -1,7 +1,7 @@
 # Progress bar module
 
 ## Overview
-Shows a filling progress bar to the local player for a fixed duration, optionally playing an animation or scenario, attaching network-visible props, and disabling controls. Client-only — there is no server API, and no round trip to the NUI: Lua owns the timing and the completion decision, while the NUI is purely visual.
+Shows a filling progress bar to the local player for a fixed duration, optionally playing an animation or scenario, attaching local cosmetic props, and disabling controls. Client-only — there is no server API, and no round trip to the NUI: Lua owns the timing and the completion decision, while the NUI is purely visual.
 
 ## API
 
@@ -24,7 +24,7 @@ Runs a progress bar for `payload.duration` ms.
   - `scenario?: table` — Alternative to `anim`; the two cannot be combined.
     - `name: string` — Scenario name, such as `WORLD_HUMAN_HAMMERING`.
     - `playEnter?: boolean` — Whether to play its enter animation. Defaults to `true`.
-  - `props?: table[]` — Up to `Config.progressbar.maxProps` network-visible objects (2 by default), created before the timer begins and deleted when it ends.
+  - `props?: table[]` — Up to `Config.progressbar.maxProps` local cosmetic objects (2 by default), created before the timer begins and deleted when it ends.
     - `model: string | integer` — Model name or hash. Required.
     - `bone?: string | integer` — Ped bone name or ID. Defaults to `60309`.
     - `offset?: vector3 | {x, y, z}` and `rotation?: vector3 | {x, y, z}` — Default to zero.
@@ -76,6 +76,6 @@ Returns `true` while a progress bar started by this module is currently running.
 - Dying always cancels the bar, regardless of `disable`/`canCancel`.
 - If `anim.dict` fails to load within 5 seconds, the bar still runs (and can still complete) — it just runs without the animation, and a warning is printed to the client console.
 - Prop models are streamed before the progress timer and NUI animation start. A malformed descriptor is rejected up front; a runtime streaming/object/attachment failure logs a warning and lets the action continue without that prop.
-- Props are networked mission entities configured for visibility on all machines and stable creator ownership. They are detached and deleted on completion, cancellation, internal errors, or resource shutdown.
+- Props are non-networked local entities, so they work under strict entity lockdown and cannot become shared world state. They are detached and deleted on completion, cancellation, internal errors, or resource shutdown. If nearby players must see a gameplay prop, its owning server resource must create and lifecycle-manage it separately.
 - Combat and vehicle suppression use reference-counted `QB.controls` leases, so they can overlap other qblib input owners without releasing those owners' controls.
 - The NUI side (`web/src/components/progressbar/ProgressBar.tsx`) is fire-and-forget: `QB.nui.send("progressStart", { label, duration })` starts its own CSS fill animation timed to `duration` and hides itself when that finishes; `QB.nui.send("progressCancel")` (no payload) hides it immediately for every early-exit path. Lua's own timing is authoritative either way — the NUI never reports back.

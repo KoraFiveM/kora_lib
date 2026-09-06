@@ -22,11 +22,7 @@ local targetRegistry = QB.resources.registry(function(handle)
     end
 end)
 
-local function isCallable(value)
-    if type(value) == "function" then return true end
-    local mt = type(value) == "table" and getmetatable(value) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+local isCallable = QB.compat.isCallable
 
 local function isEnabled()
     local state = LocalPlayer and LocalPlayer.state

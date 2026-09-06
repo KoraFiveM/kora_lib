@@ -599,18 +599,9 @@ AddEventHandler("onClientResourceStop", function(resourceName)
     if state and state.resource == resourceName then resolveState(state, nil) end
 end)
 
-RegisterCommand("qb_place", function(_, args)
-    local model = args[1]
-    if not model then
-        QB.notify.send({
-            title = "Entity placement",
-            message = "Usage: /qb_place <model>",
-            type = "error",
-        })
-        return
-    end
-
-    if model:match("^%-?%d+$") then model = tonumber(model) end
+RegisterNetEvent("qblib:editor:startPlacement", function(model)
+    if type(model) ~= "string" and type(model) ~= "number" then return end
+    if type(model) == "string" and model:match("^%-?%d+$") then model = tonumber(model) end
 
     local ok, result = pcall(function()
         return Citizen.Await(QB.placement.start(model))
@@ -630,4 +621,4 @@ RegisterCommand("qb_place", function(_, args)
             type = "success",
         })
     end
-end, false)
+end)

@@ -34,9 +34,9 @@ local function newSessionToken()
 end
 
 -- Ownership tracking here is about the LOCAL overlay/focus, not the server
--- session (the server can't rely on GetInvokingResource() -- see this
--- module's AGENTS.md "Server session ownership" note for why that half is
--- tracked by player instead, via playerDropped in server.lua). If the
+-- session (the server can't infer a resource owner from this later client
+-- callback; authorized sessions inherit the issuer captured earlier by
+-- authorizeProof, while legacy sessions remain player-scoped). If the
 -- resource that called QB.minigames.play() stops mid-round, the coroutine
 -- driving beginPlay below is simply abandoned (there's no way to force a
 -- suspended Citizen.Await to unwind) -- this registry's onDispose is
@@ -55,17 +55,19 @@ local minigameOwnership = QB.resources.registry(function(token)
     end
 end)
 
-local function beginPlay(gameType, opts, resource)
+local function beginPlay(gameType, opts, authorization, resource)
     local token = newSessionToken()
     activeSession = token
     minigameOwnership.track(resource, token)
 
     local p = promise.new()
+    local serverSessionId
 
     CreateThread(function()
         local ok, result = pcall(function()
             return QB.nui.withFocus(true, true, function()
-                local round = Citizen.Await(QB.callback.trigger("qblib:minigames:start", gameType, opts))
+                local round = Citizen.Await(QB.callback.trigger("qblib:minigames:start", gameType, opts, authorization))
+                serverSessionId = round.sessionId
                 local lastResult = nil
 
                 while true do
@@ -94,12 +96,14 @@ local function beginPlay(gameType, opts, resource)
                     -- doesn't consume an attempt.
                     if attempt ~= nil and attempt.cancelled then
                         Citizen.Await(QB.callback.trigger("qblib:minigames:cancel", round.sessionId))
+                        serverSessionId = nil
                         return { success = false, cancelled = true, attempts = round.attempt - 1 }
                     end
 
                     local submitResult = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, attempt))
 
                     if submitResult.done then
+                        serverSessionId = nil
                         -- `faults` is nil for every type except `keys`
                         -- (see server.lua's validate.keys) -- harmless to
                         -- always thread through, since a nil table field is
@@ -126,6 +130,15 @@ local function beginPlay(gameType, opts, resource)
         if activeSession == token then activeSession = nil end
 
         if not ok then
+            if serverSessionId then
+                -- The server successfully opened a session but a later NUI
+                -- or callback request failed. Best-effort cancel it now so an
+                -- immediate retry is not blocked until the expiry sweep.
+                pcall(function()
+                    Citizen.Await(QB.callback.trigger("qblib:minigames:cancel", serverSessionId))
+                end)
+                serverSessionId = nil
+            end
             QB.nui.send("minigames:close", { result = "cancelled" })
             p:reject(result)
             return
@@ -150,7 +163,8 @@ end
 ---the basic timestamp-plausibility floor documented in AGENTS.md.
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table Per-type overrides merged over Config.minigames.<type> and clamped/validated server-side -- see docs.md for the accepted fields per type. For pinpad/quiz/wordguess/wordscramble, opts also carries the puzzle's actual CONTENT (numbers/questions/word), since the caller supplies it rather than the server randomizing it.
----@return promise|any result Resolves/returns { success: boolean, attempts: integer, cancelled?: true, faults?: integer }
+---@param authorization? string Opaque token returned by the gameplay resource's server-side QB.minigames.authorizeProof call. When present, the server ignores opts and uses the trusted options captured by that authorization. Successful unauthorized legacy sessions remain proof-less.
+---@return promise|any result Resolves/returns { success: boolean, attempts: integer, proof?: string, cancelled?: true, faults?: integer }
 ---(attempts = how many tries it took before success/exhaustion/cancellation; faults is only ever present for
 ---"keys", see server.lua's validate.keys) for a same-VM caller (unchanged, awaitable as before) or a genuine
 ---cross-resource caller respectively (see settleForExport above). `cancelled` is present (and `success` false)
@@ -158,9 +172,10 @@ end
 ---failing outright -- see docs.md's "Cancelling" note. Rejects/errors if a minigame is already in progress for
 ---this player (checked both here and, in case a modified client skips this, server-side), gameType is
 ---invalid, or the underlying NUI/callback round trip fails.
-function QB.minigames.play(gameType, opts)
+function QB.minigames.play(gameType, opts, authorization)
     assert(QB.minigames.GAME_TYPES[gameType], "invalid minigame type -- see QB.minigames.GAME_TYPES.")
     assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
+    assert(authorization == nil or type(authorization) == "string", "minigame authorization must be a string.")
 
     if activeSession then
         local p = promise.new()
@@ -173,5 +188,5 @@ function QB.minigames.play(gameType, opts)
     -- modules/zones/client.lua's startCreator for the same reasoning.
     local resource = GetInvokingResource() or GetCurrentResourceName()
 
-    return settleForExport(beginPlay(gameType, opts, resource))
+    return settleForExport(beginPlay(gameType, opts, authorization, resource))
 end

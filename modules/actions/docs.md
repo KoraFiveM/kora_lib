@@ -12,17 +12,25 @@ QB.actions.run({
     minigame = station.minigame,
     disable = { move = true, combat = true },
     begin = function(drug, stage)
-        return QB.callback.trigger('my-resource:server:begin', drug, stage)
+        local begun = Citizen.Await(QB.callback.trigger('my-resource:server:begin', drug, stage))
+        -- The server callback creates begun.authorization with
+        -- QB.minigames.authorizeProof.
+        return begun.actionToken, nil, begun.authorization
     end,
     complete = function(result, drug, stage)
         TriggerServerEvent('my-resource:server:complete', drug, stage,
-            result.token, result.completed, result.proof)
+            result.token, result.completed, result.proof, result.authorization)
     end,
 }, drugName, stageName)
 ```
 
 Only one action can run at a time. A rejected `begin` returns `false, reason`;
 otherwise the first return is `true` after `complete` has been called.
+When `minigame` is set, `begin` may return a third value containing a proof
+authorization; `QB.actions.run` forwards it to `QB.minigames.play`. Omitting it
+keeps the action flow functional but the minigame result is proof-less.
+The same authorization is included in the object passed to `complete`, so the
+server completion handler can call `consumeProof` with both values.
 
 `QB.actions.isActive()` reports whether this client currently has an action in
 progress.

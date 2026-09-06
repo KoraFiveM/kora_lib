@@ -1,62 +1,106 @@
--- Seeded ONCE at load, not per session: reseeding from a time-derived value
--- on every call would hand two same-millisecond sessions identical RNG state
--- -- and therefore identical "secret" solutions. Same idiom local/callback/server.lua
--- uses for its own token generator.
-math.randomseed(GetGameTimer() + math.floor(os.clock() * 1000000))
-
 local sessions = {}
 local sessionCountBySrc = {}
 local nextSessionId = 0
+local authorizations = {}
 local proofs = {}
-local nextProofId = 0
+local endSession
 
-local function createProof(session)
-    nextProofId = nextProofId + 1
-    local token = ('%s:%s:%s:%s'):format(session.src, session.id, nextProofId, math.random(100000, 999999))
-    proofs[token] = {
-        src = session.src,
-        gameType = session.gameType,
-        expiresAt = GetGameTimer() + Config.minigames.proofTTL,
-    }
-    return token
+local function roundExpiry(now, cfg, overallExpiresAt)
+    local roundWindow = math.max(
+        Config.minigames.sessionTTL,
+        cfg.timeLimit + Config.minigames.roundTimeoutBuffer
+    )
+    return math.min(overallExpiresAt, now + roundWindow)
 end
 
----Consumes a successful minigame proof exactly once. Gameplay resources call
----this on the server instead of accepting a client-computed success boolean.
----@param src integer
----@param token string
----@param gameType string
----@return boolean
-function QB.minigames.consumeProof(src, token, gameType)
-    if type(token) ~= 'string' or type(gameType) ~= 'string' then return false end
-    local proof = proofs[token]
-    if not proof then return false end
+local authorizationOwnership = QB.resources.serverRegistry(function(token)
+    authorizations[token] = nil
+end)
+
+local proofOwnership = QB.resources.serverRegistry(function(token)
     proofs[token] = nil
-    return proof.src == src and proof.gameType == gameType and proof.expiresAt >= GetGameTimer()
+end)
+
+-- Only authorized sessions have a resource owner. Legacy sessions are still
+-- player-scoped and cleaned up on cancel, expiry, or playerDropped.
+local authorizedSessionOwnership = QB.resources.serverRegistry(function(sessionId)
+    local session = sessions[sessionId]
+    if session then endSession(session) end
+end)
+
+local function generateOpaqueToken()
+    while true do
+        local token = QB.compat.generateToken()
+        if authorizations[token] == nil and proofs[token] == nil then return token end
+    end
+end
+
+local function removeAuthorization(token)
+    authorizations[token] = nil
+    authorizationOwnership.untrack(token)
+end
+
+local function removeProof(token)
+    proofs[token] = nil
+    proofOwnership.untrack(token)
 end
 
 local function randomFloat(min, max)
     return min + math.random() * (max - min)
 end
 
+local isFiniteNumber = QB.util.isFiniteNumber
+
+local function isInteger(value)
+    return isFiniteNumber(value) and value % 1 == 0
+end
+
 local function clampNumber(value, fallback, min, max)
-    if type(value) ~= "number" then return fallback end
+    if not isFiniteNumber(value) then return fallback end
     return math.max(min, math.min(max, value))
 end
 
 local function clampInt(value, fallback, min, max)
-    if type(value) ~= "number" then return fallback end
+    if not isFiniteNumber(value) then return fallback end
     return math.floor(math.max(min, math.min(max, value)))
 end
 
+local function boundedString(value, label, maxBytes, allowEmpty)
+    assert(type(value) == "string", label .. " must be a string.")
+    assert(allowEmpty or #value > 0, label .. " must not be empty.")
+    assert(#value <= maxBytes, label .. " exceeds the byte limit.")
+    return value
+end
+
+-- `#`/ipairs alone can silently ignore sparse, hash-keyed, or very large
+-- attacker-provided tables. Count keys with a hard ceiling, require every key
+-- to be a positive array index, then verify the sequence is gap-free.
+local function denseArrayLength(value, label, maxLength, minLength)
+    assert(type(value) == "table", label .. " must be an array.")
+    local count = 0
+    for key in pairs(value) do
+        count = count + 1
+        assert(count <= maxLength, label .. " exceeds the item limit.")
+        assert(isInteger(key) and key >= 1 and key <= maxLength, label .. " must be a dense array.")
+    end
+    assert(count >= (minLength or 0), label .. " does not contain enough items.")
+    for i = 1, count do
+        assert(rawget(value, i) ~= nil, label .. " must be a dense array.")
+    end
+    return count
+end
+
+local function assertElapsed(value, timeLimit, label)
+    assert(isFiniteNumber(value), label .. " must be a finite number.")
+    assert(value >= 0 and value <= timeLimit, label .. " is outside the round's time limit.")
+end
+
 ------------------------------------------------------------------------------
--- Per-type difficulty resolution. `opts` arrives over the network from the
--- CLIENT (QB.minigames.play's second argument, forwarded verbatim by
--- QB.callback.trigger) -- a modified client could send anything, so every
--- field is clamped against a hard, non-client-adjustable range rather than
--- trusted outright. The anti-cheat timing floors (minTimePerPin, etc.) are
--- NOT exposed here at all -- they stay fixed at their Config.minigames value,
--- read directly from Config by the matching validate.* function below.
+-- Per-type difficulty resolution. Legacy `opts` arrives over the network
+-- from the client; trusted `opts` arrives from authorizeProof's server caller.
+-- Both paths use the same finite numeric clamps and content/array bounds, and
+-- authorized start uses only the already-resolved trusted copy. Anti-cheat
+-- timing floors are never exposed through either option table.
 ------------------------------------------------------------------------------
 
 local resolveConfig = {}
@@ -112,31 +156,55 @@ end
 function resolveConfig.pinpad(opts)
     local cfg = Config.minigames.pinpad
     local numbers = opts and opts.numbers
-    local digits = clampInt(opts and opts.digits, cfg.digits, 3, 8)
-    if type(numbers) == "number" or type(numbers) == "string" then
-        digits = #tostring(numbers)
+    local maxDigits = Config.minigames.inputLimits.pinDigits
+    local digits = clampInt(opts and opts.digits, cfg.digits, 3, maxDigits)
+    if numbers ~= nil then
+        assert(type(numbers) == "string" or isFiniteNumber(numbers), "pinpad numbers must be a finite number or string.")
+        local source = tostring(numbers)
+        boundedString(source, "pinpad numbers", Config.minigames.inputLimits.pinSourceBytes, false)
+
+        local normalized = {}
+        for digit in source:gmatch("%d") do
+            assert(#normalized < Config.minigames.inputLimits.pinDigits, "pinpad numbers contains too many digits.")
+            normalized[#normalized + 1] = digit
+        end
+        assert(#normalized > 0, "pinpad numbers must contain at least one digit.")
+        numbers = table.concat(normalized)
+        digits = #normalized
     end
 
     return {
         attempts = clampInt(opts and opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
         numbers = numbers,
-        digits = clampInt(digits, cfg.digits, 3, 8),
+        digits = clampInt(digits, cfg.digits, 3, maxDigits),
         timeLimit = clampNumber(opts and opts.timeLimit, cfg.timeLimit, 3000, 60000),
     }
 end
 
 function resolveConfig.quiz(opts)
     local cfg = Config.minigames.quiz
-    assert(opts and type(opts.questions) == "table" and #opts.questions > 0, "quiz requires a non-empty questions list.")
+    assert(opts and type(opts.questions) == "table", "quiz requires a non-empty questions list.")
+    local questionCount = denseArrayLength(opts.questions, "quiz questions", Config.minigames.inputLimits.quizQuestions, 1)
 
     local questions = {}
-    for i, q in ipairs(opts.questions) do
+    for i = 1, questionCount do
+        local q = opts.questions[i]
         assert(type(q.question) == "string" and type(q.answer) == "string" and type(q.options) == "table",
             "malformed quiz question.")
-        questions[i] = { question = q.question, answer = q.answer, options = q.options }
+        boundedString(q.question, "quiz question", Config.minigames.inputLimits.quizQuestionBytes, true)
+        boundedString(q.answer, "quiz answer", Config.minigames.inputLimits.quizOptionBytes, true)
+
+        local optionCount = denseArrayLength(q.options, "quiz options", Config.minigames.inputLimits.quizOptionsPerQuestion, 1)
+        local options = {}
+        for optionIndex = 1, optionCount do
+            options[optionIndex] = boundedString(q.options[optionIndex], "quiz option",
+                Config.minigames.inputLimits.quizOptionBytes, true)
+        end
+        questions[i] = { question = q.question, answer = q.answer, options = options }
     end
 
-    local timePerQuestion = clampNumber(opts.timer and opts.timer * 1000, cfg.timePerQuestion, 2000, 120000)
+    local requestedTimer = isFiniteNumber(opts.timer) and opts.timer * 1000 or nil
+    local timePerQuestion = clampNumber(requestedTimer, cfg.timePerQuestion, 2000, 120000)
 
     return {
         attempts = clampInt(opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
@@ -150,11 +218,15 @@ end
 function resolveConfig.wordguess(opts)
     local cfg = Config.minigames.wordguess
     assert(opts and type(opts.word) == "string" and opts.word ~= "", "wordguess requires a non-empty word.")
+    boundedString(opts.word, "wordguess word", Config.minigames.inputLimits.wordGuessBytes, false)
+    assert(opts.word:match("^[A-Za-z]+$") ~= nil, "wordguess word must contain only ASCII letters.")
+    local hint = opts.hint == nil and "" or boundedString(opts.hint, "wordguess hint",
+        Config.minigames.inputLimits.hintBytes, true)
 
     return {
         attempts = clampInt(opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
         word = opts.word:lower(),
-        hint = type(opts.hint) == "string" and opts.hint or "",
+        hint = hint,
         guesses = clampInt(opts.guesses, cfg.guesses, 1, 26),
         timeLimit = clampNumber(opts.timeLimit, cfg.timeLimit, 5000, 300000),
     }
@@ -163,12 +235,16 @@ end
 function resolveConfig.wordscramble(opts)
     local cfg = Config.minigames.wordscramble
     assert(opts and type(opts.word) == "string" and opts.word ~= "", "wordscramble requires a non-empty word.")
+    boundedString(opts.word, "wordscramble word", Config.minigames.inputLimits.wordScrambleBytes, false)
+    local hint = opts.hint == nil and "" or boundedString(opts.hint, "wordscramble hint",
+        Config.minigames.inputLimits.hintBytes, true)
+    local requestedTimer = isFiniteNumber(opts.timer) and opts.timer * 1000 or nil
 
     return {
         attempts = clampInt(opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
         word = opts.word:lower(),
-        hint = type(opts.hint) == "string" and opts.hint or "",
-        timeLimit = clampNumber(opts.timer and opts.timer * 1000, cfg.timeLimit, 3000, 300000),
+        hint = hint,
+        timeLimit = clampNumber(requestedTimer, cfg.timeLimit, 3000, 300000),
     }
 end
 
@@ -190,6 +266,77 @@ function resolveConfig.hacking(opts)
         solutionsize = clampInt(opts and opts.solutionsize, cfg.solutionsize, 2, 10),
         timeLimit = timeout * 1000,
     }
+end
+
+---Issues one opaque authorization for a proof-producing minigame session.
+---This must be called by the server gameplay resource that will later consume
+---the proof. The trusted options are resolved and copied now; the client may
+---still send an opts table to play(), but it is ignored for this session.
+---@param src integer
+---@param gameType string
+---@param trustedOpts? table
+---@return string authorization
+function QB.minigames.authorizeProof(src, gameType, trustedOpts)
+    assert(isInteger(src) and src >= 1, "src must be a positive player server ID.")
+    assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
+    assert(trustedOpts == nil or type(trustedOpts) == "table", "trusted minigame opts must be a table.")
+
+    local issuer = GetInvokingResource() or GetCurrentResourceName()
+    local token = generateOpaqueToken()
+    authorizations[token] = {
+        src = src,
+        gameType = gameType,
+        cfg = resolveConfig[gameType](trustedOpts),
+        issuer = issuer,
+        expiresAt = GetGameTimer() + Config.minigames.authorizationTTL,
+    }
+    authorizationOwnership.track(issuer, token)
+    return token
+end
+
+local function createProof(session)
+    if session.authorization == nil then return nil end
+
+    local token = generateOpaqueToken()
+    proofs[token] = {
+        src = session.src,
+        gameType = session.gameType,
+        authorization = session.authorization,
+        issuer = session.issuer,
+        expiresAt = GetGameTimer() + Config.minigames.proofTTL,
+    }
+    proofOwnership.track(session.issuer, token)
+    return token
+end
+
+---Consumes a successful authorized minigame proof exactly once. Every binding
+---must match; a mismatch returns false without burning a valid proof.
+---@param src integer
+---@param token string
+---@param gameType string
+---@param authorization string
+---@return boolean
+function QB.minigames.consumeProof(src, token, gameType, authorization)
+    if not isInteger(src) or src < 1 or type(token) ~= "string" or
+        type(gameType) ~= "string" or type(authorization) ~= "string" then
+        return false
+    end
+
+    local proof = proofs[token]
+    if not proof then return false end
+    if proof.expiresAt < GetGameTimer() then
+        removeProof(token)
+        return false
+    end
+
+    local issuer = GetInvokingResource() or GetCurrentResourceName()
+    if proof.src ~= src or proof.gameType ~= gameType or
+        proof.authorization ~= authorization or proof.issuer ~= issuer then
+        return false
+    end
+
+    removeProof(token)
+    return true
 end
 
 ------------------------------------------------------------------------------
@@ -228,15 +375,17 @@ function validate.lockpick(session, attempt)
     assert(type(attempt) == "table" and type(attempt.presses) == "table", "malformed lockpick attempt.")
 
     local solution = session.solution
-    assert(#attempt.presses == #solution.pins, "lockpick attempt must press every pin exactly once.")
+    local pressCount = denseArrayLength(attempt.presses, "lockpick presses", #solution.pins, #solution.pins)
+    assert(pressCount == #solution.pins, "lockpick attempt must press every pin exactly once.")
 
     local floor = Config.minigames.lockpick.minTimePerPin
     local lastElapsed = -floor
 
-    for i, press in ipairs(attempt.presses) do
-        assert(type(press.index) == "number" and type(press.elapsed) == "number", "malformed lockpick press.")
+    for i = 1, pressCount do
+        local press = attempt.presses[i]
+        assert(type(press) == "table" and isInteger(press.index), "malformed lockpick press.")
         assert(press.index == i, "lockpick pins must be pressed in order.")
-        assert(press.elapsed >= 0 and press.elapsed <= session.timeLimit, "lockpick press outside the round's time limit.")
+        assertElapsed(press.elapsed, session.timeLimit, "lockpick press")
         assert(press.elapsed >= lastElapsed + floor, "lockpick presses are too close together to be human.")
 
         local pin = solution.pins[press.index]
@@ -261,8 +410,8 @@ function generate.skillbar(cfg)
 end
 
 function validate.skillbar(session, attempt)
-    assert(type(attempt) == "table" and type(attempt.elapsed) == "number", "malformed skillbar attempt.")
-    assert(attempt.elapsed >= 0 and attempt.elapsed <= session.timeLimit, "skillbar press outside the round's time limit.")
+    assert(type(attempt) == "table", "malformed skillbar attempt.")
+    assertElapsed(attempt.elapsed, session.timeLimit, "skillbar press")
     assert(attempt.elapsed >= Config.minigames.skillbar.minReactionTime, "skillbar press too fast to be human.")
 
     local solution = session.solution
@@ -312,16 +461,21 @@ function validate.circuit(session, attempt)
     assert(type(attempt) == "table" and type(attempt.connections) == "table", "malformed circuit attempt.")
 
     local solution = session.solution
-    assert(#attempt.connections == solution.inputCount, "circuit attempt must connect every input exactly once.")
+    local connectionCount = denseArrayLength(attempt.connections, "circuit connections",
+        solution.inputCount, solution.inputCount)
+    assert(connectionCount == solution.inputCount, "circuit attempt must connect every input exactly once.")
 
     local floor = Config.minigames.circuit.minTimePerConnection
     local lastElapsed = -floor
     local usedInputs, usedOutputs = {}, {}
 
-    for _, conn in ipairs(attempt.connections) do
-        assert(type(conn.from) == "string" and type(conn.to) == "string" and type(conn.elapsed) == "number",
+    for i = 1, connectionCount do
+        local conn = attempt.connections[i]
+        assert(type(conn) == "table" and type(conn.from) == "string" and type(conn.to) == "string",
             "malformed circuit connection.")
-        assert(conn.elapsed >= 0 and conn.elapsed <= session.timeLimit, "circuit connection outside the round's time limit.")
+        boundedString(conn.from, "circuit input id", 16, false)
+        boundedString(conn.to, "circuit output id", 16, false)
+        assertElapsed(conn.elapsed, session.timeLimit, "circuit connection")
         assert(conn.elapsed >= lastElapsed + floor, "circuit connections are too close together to be human.")
         assert(not usedInputs[conn.from], "circuit input connected more than once.")
         assert(not usedOutputs[conn.to], "circuit output connected more than once.")
@@ -352,17 +506,19 @@ function validate.mash(session, attempt)
     assert(type(attempt) == "table" and type(attempt.pressTimestamps) == "table", "malformed mash attempt.")
 
     local solution = session.solution
+    local pressCount = denseArrayLength(attempt.pressTimestamps, "mash press timestamps",
+        solution.requiredPresses, 0)
     local floor = Config.minigames.mash.minPressInterval
     local last = -floor
 
-    for _, t in ipairs(attempt.pressTimestamps) do
-        assert(type(t) == "number", "malformed mash press timestamp.")
-        assert(t >= 0 and t <= solution.timeLimit, "mash press outside the round's time limit.")
+    for i = 1, pressCount do
+        local t = attempt.pressTimestamps[i]
+        assertElapsed(t, solution.timeLimit, "mash press")
         assert(t >= last + floor, "mash presses are too close together to be human.")
         last = t
     end
 
-    return #attempt.pressTimestamps >= solution.requiredPresses
+    return pressCount >= solution.requiredPresses
 end
 
 -- The PIN's digits are exactly what a real keypad shows the player (there's
@@ -390,15 +546,18 @@ function validate.pinpad(session, attempt)
     assert(type(attempt) == "table" and type(attempt.digits) == "table", "malformed pinpad attempt.")
 
     local solution = session.solution
-    assert(#attempt.digits == #solution.digits, "pinpad attempt must submit every digit exactly once.")
+    local digitCount = denseArrayLength(attempt.digits, "pinpad digits", #solution.digits, #solution.digits)
+    assert(digitCount == #solution.digits, "pinpad attempt must submit every digit exactly once.")
 
     local floor = Config.minigames.pinpad.minTimePerDigit
     local lastElapsed = -floor
     local allMatch = true
 
-    for i, entry in ipairs(attempt.digits) do
-        assert(type(entry.value) == "number" and type(entry.elapsed) == "number", "malformed pinpad digit.")
-        assert(entry.elapsed >= 0 and entry.elapsed <= session.timeLimit, "pinpad digit outside the round's time limit.")
+    for i = 1, digitCount do
+        local entry = attempt.digits[i]
+        assert(type(entry) == "table" and isInteger(entry.value) and entry.value >= 0 and entry.value <= 9,
+            "malformed pinpad digit.")
+        assertElapsed(entry.elapsed, session.timeLimit, "pinpad digit")
         assert(entry.elapsed >= lastElapsed + floor, "pinpad digits are too close together to be human.")
         lastElapsed = entry.elapsed
 
@@ -428,15 +587,18 @@ function validate.quiz(session, attempt)
     assert(type(attempt) == "table" and type(attempt.answers) == "table", "malformed quiz attempt.")
 
     local solution = session.solution
-    assert(#attempt.answers == #solution.questions, "quiz attempt must answer every question exactly once.")
+    local answerCount = denseArrayLength(attempt.answers, "quiz answers", #solution.questions, #solution.questions)
+    assert(answerCount == #solution.questions, "quiz attempt must answer every question exactly once.")
 
     local floor = Config.minigames.quiz.minTimePerAnswer
     local lastElapsed = -floor
     local correct = 0
 
-    for i, entry in ipairs(attempt.answers) do
-        assert(type(entry.choice) == "string" and type(entry.elapsed) == "number", "malformed quiz answer.")
-        assert(entry.elapsed >= 0 and entry.elapsed <= session.timeLimit, "quiz answer outside the round's time limit.")
+    for i = 1, answerCount do
+        local entry = attempt.answers[i]
+        assert(type(entry) == "table" and type(entry.choice) == "string", "malformed quiz answer.")
+        boundedString(entry.choice, "quiz answer choice", Config.minigames.inputLimits.quizOptionBytes, true)
+        assertElapsed(entry.elapsed, session.timeLimit, "quiz answer")
         assert(entry.elapsed >= lastElapsed + floor, "quiz answers are too close together to be human.")
         lastElapsed = entry.elapsed
 
@@ -460,15 +622,19 @@ function validate.wordguess(session, attempt)
     assert(type(attempt) == "table" and type(attempt.guesses) == "table", "malformed wordguess attempt.")
 
     local solution = session.solution
+    local guessCount = denseArrayLength(attempt.guesses, "wordguess guesses", 26, 0)
     local floor = Config.minigames.wordguess.minTimePerGuess
     local lastElapsed = -floor
     local wrong = {}
     local found = {}
     for i = 1, #solution.word do found[i] = false end
 
-    for _, g in ipairs(attempt.guesses) do
-        assert(type(g.letter) == "string" and #g.letter == 1 and type(g.elapsed) == "number", "malformed wordguess letter.")
-        assert(g.elapsed >= 0 and g.elapsed <= session.timeLimit, "wordguess letter outside the round's time limit.")
+    for i = 1, guessCount do
+        local g = attempt.guesses[i]
+        assert(type(g) == "table" and type(g.letter) == "string" and #g.letter == 1 and
+            g.letter:match("^[A-Za-z]$") ~= nil,
+            "malformed wordguess letter.")
+        assertElapsed(g.elapsed, session.timeLimit, "wordguess letter")
         assert(g.elapsed >= lastElapsed + floor, "wordguess letters are too close together to be human.")
         lastElapsed = g.elapsed
 
@@ -512,9 +678,10 @@ function generate.wordscramble(cfg)
 end
 
 function validate.wordscramble(session, attempt)
-    assert(type(attempt) == "table" and type(attempt.guess) == "string" and type(attempt.elapsed) == "number",
+    assert(type(attempt) == "table" and type(attempt.guess) == "string",
         "malformed wordscramble attempt.")
-    assert(attempt.elapsed >= 0 and attempt.elapsed <= session.timeLimit, "wordscramble submit outside the round's time limit.")
+    boundedString(attempt.guess, "wordscramble guess", Config.minigames.inputLimits.wordScrambleBytes, true)
+    assertElapsed(attempt.elapsed, session.timeLimit, "wordscramble submit")
     assert(attempt.elapsed >= Config.minigames.wordscramble.minSubmitTime, "wordscramble submitted too fast to be human.")
 
     return attempt.guess:lower() == session.solution.word
@@ -545,16 +712,18 @@ function validate.keys(session, attempt)
     assert(type(attempt) == "table" and type(attempt.presses) == "table", "malformed keys attempt.")
 
     local solution = session.solution
+    denseArrayLength(attempt.presses, "keys presses", #solution.pattern, 0)
     local floor = Config.minigames.keys.minTimePerPress
     local lastElapsed = -floor
     local faults = 0
 
     for i, key in ipairs(solution.pattern) do
         local press = attempt.presses[i]
-        if press == nil or type(press.key) ~= "string" or type(press.elapsed) ~= "number" then
+        if press == nil or type(press) ~= "table" or type(press.key) ~= "string" or
+            #press.key == 0 or #press.key > 5 or not isFiniteNumber(press.elapsed) then
             faults = faults + 1
         else
-            assert(press.elapsed >= 0 and press.elapsed <= session.timeLimit, "keys press outside the round's time limit.")
+            assertElapsed(press.elapsed, session.timeLimit, "keys press")
             assert(press.elapsed >= lastElapsed + floor, "keys presses are too close together to be human.")
             lastElapsed = press.elapsed
             if press.key ~= key then faults = faults + 1 end
@@ -589,9 +758,10 @@ function generate.hacking(cfg)
 end
 
 function validate.hacking(session, attempt)
-    assert(type(attempt) == "table" and type(attempt.submitted) == "string" and type(attempt.elapsed) == "number",
+    assert(type(attempt) == "table" and type(attempt.submitted) == "string",
         "malformed hacking attempt.")
-    assert(attempt.elapsed >= 0 and attempt.elapsed <= session.timeLimit, "hacking submit outside the round's time limit.")
+    boundedString(attempt.submitted, "hacking submission", 10, true)
+    assertElapsed(attempt.elapsed, session.timeLimit, "hacking submit")
     assert(attempt.elapsed >= Config.minigames.hacking.minTimePerFind, "hacking submitted too fast to be human.")
 
     return attempt.submitted == session.solution.code
@@ -601,11 +771,12 @@ end
 -- Session lifecycle
 ------------------------------------------------------------------------------
 
-local function endSession(session)
+endSession = function(session)
     if session.ended then return end
     session.ended = true
 
     sessions[session.id] = nil
+    if session.authorization then authorizedSessionOwnership.untrack(session.id) end
 
     local count = sessionCountBySrc[session.src]
     if count then
@@ -614,20 +785,19 @@ local function endSession(session)
     end
 end
 
--- A minigame session is player state, not resource-owned state: unlike
--- QB.zones.box() or QB.callback.register(), QB.minigames.play() is called
--- from the CLIENT and reaches this server-side handler over a network event
--- (see local/callback/server.lua's events.invoke), not via a direct
--- cross-resource Lua call -- so GetInvokingResource() would be meaningless
--- here (nil, every time). Cleanup is tied to the PLAYER instead, exactly
--- like local/callback/server.lua's own token cleanup.
+-- Legacy sessions are player-owned. Authorized sessions additionally retain
+-- the issuing server resource as owner, so stopping that resource invalidates
+-- pending authorizations, live authorized sessions, and unconsumed proofs.
 AddEventHandler("playerDropped", function()
     local src = source
     for _, session in pairs(sessions) do
         if session.src == src then endSession(session) end
     end
+    for token, authorization in pairs(authorizations) do
+        if authorization.src == src then removeAuthorization(token) end
+    end
     for token, proof in pairs(proofs) do
-        if proof.src == src then proofs[token] = nil end
+        if proof.src == src then removeProof(token) end
     end
 end)
 
@@ -645,27 +815,63 @@ CreateThread(function()
         for _, session in pairs(sessions) do
             if now > session.expiresAt then endSession(session) end
         end
+        for token, authorization in pairs(authorizations) do
+            if now > authorization.expiresAt then removeAuthorization(token) end
+        end
         for token, proof in pairs(proofs) do
-            if now > proof.expiresAt then proofs[token] = nil end
+            if now > proof.expiresAt then removeProof(token) end
         end
     end
 end)
 
-QB.callback.register("qblib:minigames:start", function(src, gameType, opts)
-    assert(QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
-    assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
+QB.callback.register("qblib:minigames:start", function(src, gameType, opts, authorizationToken)
+    assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
 
+    -- A coarse sweep may not have run since a player's last abandoned round.
+    -- Reclaim that player's expired session synchronously before enforcing the
+    -- concurrency ceiling so a valid retry is never rejected by stale state.
+    local current = GetGameTimer()
+    for _, session in pairs(sessions) do
+        if session.src == src and current > session.expiresAt then endSession(session) end
+    end
     local activeCount = sessionCountBySrc[src] or 0
     if activeCount >= Config.minigames.maxConcurrentPerPlayer then
         error("A minigame is already in progress for this player.")
     end
 
-    local cfg = resolveConfig[gameType](opts)
+    local authorization
+    local cfg
+    if authorizationToken ~= nil then
+        assert(type(authorizationToken) == "string", "minigame authorization must be a string.")
+        authorization = authorizations[authorizationToken]
+        assert(authorization ~= nil, "Invalid or already-used minigame authorization.")
+        if authorization.expiresAt < GetGameTimer() then
+            removeAuthorization(authorizationToken)
+            error("Minigame authorization expired.")
+        end
+        assert(authorization.src == src and authorization.gameType == gameType,
+            "Minigame authorization does not match this player and game type.")
+        cfg = authorization.cfg
+    else
+        assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
+        cfg = resolveConfig[gameType](opts)
+    end
+
     local solution, public = generate[gameType](cfg)
 
     nextSessionId = nextSessionId + 1
     local sessionId = nextSessionId
     local now = GetGameTimer()
+    -- `sessionTTL` remains the minimum abandoned-round lifetime. A legitimate
+    -- long round (or a later retry) receives its own bounded window, while the
+    -- absolute cap prevents repeated retries from keeping a session alive
+    -- forever.
+    local overallExpiresAt = now + Config.minigames.sessionTTL
+        + (cfg.timeLimit + Config.minigames.roundTimeoutBuffer) * cfg.attempts
+
+    -- Consume only once every check and generation step has succeeded. A
+    -- mismatched request cannot burn another player's valid authorization.
+    if authorization then removeAuthorization(authorizationToken) end
 
     sessions[sessionId] = {
         id = sessionId,
@@ -677,13 +883,17 @@ QB.callback.register("qblib:minigames:start", function(src, gameType, opts)
         attemptsUsed = 0,
         timeLimit = cfg.timeLimit,
         createdAt = now,
-        expiresAt = now + Config.minigames.sessionTTL,
+        overallExpiresAt = overallExpiresAt,
+        expiresAt = roundExpiry(now, cfg, overallExpiresAt),
+        authorization = authorizationToken,
+        issuer = authorization and authorization.issuer or nil,
         ended = false,
     }
     sessionCountBySrc[src] = activeCount + 1
+    if authorization then authorizedSessionOwnership.track(authorization.issuer, sessionId) end
 
     return { sessionId = sessionId, attempt = 1, attempts = cfg.attempts, timeLimit = cfg.timeLimit, public = public }
-end)
+end, { rateLimit = Config.minigames.callbackRateLimits.start })
 
 QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
     local session = sessions[sessionId]
@@ -722,6 +932,7 @@ QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
     -- same target.
     local solution, public = generate[session.gameType](session.cfg)
     session.solution = solution
+    session.expiresAt = roundExpiry(GetGameTimer(), session.cfg, session.overallExpiresAt)
 
     return {
         done = false,
@@ -731,7 +942,7 @@ QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
         timeLimit = session.timeLimit,
         public = public,
     }
-end)
+end, { rateLimit = Config.minigames.callbackRateLimits.submit })
 
 -- Player-initiated early exit (Escape in the NUI, see client.lua's beginPlay)
 -- -- distinct from letting the round's own timeLimit lapse, which is still a
@@ -745,4 +956,4 @@ QB.callback.register("qblib:minigames:cancel", function(src, sessionId)
     if session == nil or session.src ~= src then return false end
     endSession(session)
     return true
-end)
+end, { rateLimit = Config.minigames.callbackRateLimits.cancel })

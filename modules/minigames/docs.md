@@ -1,11 +1,11 @@
 # Minigames
 
 ## Overview
-The minigames module gives you ten server-validated skill-check minigames -- lockpick, skillbar, circuit, mash-key, pinpad, quiz, wordguess, wordscramble, keys, and hacking -- for gating gameplay actions where a purely client-side pass/fail could be bypassed by a modified client. The server generates every round's solution and validates every submitted attempt; the client only renders the puzzle and reports raw input. The last six types back `compat/client/qb-minigames.lua`, a drop-in shim for the real `github.com/qbcore-fivem/qb-minigames` resource -- see "Legacy compat" below.
+The minigames module gives you ten server-validated skill-check minigames -- lockpick, skillbar, circuit, mash-key, pinpad, quiz, wordguess, wordscramble, keys, and hacking. The server generates every round's solution and validates every submitted attempt; the client only renders the puzzle and reports bounded raw input. For a result that gates a real server action, use the authorization/proof flow below: ordinary and legacy client-only calls remain playable but deliberately cannot mint a server-consumable proof. The last six types back `compat/client/qb-minigames.lua`, a drop-in shim for the real `github.com/qbcore-fivem/qb-minigames` resource -- see "Legacy compat" below.
 
 ## API
 
-### `QB.minigames.play(gameType, opts)`
+### `QB.minigames.play(gameType, opts, authorization)`
 Plays one round-based minigame session, opening a full-screen overlay and blocking (via the returned promise) until the player succeeds, runs out of attempts, or the round trip fails.
 
 #### Parameters
@@ -23,12 +23,13 @@ Plays one round-based minigame session, opening a full-screen overlay and blocki
   - `hacking`: `solutionsize` (hex characters), `timeout` (seconds; `attempts` is always 1 -- see below)
 
   For `pinpad`/`quiz`/`wordguess`/`wordscramble`, `opts` is where the caller supplies the puzzle's actual content, exactly like the real qb-minigames exports -- the server never invents a PIN/word/quiz on its own for these.
+- `authorization?: string` -- opaque value returned by the gameplay resource's server-side `QB.minigames.authorizeProof`. When present and valid, the server uses the trusted options captured at authorization time and ignores this client's `opts` entirely. When absent, the legacy/client-configured session remains playable but proof-less.
 
 #### Behavior
 Opens NUI focus once and keeps the same overlay mounted for every attempt -- a failed attempt with tries remaining re-renders a **freshly generated** puzzle in place (anti-farming: the target can't be memorized and repeated), it doesn't close and reopen. Each round is individually time-limited (`timeLimit`, per type); the overlay is expected to auto-submit whatever partial input it has once that time is up, which counts as a failed attempt like any other. `keys` and `hacking` always run with `attempts = 1`, matching upstream's single-pass shape (KeyMinigame never retries; Hacking is a single pass/fail against a countdown).
 
 #### Returns
-- `promise|any result` -- resolves/returns `{ success: boolean, attempts: integer, cancelled?: true, faults?: integer }` (`attempts` = how many tries it took before success/exhaustion/cancellation) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. `cancelled` is present (and `success` false) when the player backed out early -- see "Cancelling" below. `faults` is present only for `"keys"` -- see its note below. Rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, or the round trip fails outright.
+- `promise|any result` -- resolves/returns `{ success: boolean, attempts: integer, proof?: string, cancelled?: true, faults?: integer }` (`attempts` = how many tries it took before success/exhaustion/cancellation) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. `proof` is present only after a successful authorized session. `cancelled` is present (and `success` false) when the player backed out early -- see "Cancelling" below. `faults` is present only for `"keys"` -- see its note below. Rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, the authorization is invalid/expired/already used, or the round trip fails outright.
 
 #### `keys` always succeeds
 Unlike every other type, `keys` never fails -- `success` is always `true` (unless cancelled). It mirrors upstream `KeyMinigame`, which has no pass/fail concept of its own; the result's `faults` field (how many prompts were missed or mistimed) is what the calling script checks, e.g. `if result.faults > 3 then ... end`.
@@ -58,15 +59,50 @@ end
 ```
 
 ## Notes
-- **This is a floor, not full anti-cheat.** The client never computes or reports a pass/fail, and for lockpick/skillbar never reports a position -- only *when* an input happened. The server independently recomputes correctness from a solution it never sends to the client, and rejects timestamps that are too close together or outside the round's time limit to be human. A sufficiently sophisticated modified client that fabricates *plausible* timestamps can still forge a pass -- pair this with server-side checks on whatever real action it gates (e.g. re-verify proximity/interaction) rather than trusting `success = true` alone for anything high-value.
+- **Proofs require server authorization.** A bare `play` call can still report UX success to its client caller, but it never returns a proof. A gameplay resource must issue an authorization first and later consume the matching proof on the server.
+- **This is a floor, not full anti-cheat.** The client never computes or reports a pass/fail, and for lockpick/skillbar never reports a position -- only *when* an input happened. The server independently recomputes correctness from a solution it never sends to the client, and rejects timestamps that are too close together or outside the round's time limit to be human. A sufficiently sophisticated modified client that fabricates *plausible* timestamps can still pass -- authorization prevents it from choosing a weaker proof-producing configuration or minting a generic proof, but the consuming resource must still re-verify its own action state (proximity, item ownership, target identity, etc.).
 - Only one `QB.minigames.play()` session can be active per player at a time; a second concurrent call rejects immediately rather than queuing.
-- A server-side session expires after `Config.minigames.sessionTTL` (60s by default) if abandoned -- an expired session's next submit (if any) fails cleanly, and an unclaimed session is swept automatically even if the client never submits again.
+- Each server-side round gets at least `Config.minigames.sessionTTL` (60s by default), or its configured `timeLimit` plus the timeout buffer when that is longer. The deadline refreshes for a retry but is capped by a bounded overall-session deadline, so valid long rounds work without letting repeated retries retain state forever. An expired session's next submit (if any) fails cleanly, and an unclaimed session is swept automatically even if the client never submits again.
+- Numeric inputs must be finite. Attempt arrays must be dense and are capped to the expected round size. Puzzle content is byte/count bounded by `Config.minigames.inputLimits` (including at most 8 PIN digits, 20 quiz questions with 8 options each, 32-byte wordguess words, 64-byte scrambled words, and 256-byte hints). `wordguess` words are ASCII letters because its input protocol submits one ASCII letter at a time.
+- The start/submit/cancel callbacks have per-player quotas in `Config.minigames.callbackRateLimits`; the defaults are 5/20/10 calls respectively per 10 seconds.
 
 ## Supporting APIs
 
-`QB.minigames.consumeProof(src, token, gameType)` is the server-side one-use
-proof consumer for a successful result. It returns `true` once, then rejects
-reuse, expiry, a player mismatch, or a game-type mismatch.
+### Authorized proof flow
+
+1. The gameplay resource calls `QB.minigames.authorizeProof(src, gameType, trustedOpts)` on the **server**. This returns an opaque authorization owned by that invoking resource and valid for `Config.minigames.authorizationTTL`.
+2. Send that authorization to the intended player through the resource's existing callback/event, and pass it as the third argument to `QB.minigames.play` on the **client**. The authorization is consumed only after a matching player/type session starts. The client-supplied `opts` are ignored; `trustedOpts` determine the proof-producing round.
+3. A successful authorized result includes `result.proof`. Send the proof and original authorization back as part of the gameplay resource's normal completion request.
+4. The same gameplay resource calls `QB.minigames.consumeProof(src, proof, gameType, authorization)` on the **server**. It returns `true` exactly once when issuer, player, game type, authorization, and TTL all match. A mismatch returns `false` without burning an otherwise valid proof; expiry removes it.
+
+```lua
+-- server (inside my-resource)
+QB.callback.register('my-resource:begin', function(src)
+    -- Perform resource-specific proximity/item/target checks first.
+    local actionToken = issueActionToken(src)
+    local authorization = QB.minigames.authorizeProof(src, 'mash', {
+        requiredPresses = 20,
+        timeLimit = 4000,
+        attempts = 1,
+    })
+    return { actionToken = actionToken, authorization = authorization }
+end)
+
+RegisterNetEvent('my-resource:complete', function(actionToken, authorization, proof)
+    local src = source
+    if not validateActionToken(src, actionToken) then return end
+    if not QB.minigames.consumeProof(src, proof, 'mash', authorization) then return end
+    -- Re-check live resource state, then perform the action.
+end)
+
+-- client
+local begun = Citizen.Await(QB.callback.trigger('my-resource:begin'))
+local result = Citizen.Await(QB.minigames.play('mash', nil, begun.authorization))
+TriggerServerEvent('my-resource:complete', begun.actionToken,
+    begun.authorization, result.proof)
+```
+
+Authorizations are single-start capabilities. Failed or cancelled sessions do not return a proof and cannot reuse their authorization. Pending authorizations, live authorized sessions, and unconsumed proofs are removed when their issuing resource stops; all state is also removed when the player disconnects and by TTL sweeps.
 
 `QB.minigames.triangleWave(elapsedMs, speedHz)` is the shared deterministic
 0–1 motion formula used by both the renderer and server validation.
@@ -89,4 +125,4 @@ Two documented divergences:
 - **`Lockpick`**: upstream's `pins` argument (its own README calls it "number of tries") is mapped onto qblib's `pinCount` for a script that "just works", but it's a different minigame -- qblib's pin-target-on-a-triangle-wave lockpick, not upstream's own tumbler minigame.
 - **`Skillbar`**: `validKeys` (e.g. `"wasdfgh"`) has no equivalent in qblib's triangle-wave skillbar and is silently dropped (one-time console warning); `difficulty` is translated into a `zoneSize` instead.
 
-Every other export is a straight pass-through with no mechanic divergence -- the only behavioral difference from upstream is qblib's server-authoritative validation replacing upstream's client-trust model.
+Every other export is a straight pass-through with no mechanic divergence. Compat calls do not carry a server-issued authorization, so they remain usable for legacy UX but are proof-less and must not directly authorize a valuable server action.

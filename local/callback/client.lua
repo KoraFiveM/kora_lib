@@ -42,17 +42,9 @@ local function awaitToken()
     end, false, Config.callback.timeout) ~= false
 end
 
--- FXServer's exports boundary hands a cross-resource function argument back
--- as a table with a __call metamethod, not a plain Lua function -- so a bare
--- type(x) == "function" check rejects a perfectly callable handler registered
--- from another resource. Deliberately duplicated per-file (separate chunks,
--- no shared locals) -- see local/callback/server.lua, local/events/{client,server}.lua,
--- modules/cache/client.lua, and modules/zones/client.lua for the other copies.
-local function isCallable(x)
-    if type(x) == "function" then return true end
-    local mt = type(x) == "table" and getmetatable(x) or nil
-    return mt ~= nil and mt.__call ~= nil
-end
+-- The private bootstrap helper normalizes native functions and every Cfx
+-- cross-resource funcref proxy shape consistently across qblib modules.
+local isCallable = QB.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
@@ -218,4 +210,3 @@ RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
 
     TriggerServerEvent(events.clientResponse, requestId, ok, table.unpack(results, 2, results.n))
 end)
-
