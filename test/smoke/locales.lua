@@ -1,0 +1,57 @@
+local scriptDir = debug.getinfo(1, 'S').source:match('@?(.*/)') or './'
+local testDir = scriptDir .. '../'
+local repoRoot = testDir .. '../'
+package.path = testDir .. '?.lua;' .. package.path
+
+local harness = require('harness')
+local mocks = require('mocks')
+mocks.install()
+
+local convars = { qb_locale = 'en', qb_locales = 'en,de' }
+local kvps = {}
+local events = {}
+local files = {
+    ['example/locales/en.lua'] = "return { greeting = 'Hello %{name}', positional = 'Hello %s', fallback = 'English' }",
+    ['example/locales/de.lua'] = "return { greeting = 'Hallo %{name}', positional = 'Hallo %s' }",
+    -- This is the shape used by legacy qb-core locale files after the
+    -- compatibility migration: runtime registration plus a returned table.
+    ['legacy/locales/en.lua'] = "local Translations = { greeting = 'Legacy English' }\nLang = Lang or Locale:new({ warnOnMissing = true })\nLang:addLocale('en', Translations)\nreturn Translations",
+}
+
+_G.GetConvar = function(name, fallback) return convars[name] or fallback end
+_G.GetResourceKvpString = function(key) return kvps[key] end
+_G.SetResourceKvp = function(key, value) kvps[key] = value end
+_G.TriggerEvent = function(name, ...) events[#events + 1] = { name = name, ... } end
+_G.LoadResourceFile = function(resource, path) return files[resource .. '/' .. path] end
+_G.GetCurrentResourceName = function() return 'example' end
+
+dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/locales/shared.lua')
+dofile(repoRoot .. 'modules/locales/client.lua')
+
+harness.test('uses the configured fallback before a player preference exists', function()
+    harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hello Ada')
+end)
+
+harness.test('stores a player language in client KVP and switches lookup immediately', function()
+    local ok, err = QB.locale.setLanguage('de')
+    harness.assertTrue(ok, err)
+    harness.assertEqual(kvps.locale, 'de', 'language should be stored in qblib client KVP')
+    harness.assertEqual(QB.locale.getLanguage(), 'de')
+    harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hallo Ada')
+    harness.assertEqual(QB.lang('positional', 'Ada'), 'Hallo Ada')
+    harness.assertEqual(QB.lang('fallback'), 'English', 'missing selected-language keys should fall back to English')
+    harness.assertEqual(events[#events].name, 'qblib:client:localeChanged')
+end)
+
+harness.test('rejects a language the server has not offered', function()
+    local ok = QB.locale.setLanguage('fr')
+    harness.assertFalse(ok)
+    harness.assertEqual(QB.locale.getLanguage(), 'de', 'a rejected choice must not overwrite the preference')
+end)
+
+harness.test('loads compatibility locale tables without executing their side effects', function()
+    harness.assertEqual(QB.locale.translate('legacy', 'greeting'), 'Legacy English')
+end)
+
+harness.report('locales')

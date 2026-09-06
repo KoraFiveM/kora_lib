@@ -601,6 +601,13 @@
 ---@field world QBLibWorld
 ---@field zones QBLibZones
 ---@field lang fun(key: string, ...: any): string [shared]
+---@field locale QBLibLocale
+
+---@class QBLibLocale
+---@field getLanguage fun(): string [shared]
+---@field getLanguages fun(): string[] [shared]
+---@field setLanguage fun(language: string): boolean, string|nil [client]
+---@field translate fun(resource: string, key: string, ...: any): any [shared]
 
 ---@class QBLibActions
 ---@field run fun(options: QBActionsOptions, ...: any): boolean, any [client]
