@@ -160,6 +160,13 @@ describe("AppShell", () => {
         expect(screen.getByRole("button", { name: "Accounts" })).toBeInTheDocument()
     })
 
+    it("can place a compact app against the right edge of the screen", () => {
+        const { container } = render(<AppShell />)
+        openApp({ id: "test:right", title: "Roster", layout: "compact", placement: "right", navigation: [{ id: "jobs", label: "Jobs" }] })
+        expect(container.querySelector("main")).toHaveAttribute("data-placement", "right")
+        expect(container.querySelector("main")?.parentElement).toHaveClass("justify-end")
+    })
+
     it("supports searchable paged tables and nested card lists", async () => {
         const user = userEvent.setup()
         render(<AppShell />)

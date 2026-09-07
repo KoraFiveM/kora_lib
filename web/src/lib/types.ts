@@ -420,6 +420,8 @@ export interface AppDefinition {
     icon?: string
     navigation: AppNavigationItem[]
     layout?: "standard" | "compact"
+    /** Screen placement for compact, task-focused applications. */
+    placement?: "center" | "right"
     defaultView?: string
     width?: number
     height?: number

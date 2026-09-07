@@ -420,6 +420,8 @@ local function assertBrowserApp(definition)
         "App navigation must contain at least one view.")
     assert(definition.layout == nil or definition.layout == "standard" or definition.layout == "compact",
         "App layout must be 'standard' or 'compact'.")
+    assert(definition.placement == nil or definition.placement == "center" or definition.placement == "right",
+        "App placement must be 'center' or 'right'.")
     assert(definition.width == nil or (type(definition.width) == "number" and definition.width > 0),
         "App width must be a positive number.")
     assert(definition.height == nil or (type(definition.height) == "number" and definition.height > 0),
