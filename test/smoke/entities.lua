@@ -15,16 +15,18 @@ local PED_MODEL = 1001
 local VEHICLE_MODEL = 2001
 local OBJECT_MODEL = 3001
 local STUCK_MODEL = 9999 -- never reports as loaded, to exercise entities.create's failure path
+local DELAYED_MODEL = 4001 -- streams after the scope exits, to exercise the async cleanup path
 
 local modelType = { [PED_MODEL] = "ped", [VEHICLE_MODEL] = "vehicle" }
 local neverLoads = { [STUCK_MODEL] = true }
+local delayedLoads = { [DELAYED_MODEL] = true }
 
 local existingEntities = {}
 local entityCalls = {}
 local nextEntity = 0
 
 function _G.IsModelValid() return true end
-function _G.HasModelLoaded(model) return not neverLoads[model] end
+function _G.HasModelLoaded(model) return not neverLoads[model] and not delayedLoads[model] end
 function _G.RequestModel() end
 function _G.SetModelAsNoLongerNeeded() end
 
@@ -64,6 +66,20 @@ function _G.SetEntityAsMissionEntity() end
 
 dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+
+-- Scoped entities delegate distance tracking to zones. Keep this test focused
+-- on the entity lifecycle by using a tiny zone double and triggering its
+-- enter/exit callbacks explicitly; zones.lua covers the real spatial grid.
+local scopedZones = {}
+QB.zones = {
+    sphere = function(opts)
+        local zone = { removed = false, opts = opts }
+        function zone.remove() zone.removed = true end
+        scopedZones[#scopedZones + 1] = zone
+        return zone
+    end,
+}
+
 dofile(repoRoot .. "modules/entities/client.lua")
 
 harness.test("creates a ped with the static preset frozen, blocked, and invincible", function()
@@ -135,6 +151,68 @@ harness.test("entities are auto-deleted when their owning resource stops", funct
     net.fire("onClientResourceStop", "some_other_resource")
 
     harness.assertFalse(_G.DoesEntityExist(entity), "the entity should be deleted once its owning resource stops")
+end)
+
+harness.test("scoped entities spawn on entry, despawn on exit, and respawn with a fresh handle", function()
+    local scope = QB.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 75.0, freeze = true })
+    local zone = scopedZones[#scopedZones]
+
+    harness.assertTrue(scope.entity == nil, "scoped entities should not exist before entering their radius")
+    harness.assertFalse(scope.isSpawned(), "the scope should report no active entity before entry")
+
+    zone.opts.onEnter()
+    local firstEntity = scope.entity
+    harness.assertTrue(firstEntity ~= nil and _G.DoesEntityExist(firstEntity), "entering should create the local entity")
+    harness.assertTrue(scope.isSpawned(), "the scope should report its newly active entity")
+    harness.assertEqual(entityCalls[firstEntity].freeze, true, "normal entity options should apply to scoped spawns")
+
+    zone.opts.onExit()
+    harness.assertTrue(scope.entity == nil, "leaving should clear the transient entity handle")
+    harness.assertFalse(_G.DoesEntityExist(firstEntity), "leaving should delete the local entity")
+
+    zone.opts.onEnter()
+    harness.assertTrue(scope.entity ~= nil and scope.entity ~= firstEntity, "a later entry should create a fresh local entity")
+
+    scope.remove()
+    harness.assertTrue(scope.entity == nil, "removing the scope should clear its entity handle")
+    harness.assertTrue(zone.removed, "removing the scope should remove its backing zone")
+end)
+
+harness.test("scoped entities and their zones are removed when their owner stops", function()
+    _G.GetInvokingResource = function() return "some_scoped_resource" end
+    local scope = QB.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    _G.GetInvokingResource = function() return nil end
+    local zone = scopedZones[#scopedZones]
+
+    zone.opts.onEnter()
+    local entity = scope.entity
+    harness.assertTrue(_G.DoesEntityExist(entity), "the scoped entity should be live before owner cleanup")
+
+    net.fire("onClientResourceStop", "some_scoped_resource")
+
+    harness.assertTrue(scope.entity == nil, "owner cleanup should clear the scope handle")
+    harness.assertFalse(_G.DoesEntityExist(entity), "owner cleanup should delete the active scoped entity")
+    harness.assertTrue(zone.removed, "owner cleanup should unregister the backing zone")
+end)
+
+harness.test("scoped entities require a positive radius", function()
+    local ok = pcall(QB.entities.createScoped, OBJECT_MODEL, { x = 0, y = 0, z = 0 }, {})
+    harness.assertFalse(ok, "a scoped entity without a radius must be rejected")
+end)
+
+harness.test("a scope exit while streaming never leaves a late entity behind", function()
+    local scope = QB.entities.createScoped(DELAYED_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local zone = scopedZones[#scopedZones]
+
+    zone.opts.onEnter()
+    harness.assertTrue(scope.entity == nil, "the delayed model should not be spawned yet")
+
+    zone.opts.onExit()
+    delayedLoads[DELAYED_MODEL] = nil
+    net.step()
+
+    harness.assertTrue(scope.entity == nil, "the completed stream must not create an entity after exit")
+    scope.remove()
 end)
 
 harness.test('delete removes an authorized networked entity', function()

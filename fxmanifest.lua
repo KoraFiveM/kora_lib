@@ -97,6 +97,7 @@ client_scripts {
 }
 
 server_scripts {
+    'server/config.lua',
     'local/resources/server.lua',
     'local/callback/server.lua',
     'local/events/server.lua',

@@ -1332,7 +1332,7 @@ local function creatorPlace(state)
             creatorLog(("poly zones are capped at %d points."):format(Config.zones.creator.maxPolyPoints))
             return
         end
-        table.insert(state.points, coords)
+        state.points[#state.points + 1] = coords
     else
         state.center = coords
     end

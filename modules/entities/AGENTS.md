@@ -13,6 +13,9 @@ This module spawns local, non-networked entities (ped/object/vehicle) that are v
 - `QB.entities.remove(entity)`
   - Deletes one tracked entity immediately and drops it from tracking.
   - Returns `true`, or `false, error` if the entity doesn't exist.
+- `QB.entities.createScoped(model, coords, { radius = metres, ...options })`
+  - Registers a radius around the entity location and creates the local entity only while the player is inside it.
+  - Returns a persistent scope handle; `handle.entity` is the transient entity handle (or `nil` outside the scope), and `handle.remove()` unregisters it.
 
 ## Implementation notes
 - Entities are created **non-networked** (`isNetwork = false`) and **not** registered as script-host mission entities -- cleanup is handled entirely by this module, not by GTA's native pinning.
@@ -28,4 +31,5 @@ This module spawns local, non-networked entities (ped/object/vehicle) that are v
 - Prefer `options.preset = "static"` for decorative props/inert NPCs instead of setting `freeze`/`blockNonTempEvents`/`invincible` by hand, unless you need to deviate from one of them.
 - Don't rely on these entities being networked -- other clients will never see them; use a proper networked spawn (outside this module) if that's required.
 - Call `QB.entities.remove` for anything that needs to disappear before your resource stops; don't just drop your reference to the handle.
+- Prefer `createScoped` for decorative, client-local world population that is only useful near the player. It uses `QB.zones`' spatial grid rather than a per-entity distance loop.
 - `blockNonTempEvents` is safe to pass regardless of what `model` turns out to be -- it's silently ignored for anything detection doesn't classify as a ped.

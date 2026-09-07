@@ -206,7 +206,7 @@ function QB.cache.onChange(key, handler)
 
     local entry = { handler = handler, owner = owner, id = id }
     listeners[key] = listeners[key] or {}
-    table.insert(listeners[key], entry)
+    listeners[key][#listeners[key] + 1] = entry
     listenersById[id] = { key = key, entry = entry }
 
     listenerRegistry.track(owner, id)

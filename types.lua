@@ -247,6 +247,16 @@
 ---@field blockNonTempEvents? boolean
 ---@field invincible? boolean
 
+---@class QBEntitiesScopedOptions : QBEntitiesCreateOptions
+---@field radius number Spawn radius in metres; must be greater than zero.
+
+---@class QBScopedEntityHandle
+---@field id integer Stable scoped-registration id.
+---@field resource string Resource that created the scoped entity.
+---@field entity? integer Current local entity handle, or nil while outside the scope.
+---@field remove fun() Deletes the active entity and unregisters the scope.
+---@field isSpawned fun(): boolean Whether the scope currently owns a live entity.
+
 ---@class QBAnimPlayOptions
 ---@field duration? integer
 ---@field flag? integer
@@ -925,6 +935,7 @@
 
 ---@class QBLibEntities
 ---@field create fun(model: string|integer, coords: QBCoords, options?: QBEntitiesCreateOptions): integer|false, string? [client]
+---@field createScoped fun(model: string|integer, coords: QBCoords, options: QBEntitiesScopedOptions): QBScopedEntityHandle [client]
 ---@field remove fun(entity: integer): boolean, string? [client]
 ---@field requestControl fun(entity: integer, timeout?: integer): boolean, string? [client]
 ---@field delete fun(entity: integer, timeout?: integer): boolean, string? [client]

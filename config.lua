@@ -28,12 +28,6 @@ Config.callback = {
     timeout = 30000,
 }
 
-Config.discord = {
-    roleSyncInterval = 300000, -- ms; refresh the guild role catalog and every online player's roles (5 minutes)
-    cacheMaxAge = 600000,      -- ms; hasRole/hasRoles fail closed once a member snapshot is older than this
-    databaseTimeout = 60000,   -- ms to wait for optional qbsql before continuing with memory-only caching
-}
-
 Config.cache = {
     -- 5Hz keeps HUD health/armour/stamina and local distance helpers feeling
     -- immediate, while halving the shared native/cache work previously done

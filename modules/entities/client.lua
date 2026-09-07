@@ -68,6 +68,13 @@ local entityRegistry = QB.resources.registry(function(entity)
     if DoesEntityExist(entity) then DeleteEntity(entity) end
 end)
 
+-- Scoped entities have their own id space: their id identifies a persistent
+-- scope registration, while an entity handle is deliberately transient (it
+-- changes every time the player leaves and re-enters the scope).
+local nextScopeId = 0
+local scopeRegistry
+local scopes = {}
+
 ---Resolves an explicit boolean option against a preset's value for the same
 ---key -- `nil` defers to the preset, any explicit boolean (including
 ---`false`) overrides it.
@@ -108,11 +115,7 @@ end
 ---@param options? QBEntitiesCreateOptions
 ---@return number | false entity The created entity handle, or false if the model never loaded or the entity failed to create.
 ---@return string? error
-function QB.entities.create(model, coords, options)
-    -- Must be captured before any Wait()/polling happens inside loadModel --
-    -- the invoking-resource context is only valid at this call boundary.
-    local invokingResource = GetInvokingResource() or GetCurrentResourceName()
-
+local function createForResource(model, coords, options, invokingResource)
     options = options or {}
 
     assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
@@ -153,6 +156,136 @@ function QB.entities.create(model, coords, options)
 
     return entity
 end
+
+function QB.entities.create(model, coords, options)
+    -- Must be captured before any Wait()/polling happens inside loadModel --
+    -- the invoking-resource context is only valid at this call boundary.
+    return createForResource(model, coords, options, GetInvokingResource() or GetCurrentResourceName())
+end
+
+local function removeScopedEntity(scope)
+    local entity = scope.entity
+    if not entity then return end
+
+    scope.entity = nil
+    scope.handle.entity = nil
+    entityRegistry.untrack(entity)
+
+    if DoesEntityExist(entity) then DeleteEntity(entity) end
+end
+
+local function destroyScope(scope)
+    if scope.removed then return end
+    scope.removed = true
+    scopes[scope.id] = nil
+
+    removeScopedEntity(scope)
+
+    if scope.zone then scope.zone.remove() end
+end
+
+scopeRegistry = QB.resources.registry(function(scopeId)
+    local scope = scopes[scopeId]
+    if scope then destroyScope(scope) end
+end)
+
+---Registers a local entity that exists only while the player is inside its
+---radius. It uses the zones module's spatial grid, so distant scoped entities
+---do not stream models or occupy a GTA entity slot. Leaving the radius deletes
+---the local entity; re-entering creates a fresh one. The registration itself
+---is automatically removed if the calling resource stops.
+---@param model string | number The model to spawn. Its type is detected automatically.
+---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number} World coordinates to spawn at.
+---@param options QBEntitiesScopedOptions Options accepted by `create`, plus a required `radius` in metres.
+---@return QBScopedEntityHandle scope A persistent scope handle. Read `scope.entity` for the current entity handle, or nil while outside the radius.
+function QB.entities.createScoped(model, coords, options)
+    -- Capture ownership at the export boundary. The zone callbacks run later,
+    -- when GetInvokingResource() no longer identifies the original caller.
+    local invokingResource = GetInvokingResource() or GetCurrentResourceName()
+    options = options or {}
+
+    assert(type(options.radius) == "number" and options.radius > 0,
+        "Scoped entity radius must be a number greater than zero.")
+
+    nextScopeId = nextScopeId + 1
+
+    local scope = {
+        id = nextScopeId,
+        resource = invokingResource,
+        entity = nil,
+        zone = nil,
+        inside = false,
+        spawning = false,
+        removed = false,
+    }
+
+    local handle = {
+        id = scope.id,
+        resource = invokingResource,
+        entity = nil,
+    }
+    scope.handle = handle
+
+    function handle.remove()
+        if scopeRegistry.untrack(scope.id) then destroyScope(scope) end
+    end
+
+    function handle.isSpawned()
+        return scope.entity ~= nil and DoesEntityExist(scope.entity)
+    end
+
+    scope.zone = QB.zones.sphere({
+        coords = coords,
+        radius = options.radius,
+        onEnter = function()
+            if scope.removed or scope.entity or scope.spawning then return end
+            scope.inside = true
+            scope.spawning = true
+
+            -- Model streaming may yield. Zone callbacks run on zones' shared
+            -- tick thread, so only start the work here; never stream inline.
+            CreateThread(function()
+                local entity = createForResource(model, coords, options, invokingResource)
+                scope.spawning = false
+
+                -- The scope can be removed, or exited, while model streaming
+                -- yields. Never leave behind an entity that completed after
+                -- its registration stopped being in scope.
+                if scope.removed or not scope.inside then
+                    if entity then
+                        entityRegistry.untrack(entity)
+                        if DoesEntityExist(entity) then DeleteEntity(entity) end
+                    end
+                    return
+                end
+
+                if entity then
+                    scope.entity = entity
+                    handle.entity = entity
+                end
+            end)
+        end,
+        onExit = function()
+            scope.inside = false
+            if not scope.removed then removeScopedEntity(scope) end
+        end,
+    })
+
+    scopes[scope.id] = scope
+    scopeRegistry.track(invokingResource, scope.id)
+
+    return handle
+end
+
+---@class QBScopedEntityHandle
+---@field id integer Stable scoped-registration id.
+---@field resource string Resource that created the scoped entity.
+---@field entity? number Current local entity handle, or nil while outside the scope.
+---@field remove fun() Deletes the active entity and unregisters the scope.
+---@field isSpawned fun(): boolean Whether the scope currently owns a live entity.
+
+---@class QBEntitiesScopedOptions : QBEntitiesCreateOptions
+---@field radius number Spawn radius in metres; must be greater than zero.
 
 ---Deletes one tracked entity created with QB.entities.create and drops it
 ---from whichever resource's tracked set it belongs to, without waiting for

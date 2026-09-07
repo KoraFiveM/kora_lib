@@ -80,6 +80,41 @@ local ok, err = QB.entities.remove(entity)
 if not ok then print('remove failed:', err) end
 ```
 
+### `QB.entities.createScoped(model, coords, options)`
+Registers a client-local entity that is spawned only while the local player is
+within `options.radius` metres of `coords`. The entity is deleted on exit and
+is created again as a new local handle on a later entry. This is intended for
+decorative props, ambient peds, and similar local-only content spread across a
+large map.
+
+It reuses `QB.zones`' spatial grid, so scopes far from the player do not load a
+model or create a GTA entity. It does not make the entity networked; each
+client independently spawns its own copy when in range.
+
+#### Parameters
+- `model`, `coords` — Same as `create`.
+- `options` — All options accepted by `create`, plus:
+  - `radius: number` — Required. A radius greater than zero, in metres.
+
+#### Returns
+- `QBScopedEntityHandle` — A persistent registration handle:
+  - `id: number` — The stable scope-registration ID.
+  - `resource: string` — The resource that owns it.
+  - `entity: number | nil` — The currently spawned local entity, or `nil` while outside its radius. Do not retain this value across an exit/re-entry.
+  - `remove()` — Deletes the active entity, if any, and unregisters the scope.
+  - `isSpawned(): boolean` — Whether there is a live local entity right now.
+
+#### Example
+```lua
+local guard = QB.entities.createScoped('a_m_y_beach_01', vector4(100.0, 200.0, 30.0, 90.0), {
+    radius = 75.0,
+    preset = 'static',
+})
+
+-- guard.entity is nil until this client enters the 75m radius.
+-- `guard.remove()` is optional on resource stop; cleanup is automatic.
+```
+
 ### Networked entities
 
 `QB.entities.requestControl(entity, timeout?)` requests control of an existing

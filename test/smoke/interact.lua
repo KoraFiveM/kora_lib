@@ -76,6 +76,7 @@ QB.zones = {
 _G.GetGamePool = function() return { 101 } end
 _G.GetEntityModel = function(entity) return entity == 101 and 12345 or 0 end
 _G.GetHashKey = function(model) return model == "prop_locker" and 12345 or 0 end
+_G.joaat = function(model) return model == "prop_locker" and 12345 or 0 end
 _G.GetEntityCoords = function(entity) return { x = entity, y = 20, z = 30 } end
 _G.GetEntityHeading = function() return 45 end
 

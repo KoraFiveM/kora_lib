@@ -383,7 +383,7 @@ function QB.interact.addTargetModel(models, size, targetOptions, debug)
     local wanted = {}
     for _, model in ipairs(models) do
         assert(type(model) == "string" or type(model) == "number", "interact target models must be strings or hashes.")
-        wanted[type(model) == "number" and model or GetHashKey(model)] = true
+        wanted[type(model) == "number" and model or joaat(model)] = true
     end
 
     local zones = {}
