@@ -268,6 +268,20 @@ function resolveConfig.hacking(opts)
     }
 end
 
+local function issueAuthorization(src, gameType, cfg)
+    local issuer = GetInvokingResource() or GetCurrentResourceName()
+    local token = generateOpaqueToken()
+    authorizations[token] = {
+        src = src,
+        gameType = gameType,
+        cfg = cfg,
+        issuer = issuer,
+        expiresAt = GetGameTimer() + Config.minigames.authorizationTTL,
+    }
+    authorizationOwnership.track(issuer, token)
+    return token
+end
+
 ---Issues one opaque authorization for a proof-producing minigame session.
 ---This must be called by the server gameplay resource that will later consume
 ---the proof. The trusted options are resolved and copied now; the client may
@@ -281,17 +295,27 @@ function QB.minigames.authorizeProof(src, gameType, trustedOpts)
     assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
     assert(trustedOpts == nil or type(trustedOpts) == "table", "trusted minigame opts must be a table.")
 
-    local issuer = GetInvokingResource() or GetCurrentResourceName()
-    local token = generateOpaqueToken()
-    authorizations[token] = {
-        src = src,
-        gameType = gameType,
-        cfg = resolveConfig[gameType](trustedOpts),
-        issuer = issuer,
-        expiresAt = GetGameTimer() + Config.minigames.authorizationTTL,
-    }
-    authorizationOwnership.track(issuer, token)
-    return token
+    return issueAuthorization(src, gameType, resolveConfig[gameType](trustedOpts))
+end
+
+---Issues a proof authorization after applying the player's qbskills bonus to
+---the trusted, server-resolved minigame configuration. If qbskills is absent,
+---the configuration is left unchanged. The resulting difficulty is captured
+---in the authorization, so the client cannot weaken it before starting.
+---@param src integer
+---@param skill string
+---@param gameType string
+---@param trustedOpts? table
+---@return string authorization
+function QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts)
+    assert(isInteger(src) and src >= 1, 'src must be a positive player server ID.')
+    assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
+    assert(type(gameType) == 'string' and QB.minigames.GAME_TYPES[gameType], 'invalid minigame type.')
+    assert(trustedOpts == nil or type(trustedOpts) == 'table', 'trusted minigame opts must be a table.')
+
+    local cfg = resolveConfig[gameType](trustedOpts)
+    local adjusted = QB.skills.adjustMinigame(src, skill, gameType, cfg)
+    return issueAuthorization(src, gameType, adjusted)
 end
 
 local function createProof(session)

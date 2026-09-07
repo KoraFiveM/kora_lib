@@ -66,6 +66,29 @@ end
 - Numeric inputs must be finite. Attempt arrays must be dense and are capped to the expected round size. Puzzle content is byte/count bounded by `Config.minigames.inputLimits` (including at most 8 PIN digits, 20 quiz questions with 8 options each, 32-byte wordguess words, 64-byte scrambled words, and 256-byte hints). `wordguess` words are ASCII letters because its input protocol submits one ASCII letter at a time.
 - The start/submit/cancel callbacks have per-player quotas in `Config.minigames.callbackRateLimits`; the defaults are 5/20/10 calls respectively per 10 seconds.
 
+### Skill-aware checks (`qbskills`, optional)
+
+`QB.minigames.playSkillCheck(skill, gameType, opts?, authorization?)` is the
+client helper for a check whose difficulty may scale with a `qbskills` level.
+If `qbskills` is not started it behaves exactly like `play`.
+
+For an action that has real value, issue the authorization on the server with
+`QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts)`. qblib
+first resolves the trusted options, then lets qbskills adjust that resolved
+configuration and captures the final result inside the authorization. The
+client cannot replace it with easier options at start time.
+
+```lua
+-- server, after your own item/proximity/state checks
+local authorization = QB.minigames.authorizeSkillCheck(src, 'mining', 'skillbar', {
+    zoneSize = 0.16,
+    attempts = 1,
+})
+
+-- client
+local result = Citizen.Await(QB.minigames.playSkillCheck('mining', 'skillbar', nil, authorization))
+```
+
 ## Supporting APIs
 
 ### Authorized proof flow

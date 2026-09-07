@@ -25,7 +25,6 @@
 function QB.resources.registry(onDispose)
     local byResource = {}
     local ownerOf = {}
-
     local function track(resource, id)
         local previousOwner = ownerOf[id]
 
@@ -74,7 +73,11 @@ function QB.resources.registry(onDispose)
 
         for id in pairs(owned) do
             ownerOf[id] = nil
-            onDispose(id)
+            local ok, err = pcall(onDispose, id)
+            if not ok then
+                print(("^3[qblib:resources]^7 cleanup for %s id %s failed: %s")
+                    :format(resource, tostring(id), tostring(err)))
+            end
         end
     end)
 

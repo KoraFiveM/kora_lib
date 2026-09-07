@@ -6,6 +6,21 @@ Config.ui = {
     interact = true, -- set false to disable the qblib interact-zone module entirely
 }
 
+-- Screenshot capture is rendered only when a resource requests it. Keeping a
+-- sensible output ceiling prevents an ultrawide/4K client from allocating a
+-- second full-resolution frame buffer just to attach a diagnostic image. Set
+-- either limit to false to leave that dimension unbounded.
+Config.screenshot = {
+    debugConvar = 'qblib_screenshot_debug',
+    defaultEncoding = 'jpg',
+    defaultQuality = 0.92,
+    maxWidth = 1920,
+    maxHeight = 1080,
+    requestTimeout = 30000,
+    uploadBytesPerSecond = 2 * 1024 * 1024,
+    maxBytes = 12 * 1024 * 1024,
+}
+
 -- Controls are consumed only while a qblib interact selector is visible.
 -- Keeping them here makes the gameplay-side interaction rebindable without
 -- changing the NUI, which remains a pointer-transparent display layer.

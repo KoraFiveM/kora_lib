@@ -427,6 +427,21 @@ Server registration limits are optional, per-player and per-name sliding
 windows. Limited events are dropped; limited callbacks immediately reject with
 their retry delay.
 
+### Configuration (`QB.config`)
+```lua
+Config = QB.config.define({
+    localRange = QB.config.number(20.0, { min = 1, max = 100 }),
+})
+```
+Resources can register typed Lua configuration without giving up their normal
+`Config` table. qblib writes only changed, server-specific values to
+`config.local.lua`; the community-authored `config.lua` remains ordered,
+commented, and update-friendly. Fields are restart-required unless explicitly
+safe to apply live. `shared`, `client`, and `server` scopes control client
+synchronization, and qbadmin provides the owner-only editor and audit trail.
+See [the configuration guide](../modules/config/docs.md) for schemas,
+handlers, migration, persistence, and security boundaries.
+
 ## Legacy compat
 
 `compat/client/qb-menu.lua`, `qb-input.lua`, and `qb-radialmenu.lua` keep
@@ -445,7 +460,9 @@ Everything routes onto the `QB.nui.open*` calls above.
 `Config.progressbar.maxDuration/maxProps/cancelControls`, `Config.minigames.authorizationTTL/proofTTL/inputLimits/callbackRateLimits`, `Config.cache.tickInterval`,
 `Config.zones.gridSize/tickFar/tickNear/tickInside/creator.enabled`,
 `Config.third_party_notify` (route notifications through an event instead of
-qblib's own NUI toast).
+qblib's own NUI toast). qblib uses the same `QB.config` platform internally;
+server-specific overrides belong in its ignored `config.local.lua`, while
+`Config.discord` is server-only.
 
 ## Related resources
 

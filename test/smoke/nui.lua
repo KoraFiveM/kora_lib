@@ -422,6 +422,30 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
 end)
 
+harness.test("registerApp accepts bounded progress graph blocks", function()
+    local definition = {
+        id = "smoke:progress", title = "Progress", navigation = {
+            { id = "skills", label = "Skills", content = { blocks = {
+                { type = "progress", id = "levels", items = {
+                    { label = "Mining", value = 25, max = 100, detail = "250 / 1,000 XP", icon = "Hammer" },
+                } },
+            } } },
+        },
+    }
+
+    harness.assertEqual(QB.nui.registerApp(definition), definition.id,
+        "a valid bounded progress graph should register")
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-progress", title = "Bad progress", navigation = {
+                { id = "skills", label = "Skills", content = { blocks = {
+                    { type = "progress", items = { { label = "Mining", value = 101, max = 100 } }, },
+                } } },
+            },
+        })
+    end, "progress values above max must be rejected before they reach the browser")
+end)
+
 harness.test("an app without its own accent keeps the player's /theme colour", function()
     QB.nui.registerApp({
         id = "smoke:player-theme",
@@ -817,6 +841,16 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
             } } } } },
         })
     end, "table sorting options must use supported types")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-table-empty", title = "Invalid table empty state",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "table", columns = { { key = "name", label = "Name" } }, rows = {},
+                empty = { title = "Not valid here" },
+            } } } } },
+        })
+    end, "table empty states must be strings so React never receives a table child")
 end)
 
 harness.report("nui")

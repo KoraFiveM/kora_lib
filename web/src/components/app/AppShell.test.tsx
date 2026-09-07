@@ -59,6 +59,15 @@ describe("shared fields", () => {
 })
 
 describe("AppShell", () => {
+    it("renders a bounded progress graph with accessible values", () => {
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "progress", title: "Skills", items: [
+            { label: "Mining", value: 25, max: 100, detail: "250 / 1,000 XP", icon: "Hammer" },
+        ] }] }))
+        expect(screen.getByRole("progressbar", { name: "Mining" })).toHaveAttribute("aria-valuenow", "25")
+        expect(screen.getByText("250 / 1,000 XP")).toBeInTheDocument()
+    })
+
     it("renders a header action form exactly once below the header", async () => {
         const user = userEvent.setup()
         render(<AppShell />)

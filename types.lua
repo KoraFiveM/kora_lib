@@ -19,6 +19,16 @@
 ---@field max integer Maximum accepted calls in the sliding window.
 ---@field window integer Sliding-window length in milliseconds.
 
+---@alias QBScreenshotEncoding 'jpg'|'png'|'webp'
+
+---@class QBScreenshotOptions
+---@field encoding? QBScreenshotEncoding Defaults to `Config.screenshot.defaultEncoding`.
+---@field quality? number Image encoder quality from 0 to 1.
+---@field maxWidth? integer|false Default output width ceiling; false leaves it unbounded.
+---@field maxHeight? integer|false Default output height ceiling; false leaves it unbounded.
+---@field includeNui? boolean Accepted for screenshot-basic compatibility; separate CEF layers cannot be captured.
+---@field fileName? string Server-only destination path. Never accept this from a client event.
+
 ---@class QBRegistrationOptions
 ---@field rateLimit? QBRateLimit|false Client-to-server registrations only; omitted/false is unlimited.
 
@@ -455,6 +465,15 @@
 ---@field icon? string
 ---@field tone? QBAppTone
 
+---@class QBAppProgressItem
+---@field label string
+---@field value number Current value, from zero through max.
+---@field max number Positive maximum value.
+---@field description? string
+---@field detail? string Secondary value copy, for example "1,240 / 2,000 XP".
+---@field icon? string
+---@field tone? QBAppTone
+
 ---@class QBAppTableColumn
 ---@field key string
 ---@field label string
@@ -533,7 +552,7 @@
 ---@field expiresAt? number
 ---@field fadeDuration? number Marker-specific fade window before expiresAt; overrides the block default.
 
----@alias QBAppBlockType 'text'|'stats'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'
+---@alias QBAppBlockType 'text'|'stats'|'progress'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'
 
 ---@class QBAppBlock
 ---@field type QBAppBlockType
@@ -541,7 +560,7 @@
 ---@field text? string Text block body.
 ---@field description? string Form or empty-state description.
 ---@field icon? string Empty-state icon.
----@field items? QBAppStat[]|QBAppListItem[]|QBAppDetailItem[]|QBAppTimelineItem[] Block items.
+---@field items? QBAppStat[]|QBAppProgressItem[]|QBAppListItem[]|QBAppDetailItem[]|QBAppTimelineItem[] Block items.
 ---@field actions? QBAppAction[] Action-block buttons.
 ---@field columns? QBAppTableColumn[]|integer Table columns, or the 1-3 column count for details.
 ---@field rows? table<string, QBAppTableValue>[] Table rows.
@@ -782,6 +801,7 @@
 ---@field callback QBLibCallback
 ---@field closest QBLibClosest
 ---@field commands QBLibCommands
+---@field config QBLibConfig
 ---@field controls QBLibControls
 ---@field discord QBLibDiscord
 ---@field distance QBLibDistance
@@ -805,7 +825,9 @@
 ---@field require QBLibRequire
 ---@field resources QBLibResources
 ---@field rewards QBLibRewards
+---@field screenshot QBLibScreenshot
 ---@field sound QBLibSound
+---@field skills QBLibSkills
 ---@field state QBLibState
 ---@field status QBLibStatus
 ---@field stream QBLibStream
@@ -844,6 +866,44 @@
 ---@class QBLibBlips
 ---@field create fun(coords: QBCoords, options?: QBBlipsCreateOptions): integer|false, string? [client]
 ---@field remove fun(blip: integer): boolean, string? [client]
+
+---@class QBConfigFieldOptions
+---@field label? string
+---@field description? string
+---@field scope? 'shared'|'client'|'server'
+---@field live? boolean
+---@field min? number
+---@field max? number
+---@field step? number
+---@field minLength? integer
+---@field maxLength? integer
+---@field pattern? string
+---@field options? table[]
+---@field sensitive? boolean Excluded from qbadmin's in-game editor.
+
+---@class QBLibConfig
+---@field define fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
+---@field adopt fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
+---@field extend fun(values: table, options?: {scope?: 'shared'|'client'|'server'}): table [shared; consumer-local]
+---@field onChange fun(path: string, handler: fun(value: any, previous: any): boolean?|nil) [client/server; consumer-local]
+---@field boolean fun(value: boolean, options?: QBConfigFieldOptions): table [shared]
+---@field string fun(value: string, options?: QBConfigFieldOptions): table [shared]
+---@field integer fun(value: integer, options?: QBConfigFieldOptions): table [shared]
+---@field number fun(value: number, options?: QBConfigFieldOptions): table [shared]
+---@field enum fun(value: string|number, options: QBConfigFieldOptions): table [shared]
+---@field color fun(value: string, options?: QBConfigFieldOptions): table [shared]
+---@field vector2 fun(value: any, options?: QBConfigFieldOptions): table [shared]
+---@field vector3 fun(value: any, options?: QBConfigFieldOptions): table [shared]
+---@field vector4 fun(value: any, options?: QBConfigFieldOptions): table [shared]
+---@field object fun(value: table, options?: QBConfigFieldOptions): table [shared]
+---@field list fun(value: table, item?: table, options?: QBConfigFieldOptions): table [shared]
+---@field map fun(value: table, item?: table, options?: QBConfigFieldOptions): table [shared]
+---@field optional fun(value: any, inner: table, options?: QBConfigFieldOptions): table [shared]
+---@field register fun(definition: table): boolean [server; qblib internal]
+---@field catalog fun(): table[] [server]
+---@field read fun(resource: string): table|nil [server]
+---@field commit fun(resource: string, request: table): table [server]
+---@field reset fun(resource: string, request: table): table [server]
 
 ---@class QBLibCache
 ---@field get fun(key: string): any [client]
@@ -993,7 +1053,9 @@
 
 ---@class QBLibMinigames
 ---@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult|promise [client]
+---@field playSkillCheck fun(skill: string, gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult|promise [client]
 ---@field authorizeProof fun(src: integer, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
+---@field authorizeSkillCheck fun(src: integer, skill: string, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
 ---@field consumeProof fun(src: integer, token: string, gameType: QBMinigameType, authorization: string): boolean [server]
 ---@field triangleWave fun(elapsedMs: number, speedHz: number): number [shared]
 
@@ -1032,6 +1094,14 @@
 ---@field updateApp fun(id: string, update: table): boolean [client]
 ---@field closeApp fun(id?: string): boolean [client]
 ---@field isAppOpen fun(id?: string): boolean [client]
+
+---@class QBLibSkills
+---@field isAvailable fun(): boolean [client,server]
+---@field get fun(...: any): table|nil [client: (skill?: string); server: (src: integer, skill?: string)]
+---@field getAll fun(...: any): table|nil [client: (); server: (src: integer)]
+---@field hasLevel fun(...: any): boolean [client: (skill: string, level: integer); server: (src: integer, skill: string, level: integer)]
+---@field add fun(src: integer, skill: string, amount: number, location?: vector3|table, distance?: number): boolean, string|nil [server]
+---@field adjustMinigame fun(...: any): table|nil [client: (skill: string, gameType: string, options?: table); server: (src: integer, skill: string, gameType: string, resolvedOptions: table)]
 
 ---@class QBPermissionOptions
 ---@field prefix? string ACE object prefix, such as `qbcore` for `qbcore.admin`.
@@ -1098,6 +1168,13 @@
 
 ---@class QBLibRewards
 ---@field generate fun(items: QBRewardItem[], opts?: QBRewardOptions): table[] [shared]
+
+---@class QBLibScreenshot
+---@field capture fun(options?: QBScreenshotOptions, timeout?: integer): promise|any [client] Resolves to a data URI.
+---@field upload fun(url: string, field?: string, options?: QBScreenshotOptions, timeout?: integer): promise|any [client] Captures then uploads the image.
+---@field requestScreenshot fun(options?: QBScreenshotOptions|fun(data: string?), callback?: fun(data: string?)) [client] screenshot-basic-compatible callback export.
+---@field requestScreenshotUpload fun(url: string, field: string, options?: QBScreenshotOptions|fun(response: string?), callback?: fun(response: string?)) [client] screenshot-basic-compatible callback export.
+---@field requestClient fun(player: integer, options?: QBScreenshotOptions, callback?: fun(err: string|false, result?: string)): string [server] Requests a one-time client upload.
 
 ---@class QBSoundOptions
 ---@field network? boolean Play for nearby players too, rather than only locally. Defaults to false.

@@ -22,6 +22,10 @@ provide 'qb-menu'
 provide 'qb-input'
 provide 'qb-radialmenu'
 provide 'qb-minigames'
+-- qblib's screenshot module implements screenshot-basic's public exports so
+-- existing resources can migrate without a second, permanently-rendering NUI
+-- resource. The legacy export identities are registered by its late compat bridge.
+provide 'screenshot-basic'
 
 -- Consumers pull the QB proxy in with: shared_script '@qblib/init.lua'
 -- It must be listed here so the client can fetch it.
@@ -30,6 +34,9 @@ files {
     -- QB.require executes in each consumer's Lua environment rather than as a
     -- qblib export, so init.lua loads this small factory on demand.
     'modules/require/loader.lua',
+    -- Like QB.require, QB.config executes in each consuming resource so it
+    -- can safely own that resource's Config table and config.local.lua.
+    'modules/config/consumer.lua',
     'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
     -- Lookup bundles are loaded on demand with LoadResourceFile; source JSON
     -- stays out of the runtime resource (source.json only records provenance).
@@ -93,6 +100,7 @@ client_scripts {
     'compat/client/qb-input.lua',
     'compat/client/qb-radialmenu.lua',
     'compat/client/qb-minigames.lua',
+    'compat/client/screenshot-basic.lua',
     'build/finalise.lua'
 }
 

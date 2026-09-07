@@ -5,7 +5,9 @@ This module provides ten server-validated skill-check minigames -- lockpick, ski
 
 ## Public API
 - `QB.minigames.play(gameType, opts, authorization?)` (client) -- plays one round-based session for `"lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"`. Without an authorization, `opts` is client-controlled, bounded/clamped server-side, and the result is deliberately proof-less. With an authorization, client `opts` is ignored and the server uses the trusted configuration captured when the authorization was issued. Returns a promise resolving `{ success, attempts, proof?, cancelled?, faults? }`.
+- `QB.minigames.playSkillCheck(skill, gameType, opts?, authorization?)` (client) -- the optional qbskills-aware form of `play`. It uses the local skill cache for presentation-only checks and is a no-op adjustment when qbskills is stopped.
 - `QB.minigames.authorizeProof(src, gameType, trustedOpts?)` (server) -- resolves/copies trusted puzzle options and returns an opaque, resource-owned, single-use authorization for that player and game type.
+- `QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts?)` (server) -- resolves trusted options, obtains the player's configured qbskills adjustment when available, and captures that result in the single-use authorization. Use this version for a valuable skill-gated action.
 - `QB.minigames.consumeProof(src, proof, gameType, authorization)` (server) -- consumes an authorized success proof only when issuer resource, player, game type, authorization, and TTL match. Mismatches do not burn a valid proof.
 - `QB.minigames.triangleWave(elapsedMs, speedHz)` (shared) -- deterministic renderer/server motion formula.
 

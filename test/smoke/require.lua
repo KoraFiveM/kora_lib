@@ -13,6 +13,7 @@ local function readFile(path)
 end
 
 local loaderSource = readFile(repoRoot .. 'modules/require/loader.lua')
+local configConsumerSource = readFile(repoRoot .. 'modules/config/consumer.lua')
 local resourceFiles = {
     ['qbapartments\0config.lua'] = "return { name = 'apartments' }",
     ['qbapartments\0public/data.lua'] = "return { first = 'alta' }",
@@ -31,6 +32,7 @@ local exportCalls = {}
 
 _G.LoadResourceFile = function(resource, path)
     if resource == 'qblib' and path == 'modules/require/loader.lua' then return loaderSource end
+    if resource == 'qblib' and path == 'modules/config/consumer.lua' then return configConsumerSource end
 
     local key = resource .. '\0' .. path
     readCounts[key] = (readCounts[key] or 0) + 1

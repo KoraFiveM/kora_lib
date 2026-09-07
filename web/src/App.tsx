@@ -17,6 +17,7 @@ import { RadialMenuContainer } from "@/components/menu/RadialMenu"
 import { TargetHud } from "@/components/target/TargetHud"
 import { TextUi } from "@/components/textui/TextUi"
 import { AppShell } from "@/components/app/AppShell"
+import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -40,6 +41,7 @@ export default function App() {
             <InputDialogContainer />
             <AlertDialogContainer />
             <ClipboardHandler />
+            <ScreenshotCapture />
             <Toast />
             <ProgressBar />
             <ZoneCreatorHud />

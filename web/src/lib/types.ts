@@ -10,7 +10,8 @@
 // openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
 // zoneCreator:* actions), modules/placement/client.lua (the placement:* actions),
 // modules/notify/client.lua (the "notify" action),
-// and modules/minigames/client.lua (the minigames:* actions), plus
+// and modules/minigames/client.lua (the minigames:* actions),
+// modules/screenshot/client.lua (the screenshot:* actions), plus
 // qbtarget/client/loop.lua (the qbtarget:target display action) -- this file is
 // the one place the whole contract is written down on the NUI side.
 
@@ -251,6 +252,17 @@ export interface AppStat {
     tone?: AppTone
 }
 
+/** A compact, accessible value graph for progression and other bounded values. */
+export interface AppProgressItem {
+    label: string
+    value: number
+    max: number
+    description?: string
+    detail?: string
+    icon?: string
+    tone?: AppTone
+}
+
 export interface AppTableColumn {
     key: string
     label: string
@@ -377,6 +389,7 @@ export interface AppShellLabels {
 export type AppBlock =
     | { type: "text"; title?: string; text: string }
     | { type: "stats"; title?: string; items: AppStat[] }
+    | { type: "progress"; id?: string; title?: string; items: AppProgressItem[] }
     | { type: "table"; id?: string; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
     | { type: "list"; id?: string; title?: string; items: AppListItem[]; empty?: string; layout?: "list" | "grid" | "cards"; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
     | { type: "actions"; id?: string; title?: string; actions: AppAction[] }

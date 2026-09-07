@@ -190,3 +190,21 @@ function QB.minigames.play(gameType, opts, authorization)
 
     return settleForExport(beginPlay(gameType, opts, authorization, resource))
 end
+
+---Plays a minigame whose optional difficulty adjustment comes from qbskills.
+---Without qbskills, this is exactly the same as play(gameType, opts,
+---authorization). An authorization issued by authorizeSkillCheck is still the
+---only safe path for an action with a server-side reward or consequence.
+---@param skill string
+---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
+---@param opts? table
+---@param authorization? string
+---@return promise|any result
+function QB.minigames.playSkillCheck(skill, gameType, opts, authorization)
+    assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
+    assert(QB.minigames.GAME_TYPES[gameType], 'invalid minigame type -- see QB.minigames.GAME_TYPES.')
+    assert(opts == nil or type(opts) == 'table', 'minigame opts must be a table.')
+
+    local adjusted = QB.skills.adjustMinigame(skill, gameType, opts)
+    return QB.minigames.play(gameType, adjusted, authorization)
+end

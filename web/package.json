@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@citizenfx/three": "0.100.0",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-scroll-area": "^1.2.1",
     "@radix-ui/react-select": "^2.1.2",

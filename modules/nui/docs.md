@@ -338,6 +338,7 @@ labels, and content remain the consumer's responsibility.
 
 - `text`: `title?`, `text`
 - `stats`: `title?`, `items = { { label, value, description?, icon?, tone? } }`
+- `progress`: `title?`, `items = { { label, value, max, description?, detail?, icon?, tone? } }`. Renders an accessible bounded-value graph; `value` must be between zero and `max`.
 - `table`: `id?`, `title?`, `columns = { { key, label, align?, sortable? } }`,
   `rows`, `empty?`, row `action?` / `idKey?`, plus `searchable?`,
   `searchPlaceholder?`, and `pageSize?`. A cell may be a scalar or

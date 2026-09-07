@@ -25,6 +25,14 @@ dofile(repoRoot .. "local/callback/shared.lua")
 
 dofile(repoRoot .. "local/callback/server.lua")
 dofile(repoRoot .. "modules/minigames/shared.lua")
+local skillAdjustment = nil
+QB.skills = {
+    adjustMinigame = function(...)
+        if skillAdjustment then return skillAdjustment(...) end
+        local options = select(select('#', ...), ...)
+        return options
+    end,
+}
 dofile(repoRoot .. "modules/minigames/server.lua")
 
 dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread completes the client->server handshake synchronously
@@ -129,6 +137,28 @@ end)
 
 harness.test("play rejects non-table opts", function()
     harness.assertThrows(function() QB.minigames.play("mash", "fast") end, "a non-table opts should raise")
+end)
+
+harness.test("skill checks capture the server-adjusted difficulty in their authorization", function()
+    skillAdjustment = function(src, skill, gameType, options)
+        harness.assertEqual(src, 1, 'the adjustment should use the authorized player')
+        harness.assertEqual(skill, 'mining', 'the requested skill should be forwarded')
+        harness.assertEqual(gameType, 'skillbar', 'the requested minigame should be forwarded')
+        local adjusted = {}
+        for key, value in pairs(options) do adjusted[key] = value end
+        adjusted.zoneSize = 0.6
+        return adjusted, { name = skill, level = 99 }
+    end
+
+    local authorization = asResource('mining-resource', function()
+        return QB.minigames.authorizeSkillCheck(1, 'mining', 'skillbar', { zoneSize = 0.1, attempts = 1 })
+    end)
+    local started = serverCall('qblib:minigames:start', 1, 'skillbar', { zoneSize = 0.05 }, authorization)
+    skillAdjustment = nil
+
+    harness.assertEqual(started.public.zoneEnd - started.public.zoneStart, 0.6,
+        'the client options must not replace the skill-adjusted authorized configuration')
+    Citizen.Await(QB.callback.trigger('qblib:minigames:cancel', started.sessionId))
 end)
 
 harness.test("lockpick: succeeds on the first correct attempt", function()

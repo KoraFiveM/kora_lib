@@ -10,6 +10,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+dofile(repoRoot .. "local/resources/server.lua")
 
 harness.test("track then owner reports the tracking resource", function()
     local disposed = {}
@@ -108,6 +109,47 @@ harness.test("two registries track independent id spaces", function()
 
     harness.assertEqual(#disposedA, 1, "registryA should dispose its own id")
     harness.assertEqual(#disposedB, 1, "registryB should dispose its own id")
+end)
+
+harness.test("a client registry disposes tracked state when its creating resource stops", function()
+    local disposed = {}
+    local registry = QB.resources.registry(function(id) disposed[#disposed + 1] = id end)
+
+    registry.track("resource_a", 1)
+    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "resource_a")
+
+    harness.assertEqual(#disposed, 1, "creator shutdown must release its tracked state")
+    harness.assertEqual(registry.owner(1), nil, "creator shutdown should clear its bookkeeping")
+end)
+
+harness.test("a server registry disposes tracked state when its creating resource stops", function()
+    local disposed = {}
+    local registry = QB.resources.serverRegistry(function(id) disposed[#disposed + 1] = id end)
+
+    registry.track("resource_a", 1)
+    net.fire("onResourceStop", "qblib_test")
+    net.fire("onResourceStop", "resource_a")
+
+    harness.assertEqual(#disposed, 1, "creator shutdown must release its tracked state")
+    harness.assertEqual(registry.owner(1), nil, "creator shutdown should clear its bookkeeping")
+end)
+
+harness.test("a disposal failure cannot abort the rest of a server registry sweep", function()
+    local attempted = {}
+    local registry = QB.resources.serverRegistry(function(id)
+        attempted[id] = true
+        if id == "bad" then error("simulated cleanup failure") end
+    end)
+
+    registry.track("resource_a", "bad")
+    registry.track("resource_a", "good")
+    net.fire("onResourceStop", "resource_a")
+
+    harness.assertTrue(attempted.bad, "the failing disposal should be attempted")
+    harness.assertTrue(attempted.good, "the sweep should continue after another disposal fails")
+    harness.assertEqual(registry.owner("bad"), nil, "the failed id should still be untracked")
+    harness.assertEqual(registry.owner("good"), nil, "the successful id should be untracked")
 end)
 
 harness.report("resources")

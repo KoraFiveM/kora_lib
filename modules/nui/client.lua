@@ -263,7 +263,7 @@ local function assertAppContent(content, location, actionIds)
 
     if content.blocks == nil then return end
     assert(type(content.blocks) == "table", ("%s blocks must be a table."):format(location))
-    local blockTypes = { text = true, stats = true, table = true, list = true, actions = true,
+    local blockTypes = { text = true, stats = true, progress = true, table = true, list = true, actions = true,
         form = true, details = true, timeline = true, map = true, empty = true }
 
     local blockIds = {}
@@ -289,6 +289,22 @@ local function assertAppContent(content, location, actionIds)
                     ("%s item %d icon must be a string."):format(blockLocation, itemIndex))
                 assert(item.tone == nil or validTones[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
             end
+        elseif block.type == "progress" then
+            assert(type(block.items) == "table", blockLocation .. " requires an items table.")
+            for itemIndex, item in ipairs(block.items) do
+                assert(type(item) == "table" and type(item.label) == "string" and item.label ~= ""
+                    and type(item.value) == "number" and type(item.max) == "number" and item.max > 0,
+                    ("%s item %d requires a label, numeric value, and positive max."):format(blockLocation, itemIndex))
+                assert(item.value >= 0 and item.value <= item.max,
+                    ("%s item %d value must be between zero and max."):format(blockLocation, itemIndex))
+                assert(item.description == nil or type(item.description) == "string",
+                    ("%s item %d description must be a string."):format(blockLocation, itemIndex))
+                assert(item.detail == nil or type(item.detail) == "string",
+                    ("%s item %d detail must be a string."):format(blockLocation, itemIndex))
+                assert(item.icon == nil or type(item.icon) == "string",
+                    ("%s item %d icon must be a string."):format(blockLocation, itemIndex))
+                assert(item.tone == nil or validTones[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
+            end
         elseif block.type == "details" then
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
             assert(block.columns == nil or (type(block.columns) == "number" and block.columns >= 1 and block.columns <= 3 and block.columns % 1 == 0),
@@ -303,11 +319,13 @@ local function assertAppContent(content, location, actionIds)
         elseif block.type == "list" then
             assert(block.layout == nil or block.layout == "list" or block.layout == "grid" or block.layout == "cards",
                 blockLocation .. " layout must be 'list', 'grid', or 'cards'.")
+            assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             assertCollectionOptions(block, blockLocation)
             assertListItems(block.items, blockLocation, actionIds)
         elseif block.type == "table" then
             assert(type(block.columns) == "table" and type(block.rows) == "table",
                 blockLocation .. " requires columns and rows tables.")
+            assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             assertCollectionOptions(block, blockLocation)
             local columnKeys = {}
             for columnIndex, column in ipairs(block.columns) do
@@ -333,6 +351,7 @@ local function assertAppContent(content, location, actionIds)
             assertAppAction(block.action, blockLocation, actionIds)
         elseif block.type == "timeline" then
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
+            assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             local itemIds = {}
             for itemIndex, item in ipairs(block.items) do
                 assert(type(item) == "table" and type(item.id) == "string" and item.id ~= ""
@@ -355,6 +374,7 @@ local function assertAppContent(content, location, actionIds)
             assert(type(block.tiles) == "table" and type(block.tiles.url) == "string" and block.tiles.url ~= "",
                 blockLocation .. " requires a tile URL template.")
             assert(type(block.markers) == "table", blockLocation .. " requires a markers table.")
+            assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             assert(block.tiles.tileSize == nil or (type(block.tiles.tileSize) == "number" and block.tiles.tileSize > 0),
                 blockLocation .. " tileSize must be positive.")
             assert(block.follow == nil or type(block.follow) == "boolean", blockLocation .. " follow must be a boolean.")

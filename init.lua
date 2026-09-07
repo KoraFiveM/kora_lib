@@ -1,5 +1,6 @@
 local library = exports.qblib
 local requireModule
+local configModule
 
 -- Requiring Lua files is deliberately consumer-local. Running this through a
 -- qblib export would execute the required chunk in qblib's Lua environment,
@@ -18,6 +19,24 @@ local function getRequireModule()
 
     requireModule = createRequire(GetCurrentResourceName())
     return requireModule
+end
+
+-- Configuration has to run inside the CONSUMING resource: its Config table,
+-- override file, and live handlers are all local to that resource. The normal
+-- QB proxy deliberately routes calls into qblib instead, so config is the one
+-- explicit consumer-local module alongside QB.require.
+local function getConfigModule()
+    if configModule then return configModule end
+
+    local path = 'modules/config/consumer.lua'
+    local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+    assert(chunk, compileError)
+
+    local createConfig = chunk()
+    assert(type(createConfig) == 'function', ('@qblib/%s must return a factory function'):format(path))
+    configModule = createConfig(library)
+    return configModule
 end
 
 -- FXServer's export dispatch has a known bug (citizenfx/fivem#2408): calling
@@ -96,3 +115,8 @@ QB = setmetatable({}, {
         return proxy
     end,
 })
+
+-- Make QB.config a real local table rather than an export proxy. Calling its
+-- helpers records a schema in this resource and only then announces the
+-- serializable catalog to qblib's server-side coordinator.
+rawset(QB, 'config', getConfigModule())

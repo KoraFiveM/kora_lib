@@ -94,6 +94,10 @@ function M.install()
         _G.source = previousSource
     end
 
+    function _G.TriggerLatentServerEvent(name, _, ...)
+        _G.TriggerServerEvent(name, ...)
+    end
+
     -- Server -> client. `target` is recorded but not used to filter delivery --
     -- these tests only ever simulate a single connected client.
     function _G.TriggerClientEvent(name, target, ...)
@@ -140,6 +144,10 @@ function M.install()
 
     function _G.GetCurrentResourceName()
         return "qblib_test"
+    end
+
+    function _G.GetConvarInt(_, default)
+        return default
     end
 
     -- Not a real joaat -- just deterministic, so the same string always hashes
