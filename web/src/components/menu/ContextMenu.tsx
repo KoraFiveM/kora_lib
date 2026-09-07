@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { cn } from "@/lib/cn"
 import type { MenuItem, MenuResult, OpenContextMenuPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
+import { getNuiViewport } from "@/lib/viewport"
 import { MenuItemLabel } from "@/components/menu/MenuItemLabel"
 
 // Rough per-item footprint used only to decide whether the popup needs to be
@@ -106,24 +107,27 @@ export function ContextMenuContainer() {
 
     if (!isOpen || !payload) return null
 
-    const x = payload.x ?? window.innerWidth / 2
-    const y = payload.y ?? window.innerHeight / 2
+    const viewport = getNuiViewport()
+    // Lua supplies screen pixels. The root is scaled above 1080p, so convert
+    // those coordinates before positioning inside its virtual viewport.
+    const x = (payload.x ?? window.innerWidth / 2) / viewport.scale
+    const y = (payload.y ?? window.innerHeight / 2) / viewport.scale
     const estimatedHeight = items.reduce(
         (height, item) => height + (item.description ? ESTIMATED_ITEM_HEIGHT + 12 : ESTIMATED_ITEM_HEIGHT),
         8,
     )
-    const clampedY = Math.min(Math.max(8, y), window.innerHeight - 8)
+    const clampedY = Math.min(Math.max(8, y), viewport.height - 8)
     const spaceAbove = clampedY - 8
-    const spaceBelow = window.innerHeight - clampedY - 8
-    const flipX = x + ESTIMATED_WIDTH > window.innerWidth
+    const spaceBelow = viewport.height - clampedY - 8
+    const flipX = x + ESTIMATED_WIDTH > viewport.width
     const flipY = estimatedHeight > spaceBelow && spaceAbove > spaceBelow
     const maxHeight = flipY ? spaceAbove : spaceBelow
 
     const style: CSSProperties = {
         position: "fixed",
         maxHeight,
-        ...(flipX ? { right: Math.max(8, window.innerWidth - x) } : { left: Math.max(8, x) }),
-        ...(flipY ? { bottom: Math.max(8, window.innerHeight - clampedY) } : { top: clampedY }),
+        ...(flipX ? { right: Math.max(8, viewport.width - x) } : { left: Math.max(8, x) }),
+        ...(flipY ? { bottom: Math.max(8, viewport.height - clampedY) } : { top: clampedY }),
     }
 
     return (

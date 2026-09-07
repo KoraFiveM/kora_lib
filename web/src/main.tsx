@@ -2,14 +2,15 @@ import React from "react"
 import ReactDOM from "react-dom/client"
 import App from "./App"
 import { ErrorBoundary } from "./components/ErrorBoundary"
+import { getNuiViewport } from "./lib/viewport"
 import "./styles/globals.css"
 
 const scaleNui = () => {
   const root = document.getElementById("root")!
-  const scale = Math.min(2, Math.max(1, Math.min(window.innerWidth / 2560, window.innerHeight / 1440)))
-  root.style.width = `${window.innerWidth / scale}px`
-  root.style.height = `${window.innerHeight / scale}px`
-  root.style.transform = `scale(${scale})`
+  const viewport = getNuiViewport()
+  root.style.width = `${viewport.width}px`
+  root.style.height = `${viewport.height}px`
+  root.style.transform = `scale(${viewport.scale})`
   root.style.transformOrigin = "top left"
 }
 

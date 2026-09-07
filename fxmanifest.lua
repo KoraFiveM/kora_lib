@@ -36,6 +36,7 @@ files {
     'modules/lookup/data/*.lua',
     'modules/lookup/data/source.json',
     'modules/discord/sql/*.sql',
+    'locales/*.json',
     'web/build/index.html',
     -- A bare trailing '**' does NOT match files in FiveM's resource globber --
     -- it needs the '/*' (compare citizen's own system_resources/monitor, which

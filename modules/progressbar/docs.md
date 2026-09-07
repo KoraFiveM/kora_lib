@@ -12,7 +12,7 @@ Runs a progress bar for `payload.duration` ms.
 - `payload: QBProgressBarPayload`
   - `label: string` — Text shown above the bar. Required.
   - `duration: integer` — Milliseconds the bar takes to fill. Must be `> 0` and `<= Config.progressbar.maxDuration` (10 minutes by default).
-  - `canCancel?: boolean` — Lets the player abort early by pressing `Config.progressbar.cancelControl` (`73` / "X" by default). Defaults to `false`.
+- `canCancel?: boolean` — Lets the player abort early with `Config.progressbar.cancelControls` (`73` / X or `322` / Escape by default). Defaults to `false`.
   - `disable?: table`
     - `move?: boolean` — Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to `false`.
     - `combat?: boolean` — Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to `false`.

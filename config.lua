@@ -10,9 +10,9 @@ Config.ui = {
 -- Keeping them here makes the gameplay-side interaction rebindable without
 -- changing the NUI, which remains a pointer-transparent display layer.
 Config.interact = {
-    previousControls = { 27 }, -- INPUT_PHONE / Up
-    nextControls = { 173 }, -- INPUT_CELLPHONE_DOWN / Down
-    selectControls = { 38 }, -- INPUT_PICKUP / E
+    previousControls = { 27, 15 }, -- INPUT_PHONE / Up, INPUT_WEAPON_WHEEL_PREV / Mouse wheel up
+    nextControls = { 173, 14 }, -- INPUT_CELLPHONE_DOWN / Down, INPUT_WEAPON_WHEEL_NEXT / Mouse wheel down
+    selectControls = { 38, 24 }, -- INPUT_PICKUP / E, INPUT_ATTACK / Left mouse button
     cancelControls = { 322, 177, 200 }, -- Escape, Backspace, Pause
 }
 
@@ -87,7 +87,7 @@ Config.blips = {
 Config.progressbar = {
     maxDuration = 600000, -- ms; the hard ceiling QB.progressbar.start() enforces (10 minutes)
     maxProps = 2,         -- maximum number of local cosmetic props one progress bar may attach
-    cancelControl = 73,   -- control id checked when payload.canCancel is true -- 73 = INPUT_VEH_EXIT, the "X" key
+    cancelControls = { 73, 322 }, -- checked when payload.canCancel is true -- X and Escape by default
 }
 
 -- compat/client/qb-radialmenu.lua's built-in wheel content -- the same

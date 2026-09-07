@@ -39,6 +39,17 @@ _G.SetNuiFocus = function(mouse, keyboard)
     table.insert(focusCalls, { mouse = mouse, keyboard = keyboard })
 end
 
+-- qblib imports qbtheme's bridge before this module in production. Model the
+-- bridge's important contract here: a nil app accent restores the player's
+-- saved /theme colour rather than clearing the browser back to the server
+-- default.
+local playerAccent = "#7C3AED"
+_G.QBTheme = {
+    apply = function(accent)
+        SendNUIMessage({ action = "qbtheme:override", data = accent or playerAccent })
+    end,
+}
+
 dofile(repoRoot .. "modules/nui/client.lua")
 
 -- Simulates the NUI responding to the given request id/token via the shared
@@ -180,12 +191,14 @@ harness.test("openMenu forwards optional geometry without changing the existing 
         maxWidth = 400,
         maxHeight = 680,
     }
-    QB.nui.openMenu({ { id = "a", label = "A" } }, "Compact", opts)
+    local p = QB.nui.openMenu({ { id = "a", label = "A" } }, "Compact", opts)
 
     local payload = sentMessages[#sentMessages].data.payload
     harness.assertEqual(payload.position, opts.position, "position should be forwarded as-is")
     harness.assertEqual(payload.maxWidth, 400, "maxWidth should be forwarded")
     harness.assertEqual(payload.maxHeight, 680, "maxHeight should be forwarded")
+    respondOk(lastRequestId(), { cancelled = true })
+    harness.assertEqual(p.state, "resolved", "the geometry test should settle its menu")
 end)
 
 harness.test("openMenu grants focus while open and releases it once answered", function()
@@ -218,12 +231,14 @@ end)
 
 harness.test("openContextMenu forwards items and an (x, y) anchor", function()
     local items = { { id = "a", label = "A" } }
-    QB.nui.openContextMenu(items, 100, 200)
+    local p = QB.nui.openContextMenu(items, 100, 200)
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openContextMenu", "openContextMenu should send the openContextMenu action")
     harness.assertEqual(sent.data.payload.x, 100, "x should be forwarded as-is")
     harness.assertEqual(sent.data.payload.y, 200, "y should be forwarded as-is")
+    respondOk(lastRequestId(), { cancelled = true })
+    harness.assertEqual(p.state, "resolved", "the context-menu test should settle its request")
 end)
 
 harness.test("openRadialMenu forwards shared menu items and optional geometry", function()
@@ -287,6 +302,23 @@ harness.test("openInputDialog forwards fields/title/description and resolves wit
 
     respondOk(lastRequestId(), { values = { amount = 5 } })
     harness.assertEqual(p.value.values.amount, 5, "should resolve with the NUI's raw InputDialogResult")
+end)
+
+harness.test("openInputDialog applies the shared field schema before taking focus", function()
+    local beforeMessages, beforeFocus = #sentMessages, #focusCalls
+
+    harness.assertThrows(function()
+        QB.nui.openInputDialog({ { id = "amount", label = "Amount", type = "number", min = 10, max = 5 } })
+    end, "invalid standalone field bounds should be rejected")
+    harness.assertThrows(function()
+        QB.nui.openInputDialog({ { id = "kind", label = "Kind", type = "select" } })
+    end, "standalone selects should require options just like AppShell forms")
+    harness.assertThrows(function()
+        QB.nui.openInputDialog({ { id = "child", label = "Child", type = "text", dependsOn = "missing" } })
+    end, "standalone dependent fields should reference a declared field")
+
+    harness.assertEqual(#sentMessages, beforeMessages, "invalid standalone fields must not reach the browser")
+    harness.assertEqual(#focusCalls, beforeFocus, "invalid standalone fields must not acquire a focus lease")
 end)
 
 harness.test("openAlert forwards optional artwork and manages focus until answered", function()
@@ -385,9 +417,26 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     harness.assertEqual(p.value.reason, "close", "the browser close result should settle openApp")
     harness.assertFalse(QB.nui.isAppOpen(), "settling openApp should clear the active instance")
     harness.assertEqual(sentMessages[#sentMessages].action, "qbtheme:override", "closing should reset the app accent")
-    harness.assertEqual(sentMessages[#sentMessages].data, nil, "closing should restore the configured palette")
+    harness.assertEqual(sentMessages[#sentMessages].data, playerAccent, "closing should restore the player's /theme colour")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "settling openApp should release NUI focus")
     harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
+end)
+
+harness.test("an app without its own accent keeps the player's /theme colour", function()
+    QB.nui.registerApp({
+        id = "smoke:player-theme",
+        title = "Player theme",
+        navigation = { { id = "home", label = "Home" } },
+    })
+    local p = QB.nui.openApp("smoke:player-theme")
+
+    local open = sentMessages[#sentMessages]
+    local accent = sentMessages[#sentMessages - 1]
+    harness.assertEqual(accent.action, "qbtheme:override", "opening should apply the effective theme through qbtheme")
+    harness.assertEqual(accent.data, playerAccent, "an unthemed app must retain the player's saved colour")
+
+    respond(open.data.requestId, open.data.token, true, { closed = true, reason = "close" })
+    harness.assertEqual(p.value.reason, "close", "the unthemed app should still settle normally")
 end)
 
 harness.test("AppShell actions require the active token and route context to the registered handler", function()
@@ -395,7 +444,9 @@ harness.test("AppShell actions require the active token and route context to the
     QB.nui.registerApp({
         id = "smoke:actions",
         title = "Actions",
-        navigation = { { id = "dashboard", label = "Dashboard" } },
+        navigation = { { id = "dashboard", label = "Dashboard", content = { actions = {
+            { id = "open-record", label = "Open record" },
+        } } } },
         onAction = function(actionId, context)
             receivedAction, receivedContext = actionId, context
             return { update = { footer = "Updated" } }
@@ -541,6 +592,231 @@ harness.test("registerApp rejects definitions that would strand focus in an unre
             navigation = { { id = "home", label = "Home" } },
         })
     end, "an invalid app accent must be rejected before opening")
+end)
+
+harness.test("nested dialogs release only their own focus lease while AppShell remains open", function()
+    QB.nui.registerApp({ id = "smoke:nested-focus", title = "Nested", navigation = { { id = "home", label = "Home" } } })
+    local app = QB.nui.openApp("smoke:nested-focus")
+    local appRequestId, appToken = lastRequestId(), lastToken()
+    local dialog = QB.nui.openInputDialog({ { id = "note", label = "Note", type = "text" } })
+
+    respondOk(lastRequestId(), { cancelled = true })
+    harness.assertEqual(dialog.state, "resolved", "the nested dialog should settle")
+    local afterDialog = focusCalls[#focusCalls]
+    harness.assertTrue(afterDialog.mouse and afterDialog.keyboard,
+        "settling a nested dialog must retain the app's focus lease")
+
+    respond(appRequestId, appToken, true, { closed = true, reason = "close" })
+    harness.assertEqual(app.state, "resolved", "the underlying app should still settle normally")
+    harness.assertFalse(focusCalls[#focusCalls].mouse or focusCalls[#focusCalls].keyboard,
+        "focus should release after the final lease closes")
+end)
+
+harness.test("AppShell rejects action ids not declared anywhere in the active definition", function()
+    local called = false
+    QB.nui.registerApp({
+        id = "smoke:declared-actions",
+        title = "Declared actions",
+        navigation = { { id = "home", label = "Home", content = { actions = {
+            { id = "allowed", label = "Allowed" },
+        } } } },
+        onAction = function() called = true end,
+    })
+    QB.nui.openApp("smoke:declared-actions")
+    local requestId, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:declared-actions", token = token,
+        actionId = "undeclared", viewId = "home" }, function(value) response = value end)
+    harness.assertFalse(response.ok, "an undeclared action should be rejected")
+    harness.assertFalse(called, "an undeclared action must not reach the owner")
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
+harness.test("closeBeforeAction settles AppShell and releases focus before owner code runs", function()
+    local focusedDuringHandler
+    QB.nui.registerApp({
+        id = "smoke:close-before",
+        title = "Close before",
+        navigation = { { id = "home", label = "Home", content = { actions = {
+            { id = "editor", label = "Open editor", closeBeforeAction = true },
+        } } } },
+        onAction = function()
+            local focus = focusCalls[#focusCalls]
+            focusedDuringHandler = focus.mouse or focus.keyboard
+            return { notice = { tone = "success", message = "Editor complete." } }
+        end,
+    })
+    local opened = QB.nui.openApp("smoke:close-before")
+    local _, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:close-before", token = token,
+        actionId = "editor", viewId = "home" }, function(value) response = value end)
+    harness.assertTrue(response.ok, "a declared close-before action should run")
+    harness.assertEqual(opened.state, "resolved", "the shell request should settle before the handler returns")
+    harness.assertFalse(focusedDuringHandler, "the owner handler must run after AppShell releases focus")
+    harness.assertFalse(QB.nui.isAppOpen(), "the shell should no longer be active")
+end)
+
+harness.test("closeBeforeAction reports owner failures after the shell is gone", function()
+    local notified
+    QB.notify.send = function(options) notified = options end
+    QB.nui.registerApp({
+        id = "smoke:close-before-error",
+        title = "Close before error",
+        navigation = { { id = "home", label = "Home", content = { actions = {
+            { id = "editor", label = "Open editor", closeBeforeAction = true },
+        } } } },
+        onAction = function() error("editor failed") end,
+    })
+    local opened = QB.nui.openApp("smoke:close-before-error")
+    local token = lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:close-before-error", token = token,
+        actionId = "editor", viewId = "home" }, function(value) response = value end)
+
+    harness.assertFalse(response.ok, "an owner failure should be returned to the browser callback")
+    harness.assertEqual(opened.state, "resolved", "the shell should already be settled when the owner fails")
+    harness.assertEqual(notified.type, "error", "a closed-shell failure must be visible as an error notification")
+end)
+
+harness.test("AppShell validates and returns navigation and notice action results", function()
+    QB.nui.registerApp({
+        id = "smoke:result-shapes",
+        title = "Results",
+        navigation = {
+            { id = "home", label = "Home", content = { actions = { { id = "go", label = "Go" } } } },
+            { id = "records", label = "Records", tabs = { { id = "recent", label = "Recent" } } },
+        },
+        onAction = function()
+            return { navigate = { viewId = "records", tabId = "recent" },
+                notice = { tone = "primary", message = "Moved." } }
+        end,
+    })
+    QB.nui.openApp("smoke:result-shapes")
+    local requestId, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:result-shapes", token = token,
+        actionId = "go", viewId = "home" }, function(value) response = value end)
+    harness.assertTrue(response.ok, "valid result shapes should be accepted")
+    harness.assertEqual(response.result.navigate.viewId, "records", "navigation should pass to the browser")
+    harness.assertEqual(response.result.notice.message, "Moved.", "notice should pass to the browser")
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
+harness.test("AppShell applies updates before validating result navigation", function()
+    QB.nui.registerApp({
+        id = "smoke:update-navigation",
+        title = "Update navigation",
+        navigation = { { id = "home", label = "Home", content = { actions = {
+            { id = "load", label = "Load" },
+        } } } },
+        onAction = function()
+            return {
+                update = { navigation = {
+                    { id = "home", label = "Home" },
+                    { id = "records", label = "Records", tabs = { { id = "new", label = "New" } } },
+                } },
+                navigate = { viewId = "records", tabId = "new" },
+            }
+        end,
+    })
+    QB.nui.openApp("smoke:update-navigation")
+    local requestId, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:update-navigation", token = token,
+        actionId = "load", viewId = "home" }, function(value) response = value end)
+
+    harness.assertTrue(response.ok, "navigation may target a view introduced by the same result update")
+    harness.assertEqual(response.result.app.navigation[2].id, "records", "the validated replacement definition should reach the browser")
+    harness.assertEqual(response.result.navigate.tabId, "new", "the navigation result should remain intact")
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
+harness.test("AppShell recursively validates dependent fields and nested collection actions", function()
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-dependent-field",
+            title = "Invalid fields",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "form", id = "filters", fields = {
+                    { id = "city", label = "City", type = "select", options = {}, dependsOn = "missing" },
+                }, action = { id = "filter", label = "Filter" },
+            } } } } },
+        })
+    end, "a dependent field must reference a field in its form")
+
+    local called
+    QB.nui.registerApp({
+        id = "smoke:nested-action",
+        title = "Nested list",
+        navigation = { { id = "home", label = "Home", content = { blocks = { {
+            type = "list", items = { { id = "parent", label = "Parent", children = {
+                { id = "child", label = "Child", action = "open-child" },
+            } } },
+        } } } } },
+        onAction = function(action) called = action end,
+    })
+    QB.nui.openApp("smoke:nested-action")
+    local requestId, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:nested-action", token = token,
+        actionId = "open-child", viewId = "home", itemId = "child" }, function(value) response = value end)
+    harness.assertTrue(response.ok, "a recursively declared child action should be accepted")
+    harness.assertEqual(called, "open-child", "the nested child action should reach its owner")
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
+harness.test("AppShell rejects malformed field, tab, and collection contracts", function()
+    local function appWithField(id, field)
+        return {
+            id = "smoke:" .. id,
+            title = "Invalid contract",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "form", id = "form", fields = { field }, action = { id = "save", label = "Save" },
+            } } } } },
+        }
+    end
+
+    local invalidFields = {
+        { id = "pattern", label = "Pattern", type = "text", pattern = 42 },
+        { id = "bounds", label = "Bounds", type = "number", min = 5, max = 1 },
+        { id = "length", label = "Length", type = "text", minLength = 5, maxLength = 1 },
+        { id = "options", label = "Options", type = "select", options = { { value = "one" } } },
+        { id = "presets", label = "Presets", type = "number", presets = { { value = "ten" } } },
+        { id = "default", label = "Default", type = "multiselect", options = {}, default = "one" },
+        { id = "visible", label = "Visible", type = "text", visibleWhen = { fieldId = "visible", equals = {} } },
+    }
+    for index, field in ipairs(invalidFields) do
+        harness.assertThrows(function() QB.nui.registerApp(appWithField("bad-field-" .. index, field)) end,
+            "malformed field contracts must be rejected recursively")
+    end
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-default-tab", title = "Invalid tab",
+            navigation = { { id = "home", label = "Home", defaultTab = "missing", tabs = {
+                { id = "present", label = "Present" },
+            } } },
+        })
+    end, "defaultTab must name a declared tab")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-list-layout", title = "Invalid list",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "list", layout = "carousel", searchable = "yes", pageSize = 0, items = {},
+            } } } } },
+        })
+    end, "list layout and paging/search options must use supported types")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-table-sort", title = "Invalid table",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "table", columns = { { key = "name", label = "Name", sortable = "yes" } }, rows = {},
+            } } } } },
+        })
+    end, "table sorting options must use supported types")
 end)
 
 harness.report("nui")

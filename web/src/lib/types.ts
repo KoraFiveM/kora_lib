@@ -130,9 +130,15 @@ export interface OpenRadialMenuPayload {
 // it's just { selectedId }. Flat callers can keep reading selectedId alone.
 export type MenuResult = { selectedId: string; path: string[] } | { cancelled: true }
 
-export type FieldValue = string | number | boolean
+export type FieldValue = string | number | boolean | string[]
 
-export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "range" | "combobox"
+export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox"
+
+export interface InputOption {
+    value: string | number
+    label: string
+    disabled?: boolean
+}
 
 export interface InputField {
     id: string
@@ -140,12 +146,13 @@ export interface InputField {
     type: InputFieldType
     // `select` (fixed choice) and `combobox` (free text + filtered
     // suggestions from this same list) both use this.
-    options?: { value: string; label: string }[]
+    options?: InputOption[]
     /** Select options keyed by another select field's current value. */
-    optionsByValue?: Record<string, { value: string; label: string }[]>
+    optionsByValue?: Record<string, InputOption[]>
     /** Field id that selects this field's `optionsByValue` entry. */
     dependsOn?: string
     default?: FieldValue
+    description?: string
     placeholder?: string
     // textarea only; ignored by every other field type.
     rows?: number
@@ -156,7 +163,17 @@ export interface InputField {
     required?: boolean
     min?: number
     max?: number
+    minLength?: number
+    maxLength?: number
     pattern?: string
+    /** Optional compact numeric keypad, primarily for short PIN entry. */
+    keypad?: boolean
+    /** Strip non-digits from textual input and request a numeric keyboard. */
+    numericOnly?: boolean
+    /** Quick values rendered below number fields. */
+    presets?: { label?: string; value: number }[]
+    /** Render this field only when another field has the given scalar value. */
+    visibleWhen?: { fieldId: string; equals: string | number | boolean }
     /**
      * Slider granularity, `range` only (default 1). `min`/`max` are not
      * optional for a range in practice -- a slider with no bounds has nothing
@@ -170,6 +187,7 @@ export interface OpenInputDialogPayload {
     title?: string
     description?: string
     fields: InputField[]
+    labels?: Partial<AppShellLabels>
 }
 
 export type InputDialogResult = { values: Record<string, FieldValue> } | { cancelled: true }
@@ -221,6 +239,8 @@ export interface AppAction {
     fields?: InputField[]
     /** A short acknowledgement shown above destructive in-shell actions. */
     confirm?: string
+    /** Release the shell before invoking actions which open another UI or world editor. */
+    closeBeforeAction?: boolean
 }
 
 export interface AppStat {
@@ -235,10 +255,26 @@ export interface AppTableColumn {
     key: string
     label: string
     align?: "left" | "center" | "right"
+    sortable?: boolean
 }
 
-export type AppTableValue = string | number | boolean | null
+export interface AppRichValue {
+    value?: string | number | boolean | null
+    label?: string
+    description?: string
+    icon?: string
+    tone?: AppTone
+    badge?: boolean
+}
+
+export type AppTableValue = string | number | boolean | null | AppRichValue
 export type AppTableRow = Record<string, AppTableValue>
+
+export interface AppMetadataItem {
+    label: string
+    value: string | number | boolean
+    tone?: AppTone
+}
 
 export interface AppListItem {
     id: string
@@ -247,16 +283,107 @@ export interface AppListItem {
     icon?: string
     badge?: string | number
     tone?: AppTone
+    action?: string | AppAction
+    data?: unknown
+    image?: string
+    metadata?: AppMetadataItem[]
+    actions?: AppAction[]
+    children?: AppListItem[]
+}
+
+export interface AppDetailItem {
+    label: string
+    value?: string | number | boolean | null
+    description?: string
+    icon?: string
+    tone?: AppTone
+}
+
+export interface AppTimelineItem {
+    id: string
+    title: string
+    description?: string
+    timestamp?: string
+    icon?: string
+    tone?: AppTone
+    metadata?: AppMetadataItem[]
+    actions?: AppAction[]
+}
+
+export interface AppMapMarker {
+    id: string
+    x: number
+    y: number
+    label: string
+    description?: string
+    heading?: number
+    tone?: AppTone
+    icon?: string
     action?: string
     data?: unknown
+    expiresAt?: number
+    /** Optional marker-specific fade window before expiry; overrides the map block default. */
+    fadeDuration?: number
+}
+
+export interface AppMapTiles {
+    /** URL template using {z}, {x}, and {y}; cross-resource cfx-nui URLs are supported. */
+    url: string
+    tileSize?: number
+    grid?: { x: number; y: number }
+    /** Optional two-point affine calibration from world coordinates to image pixels. */
+    calibration?: {
+        a: { world: { x: number; y: number }; image: { x: number; y: number } }
+        b: { world: { x: number; y: number }; image: { x: number; y: number } }
+    }
+}
+
+export interface AppShellLabels {
+    cancel: string
+    confirm: string
+    working: string
+    runAction: string
+    search: string
+    previous: string
+    next: string
+    noRecords: string
+    nothingHere: string
+    emptyTitle: string
+    emptyDescription: string
+    close: string
+    select: string
+    required: string
+    invalidFormat: string
+    minValue: string
+    maxValue: string
+    minLength: string
+    maxLength: string
+    page: string
+    recenter: string
+    clear: string
+    backspace: string
+    back: string
+    open: string
+    yes: string
+    no: string
+    map: string
+    zoomIn: string
+    zoomOut: string
+    value: string
+    decrease: string
+    increase: string
 }
 
 export type AppBlock =
     | { type: "text"; title?: string; text: string }
     | { type: "stats"; title?: string; items: AppStat[] }
-    | { type: "table"; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string }
-    | { type: "list"; title?: string; items: AppListItem[]; empty?: string }
-    | { type: "actions"; title?: string; actions: AppAction[] }
+    | { type: "table"; id?: string; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
+    | { type: "list"; id?: string; title?: string; items: AppListItem[]; empty?: string; layout?: "list" | "grid" | "cards"; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
+    | { type: "actions"; id?: string; title?: string; actions: AppAction[] }
+    | { type: "form"; id: string; title?: string; description?: string; fields: InputField[]; action: AppAction; submitLabel?: string }
+    | { type: "details"; id?: string; title?: string; columns?: number; items: AppDetailItem[] }
+    | { type: "timeline"; id?: string; title?: string; items: AppTimelineItem[]; empty?: string }
+    | { type: "map"; id?: string; title?: string; tiles: AppMapTiles; markers: AppMapMarker[]; selectedId?: string; action?: string; minZoom?: number; maxZoom?: number; initialZoom?: number; follow?: boolean; recenter?: { x: number; y: number }; now?: number; fadeDuration?: number; empty?: string }
     | { type: "empty"; title: string; description?: string; icon?: string }
 
 export interface AppContent {
@@ -292,12 +419,15 @@ export interface AppDefinition {
     description?: string
     icon?: string
     navigation: AppNavigationItem[]
+    layout?: "standard" | "compact"
     defaultView?: string
     width?: number
     height?: number
     footer?: string
-    /** #RRGGBB primary colour applied by Lua for this app's open lifetime. */
+    /** #RRGGBB primary colour applied for this app's lifetime; omitted apps retain the player's /theme colour. */
     accent?: string
+    /** Supplied by qblib from its active locale; consumers normally omit it. */
+    labels?: Partial<AppShellLabels>
 }
 
 // action: "openApp" (request)
@@ -343,6 +473,8 @@ export interface AppActionRequest {
 export interface AppActionResult {
     close?: boolean
     app?: AppDefinition
+    navigate?: { viewId: string; tabId?: string; replace?: boolean }
+    notice?: { tone: AppTone; message: string }
 }
 
 export interface AppActionResponse {

@@ -318,7 +318,7 @@
 ---@class QBProgressBarPayload
 ---@field label string
 ---@field duration integer
----@field canCancel? boolean
+---@field canCancel? boolean Enables cancellation with X or Escape (Config.progressbar.cancelControls).
 ---@field disable? QBProgressBarDisable
 ---@field anim? QBProgressBarAnim
 ---@field scenario? QBProgressBarScenario
@@ -391,7 +391,7 @@
 ---@class QBAlertResult
 ---@field confirmed boolean
 
----@alias QBInputType 'text'|'password'|'textarea'|'number'|'checkbox'|'select'|'range'|'combobox'
+---@alias QBInputType 'text'|'password'|'textarea'|'number'|'checkbox'|'select'|'multiselect'|'range'|'combobox'
 ---@class QBInputOption
 ---@field value string|number
 ---@field label string
@@ -407,11 +407,18 @@
 ---@field required? boolean
 ---@field min? number
 ---@field max? number
+---@field minLength? integer
+---@field maxLength? integer
 ---@field pattern? string
+---@field step? number Number/range increment; defaults to 1.
+---@field keypad? boolean Render a compact numeric keypad for textual PIN entry.
+---@field numericOnly? boolean Strip non-digit input in the browser.
+---@field presets? {label?: string, value: number}[] Quick amount values.
 ---@field rows? integer
 ---@field options? QBInputOption[]
 ---@field optionsByValue? table<string, QBInputOption[]> Select options keyed by dependsOn's selected value.
 ---@field dependsOn? string Id of the select field that controls optionsByValue.
+---@field visibleWhen? {fieldId: string, equals: string|number|boolean} Render only when another field equals this value.
 
 ---@class QBInputResult
 ---@field values? table<string, any>
@@ -429,6 +436,7 @@
 ---@field data? any
 ---@field fields? QBInputField[] Fields collected inline by AppShell before this action runs.
 ---@field confirm? string Acknowledgement shown before submitting this action.
+---@field closeBeforeAction? boolean Close and release AppShell before invoking the action handler.
 
 ---@class QBAppStat
 ---@field label string
@@ -441,6 +449,22 @@
 ---@field key string
 ---@field label string
 ---@field align? 'left'|'center'|'right'
+---@field sortable? boolean
+
+---@class QBAppRichValue
+---@field value? string|number|boolean
+---@field label? string
+---@field description? string
+---@field icon? string
+---@field tone? QBAppTone
+---@field badge? boolean
+
+---@alias QBAppTableValue string|number|boolean|QBAppRichValue
+
+---@class QBAppMetadataItem
+---@field label string
+---@field value string|number|boolean
+---@field tone? QBAppTone
 
 ---@class QBAppListItem
 ---@field id string
@@ -449,24 +473,88 @@
 ---@field icon? string
 ---@field badge? string|number
 ---@field tone? QBAppTone
----@field action? string Action id routed to the registered onAction handler.
+---@field action? string|QBAppAction Action routed to the registered onAction handler.
 ---@field data? any
+---@field image? string
+---@field metadata? QBAppMetadataItem[]
+---@field actions? QBAppAction[]
+---@field children? QBAppListItem[]
 
----@alias QBAppBlockType 'text'|'stats'|'table'|'list'|'actions'|'empty'
+---@class QBAppDetailItem
+---@field label string
+---@field value? string|number|boolean
+---@field description? string
+---@field icon? string
+---@field tone? QBAppTone
+
+---@class QBAppTimelineItem
+---@field id string
+---@field title string
+---@field description? string
+---@field timestamp? string
+---@field icon? string
+---@field tone? QBAppTone
+---@field metadata? QBAppMetadataItem[]
+---@field actions? QBAppAction[]
+
+---@class QBAppPoint
+---@field x number
+---@field y number
+
+---@class QBAppMapCalibrationPoint
+---@field world QBAppPoint
+---@field image QBAppPoint
+
+---@class QBAppMapTiles
+---@field url string URL template containing {z}, {x}, and {y}; cross-resource cfx-nui URLs are supported.
+---@field tileSize? number Defaults to 256.
+---@field grid? QBAppPoint Tile counts at maxZoom.
+---@field calibration? {a: QBAppMapCalibrationPoint, b: QBAppMapCalibrationPoint} Two-point world-to-image calibration.
+
+---@class QBAppMapMarker: QBAppPoint
+---@field id string
+---@field label string
+---@field description? string
+---@field heading? number
+---@field tone? QBAppTone
+---@field icon? string
+---@field action? string
+---@field data? any
+---@field expiresAt? number
+---@field fadeDuration? number Marker-specific fade window before expiresAt; overrides the block default.
+
+---@alias QBAppBlockType 'text'|'stats'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'
 
 ---@class QBAppBlock
 ---@field type QBAppBlockType
 ---@field title? string
 ---@field text? string Text block body.
----@field description? string Empty-state description.
+---@field description? string Form or empty-state description.
 ---@field icon? string Empty-state icon.
----@field items? QBAppStat[]|QBAppListItem[] Stats/list items.
+---@field items? QBAppStat[]|QBAppListItem[]|QBAppDetailItem[]|QBAppTimelineItem[] Block items.
 ---@field actions? QBAppAction[] Action-block buttons.
----@field columns? QBAppTableColumn[] Table columns.
----@field rows? table<string, string|number|boolean>[] Table rows.
+---@field columns? QBAppTableColumn[]|integer Table columns, or the 1-3 column count for details.
+---@field rows? table<string, QBAppTableValue>[] Table rows.
 ---@field empty? string Empty list/table label.
----@field action? string Action id emitted when a table row is selected.
+---@field action? string|QBAppAction Table/map action id, or the always-visible form action.
 ---@field idKey? string Table row key copied into action context.itemId.
+---@field id? string Stable block identity used for drafts and local collection state.
+---@field layout? 'list'|'grid'|'cards' List presentation.
+---@field searchable? boolean Enable client-side filtering.
+---@field searchPlaceholder? string
+---@field pageSize? integer Enable client-side paging when positive.
+---@field fields? QBInputField[] Always-visible form fields.
+---@field submitLabel? string Always-visible form submit label.
+---@field tiles? QBAppMapTiles Map tile URL/projection definition.
+---@field markers? QBAppMapMarker[] Map markers.
+---@field selectedId? string Selected map marker.
+---@field minZoom? number
+---@field maxZoom? number
+---@field initialZoom? number
+---@field follow? boolean
+---@field recenter? QBAppPoint
+---@field now? number
+---@field fadeDuration? number
 
 ---@class QBAppContent
 ---@field title? string
@@ -498,11 +586,12 @@
 ---@field description? string
 ---@field icon? string
 ---@field navigation QBAppNavigationItem[]
+---@field layout? 'standard'|'compact'
 ---@field defaultView? string
----@field width? number Pixels; clamped to 720-1600.
----@field height? number Pixels; clamped to 480-960.
+---@field width? number Pixels; clamped to 720-1600 in standard layout and 420-1600 in compact layout.
+---@field height? number Pixels; clamped to 420-960.
 ---@field footer? string
----@field accent? string #RRGGBB primary colour applied while this app is open.
+---@field accent? string #RRGGBB primary colour applied while this app is open; omitted apps retain the player's /theme colour.
 ---@field onAction? fun(actionId: string, context: QBAppActionContext): QBAppActionResult?
 
 ---@class QBAppOpenOptions
@@ -521,6 +610,8 @@
 ---@class QBAppActionResult
 ---@field update? table Partial QBAppDefinition to merge and render immediately.
 ---@field close? boolean Close the app after the action.
+---@field navigate? {viewId: string, tabId?: string, replace?: boolean} Navigate without rebuilding the definition.
+---@field notice? {tone: QBAppTone, message: string} Show an in-shell notice (or a notification when the action closes AppShell).
 
 ---@class QBAppResult
 ---@field closed boolean

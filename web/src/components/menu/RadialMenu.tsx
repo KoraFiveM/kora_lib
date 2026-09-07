@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn"
 import { resolveIcon } from "@/lib/icon"
 import type { MenuItem, MenuResult, OpenRadialMenuPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
+import { getNuiViewport } from "@/lib/viewport"
 
 const MAX_RING_ITEMS = 8
 const PAGE_SIZE_WITH_MORE = MAX_RING_ITEMS - 1
@@ -164,8 +165,9 @@ export function RadialMenuContainer() {
 
     if (!isOpen || !payload || !level) return null
 
+    const viewport = getNuiViewport()
     const requestedRadius = payload.radius ?? DEFAULT_RADIUS
-    const maximumRadius = Math.max(48, Math.min(window.innerWidth, window.innerHeight) / 2 - ITEM_HALF_SIZE - EDGE_GUTTER)
+    const maximumRadius = Math.max(48, Math.min(viewport.width, viewport.height) / 2 - ITEM_HALF_SIZE - EDGE_GUTTER)
     const radius = Math.min(Math.max(96, requestedRadius), maximumRadius)
     const activeEntry = entries[activeIndex]
     const activeItem = activeEntry?.kind === "item" ? activeEntry.item : undefined

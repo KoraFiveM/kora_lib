@@ -170,15 +170,21 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 #### Parameters
 - `fields: table[]` — one per input:
   - `id: string`, `label: string`
-  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "range" | "combobox"`
-  - `options?: { value, label }[]` — `select` and `combobox`. `select` restricts the result to one of these; `combobox` is a free-text field with these as filtered, clickable suggestions underneath it (matched against both `label` and `value`, case-insensitive substring, capped at 8) — picking one just fills the text box with its `value`, but any other typed text is submitted exactly as-is. Use `combobox` instead of `select` whenever the option list is a *suggestion* set rather than the only valid answers (e.g. a `Config.shared` vehicle-model list where an admin might still want to spawn an addon model that isn't in it).
+  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox"`
+  - `description?: string` — help text shared by standalone dialogs and AppShell forms.
+  - `options?: { value, label, disabled? }[]` — `select`, `multiselect`, and `combobox`. Numeric values are accepted for Lua compatibility and normalized to strings in browser results. `select` restricts the result to one option; `multiselect` returns a string array; `combobox` is free text with filtered suggestions (matched against label and value, capped at 8).
   - `rows?: integer` — `textarea` only (default 3).
   - `default?`, `placeholder?`
-  - `required?: boolean`, `min?: number`, `max?: number` (`number` only), `pattern?: string` (text-like types only) — optional client-side validation that gates the Confirm button. Convenience only: still validate anything that matters once you have the result.
+  - `required?: boolean`, `min?: number`, `max?: number` (`number`/`range`), `minLength?: integer`, `maxLength?: integer`, `pattern?: string` (text-like types) — optional client-side validation that gates submission. This is convenience only; validate authoritative values again in Lua/server code.
+  - `dependsOn?: string`, `optionsByValue?: table<string, option[]>` — select an option set using another field's current value. Invalid dependent selections reset atomically to the first available option.
+  - `visibleWhen?: { fieldId, equals }` — render and validate the field only when another field equals the given scalar value.
+  - `numericOnly?: boolean`, `keypad?: boolean` — restrict textual entry to digits and optionally render the compact keypad.
+  - `presets?: { value: number, label?: string }[]` — quick choices below a number field.
+  - `step?: number` — increment for number and range controls.
 - `title?: string`, `description?: string`
 
 #### Returns
-- `{ values: table<string, any> }` or `{ cancelled: true }`; `nil` on timeout/error.
+- `{ values: table<string, any> }` or `{ cancelled: true }`; `nil` on an NUI/export error.
 
 #### Example
 ```lua
@@ -195,9 +201,10 @@ end
 
 `registerApp` defines a full application once; `openApp` opens it later by id,
 with the same automatic focus and dismissal lifecycle as menus and inputs.
-qblib renders the shared application frame, sidebar, tabs, tables, lists,
-summary cards, empty states, and buttons. The registering resource remains the
-owner of its data and handles every action in Lua.
+qblib renders the shared application frame, navigation, tables, lists, forms,
+records, timelines, maps, summary cards, empty states, and buttons. The
+registering resource remains the owner of its data, permissions, validation,
+and every action handler in Lua.
 
 ```lua
 QB.nui.registerApp({
@@ -205,7 +212,7 @@ QB.nui.registerApp({
     title = 'Mobile Data Terminal',
     description = 'Los Santos Police Department',
     icon = 'Shield',
-    accent = '#3B82F6',
+    layout = 'standard',
     defaultView = 'dashboard',
     footer = 'LSPD secure network',
     navigation = {
@@ -259,9 +266,16 @@ local result = QB.nui.openApp('qbmdt:police', {
   The id should be namespaced (`resource:app`). A registration is removed
   automatically if its resource stops. An optional `accent = '#RRGGBB'`
   applies that primary colour only for the app's open lifetime; closing or
-  superseding the app restores qbtheme's configured palette.
-- `QB.nui.openApp(id, opts?)` opens it and returns after X, Escape, an action,
-  or `closeApp` closes it. The result is
+  superseding the app restores the player's `/theme` colour (or qbtheme's
+  configured palette when the player has not selected one). Apps without an
+  `accent` use that effective player/server theme throughout.
+- `layout = 'standard'` (the default) uses the sidebar at normal resolutions
+  and switches to horizontal navigation on smaller viewports. `layout =
+  'compact'` always uses horizontal navigation, permits a 420px minimum width,
+  and is intended for ATMs and focused single-workspace tools.
+- `QB.nui.openApp(id, opts?)` opens it and returns after X/Escape, an action
+  requests closure, the owner calls `closeApp`, the app is superseded, or its
+  resource stops. The result is
   `{ closed = true, reason, viewId?, tabId? }`.
 - `QB.nui.updateApp(id, update)` shallow-merges definition fields. Supplying
   `navigation` replaces the navigation tree as a whole. An open instance
@@ -271,24 +285,30 @@ local result = QB.nui.openApp('qbmdt:police', {
 - `QB.nui.unregisterApp(id)` closes an open instance and removes its
   registration.
 
-App actions can appear in `content.actions`, an `actions` block, a list item
-(`action`), or a table block (`action`). They all call `onAction(actionId,
-context)`. `context` includes `viewId`, `tabId`, optional `itemId`/`value`, and
-the private `opts.data` passed to `openApp`. Validate action values in Lua as
-you would any other client input.
+App actions can appear in `content.actions`, an `actions` or `form` block,
+list/timeline items, table rows, and map markers. They all call
+`onAction(actionId, context)`. `context` includes `viewId`, `tabId`, optional
+`itemId`/`value`, and the private `opts.data` passed to `openApp`. Definitions
+are validated recursively, and the browser cannot invoke an action id that is
+not declared in the active definition. Still treat action values as client
+input and validate them authoritatively in the owning resource/server.
 
-An action may also declare `fields`, using the same field schema as
-`openInputDialog`. AppShell expands those fields inline below the action and
-sends the resulting `{ [field.id] = value }` as `context.value` only when the
-admin submits it. This keeps a workflow such as player selection plus a reason
-inside the current application instead of stacking separate menus. Set
-`confirm = '…'` to require an explicit acknowledgement before a sensitive
-action; it also works for an action with no fields.
+An action may declare `fields`, using exactly the same renderer and validator
+as `openInputDialog`. Header forms render once below the content header;
+action-block and item forms render only under the block/item that launched
+them. Drafts survive unrelated `updateApp` refreshes. The submitted
+`{ [field.id] = value }` becomes `context.value`. Set `confirm = '…'` to add an
+explicit acknowledgement, including for actions with no fields.
 
-For dependent selects, set `dependsOn` to the controlling field id and provide
-`optionsByValue`, keyed by that field's option values. Changing the controlling
-selection immediately replaces the dependent choices and selects its first
-available option.
+Set `closeBeforeAction = true` when the handler launches another focused UI or
+world editor. qblib closes AppShell and releases its focus lease before calling
+the owner handler; handler/result failures are reported as notifications
+because the shell is no longer visible. Ordinary nested qblib dialogs instead
+take their own focus lease, so closing the child restores the still-open app.
+
+For dependent selects or multiselects, set `dependsOn` to the controlling field
+id and provide `optionsByValue`, keyed by that field's values. Changing the
+controller updates it and all dependent choices in one state transition.
 
 ```lua
 { id = 'warn', label = 'Warn player', fields = {
@@ -297,20 +317,46 @@ available option.
 } }
 ```
 
-An action handler may return `{ close = true }`, or return a definition patch
-as `{ update = { navigation = newNavigation } }`. The latter is applied to the
-registration and visible app before the action completes. For asynchronous
-pushes, call `updateApp` directly.
+An action handler may combine these result fields:
+
+- `update = { ... }` — shallow definition patch. It is validated and applied
+  before other result fields, so the same result may navigate to a newly added
+  view or tab. For asynchronous pushes, call `updateApp` directly.
+- `navigate = { viewId, tabId?, replace? }` — navigate without rebuilding the
+  definition. Unless `replace` is true, AppShell exposes Back to return to the
+  prior view/tab.
+- `notice = { tone, message }` — persistent in-shell feedback. If the action
+  also closes the shell, qblib routes the notice through notifications.
+- `close = true` — close AppShell after the action.
+
+Shell-owned copy (Cancel, Confirm, Working, paging, search/empty defaults, map
+controls, and accessibility labels) comes from `qblib/locales/*.json` through
+the normal locale fallback system. Consumer titles, action labels, field
+labels, and content remain the consumer's responsibility.
 
 #### Content blocks
 
 - `text`: `title?`, `text`
 - `stats`: `title?`, `items = { { label, value, description?, icon?, tone? } }`
-- `table`: `title?`, `columns`, `rows`, `empty?`, and optional row `action` /
-  `idKey`
-- `list`: `title?`, `items = { { id, label, description?, icon?, badge?,
-  tone?, action?, data? } }`
+- `table`: `id?`, `title?`, `columns = { { key, label, align?, sortable? } }`,
+  `rows`, `empty?`, row `action?` / `idKey?`, plus `searchable?`,
+  `searchPlaceholder?`, and `pageSize?`. A cell may be a scalar or
+  `{ value?, label?, description?, icon?, tone?, badge? }`.
+- `list`: `id?`, `title?`, `layout = 'list'|'grid'|'cards'`, `searchable?`,
+  `searchPlaceholder?`, `pageSize?`, and recursive items. Items support
+  `description`, `image`, `icon`, `badge`, `tone`, `metadata`, `children`, a
+  primary `action`, and multiple `actions`.
 - `actions`: `title?`, `actions`
+- `form`: `id`, `title?`, `description?`, `fields`, `action`, `submitLabel?` —
+  an always-visible shared form.
+- `details`: `id?`, `title?`, `columns?` (1-3), and labelled value items.
+- `timeline`: `id?`, `title?`, timestamped items with metadata and actions.
+- `map`: `id?`, `title?`, tile URL/projection definition, markers, selection,
+  pan/zoom/follow/recentre settings, and optional expiry/fade metadata. Tile
+  URLs use `{z}`, `{x}`, `{y}` placeholders and may point at another resource
+  through `https://cfx-nui-<resource>/...`; that resource keeps and exposes its
+  own tile assets. A marker's `fadeDuration` overrides the block default when
+  different marker classes have different lifetimes.
 - `empty`: `title`, `description?`, `icon?`
 
 Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.

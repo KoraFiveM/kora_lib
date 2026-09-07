@@ -1,6 +1,6 @@
 # Interact module
 
-`QB.interact` provides a compact, keyboard/gamepad-driven option selector for qblib zones. It is entirely client-side, remains click-through, and never grants NUI focus.
+`QB.interact` provides a compact, game-input-driven option selector for qblib zones. It is entirely client-side, remains click-through, and never grants NUI focus.
 
 ## Zone API
 
@@ -52,7 +52,7 @@ fields as zones, follow moving entities, and clean up automatically when the
 invoking resource stops. Use `QB.interact.removeEntity(entity, id?)` or
 `QB.interact.removeModel(model, id?)` for early teardown.
 
-While the selector is visible, E confirms the highlighted option. Space and Enter do not confirm it. Up/Down changes the highlighted option, and Escape/Backspace/Pause closes the selector.
+While the selector is visible, E or left-click confirms the highlighted option. Space and Enter do not confirm it. Up/Down or the mouse wheel changes the highlighted option, and Escape/Backspace/Pause closes the selector.
 
 These inputs are held through one reference-counted `QB.controls` lease for the selector's lifetime. Closing, replacing, selecting from, or losing the owning resource releases that lease without disturbing another qblib system that disabled the same control.
 

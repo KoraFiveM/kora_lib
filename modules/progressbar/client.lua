@@ -27,7 +27,7 @@
 ---@class QBProgressBarPayload
 ---@field label string Text shown above the bar.
 ---@field duration integer Milliseconds the bar takes to fill. Must be > 0 and <= Config.progressbar.maxDuration.
----@field canCancel? boolean Lets the player abort early by pressing Config.progressbar.cancelControl. Defaults to false.
+---@field canCancel? boolean Lets the player abort early with one of Config.progressbar.cancelControls. Defaults to false.
 ---@field disable? QBProgressBarDisable
 ---@field anim? QBProgressBarAnim Played for the duration, stopped and released automatically when the bar ends. Mutually exclusive with `scenario`.
 ---@field scenario? QBProgressBarScenario Played in place for the duration, stopped automatically when the bar ends. Mutually exclusive with `anim`.
@@ -74,6 +74,8 @@ local function assertPayload(payload)
     assert(isInteger(payload.duration) and payload.duration > 0, "Progress bar duration must be a positive integer.")
     assert(payload.duration <= Config.progressbar.maxDuration,
         ("Progress bar duration must be at most %d ms (Config.progressbar.maxDuration)."):format(Config.progressbar.maxDuration))
+    assert(payload.canCancel == nil or type(payload.canCancel) == "boolean",
+        "Progress bar canCancel must be a boolean.")
 
     if payload.anim then
         assert(type(payload.anim) == "table" and type(payload.anim.dict) == "string" and type(payload.anim.clip) == "string",
@@ -318,7 +320,11 @@ function QB.progressbar.start(payload)
 
             updateVehicleControls(session, payload.disable and payload.disable.car == true)
 
-            if payload.canCancel and IsControlJustPressed(0, Config.progressbar.cancelControl) then return true end
+            if payload.canCancel then
+                for _, control in ipairs(Config.progressbar.cancelControls) do
+                    if IsControlJustPressed(0, control) then return true end
+                end
+            end
             return false
         end, false, payload.duration)
 

@@ -222,20 +222,28 @@ harness.test("dying cancels the bar immediately", function()
     harness.assertEqual(nuiMessages[2].action, "progressCancel", "a cancelled bar should hide the NUI bar early")
 end)
 
-harness.test("canCancel lets the configured control abort the bar", function()
+harness.test("canCancel lets X abort the bar", function()
     reset()
-    pressedControls[Config.progressbar.cancelControl] = true
+    pressedControls[73] = true
     local completed = QB.progressbar.start({ label = "Working...", duration = 5000, canCancel = true })
 
-    harness.assertFalse(completed, "pressing the cancel control should cancel the bar")
+    harness.assertFalse(completed, "pressing X should cancel the bar")
 end)
 
-harness.test("the cancel control is ignored unless canCancel is set", function()
+harness.test("canCancel lets Escape abort the bar", function()
     reset()
-    pressedControls[Config.progressbar.cancelControl] = true
+    pressedControls[322] = true
+    local completed = QB.progressbar.start({ label = "Working...", duration = 5000, canCancel = true })
+
+    harness.assertFalse(completed, "pressing Escape should cancel the bar")
+end)
+
+harness.test("cancel controls are ignored unless canCancel is set", function()
+    reset()
+    pressedControls[322] = true
     local completed = QB.progressbar.start({ label = "Working...", duration = 500, canCancel = false })
 
-    harness.assertTrue(completed, "the cancel control should be inert without canCancel = true")
+    harness.assertTrue(completed, "cancel controls should be inert without canCancel = true")
 end)
 
 harness.test("disable.combat and disable.car disable the expected controls", function()

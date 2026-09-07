@@ -188,7 +188,7 @@ harness.test("isAvailable still honours a masked cross-resource canInteract", fu
     harness.assertEqual(lastMessage().data[1].label, "Allowed", "the allowed option should be the one that reaches the NUI")
 end)
 
-harness.test("game controls scroll, select, and cancel without NUI focus", function()
+harness.test("game controls and mouse scroll/select without NUI focus", function()
     reset()
     QB.interact.open({ { label = "First" }, { label = "Second" } })
 
@@ -204,6 +204,20 @@ harness.test("game controls scroll, select, and cancel without NUI focus", funct
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "scroll", "down control should send a scroll message")
     harness.assertEqual(lastMessage().data, 1, "down control should move forward")
+
+    pressedControls = { [15] = true } -- INPUT_WEAPON_WHEEL_PREV / Mouse wheel up
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "scroll", "mouse wheel up should send a scroll message")
+    harness.assertEqual(lastMessage().data, -1, "mouse wheel up should move backward")
+
+    pressedControls = { [14] = true } -- INPUT_WEAPON_WHEEL_NEXT / Mouse wheel down
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "scroll", "mouse wheel down should send a scroll message")
+    harness.assertEqual(lastMessage().data, 1, "mouse wheel down should move forward")
+
+    pressedControls = { [24] = true } -- INPUT_ATTACK / Left mouse button
+    mockHandle.step()
+    harness.assertEqual(lastMessage().action, "select", "left-click should select the highlighted option")
 
     pressedControls = { [Config.interact.cancelControls[1]] = true }
     mockHandle.step()

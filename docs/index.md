@@ -442,7 +442,7 @@ Everything routes onto the `QB.nui.open*` calls above.
 `qbtheme/config.lua` owns the shared palette and brand colour. qblib's
 `QB.theme` functions remain compatibility forwards to that resource.
 `Config.notify.defaultDuration/maxDuration/defaultType/defaultPosition`,
-`Config.progressbar.maxDuration/maxProps/cancelControl`, `Config.minigames.authorizationTTL/proofTTL/inputLimits/callbackRateLimits`, `Config.cache.tickInterval`,
+`Config.progressbar.maxDuration/maxProps/cancelControls`, `Config.minigames.authorizationTTL/proofTTL/inputLimits/callbackRateLimits`, `Config.cache.tickInterval`,
 `Config.zones.gridSize/tickFar/tickNear/tickInside/creator.enabled`,
 `Config.third_party_notify` (route notifications through an event instead of
 qblib's own NUI toast).
