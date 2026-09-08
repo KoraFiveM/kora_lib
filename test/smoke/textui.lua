@@ -34,6 +34,30 @@ harness.test('show renders the newest handle and exposes visibility state', func
     QB.textui.hide(first)
 end)
 
+harness.test('presentation options are validated and forwarded to NUI', function()
+    messages = {}
+    local style = { backgroundColor = '#111111' }
+    local id = QB.textui.show('**Markdown**', {
+        icon = 'Bell',
+        iconColor = '#22c55e',
+        iconAnimation = 'pulse',
+        alignIcon = 'top',
+        style = style,
+    })
+
+    local payload = messages[#messages].data
+    harness.assertEqual(payload.iconColor, '#22c55e', 'icon colour should be forwarded')
+    harness.assertEqual(payload.iconAnimation, 'pulse', 'icon animation should be forwarded')
+    harness.assertEqual(payload.alignIcon, 'top', 'icon alignment should be forwarded')
+    harness.assertEqual(payload.style, style, 'surface style should be forwarded')
+    QB.textui.hide(id)
+
+    local css = 'background-color: #111; color: white'
+    id = QB.textui.show('String style', { style = css })
+    harness.assertEqual(messages[#messages].data.style, css, 'CSS declaration strings should be forwarded unchanged')
+    QB.textui.hide(id)
+end)
+
 harness.test('updating a hidden handle does not replace the visible entry', function()
     messages = {}
     local lower = QB.textui.show('Lower')
@@ -86,6 +110,10 @@ harness.test('invalid text and positions are rejected', function()
     harness.assertThrows(function() QB.textui.show('') end, 'empty text should fail')
     harness.assertThrows(function() QB.textui.show('Nope', { position = 'middle' }) end,
         'unsupported position should fail')
+    harness.assertThrows(function() QB.textui.show('Nope', { iconAnimation = 'flash' }) end,
+        'unsupported icon animation should fail')
+    harness.assertThrows(function() QB.textui.show('Nope', { alignIcon = 'bottom' }) end,
+        'unsupported icon alignment should fail')
 end)
 
 harness.report('textui')

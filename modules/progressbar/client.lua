@@ -1,7 +1,11 @@
 ---@class QBProgressBarDisable
 ---@field move? boolean Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to false.
+---@field moveMode? 'freeze'|'controls' How move=true is enforced. Defaults to freeze; ox compatibility uses controls.
+---@field controlProfile? 'qblib'|'ox' Selects the exact control set. Defaults to qblib.
+---@field sprint? boolean Disables sprinting. Defaults to false.
 ---@field combat? boolean Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to false.
 ---@field car? boolean Disables vehicle driving controls while the ped is in a vehicle. Defaults to false.
+---@field mouse? boolean Disables look input. Defaults to false.
 
 ---@class QBProgressBarAnim
 ---@field dict string Animation dictionary to play, requested and released automatically.
@@ -9,6 +13,12 @@
 ---@field flag? number AnimFlags bitmask passed to `TaskPlayAnim`. Defaults to 1 (loop).
 ---@field blendIn? number Defaults to 8.0.
 ---@field blendOut? number Defaults to 8.0.
+---@field stopBlendOut? number Cleanup blend-out override; ox_lib compatibility uses 1.0.
+---@field duration? integer Animation duration; defaults to -1.
+---@field playbackRate? number Animation playback rate; defaults to 0.
+---@field lockX? boolean
+---@field lockY? boolean
+---@field lockZ? boolean
 
 ---@class QBProgressBarScenario
 ---@field name string Scenario name to play, e.g. `"WORLD_HUMAN_HAMMERING"`.
@@ -27,17 +37,33 @@
 ---@class QBProgressBarPayload
 ---@field label string Text shown above the bar.
 ---@field duration integer Milliseconds the bar takes to fill. Must be > 0 and <= Config.progressbar.maxDuration.
+---@field maxDuration? integer|false Override the duration cap; false matches ox_lib's unbounded positive durations.
 ---@field canCancel? boolean Lets the player abort early with one of Config.progressbar.cancelControls. Defaults to false.
+---@field cancelControls? integer[]|false Override the local cancel controls; false delegates cancellation to a compatibility command.
+---@field useWhileDead? boolean Defaults to false.
+---@field allowRagdoll? boolean Defaults to false.
+---@field allowCuffed? boolean Defaults to false.
+---@field allowFalling? boolean Defaults to false.
+---@field allowSwimming? boolean Defaults to false.
+---@field presentation? 'bar'|'circle' Defaults to bar.
+---@field position? 'middle'|'bottom' Circle placement; defaults to middle.
 ---@field disable? QBProgressBarDisable
 ---@field anim? QBProgressBarAnim Played for the duration, stopped and released automatically when the bar ends. Mutually exclusive with `scenario`.
+---@field strictAnim? boolean Raise when an animation dictionary cannot load; ox_lib compatibility enables this.
 ---@field scenario? QBProgressBarScenario Played in place for the duration, stopped automatically when the bar ends. Mutually exclusive with `anim`.
 ---@field props? QBProgressBarProp[] Local cosmetic props attached to the player for the duration.
+---@field maxProps? integer|false Override the local prop cap; false matches ox_lib's uncapped local props.
 
 local busy = false
 local activeSession = nil
 
 local COMBAT_CONTROLS = { 24, 25, 47, 58, 140, 141, 142, 143 }
 local CAR_CONTROLS = { 63, 64, 71, 72 }
+local SPRINT_CONTROLS = { 21 }
+local MOUSE_CONTROLS = { 1, 2, 106 }
+local MOVEMENT_CONTROLS = { 21, 30, 31, 36 }
+local OX_COMBAT_CONTROLS = { 25 }
+local OX_CAR_CONTROLS = { 63, 64, 71, 72, 75 }
 
 local function deleteProgressProp(entity)
     if not entity or not DoesEntityExist(entity) then return end
@@ -72,15 +98,59 @@ local function assertPayload(payload)
     assert(type(payload) == "table", "Progress bar payload must be a table.")
     assert(type(payload.label) == "string" and #payload.label > 0, "Progress bar requires a label string.")
     assert(isInteger(payload.duration) and payload.duration > 0, "Progress bar duration must be a positive integer.")
-    assert(payload.duration <= Config.progressbar.maxDuration,
-        ("Progress bar duration must be at most %d ms (Config.progressbar.maxDuration)."):format(Config.progressbar.maxDuration))
+    assert(payload.maxDuration == nil or payload.maxDuration == false
+        or (isInteger(payload.maxDuration) and payload.maxDuration > 0),
+        "Progress bar maxDuration must be a positive integer or false.")
+    local maxDuration = payload.maxDuration == nil and Config.progressbar.maxDuration or payload.maxDuration
+    assert(maxDuration == false or payload.duration <= maxDuration,
+        ("Progress bar duration must be at most %d ms."):format(maxDuration or Config.progressbar.maxDuration))
     assert(payload.canCancel == nil or type(payload.canCancel) == "boolean",
         "Progress bar canCancel must be a boolean.")
+    assert(payload.cancelControls == nil or payload.cancelControls == false or type(payload.cancelControls) == 'table',
+        'Progress bar cancelControls must be an array or false.')
+    if type(payload.cancelControls) == 'table' then
+        local count = 0
+        for key, control in pairs(payload.cancelControls) do
+            assert(type(key) == 'number' and key >= 1 and key % 1 == 0,
+                'Progress bar cancelControls must be a dense array.')
+            assert(isInteger(control) and control >= 0, 'Progress bar cancelControls entries must be non-negative integers.')
+            count = count + 1
+        end
+        assert(count == #payload.cancelControls, 'Progress bar cancelControls must be a dense array.')
+    end
+    for _, field in ipairs({ 'useWhileDead', 'allowRagdoll', 'allowCuffed', 'allowFalling', 'allowSwimming' }) do
+        assert(payload[field] == nil or type(payload[field]) == 'boolean',
+            ("Progress bar %s must be a boolean."):format(field))
+    end
+    assert(payload.presentation == nil or payload.presentation == 'bar' or payload.presentation == 'circle',
+        "Progress bar presentation must be 'bar' or 'circle'.")
+    assert(payload.position == nil or payload.position == 'middle' or payload.position == 'bottom',
+        "Progress bar position must be 'middle' or 'bottom'.")
+    if payload.disable then
+        assert(type(payload.disable) == 'table', 'Progress bar disable must be a table.')
+        for _, field in ipairs({ 'move', 'sprint', 'combat', 'car', 'mouse' }) do
+            assert(payload.disable[field] == nil or type(payload.disable[field]) == 'boolean',
+                ("Progress bar disable.%s must be a boolean."):format(field))
+        end
+        assert(payload.disable.moveMode == nil or payload.disable.moveMode == 'freeze' or payload.disable.moveMode == 'controls',
+            "Progress bar disable.moveMode must be 'freeze' or 'controls'.")
+        assert(payload.disable.controlProfile == nil or payload.disable.controlProfile == 'qblib' or payload.disable.controlProfile == 'ox',
+            "Progress bar disable.controlProfile must be 'qblib' or 'ox'.")
+    end
 
     if payload.anim then
         assert(type(payload.anim) == "table" and type(payload.anim.dict) == "string" and type(payload.anim.clip) == "string",
             "Progress bar anim requires string dict/clip fields.")
+        assert(payload.anim.duration == nil or isInteger(payload.anim.duration), 'Progress bar anim duration must be an integer.')
+        assert(payload.anim.playbackRate == nil or type(payload.anim.playbackRate) == 'number', 'Progress bar anim playbackRate must be a number.')
+        assert(payload.anim.stopBlendOut == nil or type(payload.anim.stopBlendOut) == 'number', 'Progress bar anim stopBlendOut must be a number.')
+        for _, field in ipairs({ 'lockX', 'lockY', 'lockZ' }) do
+            assert(payload.anim[field] == nil or type(payload.anim[field]) == 'boolean',
+                ("Progress bar anim %s must be a boolean."):format(field))
+        end
     end
+    assert(payload.strictAnim == nil or type(payload.strictAnim) == 'boolean',
+        'Progress bar strictAnim must be a boolean.')
 
     if payload.scenario then
         assert(type(payload.scenario) == "table" and type(payload.scenario.name) == "string" and #payload.scenario.name > 0,
@@ -91,8 +161,11 @@ local function assertPayload(payload)
 
     if payload.props == nil then return end
     assert(type(payload.props) == "table", "Progress bar props must be an array.")
-    assert(#payload.props <= Config.progressbar.maxProps,
-        ("Progress bar supports at most %d props (Config.progressbar.maxProps)."):format(Config.progressbar.maxProps))
+    assert(payload.maxProps == nil or payload.maxProps == false or (isInteger(payload.maxProps) and payload.maxProps > 0),
+        "Progress bar maxProps must be a positive integer or false.")
+    local maxProps = payload.maxProps == nil and Config.progressbar.maxProps or payload.maxProps
+    assert(maxProps == false or #payload.props <= maxProps,
+        ("Progress bar supports at most %d props."):format(maxProps or Config.progressbar.maxProps))
 
     local propCount = 0
     for key in pairs(payload.props) do
@@ -156,6 +229,18 @@ local function cleanupSession(session, cancelled)
         QB.controls.release(session.combatLease)
         session.combatLease = nil
     end
+    if session.sprintLease then
+        QB.controls.release(session.sprintLease)
+        session.sprintLease = nil
+    end
+    if session.mouseLease then
+        QB.controls.release(session.mouseLease)
+        session.mouseLease = nil
+    end
+    if session.movementLease then
+        QB.controls.release(session.movementLease)
+        session.movementLease = nil
+    end
 
     if session.frozen then
         safeCleanup("ped freeze", function() FreezeEntityPosition(session.ped, false) end)
@@ -168,7 +253,8 @@ local function cleanupSession(session, cancelled)
     elseif session.animLoaded then
         if session.animStarted then
             safeCleanup("animation", function()
-                StopAnimTask(session.ped, session.anim.dict, session.anim.clip, session.anim.blendOut or 8.0)
+                StopAnimTask(session.ped, session.anim.dict, session.anim.clip,
+                    session.anim.stopBlendOut or session.anim.blendOut or 8.0)
             end)
         end
         safeCleanup("animation dictionary", function() RemoveAnimDict(session.anim.dict) end)
@@ -244,11 +330,11 @@ local function prepareProp(session, definition, index)
     end
 end
 
-local function updateVehicleControls(session, enabled)
+local function updateVehicleControls(session, enabled, profile)
     local shouldHold = enabled and IsPedInAnyVehicle(session.ped, false)
 
     if shouldHold and not session.carLease then
-        session.carLease = QB.controls.acquire(CAR_CONTROLS)
+        session.carLease = QB.controls.acquire(profile == 'ox' and OX_CAR_CONTROLS or CAR_CONTROLS)
     elseif not shouldHold and session.carLease then
         QB.controls.release(session.carLease)
         session.carLease = nil
@@ -257,15 +343,18 @@ end
 
 ---Shows a filling progress bar and reports whether it ran to completion.
 ---@param payload QBProgressBarPayload
+---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean completed
 ---@return string? error
-function QB.progressbar.start(payload)
+function QB.progressbar.start(payload, owner)
     assertPayload(payload)
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
+    local cancelControls = payload.cancelControls == nil and Config.progressbar.cancelControls or payload.cancelControls
 
     if busy then return false, "A progress bar is already active." end
 
     local session = {
-        owner = GetInvokingResource() or GetCurrentResourceName(),
+        owner = owner or GetInvokingResource() or GetCurrentResourceName(),
         ped = PlayerPedId(),
         props = {},
         anim = payload.anim,
@@ -288,8 +377,11 @@ function QB.progressbar.start(payload)
             if session.animLoaded then
                 TaskPlayAnim(session.ped, payload.anim.dict, payload.anim.clip,
                     payload.anim.blendIn or 8.0, payload.anim.blendOut or 8.0,
-                    -1, payload.anim.flag or 1, 0, false, false, false)
+                    payload.anim.duration or -1, payload.anim.flag or 1, payload.anim.playbackRate or 0,
+                    payload.anim.lockX == true, payload.anim.lockY == true, payload.anim.lockZ == true)
                 session.animStarted = true
+            elseif payload.strictAnim then
+                error(("Progress bar animation dictionary '%s' could not be loaded."):format(payload.anim.dict))
             else
                 print(("[qblib:progressbar] anim dict '%s' could not be loaded -- continuing without it.")
                     :format(payload.anim.dict))
@@ -300,28 +392,51 @@ function QB.progressbar.start(payload)
         end
 
         if payload.disable and payload.disable.move then
-            FreezeEntityPosition(session.ped, true)
-            session.frozen = true
+            if payload.disable.moveMode == 'controls' then
+                session.movementLease = QB.controls.acquire(MOVEMENT_CONTROLS)
+            else
+                FreezeEntityPosition(session.ped, true)
+                session.frozen = true
+            end
         end
 
         if payload.disable and payload.disable.combat then
-            session.combatLease = QB.controls.acquire(COMBAT_CONTROLS, { disablePlayerFiring = true })
+            session.combatLease = QB.controls.acquire(payload.disable.controlProfile == 'ox' and OX_COMBAT_CONTROLS or COMBAT_CONTROLS,
+                { disablePlayerFiring = true })
         end
-        updateVehicleControls(session, payload.disable and payload.disable.car == true)
+        if payload.disable and payload.disable.sprint then
+            session.sprintLease = QB.controls.acquire(SPRINT_CONTROLS)
+        end
+        if payload.disable and payload.disable.mouse then
+            session.mouseLease = QB.controls.acquire(MOUSE_CONTROLS)
+        end
+        updateVehicleControls(session, payload.disable and payload.disable.car == true,
+            payload.disable and payload.disable.controlProfile)
 
         if session.cleaned then return false end
 
         session.nuiStarted = true
-        QB.nui.send("progressStart", { label = payload.label, duration = payload.duration })
+        QB.nui.send("progressStart", {
+            label = payload.label,
+            duration = payload.duration,
+            presentation = payload.presentation or 'bar',
+            position = payload.position,
+        })
 
         local cancelled = QB.loops.controlled(function()
             if session.cleaned or activeSession ~= session then return true end
-            if IsEntityDead(session.ped) or session.cancelRequested then return true end
+            if (not payload.useWhileDead and IsEntityDead(session.ped))
+                or (not payload.allowRagdoll and IsPedRagdoll(session.ped))
+                or (not payload.allowCuffed and IsPedCuffed(session.ped))
+                or (not payload.allowFalling and IsPedFalling(session.ped))
+                or (not payload.allowSwimming and IsPedSwimming(session.ped))
+                or session.cancelRequested then return true end
 
-            updateVehicleControls(session, payload.disable and payload.disable.car == true)
+            updateVehicleControls(session, payload.disable and payload.disable.car == true,
+                payload.disable and payload.disable.controlProfile)
 
-            if payload.canCancel then
-                for _, control in ipairs(Config.progressbar.cancelControls) do
+            if payload.canCancel and cancelControls then
+                for _, control in ipairs(cancelControls) do
                     if IsControlJustPressed(0, control) then return true end
                 end
             end

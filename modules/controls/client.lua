@@ -1,16 +1,19 @@
 ---@class QBControlsOptions
 ---@field inputGroup? integer Input group passed to DisableControlAction. Defaults to 0.
 ---@field disablePlayerFiring? boolean Calls DisablePlayerFiring every frame while the lease is active. Defaults to false.
+---@field ignoreWeaponWheel? boolean Calls HudWeaponWheelIgnoreSelection every frame while active.
 
 ---@class QBControlLease
 ---@field inputGroup integer
 ---@field controls integer[]
 ---@field disablePlayerFiring boolean
+---@field ignoreWeaponWheel boolean
 
 local nextLeaseId = 0
 local leases = {}
 local controlCounts = {}
 local firingCount = 0
+local weaponWheelCount = 0
 local threadRunning = false
 
 local releaseLease
@@ -28,6 +31,7 @@ local function applyControls()
     if firingCount > 0 then
         DisablePlayerFiring(PlayerId(), true)
     end
+    if weaponWheelCount > 0 then HudWeaponWheelIgnoreSelection() end
 end
 
 local function ensureThread()
@@ -76,6 +80,7 @@ releaseLease = function(leaseId, alreadyUntracked)
 
     if next(counts) == nil then controlCounts[lease.inputGroup] = nil end
     if lease.disablePlayerFiring then firingCount = firingCount - 1 end
+    if lease.ignoreWeaponWheel then weaponWheelCount = weaponWheelCount - 1 end
 
     return true
 end
@@ -95,6 +100,8 @@ function QB.controls.acquire(controlIds, options)
     assertInteger(inputGroup, "Control lease inputGroup must be a non-negative integer.")
     assert(options.disablePlayerFiring == nil or type(options.disablePlayerFiring) == "boolean",
         "Control lease disablePlayerFiring must be a boolean.")
+    assert(options.ignoreWeaponWheel == nil or type(options.ignoreWeaponWheel) == "boolean",
+        "Control lease ignoreWeaponWheel must be a boolean.")
 
     local controls = {}
     local seen = {}
@@ -115,8 +122,9 @@ function QB.controls.acquire(controlIds, options)
     assert(keyCount == #controlIds, "Control lease IDs must be a dense array.")
 
     local disablePlayerFiring = options.disablePlayerFiring == true
-    assert(#controls > 0 or disablePlayerFiring,
-        "Control lease requires at least one control ID or disablePlayerFiring = true.")
+    local ignoreWeaponWheel = options.ignoreWeaponWheel == true
+    assert(#controls > 0 or disablePlayerFiring or ignoreWeaponWheel,
+        "Control lease requires a control ID or an active suppression option.")
 
     nextLeaseId = nextLeaseId + 1
     local leaseId = nextLeaseId
@@ -124,6 +132,7 @@ function QB.controls.acquire(controlIds, options)
         inputGroup = inputGroup,
         controls = controls,
         disablePlayerFiring = disablePlayerFiring,
+        ignoreWeaponWheel = ignoreWeaponWheel,
     }
 
     local counts = controlCounts[inputGroup]
@@ -137,6 +146,7 @@ function QB.controls.acquire(controlIds, options)
     end
 
     if disablePlayerFiring then firingCount = firingCount + 1 end
+    if ignoreWeaponWheel then weaponWheelCount = weaponWheelCount + 1 end
 
     leaseRegistry.track(GetInvokingResource() or GetCurrentResourceName(), leaseId)
 

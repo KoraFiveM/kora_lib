@@ -65,6 +65,12 @@ if result.success then
 end
 ```
 
+`QB.minigames.playAsync(gameType, opts, authorization, owner)` is the internal,
+owner-aware composition form used by compatibility providers that need to
+retain a cancellable promise. `QB.minigames.cancel()` settles the active round
+through the normal cancelled-result path. Gameplay resources should normally
+use `play`.
+
 ## Notes
 - **Proofs require server authorization.** A bare `play` call can still report UX success to its client caller, but it never returns a proof. A gameplay resource must issue an authorization first and later consume the matching proof on the server.
 - **This is a floor, not full anti-cheat.** The client never computes or reports a pass/fail, and for lockpick/skillbar never reports a position -- only *when* an input happened. The server independently recomputes correctness from a solution it never sends to the client, and rejects timestamps that are too close together or outside the round's time limit to be human. A sufficiently sophisticated modified client that fabricates *plausible* timestamps can still pass -- authorization prevents it from choosing a weaker proof-producing configuration or minting a generic proof, but the consuming resource must still re-verify its own action state (proximity, item ownership, target identity, etc.).

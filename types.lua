@@ -194,6 +194,10 @@
 ---@field key? string
 ---@field icon? string
 ---@field position? QBTextUIPosition
+---@field iconColor? string
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field alignIcon? 'top'|'center'
+---@field style? string|table<string, string|number>
 
 ---@class QBStateChange
 ---@field entity integer Entity resolved from the bag name, or 0 for global/player/unavailable bags.
@@ -284,6 +288,7 @@
 ---@class QBControlsOptions
 ---@field inputGroup? integer
 ---@field disablePlayerFiring? boolean
+---@field ignoreWeaponWheel? boolean
 
 ---@class QBControlLease
 ---@field inputGroup integer
@@ -352,8 +357,12 @@
 
 ---@class QBProgressBarDisable
 ---@field move? boolean
+---@field moveMode? 'freeze'|'controls' Defaults to freeze; controls matches ox_lib movement blocking.
+---@field controlProfile? 'qblib'|'ox' Exact disabled-control set; defaults to qblib.
+---@field sprint? boolean
 ---@field combat? boolean
 ---@field car? boolean
+---@field mouse? boolean
 
 ---@class QBProgressBarAnim
 ---@field dict string
@@ -361,6 +370,12 @@
 ---@field flag? integer
 ---@field blendIn? number
 ---@field blendOut? number
+---@field stopBlendOut? number Cleanup blend-out override for compatibility providers.
+---@field duration? integer
+---@field playbackRate? number
+---@field lockX? boolean
+---@field lockY? boolean
+---@field lockZ? boolean
 
 ---@class QBProgressBarScenario
 ---@field name string
@@ -379,11 +394,22 @@
 ---@class QBProgressBarPayload
 ---@field label string
 ---@field duration integer
+---@field maxDuration? integer|false Override duration cap; false allows any positive duration.
 ---@field canCancel? boolean Enables cancellation with X or Escape (Config.progressbar.cancelControls).
+---@field cancelControls? integer[]|false Override local cancel controls; false delegates cancellation to a compatibility command.
+---@field useWhileDead? boolean
+---@field allowRagdoll? boolean
+---@field allowCuffed? boolean
+---@field allowFalling? boolean
+---@field allowSwimming? boolean
+---@field presentation? 'bar'|'circle'
+---@field position? 'middle'|'bottom'
 ---@field disable? QBProgressBarDisable
 ---@field anim? QBProgressBarAnim
+---@field strictAnim? boolean Raise when the animation dictionary cannot load; used by strict compatibility providers.
 ---@field scenario? QBProgressBarScenario
 ---@field props? QBProgressBarProp[]
+---@field maxProps? integer|false Override local prop cap; false allows all validated props.
 
 ---@class QBActionsResult
 ---@field token any
@@ -406,8 +432,14 @@
 ---@field message? string At least one of title or message is required.
 ---@field type? 'success'|'error'|'warning'|'info'
 ---@field duration? integer
----@field position? 'top-left'|'top-center'|'top-right'|'bottom-left'|'bottom-center'|'bottom-right'
+---@field position? 'top-left'|'top-center'|'top-right'|'bottom-left'|'bottom-center'|'bottom-right'|'center-left'|'center-right'|'top'|'bottom'
 ---@field icon? string
+---@field id? string|number Replaces an existing toast with the same id.
+---@field iconColor? string CSS icon colour.
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field alignIcon? 'top'|'center'
+---@field style? table<string, any> Trusted scalar root styles and vetted title/description child styles.
+---@field showDuration? boolean Set false to hide the lifetime indicator.
 
 ---@class QBDrawingTextOptions
 ---@field font? integer
@@ -423,12 +455,28 @@
 ---@field icon? string
 ---@field image? string
 ---@field disabled? boolean
+---@field values? (string|{label: string, description?: string})[] Side-scroll values.
+---@field defaultIndex? integer One-based selected value.
+---@field checked? boolean Render as a checkable row.
+---@field progress? number Progress from 0 through 100.
+---@field colorScheme? string Progress colour.
+---@field iconColor? string Icon CSS colour.
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field iconWidth? number Percentage width used by radial icons.
+---@field iconHeight? number Percentage height used by radial icons.
+---@field readOnly? boolean Keep an informational row non-interactive.
+---@field arrow? boolean Show or suppress a navigation affordance.
+---@field metadata? (string|{label: string, value?: any, progress?: number, colorScheme?: string})[]
+---@field close? boolean Keep the menu open after confirmation when false.
 ---@field submenu? {title?: string, items: QBMenuItem[]}
 
 ---@class QBMenuResult
 ---@field selectedId? string
 ---@field path? string[]
+---@field valueIndex? integer One-based selected side-scroll value.
+---@field checked? boolean Current checked state.
 ---@field cancelled? boolean
+---@field keyPressed? 'Escape'|'Backspace' Root-level dismissal key.
 
 ---@class QBRadialMenuOptions
 ---@field radius? number
@@ -440,12 +488,18 @@
 ---@field confirmLabel? string
 ---@field cancelLabel? string
 ---@field cancellable? boolean
+---@field showCancel? boolean Show the Cancel button independently of Escape dismissal.
+---@field showClose? boolean Show the corner close control.
+---@field dismissOnBackdrop? boolean Allow backdrop dismissal.
 ---@field destructive? boolean
+---@field centered? boolean
+---@field size? 'xs'|'sm'|'md'|'lg'|'xl'
+---@field overflow? boolean
 
 ---@class QBAlertResult
 ---@field confirmed boolean
 
----@alias QBInputType 'text'|'password'|'textarea'|'number'|'checkbox'|'select'|'multiselect'|'range'|'combobox'
+---@alias QBInputType 'text'|'password'|'textarea'|'number'|'checkbox'|'select'|'multiselect'|'range'|'combobox'|'date'|'date-range'|'time'|'color'
 ---@class QBInputOption
 ---@field value string|number
 ---@field label string
@@ -459,11 +513,27 @@
 ---@field placeholder? string
 ---@field default? any
 ---@field required? boolean
+---@field disabled? boolean
 ---@field min? number
 ---@field max? number
 ---@field minLength? integer
 ---@field maxLength? integer
 ---@field pattern? string
+---@field dateMin? string|number Minimum date/date-range constraint accepted by `Date`.
+---@field dateMax? string|number Maximum date/date-range constraint accepted by `Date`.
+---@field returnString? boolean Keep date values as ISO strings; false returns local epoch milliseconds.
+---@field dateFormat? string Date output pattern when returnString is true.
+---@field precision? integer Number decimal precision.
+---@field colorFormat? 'hex'|'hexa'|'rgb'|'rgba'|'hsl'|'hsla'
+---@field timeFormat? '12'|'24'
+---@field clearable? boolean
+---@field searchable? boolean
+---@field maxSelectedValues? integer
+---@field autosize? boolean
+---@field minRows? integer
+---@field maxRows? integer
+---@field icon? string
+---@field iconColor? string
 ---@field step? number Number/range increment; defaults to 1.
 ---@field keypad? boolean Render a compact numeric keypad for textual PIN entry.
 ---@field numericOnly? boolean Strip non-digit input in the browser.
@@ -856,6 +926,7 @@
 ---@field minigames QBLibMinigames
 ---@field notify QBLibNotify
 ---@field nui QBLibNui
+---@field ox QBLibOx
 ---@field permissions QBLibPermissions
 ---@field placement QBLibPlacement
 ---@field print QBLibPrint
@@ -1102,7 +1173,9 @@
 ---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean): any, string? [shared]
 
 ---@class QBLibMinigames
----@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult|promise [client]
+---@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): QBMinigameResult|promise [client]
+---@field playAsync fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): promise [client; internal composition primitive]
+---@field cancel fun(): boolean [client]
 ---@field playSkillCheck fun(skill: string, gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult|promise [client]
 ---@field authorizeProof fun(src: integer, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
 ---@field authorizeSkillCheck fun(src: integer, skill: string, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
@@ -1125,13 +1198,21 @@
 ---@field position? QBMenuPosition
 ---@field maxWidth? positive integer Pixels.
 ---@field maxHeight? positive integer Pixels.
+---@field canClose? boolean Set false to prevent Escape/backdrop dismissal.
+---@field startIndex? positive integer Initially selected one-based row.
+---@field presentation? 'dialog'|'panel' Panel is compact and non-modal.
 
 ---@class QBLibNui
 ---@field send fun(action: string, data?: any) [client]
 ---@field setFocus fun(mouse: boolean, keyboard: boolean) [client]
+---@field acquireFocus fun(mouse: boolean, keyboard: boolean, keepInput?: boolean, owner?: string): function [client; internal composition primitive]
+---@field releaseFocus fun(release: function) [client; internal composition primitive]
 ---@field withFocus fun(mouse: boolean, keyboard: boolean, fn: fun(): any): any [client]
 ---@field registerCallback fun(name: string, handler: fun(data: any): any) [client]
 ---@field request fun(action: string, data?: any, timeout?: integer|false): promise|any [client]
+---@field requestAsync fun(action: string, data?: any, timeout?: integer|false, owner?: string, focused?: boolean, onEvent?: fun(event: string, data: any)): promise [client; internal composition primitive]
+---@field cancelRequest fun(request: promise, result?: any, rejection?: string): boolean [client; internal composition primitive]
+---@field updateRequest fun(request: promise, action: string, data: any): boolean [client; internal composition primitive]
 ---@field copyToClipboard fun(text: string): promise|any [client]
 ---@field openMenu fun(items: QBMenuItem[], title?: string, opts?: QBMenuOptions): QBMenuResult|promise [client]
 ---@field openContextMenu fun(items: QBMenuItem[], x?: number, y?: number): QBMenuResult|promise [client]
@@ -1144,6 +1225,47 @@
 ---@field updateApp fun(id: string, update: table): boolean [client]
 ---@field closeApp fun(id?: string): boolean [client]
 ---@field isAppOpen fun(id?: string): boolean [client]
+
+---@class QBLibOx
+---@field alertDialog fun(data: table, timeout: integer|false|nil, owner: string): 'confirm'|'cancel'|nil [client; ox_lib provider]
+---@field closeAlertDialog fun(reason: string|nil, owner: string) [client; ox_lib provider]
+---@field setClipboard fun(value: string, owner: string) [client; ox_lib provider]
+---@field registerContext fun(context: table|table[], owner: string) [client; ox_lib provider]
+---@field showContext fun(id: string, owner: string) [client; ox_lib provider]
+---@field getOpenContextMenu fun(owner: string): string? [client; ox_lib provider]
+---@field hideContext fun(onExit: boolean|nil, owner: string) [client; ox_lib provider]
+---@field inputDialog fun(heading: string, rows: table[], options: table|nil, owner: string): any[]? [client; ox_lib provider]
+---@field closeInputDialog fun(owner: string) [client; ox_lib provider]
+---@field setNuiFocus fun(allowInput: boolean|nil, disableCursor: boolean|nil, owner: string) [client; ox_lib provider]
+---@field resetNuiFocus fun(owner: string) [client; ox_lib provider]
+---@field registerMenu fun(data: table, callback: function|nil, owner: string) [client; ox_lib provider]
+---@field showMenu fun(id: string, startIndex: integer|nil, owner: string) [client; ox_lib provider]
+---@field hideMenu fun(onExit: boolean|nil, owner: string) [client; ox_lib provider]
+---@field setMenuOptions fun(id: string, options: table, index: integer|nil, owner: string) [client; ox_lib provider]
+---@field getOpenMenu fun(owner: string): string? [client; ox_lib provider]
+---@field notify fun(data: table, owner: string) [client; ox_lib provider]
+---@field defaultNotify fun(data: table, owner: string) [client; ox_lib provider]
+---@field progressBar fun(data: table, owner: string): boolean [client; ox_lib provider]
+---@field progressCircle fun(data: table, owner: string): boolean [client; ox_lib provider]
+---@field cancelProgress fun(owner: string) [client; ox_lib provider]
+---@field progressActive fun(owner: string): boolean [client; ox_lib provider]
+---@field registerRadial fun(radial: table, owner: string) [client; ox_lib provider]
+---@field getCurrentRadialId fun(owner: string): string? [client; ox_lib provider]
+---@field hideRadial fun(owner: string) [client; ox_lib provider]
+---@field addRadialItem fun(items: table|table[], parentMenuId: string|nil, owner: string) [client; ox_lib provider]
+---@field removeRadialItem fun(id: string, parentMenuId: string|nil, owner: string) [client; ox_lib provider]
+---@field clearRadialItems fun(owner: string) [client; ox_lib provider]
+---@field disableRadial fun(state: boolean, owner: string) [client; ox_lib provider]
+---@field showRadialMenu fun(id: string, owner: string) [client; ox_lib provider]
+---@field skillCheck fun(difficulty: string|table|table[], inputs: string[]|nil, owner: string): boolean [client; ox_lib provider]
+---@field cancelSkillCheck fun(owner: string) [client; ox_lib provider]
+---@field skillCheckActive fun(owner: string): boolean [client; ox_lib provider]
+---@field showTextUI fun(text: string, options: table|nil, owner: string) [client; ox_lib provider]
+---@field hideTextUI fun(owner: string) [client; ox_lib provider]
+---@field isTextUIOpen fun(owner: string): boolean, string? [client; ox_lib provider]
+---@field getLocaleKey fun(owner?: string): string [shared; ox_lib provider]
+---@field setLocale fun(key: string, localeData?: table|string, owner?: string) [client; ox_lib provider; string second arg preserves the legacy owner form]
+---@field disposeOwner fun(owner: string) [client,server; ox_lib provider]
 
 ---@class QBLibSkills
 ---@field isAvailable fun(): boolean [client,server]
@@ -1194,7 +1316,7 @@
 ---@field success fun(...: any) [shared]
 
 ---@class QBLibProgressbar
----@field start fun(payload: QBProgressBarPayload): boolean, string? [client]
+---@field start fun(payload: QBProgressBarPayload, owner?: string): boolean, string? [client]
 ---@field cancel fun(): boolean [client]
 ---@field isActive fun(): boolean [client]
 
@@ -1272,7 +1394,7 @@
 ---@field toWaypoint fun(opts?: QBWaypointTeleportOptions): boolean, string? [client]
 
 ---@class QBLibTextUI
----@field show fun(text: string, opts?: QBTextUIOptions): integer [client]
+---@field show fun(text: string, opts?: QBTextUIOptions, owner?: string): integer [client]
 ---@field update fun(id: integer, text: string, opts?: QBTextUIOptions): boolean [client]
 ---@field hide fun(id: integer): boolean [client]
 ---@field isOpen fun(id?: integer): boolean [client]

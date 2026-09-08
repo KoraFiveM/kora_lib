@@ -7,6 +7,7 @@ local requestOwnership
 local focusOwnership
 local focusLeases = {}
 local nextFocusLease = 0
+local focusBaseKeepInput
 
 local function nextId()
     nextRequestId = nextRequestId + 1
@@ -81,6 +82,7 @@ end
 local validFieldTypes = {
     text = true, password = true, textarea = true, number = true, checkbox = true,
     select = true, multiselect = true, range = true, combobox = true,
+    date = true, ['date-range'] = true, time = true, color = true,
 }
 
 local validTones = { neutral = true, primary = true, success = true, warning = true, destructive = true }
@@ -141,6 +143,7 @@ local function assertInputFields(fields, location)
         assert(validFieldTypes[field.type], fieldLocation .. " has an invalid type.")
         assert(field.description == nil or type(field.description) == "string", fieldLocation .. " description must be a string.")
         assert(field.required == nil or type(field.required) == "boolean", fieldLocation .. " required must be a boolean.")
+        assert(field.disabled == nil or type(field.disabled) == "boolean", fieldLocation .. " disabled must be a boolean.")
         assert(field.min == nil or type(field.min) == "number", fieldLocation .. " min must be a number.")
         assert(field.max == nil or type(field.max) == "number", fieldLocation .. " max must be a number.")
         assert(field.minLength == nil or (type(field.minLength) == "number" and field.minLength >= 0 and field.minLength % 1 == 0), fieldLocation .. " minLength must be a non-negative integer.")
@@ -149,6 +152,32 @@ local function assertInputFields(fields, location)
         assert(field.minLength == nil or field.maxLength == nil or field.minLength <= field.maxLength,
             fieldLocation .. " minLength cannot exceed maxLength.")
         assert(field.pattern == nil or type(field.pattern) == "string", fieldLocation .. " pattern must be a string.")
+        assert(field.dateMin == nil or type(field.dateMin) == "string" or (type(field.dateMin) == "number"
+            and field.dateMin == field.dateMin and field.dateMin ~= math.huge and field.dateMin ~= -math.huge),
+            fieldLocation .. " dateMin must be a string or finite timestamp.")
+        assert(field.dateMax == nil or type(field.dateMax) == "string" or (type(field.dateMax) == "number"
+            and field.dateMax == field.dateMax and field.dateMax ~= math.huge and field.dateMax ~= -math.huge),
+            fieldLocation .. " dateMax must be a string or finite timestamp.")
+        assert(field.returnString == nil or type(field.returnString) == "boolean", fieldLocation .. " returnString must be a boolean.")
+        assert(field.dateFormat == nil or type(field.dateFormat) == "string", fieldLocation .. " dateFormat must be a string.")
+        assert(field.precision == nil or (type(field.precision) == "number" and field.precision >= 0 and field.precision % 1 == 0),
+            fieldLocation .. " precision must be a non-negative integer.")
+        assert(field.colorFormat == nil or field.colorFormat == "hex" or field.colorFormat == "hexa" or field.colorFormat == "rgb"
+            or field.colorFormat == "rgba" or field.colorFormat == "hsl" or field.colorFormat == "hsla",
+            fieldLocation .. " colorFormat is invalid.")
+        assert(field.timeFormat == nil or field.timeFormat == "12" or field.timeFormat == "24", fieldLocation .. " timeFormat is invalid.")
+        assert(field.clearable == nil or type(field.clearable) == "boolean", fieldLocation .. " clearable must be a boolean.")
+        assert(field.searchable == nil or type(field.searchable) == "boolean", fieldLocation .. " searchable must be a boolean.")
+        assert(field.maxSelectedValues == nil or (type(field.maxSelectedValues) == "number" and field.maxSelectedValues > 0
+            and field.maxSelectedValues % 1 == 0), fieldLocation .. " maxSelectedValues must be a positive integer.")
+        assert(field.autosize == nil or type(field.autosize) == "boolean", fieldLocation .. " autosize must be a boolean.")
+        assert(field.minRows == nil or (type(field.minRows) == "number" and field.minRows > 0 and field.minRows % 1 == 0),
+            fieldLocation .. " minRows must be a positive integer.")
+        assert(field.maxRows == nil or (type(field.maxRows) == "number" and field.maxRows > 0 and field.maxRows % 1 == 0),
+            fieldLocation .. " maxRows must be a positive integer.")
+        assert(field.minRows == nil or field.maxRows == nil or field.minRows <= field.maxRows, fieldLocation .. " minRows cannot exceed maxRows.")
+        assert(field.icon == nil or type(field.icon) == "string", fieldLocation .. " icon must be a string.")
+        assert(field.iconColor == nil or type(field.iconColor) == "string", fieldLocation .. " iconColor must be a string.")
         assert(field.rows == nil or (type(field.rows) == "number" and field.rows > 0 and field.rows % 1 == 0),
             fieldLocation .. " rows must be a positive integer.")
         assert(field.step == nil or (type(field.step) == "number" and field.step > 0), fieldLocation .. " step must be positive.")
@@ -185,7 +214,7 @@ local function assertInputFields(fields, location)
                 assert(type(field.default) == "boolean", fieldLocation .. " checkbox default must be a boolean.")
             elseif field.type == "number" or field.type == "range" then
                 assert(type(field.default) == "number", fieldLocation .. " numeric default must be a number.")
-            elseif field.type == "multiselect" then
+            elseif field.type == "multiselect" or field.type == "date-range" then
                 assert(type(field.default) == "table", fieldLocation .. " multiselect default must be an array.")
                 for defaultIndex, value in ipairs(field.default) do
                     assert(type(value) == "string" or type(value) == "number",
@@ -527,18 +556,30 @@ end
 -- global NUI focus native. Closing a child dialog therefore reveals the app
 -- beneath it without stealing that app's mouse and keyboard input.
 local function refreshFocus()
-    local mouse, keyboard = false, false
+    local mouse, keyboard, keepInput, hasLease = false, false, false, false
     for _, lease in pairs(focusLeases) do
+        hasLease = true
         mouse = mouse or lease.mouse
         keyboard = keyboard or lease.keyboard
+        keepInput = keepInput or lease.keepInput
     end
     SetNuiFocus(mouse, keyboard)
+    if hasLease then
+        SetNuiFocusKeepInput(keepInput)
+        return
+    end
+
+    SetNuiFocusKeepInput(focusBaseKeepInput == true)
+    focusBaseKeepInput = nil
 end
 
-local function acquireFocus(mouse, keyboard, owner)
+local function acquireFocus(mouse, keyboard, owner, keepInput)
+    if next(focusLeases) == nil then
+        focusBaseKeepInput = type(IsNuiFocusKeepingInput) == 'function' and IsNuiFocusKeepingInput() or false
+    end
     nextFocusLease = nextFocusLease + 1
     local id = nextFocusLease
-    focusLeases[id] = { mouse = mouse == true, keyboard = keyboard == true }
+    focusLeases[id] = { mouse = mouse == true, keyboard = keyboard == true, keepInput = keepInput == true }
     focusOwnership.track(owner or GetInvokingResource() or GetCurrentResourceName(), id)
     refreshFocus()
 
@@ -550,6 +591,28 @@ local function acquireFocus(mouse, keyboard, owner)
         focusLeases[id] = nil
         refreshFocus()
     end
+end
+
+---Acquires an owner-tracked focus lease for a composed compatibility surface.
+---The returned release function is intended to stay inside qblib; ordinary
+---resources should use withFocus or an open* helper.
+---@param mouse boolean
+---@param keyboard boolean
+---@param keepInput? boolean
+---@param owner? string
+---@return function release
+function QB.nui.acquireFocus(mouse, keyboard, keepInput, owner)
+    assert(type(mouse) == 'boolean' and type(keyboard) == 'boolean', 'acquireFocus requires boolean mouse and keyboard values.')
+    assert(keepInput == nil or type(keepInput) == 'boolean', 'acquireFocus keepInput must be a boolean.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'acquireFocus owner must be a non-empty string.')
+    return acquireFocus(mouse, keyboard, owner, keepInput)
+end
+
+---Releases a lease returned by QB.nui.acquireFocus.
+---@param release function
+function QB.nui.releaseFocus(release)
+    assert(isCallable(release), 'releaseFocus requires a focus release function.')
+    release()
 end
 
 ---Runs `fn` with NUI focus set, guaranteeing focus is released afterward even
@@ -615,6 +678,22 @@ QB.nui.registerCallback("qblib:nui:response", function(data)
     return {}
 end)
 
+-- Interactive request surfaces can report non-terminal changes (for example,
+-- an ox_lib menu changing its selected row, checkbox, or side-scroll value)
+-- without resolving the request. The same per-request token used by the final
+-- response authenticates these messages.
+QB.nui.registerCallback("qblib:nui:event", function(data)
+    local pending = pendingRequests[data.requestId]
+    if not pending or type(data.token) ~= "string" or data.token ~= pending.token then return {} end
+    if not pending.onEvent then return {} end
+
+    local ok, err = pcall(pending.onEvent, data.event, data.data)
+    if not ok then
+        print(("[qblib:nui] request event '%s' errored: %s"):format(tostring(data.event), tostring(err)))
+    end
+    return {}
+end)
+
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it (:next(), used below)
 -- reach the real promise inside qblib, while plain field reads (.state,
@@ -650,7 +729,7 @@ end
 ---@param timeout? integer | false Milliseconds before the promise rejects. Defaults to 30000; pass false to disable.
 ---@param owner? string Internal owner override for qblib operations that continue in a new coroutine.
 ---@return promise promise
-local function requestPromise(action, data, timeout, owner)
+local function requestPromise(action, data, timeout, owner, onEvent)
     local requestId = nextId()
     local token = generateToken()
     local p = promise.new()
@@ -661,7 +740,7 @@ local function requestPromise(action, data, timeout, owner)
     p.qblibNuiRequestId = requestId
     p.qblibNuiToken = token
     p.qblibNuiOwner = owner
-    pendingRequests[requestId] = { promise = p, token = token }
+    pendingRequests[requestId] = { promise = p, token = token, onEvent = onEvent }
     requestOwnership.track(owner, requestId)
 
     QB.nui.send(action, { requestId = requestId, token = token, payload = data })
@@ -713,16 +792,76 @@ function QB.nui.request(action, data, timeout, owner)
     return settleForExport(requestPromise(action, data, timeout, owner))
 end
 
+local focusUntilSettled
+
+---Starts a request without awaiting it across an enclosing export call.
+---This is an internal composition primitive for qblib modules that need to
+---retain a cancellable request handle while preserving the original consumer
+---as owner. Ordinary resources should use QB.nui.request/open* instead.
+---@param action string
+---@param data any
+---@param timeout? integer | false
+---@param owner? string
+---@param focused? boolean
+---@param onEvent? fun(event: string, data: any) Internal handler for authenticated, non-terminal browser events.
+---@return promise request
+function QB.nui.requestAsync(action, data, timeout, owner, focused, onEvent)
+    assert(type(action) == 'string' and action ~= '', 'requestAsync action must be a non-empty string.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'requestAsync owner must be a non-empty string.')
+    assert(focused == nil or type(focused) == 'boolean', 'requestAsync focused must be a boolean.')
+    assert(onEvent == nil or isCallable(onEvent), 'requestAsync onEvent must be callable.')
+
+    local request = requestPromise(action, data, timeout, owner, onEvent)
+    return focused and focusUntilSettled(request) or request
+end
+
 -- Grants mouse+keyboard focus for the lifetime of an interactive request and
 -- releases it the moment the promise settles -- answered, cancelled, or timed
 -- out (the request timeout doubles as the guarantee focus can't get stuck).
 -- This is what makes the open* wrappers below actually clickable/typable
 -- in-game; without focus the NUI renders but can never receive input.
-local function focusUntilSettled(p)
+function focusUntilSettled(p)
     local release = acquireFocus(true, true, p.qblibNuiOwner)
     p:next(release, release)
 
     return p
+end
+
+---Settles and dismisses a request created by QB.nui.requestAsync. The token is
+---sent to the browser before the local promise is settled, so the component
+---cannot answer the abandoned request afterward.
+---@param request promise
+---@param result? any
+---@param rejection? string
+---@return boolean cancelled
+function QB.nui.cancelRequest(request, result, rejection)
+    assert(type(request) == 'table', 'cancelRequest requires a qblib NUI request.')
+    assert(rejection == nil or type(rejection) == 'string', 'cancelRequest rejection must be a string.')
+
+    local requestId = request.qblibNuiRequestId
+    local token = request.qblibNuiToken
+    local pending = requestId and pendingRequests[requestId]
+    if not pending or pending.promise ~= request then return false end
+
+    QB.nui.send('cancelNuiRequest', { requestId = requestId, token = token })
+    return settlePendingRequest(request, rejection == nil, rejection or result)
+end
+
+---Updates a still-pending request surface without replacing its promise or
+---focus lease. Compatibility providers use this for live registry refreshes.
+---@param request promise
+---@param action string
+---@param data any
+---@return boolean updated
+function QB.nui.updateRequest(request, action, data)
+    assert(type(request) == 'table', 'updateRequest requires a qblib NUI request.')
+    assert(type(action) == 'string' and action ~= '', 'updateRequest action must be a non-empty string.')
+    local requestId = request.qblibNuiRequestId
+    local pending = requestId and pendingRequests[requestId]
+    if not pending or pending.promise ~= request then return false end
+
+    QB.nui.send(action, { requestId = requestId, token = request.qblibNuiToken, payload = data })
+    return true
 end
 
 ---Copies `text` to the system clipboard via the NUI (the only place with
@@ -764,6 +903,30 @@ local function assertMenuItems(items, context, visited)
         end
         assert(item.disabled == nil or type(item.disabled) == "boolean",
             ("%s item %d disabled must be a boolean."):format(context, index))
+        assert(item.checked == nil or type(item.checked) == "boolean",
+            ("%s item %d checked must be a boolean."):format(context, index))
+        assert(item.close == nil or type(item.close) == "boolean",
+            ("%s item %d close must be a boolean."):format(context, index))
+        assert(item.progress == nil or (isFiniteNumber(item.progress) and item.progress >= 0 and item.progress <= 100),
+            ("%s item %d progress must be between 0 and 100."):format(context, index))
+        assert(item.colorScheme == nil or type(item.colorScheme) == "string",
+            ("%s item %d colorScheme must be a string."):format(context, index))
+        assert(item.iconColor == nil or type(item.iconColor) == "string",
+            ("%s item %d iconColor must be a string."):format(context, index))
+        if item.values ~= nil then
+            assert(type(item.values) == "table" and #item.values > 0,
+                ("%s item %d values must be a non-empty array."):format(context, index))
+            for valueIndex, value in ipairs(item.values) do
+                assert(type(value) == "string" or (type(value) == "table" and type(value.label) == "string"
+                    and (value.description == nil or type(value.description) == "string")),
+                    ("%s item %d value %d must be a string or label/description table."):format(context, index, valueIndex))
+            end
+            assert(item.defaultIndex == nil or (type(item.defaultIndex) == "number" and item.defaultIndex % 1 == 0
+                and item.defaultIndex >= 1 and item.defaultIndex <= #item.values),
+                ("%s item %d defaultIndex must reference a value."):format(context, index))
+        else
+            assert(item.defaultIndex == nil, ("%s item %d cannot have defaultIndex without values."):format(context, index))
+        end
 
         if item.submenu ~= nil then
             assert(type(item.submenu) == "table", ("%s item %d submenu must be a table."):format(context, index))
@@ -779,6 +942,12 @@ local function assertMenuGeometry(title, opts)
     assert(title == nil or type(title) == "string", "Menu title must be a string.")
     assert(opts == nil or type(opts) == "table", "Menu options must be a table.")
     if not opts then return end
+
+    assert(opts.canClose == nil or type(opts.canClose) == "boolean", "Menu canClose must be a boolean.")
+    assert(opts.presentation == nil or opts.presentation == "dialog" or opts.presentation == "panel",
+        "Menu presentation must be dialog or panel.")
+    assert(opts.startIndex == nil or (type(opts.startIndex) == "number" and opts.startIndex > 0 and opts.startIndex % 1 == 0),
+        "Menu startIndex must be a positive integer.")
 
     for _, field in ipairs({ "maxWidth", "maxHeight" }) do
         assert(opts[field] == nil or (isFiniteNumber(opts[field]) and opts[field] > 0),
@@ -820,6 +989,9 @@ function QB.nui.openMenu(items, title, opts)
         position = opts and opts.position,
         maxWidth = opts and opts.maxWidth,
         maxHeight = opts and opts.maxHeight,
+        canClose = opts and opts.canClose,
+        startIndex = opts and opts.startIndex,
+        presentation = opts and opts.presentation,
     }, false)))
 end
 
@@ -873,8 +1045,12 @@ function QB.nui.openAlert(opts)
         assert(opts[field] == nil or type(opts[field]) == "string",
             ("openAlert %s must be a string."):format(field))
     end
-    assert(opts.cancellable == nil or type(opts.cancellable) == "boolean", "openAlert cancellable must be a boolean.")
-    assert(opts.destructive == nil or type(opts.destructive) == "boolean", "openAlert destructive must be a boolean.")
+    for _, field in ipairs({ "cancellable", "showCancel", "showClose", "dismissOnBackdrop", "destructive", "centered", "overflow" }) do
+        assert(opts[field] == nil or type(opts[field]) == "boolean",
+            ("openAlert %s must be a boolean."):format(field))
+    end
+    assert(opts.size == nil or opts.size == "xs" or opts.size == "sm" or opts.size == "md"
+        or opts.size == "lg" or opts.size == "xl", "openAlert size is invalid.")
 
     -- No timeout, same reasoning as openMenu -- and a non-cancellable alert
     -- MUST NOT have one: timing it out would resolve a dialog that's still on

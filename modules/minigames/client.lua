@@ -26,6 +26,7 @@ end
 -- queued or allowed to stack overlays, same as modules/zones' single
 -- creatorState guard.
 local activeSession = nil
+local activeRoundRequest
 local nextSessionToken = 0
 
 local function newSessionToken()
@@ -50,6 +51,10 @@ end
 -- to report its result to.
 local minigameOwnership = QB.resources.registry(function(token)
     if activeSession == token then
+        if activeRoundRequest then
+            QB.nui.cancelRequest(activeRoundRequest, { cancelled = true })
+            activeRoundRequest = nil
+        end
         activeSession = nil
         QB.nui.send("minigames:close", { result = "cancelled" })
     end
@@ -77,7 +82,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                     -- auto-submit well before this fires on its own clock (see
                     -- this module's docs.md), so it's a safety net, not the
                     -- real pacing mechanism.
-                    local attempt = Citizen.Await(QB.nui.request("minigames:round", {
+                    local roundRequest = QB.nui.requestAsync("minigames:round", {
                         type = gameType,
                         sessionId = round.sessionId,
                         attempt = round.attempt,
@@ -85,7 +90,10 @@ local function beginPlay(gameType, opts, authorization, resource)
                         timeLimit = round.timeLimit,
                         lastResult = lastResult,
                         puzzle = round.public,
-                    }, round.timeLimit + Config.minigames.roundTimeoutBuffer, resource))
+                    }, round.timeLimit + Config.minigames.roundTimeoutBuffer, resource)
+                    if activeSession == token then activeRoundRequest = roundRequest end
+                    local attempt = Citizen.Await(roundRequest)
+                    if activeRoundRequest == roundRequest then activeRoundRequest = nil end
 
                     -- Player pressed Escape (every minigame's Dialog resolves
                     -- {cancelled = true} on Escape/backdrop, same vocabulary
@@ -127,7 +135,10 @@ local function beginPlay(gameType, opts, authorization, resource)
         end)
 
         minigameOwnership.untrack(token)
-        if activeSession == token then activeSession = nil end
+        if activeSession == token then
+            activeSession = nil
+            activeRoundRequest = nil
+        end
 
         if not ok then
             if serverSessionId then
@@ -172,23 +183,45 @@ end
 ---failing outright -- see docs.md's "Cancelling" note. Rejects/errors if a minigame is already in progress for
 ---this player (checked both here and, in case a modified client skips this, server-side), gameType is
 ---invalid, or the underlying NUI/callback round trip fails.
-function QB.minigames.play(gameType, opts, authorization)
+function QB.minigames.play(gameType, opts, authorization, owner)
+    return settleForExport(QB.minigames.playAsync(gameType, opts, authorization,
+        owner or GetInvokingResource() or GetCurrentResourceName()))
+end
+
+---Starts a minigame without awaiting through an enclosing export call. This is
+---used by compatibility providers that must retain a handle for cancellation.
+---@param gameType string
+---@param opts? table
+---@param authorization? string
+---@param owner? string
+---@return promise result
+function QB.minigames.playAsync(gameType, opts, authorization, owner)
     assert(QB.minigames.GAME_TYPES[gameType], "invalid minigame type -- see QB.minigames.GAME_TYPES.")
     assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
     assert(authorization == nil or type(authorization) == "string", "minigame authorization must be a string.")
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'minigame owner must be a non-empty string.')
 
     if activeSession then
         local p = promise.new()
         p:reject("A minigame is already in progress.")
-        return settleForExport(p)
+        return p
     end
 
     -- Captured now, synchronously, while GetInvokingResource() still reflects
     -- the caller that reached across the exports boundary -- see
     -- modules/zones/client.lua's startCreator for the same reasoning.
-    local resource = GetInvokingResource() or GetCurrentResourceName()
+    local resource = owner or GetInvokingResource() or GetCurrentResourceName()
 
-    return settleForExport(beginPlay(gameType, opts, authorization, resource))
+    return beginPlay(gameType, opts, authorization, resource)
+end
+
+---Cancels the active minigame through the same result path as player Escape.
+---@return boolean cancelled
+function QB.minigames.cancel()
+    if not activeSession or not activeRoundRequest then return false end
+    local request = activeRoundRequest
+    activeRoundRequest = nil
+    return QB.nui.cancelRequest(request, { cancelled = true })
 end
 
 ---Plays a minigame whose optional difficulty adjustment comes from qbskills.

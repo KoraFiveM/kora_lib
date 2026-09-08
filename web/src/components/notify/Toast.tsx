@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 
 import { cn } from "@/lib/cn"
 import { resolveIcon } from "@/lib/icon"
+import { iconAnimationClass } from "@/lib/iconAnimation"
 import type { NotifyPayload, NotifyPosition, NotifyType } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
+import { Markdown } from "@/components/ui/markdown"
 
 // Lua's QB.notify.send resolves these from Config.notify before sending, but
 // this component must stay renderable from a bare payload too -- any resource
@@ -33,6 +35,10 @@ const POSITION_STYLES: Record<NotifyPosition, string> = {
     "bottom-left": "bottom-4 left-4 flex-col-reverse items-start",
     "bottom-center": "bottom-4 left-1/2 -translate-x-1/2 flex-col-reverse items-center",
     "bottom-right": "bottom-4 right-4 flex-col-reverse items-end",
+    "center-left": "left-4 top-1/2 -translate-y-1/2 flex-col items-start",
+    "center-right": "right-4 top-1/2 -translate-y-1/2 flex-col items-end",
+    top: "left-1/2 top-4 -translate-x-1/2 flex-col items-center",
+    bottom: "bottom-4 left-1/2 -translate-x-1/2 flex-col-reverse items-center",
 }
 
 const ENTER_ANIMATION: Record<NotifyPosition, string> = {
@@ -42,16 +48,27 @@ const ENTER_ANIMATION: Record<NotifyPosition, string> = {
     "bottom-left": "slide-in-from-left-2",
     "bottom-center": "slide-in-from-bottom-2",
     "bottom-right": "slide-in-from-right-2",
+    "center-left": "slide-in-from-left-2",
+    "center-right": "slide-in-from-right-2",
+    top: "slide-in-from-top-2",
+    bottom: "slide-in-from-bottom-2",
 }
 
 interface ToastEntry {
-    id: number
+    id: number | string
     title?: string
     message?: string
     duration: number
     type: NotifyType
     position: NotifyPosition
     icon?: string
+    iconColor?: string
+    iconAnimation?: NotifyPayload["iconAnimation"]
+    alignIcon?: NotifyPayload["alignIcon"]
+    style?: Record<string, string | number>
+    titleStyle?: Record<string, string | number>
+    messageStyle?: Record<string, string | number>
+    showDuration?: boolean
 }
 
 let nextToastId = 0
@@ -64,6 +81,26 @@ function isNotifyPosition(value: unknown): value is NotifyPosition {
     return typeof value === "string" && value in POSITION_STYLES
 }
 
+function scalarStyles(value: unknown): Record<string, string | number> | undefined {
+    if (!value || typeof value !== "object") return undefined
+    const styles = Object.fromEntries(Object.entries(value).filter(([key, entry]) => key !== "pointerEvents" && (typeof entry === "string" || typeof entry === "number")))
+    return Object.keys(styles).length ? styles : undefined
+}
+
+function notifyStyles(value: unknown) {
+    const root = scalarStyles(value)
+    let title: Record<string, string | number> | undefined
+    let message: Record<string, string | number> | undefined
+    if (value && typeof value === "object") {
+        for (const [selector, styles] of Object.entries(value)) {
+            const normalized = selector.toLowerCase().replace(/^&\s*/, "").replace(/^\./, "")
+            if (normalized === "title") title = scalarStyles(styles)
+            if (normalized === "description" || normalized === "message" || normalized === "text") message = scalarStyles(styles)
+        }
+    }
+    return { root, title, message }
+}
+
 /**
  * Renders QB.notify.send's "notify" messages (see modules/notify/) as
  * auto-dismissing toasts, grouped into one stack per requested screen
@@ -73,9 +110,9 @@ function isNotifyPosition(value: unknown): value is NotifyPosition {
  */
 export function Toast() {
     const [toasts, setToasts] = useState<ToastEntry[]>([])
-    const timeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+    const timeoutsRef = useRef<Map<number | string, ReturnType<typeof setTimeout>>>(new Map())
 
-    const clearToastTimeout = useCallback((id: number) => {
+    const clearToastTimeout = useCallback((id: number | string) => {
         const timeout = timeoutsRef.current.get(id)
         if (timeout) {
             clearTimeout(timeout)
@@ -84,7 +121,7 @@ export function Toast() {
     }, [])
 
     const dismiss = useCallback(
-        (id: number) => {
+        (id: number | string) => {
             setToasts((prev) => prev.filter((toast) => toast.id !== id))
             clearToastTimeout(id)
         },
@@ -100,13 +137,15 @@ export function Toast() {
         const message = typeof payload.message === "string" ? payload.message : undefined
         if (!title && !message) return
 
-        const id = nextToastId++
+        const hasId = typeof payload.id === "number" || (typeof payload.id === "string" && payload.id !== "")
+        const id = hasId ? payload.id! : nextToastId++
         const duration = typeof payload.duration === "number"
             && Number.isFinite(payload.duration)
             && payload.duration > 0
             ? payload.duration
             : DEFAULT_DURATION
 
+        const styles = notifyStyles(payload.style)
         const entry: ToastEntry = {
             id,
             title,
@@ -115,10 +154,21 @@ export function Toast() {
             type: isNotifyType(payload.type) ? payload.type : DEFAULT_TYPE,
             position: isNotifyPosition(payload.position) ? payload.position : DEFAULT_POSITION,
             icon: typeof payload.icon === "string" ? payload.icon : undefined,
+            iconColor: typeof payload.iconColor === "string" ? payload.iconColor : undefined,
+            iconAnimation: payload.iconAnimation,
+            alignIcon: payload.alignIcon,
+            style: styles.root,
+            titleStyle: styles.title,
+            messageStyle: styles.message,
+            showDuration: payload.showDuration,
         }
 
+        clearToastTimeout(id)
         setToasts((prev) => {
-            const next = [...prev, entry]
+            const existingIndex = prev.findIndex((toast) => toast.id === id)
+            const next = existingIndex === -1
+                ? [...prev, entry]
+                : prev.map((toast, index) => index === existingIndex ? entry : toast)
             const overflow = Math.max(0, next.length - MAX_TOASTS)
 
             for (const dropped of next.slice(0, overflow)) clearToastTimeout(dropped.id)
@@ -175,7 +225,7 @@ function ToastCard({ toast }: { toast: ToastEntry }) {
             role={toast.type === "error" ? "alert" : "status"}
             aria-live={toast.type === "error" ? undefined : "polite"}
             aria-atomic="true"
-            style={{ "--toast-duration": `${toast.duration}ms` } as CSSProperties}
+            style={{ ...toast.style, "--toast-duration": `${toast.duration}ms` } as CSSProperties}
             className={cn(
                 "animate-in fade-in-0 relative flex w-full gap-2 overflow-hidden rounded-lg border border-l-4 bg-popover p-3 shadow-floating duration-popover ease-entry",
                 ENTER_ANIMATION[toast.position],
@@ -183,22 +233,20 @@ function ToastCard({ toast }: { toast: ToastEntry }) {
             )}
         >
             {Icon ? (
-                <span className={cn("mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md", variant.chip)}>
-                    <Icon aria-hidden className="h-4 w-4" />
+                <span className={cn("inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md", toast.alignIcon === "top" ? "self-start" : "self-center", variant.chip)}>
+                    <Icon aria-hidden className={cn("h-4 w-4", iconAnimationClass(toast.iconAnimation))} style={{ color: toast.iconColor }} />
                 </span>
             ) : null}
             <div className="min-w-0 flex-1 text-popover-foreground">
-                {toast.title && <p className="text-sm font-semibold leading-tight">{toast.title}</p>}
+                {toast.title && <p className="text-sm font-semibold leading-tight" style={toast.titleStyle as CSSProperties}>{toast.title}</p>}
                 {toast.message && (
-                    <p className={cn("break-words text-xs text-muted-foreground", toast.title && "mt-1")}>
-                        {toast.message}
-                    </p>
+                    <Markdown className={cn("break-words text-xs text-muted-foreground", toast.title && "mt-1")} style={toast.messageStyle as CSSProperties}>{toast.message}</Markdown>
                 )}
             </div>
-            <span
+            {toast.showDuration !== false ? <span
                 aria-hidden
                 className={cn("toast-lifetime absolute bottom-0 left-0 h-px w-full", variant.progress)}
-            />
+            /> : null}
         </div>
     )
 }

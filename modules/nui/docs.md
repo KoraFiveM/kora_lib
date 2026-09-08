@@ -39,6 +39,18 @@ Registers an NUI callback. `handler(data)` returns a plain value (or nil); the r
 ### `QB.nui.request(action, data, timeout)`
 Sends `action` to the NUI and returns its response, once available. Requests are owned by the calling resource: stopping that resource rejects its outstanding requests, removes only its focus leases, and dismisses the matching browser surfaces without posting stale responses.
 
+`QB.nui.requestAsync`, `QB.nui.cancelRequest`, and `QB.nui.updateRequest` are lower-level composition
+primitives used by qblib's compatibility modules. They retain a tokenized
+request handle so an API such as ox_lib's programmatic dialog close can both
+update or dismiss the browser surface while retaining one promise and focus
+lease. Gameplay
+resources should continue to use `request` and the `open*` helpers.
+
+`QB.nui.acquireFocus` / `QB.nui.releaseFocus` are the matching owner-tracked focus
+lease primitives for compatibility APIs whose focus lifetime spans several
+calls. They are internal building blocks; normal callers should prefer
+`withFocus` or an `open*` helper.
+
 #### Parameters
 - `action: string`
 - `data: any`
@@ -79,7 +91,15 @@ Opens a confirmation or acknowledgement dialog. It manages mouse and keyboard fo
   - `image?: string` — trusted artwork URL, including `nui://` paths. Artwork is contained in a fixed-height frame and hidden if it cannot load.
   - `confirmLabel?: string`, `cancelLabel?: string`
   - `cancellable?: boolean` — defaults to `true`; when `false`, hides Cancel and prevents Escape/backdrop dismissal.
+  - `showCancel?: boolean`, `showClose?: boolean` — independently control the
+    two optional dismissal controls while leaving Escape behavior unchanged.
+  - `dismissOnBackdrop?: boolean` — defaults to `true`.
+  - `centered?: boolean`, `size?: "xs" | "sm" | "md" | "lg" | "xl"`,
+    `overflow?: boolean` — responsive placement, width, and long-copy scrolling.
   - `destructive?: boolean` — styles the confirm button as destructive.
+
+The title and message support safe GitHub-flavoured Markdown. Raw HTML is
+ignored and alert Markdown images are constrained to the dialog.
 
 #### Returns
 - `{ confirmed: boolean }`; `nil` on timeout/error.
@@ -102,14 +122,19 @@ end
 Opens a searchable list menu. Grants mouse+keyboard NUI focus while open and releases it as soon as the menu closes (selection, cancel, or timeout) — no `withFocus` wrap needed.
 
 #### Parameters
-- `items: table[]` — `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean }[]`
+- `items: table[]` — `{ id, label, description?, icon?, disabled?, readOnly?,
+  progress?, colorScheme?, metadata?, arrow?, iconColor?, iconAnimation?,
+  iconWidth?, iconHeight?, values?, checked?, close?, submenu? }[]`. Labels and
+  descriptions support safe Markdown; metadata may carry labeled values and
+  per-value progress.
 - `title?: string`
-- `opts?: table` — optional geometry. `position.horizontal` is `left`, `center`, or `right`; `position.vertical` is `top`, `center`, or `bottom`. `offsetX`/`offsetY`, `maxWidth`, and `maxHeight` are positive pixel values. Omit `opts` to keep the existing centred size and position.
+- `opts?: table` — optional geometry. `position.horizontal` is `left`, `center`, or `right`; `position.vertical` is `top`, `center`, or `bottom`. `offsetX`/`offsetY`, `maxWidth`, and `maxHeight` are positive pixel values. `presentation = "panel"` uses a compact non-modal, non-searchable surface while retaining keyboard navigation; the default is the existing searchable dialog.
 
 #### Returns
 - `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
 
-`icon` resolves against a small curated set of lucide icon names (`web/src/lib/icon.ts`) — a name outside that set just renders with no icon rather than erroring; extend that file's list if you need one that isn't there yet.
+`icon` resolves qblib's curated Lucide names immediately, ox-compatible Font
+Awesome names through lazy prefix chunks, and safe HTTP/NUI image URLs.
 
 ```lua
 -- A compact menu, vertically centred on the right with a comfortable inset.
@@ -170,7 +195,7 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 #### Parameters
 - `fields: table[]` — one per input:
   - `id: string`, `label: string`
-  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox"`
+  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color"`
   - `description?: string` — help text shared by standalone dialogs and AppShell forms.
   - `options?: { value, label, disabled? }[]` — `select`, `multiselect`, and `combobox`. Numeric values are accepted for Lua compatibility and normalized to strings in browser results. `select` restricts the result to one option; `multiselect` returns a string array; `combobox` is free text with filtered suggestions (matched against label and value, capped at 8).
   - `rows?: integer` — `textarea` only (default 3).
@@ -181,6 +206,12 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
   - `numericOnly?: boolean`, `keypad?: boolean` — restrict textual entry to digits and optionally render the compact keypad.
   - `presets?: { value: number, label?: string }[]` — quick choices below a number field.
   - `step?: number` — increment for number and range controls.
+  - `searchable?: boolean` — adds a fixed-choice filter to select/multiselect;
+    unlike `combobox`, typed search text can never become the submitted value.
+  - `dateMin?`, `dateMax?` — ISO strings or numeric timestamps, normalized in
+    the browser's local timezone. Numeric date/time defaults are normalized the
+    same way. `dateFormat` supports common Day.js tokens including month/day
+    names, ordinals, quarters, and escaped `[text]`.
 - `title?: string`, `description?: string`
 
 #### Returns
@@ -436,6 +467,7 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 ## Notes
 - `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`qblib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
 - The invoking resource owns its pending requests and focus leases. If it stops, qblib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
+- Releasing the final focus lease restores the keep-input state that existed before qblib acquired focus, so compatibility surfaces do not interfere with another overlay's input policy.
 - A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.
 - `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `QB.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
 - These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `QB.nui.*` from **within qblib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.

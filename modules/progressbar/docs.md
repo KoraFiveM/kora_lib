@@ -12,15 +12,24 @@ Runs a progress bar for `payload.duration` ms.
 - `payload: QBProgressBarPayload`
   - `label: string` — Text shown above the bar. Required.
   - `duration: integer` — Milliseconds the bar takes to fill. Must be `> 0` and `<= Config.progressbar.maxDuration` (10 minutes by default).
-- `canCancel?: boolean` — Lets the player abort early with `Config.progressbar.cancelControls` (`73` / X or `322` / Escape by default). Defaults to `false`.
+  - `maxDuration?: integer|false` — Internal compatibility override for a different positive limit; `false` removes the cap. Normal qblib calls should keep the configured default.
+  - `canCancel?: boolean` — Lets the player abort early with `Config.progressbar.cancelControls` (`73` / X or `322` / Escape by default). Defaults to `false`.
+  - `cancelControls?: integer[]|false` — Internal compatibility override for the controls polled by qblib; `false` delegates cancellation to a compatibility resource's remappable command.
+  - `presentation?: "bar" | "circle"` and `position?: "middle" | "bottom"` — Select the visual used by ox-compatible progress-circle calls.
+  - `useWhileDead?`, `allowRagdoll?`, `allowCuffed?`, `allowFalling?`, `allowSwimming?` — State-specific interruption overrides; all default to `false`.
   - `disable?: table`
     - `move?: boolean` — Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to `false`.
+    - `sprint?: boolean` — Disables sprinting.
     - `combat?: boolean` — Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to `false`.
     - `car?: boolean` — Disables vehicle driving controls while the ped is in a vehicle. Defaults to `false`.
+    - `mouse?: boolean` — Disables look input.
   - `anim?: table` — Played for the duration, stopped and released automatically when the bar ends.
+  - `strictAnim?: boolean` — Internal compatibility switch that raises if `anim.dict` cannot load. Normal qblib calls retain the graceful fallback below.
     - `dict: string`, `clip: string` — Animation dictionary/clip.
     - `flag?: number` — `TaskPlayAnim` AnimFlags bitmask. Defaults to `1` (loop).
     - `blendIn?: number`, `blendOut?: number` — Default `8.0` each.
+    - `duration?: integer`, `playbackRate?: number`, `lockX?`, `lockY?`, `lockZ?` — Forwarded to `TaskPlayAnim`.
+    - `stopBlendOut?: number` — Internal compatibility override for the cleanup blend-out; normal calls reuse `blendOut`.
   - `scenario?: table` — Alternative to `anim`; the two cannot be combined.
     - `name: string` — Scenario name, such as `WORLD_HUMAN_HAMMERING`.
     - `playEnter?: boolean` — Whether to play its enter animation. Defaults to `true`.
@@ -73,7 +82,7 @@ Returns `true` while a progress bar started by this module is currently running.
 
 ## Notes
 - Only one bar can be active at a time. Calling `start` while one is already running does not queue or interrupt it — it fails immediately with `completed = false, error = "A progress bar is already active."` — a progress bar represents "the player is busy doing one specific thing right now", and silently stacking a second one on top would make both visually and mechanically incoherent (which anim plays, whose controls win).
-- Dying always cancels the bar, regardless of `disable`/`canCancel`.
+- Death, ragdoll, cuffed, falling, and swimming states cancel by default; their explicit allow flags opt into continuing.
 - If `anim.dict` fails to load within 5 seconds, the bar still runs (and can still complete) — it just runs without the animation, and a warning is printed to the client console.
 - Prop models are streamed before the progress timer and NUI animation start. A malformed descriptor is rejected up front; a runtime streaming/object/attachment failure logs a warning and lets the action continue without that prop.
 - Props are non-networked local entities, so they work under strict entity lockdown and cannot become shared world state. They are detached and deleted on completion, cancellation, internal errors, or resource shutdown. If nearby players must see a gameplay prop, its owning server resource must create and lifecycle-manage it separately.

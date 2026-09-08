@@ -13,6 +13,7 @@ dofile(repoRoot .. "local/resources/client.lua")
 local disabled = {}
 local firingCalls = 0
 local playerIdCalls = 0
+local weaponWheelCalls = 0
 
 function _G.DisableControlAction(group, control)
     disabled[#disabled + 1] = { group = group, control = control }
@@ -28,6 +29,8 @@ function _G.DisablePlayerFiring(player, disabledValue)
     harness.assertTrue(disabledValue, "firing suppression should always pass true")
     firingCalls = firingCalls + 1
 end
+
+function _G.HudWeaponWheelIgnoreSelection() weaponWheelCalls = weaponWheelCalls + 1 end
 
 dofile(repoRoot .. "modules/controls/client.lua")
 
@@ -86,6 +89,16 @@ harness.test("input groups and firing suppression are forwarded", function()
     harness.assertTrue(countControl(2, 1) > 0, "the requested input group should be used")
     harness.assertTrue(firingCalls > 0 and playerIdCalls > 0, "firing should be disabled immediately")
     QB.controls.release(lease)
+end)
+
+harness.test("weapon wheel suppression is composed and released", function()
+    weaponWheelCalls = 0
+    local lease = QB.controls.acquire({}, { ignoreWeaponWheel = true })
+    harness.assertTrue(weaponWheelCalls > 0, "weapon wheel suppression should apply immediately")
+    QB.controls.release(lease)
+    local before = weaponWheelCalls
+    mockHandle.step()
+    harness.assertEqual(weaponWheelCalls, before, "released suppression should not run again")
 end)
 
 harness.test("resource stop releases only that resource's leases", function()

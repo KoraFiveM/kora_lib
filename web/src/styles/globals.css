@@ -127,6 +127,60 @@
     animation: toast-lifetime var(--toast-duration, 5000ms) linear forwards;
   }
 
+  @keyframes icon-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes icon-pulse {
+    50% { opacity: 0.4; }
+  }
+
+  @keyframes icon-beat {
+    50% { transform: scale(1.2); }
+  }
+
+  @keyframes icon-beat-fade {
+    50% { opacity: 0.45; transform: scale(1.18); }
+  }
+
+  @keyframes icon-bounce {
+    0%, 100% { transform: translateY(0); }
+    45% { transform: translateY(-22%); }
+    65% { transform: translateY(0); }
+    80% { transform: translateY(-10%); }
+  }
+
+  @keyframes icon-shake {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(-12deg); }
+    40% { transform: rotate(10deg); }
+    60% { transform: rotate(-7deg); }
+    80% { transform: rotate(5deg); }
+  }
+
+  .icon-animation-spin,
+  .icon-animation-spin-pulse,
+  .icon-animation-spin-reverse,
+  .icon-animation-pulse,
+  .icon-animation-beat,
+  .icon-animation-fade,
+  .icon-animation-beat-fade,
+  .icon-animation-bounce,
+  .icon-animation-shake {
+    transform-origin: center;
+    will-change: transform, opacity;
+  }
+
+  .icon-animation-spin { animation: icon-spin 2s linear infinite; }
+  .icon-animation-spin-pulse { animation: icon-spin 1s steps(8, end) infinite; }
+  .icon-animation-spin-reverse { animation: icon-spin 2s linear infinite reverse; }
+  .icon-animation-pulse,
+  .icon-animation-fade { animation: icon-pulse 1s ease-in-out infinite; }
+  .icon-animation-beat { animation: icon-beat 0.75s ease-in-out infinite; }
+  .icon-animation-beat-fade { animation: icon-beat-fade 0.75s ease-in-out infinite; }
+  .icon-animation-bounce { animation: icon-bounce 1s ease-in-out infinite; }
+  .icon-animation-shake { animation: icon-shake 0.75s ease-in-out infinite; }
+
   @keyframes progress-fill {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
@@ -135,6 +189,16 @@
   .progress-fill {
     transform-origin: left;
     animation: progress-fill var(--progress-duration, 3000ms) linear forwards;
+  }
+
+  @keyframes progress-circle {
+    from { stroke-dashoffset: 169.65; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  .progress-circle {
+    stroke-dashoffset: 169.65;
+    animation: progress-circle var(--progress-duration, 3000ms) linear forwards;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -151,7 +215,8 @@
       animation: none;
     }
 
-    .progress-fill {
+    .progress-fill,
+    .progress-circle {
       animation: none;
     }
   }

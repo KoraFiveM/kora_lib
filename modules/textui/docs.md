@@ -12,8 +12,20 @@ a compact read-only status view. Options:
 
 - `key`: short control text such as `E` or `F6`.
 - `icon`: a supported Lucide icon name such as `Car` or `Key`.
+- `iconColor`: CSS colour applied to the icon.
+- `iconAnimation`: `spin`, `spinPulse`, `spinReverse`, `pulse`, `beat`, `fade`,
+  `beatFade`, `bounce`, or `shake`.
+- `alignIcon`: `top` or `center` (default).
+- `style`: either flat CSS property values or a CSS declaration string such as
+  `"background-color: #111; color: white"`, applied only to the prompt's inline
+  style. Selectors and stylesheet rules cannot escape onto the page. The
+  browser deliberately ignores `pointerEvents`/`pointer-events` so Text UI
+  remains display-only.
 - `position`: `left-center`, `right-center` (default), `top-center`, or
   `bottom-center`.
+
+Text is rendered as safe GitHub-flavoured Markdown. Raw HTML is ignored and
+unsafe link protocols are rejected by the renderer.
 
 ## `QB.textui.update(id, text, opts?) -> boolean`
 

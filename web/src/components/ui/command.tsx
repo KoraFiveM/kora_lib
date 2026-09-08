@@ -21,9 +21,9 @@ Command.displayName = CommandPrimitive.displayName
 
 const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
-  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
->(({ className, ...props }, ref) => (
-  <div className="search-focus flex h-11 items-center border-b border-border px-3 transition-[border-color,box-shadow] duration-fast ease-entry" cmdk-input-wrapper="">
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input> & { containerClassName?: string }
+>(({ className, containerClassName, ...props }, ref) => (
+  <div className={cn("search-focus flex h-11 items-center border-b border-border px-3 transition-[border-color,box-shadow] duration-fast ease-entry", containerClassName)} cmdk-input-wrapper="">
     <Search aria-hidden className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
     <CommandPrimitive.Input
       ref={ref}

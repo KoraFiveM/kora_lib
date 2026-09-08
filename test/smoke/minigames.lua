@@ -57,6 +57,14 @@ QB.nui = {
         end
         return p
     end,
+    requestAsync = function(action, data)
+        return QB.nui.request(action, data)
+    end,
+    cancelRequest = function(request, result, rejection)
+        if request.state ~= 'pending' then return false end
+        if rejection then request:reject(rejection) else request:resolve(result) end
+        return true
+    end,
     withFocus = function(_, _, fn) return fn() end,
 }
 

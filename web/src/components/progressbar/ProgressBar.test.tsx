@@ -36,4 +36,13 @@ describe("ProgressBar", () => {
         act(() => vi.advanceTimersByTime(750))
         expect(screen.queryByRole("progressbar", { name: "Repairing" })).not.toBeInTheDocument()
     })
+
+    it("renders ox-compatible circular progress in the requested position", () => {
+        render(<ProgressBar />)
+        startProgress({ label: "Searching", duration: 1000, presentation: "circle", position: "middle" })
+
+        const progress = screen.getByRole("progressbar", { name: "Searching" })
+        expect(progress.closest(".fixed")).toHaveClass("top-1/2")
+        expect(progress.querySelector(".progress-circle")).toBeInTheDocument()
+    })
 })

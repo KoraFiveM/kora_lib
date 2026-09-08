@@ -52,14 +52,16 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
-            if (event.repeat || (event.code !== "Space" && event.code !== "Enter")) return
+            const expected = puzzle.input?.toLowerCase()
+            const accepted = expected ? event.key.toLowerCase() === expected : event.code === "Space" || event.code === "Enter"
+            if (event.repeat || !accepted) return
             event.preventDefault()
             finish(performance.now() - startRef.current)
         }
 
         window.addEventListener("keydown", onKeyDown)
         return () => window.removeEventListener("keydown", onKeyDown)
-    }, [])
+    }, [puzzle.input])
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
@@ -87,7 +89,7 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    Press <span className="font-medium text-foreground">Space</span> when the indicator is inside the zone.
+                    Press <span className="font-medium text-foreground">{puzzle.input?.toUpperCase() ?? "Space"}</span> when the indicator is inside the zone.
                     Press <span className="font-medium text-foreground">Esc</span> to cancel.
                 </p>
             </DialogContent>

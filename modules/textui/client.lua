@@ -4,6 +4,10 @@
 ---@field key? string Short key/control label displayed beside the text.
 ---@field icon? string Lucide icon name.
 ---@field position? QBTextUIPosition Defaults to `right-center`.
+---@field iconColor? string CSS colour applied to the icon.
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field alignIcon? 'top'|'center' Defaults to `center`.
+---@field style? string|table<string, string|number> Scoped CSS declarations or properties applied to the prompt surface.
 
 local entries = {}
 local order = {}
@@ -14,6 +18,18 @@ local POSITIONS = {
     ['right-center'] = true,
     ['top-center'] = true,
     ['bottom-center'] = true,
+}
+
+local ICON_ANIMATIONS = {
+    spin = true,
+    spinPulse = true,
+    spinReverse = true,
+    pulse = true,
+    beat = true,
+    fade = true,
+    beatFade = true,
+    bounce = true,
+    shake = true,
 }
 
 local function normalize(text, options)
@@ -27,11 +43,21 @@ local function normalize(text, options)
         'Text UI key must be a non-empty string.')
     assert(options.icon == nil or (type(options.icon) == 'string' and #options.icon > 0),
         'Text UI icon must be a non-empty string.')
+    assert(options.iconColor == nil or type(options.iconColor) == 'string', 'Text UI iconColor must be a string.')
+    assert(options.iconAnimation == nil or ICON_ANIMATIONS[options.iconAnimation], 'Text UI iconAnimation is unsupported.')
+    assert(options.alignIcon == nil or options.alignIcon == 'top' or options.alignIcon == 'center',
+        'Text UI alignIcon must be top or center.')
+    assert(options.style == nil or type(options.style) == 'table' or type(options.style) == 'string',
+        'Text UI style must be a table or CSS declaration string.')
 
     return {
         text = text,
         key = options.key,
         icon = options.icon,
+        iconColor = options.iconColor,
+        iconAnimation = options.iconAnimation,
+        alignIcon = options.alignIcon,
+        style = options.style,
         position = position,
     }
 end
@@ -49,6 +75,10 @@ local function render()
             text = entry.text,
             key = entry.key,
             icon = entry.icon,
+            iconColor = entry.iconColor,
+            iconAnimation = entry.iconAnimation,
+            alignIcon = entry.alignIcon,
+            style = entry.style,
             position = entry.position,
         })
     else
@@ -82,15 +112,17 @@ end)
 ---Adds a text prompt to the display stack and returns its owned handle.
 ---@param text string
 ---@param opts? QBTextUIOptions
+---@param owner? string Internal owner override for compatibility providers.
 ---@return integer id
-function QB.textui.show(text, opts)
+function QB.textui.show(text, opts, owner)
     local entry = normalize(text, opts)
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Text UI owner must be a non-empty string.')
     nextId = nextId + 1
     local id = nextId
 
     entries[id] = entry
     order[#order + 1] = id
-    registry.track(GetInvokingResource() or GetCurrentResourceName(), id)
+    registry.track(owner or GetInvokingResource() or GetCurrentResourceName(), id)
     render()
     return id
 end

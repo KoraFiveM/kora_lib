@@ -26,6 +26,8 @@ dofile(repoRoot .. "local/resources/client.lua")
 local nuiCallbacks = {}
 local sentMessages = {}
 local focusCalls = {}
+local keepInputCalls = {}
+local currentKeepInput = false
 
 _G.RegisterNUICallback = function(name, fn)
     nuiCallbacks[name] = fn
@@ -38,6 +40,11 @@ end
 _G.SetNuiFocus = function(mouse, keyboard)
     table.insert(focusCalls, { mouse = mouse, keyboard = keyboard })
 end
+_G.SetNuiFocusKeepInput = function(keepInput)
+    currentKeepInput = keepInput
+    keepInputCalls[#keepInputCalls + 1] = keepInput
+end
+_G.IsNuiFocusKeepingInput = function() return currentKeepInput end
 
 -- qblib imports qbtheme's bridge before this module in production. Model the
 -- bridge's important contract here: a nil app accent restores the player's
@@ -134,6 +141,30 @@ harness.test("request rejects once the NUI responds with ok = false", function()
     harness.assertEqual(p.value, "something broke", "the rejection should carry the NUI's error")
 end)
 
+harness.test("requestAsync can be cancelled and releases its focus lease", function()
+    local request = QB.nui.requestAsync("openAlert", { message = "Wait" }, false, "consumer", true)
+    local requestId, token = lastRequestId(), lastToken()
+
+    harness.assertEqual(request.state, "pending", "the asynchronous request should remain available to its composing module")
+    harness.assertTrue(focusCalls[#focusCalls].mouse, "focused requests should acquire a focus lease")
+    harness.assertTrue(QB.nui.cancelRequest(request, { confirmed = false }), "a pending request should cancel")
+
+    local cancellation = sentMessages[#sentMessages]
+    harness.assertEqual(cancellation.action, "cancelNuiRequest", "cancellation should dismiss the matching browser surface")
+    harness.assertEqual(cancellation.data.requestId, requestId, "cancellation should identify the request")
+    harness.assertEqual(cancellation.data.token, token, "cancellation should carry the request token")
+    harness.assertEqual(request.state, "resolved", "a normal cancellation should resolve the request")
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "settling should release the focus lease")
+    harness.assertFalse(QB.nui.cancelRequest(request), "an already-settled request should not cancel twice")
+end)
+
+harness.test("cancelRequest can reject with the ox-compatible close reason", function()
+    local request = QB.nui.requestAsync("openAlert", { message = "Wait" }, false)
+    harness.assertTrue(QB.nui.cancelRequest(request, nil, "timeout"), "a pending request should reject")
+    harness.assertEqual(request.state, "rejected", "an explicit rejection should reject the promise")
+    harness.assertEqual(request.value, "timeout", "the close reason should be retained")
+end)
+
 harness.test("registerCallback preserves a false handler result", function()
     local response
     QB.nui.registerCallback("returnsFalse", function() return false end)
@@ -218,6 +249,7 @@ harness.test("openMenu forwards optional geometry without changing the existing 
         position = { horizontal = "right", vertical = "center", offsetX = 48 },
         maxWidth = 400,
         maxHeight = 680,
+        presentation = "panel",
     }
     local p = QB.nui.openMenu({ { id = "a", label = "A" } }, "Compact", opts)
 
@@ -225,6 +257,7 @@ harness.test("openMenu forwards optional geometry without changing the existing 
     harness.assertEqual(payload.position, opts.position, "position should be forwarded as-is")
     harness.assertEqual(payload.maxWidth, 400, "maxWidth should be forwarded")
     harness.assertEqual(payload.maxHeight, 680, "maxHeight should be forwarded")
+    harness.assertEqual(payload.presentation, "panel", "presentation should be forwarded")
     respondOk(lastRequestId(), { cancelled = true })
     harness.assertEqual(p.state, "resolved", "the geometry test should settle its menu")
 end)
@@ -240,6 +273,7 @@ harness.test("menus reject render-breaking payloads before taking focus", functi
         function() QB.nui.openMenu({ recursive }) end,
         function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, {}, {}) end,
         function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { maxWidth = 0 / 0 }) end,
+        function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { presentation = "popover" }) end,
         function() QB.nui.openContextMenu({ { id = "ok", label = "Okay" } }, math.huge, 10) end,
     }) do
         harness.assertThrows(invoke, "malformed menu data must be rejected")
@@ -360,7 +394,10 @@ harness.test("openRadialMenu rejects malformed geometry before sending", functio
 end)
 
 harness.test("openInputDialog forwards fields/title/description and resolves with the NUI's raw result", function()
-    local fields = { { id = "amount", label = "Amount", type = "number" } }
+    local fields = {
+        { id = "amount", label = "Amount", type = "number" },
+        { id = "date", label = "Date", type = "date", dateMin = 1788825600000, dateMax = 1791417600000 },
+    }
     local p = QB.nui.openInputDialog(fields, "Enter amount", "How much?")
 
     local sent = sentMessages[#sentMessages]
@@ -451,6 +488,34 @@ harness.test("withFocus sets focus, runs fn, and always releases focus afterward
     harness.assertEqual(result, "done", "withFocus should return fn's result")
     harness.assertEqual(focusCalls[#focusCalls - 1].mouse, true, "focus should have been set before fn ran")
     harness.assertEqual(focusCalls[#focusCalls].mouse, false, "focus should be released after fn returns")
+end)
+
+harness.test("explicit focus leases compose and release independently", function()
+    local releaseMouse = QB.nui.acquireFocus(true, false, true, "mouse-owner")
+    local releaseKeyboard = QB.nui.acquireFocus(false, true, false, "keyboard-owner")
+    harness.assertTrue(focusCalls[#focusCalls].mouse and focusCalls[#focusCalls].keyboard,
+        "combined leases should preserve both focus capabilities")
+    harness.assertTrue(keepInputCalls[#keepInputCalls], "the keep-input lease should be composed")
+
+    QB.nui.releaseFocus(releaseMouse)
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "releasing the mouse lease should remove mouse focus")
+    harness.assertTrue(focusCalls[#focusCalls].keyboard, "the independent keyboard lease should remain")
+    harness.assertFalse(keepInputCalls[#keepInputCalls], "releasing its lease should restore keep-input state")
+
+    QB.nui.releaseFocus(releaseKeyboard)
+    harness.assertFalse(focusCalls[#focusCalls].keyboard, "releasing the final lease should clear focus")
+end)
+
+harness.test("the final focus lease restores a pre-existing keep-input state", function()
+    SetNuiFocusKeepInput(true)
+    local release = QB.nui.acquireFocus(true, true, false, "compat-owner")
+    harness.assertFalse(keepInputCalls[#keepInputCalls], "the active lease should apply its own keep-input choice")
+
+    QB.nui.releaseFocus(release)
+    harness.assertTrue(keepInputCalls[#keepInputCalls], "releasing the final lease should restore the prior keep-input state")
+
+    -- Keep later smoke tests independent from this simulated external overlay.
+    SetNuiFocusKeepInput(false)
 end)
 
 harness.test("withFocus releases focus even when fn errors, then re-raises", function()

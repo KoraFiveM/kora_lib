@@ -11,3 +11,4 @@ class TestResizeObserver {
 }
 
 Object.defineProperty(globalThis, "ResizeObserver", { value: TestResizeObserver, configurable: true })
+Object.defineProperty(Element.prototype, "scrollIntoView", { value() {}, configurable: true })

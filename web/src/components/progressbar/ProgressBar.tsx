@@ -7,6 +7,8 @@ interface ProgressState {
     id: number
     label: string
     duration: number
+    presentation: "bar" | "circle"
+    position: "middle" | "bottom"
 }
 
 let nextProgressId = 0
@@ -46,7 +48,13 @@ export function ProgressBar() {
         clearPending()
 
         const id = nextProgressId++
-        setState({ id, label, duration })
+        setState({
+            id,
+            label,
+            duration,
+            presentation: payload.presentation === "circle" ? "circle" : "bar",
+            position: payload.position === "bottom" ? "bottom" : "middle",
+        })
         // Self-dismissing, same idiom as Toast's auto-dismiss timer -- Lua's
         // own poll loop is timed to the same duration, so this is purely the
         // visual finishing in step with it, not a second source of truth.
@@ -75,6 +83,43 @@ export function ProgressBar() {
     }, [state])
 
     if (!state) return null
+
+    if (state.presentation === "circle") {
+        const placement = state.position === "bottom" ? "bottom-20" : "top-1/2 -translate-y-1/2"
+        return (
+            <div className={`pointer-events-none fixed left-1/2 z-hud -translate-x-1/2 select-none ${placement}`}>
+                <div className="hud-chip overlay-text flex min-w-28 flex-col items-center gap-2 px-4 py-3">
+                    <div
+                        ref={progressRef}
+                        className="relative h-16 w-16"
+                        role="progressbar"
+                        aria-label={state.label || "Progress"}
+                        aria-valuemin={0}
+                        aria-valuemax={state.duration}
+                        aria-valuenow={0}
+                    >
+                        <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90" aria-hidden>
+                            <circle cx="32" cy="32" r="27" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
+                            <circle
+                                key={state.id}
+                                cx="32"
+                                cy="32"
+                                r="27"
+                                fill="none"
+                                stroke="hsl(var(--primary))"
+                                strokeWidth="6"
+                                strokeLinecap="round"
+                                strokeDasharray="169.65"
+                                style={{ "--progress-duration": `${state.duration}ms` } as CSSProperties}
+                                className="progress-circle"
+                            />
+                        </svg>
+                    </div>
+                    {state.label && <p className="max-w-48 truncate text-center text-xs font-medium text-foreground">{state.label}</p>}
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="pointer-events-none fixed bottom-24 left-1/2 z-hud w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none">

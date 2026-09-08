@@ -8,13 +8,15 @@
 local lease = QB.controls.acquire({ 24, 25 }, {
     inputGroup = 0,
     disablePlayerFiring = true,
+    ignoreWeaponWheel = true,
 })
 ```
 
 - `controlIds` is a dense array of non-negative integer control IDs. Duplicate IDs are ignored.
 - `options.inputGroup` defaults to `0` and is passed to `DisableControlAction`.
 - `options.disablePlayerFiring` defaults to `false`. When enabled, `DisablePlayerFiring(PlayerId(), true)` is also applied every frame.
-- At least one control ID or `disablePlayerFiring = true` is required.
+- `options.ignoreWeaponWheel` defaults to `false`. When enabled, `HudWeaponWheelIgnoreSelection()` is applied every frame.
+- At least one control ID or active suppression option is required.
 - Returns an opaque integer lease ID. The calling resource owns the lease, and qblib releases it automatically if that resource stops.
 
 The controls are applied immediately before `acquire` returns and then once per frame. That makes disabled-input reads such as `IsDisabledControlJustPressed` and `GetDisabledControlNormal` safe in the same tick.

@@ -14,7 +14,20 @@ Shows a notification on the local player.
   - `duration?: integer` — Milliseconds. Defaults to `Config.notify.defaultDuration`, capped at `Config.notify.maxDuration`.
   - `type?: "info" | "success" | "warning" | "error"` — Visual variant (accent colour + icon). Defaults to `Config.notify.defaultType`.
   - `position?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"` — Defaults to `Config.notify.defaultPosition`.
-  - `icon?: string` — Overrides the variant's default icon. A lucide name from the curated set in `web/src/lib/icon.ts`; an unknown name just renders no icon.
+  - `icon?: string` — Overrides the variant's default icon. Supports qblib's
+    Lucide set, ox-compatible Font Awesome names, and safe HTTP/NUI image URLs.
+  - `iconColor?: string` — CSS colour for the icon.
+  - `iconAnimation?: string` — `spin`, `spinPulse`, `spinReverse`, `pulse`,
+    `beat`, `fade`, `beatFade`, `bounce`, or `shake`.
+  - `alignIcon?: "top" | "center"` — Vertical icon alignment.
+  - `id?: string | number` — Replaces a live toast with the same ID.
+  - `showDuration?: boolean` — Set false to hide the lifetime indicator.
+  - `style?: table` — Scalar CSS values style the toast. Nested
+    `title`/`description`/`message`/`text` selectors may contain scalar CSS
+    values for those child regions; other nested selectors are ignored.
+
+Notification messages render as safe GitHub-flavoured Markdown. Raw HTML is
+ignored and unsafe URL protocols are rejected.
 
 #### Example
 ```lua

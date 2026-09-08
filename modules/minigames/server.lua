@@ -118,11 +118,15 @@ end
 
 function resolveConfig.skillbar(opts)
     local cfg = Config.minigames.skillbar
+    local input = opts and opts.input
+    assert(input == nil or (type(input) == 'string' and #input > 0 and #input <= 16),
+        'skillbar input must be a non-empty string up to 16 characters.')
     return {
         attempts = clampInt(opts and opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
         zoneSize = clampNumber(opts and opts.zoneSize, cfg.zoneSize, 0.05, 0.6),
         speed = clampNumber(opts and opts.speed, cfg.speed, 0.3, 4.0),
         timeLimit = clampNumber(opts and opts.timeLimit, cfg.timeLimit, 1500, 30000),
+        input = input,
     }
 end
 
@@ -428,7 +432,7 @@ end
 function generate.skillbar(cfg)
     local zoneStart = randomFloat(0, 1 - cfg.zoneSize)
     local solution = { zoneStart = zoneStart, zoneEnd = zoneStart + cfg.zoneSize, speed = cfg.speed }
-    local public = { zoneStart = solution.zoneStart, zoneEnd = solution.zoneEnd, speed = cfg.speed }
+    local public = { zoneStart = solution.zoneStart, zoneEnd = solution.zoneEnd, speed = cfg.speed, input = cfg.input }
 
     return solution, public
 end

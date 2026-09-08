@@ -52,6 +52,21 @@ harness.test("assert accepts a minimal valid payload", function()
     QB.notify.assert({ message = "hello" })
 end)
 
+harness.test("assert accepts and forwards icon presentation options", function()
+    local resolved = QB.notify.withDefaults({
+        message = "hello",
+        iconAnimation = "pulse",
+        alignIcon = "top",
+    })
+    harness.assertEqual(resolved.iconAnimation, "pulse", "animation should be preserved")
+    harness.assertEqual(resolved.alignIcon, "top", "alignment should be preserved")
+    QB.notify.assert(resolved)
+
+    harness.assertThrows(function()
+        QB.notify.assert({ message = "bad", iconAnimation = "flash" })
+    end, "unknown icon animation should fail")
+end)
+
 harness.test("assert rejects a payload with neither title nor message", function()
     harness.assertThrows(function()
         QB.notify.assert({})

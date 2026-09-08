@@ -1,5 +1,5 @@
 ---@alias QBNotifyType "info" | "success" | "warning" | "error"
----@alias QBNotifyPosition "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"
+---@alias QBNotifyPosition "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right" | "center-left" | "center-right" | "top" | "bottom"
 
 ---@class QBNotifyPayload
 ---@field title? string Notification title.
@@ -8,6 +8,12 @@
 ---@field type? QBNotifyType Visual variant (accent colour + icon). Defaults to Config.notify.defaultType.
 ---@field position? QBNotifyPosition Screen corner/edge to show in. Defaults to Config.notify.defaultPosition.
 ---@field icon? string Overrides the variant's default icon. A lucide icon name from web/src/lib/icon.ts's curated set; an unknown name renders no icon.
+---@field id? string|number Replaces an existing toast with the same id.
+---@field iconColor? string CSS colour for the icon.
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field alignIcon? 'top'|'center' Defaults to center.
+---@field style? table<string, any> Trusted scalar root styles and vetted title/description child styles.
+---@field showDuration? boolean Set false to hide the lifetime indicator.
 
 -- Validation sets, kept in sync with QBNotifyType/QBNotifyPosition above and
 -- with NotifyPayload in web/src/lib/types.ts.
@@ -25,6 +31,22 @@ local NOTIFY_POSITIONS = {
     ["bottom-left"] = true,
     ["bottom-center"] = true,
     ["bottom-right"] = true,
+    ["center-left"] = true,
+    ["center-right"] = true,
+    top = true,
+    bottom = true,
+}
+
+local ICON_ANIMATIONS = {
+    spin = true,
+    spinPulse = true,
+    spinReverse = true,
+    pulse = true,
+    beat = true,
+    fade = true,
+    beatFade = true,
+    bounce = true,
+    shake = true,
 }
 
 ---Validates a notify payload, raising an assertion error if it's malformed.
@@ -52,6 +74,14 @@ function QB.notify.assert(payload)
     assert(payload.position == nil or NOTIFY_POSITIONS[payload.position],
         ("Notification position must be one of top/bottom + left/center/right, got: %s"):format(tostring(payload.position)))
     assert(payload.icon == nil or type(payload.icon) == "string", "Notification icon must be a string.")
+    assert(payload.id == nil or type(payload.id) == "number" or (type(payload.id) == "string" and payload.id ~= ""),
+        "Notification id must be a number or non-empty string.")
+    assert(payload.iconColor == nil or type(payload.iconColor) == "string", "Notification iconColor must be a string.")
+    assert(payload.iconAnimation == nil or ICON_ANIMATIONS[payload.iconAnimation], "Notification iconAnimation is unsupported.")
+    assert(payload.alignIcon == nil or payload.alignIcon == "top" or payload.alignIcon == "center",
+        "Notification alignIcon must be top or center.")
+    assert(payload.style == nil or type(payload.style) == "table", "Notification style must be a table.")
+    assert(payload.showDuration == nil or type(payload.showDuration) == "boolean", "Notification showDuration must be a boolean.")
 end
 
 ---Fills in the configured defaults a payload didn't specify, so the NUI always
@@ -67,5 +97,11 @@ function QB.notify.withDefaults(payload)
         type = payload.type or Config.notify.defaultType,
         position = payload.position or Config.notify.defaultPosition,
         icon = payload.icon,
+        id = payload.id,
+        iconColor = payload.iconColor,
+        iconAnimation = payload.iconAnimation,
+        alignIcon = payload.alignIcon,
+        style = payload.style,
+        showDuration = payload.showDuration,
     }
 end

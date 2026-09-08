@@ -66,7 +66,32 @@ export interface TextUiPayload {
     text: string
     key?: string
     icon?: string
+    iconColor?: string
+    iconAnimation?: IconAnimation
+    alignIcon?: "top" | "center"
+    /** Scoped inline CSS declarations or a flat React-style property table. */
+    style?: string | Record<string, string | number>
     position: "left-center" | "right-center" | "top-center" | "bottom-center"
+}
+
+export type IconAnimation =
+    | "spin"
+    | "spinPulse"
+    | "spinReverse"
+    | "pulse"
+    | "beat"
+    | "fade"
+    | "beatFade"
+    | "bounce"
+    | "shake"
+
+export type DialogSize = "xs" | "sm" | "md" | "lg" | "xl"
+
+export type MenuMetadataItem = string | {
+    label: string
+    value?: unknown
+    progress?: number
+    colorScheme?: string
 }
 
 /**
@@ -86,6 +111,27 @@ export interface MenuItem {
     /** Trusted legacy/resource supplied item artwork URL (e.g. nui://). */
     image?: string
     disabled?: boolean
+    /** Optional side-scroll values; defaultIndex is one-based. */
+    values?: Array<string | { label: string; description?: string }>
+    defaultIndex?: number
+    /** A checkable row toggles in place rather than resolving the menu. */
+    checked?: boolean
+    progress?: number
+    colorScheme?: string
+    iconColor?: string
+    /** Radial/image icon dimensions in CSS pixels, clamped to ox_lib's 0..100 range. */
+    iconWidth?: number
+    iconHeight?: number
+    /** Font Awesome-compatible motion requested by ox_lib callers. */
+    iconAnimation?: IconAnimation
+    /** Informational row: remains readable/focusable but never selects. */
+    readOnly?: boolean
+    /** Show or suppress the trailing navigation affordance. */
+    arrow?: boolean
+    /** Structured detail rows used by ox_lib context menus. */
+    metadata?: MenuMetadataItem[]
+    /** Keep the menu mounted after confirmation; reported as a live confirmed event. */
+    close?: boolean
     /** Opens a nested level instead of resolving. `title` defaults to this item's label. */
     submenu?: { title?: string; items: MenuItem[] }
 }
@@ -106,16 +152,37 @@ export interface OpenMenuPayload {
     /** Optional menu limits in pixels. */
     maxWidth?: number
     maxHeight?: number
+    /** Prevent Escape/backdrop dismissal. */
+    canClose?: boolean
+    /** Initially selected one-based item index. */
+    startIndex?: number
+    /** Compact non-modal panel used by ox_lib list/context compatibility. */
+    presentation?: "dialog" | "panel"
+    /**
+     * Render an external parent-navigation control in a panel header. Clicking
+     * it emits a token-authenticated `back` request event with `{}` data and
+     * does not settle the open request.
+     */
+    back?: boolean
 }
+
+/**
+ * action: "updateMenu" (fire-and-forget, request-scoped). The envelope must
+ * match the active request id/token and payload must be complete. Accepted
+ * only by a mounted panel; it replaces the root view without settling it.
+ */
+export type UpdateMenuPayload = NuiRequestEnvelope<OpenMenuPayload>
 
 // action: "closeMenu" (fire-and-forget)
 export type CloseMenuPayload = Record<string, never>
 
 // action: "openContextMenu" (request)
 export interface OpenContextMenuPayload {
+    title?: string
     items: MenuItem[]
     x?: number
     y?: number
+    canClose?: boolean
 }
 
 // action: "openRadialMenu" (request). Items and results deliberately reuse
@@ -123,17 +190,26 @@ export interface OpenContextMenuPayload {
 export interface OpenRadialMenuPayload {
     items: MenuItem[]
     radius?: number
+    /** Internal live-update hint: preserve the deepest still-valid submenu path. */
+    path?: string[]
 }
 
 // `path` is every id walked through to reach the selection, root-first, so a
 // leaf inside a submenu is unambiguous even when two branches reuse an id
 // (a "remove" under both "vehicle" and "player", say). For a top-level pick
 // it's just { selectedId }. Flat callers can keep reading selectedId alone.
-export type MenuResult = { selectedId: string; path: string[] } | { cancelled: true }
+export type MenuResult = { selectedId: string; path: string[]; valueIndex?: number; checked?: boolean } | { cancelled: true; keyPressed?: "Escape" | "Backspace" }
 
-export type FieldValue = string | number | boolean | string[]
+export interface NuiRequestEventEnvelope<T = unknown> {
+    requestId: number
+    token: string
+    event: string
+    data: T
+}
 
-export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox"
+export type FieldValue = string | number | boolean | Array<string | number>
+
+export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color"
 
 export interface InputOption {
     value: string | number
@@ -162,11 +238,31 @@ export interface InputField {
     // allowed to respond; Lua-side validation is still the caller's job for
     // anything that actually matters (this only saves a round trip).
     required?: boolean
+    /** Prevent interaction while retaining the field and its submitted value. */
+    disabled?: boolean
     min?: number
     max?: number
     minLength?: number
     maxLength?: number
     pattern?: string
+    /** ISO date limits used by date and date-range controls. */
+    dateMin?: string | number
+    dateMax?: string | number
+    /** Convert submitted date values to local epoch milliseconds. */
+    returnString?: boolean
+    /** ox-compatible date output pattern when returnString is true. */
+    dateFormat?: string
+    precision?: number
+    colorFormat?: "hex" | "hexa" | "rgb" | "rgba" | "hsl" | "hsla"
+    timeFormat?: "12" | "24"
+    clearable?: boolean
+    searchable?: boolean
+    maxSelectedValues?: number
+    autosize?: boolean
+    minRows?: number
+    maxRows?: number
+    icon?: string
+    iconColor?: string
     /** Optional compact numeric keypad, primarily for short PIN entry. */
     keypad?: boolean
     /** Strip non-digits from textual input and request a numeric keyboard. */
@@ -189,6 +285,12 @@ export interface OpenInputDialogPayload {
     description?: string
     fields: InputField[]
     labels?: Partial<AppShellLabels>
+    /** Default true. When false, Escape/backdrop and the cancel button are disabled. */
+    allowCancel?: boolean
+    /** ox_lib-compatible responsive dialog width. */
+    size?: DialogSize
+    /** Whether a backdrop click cancels the dialog. Defaults to true. */
+    dismissOnBackdrop?: boolean
 }
 
 export type InputDialogResult = { values: Record<string, FieldValue> } | { cancelled: true }
@@ -208,8 +310,20 @@ export interface OpenAlertPayload {
     cancelLabel?: string
     /** Default true. When false there is no cancel button, and Escape/backdrop can't dismiss. */
     cancellable?: boolean
+    /** Cancel button visibility, independently of Escape dismissal. Defaults to `cancellable`. */
+    showCancel?: boolean
+    /** Corner close-button visibility. Defaults to `cancellable`. */
+    showClose?: boolean
+    /** Whether a backdrop click dismisses the alert. Defaults to true. */
+    dismissOnBackdrop?: boolean
     /** Styles Confirm as a destructive action. Purely cosmetic. */
     destructive?: boolean
+    /** Keep the default centred overlay unless explicitly disabled. */
+    centered?: boolean
+    /** ox_lib-compatible responsive dialog width. */
+    size?: DialogSize
+    /** Keep long content inside a dedicated scrolling region. */
+    overflow?: boolean
 }
 
 // `confirmed: false` covers every "no" -- cancel button, Escape, backdrop --
@@ -604,6 +718,8 @@ export interface NoclipHudPayload {
 export interface ProgressStartPayload {
     label: string
     duration: number
+    presentation?: "bar" | "circle"
+    position?: "middle" | "bottom"
 }
 
 // action: "progressCancel" (fire-and-forget, no payload) -- hides the bar
@@ -622,6 +738,10 @@ export type NotifyPosition =
     | "bottom-left"
     | "bottom-center"
     | "bottom-right"
+    | "center-left"
+    | "center-right"
+    | "top"
+    | "bottom"
 
 // action: "notify" (fire-and-forget) -- see modules/notify/. QB.notify.send
 // resolves duration/type/position from Config.notify before sending (see
@@ -637,6 +757,12 @@ export interface NotifyPayload {
     // Overrides the variant's default icon; resolved against the curated set
     // in lib/icon.ts, so an unknown name simply renders no icon.
     icon?: string
+    id?: string | number
+    iconColor?: string
+    iconAnimation?: IconAnimation
+    alignIcon?: "top" | "center"
+    style?: Record<string, string | number | Record<string, string | number>>
+    showDuration?: boolean
 }
 
 export type MinigameType =
@@ -680,11 +806,22 @@ export interface SkillbarPuzzle {
     zoneStart: number
     zoneEnd: number
     speed: number
+    /** Optional KeyboardEvent.key accepted for this round; defaults to Space/Enter. */
+    input?: string
 }
 
 export interface SkillbarAttempt {
     /** Milliseconds since the round started when the player pressed -- never a position. */
     elapsed: number
+}
+
+export type OxSkillCheckDifficulty = "easy" | "medium" | "hard" | { areaSize: number; speedMultiplier: number }
+
+// action: "oxSkillCheck" (request). This is intentionally client-local like
+// upstream ox_lib; qblib's proof-producing minigames use the separate round API.
+export interface OxSkillCheckPayload {
+    difficulty: OxSkillCheckDifficulty | OxSkillCheckDifficulty[]
+    inputs?: string[]
 }
 
 export interface CircuitNode {

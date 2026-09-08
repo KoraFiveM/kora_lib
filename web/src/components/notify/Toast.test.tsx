@@ -34,4 +34,41 @@ describe("Toast", () => {
         act(() => vi.advanceTimersByTime(1))
         expect(screen.queryByRole("status")).not.toBeInTheDocument()
     })
+
+    it("replaces an existing toast by id and restarts its lifetime", () => {
+        render(<Toast />)
+        notify({ id: "job", message: "Starting", duration: 1000 })
+        act(() => vi.advanceTimersByTime(900))
+        notify({ id: "job", message: "Complete", duration: 1000, position: "center-right" })
+
+        expect(screen.getAllByRole("status")).toHaveLength(1)
+        expect(screen.getByRole("status")).toHaveTextContent("Complete")
+        act(() => vi.advanceTimersByTime(999))
+        expect(screen.getByRole("status")).toBeInTheDocument()
+        act(() => vi.advanceTimersByTime(1))
+        expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    })
+
+    it("renders safe Markdown and vetted nested text styles", () => {
+        render(<Toast />)
+        notify({
+            title: "Update",
+            message: "**Ready** <script>bad()</script>",
+            icon: "Bell",
+            iconAnimation: "shake",
+            alignIcon: "top",
+            style: {
+                backgroundColor: "rgb(1, 2, 3)",
+                "& .description": { color: "rgb(4, 5, 6)", pointerEvents: "auto" },
+                "& .unknown": { display: "none" },
+            },
+        })
+
+        expect(screen.getByText("Ready").tagName).toBe("STRONG")
+        expect(document.querySelector("script")).toBeNull()
+        expect(screen.getByRole("status")).toHaveStyle({ backgroundColor: "rgb(1, 2, 3)" })
+        expect(screen.getByText("Ready").closest("div")).toHaveStyle({ color: "rgb(4, 5, 6)" })
+        expect(screen.getByText("Ready").closest("div")?.getAttribute("style") ?? "").not.toContain("pointer-events")
+        expect(document.querySelector(".icon-animation-shake")).toBeInTheDocument()
+    })
 })

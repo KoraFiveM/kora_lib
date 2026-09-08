@@ -15,11 +15,13 @@ import { MinigameContainer } from "@/components/minigames/MinigameContainer"
 import { DevHarness } from "@/components/dev/DevHarness"
 import { InteractSelect } from "@/components/interact/InteractSelect"
 import { RadialMenuContainer } from "@/components/menu/RadialMenu"
+import { OxSkillCheck } from "@/components/minigames/OxSkillCheck"
 import { TargetHud } from "@/components/target/TargetHud"
 import { TextUi } from "@/components/textui/TextUi"
 import { AppShell } from "@/components/app/AppShell"
 import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { OxLocaleProvider } from "@/lib/oxLocale"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -31,7 +33,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary"
  */
 export default function App() {
     return (
-        <>
+        <OxLocaleProvider>
             <ErrorBoundary surface="interaction selector"><InteractSelect /></ErrorBoundary>
             <ErrorBoundary surface="target HUD"><TargetHud /></ErrorBoundary>
             <ErrorBoundary surface="text UI"><TextUi /></ErrorBoundary>
@@ -40,6 +42,7 @@ export default function App() {
             <ErrorBoundary surface="menu header"><MenuHeader /></ErrorBoundary>
             <ErrorBoundary surface="context menu"><ContextMenuContainer /></ErrorBoundary>
             <ErrorBoundary surface="radial menu"><RadialMenuContainer /></ErrorBoundary>
+            <ErrorBoundary surface="skill check"><OxSkillCheck /></ErrorBoundary>
             <ErrorBoundary surface="input dialog"><InputDialogContainer /></ErrorBoundary>
             <ErrorBoundary surface="alert dialog"><AlertDialogContainer /></ErrorBoundary>
             <ErrorBoundary surface="clipboard"><ClipboardHandler /></ErrorBoundary>
@@ -53,6 +56,6 @@ export default function App() {
             <ErrorBoundary surface="placement dialog"><PlacementConfirmDialog /></ErrorBoundary>
             <ErrorBoundary surface="minigames"><MinigameContainer /></ErrorBoundary>
             <ErrorBoundary surface="development harness"><DevHarness /></ErrorBoundary>
-        </>
+        </OxLocaleProvider>
     )
 }

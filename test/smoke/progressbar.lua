@@ -26,6 +26,10 @@ dofile(repoRoot .. "modules/nui/client.lua")
 -- rather than in the shared test/mocks.lua, per the root AGENTS.md testing
 -- convention.
 local dead = false
+local ragdoll = false
+local cuffed = false
+local falling = false
+local swimming = false
 local inVehicle = false
 local pressedControls = {}
 local disabledControls = {}
@@ -62,6 +66,10 @@ function _G.IsEntityDead(_)
     if deadError then error("simulated death-check failure") end
     return dead
 end
+function _G.IsPedRagdoll(_) return ragdoll end
+function _G.IsPedCuffed(_) return cuffed end
+function _G.IsPedFalling(_) return falling end
+function _G.IsPedSwimming(_) return swimming end
 function _G.IsPedInAnyVehicle(_, _) return inVehicle end
 function _G.IsControlJustPressed(_, control) return pressedControls[control] == true end
 function _G.DisableControlAction(_, control, _) disabledControls[control] = true end
@@ -70,8 +78,13 @@ function _G.HasAnimDictLoaded(dict) return animDictsLoaded[dict] == true end
 function _G.DoesAnimDictExist(dict) return invalidAnimDicts[dict] ~= true end
 function _G.RequestAnimDict(dict) requestedAnimDicts[dict] = true end
 function _G.RemoveAnimDict(dict) removedAnimDicts[dict] = true end
-function _G.TaskPlayAnim(_, dict, clip, ...) table.insert(playedAnims, { dict = dict, clip = clip }) end
-function _G.StopAnimTask(_, dict, clip, _) table.insert(stoppedAnims, { dict = dict, clip = clip }) end
+function _G.TaskPlayAnim(_, dict, clip, blendIn, blendOut, duration, flag, playbackRate, lockX, lockY, lockZ)
+    table.insert(playedAnims, { dict = dict, clip = clip, blendIn = blendIn, blendOut = blendOut,
+        duration = duration, flag = flag, playbackRate = playbackRate, lockX = lockX, lockY = lockY, lockZ = lockZ })
+end
+function _G.StopAnimTask(_, dict, clip, blendOut)
+    stoppedAnims[#stoppedAnims + 1] = { dict = dict, clip = clip, blendOut = blendOut }
+end
 function _G.TaskStartScenarioInPlace(_, name, _, playEnter)
     scenarioCalls[#scenarioCalls + 1] = { name = name, playEnter = playEnter }
 end
@@ -129,6 +142,10 @@ dofile(repoRoot .. "modules/progressbar/client.lua")
 
 local function reset()
     dead = false
+    ragdoll = false
+    cuffed = false
+    falling = false
+    swimming = false
     inVehicle = false
     pressedControls = {}
     disabledControls = {}
@@ -180,6 +197,19 @@ harness.test("start rejects a duration over Config.progressbar.maxDuration", fun
     end, "a duration over the configured max should be rejected")
 end)
 
+harness.test("start can opt out of the duration cap for compatibility providers", function()
+    reset()
+    local duration = Config.progressbar.maxDuration + 1
+
+    local completed = QB.progressbar.start({
+        label = "long compatibility action",
+        duration = duration,
+        maxDuration = false,
+    })
+
+    harness.assertTrue(completed, "the compatibility override should allow a duration above qblib's default cap")
+end)
+
 harness.test("start rejects a malformed anim table", function()
     reset()
     harness.assertThrows(function()
@@ -222,6 +252,22 @@ harness.test("dying cancels the bar immediately", function()
     harness.assertEqual(nuiMessages[2].action, "progressCancel", "a cancelled bar should hide the NUI bar early")
 end)
 
+harness.test("ox interruption flags allow or reject ped states", function()
+    reset()
+    dead, ragdoll, cuffed, falling, swimming = true, true, true, true, true
+    local completed = QB.progressbar.start({
+        label = "Working...", duration = 100,
+        useWhileDead = true, allowRagdoll = true, allowCuffed = true,
+        allowFalling = true, allowSwimming = true,
+    })
+    harness.assertTrue(completed, "explicit allow flags should permit every matching ped state")
+
+    reset()
+    ragdoll = true
+    harness.assertFalse(QB.progressbar.start({ label = "Working...", duration = 100 }),
+        "ragdoll should interrupt by default")
+end)
+
 harness.test("canCancel lets X abort the bar", function()
     reset()
     pressedControls[73] = true
@@ -246,6 +292,21 @@ harness.test("cancel controls are ignored unless canCancel is set", function()
     harness.assertTrue(completed, "cancel controls should be inert without canCancel = true")
 end)
 
+harness.test("cancel controls can be delegated to a compatibility command", function()
+    reset()
+    pressedControls[73] = true
+    pressedControls[322] = true
+
+    local completed = QB.progressbar.start({
+        label = "Command-owned cancellation",
+        duration = 100,
+        canCancel = true,
+        cancelControls = false,
+    })
+
+    harness.assertTrue(completed, "qblib should not poll its native cancel keys when a compatibility command owns them")
+end)
+
 harness.test("disable.combat and disable.car disable the expected controls", function()
     reset()
     inVehicle = true
@@ -254,6 +315,13 @@ harness.test("disable.combat and disable.car disable the expected controls", fun
     harness.assertTrue(disabledControls[24] == true, "attack should be disabled")
     harness.assertTrue(disabledControls[71] == true, "vehicle accelerate should be disabled while in a vehicle")
     harness.assertTrue(firingCalls > 0, "combat suppression should also disable player firing")
+end)
+
+harness.test("disable.sprint and disable.mouse use the expected control leases", function()
+    reset()
+    QB.progressbar.start({ label = "Working...", duration = 100, disable = { sprint = true, mouse = true } })
+    harness.assertTrue(disabledControls[21], "sprint should be disabled")
+    harness.assertTrue(disabledControls[1] and disabledControls[2] and disabledControls[106], "look controls should be disabled")
 end)
 
 harness.test("disable.car is a no-op while not in a vehicle", function()
@@ -303,6 +371,21 @@ harness.test("an anim is played for the duration and cleaned up afterward", func
     harness.assertTrue(removedAnimDicts["anim@test"] == true, "the anim dict should be released afterward")
 end)
 
+harness.test("animation timing and lock flags are forwarded", function()
+    reset()
+    animDictsLoaded["anim@test"] = true
+    QB.progressbar.start({
+        label = "Working...", duration = 100,
+        anim = { dict = "anim@test", clip = "loop", duration = 250, playbackRate = 0.75,
+            lockX = true, lockY = false, lockZ = true, stopBlendOut = 1.0 },
+    })
+    local played = playedAnims[1]
+    harness.assertEqual(played.duration, 250, "animation duration should be forwarded")
+    harness.assertEqual(played.playbackRate, 0.75, "animation playbackRate should be forwarded")
+    harness.assertTrue(played.lockX and not played.lockY and played.lockZ, "animation lock axes should be forwarded")
+    harness.assertEqual(stoppedAnims[1].blendOut, 1.0, "the compatibility cleanup blend-out should be independent of playback blendOut")
+end)
+
 harness.test("a bar still completes if its anim dict never loads", function()
     reset()
     -- animDictsLoaded left empty: HasAnimDictLoaded stays false the whole poll.
@@ -315,6 +398,20 @@ harness.test("a bar still completes if its anim dict never loads", function()
     harness.assertTrue(completed, "a missing anim dict should degrade, not abort, the bar")
     harness.assertEqual(#playedAnims, 0, "TaskPlayAnim should never have been called")
     harness.assertTrue(requestedAnimDicts["anim@missing"] == true, "the dict should still have been requested")
+end)
+
+harness.test("strict animation loading raises for compatibility providers", function()
+    reset()
+
+    harness.assertThrows(function()
+        QB.progressbar.start({
+            label = "Strict animation",
+            duration = 1000,
+            anim = { dict = "anim@missing", clip = "idle" },
+            strictAnim = true,
+        })
+    end, "strict animation loading should preserve ox_lib's error contract")
+    harness.assertFalse(QB.progressbar.isActive(), "strict animation failure must still clean up the active session")
 end)
 
 harness.test("an invalid anim dict degrades without making a streaming request", function()

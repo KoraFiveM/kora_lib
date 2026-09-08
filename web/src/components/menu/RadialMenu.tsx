@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { cn } from "@/lib/cn"
-import { resolveIcon } from "@/lib/icon"
+import { isIconImage, resolveIcon } from "@/lib/icon"
+import { iconAnimationClass } from "@/lib/iconAnimation"
 import type { MenuItem, MenuResult, OpenRadialMenuPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
+import { useNuiEvent } from "@/lib/useNuiEvent"
 import { getNuiViewport } from "@/lib/viewport"
+import { fetchNui } from "@/lib/fetchNui"
+import type { NuiRequestEnvelope, NuiRequestEventEnvelope } from "@/lib/types"
+import { useOxLocale } from "@/lib/oxLocale"
 
 const MAX_RING_ITEMS = 8
 const PAGE_SIZE_WITH_MORE = MAX_RING_ITEMS - 1
@@ -27,17 +32,41 @@ function firstEnabled(entries: RingEntry[]): number {
     return entries.findIndex((entry) => entry.kind === "more" || !entry.item.disabled)
 }
 
+function validPage(items: MenuItem[], requested = 0): number {
+    if (items.length <= MAX_RING_ITEMS) return 0
+    return Math.max(0, Math.min(requested, Math.ceil(items.length / PAGE_SIZE_WITH_MORE) - 1))
+}
+
+function rebuildStack(items: MenuItem[], path: string[], previous: Level[]): Level[] {
+    const rebuilt: Level[] = [{ items, page: validPage(items, previous[0]?.page) }]
+    let current = items
+    for (let index = 0; index < path.length; index += 1) {
+        const id = path[index]
+        const item = current.find((entry) => entry.id === id)
+        if (!item?.submenu) break
+        rebuilt.push({
+            title: item.submenu.title ?? item.label,
+            items: item.submenu.items,
+            viaId: item.id,
+            page: validPage(item.submenu.items, previous[index + 1]?.page),
+        })
+        current = item.submenu.items
+    }
+    return rebuilt
+}
+
 /**
  * The visual half of QB.nui.openRadialMenu. The whole nested tree is delivered
  * once; changing levels/pages is local React state and only a terminal choice
  * or cancellation settles the original tokenised NUI request.
  */
 export function RadialMenuContainer() {
+    const locale = useOxLocale()
     const [stack, setStack] = useState<Level[]>([])
     const [activeIndex, setActiveIndex] = useState(-1)
     const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-    const { payload, isOpen, respond } = useNuiRequest<OpenRadialMenuPayload, MenuResult>(
+    const { payload, requestId, token, isOpen, respond } = useNuiRequest<OpenRadialMenuPayload, MenuResult>(
         "openRadialMenu",
         useCallback((open: OpenRadialMenuPayload) => {
             setStack([{ items: open.items, page: 0 }])
@@ -47,6 +76,36 @@ export function RadialMenuContainer() {
 
     const level = stack[stack.length - 1]
     const canGoBack = stack.length > 1
+
+    const emitEvent = useCallback((event: string, data: unknown) => {
+        if (requestId === null || token === null) return
+        void fetchNui("qblib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
+            console.error(`[qblib] radial event '${event}' failed:`, error)
+        })
+    }, [requestId, token])
+
+    useNuiEvent<NuiRequestEnvelope<OpenRadialMenuPayload>>("updateRadialMenu", useCallback((message) => {
+        if (message.requestId !== requestId || message.token !== token) return
+        setStack((previous) => rebuildStack(
+            message.payload.items,
+            message.payload.path ?? previous.slice(1).map((entry) => entry.viaId ?? "").filter(Boolean),
+            previous,
+        ))
+        setActiveIndex(-1)
+    }, [requestId, token]))
+
+    useEffect(() => {
+        if (!isOpen || requestId === null || token === null) return
+        const path = stack.slice(1).map((entry) => entry.viaId ?? "")
+        void fetchNui("qblib:nui:event", {
+            requestId,
+            token,
+            event: "radialLevel",
+            data: { path },
+        } satisfies NuiRequestEventEnvelope).catch((error) => {
+            console.error("[qblib] radial level event failed:", error)
+        })
+    }, [isOpen, requestId, stack, token])
     const entries = useMemo<RingEntry[]>(() => {
         if (!level) return []
 
@@ -92,9 +151,14 @@ export function RadialMenuContainer() {
             }
 
             const path = stack.slice(1).map((entry) => entry.viaId ?? "")
-            respond({ selectedId: item.id, path: [...path, item.id] })
+            const selection = { selectedId: item.id, path: [...path, item.id] }
+            if (item.close === false) {
+                emitEvent("confirmed", selection)
+                return
+            }
+            respond(selection)
         },
-        [respond, stack],
+        [emitEvent, respond, stack],
     )
 
     const activateEntry = useCallback(
@@ -238,8 +302,9 @@ export function RadialMenuContainer() {
                     const y = Math.sin(angle) * radius
                     const item = entry.kind === "item" ? entry.item : null
                     const Icon = item ? resolveIcon(item.icon) : moreIcon
+                    const iconIsImage = isIconImage(item?.icon)
                     const disabled = item?.disabled === true
-                    const label = entry.kind === "more" ? `More ${entry.page + 1}/${entry.totalPages}` : item?.label ?? ""
+            const label = entry.kind === "more" ? `${locale.more} ${entry.page + 1}/${entry.totalPages}` : item?.label ?? ""
 
                     return (
                         <button
@@ -271,7 +336,7 @@ export function RadialMenuContainer() {
                                 transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
                             }}
                         >
-                            {Icon ? <Icon aria-hidden className="h-5 w-5 shrink-0" /> : <span aria-hidden className="font-mono text-sm">{index + 1}</span>}
+                            {iconIsImage ? <img aria-hidden src={item?.icon} className="max-h-16 max-w-16 shrink-0 object-contain" style={{ width: Math.max(0, Math.min(100, item?.iconWidth ?? 20)), height: Math.max(0, Math.min(100, item?.iconHeight ?? 20)) }} /> : Icon ? <Icon aria-hidden className={cn("h-5 w-5 shrink-0", iconAnimationClass(item?.iconAnimation))} style={{ color: item?.iconColor, width: item?.iconWidth, height: item?.iconHeight }} /> : <span aria-hidden className="font-mono text-sm">{index + 1}</span>}
                             <span className="max-w-full truncate leading-4">{label}</span>
                             {item?.submenu ? <span aria-hidden className="absolute right-1.5 top-1.5 text-muted-foreground">›</span> : null}
                         </button>
@@ -290,8 +355,8 @@ export function RadialMenuContainer() {
                         type="button"
                         onClick={canGoBack ? goBack : dismiss}
                         className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,transform] duration-fast hover:bg-surface-hover hover:text-foreground active:scale-[0.98]"
-                        aria-label={canGoBack ? "Back" : "Close radial menu"}
-                        title={canGoBack ? "Back" : "Close"}
+                        aria-label={canGoBack ? "Back" : `${locale.close} radial menu`}
+                        title={canGoBack ? "Back" : locale.close}
                     >
                         {CenterIcon ? <CenterIcon aria-hidden className="h-4 w-4" /> : <span aria-hidden>×</span>}
                     </button>
