@@ -46,6 +46,24 @@ harness.test('actions run begin, progress, then complete with an opaque token', 
     harness.assertFalse(QB.actions.isActive(), 'the action lock should clear after completion')
 end)
 
+harness.test('actions preserve trailing nil arguments for begin and complete', function()
+    local beginCount, completeCount
+    local started = QB.actions.run({
+        label = 'Nil-safe action',
+        begin = function(...)
+            beginCount = select('#', ...)
+            return 'token:nil-safe'
+        end,
+        complete = function(_, ...)
+            completeCount = select('#', ...)
+        end,
+    }, 'station', nil)
+
+    harness.assertTrue(started, 'the action should start')
+    harness.assertEqual(beginCount, 2, 'begin should receive the trailing nil')
+    harness.assertEqual(completeCount, 2, 'complete should receive the trailing nil')
+end)
+
 harness.test('actions do not run progress or complete when begin declines', function()
     progressPayload = nil
     local completeCalled = false

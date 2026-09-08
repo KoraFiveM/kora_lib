@@ -120,7 +120,7 @@ harness.test("[server] player resolves coords from the source's ped when omitted
     harness.assertEqual(lastWorldCall.entityType, "player", "should query the 'player' entity type")
     harness.assertEqual(lastWorldCall.coords.x, 9, "coords should default to the source player's ped coords")
     harness.assertEqual(lastWorldCall.options.excludeEntities[1], 300, "the source's own ped should be excluded")
-    harness.assertEqual(result.id, "11", "the returned ped should be mapped back to its owning player id")
+    harness.assertEqual(result.id, 11, "the returned ped should be mapped back to a numeric player id")
 end)
 
 harness.test("[server] vehicle/object query QB.world without excluding any entity", function()

@@ -15,9 +15,14 @@ Stops a tracked looped particle handle. Non-looped effects finish naturally.
 
 ## `QB.fx.screenEffect(name, duration?, looped?)`
 
-Starts a native screen effect and returns its name-based handle.
+Starts a native screen effect and returns an opaque per-call handle. Calls that
+use the same native effect name are reference-counted so one caller cannot stop
+another caller's still-live effect.
 
 ## `QB.fx.stopScreenEffect(handle)`
 
-Stops a tracked screen-effect handle. All tracked effects are stopped when the
-invoking resource stops.
+Releases a tracked screen-effect handle and stops the native effect after its
+final same-name handle is released. Each invoking resource's handles are
+released automatically when that resource stops. Retain the returned handle;
+legacy `{ name = "..." }` handles remain accepted, but can release only one
+matching handle owned by the calling resource.

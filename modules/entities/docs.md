@@ -91,6 +91,11 @@ It reuses `QB.zones`' spatial grid, so scopes far from the player do not load a
 model or create a GTA entity. It does not make the entity networked; each
 client independently spawns its own copy when in range.
 
+Model streaming runs asynchronously. Leaving and re-entering while a load is
+still pending keeps the scope marked inside, so the completed spawn is retained;
+spawn errors always release the in-flight guard and allow a later enter to
+retry.
+
 #### Parameters
 - `model`, `coords` — Same as `create`.
 - `options` — All options accepted by `create`, plus:

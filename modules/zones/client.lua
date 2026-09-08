@@ -653,7 +653,7 @@ end
 
 ---@class QBZonePolyOptions : QBZoneCommonOptions
 ---@field points any[] At least 3 points; only their XY defines the footprint.
----@field thickness? number Height band centered on the points' average Z.
+---@field thickness? number Height band measured upward from the lowest point's Z.
 ---@field minZ? number Explicit height band floor. Must be given with maxZ, or neither.
 ---@field maxZ? number Explicit height band ceiling.
 
@@ -672,7 +672,7 @@ function QB.zones.sphere(opts)
 end
 
 ---Creates a polygon zone: a 2D footprint (opts.points) extruded across a vertical height
----band (opts.minZ/opts.maxZ, or opts.thickness centered on the points' average height).
+---band (opts.minZ/opts.maxZ, or opts.thickness upward from the lowest point's Z).
 ---@param opts QBZonePolyOptions
 ---@return QBZoneHandle zone
 function QB.zones.poly(opts)
@@ -903,6 +903,16 @@ end
 
 local creatorState = nil
 
+local function radarIsHidden()
+    if type(IsRadarHidden) ~= "function" then return false end
+    local ok, hidden = pcall(IsRadarHidden)
+    return ok and hidden == true
+end
+
+local function restoreCreatorRadar(state)
+    if state and state.radarManaged and not state.radarWasHidden then DisplayRadar(true) end
+end
+
 local function creatorLog(msg)
     print(("[qblib:zones] %s"):format(msg))
 end
@@ -961,6 +971,8 @@ local function newCreatorState(zoneType, resource)
         camPitch = 0.0,
         camYaw = 0.0,
         controlLease = nil,
+        radarManaged = false,
+        radarWasHidden = radarIsHidden(),
         size = creator.defaultBoxSize,
         height = creator.defaultBoxHeight,
         rotation = 0.0,
@@ -1256,8 +1268,8 @@ local function openConfirmDialog(state)
     local ok, response = pcall(function()
         return QB.nui.withFocus(true, true, function()
             return Citizen.Await(QB.nui.request("zoneCreator:confirm",
-                { type = state.type, snippet = snippet }, Config.zones.creator.confirmTimeout))
-        end)
+                { type = state.type, snippet = snippet }, Config.zones.creator.confirmTimeout, state.resource))
+        end, state.resource)
     end)
 
     if creatorState ~= state then return end -- cancelled/finished elsewhere while the dialog was open
@@ -1528,7 +1540,10 @@ local function ensureCreatorThread(state)
             -- (entering a vehicle, respawning, leaving an interior), so a
             -- single call at the top would silently stop holding partway
             -- through a placement session.
-            if Config.zones.creator.hideRadar then DisplayRadar(false) end
+            if Config.zones.creator.hideRadar then
+                state.radarManaged = true
+                DisplayRadar(false)
+            end
 
             Wait(0)
         end
@@ -1549,10 +1564,10 @@ local function ensureCreatorThread(state)
 
         releaseCreatorControls(state)
 
-        -- Unconditionally restored, even if hideRadar was switched off
-        -- mid-session or the loop above crashed, so the creator can never be
-        -- what leaves a player staring at a missing minimap.
-        DisplayRadar(true)
+        -- Restore only the state this creator changed. Forcing the radar on
+        -- here overrides a HUD resource (or the player's existing hidden
+        -- state) when it was already hidden before the creator opened.
+        restoreCreatorRadar(state)
 
         QB.nui.send("zoneCreator:hud", nil)
 
@@ -1590,7 +1605,7 @@ AddEventHandler('onClientResourceStop', function(resourceName)
     FreezeEntityPosition(PlayerPedId(), false)
     DestroyCam(creatorState.cam, false)
     RenderScriptCams(false, false, 0, true, true)
-    DisplayRadar(true)
+    restoreCreatorRadar(creatorState)
 end)
 
 -- The creator flies its own scripted camera rather than relying on the
@@ -1631,6 +1646,11 @@ local function beginCreator(zoneType, resource, existingOpts)
         error(cam, 0)
     end
     state.cam, state.camCoords, state.camPitch, state.camYaw = cam, camCoords, camPitch, camYaw
+
+    if Config.zones.creator.hideRadar then
+        state.radarManaged = true
+        DisplayRadar(false)
+    end
 
     ensureCreatorThread(state)
     QB.nui.send("zoneCreator:start", { type = zoneType })

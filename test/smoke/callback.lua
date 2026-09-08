@@ -237,6 +237,13 @@ harness.test("client asks server: playerDropped clears the token", function()
     harness.assertTrue(ran, "sanity check: the real token should still work before the player drops")
     harness.assertTrue(rateBuckets['smoke:after-drop'] ~= nil, 'sanity check: the player should have a callback bucket')
 
+    clientRegister("smoke:disconnect-pending", function() return "too late" end)
+    local responseHandlers = net.netHandlers["qblib:callback:clientResponse"]
+    net.netHandlers["qblib:callback:clientResponse"] = {}
+    local pending = serverTrigger(mocks.SOURCE, "smoke:disconnect-pending")
+    net.netHandlers["qblib:callback:clientResponse"] = responseHandlers
+    harness.assertEqual(pending.state, "pending", "sanity check: the client callback should be in flight")
+
     local invokeEntry = mocks.lastEntry(net.triggeredServerEvents, INVOKE)
     harness.assertTrue(invokeEntry ~= nil, "expected to capture the real token from the trigger above")
     local capturedToken = invokeEntry[1]
@@ -245,6 +252,8 @@ harness.test("client asks server: playerDropped clears the token", function()
     net.fire("playerDropped")
     _G.source = nil
     harness.assertEqual(rateBuckets['smoke:after-drop'], nil, 'player drop should clear the callback bucket')
+    harness.assertEqual(pending.state, "rejected", "player drop should reject callbacks waiting on that client")
+    harness.assertTrue(tostring(pending.value):find("disconnected", 1, true) ~= nil)
 
     ran = false
     _G.source = mocks.SOURCE
@@ -276,11 +285,20 @@ harness.test("server asks client: rejects when the client handler errors", funct
     harness.assertTrue(tostring(p.value):find("client kaboom") ~= nil, "the rejection should carry the error message")
 end)
 
-harness.test("server asks client: a response is only accepted from the addressed player", function()
-    -- No client handler is registered for this name, so the client's
-    -- clientInvoke handler finds nothing and never responds -- the promise
-    -- stays pending until the response is driven manually below.
+harness.test("server asks client: an unknown callback rejects immediately", function()
     local p = serverTrigger(mocks.SOURCE, "smoke:no-client-handler")
+    harness.assertEqual(p.state, "rejected", "an unknown client callback must not wait for the timeout")
+    harness.assertTrue(tostring(p.value):find("not registered on the client", 1, true) ~= nil)
+end)
+
+harness.test("server asks client: a response is only accepted from the addressed player", function()
+    -- Hold the client response so the request remains pending while the
+    -- authorization check is exercised below.
+    clientRegister("smoke:manual-client-response", function() return "ignored" end)
+    local responseHandlers = net.netHandlers["qblib:callback:clientResponse"]
+    net.netHandlers["qblib:callback:clientResponse"] = {}
+    local p = serverTrigger(mocks.SOURCE, "smoke:manual-client-response")
+    net.netHandlers["qblib:callback:clientResponse"] = responseHandlers
     harness.assertEqual(p.state, "pending", "sanity check: nothing should have answered yet")
 
     local invokeEntry = mocks.lastEntry(net.triggeredClientEvents, "qblib:callback:clientInvoke")
@@ -306,7 +324,7 @@ harness.test("server asks client: unregister removes the handler immediately", f
     QB.callback.unregister("smoke:manually-unregistered")
 
     local p = serverTrigger(mocks.SOURCE, "smoke:manually-unregistered")
-    harness.assertEqual(p.state, "pending", "an unregistered handler must not answer")
+    harness.assertEqual(p.state, "rejected", "an unregistered handler must reject immediately")
 end)
 
 -- The rest of these fire onResourceStop/onClientResourceStop for the mocked
@@ -341,7 +359,7 @@ harness.test("client asks server: a handler is dropped when its owning resource 
     harness.assertEqual(rateBuckets['smoke:dropped-on-stop'], nil, 'owner cleanup should clear the callback bucket')
 
     local p = clientTrigger("smoke:dropped-on-stop")
-    harness.assertEqual(p.state, "pending", "no server handler should answer once it's been swept on resource stop")
+    harness.assertEqual(p.state, "rejected", "a swept server callback should reject immediately")
 end)
 
 harness.test("server asks client: a handler is dropped when its owning resource stops", function()
@@ -349,7 +367,7 @@ harness.test("server asks client: a handler is dropped when its owning resource 
     net.fire("onClientResourceStop", "qblib_test")
 
     local p = serverTrigger(mocks.SOURCE, "smoke:client-dropped-on-stop")
-    harness.assertEqual(p.state, "pending", "no client handler should answer once it's been swept on resource stop")
+    harness.assertEqual(p.state, "rejected", "a swept client callback should reject immediately")
 end)
 
 harness.test("cross-resource trigger during in-flight handshake resolves to the real value, not a raw promise", function()

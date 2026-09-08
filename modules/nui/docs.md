@@ -24,7 +24,7 @@ Sets NUI focus directly.
 - `keyboard: boolean`
 
 ### `QB.nui.withFocus(mouse, keyboard, fn)`
-Sets focus, runs `fn`, and always clears focus afterward — including when `fn` raises an error (the error is re-raised once cleanup runs). Prefer this over `setFocus` whenever the interaction is scoped to one call. Note the built-in `openMenu`/`openContextMenu`/`openInputDialog` wrappers below already manage focus themselves — `withFocus` is for custom interactive requests of your own.
+Sets focus, runs `fn`, and always clears focus afterward — including when `fn` raises an error or the calling resource stops (the error is re-raised once cleanup runs). Prefer this over `setFocus` whenever the interaction is scoped to one call. Note the built-in `openMenu`/`openContextMenu`/`openInputDialog` wrappers below already manage focus themselves — `withFocus` is for custom interactive requests of your own.
 
 #### Example
 ```lua
@@ -37,7 +37,7 @@ end)
 Registers an NUI callback. `handler(data)` returns a plain value (or nil); the raw `RegisterNUICallback` `(data, cb)` plumbing is handled for you, including catching and logging errors so a broken handler can't leave the NUI's fetch hanging.
 
 ### `QB.nui.request(action, data, timeout)`
-Sends `action` to the NUI and returns its response, once available.
+Sends `action` to the NUI and returns its response, once available. Requests are owned by the calling resource: stopping that resource rejects its outstanding requests, removes only its focus leases, and dismisses the matching browser surfaces without posting stale responses.
 
 #### Parameters
 - `action: string`
@@ -174,7 +174,7 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
   - `description?: string` — help text shared by standalone dialogs and AppShell forms.
   - `options?: { value, label, disabled? }[]` — `select`, `multiselect`, and `combobox`. Numeric values are accepted for Lua compatibility and normalized to strings in browser results. `select` restricts the result to one option; `multiselect` returns a string array; `combobox` is free text with filtered suggestions (matched against label and value, capped at 8).
   - `rows?: integer` — `textarea` only (default 3).
-  - `default?`, `placeholder?`
+  - `default?`, `placeholder?` — a `number` without a default starts blank. A required blank blocks submission; an optional blank is omitted from the returned `values` table rather than being coerced to zero.
   - `required?: boolean`, `min?: number`, `max?: number` (`number`/`range`), `minLength?: integer`, `maxLength?: integer`, `pattern?: string` (text-like types) — optional client-side validation that gates submission. This is convenience only; validate authoritative values again in Lua/server code.
   - `dependsOn?: string`, `optionsByValue?: table<string, option[]>` — select an option set using another field's current value. Invalid dependent selections reset atomically to the first available option.
   - `visibleWhen?: { fieldId, equals }` — render and validate the field only when another field equals the given scalar value.
@@ -184,7 +184,7 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 - `title?: string`, `description?: string`
 
 #### Returns
-- `{ values: table<string, any> }` or `{ cancelled: true }`; `nil` on an NUI/export error.
+- `{ values: table<string, any> }` or `{ cancelled: true }`; `nil` on an NUI/export error. Optional blank number fields have no key in `values`.
 
 #### Example
 ```lua
@@ -384,7 +384,7 @@ Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, 
 | *(none)* | `id` | Real qb-menu items have no stable id; the 1-based position in the array is used. |
 | `params.event` / `params.isServer` / `params.args` | — | Fired via `TriggerEvent`/`TriggerServerEvent` on selection, exactly as real qb-menu's own `selectMenuItem` NUI callback does. |
 
-`openMenu(menu, sort, skipFirst)` also honours hidden rows and upstream sorting. `action`, command, QB-command and function-action rows follow qb-menu dispatch precedence, and `showHeader`/`playerfocus`/`qb-menu:client:menuClosed` are supplied alongside the two original exports. A non-table (including `nil`) `menu` is a silent no-op, matching real qb-menu's own `if not data or not next(data) then return end` — a script that conditionally builds a menu and passes `nil` when there's nothing to show keeps working instead of erroring.
+`openMenu(menu, sort, skipFirst)` also honours hidden rows and upstream sorting. `action`, command, QB-command and function-action rows follow qb-menu dispatch precedence, and `showHeader`/`playerfocus`/`qb-menu:client:menuClosed` are supplied alongside the two original exports. `showHeader` remains a non-interactive prompt until the `playerfocus` key is pressed; that key replaces it with the normal interactive, focus-lease-managed menu and preserves the original row dispatch. A non-table (including `nil`) `menu` is a silent no-op, matching real qb-menu's own `if not data or not next(data) then return end` — a script that conditionally builds a menu and passes `nil` when there's nothing to show keeps working instead of erroring.
 
 `exports['qb-menu']:closeMenu()` and the `qb-menu:client:openMenu`/`qb-menu:client:closeMenu` net events are also registered. `closeMenu` dismisses the active list menu through its normal cancellation response, which also releases focus and settles the awaiting request.
 
@@ -435,6 +435,7 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 
 ## Notes
 - `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`qblib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
+- The invoking resource owns its pending requests and focus leases. If it stops, qblib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
 - A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.
 - `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `QB.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
 - These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `QB.nui.*` from **within qblib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.

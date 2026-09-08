@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 
 import type { CancelledAttempt, LockpickAttempt, LockpickPress, LockpickPuzzle } from "@/lib/types"
 import { triangleWave } from "@/lib/triangleWave"
 import { cn } from "@/lib/cn"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface LockpickGameProps {
     puzzle: LockpickPuzzle
@@ -25,7 +26,7 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const pressesRef = useRef<LockpickPress[]>([])
-    const [elapsed, setElapsed] = useState(0)
+    const indicatorRef = useRef<HTMLDivElement>(null)
     const [pinIndex, setPinIndex] = useState(0)
     // Purely cosmetic: which already-locked pins landed inside their target
     // zone, keyed by pin index. The server independently re-derives real
@@ -37,12 +38,14 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
     useEffect(() => {
         let raf: number
         function tick() {
-            setElapsed(performance.now() - startRef.current)
+            if (doneRef.current) return
+            const position = triangleWave(performance.now() - startRef.current, puzzle.speed)
+            if (indicatorRef.current) indicatorRef.current.style.left = `${position * 100}%`
             raf = requestAnimationFrame(tick)
         }
         raf = requestAnimationFrame(tick)
         return () => cancelAnimationFrame(raf)
-    }, [])
+    }, [puzzle.speed])
 
     function finish(presses: LockpickPress[]) {
         if (doneRef.current) return
@@ -56,10 +59,7 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(pressesRef.current)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(pressesRef.current))
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
@@ -86,8 +86,6 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
         return () => window.removeEventListener("keydown", onKeyDown)
     }, [pinIndex, puzzle])
 
-    const position = triangleWave(elapsed, puzzle.speed)
-
     return (
         <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
             <DialogContent hideClose className="max-w-md">
@@ -110,7 +108,7 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
                             hit={pinHits[i]}
                             target={pin.target}
                             tolerance={puzzle.tolerance}
-                            position={i === pinIndex ? position : undefined}
+                            indicatorRef={i === pinIndex ? indicatorRef : undefined}
                         />
                     ))}
                 </div>
@@ -130,14 +128,14 @@ function PinTrack({
     hit,
     target,
     tolerance,
-    position,
+    indicatorRef,
 }: {
     active: boolean
     done: boolean
     hit?: boolean
     target: number
     tolerance: number
-    position?: number
+    indicatorRef?: RefObject<HTMLDivElement>
 }) {
     return (
         <div
@@ -151,10 +149,11 @@ function PinTrack({
                 className="absolute inset-y-0 rounded-full border border-brand-border bg-brand-soft"
                 style={{ left: `${(target - tolerance) * 100}%`, width: `${tolerance * 2 * 100}%` }}
             />
-            {active && position !== undefined && (
+            {active && indicatorRef && (
                 <div
+                    ref={indicatorRef}
                     className="absolute top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
-                    style={{ left: `${position * 100}%` }}
+                    style={{ left: "0%" }}
                 />
             )}
             {done && (

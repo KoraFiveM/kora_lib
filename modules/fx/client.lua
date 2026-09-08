@@ -15,6 +15,7 @@
 ---@field particleId? number Set only when `looped` is true -- the handle `StopParticleFxLooped` needs.
 
 ---@class QBFxScreenHandle
+---@field id integer Opaque per-call identifier; use the whole handle with `QB.fx.stopScreenEffect`.
 ---@field name string
 
 -- Looped particle-fx handles, id = the native particle handle returned by
@@ -25,12 +26,30 @@ local ptfxRegistry = QB.resources.registry(function(particleId)
     StopParticleFxLooped(particleId, false)
 end)
 
--- Screen effects are name-keyed (there is no per-call handle native side),
--- matching how modules/local/events and local/callback track their own
--- name-keyed registrations -- see local/resources/AGENTS.md.
-local screenRegistry = QB.resources.registry(function(name)
-    StopScreenEffect(name)
-end)
+-- The native is name-keyed, but callers still need independent lifetimes. A
+-- per-call handle plus a name refcount prevents one resource stopping its
+-- copy of an effect from cancelling another resource's still-live copy.
+local nextScreenId = 0
+local screenHandles = {}
+local screenRefcounts = {}
+
+local function disposeScreenHandle(id)
+    local entry = screenHandles[id]
+    if not entry then return false end
+
+    screenHandles[id] = nil
+    local remaining = (screenRefcounts[entry.name] or 1) - 1
+    if remaining <= 0 then
+        screenRefcounts[entry.name] = nil
+        StopScreenEffect(entry.name)
+    else
+        screenRefcounts[entry.name] = remaining
+    end
+
+    return true
+end
+
+local screenRegistry = QB.resources.registry(disposeScreenHandle)
 
 ---Plays a particle effect, streaming `def.dict` via `QB.stream.loadPtfx`'s
 ---callback form -- the dict is released immediately after the effect starts,
@@ -146,20 +165,35 @@ function QB.fx.screenEffect(name, duration, looped)
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     StartScreenEffect(name, duration or 0, looped or false)
-    screenRegistry.track(invokingResource, name)
+    nextScreenId = nextScreenId + 1
+    local id = nextScreenId
+    screenHandles[id] = { name = name }
+    screenRefcounts[name] = (screenRefcounts[name] or 0) + 1
+    screenRegistry.track(invokingResource, id)
 
-    return { name = name }
+    return { id = id, name = name }
 end
 
 ---Stops a screen effect started with `QB.fx.screenEffect`.
 ---@param handle QBFxScreenHandle | false
 ---@return boolean stopped
 function QB.fx.stopScreenEffect(handle)
-    if not handle or not handle.name then return false end
+    if not handle then return false end
 
-    local owner = screenRegistry.untrack(handle.name)
+    local id = handle.id
+    if type(id) ~= "number" and type(handle.name) == "string" then
+        local caller = GetInvokingResource() or GetCurrentResourceName()
+        for candidateId, entry in pairs(screenHandles) do
+            if entry.name == handle.name and screenRegistry.owner(candidateId) == caller then
+                id = candidateId
+                break
+            end
+        end
+    end
+    if type(id) ~= "number" then return false end
+
+    local owner = screenRegistry.untrack(id)
     if not owner then return false end
 
-    StopScreenEffect(handle.name)
-    return true
+    return disposeScreenHandle(id)
 end

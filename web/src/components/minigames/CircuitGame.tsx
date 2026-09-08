@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import type { CancelledAttempt, CircuitAttempt, CircuitConnection, CircuitNode, CircuitPuzzle } from "@/lib/types"
 import { cn } from "@/lib/cn"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface CircuitGameProps {
     puzzle: CircuitPuzzle
@@ -23,19 +24,9 @@ interface CircuitGameProps {
 export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: CircuitGameProps) {
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
-    const [elapsed, setElapsed] = useState(0)
+    const connectionsRef = useRef<CircuitConnection[]>([])
     const [selectedInput, setSelectedInput] = useState<string | null>(null)
     const [connections, setConnections] = useState<CircuitConnection[]>([])
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(conns: CircuitConnection[]) {
         if (doneRef.current) return
@@ -49,13 +40,14 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(connections)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(connectionsRef.current))
 
     const inputs = puzzle.nodes.filter((node) => node.side === "input")
     const outputs = puzzle.nodes.filter((node) => node.side === "output")
+    const colorCues = new Map<string, number>()
+    for (const node of puzzle.nodes) {
+        if (!colorCues.has(node.color)) colorCues.set(node.color, colorCues.size + 1)
+    }
     const connectedInputs = new Set(connections.map((c) => c.from))
     const connectedOutputs = new Set(connections.map((c) => c.to))
 
@@ -68,6 +60,7 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         if (!selectedInput || connectedOutputs.has(id)) return
 
         const next = [...connections, { from: selectedInput, to: id, elapsed: performance.now() - startRef.current }]
+        connectionsRef.current = next
         setSelectedInput(null)
         setConnections(next)
 
@@ -93,6 +86,7 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                             <NodeButton
                                 key={node.id}
                                 node={node}
+                                cue={colorCues.get(node.color) ?? 0}
                                 selected={selectedInput === node.id}
                                 connected={connectedInputs.has(node.id)}
                                 onClick={() => handleInputClick(node.id)}
@@ -104,6 +98,7 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                             <NodeButton
                                 key={node.id}
                                 node={node}
+                                cue={colorCues.get(node.color) ?? 0}
                                 selected={false}
                                 connected={connectedOutputs.has(node.id)}
                                 onClick={() => handleOutputClick(node.id)}
@@ -123,11 +118,13 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
 
 function NodeButton({
     node,
+    cue,
     selected,
     connected,
     onClick,
 }: {
     node: CircuitNode
+    cue: number
     selected: boolean
     connected: boolean
     onClick: () => void
@@ -137,12 +134,14 @@ function NodeButton({
             type="button"
             disabled={connected}
             onClick={onClick}
-            aria-label={`${node.side} ${node.id}, color ${node.color}`}
+            aria-label={`${node.side} ${node.id}, circuit ${cue}`}
             className={cn(
                 "h-9 w-9 rounded-full border-2 border-transparent transition-[transform,box-shadow] disabled:opacity-50",
                 selected && "ring-2 ring-offset-2 ring-offset-background ring-primary"
             )}
             style={{ backgroundColor: node.color }}
-        />
+        >
+            <span className="font-semibold text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.9)]">{cue}</span>
+        </button>
     )
 }

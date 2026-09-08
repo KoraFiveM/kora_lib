@@ -154,7 +154,7 @@ local function releaseStateResources(state, immediateCamera)
     -- request. Ask the component to respond "keep editing" so QB.nui releases
     -- focus immediately; the event is a harmless no-op when no dialog is open.
     pcall(QB.nui.send, "placement:closeConfirm", nil)
-    if state.visualsStarted then pcall(DisplayRadar, true) end
+    if state.radarManaged and not state.radarWasHidden then pcall(DisplayRadar, true) end
 
     local cam = state.cam
     state.cam = nil
@@ -277,8 +277,8 @@ local function openConfirmDialog(state)
             return Citizen.Await(QB.nui.request("placement:confirm", {
                 model = tostring(state.model),
                 snippet = snippet,
-            }, Config.placement.confirmTimeout))
-        end)
+            }, Config.placement.confirmTimeout, state.resource))
+        end, state.resource)
     end)
 
     if activeState ~= state then return end
@@ -380,7 +380,10 @@ local function ensurePlacementThread(state)
                     QB.nui.send("placement:hud", hudSnapshot(state))
                 end
 
-                if Config.placement.hideRadar then DisplayRadar(false) end
+                if Config.placement.hideRadar then
+                    state.radarManaged = true
+                    DisplayRadar(false)
+                end
                 Wait(0)
             end
         end)
@@ -403,6 +406,10 @@ local function startCamera(state, camCoord, camRot)
     SetCamActive(cam, true)
     RenderScriptCams(true, true, Config.placement.cameraTransitionMs, true, true)
     state.visualsStarted = true
+    if Config.placement.hideRadar then
+        state.radarManaged = true
+        DisplayRadar(false)
+    end
     FreezeEntityPosition(state.playerPed, true)
     state.playerFrozen = true
     state.camCoords = plainVec3(camCoord)
@@ -457,6 +464,8 @@ function QB.placement.start(model)
         nextHudAt = 0,
         forceHud = true,
         visualsStarted = false,
+        radarManaged = false,
+        radarWasHidden = type(IsRadarHidden) == "function" and IsRadarHidden() or false,
         playerFrozen = false,
     }
     startingState = state
@@ -591,7 +600,6 @@ AddEventHandler("onClientResourceStop", function(resourceName)
 
         pcall(QB.nui.send, "placement:hud", nil)
         pcall(QB.nui.send, "placement:closeConfirm", nil)
-        pcall(DisplayRadar, true)
         return
     end
 

@@ -4,7 +4,7 @@
 ---@field severityLevels? integer Number of discrete severity tiers `opts.severity` may select between (1..severityLevels). `nil` means this effect doesn't use severity.
 ---@field fx? {screen?: string, ptfx?: QBFxPtfxDef} Played via `QB.fx` on the client while the effect is active. A `ptfx` entry needs `dict`/`name` at minimum -- `entity` defaults to the local ped if neither `entity` nor `coords` is set, and `looped` is always forced true regardless of what's given (a status effect's visual runs for the effect's own lifetime, not the ptfx's independent one).
 ---@field anim? {dict: string, clip: string} Played on the local ped via `QB.anim.play` while the effect is active.
----@field movement? {speedMultiplier: number} Applied via `SetPedMoveRateOverride` while active. Simultaneous effects compose multiplicatively and are recomputed whenever one is applied or removed.
+---@field movement? {speedMultiplier: number} Applied every frame via `SetPedMoveRateOverride` while active. Simultaneous effects compose multiplicatively; the frame loop exists only while a movement effect is active.
 
 local registry = {}
 

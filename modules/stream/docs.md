@@ -21,7 +21,8 @@ Loads a model and optionally executes a callback once it is ready.
 2. The model is validated with `IsModelValid(model)`.
 3. If the model is already loaded, the wait is skipped entirely.
 4. Otherwise `RequestModel` is issued once and the script polls `HasModelLoaded`
-   with exponential backoff (25ms up to 1s) for at most 10 seconds.
+   once per game frame for at most 10 seconds. This avoids adding a long
+   backoff delay after the asset has already become ready.
 5. On timeout the request is released and `false, error` is returned — the
    callback is not run.
 6. If a callback is supplied, it is executed and the model is then marked as no

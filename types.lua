@@ -236,11 +236,34 @@
 ---@field sprite? integer
 ---@field color? integer
 ---@field scale? number
----@field label? string
+---@field name? string Location/name within the category; used to compose the map label.
+---@field label? string Backwards-compatible explicit map-label override.
 ---@field shortRange? boolean
----@field category? integer|string
+---@field category? integer|string Fixed category name/legacy alias or numeric native category. Defaults to Other.
+---@field display? integer Native display mode restored after show. Defaults to Config.blips.defaultDisplay.
 ---@field route? boolean
 ---@field info? QBBlipInfo
+
+---@class QBBlipCategory
+---@field key string Canonical fixed category key/name, or `native:<id>` for a numeric compatibility category.
+---@field name string Canonical category name, or `Category <id>` for a numeric compatibility category.
+---@field label string Pause-map/UI category label.
+---@field id integer Native SetBlipCategory id.
+---@field visible boolean Player's persisted client visibility preference.
+---@field count integer Number of currently registered qblib blips in the category.
+
+---@class QBRegisteredBlip
+---@field handle integer Actual native blip handle returned by QB.blips.create.
+---@field resource string Resource that created the blip.
+---@field category integer Native category id.
+---@field categoryKey string Canonical fixed category key/name, or `native:<id>` for a numeric compatibility category.
+---@field name string Normalized location/name within the category.
+---@field label string Computed or explicitly overridden map label.
+---@field sprite integer
+---@field color integer
+---@field display integer Configured display mode restored after show.
+---@field route boolean
+---@field visible boolean Effective visibility after individual/category state.
 
 ---@class QBBlipInfoRow
 ---@field kind 'text'|'icon'|'name'|'header'|'wrappedText'
@@ -324,6 +347,7 @@
 ---@field particleId? integer
 
 ---@class QBFxScreenHandle
+---@field id integer
 ---@field name string
 
 ---@class QBProgressBarDisable
@@ -379,11 +403,11 @@
 
 ---@class QBNotifyPayload
 ---@field title? string
----@field message string
+---@field message? string At least one of title or message is required.
 ---@field type? 'success'|'error'|'warning'|'info'
 ---@field duration? integer
+---@field position? 'top-left'|'top-center'|'top-right'|'bottom-left'|'bottom-center'|'bottom-right'
 ---@field icon? string
----@field id? string
 
 ---@class QBDrawingTextOptions
 ---@field font? integer
@@ -391,13 +415,6 @@
 ---@field color? {r: integer, g: integer, b: integer, a: integer}
 ---@field maxDistance? number
 ---@field outline? boolean
-
----@class QBRaycastResult
----@field hit boolean
----@field coords QBCoords
----@field surfaceNormal QBCoords
----@field entity integer
----@field materialHash? integer
 
 ---@class QBMenuItem
 ---@field id string
@@ -690,13 +707,16 @@
 ---@field z number
 
 ---@class QBZoneOptions
----@field coords QBCoords
+---@field coords? QBCoords Required for box/sphere/point; omitted for poly.
 ---@field radius? number
 ---@field size? QBInteractSize|QBCoords
 ---@field rotation? number|QBCoords
 ---@field points? QBCoords[]
 ---@field thickness? number
+---@field minZ? number Poly floor; must be supplied with maxZ.
+---@field maxZ? number Poly ceiling; must be supplied with minZ.
 ---@field debug? boolean
+---@field data? any Arbitrary caller-owned passthrough.
 ---@field onEnter? fun(zone: QBZoneHandle)
 ---@field onExit? fun(zone: QBZoneHandle)
 ---@field inside? fun(zone: QBZoneHandle)
@@ -705,10 +725,11 @@
 ---@field id integer
 ---@field type 'box'|'sphere'|'poly'|'point'
 ---@field resource string
----@field data QBZoneOptions
+---@field data any Caller-supplied opts.data value.
 ---@field remove fun(): boolean
 ---@field contains fun(coords: QBCoords): boolean
 ---@field isInside fun(): boolean
+---@field setDebug fun(enabled: boolean): boolean
 
 ---@class QBRewardItem
 ---@field chance? number
@@ -882,10 +903,19 @@
 ---@field clear fun(entity: integer, immediate?: boolean) [client]
 
 ---@class QBLibBlips
+---@field getCategoryIds fun(): table<string, integer> [shared]
 ---@field create fun(coords: QBCoords, options?: QBBlipsCreateOptions): integer|false, string? [client]
 ---@field remove fun(blip: integer): boolean, string? [client]
 ---@field setInfo fun(blip: integer, info: QBBlipInfo): boolean, string? [client]
 ---@field clearInfo fun(blip: integer): boolean, string? [client]
+---@field getCategories fun(): QBBlipCategory[] [client]
+---@field getCategory fun(category: string|integer): QBBlipCategory [client]
+---@field getRegistered fun(): QBRegisteredBlip[] [client]
+---@field isCategoryVisible fun(category: string|integer): boolean [client]
+---@field hideCategory fun(category: string|integer): boolean [client; returns whether preference changed]
+---@field showCategory fun(category: string|integer): boolean [client; returns whether preference changed]
+---@field hide fun(blip: integer): boolean, string? [client]
+---@field show fun(blip: integer): boolean, string? [client]
 
 ---@class QBConfigFieldOptions
 ---@field label? string
@@ -1169,12 +1199,12 @@
 ---@field isActive fun(): boolean [client]
 
 ---@class QBLibRaycast
----@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
----@field fromCamera fun(maxDistance?: number, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
----@field fromCam fun(cam: integer, maxDistance?: number, flags?: integer, ignoreEntity?: integer): QBRaycastResult [client]
+---@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; returns hit, coords, entityHit, surfaceNormal]
+---@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; qblib order differs from ox_lib]
+---@field fromCam fun(cam: integer, maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client]
 ---@field start fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
 ---@field startFromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
----@field await fun(rayHandle: integer): QBRaycastResult [client]
+---@field await fun(rayHandle: integer): boolean, QBCoords?, integer?, QBCoords? [client]
 ---@field poll fun(rayHandle: integer): boolean, boolean, QBCoords?, integer?, QBCoords? [client; settled, hit, coords, entityHit, surfaceNormal]
 
 ---@class QBLibRequire
@@ -1225,14 +1255,14 @@
 
 ---@class QBLibStream
 ---@field loadModel fun(model: string|integer, cb?: fun(hash: integer)): integer|false, string? [client]
----@field loadPtfx fun(fxName: string, cb?: fun()): boolean, string? [client]
----@field loadAnimDict fun(animDict: string, cb?: fun()): boolean, string? [client]
----@field loadAnimSet fun(animSet: string, cb?: fun()): boolean, string? [client]
----@field loadClipSet fun(clipSet: string, cb?: fun()): boolean, string? [client]
----@field loadIpl fun(iplName: string, cb?: fun()): boolean, string? [client]
+---@field loadPtfx fun(fxName: string, cb?: fun(name: string)): string|false, string? [client]
+---@field loadAnimDict fun(animDict: string, cb?: fun(name: string)): string|false, string? [client]
+---@field loadAnimSet fun(animSet: string, cb?: fun(name: string)): string|false, string? [client]
+---@field loadClipSet fun(clipSet: string, cb?: fun(name: string)): string|false, string? [client]
+---@field loadIpl fun(iplName: string, cb?: fun(name: string)): string|false, string? [client]
 ---@field loadScaleformMovie fun(scaleformName: string, cb?: fun(handle: integer)): integer|false, string? [client]
----@field loadTextureDict fun(textureDict: string, cb?: fun(), isAdditionalTextures?: boolean): boolean, string? [client]
----@field loadAudioBank fun(audioBank: string, cb?: fun()): boolean, string? [client]
+---@field loadTextureDict fun(textureDict: string, cb?: fun(name: string), isAdditionalTextures?: boolean): string|false, string? [client]
+---@field loadAudioBank fun(audioBank: string, cb?: fun(name: string)): string|false, string? [client]
 ---@field loadCollision fun(coords: QBCoords, cb?: fun(), entity?: integer): boolean, string? [client]
 ---@field loadWeaponAsset fun(weapon: string|integer, cb?: fun(hash: integer), weaponResourceFlags?: integer, extraWeaponComponentFlags?: integer): integer|false, string? [client]
 

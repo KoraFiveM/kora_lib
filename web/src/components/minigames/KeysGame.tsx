@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import type { CancelledAttempt, KeysAttempt, KeysPress, KeysPuzzle } from "@/lib/types"
 import { cn } from "@/lib/cn"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface KeysGameProps {
     puzzle: KeysPuzzle
@@ -33,18 +34,7 @@ export function KeysGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const pressesRef = useRef<KeysPress[]>([])
-    const [elapsed, setElapsed] = useState(0)
     const [index, setIndex] = useState(0)
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(presses: KeysPress[]) {
         if (doneRef.current) return
@@ -58,10 +48,7 @@ export function KeysGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(pressesRef.current)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(pressesRef.current))
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {

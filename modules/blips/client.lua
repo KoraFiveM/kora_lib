@@ -2,9 +2,11 @@
 ---@field sprite? number Blip sprite id. Defaults to `Config.blips.defaultSprite`.
 ---@field color? number Blip color index. Defaults to `Config.blips.defaultColor`.
 ---@field scale? number Blip scale. Defaults to `Config.blips.defaultScale`.
----@field label? string Blip name shown on the map/legend. Left as the sprite's own default label when omitted.
+---@field name? string Location/name within the category. Used to build the map label when `label` is omitted.
+---@field label? string Backwards-compatible explicit map-label override.
 ---@field shortRange? boolean Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange`.
----@field category? number | string Numeric native category, or a named custom category shared by blips with the same string. Left unset (engine default) when omitted.
+---@field category? number | string Fixed category name/alias or numeric native category. Defaults to `Other`.
+---@field display? integer Native blip display mode restored after the blip/category is shown. Defaults to `Config.blips.defaultDisplay`.
 ---@field route? boolean Draws a waypoint route line to the blip. Defaults to `false`.
 ---@field info? QBBlipInfo Optional detail panel shown when this blip is highlighted in the pause map.
 
@@ -19,15 +21,42 @@ local INFO_ROW_STYLE = {
 local infoByBlip = {}
 local displayColumn = 1
 local selectedBlip = nil
-local renderedRevision = nil
-local renderedImageReady = false
+local textureRefcounts = {}
+local categoryCatalog = assert(QB.blips._categoryCatalog, 'QB.blips category catalogue did not load.')
+local registeredByBlip = {}
+local categoryVisibility = {}
+
+local function retainTexture(dictionary)
+    local refs = textureRefcounts[dictionary] or 0
+    textureRefcounts[dictionary] = refs + 1
+    if refs == 0 then RequestStreamedTextureDict(dictionary) end
+end
+
+local function releaseTexture(dictionary)
+    local refs = textureRefcounts[dictionary]
+    if not refs then return end
+    if refs > 1 then
+        textureRefcounts[dictionary] = refs - 1
+        return
+    end
+
+    textureRefcounts[dictionary] = nil
+    SetStreamedTextureDictAsNoLongerNeeded(dictionary)
+end
+
+local function clearStoredInfo(blip)
+    local info = infoByBlip[blip]
+    if info and info.image then releaseTexture(info.image.dictionary) end
+    infoByBlip[blip] = nil
+end
 
 -- blipRegistry tracks every blip this module has created, keyed by the
 -- resource that invoked `create` -- see local/resources/AGENTS.md. Cleanup on
 -- resource stop guards with DoesBlipExist since RemoveBlip on an
 -- already-gone handle is undefined behavior, not a no-op.
 local blipRegistry = QB.resources.registry(function(blip)
-    infoByBlip[blip] = nil
+    registeredByBlip[blip] = nil
+    clearStoredInfo(blip)
     if DoesBlipExist(blip) then RemoveBlip(blip) end
 end)
 
@@ -93,13 +122,39 @@ local function normaliseInfo(info)
 end
 
 ---@param blip number
+---@param slot string
+---@return string
+local function infoLabelName(blip, slot)
+    return ("QBLIB_BLIP_%d_%s"):format(blip, slot)
+end
+
+---@param blip number
+---@param info QBBlipInfo
+local function registerInfoLabels(blip, info)
+    AddTextEntry(infoLabelName(blip, "title"), info.title)
+    if info.rp ~= "" then AddTextEntry(infoLabelName(blip, "rp"), info.rp) end
+    if info.money ~= "" then AddTextEntry(infoLabelName(blip, "money"), info.money) end
+
+    for index, row in ipairs(info.rows) do
+        local slot = index - 1
+        AddTextEntry(infoLabelName(blip, ("%d_label"):format(slot)), row.label)
+        AddTextEntry(infoLabelName(blip, ("%d_value"):format(slot)), row.value)
+    end
+end
+
+---@param blip number
 ---@param info QBBlipInfo
 local function storeInfo(blip, info)
     local previous = infoByBlip[blip]
     local normalised = normaliseInfo(info)
-    normalised.revision = previous and previous.revision + 1 or 1
+    local previousDictionary = previous and previous.image and previous.image.dictionary
+    local nextDictionary = normalised.image and normalised.image.dictionary
+    if previousDictionary ~= nextDictionary then
+        if previousDictionary then releaseTexture(previousDictionary) end
+        if nextDictionary then retainTexture(nextDictionary) end
+    end
     infoByBlip[blip] = normalised
-    if normalised.image then RequestStreamedTextureDict(normalised.image.dictionary) end
+    registerInfoLabels(blip, normalised)
     SetBlipAsMissionCreatorBlip(blip, true)
 end
 
@@ -114,33 +169,55 @@ local function canManageInfo(blip, caller)
     return true
 end
 
--- GTA reserves categories 12-133 for named custom legend groups. Allocate
--- those centrally so callers can group by a stable name without coordinating
--- numeric ids across resources. The mapping lives for qblib's lifetime, which
--- also prevents a later resource restart from relabelling an existing group.
-local namedCategories = {}
-local nextNamedCategory = Config.blips.namedCategoryStart
+for index = 1, #categoryCatalog.definitions do
+    local category = categoryCatalog.definitions[index]
+    AddTextEntry(('BLIP_CAT_%d'):format(category.id), category.label)
+end
 
----@param category number | string | nil
----@return number? category
+---@param category table
+---@return string
+local function categoryKvp(category)
+    return ('qblib:blips:category:%d'):format(category.id)
+end
+
+---@param category table
+---@return boolean
+local function categoryIsVisible(category)
+    local visible = categoryVisibility[category.id]
+    if visible ~= nil then return visible end
+
+    visible = GetResourceKvpString(categoryKvp(category)) ~= '0'
+    categoryVisibility[category.id] = visible
+    return visible
+end
+
+---@param category string|number|nil
+---@return table
 local function resolveCategory(category)
-    if category == nil or type(category) == "number" then return category end
+    return categoryCatalog.resolve(category)
+end
 
-    assert(type(category) == "string" and category ~= "",
-        "Invalid category: expected a number or non-empty string.")
+---@param record table
+---@return boolean visible
+local function applyVisibility(record)
+    local visible = not record.hidden and categoryIsVisible(record.categoryDefinition)
+    SetBlipDisplay(record.handle, visible and record.display or 0)
+    SetBlipRoute(record.handle, visible and record.route or false)
+    if visible and record.routeColor ~= nil then SetBlipRouteColour(record.handle, record.routeColor) end
+    record.visible = visible
+    return visible
+end
 
-    local existing = namedCategories[category]
-    if existing then return existing end
-
-    assert(nextNamedCategory <= Config.blips.namedCategoryEnd,
-        "No named blip categories remain; GTA supports categories 12 through 133.")
-
-    local resolved = nextNamedCategory
-    nextNamedCategory = nextNamedCategory + 1
-    namedCategories[category] = resolved
-    AddTextEntry(("BLIP_CAT_%d"):format(resolved), category)
-
-    return resolved
+---@param options QBBlipsCreateOptions
+---@param category table
+---@return string name
+---@return string label
+local function resolveNameAndLabel(options, category)
+    local explicitLabel = options.label and categoryCatalog.normaliseLabel(options.label) or nil
+    local name = options.name and categoryCatalog.normaliseLabel(options.name) or explicitLabel or category.label
+    if explicitLabel then return name, explicitLabel end
+    if name:lower() == category.label:lower() then return name, category.label end
+    return name, ('%s: %s'):format(category.label, name)
 end
 
 ---Applies `label` as the blip's display name via the text-command trio FiveM
@@ -153,13 +230,10 @@ local function applyLabel(blip, label)
     EndTextCommandSetBlipName(blip)
 end
 
----@param text string
 ---@param blip number
 ---@param slot string
-local function pushLabel(text, blip, slot)
-    local label = ("QBLIB_BLIP_%d_%s"):format(blip, slot)
-    AddTextEntry(label, text)
-    BeginTextCommandScaleformString(label)
+local function pushLabel(blip, slot)
+    BeginTextCommandScaleformString(infoLabelName(blip, slot))
     EndTextCommandScaleformString()
 end
 
@@ -198,8 +272,8 @@ local function renderRow(blip, index, row)
         ScaleformMovieMethodAddParamInt(INFO_ROW_STYLE.icon)
         ScaleformMovieMethodAddParamInt(0)
         ScaleformMovieMethodAddParamInt(1)
-        pushLabel(row.label, blip, ("%d_label"):format(index))
-        pushLabel(row.value, blip, ("%d_value"):format(index))
+        pushLabel(blip, ("%d_label"):format(index))
+        pushLabel(blip, ("%d_value"):format(index))
         ScaleformMovieMethodAddParamInt(row.icon)
         ScaleformMovieMethodAddParamInt(row.color)
         ScaleformMovieMethodAddParamBool(row.checked)
@@ -207,8 +281,8 @@ local function renderRow(blip, index, row)
         ScaleformMovieMethodAddParamInt(INFO_ROW_STYLE[row.kind])
         ScaleformMovieMethodAddParamInt(0)
         ScaleformMovieMethodAddParamInt(0)
-        pushLabel(row.label, blip, ("%d_label"):format(index))
-        pushLabel(row.value, blip, ("%d_value"):format(index))
+        pushLabel(blip, ("%d_label"):format(index))
+        pushLabel(blip, ("%d_value"):format(index))
     end
 
     EndScaleformMovieMethod()
@@ -223,12 +297,11 @@ local function renderInfo(blip, info)
         ScaleformMovieMethodAddParamInt(displayColumn)
         BeginTextCommandScaleformString("")
         EndTextCommandScaleformString()
-        pushLabel(info.title, blip, "title")
+        pushLabel(blip, "title")
         ScaleformMovieMethodAddParamInt(info.verified and 1 or 0)
 
         local image = info.image
         if image and HasStreamedTextureDictLoaded(image.dictionary) then
-            RequestStreamedTextureDict(image.dictionary)
             PushScaleformMovieFunctionParameterString(image.dictionary)
             PushScaleformMovieFunctionParameterString(image.texture)
         else
@@ -240,13 +313,13 @@ local function renderInfo(blip, info)
         ScaleformMovieMethodAddParamInt(0)
 
         if info.rp ~= "" then
-            pushLabel(info.rp, blip, "rp")
+            pushLabel(blip, "rp")
         else
             ScaleformMovieMethodAddParamBool(false)
         end
 
         if info.money ~= "" then
-            pushLabel(info.money, blip, "money")
+            pushLabel(blip, "money")
         else
             ScaleformMovieMethodAddParamBool(false)
         end
@@ -263,8 +336,18 @@ end
 CreateThread(function()
     while true do
         local sleep = 1000
+        local hasInfo = next(infoByBlip) ~= nil
+        local frontendReady = hasInfo and IsFrontendReadyForControl()
 
-        if IsFrontendReadyForControl() then
+        -- Clear the last qblib column once the pause frontend closes or the
+        -- selected blip loses its final info record. Without this edge the
+        -- renderer can remain logically selected while its idle path sleeps.
+        if selectedBlip and not frontendReady then
+            selectedBlip = nil
+            setDisplayVisible(false)
+        end
+
+        if frontendReady then
             sleep = 50
             local blip = GetNewSelectedMissionCreatorBlip()
 
@@ -273,21 +356,21 @@ CreateThread(function()
                 local imageReady = info and (not info.image or HasStreamedTextureDictLoaded(info.image.dictionary))
                 if info and not imageReady then RequestStreamedTextureDict(info.image.dictionary) end
 
-                if info and (selectedBlip ~= blip or renderedRevision ~= info.revision or renderedImageReady ~= imageReady) then
+                if info then
+                    -- The pause-map frontend rebuilds its columns continuously
+                    -- and can discard a one-shot SET_DATA_SLOT update on the
+                    -- next frame. Reassert the active detail panel every frame;
+                    -- the zero-wait loop only runs while one qblib blip is
+                    -- actually highlighted, so the idle path stays cheap.
+                    sleep = 0
                     selectedBlip = blip
-                    renderedRevision = info.revision
-                    renderedImageReady = imageReady
                     renderInfo(blip, info)
                 elseif not info and selectedBlip then
                     selectedBlip = nil
-                    renderedRevision = nil
-                    renderedImageReady = false
                     setDisplayVisible(false)
                 end
             elseif selectedBlip then
                 selectedBlip = nil
-                renderedRevision = nil
-                renderedImageReady = false
                 setDisplayVisible(false)
             end
         end
@@ -317,6 +400,13 @@ function QB.blips.create(coords, options)
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
 
     local category = resolveCategory(options.category)
+    local name, label = resolveNameAndLabel(options, category)
+    local sprite = options.sprite or Config.blips.defaultSprite
+    local color = options.color or Config.blips.defaultColor
+    local display = options.display
+    if display == nil then display = Config.blips.defaultDisplay or 4 end
+    assert(type(display) == 'number' and display >= 0 and display % 1 == 0,
+        'Blip display must be a non-negative integer.')
 
     local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
 
@@ -324,26 +414,168 @@ function QB.blips.create(coords, options)
         return false, "Failed to create blip."
     end
 
-    SetBlipSprite(blip, options.sprite or Config.blips.defaultSprite)
-    SetBlipColour(blip, options.color or Config.blips.defaultColor)
+    SetBlipSprite(blip, sprite)
+    SetBlipColour(blip, color)
     SetBlipScale(blip, options.scale or Config.blips.defaultScale)
 
     local shortRange = options.shortRange
     if shortRange == nil then shortRange = Config.blips.defaultShortRange end
     SetBlipAsShortRange(blip, shortRange)
 
-    if category then SetBlipCategory(blip, category) end
-    if options.label then applyLabel(blip, options.label) end
+    SetBlipCategory(blip, category.id)
+    applyLabel(blip, label)
 
-    if options.route then
-        SetBlipRoute(blip, true)
-        if options.color then SetBlipRouteColour(blip, options.color) end
-    end
-
+    local record = {
+        handle = blip,
+        resource = invokingResource,
+        category = category.id,
+        categoryKey = category.key,
+        categoryDefinition = category,
+        name = name,
+        label = label,
+        sprite = sprite,
+        color = color,
+        display = display,
+        route = options.route == true,
+        routeColor = options.route and options.color or nil,
+        hidden = false,
+        visible = true,
+    }
+    registeredByBlip[blip] = record
     blipRegistry.track(invokingResource, blip)
+    applyVisibility(record)
     if options.info then storeInfo(blip, options.info) end
 
     return blip
+end
+
+---@param category table
+---@param count? integer
+---@return QBBlipCategory
+local function publicCategory(category, count)
+    if count == nil then
+        count = 0
+        for _, record in pairs(registeredByBlip) do
+            if record.category == category.id then count = count + 1 end
+        end
+    end
+
+    return {
+        key = category.key,
+        name = category.name,
+        label = category.label,
+        id = category.id,
+        visible = categoryIsVisible(category),
+        count = count,
+    }
+end
+
+---Returns the fixed category catalogue ordered by native id.
+---@return QBBlipCategory[] categories
+function QB.blips.getCategories()
+    local result = {}
+    local counts = {}
+    for _, record in pairs(registeredByBlip) do
+        counts[record.category] = (counts[record.category] or 0) + 1
+    end
+    for index = 1, #categoryCatalog.definitions do
+        local category = categoryCatalog.definitions[index]
+        result[#result + 1] = publicCategory(category, counts[category.id] or 0)
+    end
+    table.sort(result, function(a, b) return a.id < b.id end)
+    return result
+end
+
+---@param category string|number Category name, alias, or native id.
+---@return QBBlipCategory category
+function QB.blips.getCategory(category)
+    return publicCategory(resolveCategory(category))
+end
+
+---Returns plain snapshots of qblib-created blips. The `handle` remains the
+---actual native handle returned by `create`; qblib never replaces it with an
+---object wrapper.
+---@return QBRegisteredBlip[] blips
+function QB.blips.getRegistered()
+    local result = {}
+    for _, record in pairs(registeredByBlip) do
+        result[#result + 1] = {
+            handle = record.handle,
+            resource = record.resource,
+            category = record.category,
+            categoryKey = record.categoryKey,
+            name = record.name,
+            label = record.label,
+            sprite = record.sprite,
+            color = record.color,
+            display = record.display,
+            route = record.route,
+            visible = record.visible,
+        }
+    end
+    table.sort(result, function(a, b) return a.handle < b.handle end)
+    return result
+end
+
+---@param category string|number Category name, alias, or native id.
+---@return boolean visible
+function QB.blips.isCategoryVisible(category)
+    return categoryIsVisible(resolveCategory(category))
+end
+
+---@param category string|number Category name, alias, or native id.
+---@param visible boolean
+---@return boolean changed
+local function setCategoryVisible(category, visible)
+    local resolved = resolveCategory(category)
+    local changed = categoryIsVisible(resolved) ~= visible
+    if not changed then return false end
+
+    categoryVisibility[resolved.id] = visible
+    SetResourceKvp(categoryKvp(resolved), visible and '1' or '0')
+
+    for _, record in pairs(registeredByBlip) do
+        if record.category == resolved.id and DoesBlipExist(record.handle) then applyVisibility(record) end
+    end
+    return changed
+end
+
+---@param category string|number Category name, alias, or native id.
+---@return boolean changed
+function QB.blips.hideCategory(category)
+    return setCategoryVisible(category, false)
+end
+
+---@param category string|number Category name, alias, or native id.
+---@return boolean changed
+function QB.blips.showCategory(category)
+    return setCategoryVisible(category, true)
+end
+
+---@param blip integer Native handle returned by QB.blips.create.
+---@return boolean success
+---@return string? error
+function QB.blips.hide(blip)
+    assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
+    local record = registeredByBlip[blip]
+    if not record then return false, 'Blip is not tracked by QB.blips.' end
+    if not DoesBlipExist(blip) then return false, 'Blip does not exist.' end
+    record.hidden = true
+    applyVisibility(record)
+    return true
+end
+
+---@param blip integer Native handle returned by QB.blips.create.
+---@return boolean success
+---@return string? error
+function QB.blips.show(blip)
+    assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
+    local record = registeredByBlip[blip]
+    if not record then return false, 'Blip is not tracked by QB.blips.' end
+    if not DoesBlipExist(blip) then return false, 'Blip does not exist.' end
+    record.hidden = false
+    applyVisibility(record)
+    return true
 end
 
 ---Sets or replaces the detail panel shown when a qblib-created blip is
@@ -376,7 +608,7 @@ function QB.blips.clearInfo(blip)
     local canManage, err = canManageInfo(blip, caller)
     if not canManage then return false, err end
 
-    infoByBlip[blip] = nil
+    clearStoredInfo(blip)
     SetBlipAsMissionCreatorBlip(blip, false)
     return true
 end
@@ -398,11 +630,13 @@ function QB.blips.remove(blip)
         return false, "Blip is not tracked by QB.blips."
     end
 
+    registeredByBlip[blip] = nil
+    clearStoredInfo(blip)
+
     if not DoesBlipExist(blip) then
         return false, "Blip does not exist."
     end
 
-    infoByBlip[blip] = nil
     RemoveBlip(blip)
 
     return true

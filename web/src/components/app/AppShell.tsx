@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react"
 import { AlertCircle, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
 
-import { FormFields, createFieldValues, validateFields } from "@/components/input/FormFields"
+import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/cn"
@@ -152,6 +152,7 @@ function ListBlock({ block, index, busy, labels, runAction, openForm, activeForm
     const filtered = useMemo(() => { const needle = search.trim().toLowerCase(); return needle ? items.filter((item) => `${item.label} ${item.description ?? ""} ${(item.metadata ?? []).map((entry) => `${entry.label} ${entry.value}`).join(" ")}`.toLowerCase().includes(needle)) : items }, [items, search])
     const pageSize = Math.max(1, block.pageSize ?? (filtered.length || 1))
     const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
+    useEffect(() => setPage((current) => Math.min(current, pages - 1)), [pages])
     const shown = filtered.slice(page * pageSize, page * pageSize + pageSize)
     const card = block.layout === "grid" || block.layout === "cards"
     const activate = (item: AppListItem) => {
@@ -170,7 +171,7 @@ function ListBlock({ block, index, busy, labels, runAction, openForm, activeForm
             const clickable = Boolean(item.action || item.children?.length)
             const body = <><span className={cn("flex shrink-0 items-center justify-center overflow-hidden border", card ? "h-14 w-14 rounded-lg" : "h-9 w-9 rounded-md", toneClasses[item.tone ?? "neutral"])}>{item.image ? <img src={item.image} alt="" className="h-full w-full object-cover" /> : Icon ? <Icon aria-hidden className="h-4 w-4" /> : item.label.slice(0, 1)}</span><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{item.label}</span>{item.description ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span> : null}{item.metadata?.length ? <span className="mt-2 flex flex-wrap gap-1.5">{item.metadata.map((entry) => <span key={entry.label} className={cn("rounded-full border px-2 py-0.5 text-[10px]", toneClasses[entry.tone ?? "neutral"])}>{entry.label}: {String(entry.value)}</span>)}</span> : null}</span>{item.badge !== undefined ? <span className={cn("rounded-full border px-2 py-0.5 text-xs", toneClasses[item.tone ?? "neutral"])}>{item.badge}</span> : null}{clickable ? <ChevronRight aria-hidden className="h-4 w-4 text-muted-foreground" /> : null}</>
             const source = `list-${block.id ?? index}-${item.id}`
-            return <article key={item.id} className={cn("flex flex-wrap gap-3", card ? "flex-col rounded-lg border border-border bg-background p-4" : "min-h-14 items-center px-4 py-3")}><div className={cn("flex min-w-0 flex-1 items-center gap-3", clickable && "cursor-pointer")} role={clickable ? "button" : undefined} tabIndex={clickable ? 0 : undefined} onClick={() => busy === undefined && activate(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(item) } }}>{body}</div>{item.actions?.length ? <ActionButtons compact actions={item.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, source, { itemId: item.id, value: item.data }) : runAction(action, { itemId: item.id, value: item.data ?? action.data })} /> : null}{activeForm?.source === source ? <div className="w-full">{renderActiveForm()}</div> : null}</article>
+            return <article key={item.id} className={cn("flex flex-wrap gap-3", card ? "flex-col rounded-lg border border-border bg-background p-4" : "min-h-14 items-center px-4 py-3")}><div className={cn("flex min-w-0 flex-1 items-center gap-3", clickable && "cursor-pointer")} role={clickable ? "button" : undefined} tabIndex={clickable ? 0 : undefined} onClick={() => busy === undefined && activate(item)} onKeyDown={(event) => { if (busy === undefined && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); activate(item) } }}>{body}</div>{item.actions?.length ? <ActionButtons compact actions={item.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, source, { itemId: item.id, value: item.data }) : runAction(action, { itemId: item.id, value: item.data ?? action.data })} /> : null}{activeForm?.source === source ? <div className="w-full">{renderActiveForm()}</div> : null}</article>
         })}</div>}
         <Paging page={page} pages={pages} setPage={setPage} labels={labels} />
     </section>
@@ -178,7 +179,7 @@ function ListBlock({ block, index, busy, labels, runAction, openForm, activeForm
 
 function AlwaysFormBlock({ block, values, setValues, busy, labels, runAction }: { block: Extract<AppBlock, { type: "form" }>; values: Record<string, FieldValue>; setValues: (values: Record<string, FieldValue>) => void; busy?: string; labels: AppShellLabels; runAction: (action: AppAction, context?: ActionContext) => void }) {
     const errors = useMemo(() => validateFields(block.fields, values, labels), [block.fields, labels, values])
-    const submit = (event: FormEvent) => { event.preventDefault(); if (Object.keys(errors).length === 0) runAction(block.action, { value: values }) }
+    const submit = (event: FormEvent) => { event.preventDefault(); if (Object.keys(errors).length === 0) runAction(block.action, { value: submissionValues(block.fields, values) }) }
     return <form onSubmit={submit} className="rounded-lg border border-border bg-card p-4"><BlockTitle>{block.title}</BlockTitle>{block.description ? <p className="mb-4 mt-1 text-sm text-muted-foreground">{block.description}</p> : <div className="mb-3" />}<FormFields fields={block.fields} values={values} errors={errors} labels={labels} columns={2} idPrefix={`app-form-${block.id}`} onChange={setValues} /><div className="mt-4 flex justify-end"><Button type="submit" disabled={busy !== undefined || Object.keys(errors).length > 0}>{busy === block.action.id ? labels.working : block.submitLabel ?? block.action.label}</Button></div></form>
 }
 
@@ -255,7 +256,7 @@ export function AppShell() {
         setDrafts((current) => current[key] ? current : { ...current, [key]: createFieldValues(action.fields ?? []) })
         setActiveForm({ action, source, context })
     }, [draftKey])
-    const renderActiveForm = () => activeForm ? <ActionForm form={activeForm} values={formDraft(`${activeForm.source}:${activeForm.action.id}`, activeForm.action.fields ?? [])} setValues={(values) => setFormDraft(`${activeForm.source}:${activeForm.action.id}`, values)} busy={busy} labels={labels} cancel={() => setActiveForm(undefined)} submit={() => runAction(activeForm.action, { ...activeForm.context, value: formDraft(`${activeForm.source}:${activeForm.action.id}`, activeForm.action.fields ?? []) })} /> : null
+    const renderActiveForm = () => activeForm ? <ActionForm form={activeForm} values={formDraft(`${activeForm.source}:${activeForm.action.id}`, activeForm.action.fields ?? [])} setValues={(values) => setFormDraft(`${activeForm.source}:${activeForm.action.id}`, values)} busy={busy} labels={labels} cancel={() => setActiveForm(undefined)} submit={() => { const fields = activeForm.action.fields ?? []; runAction(activeForm.action, { ...activeForm.context, value: submissionValues(fields, formDraft(`${activeForm.source}:${activeForm.action.id}`, fields)) }) }} /> : null
 
     if (!isOpen || !payload || !app || !view || !token) return null
     const compact = app.layout === "compact"

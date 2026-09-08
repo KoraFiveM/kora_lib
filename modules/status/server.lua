@@ -38,13 +38,18 @@ function QB.status.apply(target, name, opts)
     local existing = bucket[name]
     local stacking = def.stacking or "replace"
     local duration = opts.duration or def.duration
+    local now = GetGameTimer()
+
+    if existing and existing.expiresAt and existing.expiresAt <= now then
+        existing = nil
+    end
 
     local expiresAt
     if duration then
         if stacking == "extend" and existing and existing.expiresAt then
             expiresAt = existing.expiresAt + duration
         else
-            expiresAt = GetGameTimer() + duration
+            expiresAt = now + duration
         end
     end
 
@@ -57,7 +62,8 @@ function QB.status.apply(target, name, opts)
 
     bucket[name] = { expiresAt = expiresAt, severity = severity }
 
-    QB.events.push(target, "qblib:status:apply", name, { duration = duration, severity = severity })
+    local remainingDuration = expiresAt and math.max(0, expiresAt - now) or nil
+    QB.events.push(target, "qblib:status:apply", name, { duration = remainingDuration, severity = severity })
 
     return true
 end

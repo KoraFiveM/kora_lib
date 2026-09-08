@@ -37,7 +37,6 @@ export function defaultValueFor(field: InputField): FieldValue {
     if (field.type === "checkbox") return false
     if (field.type === "multiselect") return []
     if (field.type === "range") return field.min ?? RANGE_FALLBACK_MIN
-    if (field.type === "number") return 0
     return ""
 }
 
@@ -49,6 +48,16 @@ export function createFieldValues(fields: InputField[], previous?: Record<string
             : defaultValueFor(field)
     }
     return values
+}
+
+export function submissionValues(fields: InputField[], values: Record<string, FieldValue>) {
+    const submitted = { ...values }
+    for (const field of fields) {
+        if (field.type === "number" && !field.required && submitted[field.id] === "") {
+            delete submitted[field.id]
+        }
+    }
+    return submitted
 }
 
 export function fieldOptions(field: InputField, values: Record<string, FieldValue>) {
@@ -74,8 +83,9 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
             errors[field.id] = labels.required
             continue
         }
-        if ((field.type === "number" || field.type === "range") && typeof value === "number") {
-            if (field.min !== undefined && value < field.min) errors[field.id] = interpolate(labels.minValue, field.min)
+        if ((field.type === "number" || field.type === "range") && !empty) {
+            if (typeof value !== "number" || !Number.isFinite(value)) errors[field.id] = labels.invalidFormat
+            else if (field.min !== undefined && value < field.min) errors[field.id] = interpolate(labels.minValue, field.min)
             else if (field.max !== undefined && value > field.max) errors[field.id] = interpolate(labels.maxValue, field.max)
         }
         if (TEXTUAL_TYPES.has(field.type) && typeof value === "string") {
@@ -171,25 +181,24 @@ function NumericKeypad({ value, maxLength, labels, onChange }: { value: string; 
     return <div className="grid grid-cols-3 gap-1.5">{["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => <Button key={digit} type="button" variant="outline" className="font-mono" onClick={() => append(digit)}>{digit}</Button>)}<Button type="button" variant="ghost" onClick={() => onChange("")}>{labels?.clear ?? "Clear"}</Button><Button type="button" variant="outline" className="font-mono" onClick={() => append("0")}>0</Button><Button type="button" variant="ghost" aria-label={labels?.backspace ?? "Backspace"} onClick={() => onChange(value.slice(0, -1))}>⌫</Button></div>
 }
 
-function NumberField({ id, field, value, error, describedBy, labels, onChange }: { id: string; field: InputField; value: FieldValue; error?: string; describedBy?: string; labels?: Partial<AppShellLabels>; onChange: (value: number) => void }) {
-    const parsed = typeof value === "number" && Number.isFinite(value) ? value : 0
-    const [draft, setDraft] = useState(String(parsed))
+function NumberField({ id, field, value, error, describedBy, labels, onChange }: { id: string; field: InputField; value: FieldValue; error?: string; describedBy?: string; labels?: Partial<AppShellLabels>; onChange: (value: number | string) => void }) {
+    const parsed = typeof value === "number" && Number.isFinite(value) ? value : undefined
+    const [draft, setDraft] = useState(value === undefined ? "" : String(value))
     const step = field.step ?? 1
-    const adjust = (direction: 1 | -1) => onChange(Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, parsed + direction * step)))
+    const adjust = (direction: 1 | -1) => {
+        const base = parsed ?? 0
+        onChange(Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, base + direction * step)))
+    }
 
-    useEffect(() => setDraft(String(parsed)), [parsed])
+    useEffect(() => setDraft(value === undefined ? "" : String(value)), [value])
 
     const updateDraft = (next: string) => {
         setDraft(next)
         const nextValue = Number(next)
-        if (next !== "" && Number.isFinite(nextValue)) onChange(nextValue)
+        onChange(next !== "" && Number.isFinite(nextValue) ? nextValue : next)
     }
 
-    const resetInvalidDraft = () => {
-        if (draft === "" || !Number.isFinite(Number(draft))) setDraft(String(parsed))
-    }
-
-    return <div className="flex items-center gap-2"><Input id={id} type="text" inputMode="decimal" placeholder={field.placeholder} value={draft} onChange={(event) => updateDraft(event.target.value)} onBlur={resetInvalidDraft} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur() } }} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="number-field min-w-0 flex-1" /><Button type="button" variant="outline" size="icon" aria-label={(labels?.decrease ?? "Decrease %{field}").replace("%{field}", field.label)} disabled={field.min !== undefined && parsed <= field.min} onClick={() => adjust(-1)}><Minus aria-hidden /></Button><Button type="button" variant="outline" size="icon" aria-label={(labels?.increase ?? "Increase %{field}").replace("%{field}", field.label)} disabled={field.max !== undefined && parsed >= field.max} onClick={() => adjust(1)}><Plus aria-hidden /></Button></div>
+    return <div className="flex items-center gap-2"><Input id={id} type="text" inputMode="decimal" placeholder={field.placeholder} value={draft} onChange={(event) => updateDraft(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="number-field min-w-0 flex-1" /><Button type="button" variant="outline" size="icon" aria-label={(labels?.decrease ?? "Decrease %{field}").replace("%{field}", field.label)} disabled={parsed !== undefined && field.min !== undefined && parsed <= field.min} onClick={() => adjust(-1)}><Minus aria-hidden /></Button><Button type="button" variant="outline" size="icon" aria-label={(labels?.increase ?? "Increase %{field}").replace("%{field}", field.label)} disabled={parsed !== undefined && field.max !== undefined && parsed >= field.max} onClick={() => adjust(1)}><Plus aria-hidden /></Button></div>
 }
 
 function RangeValueInput({ field, value, error, describedBy, labels, onChange }: { field: InputField; value: number; error?: string; describedBy?: string; labels?: Partial<AppShellLabels>; onChange: (value: number) => void }) {
@@ -216,7 +225,85 @@ function MultiSelectField({ id, field, options, value, error, describedBy, onCha
 
 function ComboboxField({ id, field, options, value, error, describedBy, onChange }: { id: string; field: InputField; options: InputOption[]; value: FieldValue; error?: string; describedBy?: string; onChange: (value: string) => void }) {
     const [open, setOpen] = useState(false)
+    const [activeIndex, setActiveIndex] = useState(-1)
     const text = String(value ?? "")
     const suggestions = useMemo(() => { const needle = text.trim().toLowerCase(); return (needle ? options.filter((option) => option.label.toLowerCase().includes(needle) || String(option.value).toLowerCase().includes(needle)) : options).slice(0, COMBOBOX_MAX_SUGGESTIONS) }, [options, text])
-    return <div className="relative"><Input id={id} type="text" placeholder={field.placeholder} value={text} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => onChange(event.target.value)} onFocus={() => setOpen(true)} onBlur={() => window.setTimeout(() => setOpen(false), 120)} autoComplete="off" role="combobox" aria-expanded={open && suggestions.length > 0} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{open && suggestions.length > 0 ? <div role="listbox" className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-low">{suggestions.map((option) => { const optionValue = String(option.value); return <button key={optionValue} type="button" role="option" aria-selected={optionValue === text} disabled={option.disabled} className="focus-ring flex min-h-10 w-full items-center rounded-sm px-3 py-1.5 text-left text-sm hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-[.48]" onMouseDown={(event) => { event.preventDefault(); onChange(optionValue); setOpen(false) }}>{option.label}</button> })}</div> : null}</div>
+    const listboxId = `${id}-listbox`
+
+    useEffect(() => {
+        setActiveIndex(open ? suggestions.findIndex((option) => !option.disabled) : -1)
+    }, [open, suggestions])
+
+    const choose = (index: number) => {
+        const option = suggestions[index]
+        if (!option || option.disabled) return
+        onChange(String(option.value))
+        setOpen(false)
+    }
+
+    const move = (direction: 1 | -1) => {
+        if (!suggestions.some((option) => !option.disabled)) return
+        let next = activeIndex
+        for (let attempts = 0; attempts < suggestions.length; attempts += 1) {
+            next = (next + direction + suggestions.length) % suggestions.length
+            if (!suggestions[next].disabled) {
+                setActiveIndex(next)
+                return
+            }
+        }
+    }
+
+    return <div className="relative">
+        <Input
+            id={id}
+            type="text"
+            placeholder={field.placeholder}
+            value={text}
+            minLength={field.minLength}
+            maxLength={field.maxLength}
+            onChange={(event) => { onChange(event.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+            onKeyDown={(event) => {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault()
+                    setOpen(true)
+                    move(event.key === "ArrowDown" ? 1 : -1)
+                } else if (event.key === "Enter" && open && activeIndex >= 0) {
+                    event.preventDefault()
+                    choose(activeIndex)
+                } else if (event.key === "Escape" && open) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    setOpen(false)
+                }
+            }}
+            autoComplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-controls={listboxId}
+            aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
+            aria-expanded={open && suggestions.length > 0}
+            aria-invalid={Boolean(error)}
+            aria-describedby={describedBy}
+        />
+        {open && suggestions.length > 0 ? <div id={listboxId} role="listbox" className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-low">
+            {suggestions.map((option, index) => {
+                const optionValue = String(option.value)
+                return <button
+                    id={`${listboxId}-${index}`}
+                    key={optionValue}
+                    type="button"
+                    role="option"
+                    aria-selected={optionValue === text}
+                    disabled={option.disabled}
+                    className={cn("focus-ring flex min-h-10 w-full items-center rounded-sm px-3 py-1.5 text-left text-sm hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-[.48]", index === activeIndex && "bg-surface-hover")}
+                    onMouseEnter={() => { if (!option.disabled) setActiveIndex(index) }}
+                    onMouseDown={(event) => { event.preventDefault(); choose(index) }}
+                    onClick={() => choose(index)}
+                >{option.label}</button>
+            })}
+        </div> : null}
+    </div>
 }

@@ -31,7 +31,13 @@ local function rounded(value)
 end
 
 local function colorComponents(color)
-    return color[1] or color.r, color[2] or color.g, color[3] or color.b
+    return color[1] or color['1'] or color.r,
+        color[2] or color['2'] or color.g,
+        color[3] or color['3'] or color.b
+end
+
+local function colorTable(red, green, blue)
+    return { r = red, g = green, b = blue }
 end
 
 local function indexed(values, index)
@@ -127,10 +133,10 @@ function QB.vehicle.getProperties(vehicle)
     local pearlescentColor, wheelColor = GetVehicleExtraColours(vehicle)
     local colorPrimary, colorSecondary = GetVehicleColours(vehicle)
     if GetIsVehiclePrimaryColourCustom(vehicle) then
-        colorPrimary = table.pack(GetVehicleCustomPrimaryColour(vehicle))
+        colorPrimary = colorTable(GetVehicleCustomPrimaryColour(vehicle))
     end
     if GetIsVehicleSecondaryColourCustom(vehicle) then
-        colorSecondary = table.pack(GetVehicleCustomSecondaryColour(vehicle))
+        colorSecondary = colorTable(GetVehicleCustomSecondaryColour(vehicle))
     end
 
     local extras = {}
@@ -153,7 +159,7 @@ function QB.vehicle.getProperties(vehicle)
 
     local xenonColor
     local customXenon, xr, xg, xb = GetVehicleXenonLightsCustomColor(vehicle)
-    if customXenon then xenonColor = { xr, xg, xb } else xenonColor = GetVehicleXenonLightsColor(vehicle) end
+    if customXenon then xenonColor = colorTable(xr, xg, xb) else xenonColor = GetVehicleXenonLightsColor(vehicle) end
 
     local modLivery = GetVehicleMod(vehicle, 48)
     if modLivery == -1 and GetVehicleLivery(vehicle) ~= 0 then modLivery = GetVehicleLivery(vehicle) end
@@ -186,10 +192,10 @@ function QB.vehicle.getProperties(vehicle)
             IsVehicleNeonLightEnabled(vehicle, 0), IsVehicleNeonLightEnabled(vehicle, 1),
             IsVehicleNeonLightEnabled(vehicle, 2), IsVehicleNeonLightEnabled(vehicle, 3),
         },
-        neonColor = table.pack(GetVehicleNeonLightsColour(vehicle)),
+        neonColor = colorTable(GetVehicleNeonLightsColour(vehicle)),
         interiorColor = GetVehicleInteriorColour(vehicle),
         extras = extras,
-        tyreSmokeColor = table.pack(GetVehicleTyreSmokeColor(vehicle)),
+        tyreSmokeColor = colorTable(GetVehicleTyreSmokeColor(vehicle)),
         xenonColor = xenonColor,
         modTurbo = IsToggleModOn(vehicle, 18),
         modSmokeEnabled = IsToggleModOn(vehicle, 20),

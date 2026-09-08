@@ -24,6 +24,7 @@ let nextProgressId = 0
 export function ProgressBar() {
     const [state, setState] = useState<ProgressState | null>(null)
     const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+    const progressRef = useRef<HTMLDivElement>(null)
 
     const clearPending = useCallback(() => {
         if (timeoutRef.current) {
@@ -61,6 +62,18 @@ export function ProgressBar() {
 
     useEffect(() => clearPending, [clearPending])
 
+    useEffect(() => {
+        if (!state) return
+        const startedAt = performance.now()
+        const updateAccessibleProgress = () => {
+            const elapsed = Math.min(state.duration, Math.max(0, performance.now() - startedAt))
+            progressRef.current?.setAttribute("aria-valuenow", String(Math.round(elapsed)))
+        }
+        updateAccessibleProgress()
+        const interval = window.setInterval(updateAccessibleProgress, 250)
+        return () => window.clearInterval(interval)
+    }, [state])
+
     if (!state) return null
 
     return (
@@ -69,7 +82,15 @@ export function ProgressBar() {
                 {state.label && (
                     <p className="mb-1.5 truncate text-center text-xs font-medium text-foreground">{state.label}</p>
                 )}
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                    ref={progressRef}
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label={state.label || "Progress"}
+                    aria-valuemin={0}
+                    aria-valuemax={state.duration}
+                    aria-valuenow={0}
+                >
                     <div
                         key={state.id}
                         style={{ "--progress-duration": `${state.duration}ms` } as CSSProperties}

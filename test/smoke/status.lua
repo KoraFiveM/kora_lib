@@ -135,6 +135,17 @@ harness.test("simultaneous movement effects remain composed when one is removed"
     clientRemove("bleeding")
 end)
 
+harness.test("movement overrides are refreshed each frame only while active", function()
+    clientApply("injured_leg")
+    _G.__lastMoveRateOverride = nil
+    net.step()
+    harness.assertEqual(_G.__lastMoveRateOverride.mult, 0.8, "an active movement override must be applied again on the next frame")
+    clientRemove("injured_leg")
+    _G.__lastMoveRateOverride = nil
+    net.step()
+    harness.assertEqual(_G.__lastMoveRateOverride, nil, "the movement loop should stop after the final effect is removed")
+end)
+
 harness.test("remove reports false for an effect that isn't active", function()
     harness.assertFalse(clientRemove("bleeding"), "removing an inactive effect should report false")
 end)
@@ -171,8 +182,30 @@ harness.test("stacking = extend adds the new duration onto whatever is left", fu
     for _, e in ipairs(serverGetActive(mocks.SOURCE)) do if e.name == "extendable" then secondExpiry = e.expiresAt end end
 
     harness.assertTrue(secondExpiry > firstExpiry, "a second 'extend' apply should push the expiry further out")
+    local push = mocks.lastEntry(net.triggeredClientEvents, "qblib:events:push")
+    harness.assertEqual(push[1], "qblib:status:apply")
+    harness.assertEqual(push[2], "extendable")
+    harness.assertEqual(push[3].duration, secondExpiry - GetGameTimer(), "the client should receive the full authoritative remaining duration")
 
     serverRemove(mocks.SOURCE, "extendable")
+end)
+
+harness.test("client-local extend and stack follow the registered definitions", function()
+    clientApply("extendable", { duration = 100 })
+    local firstExpiry
+    for _, entry in ipairs(clientGetActive()) do if entry.name == "extendable" then firstExpiry = entry.expiresAt end end
+    clientApply("extendable", { duration = 100 })
+    local secondExpiry
+    for _, entry in ipairs(clientGetActive()) do if entry.name == "extendable" then secondExpiry = entry.expiresAt end end
+    harness.assertEqual(secondExpiry, firstExpiry + 100, "client-local extend should add to the existing expiry")
+    clientRemove("extendable")
+
+    clientApply("stackable", { severity = 4 })
+    clientApply("stackable", { severity = 4 })
+    local severity
+    for _, entry in ipairs(clientGetActive()) do if entry.name == "stackable" then severity = entry.severity end end
+    harness.assertEqual(severity, 8, "client-local stack should add severity")
+    clientRemove("stackable")
 end)
 
 harness.test("server isActive reports false and drops the entry once expired", function()

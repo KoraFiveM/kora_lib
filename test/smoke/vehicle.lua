@@ -16,7 +16,7 @@ local function reset()
     state = {
         exists = true, control = false, plate = '  TEST42  ', plateIndex = 2,
         colors = { 1, 2 }, extras = { [0] = true, [20] = false },
-        mods = {}, toggles = { [18] = true, [20] = true, [22] = true },
+        mods = {}, toggles = { [18] = true, [20] = true, [22] = true }, customColors = false, customXenon = false,
     }
     for id = 0, 49 do state.mods[id] = id - 1 end
     calls, requestSucceeds = {}, true
@@ -42,8 +42,8 @@ function _G.GetDisplayNameFromVehicleModel() return 'ADDER' end
 function _G.GetLabelText() return 'Adder' end
 function _G.GetVehicleExtraColours() return 3, 4 end
 function _G.GetVehicleColours() return state.colors[1], state.colors[2] end
-function _G.GetIsVehiclePrimaryColourCustom() return false end
-function _G.GetIsVehicleSecondaryColourCustom() return false end
+function _G.GetIsVehiclePrimaryColourCustom() return state.customColors end
+function _G.GetIsVehicleSecondaryColourCustom() return state.customColors end
 function _G.GetVehicleCustomPrimaryColour() return 10, 20, 30 end
 function _G.GetVehicleCustomSecondaryColour() return 40, 50, 60 end
 function _G.DoesExtraExist(_, id) return id == 0 or id == 20 end
@@ -52,7 +52,7 @@ function _G.GetVehicleWheelHealth(_, id) return 900 + id end
 function _G.IsVehicleTyreBurst(_, id, complete) return id == 1 and not complete end
 function _G.IsVehicleWindowIntact(_, id) return id ~= 2 end
 function _G.IsVehicleDoorDamaged(_, id) return id == 3 end
-function _G.GetVehicleXenonLightsCustomColor() return false, 0, 0, 0 end
+function _G.GetVehicleXenonLightsCustomColor() return state.customXenon, 7, 8, 9 end
 function _G.GetVehicleXenonLightsColor() return 6 end
 function _G.GetVehicleMod(_, id) return state.mods[id] end
 function _G.GetVehicleLivery() return 5 end
@@ -131,6 +131,21 @@ harness.test('getProperties returns the complete compatible shape including extr
     harness.assertEqual(props.xenonColor, 6)
 end)
 
+harness.test('getProperties emits JSON-stable RGB color objects without table.pack metadata', function()
+    reset()
+    state.customColors = true
+    state.customXenon = true
+    local props = QB.vehicle.getProperties(VEHICLE)
+    harness.assertEqual(props.color1.r, 10)
+    harness.assertEqual(props.color2.b, 60)
+    harness.assertEqual(props.neonColor.g, 2)
+    harness.assertEqual(props.tyreSmokeColor.b, 6)
+    harness.assertEqual(props.xenonColor.g, 8)
+    harness.assertEqual(props.color1.n, nil)
+    harness.assertEqual(props.neonColor.n, nil)
+    harness.assertEqual(props.xenonColor.n, nil)
+end)
+
 harness.test('setProperties obtains control and preserves explicit false and zero values', function()
     reset()
     local ok, err = QB.vehicle.setProperties(VEHICLE, {
@@ -144,6 +159,9 @@ harness.test('setProperties obtains control and preserves explicit false and zer
         neonEnabled = { false, true, false, true },
         modSpoilers = 0, modTurbo = false, modSmokeEnabled = false, modXenon = false,
         modFrontWheels = 0, modCustomTiresF = false, modLivery = 0, liveryRoof = 0,
+        color2 = { ['1'] = 11, ['2'] = 22, ['3'] = 33 },
+        neonColor = { ['1'] = 44, ['2'] = 55, ['3'] = 66 },
+        tyreSmokeColor = { r = 77, g = 88, b = 99 },
     })
     harness.assertTrue(ok, tostring(err))
     harness.assertTrue(state.control)
@@ -155,6 +173,9 @@ harness.test('setProperties obtains control and preserves explicit false and zer
     harness.assertEqual(calls.ToggleVehicleMod[1][3], false)
     harness.assertEqual(calls.SetVehicleMod[#calls.SetVehicleMod - 1][3], 0)
     harness.assertTrue(calls.SetVehicleTyreFixed ~= nil, 'false burst state should repair the tyre')
+    harness.assertEqual(calls.SetVehicleCustomSecondaryColour[1][2], 11)
+    harness.assertEqual(calls.SetVehicleNeonLightsColour[1][3], 55)
+    harness.assertEqual(calls.SetVehicleTyreSmokeColor[1][4], 99)
 end)
 
 harness.test('setProperties returns a bounded control failure without mutating', function()

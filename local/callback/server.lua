@@ -222,7 +222,11 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     if tokens[src] == nil or tokens[src] ~= token then return end
 
     local definition = registry[name]
-    if definition == nil then return end
+    if definition == nil then
+        TriggerClientEvent(events.response, src, requestId, false,
+            ("Callback '%s' is not registered on the server."):format(name))
+        return
+    end
     local allowed, retryAfter = consumeRateLimit(name, src, definition.rateLimit)
     if not allowed then
         TriggerClientEvent(events.response, src, requestId, false,
@@ -273,9 +277,17 @@ RegisterNetEvent(events.clientResponse, function(requestId, ok, ...)
 end)
 
 AddEventHandler('playerDropped', function()
-    tokens[source] = nil
+    local src = source
+    tokens[src] = nil
     for name, bySource in pairs(rateBuckets) do
-        bySource[source] = nil
+        bySource[src] = nil
         if next(bySource) == nil then rateBuckets[name] = nil end
+    end
+
+    for requestId, pending in pairs(pendingClientCallbacks) do
+        if pending.target == src then
+            pendingClientCallbacks[requestId] = nil
+            pending.promise:reject("Player disconnected before answering the callback.")
+        end
     end
 end)

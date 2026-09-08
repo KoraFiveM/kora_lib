@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import type { CancelledAttempt, HackingAttempt, HackingPuzzle } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout, useSecondsLeft } from "@/components/minigames/useMinigameTimer"
 
 interface HackingGameProps {
     puzzle: HackingPuzzle
@@ -23,18 +24,8 @@ interface HackingGameProps {
 export function HackingGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: HackingGameProps) {
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
-    const [elapsed, setElapsed] = useState(0)
+    const valueRef = useRef("")
     const [value, setValue] = useState("")
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(submitted: string) {
         if (doneRef.current) return
@@ -48,12 +39,8 @@ export function HackingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(value)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
-
-    const secondsLeft = Math.max(0, Math.ceil((timeLimit - elapsed) / 1000))
+    useMinigameTimeout(timeLimit, () => finish(valueRef.current))
+    const secondsLeft = useSecondsLeft(startRef.current, timeLimit)
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
@@ -78,7 +65,11 @@ export function HackingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                         autoFocus
                         value={value}
                         maxLength={puzzle.solutionsize}
-                        onChange={(e) => setValue(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                            const next = e.target.value.toUpperCase()
+                            valueRef.current = next
+                            setValue(next)
+                        }}
                         onKeyDown={(e) => { if (e.key === "Enter") finish(value) }}
                         placeholder="Enter the code..."
                         className="font-mono uppercase"

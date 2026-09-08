@@ -52,6 +52,12 @@ _G.QBTheme = {
 
 dofile(repoRoot .. "modules/nui/client.lua")
 
+local registeredExports = {}
+_G.exports = function(name, callback)
+    registeredExports[name] = callback
+end
+dofile(repoRoot .. "build/finalise.lua")
+
 -- Simulates the NUI responding to the given request id/token via the shared
 -- `qblib:nui:response` channel every QB.nui.request call resolves through.
 local function respond(requestId, token, ok, resultOrError)
@@ -89,6 +95,21 @@ end
 -- test/smoke/theme.lua) -- this file no longer dofiles that module, so those
 -- assertions moved rather than duplicated.
 
+harness.test("finalise exposes every registered-app lifecycle export", function()
+    harness.assertEqual(registeredExports.nui_registerApp, QB.nui.registerApp,
+        "registerApp should cross the qblib export boundary")
+    harness.assertEqual(registeredExports.nui_unregisterApp, QB.nui.unregisterApp,
+        "unregisterApp should cross the qblib export boundary")
+    harness.assertEqual(registeredExports.nui_openApp, QB.nui.openApp,
+        "openApp should cross the qblib export boundary")
+    harness.assertEqual(registeredExports.nui_updateApp, QB.nui.updateApp,
+        "updateApp should cross the qblib export boundary")
+    harness.assertEqual(registeredExports.nui_closeApp, QB.nui.closeApp,
+        "closeApp should cross the qblib export boundary")
+    harness.assertEqual(registeredExports.nui_isAppOpen, QB.nui.isAppOpen,
+        "isAppOpen should cross the qblib export boundary")
+end)
+
 harness.test("request sends the action and payload via SendNuiMessage", function()
     QB.nui.request("someAction", { foo = "bar" })
 
@@ -111,6 +132,13 @@ harness.test("request rejects once the NUI responds with ok = false", function()
 
     harness.assertEqual(p.state, "rejected", "the promise should reject on a failed response")
     harness.assertEqual(p.value, "something broke", "the rejection should carry the NUI's error")
+end)
+
+harness.test("registerCallback preserves a false handler result", function()
+    local response
+    QB.nui.registerCallback("returnsFalse", function() return false end)
+    nuiCallbacks.returnsFalse({}, function(result) response = result end)
+    harness.assertFalse(response, "only nil should be normalized to an empty response table")
 end)
 
 harness.test("every request gets a fresh, non-empty token", function()
@@ -201,6 +229,26 @@ harness.test("openMenu forwards optional geometry without changing the existing 
     harness.assertEqual(p.state, "resolved", "the geometry test should settle its menu")
 end)
 
+harness.test("menus reject render-breaking payloads before taking focus", function()
+    local beforeMessages, beforeFocus = #sentMessages, #focusCalls
+    local recursive = { id = "loop", label = "Loop", submenu = {} }
+    recursive.submenu.items = { recursive }
+
+    for _, invoke in ipairs({
+        function() QB.nui.openMenu({ { id = "bad", label = {} } }) end,
+        function() QB.nui.openMenu({ { id = "bad", label = "Bad", disabled = "yes" } }) end,
+        function() QB.nui.openMenu({ recursive }) end,
+        function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, {}, {}) end,
+        function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { maxWidth = 0 / 0 }) end,
+        function() QB.nui.openContextMenu({ { id = "ok", label = "Okay" } }, math.huge, 10) end,
+    }) do
+        harness.assertThrows(invoke, "malformed menu data must be rejected")
+    end
+
+    harness.assertEqual(#sentMessages, beforeMessages, "invalid menus must not reach React")
+    harness.assertEqual(#focusCalls, beforeFocus, "invalid menus must not acquire focus")
+end)
+
 harness.test("openMenu grants focus while open and releases it once answered", function()
     QB.nui.openMenu({ { id = "a", label = "A" } })
 
@@ -211,6 +259,26 @@ harness.test("openMenu grants focus while open and releases it once answered", f
 
     local release = focusCalls[#focusCalls]
     harness.assertFalse(release.mouse or release.keyboard, "focus should be released the moment the menu is answered")
+end)
+
+harness.test("stopping a request owner closes its surface and releases only its focus lease", function()
+    local originalCurrentResourceName = GetCurrentResourceName
+    _G.GetCurrentResourceName = function() return "stopping_consumer" end
+    local p = QB.nui.openMenu({ { id = "a", label = "A" } })
+    local requestId, token = lastRequestId(), lastToken()
+    _G.GetCurrentResourceName = originalCurrentResourceName
+
+    net.fire("onClientResourceStop", "stopping_consumer")
+
+    harness.assertEqual(p.state, "rejected", "the abandoned request should settle immediately")
+    local cancelled = lastMessage("cancelNuiRequest")
+    harness.assertEqual(cancelled.data.requestId, requestId, "the browser should close the matching request")
+    harness.assertEqual(cancelled.data.token, token, "the cancellation must retain the request token")
+    harness.assertFalse(focusCalls[#focusCalls].mouse or focusCalls[#focusCalls].keyboard,
+        "owner shutdown should release the abandoned request's focus")
+
+    respond(requestId, token, true, { selectedId = "a" })
+    harness.assertEqual(p.state, "rejected", "a late browser response must not revive the cancelled request")
 end)
 
 harness.test("openInputDialog releases focus even when the request is rejected", function()
@@ -337,6 +405,14 @@ harness.test("openAlert forwards optional artwork and manages focus until answer
 
     local release = focusCalls[#focusCalls]
     harness.assertFalse(release.mouse or release.keyboard, "focus should release once the alert is answered")
+end)
+
+harness.test("openAlert rejects render-breaking option types before taking focus", function()
+    local beforeMessages, beforeFocus = #sentMessages, #focusCalls
+    harness.assertThrows(function() QB.nui.openAlert({ message = "Proceed?", title = {} }) end)
+    harness.assertThrows(function() QB.nui.openAlert({ message = "Proceed?", cancellable = "no" }) end)
+    harness.assertEqual(#sentMessages, beforeMessages, "invalid alerts must not reach React")
+    harness.assertEqual(#focusCalls, beforeFocus, "invalid alerts must not acquire focus")
 end)
 
 harness.test("copyToClipboard requires a string", function()

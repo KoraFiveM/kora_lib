@@ -4,7 +4,7 @@
 -- entityType returns a ped, but QB.closest.player's contract is a player id.
 local function pedToPlayerId(ped)
     for _, playerId in ipairs(GetPlayers()) do
-        if GetPlayerPed(playerId) == ped then return playerId end
+        if GetPlayerPed(playerId) == ped then return tonumber(playerId) or playerId end
     end
     return nil
 end

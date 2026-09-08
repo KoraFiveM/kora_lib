@@ -23,10 +23,17 @@ Plays one round-based minigame session, opening a full-screen overlay and blocki
   - `hacking`: `solutionsize` (hex characters), `timeout` (seconds; `attempts` is always 1 -- see below)
 
   For `pinpad`/`quiz`/`wordguess`/`wordscramble`, `opts` is where the caller supplies the puzzle's actual content, exactly like the real qb-minigames exports -- the server never invents a PIN/word/quiz on its own for these.
+
+  `wordguess` currently keeps the solution server-side, so the browser cannot
+  reveal correct letter positions as guesses are entered. It collects unique
+  letters and submits them at the deadline for authoritative scoring; it is a
+  secure word-attempt check, not full interactive Hangman parity.
 - `authorization?: string` -- opaque value returned by the gameplay resource's server-side `QB.minigames.authorizeProof`. When present and valid, the server uses the trusted options captured at authorization time and ignores this client's `opts` entirely. When absent, the legacy/client-configured session remains playable but proof-less.
 
 #### Behavior
 Opens NUI focus once and keeps the same overlay mounted for every attempt -- a failed attempt with tries remaining re-renders a **freshly generated** puzzle in place (anti-farming: the target can't be memorized and repeated), it doesn't close and reopen. Each round is individually time-limited (`timeLimit`, per type); the overlay is expected to auto-submit whatever partial input it has once that time is up, which counts as a failed attempt like any other. `keys` and `hacking` always run with `attempts = 1`, matching upstream's single-pass shape (KeyMinigame never retries; Hacking is a single pass/fail against a countdown).
+
+Round expiry is scheduled against one exact browser deadline. Whole-second countdown labels update at a low cadence, while the lockpick and skillbar indicators alone animate at display refresh rate. This keeps input and animation responsive without re-rendering the entire overlay every frame.
 
 #### Returns
 - `promise|any result` -- resolves/returns `{ success: boolean, attempts: integer, proof?: string, cancelled?: true, faults?: integer }` (`attempts` = how many tries it took before success/exhaustion/cancellation) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. `proof` is present only after a successful authorized session. `cancelled` is present (and `success` false) when the player backed out early -- see "Cancelling" below. `faults` is present only for `"keys"` -- see its note below. Rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, the authorization is invalid/expired/already used, or the round trip fails outright.
@@ -141,11 +148,14 @@ Authorizations are single-start capabilities. Failed or cancelled sessions do no
 | `StartPinpad(numbers)` | `play('pinpad', { numbers })` | Returns `{ quit, correct }`, matching upstream exactly |
 | `Quiz(questions, correctRequired, timer)` | `play('quiz', { questions, correctRequired, timer })` | Direct mapping |
 | `Skillbar(difficulty, validKeys)` | `play('skillbar', { zoneSize = <from difficulty> })` | **Divergence** -- `validKeys` dropped, see below |
-| `WordGuess(word, hint, guesses)` | `play('wordguess', { word, hint, guesses })` | Direct mapping |
+| `WordGuess(word, hint, guesses)` | `play('wordguess', { word, hint, guesses })` | Signature mapping; the server-private solution prevents progressive letter reveal and early completion. |
 | `WordScramble(word, hint, timer)` | `play('wordscramble', { word, hint, timer })` | Direct mapping |
 
-Two documented divergences:
+Three documented divergences:
 - **`Lockpick`**: upstream's `pins` argument (its own README calls it "number of tries") is mapped onto qblib's `pinCount` for a script that "just works", but it's a different minigame -- qblib's pin-target-on-a-triangle-wave lockpick, not upstream's own tumbler minigame.
 - **`Skillbar`**: `validKeys` (e.g. `"wasdfgh"`) has no equivalent in qblib's triangle-wave skillbar and is silently dropped (one-time console warning); `difficulty` is translated into a `zoneSize` instead.
+- **`WordGuess`**: the browser never receives the solution, so it cannot reveal
+  hits or distinguish a wrong guess while the round is live. It submits the
+  collected unique letters when time expires and the server scores them.
 
-Every other export is a straight pass-through with no mechanic divergence. Compat calls do not carry a server-issued authorization, so they remain usable for legacy UX but are proof-less and must not directly authorize a valuable server action.
+The remaining exports are straight pass-throughs with no known mechanic divergence. Compat calls do not carry a server-issued authorization, so they remain usable for legacy UX but are proof-less and must not directly authorize a valuable server action.

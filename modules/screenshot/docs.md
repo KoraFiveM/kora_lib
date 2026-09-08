@@ -38,11 +38,13 @@ client. A supplied `field` sends multipart form data; no field uses the legacy
 JSON data-URI body. `QB.screenshot.requestScreenshotUpload(url, field, options,
 callback)` retains screenshot-basic's callback API.
 
-For server-initiated captures, the player returns the encoded image through a
-rate-limited latent server event. This avoids public-endpoint discovery and NUI
-HTTP/CORS dependencies while keeping the large payload off the normal event
-channel. Capture or transfer failures reach the callback instead of waiting
-silently; callers can continue their workflow without a screenshot.
+For server-initiated captures, the browser posts the encoded image bytes
+directly to qblib's one-time HTTP upload endpoint. The multi-megabyte image does
+not become a base64 Lua string or cross a network event; only small progress or
+failure messages do. Capture or transfer failures reach the callback instead
+of waiting silently, so callers can continue their workflow without a
+screenshot. The legacy tokenized latent-event receiver remains accepted during
+rolling upgrades, but new clients do not use it.
 
 ## `screenshot-basic` compatibility
 
@@ -60,7 +62,8 @@ purpose-built in-game evidence camera if a report must show a separate web UI.
 
 Server-initiated capture uploads use a one-time 48-character token, expire
 after `Config.screenshot.requestTimeout`, permit one active capture per player,
-are rate-limited by `Config.screenshot.uploadBytesPerSecond`, and reject empty,
-oversized, or type-mismatched images before invoking the server callback.
+and reject empty, oversized, or type-mismatched images before invoking the
+server callback. The HTTP path checks `Content-Length` when supplied and always
+checks the received body size.
 `fileName` is intentionally server-controlled; never pass it from an untrusted
 client event.

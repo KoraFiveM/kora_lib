@@ -74,21 +74,19 @@ Config.blips = {
     defaultColor = 0,        -- default SetBlipColour when options.color is omitted
     defaultScale = 1.0,      -- default SetBlipScale when options.scale is omitted
     defaultShortRange = true,-- default SetBlipAsShortRange when options.shortRange is omitted
+    defaultDisplay = 4,      -- restored after a player shows a hidden blip/category
 
     -- Category 2 displays every blip as its own distance-bearing row in the
-    -- pause-map legend; it does not group repeated locations. Prefer passing a
-    -- string to QB.blips.create's `category` option for service groups.
-    --
-    -- It lives here as documentation rather than being applied by
-    -- QB.blips.create: the calling resource decides whether its blip belongs in
-    -- the legend.
+    -- pause-map legend; it does not group repeated locations. It remains as a
+    -- numeric compatibility value. New code should pass a fixed catalogue name
+    -- to QB.blips.create; omission now uses Other (12).
     listedCategory = 2,
     -- Backwards-compatible alias. Despite the old name, category 2 is a list,
     -- not a collapsible group.
     groupedCategory = 2,
 
-    -- GTA's range for named custom legend categories. QB.blips.create assigns
-    -- ids from this range to string categories and registers their labels.
+    -- GTA's range for named custom legend categories. qblib's fixed catalogue
+    -- in modules/blips/shared.lua uses ids from this range.
     namedCategoryStart = 12,
     namedCategoryEnd = 133,
 }

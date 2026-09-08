@@ -67,3 +67,8 @@ Whether an id allocated by this module is still held.
 - **Cleanup stops before it releases.** Releasing an id that is still playing
   leaves the audio running with no handle to stop it, so the resource-stop sweep
   calls `StopSound` first.
+- **Audio banks are reference-counted.** A named bank remains resident while
+  any managed sound using it is live and is released when the final sound
+  stops, times out, or loses its owning resource.
+- Auto-release callbacks are tied to one claim generation. If the game reuses
+  a numeric sound ID, an older timer cannot stop the newer sound.

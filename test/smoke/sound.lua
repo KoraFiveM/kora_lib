@@ -21,15 +21,19 @@ local freeIds = true
 local played = {}
 local stopped = {}
 local released = {}
+local releasedBanks = {}
+local forcedSoundId
 
 function _G.GetSoundId()
     if not freeIds then return -1 end
+    if forcedSoundId then return forcedSoundId end
     nextSoundId = nextSoundId + 1
     return nextSoundId
 end
 
 function _G.StopSound(id) stopped[#stopped + 1] = id end
 function _G.ReleaseSoundId(id) released[#released + 1] = id end
+function _G.ReleaseNamedScriptAudioBank(bank) releasedBanks[#releasedBanks + 1] = bank end
 
 function _G.PlaySoundFrontend(id, name, set, network)
     played[#played + 1] = { kind = "frontend", id = id, name = name, set = set, network = network }
@@ -152,6 +156,31 @@ harness.test("options.bank is requested before the sound plays", function()
     QB.sound.stop(id)
 end)
 
+harness.test("shared audio banks are loaded once and released after the final sound", function()
+    local bank = "DLC_SHARED_BANK"
+    local loadCount = #requestedBanks
+    local first = QB.sound.playFrontend("First", "SET", { bank = bank, releaseAfter = 0 })
+    local second = QB.sound.playFrontend("Second", "SET", { bank = bank, releaseAfter = 0 })
+    harness.assertEqual(#requestedBanks, loadCount + 1, "a retained bank should not be requested twice")
+
+    QB.sound.stop(first)
+    harness.assertFalse(contains(releasedBanks, bank), "the bank must remain while another sound uses it")
+    QB.sound.stop(second)
+    harness.assertTrue(contains(releasedBanks, bank), "the final sound should release its audio bank")
+end)
+
+harness.test("an old auto-release timer cannot stop a reused sound id", function()
+    forcedSoundId = 777
+    local old = QB.sound.playFrontend("Old", "SET")
+    QB.sound.stop(old)
+    local replacement = QB.sound.playFrontend("Replacement", "SET", { releaseAfter = 0 })
+
+    net.step()
+    harness.assertTrue(QB.sound.isLive(replacement), "the stale timer must not stop a newer claim with the same numeric id")
+    QB.sound.stop(replacement)
+    forcedSoundId = nil
+end)
+
 harness.test("a bank that fails to load aborts the play without allocating an id", function()
     bankLoads = false
     local before = #played
@@ -189,6 +218,7 @@ harness.test("sounds are stopped and released when their owning resource stops",
 
     harness.assertTrue(contains(stopped, id), "the sweep must stop the sound before releasing it")
     harness.assertTrue(contains(released, id), "the sweep must release the id")
+    harness.assertFalse(QB.sound.isLive(id), "the sweep must clear the public live state")
 end)
 
 harness.test("an empty name or set is refused", function()

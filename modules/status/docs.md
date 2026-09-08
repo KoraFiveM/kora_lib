@@ -20,7 +20,13 @@ see them.
   `QB.status.getActive(target)`.
 
 Apply options are `duration` and `severity`. The server pushes the accepted
-effect to the client; client-only calls are valid for local cosmetic state.
+effect to the client, including the authoritative remaining duration after an
+`extend`, so server tracking and client rendering expire together. Client-only
+calls are valid for local cosmetic state and use the same stacking rules.
+
+Movement multipliers are composed and applied every frame as required by the
+game native. The frame loop starts lazily and stops when the final movement
+effect is removed.
 
 ## Client changes
 

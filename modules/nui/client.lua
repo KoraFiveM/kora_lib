@@ -3,6 +3,8 @@ local nextRequestId = 0
 local registeredApps = {}
 local activeApp
 local appOwnership
+local requestOwnership
+local focusOwnership
 local focusLeases = {}
 local nextFocusLease = 0
 
@@ -533,16 +535,18 @@ local function refreshFocus()
     SetNuiFocus(mouse, keyboard)
 end
 
-local function acquireFocus(mouse, keyboard)
+local function acquireFocus(mouse, keyboard, owner)
     nextFocusLease = nextFocusLease + 1
     local id = nextFocusLease
     focusLeases[id] = { mouse = mouse == true, keyboard = keyboard == true }
+    focusOwnership.track(owner or GetInvokingResource() or GetCurrentResourceName(), id)
     refreshFocus()
 
     local released = false
     return function()
         if released then return end
         released = true
+        focusOwnership.untrack(id)
         focusLeases[id] = nil
         refreshFocus()
     end
@@ -555,9 +559,10 @@ end
 ---@param mouse boolean
 ---@param keyboard boolean
 ---@param fn fun(): any
+---@param owner? string Internal owner override for qblib modules whose operation continues in a new coroutine.
 ---@return any
-function QB.nui.withFocus(mouse, keyboard, fn)
-    local release = acquireFocus(mouse, keyboard)
+function QB.nui.withFocus(mouse, keyboard, fn, owner)
+    local release = acquireFocus(mouse, keyboard, owner)
 
     local ok, result = pcall(fn)
 
@@ -584,7 +589,7 @@ function QB.nui.registerCallback(name, handler)
             return
         end
 
-        cb(result or {})
+        cb(result == nil and {} or result)
     end)
 end
 
@@ -599,6 +604,7 @@ QB.nui.registerCallback("qblib:nui:response", function(data)
     if type(data.token) ~= "string" or data.token ~= pending.token then return {} end
 
     pendingRequests[data.requestId] = nil
+    requestOwnership.untrack(data.requestId)
 
     if data.ok then
         pending.promise:resolve(data.result)
@@ -642,17 +648,21 @@ end
 ---@param action string
 ---@param data any
 ---@param timeout? integer | false Milliseconds before the promise rejects. Defaults to 30000; pass false to disable.
+---@param owner? string Internal owner override for qblib operations that continue in a new coroutine.
 ---@return promise promise
-local function requestPromise(action, data, timeout)
+local function requestPromise(action, data, timeout, owner)
     local requestId = nextId()
     local token = generateToken()
     local p = promise.new()
+    owner = owner or GetInvokingResource() or GetCurrentResourceName()
     -- Private metadata used by the long-lived app shell callbacks. Keeping it
     -- on the local promise avoids changing the public wire envelope or return
     -- value of QB.nui.request.
     p.qblibNuiRequestId = requestId
     p.qblibNuiToken = token
+    p.qblibNuiOwner = owner
     pendingRequests[requestId] = { promise = p, token = token }
+    requestOwnership.track(owner, requestId)
 
     QB.nui.send(action, { requestId = requestId, token = token, payload = data })
 
@@ -667,6 +677,7 @@ local function requestPromise(action, data, timeout)
         SetTimeout(timeout, function()
             if pendingRequests[requestId] then
                 pendingRequests[requestId] = nil
+                requestOwnership.untrack(requestId)
                 p:reject("NUI request timed out.")
             end
         end)
@@ -685,6 +696,7 @@ local function settlePendingRequest(p, ok, value)
     if not pending or pending.promise ~= p then return false end
 
     pendingRequests[requestId] = nil
+    requestOwnership.untrack(requestId)
     if ok then p:resolve(value) else p:reject(value) end
     return true
 end
@@ -694,10 +706,11 @@ end
 ---@param action string
 ---@param data any
 ---@param timeout? integer | false
+---@param owner? string Internal owner override for qblib operations that continue in a new coroutine.
 ---@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before); the
 ---already-settled result value directly for a genuine cross-resource caller (see settleForExport above).
-function QB.nui.request(action, data, timeout)
-    return settleForExport(requestPromise(action, data, timeout))
+function QB.nui.request(action, data, timeout, owner)
+    return settleForExport(requestPromise(action, data, timeout, owner))
 end
 
 -- Grants mouse+keyboard focus for the lifetime of an interactive request and
@@ -706,7 +719,7 @@ end
 -- This is what makes the open* wrappers below actually clickable/typable
 -- in-game; without focus the NUI renders but can never receive input.
 local function focusUntilSettled(p)
-    local release = acquireFocus(true, true)
+    local release = acquireFocus(true, true, p.qblibNuiOwner)
     p:next(release, release)
 
     return p
@@ -722,6 +735,69 @@ function QB.nui.copyToClipboard(text)
     return settleForExport(requestPromise("copyToClipboard", { text = text }))
 end
 
+local function isFiniteNumber(value)
+    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+local function assertMenuItems(items, context, visited)
+    assert(type(items) == "table", ("%s requires an items table."):format(context))
+    visited = visited or {}
+    assert(not visited[items], ("%s must not contain a recursive submenu."):format(context))
+    visited[items] = true
+    local itemCount = 0
+    for key in pairs(items) do
+        assert(type(key) == "number" and key >= 1 and key % 1 == 0 and key <= #items,
+            ("%s items must be a dense array."):format(context))
+        itemCount = itemCount + 1
+    end
+    assert(itemCount == #items, ("%s items must be a dense array."):format(context))
+
+    for index, item in ipairs(items) do
+        assert(type(item) == "table", ("%s item %d must be a table."):format(context, index))
+        assert(type(item.id) == "string" and item.id ~= "",
+            ("%s item %d requires a non-empty string id."):format(context, index))
+        assert(type(item.label) == "string" and item.label ~= "",
+            ("%s item %d requires a non-empty string label."):format(context, index))
+        for _, field in ipairs({ "description", "icon", "image" }) do
+            assert(item[field] == nil or type(item[field]) == "string",
+                ("%s item %d %s must be a string."):format(context, index, field))
+        end
+        assert(item.disabled == nil or type(item.disabled) == "boolean",
+            ("%s item %d disabled must be a boolean."):format(context, index))
+
+        if item.submenu ~= nil then
+            assert(type(item.submenu) == "table", ("%s item %d submenu must be a table."):format(context, index))
+            assert(item.submenu.title == nil or type(item.submenu.title) == "string",
+                ("%s item %d submenu title must be a string."):format(context, index))
+            assertMenuItems(item.submenu.items, ("%s item %d submenu"):format(context, index), visited)
+        end
+    end
+    visited[items] = nil
+end
+
+local function assertMenuGeometry(title, opts)
+    assert(title == nil or type(title) == "string", "Menu title must be a string.")
+    assert(opts == nil or type(opts) == "table", "Menu options must be a table.")
+    if not opts then return end
+
+    for _, field in ipairs({ "maxWidth", "maxHeight" }) do
+        assert(opts[field] == nil or (isFiniteNumber(opts[field]) and opts[field] > 0),
+            ("Menu %s must be a positive finite number."):format(field))
+    end
+    if opts.position then
+        local position = opts.position
+        assert(type(position) == "table", "Menu position must be a table.")
+        assert(position.horizontal == nil or position.horizontal == "left" or position.horizontal == "center" or position.horizontal == "right",
+            "Menu horizontal position must be left, center, or right.")
+        assert(position.vertical == nil or position.vertical == "top" or position.vertical == "center" or position.vertical == "bottom",
+            "Menu vertical position must be top, center, or bottom.")
+        for _, field in ipairs({ "offsetX", "offsetY" }) do
+            assert(position[field] == nil or (isFiniteNumber(position[field]) and position[field] >= 0),
+                ("Menu position %s must be a non-negative finite number."):format(field))
+        end
+    end
+end
+
 ---Opens a searchable list menu. Grants NUI focus while open and releases it
 ---when the menu closes (selection, cancel, or timeout).
 ---@param items table[] `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean, submenu?: { title?: string, items: table[] } }[]`
@@ -729,7 +805,8 @@ end
 ---@param opts? table `{ position?: { horizontal?: 'left'|'center'|'right', vertical?: 'top'|'center'|'bottom', offsetX?: positive number, offsetY?: positive number }, maxWidth?: positive number, maxHeight?: positive number }` Geometry in screen pixels; defaults to the existing centred menu.
 ---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
 function QB.nui.openMenu(items, title, opts)
-    assert(type(items) == "table", "openMenu requires an items table.")
+    assertMenuItems(items, "openMenu")
+    assertMenuGeometry(title, opts)
     -- timeout = false: these three wait on a HUMAN, and there's no sensible
     -- deadline for "how long until they pick something" -- a player can open a
     -- dialog, get shot at, and come back to it. A timeout here doesn't fail
@@ -753,7 +830,9 @@ end
 ---@param y? number
 ---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
 function QB.nui.openContextMenu(items, x, y)
-    assert(type(items) == "table", "openContextMenu requires an items table.")
+    assertMenuItems(items, "openContextMenu")
+    assert(x == nil or isFiniteNumber(x), "openContextMenu x must be a finite number.")
+    assert(y == nil or isFiniteNumber(y), "openContextMenu y must be a finite number.")
     -- No timeout, same reasoning as openMenu above.
     return settleForExport(focusUntilSettled(requestPromise("openContextMenu", { items = items, x = x, y = y }, false)))
 end
@@ -765,11 +844,11 @@ end
 ---@param opts? table `{ radius?: number }`
 ---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
 function QB.nui.openRadialMenu(items, opts)
-    assert(type(items) == "table", "openRadialMenu requires an items table.")
+    assertMenuItems(items, "openRadialMenu")
     assert(opts == nil or type(opts) == "table", "openRadialMenu options must be a table.")
 
     opts = opts or {}
-    assert(opts.radius == nil or (type(opts.radius) == "number" and opts.radius > 0),
+    assert(opts.radius == nil or (isFiniteNumber(opts.radius) and opts.radius > 0),
         "openRadialMenu radius must be a positive number.")
 
     -- No timeout, same reasoning as openMenu: a human owns dismissal, and
@@ -790,6 +869,12 @@ end
 function QB.nui.openAlert(opts)
     assert(type(opts) == "table", "openAlert requires an options table.")
     assert(type(opts.message) == "string" and #opts.message > 0, "openAlert requires a message string.")
+    for _, field in ipairs({ "title", "image", "confirmLabel", "cancelLabel" }) do
+        assert(opts[field] == nil or type(opts[field]) == "string",
+            ("openAlert %s must be a string."):format(field))
+    end
+    assert(opts.cancellable == nil or type(opts.cancellable) == "boolean", "openAlert cancellable must be a boolean.")
+    assert(opts.destructive == nil or type(opts.destructive) == "boolean", "openAlert destructive must be a boolean.")
 
     -- No timeout, same reasoning as openMenu -- and a non-cancellable alert
     -- MUST NOT have one: timing it out would resolve a dialog that's still on
@@ -840,6 +925,28 @@ appOwnership = QB.resources.registry(function(id)
         settlePendingRequest(current.promise, true, { closed = true, reason = "resourceStop" })
     end
     registeredApps[id] = nil
+end)
+
+-- Human-driven requests intentionally have no arbitrary timeout, so their
+-- caller owns their lifetime instead. If that resource stops, reject the Lua
+-- promise and tell the shared browser hook to unmount the matching surface;
+-- the promise's focus callback then releases only this request's lease.
+requestOwnership = QB.resources.registry(function(requestId)
+    local pending = pendingRequests[requestId]
+    if not pending then return end
+
+    pendingRequests[requestId] = nil
+    QB.nui.send("cancelNuiRequest", { requestId = requestId, token = pending.token })
+    pending.promise:reject("The resource that opened this NUI request stopped.")
+end)
+
+-- withFocus is also used around multi-step module operations (minigames and
+-- editors), not only request promises. Owner tracking guarantees an abandoned
+-- coroutine cannot leave a stale aggregate focus lease behind.
+focusOwnership = QB.resources.registry(function(id)
+    if not focusLeases[id] then return end
+    focusLeases[id] = nil
+    refreshFocus()
 end)
 
 ---Registers a declarative full-screen application shell. The definition owns

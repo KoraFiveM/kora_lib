@@ -142,6 +142,7 @@ end
 -- plain result table into nil. The legacy net-event path has no external
 -- caller, so it receives the pending promise and must await it here instead.
 local headerShown = false
+local headerMenu
 
 local function openMenu(menu, sort, skipFirst)
     local items, byId = translateItems(menu, sort, skipFirst)
@@ -169,6 +170,7 @@ local function closeMenu()
         QB.nui.send('hideMenuHeader', {})
         headerShown = false
     end
+    headerMenu = nil
     QB.nui.send("closeMenu", {})
 end
 
@@ -176,6 +178,7 @@ local function showHeader(menu)
     local items = select(1, translateItems(menu))
     if #items == 0 then return end
     headerShown = true
+    headerMenu = menu
     QB.nui.send('showMenuHeader', items)
 end
 
@@ -185,7 +188,11 @@ QB.keybind.add({
     defaultMapper = 'keyboard',
     defaultKey = 'LMENU',
     onPressed = function()
-        if headerShown then QB.nui.setFocus(true, true) end
+        if not headerShown then return end
+
+        local menu = headerMenu
+        headerMenu = nil
+        openMenu(menu)
     end,
 })
 

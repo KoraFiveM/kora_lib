@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react"
 
 interface Props {
     children: ReactNode
+    surface?: string
 }
 
 interface State {
@@ -18,12 +19,24 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
     state: State = { hasError: false }
 
+    private resetAfterMessage = () => {
+        if (this.state.hasError) this.setState({ hasError: false })
+    }
+
+    componentDidMount() {
+        window.addEventListener("message", this.resetAfterMessage)
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener("message", this.resetAfterMessage)
+    }
+
     static getDerivedStateFromError(): State {
         return { hasError: true }
     }
 
     componentDidCatch(error: Error, info: ErrorInfo) {
-        console.error("[qblib] NUI render error:", error, info.componentStack)
+        console.error(`[qblib] ${this.props.surface ?? "NUI"} render error:`, error, info.componentStack)
     }
 
     render() {

@@ -206,6 +206,10 @@ function QB.entities.createScoped(model, coords, options)
 
     assert(type(options.radius) == "number" and options.radius > 0,
         "Scoped entity radius must be a number greater than zero.")
+    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+        "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
+    assert(options.preset == nil or presets[options.preset] ~= nil,
+        ("Unknown entities preset: %s"):format(tostring(options.preset)))
 
     nextScopeId = nextScopeId + 1
 
@@ -238,15 +242,23 @@ function QB.entities.createScoped(model, coords, options)
         coords = coords,
         radius = options.radius,
         onEnter = function()
-            if scope.removed or scope.entity or scope.spawning then return end
             scope.inside = true
+            if scope.removed or scope.entity or scope.spawning then return end
             scope.spawning = true
 
             -- Model streaming may yield. Zone callbacks run on zones' shared
             -- tick thread, so only start the work here; never stream inline.
             CreateThread(function()
-                local entity = createForResource(model, coords, options, invokingResource)
+                local ok, entity, createErr = pcall(createForResource, model, coords, options, invokingResource)
                 scope.spawning = false
+
+                if not ok then
+                    print(("[qblib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(entity)))
+                    return
+                end
+                if not entity and createErr then
+                    print(("[qblib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(createErr)))
+                end
 
                 -- The scope can be removed, or exited, while model streaming
                 -- yields. Never leave behind an entity that completed after

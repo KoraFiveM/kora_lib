@@ -12,5 +12,6 @@ Client-side screen/drug-effect conveniences.
 - `QB.visuals.coke(duration?)`
 
 The named helpers reproduce their established GTA screen/stamina/ragdoll
-effects. Long-lived sprint effects use generations so an older effect ending
-cannot cancel a newer overlapping multiplier.
+effects. Long-lived sprint effects are stacked by start order: the newest live
+effect owns the multiplier, and ending it restores the previous effect (or the
+native default when none remain).

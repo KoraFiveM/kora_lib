@@ -95,6 +95,9 @@ client_scripts {
     'local/callback/client.lua',
     'local/events/client.lua',
     'modules/**/client.lua',
+    -- Loaded after every module client so the built-in settings app can use
+    -- both the blip registry and the shared AppShell without load-order races.
+    'modules/blips/settings.lua',
     'compat/client/exports.lua',
     'compat/client/qb-menu.lua',
     'compat/client/qb-input.lua',

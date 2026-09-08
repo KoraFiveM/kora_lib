@@ -119,6 +119,7 @@ local function ensureNativeRegistration(definition)
         RegisterCommand('+' .. definition.name, function()
             local current = bindings[definition.name]
             if not current or current.disabled or current.pressed then return end
+            if type(IsPauseMenuActive) == 'function' and IsPauseMenuActive() then return end
             current.pressed = true
             safeCall(current, 'pressed')
         end, false)

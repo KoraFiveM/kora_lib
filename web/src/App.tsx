@@ -19,6 +19,7 @@ import { TargetHud } from "@/components/target/TargetHud"
 import { TextUi } from "@/components/textui/TextUi"
 import { AppShell } from "@/components/app/AppShell"
 import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -31,27 +32,27 @@ import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
 export default function App() {
     return (
         <>
-            <InteractSelect />
-            <TargetHud />
-            <TextUi />
-            <AppShell />
-            <MenuContainer />
-            <MenuHeader />
-            <ContextMenuContainer />
-            <RadialMenuContainer />
-            <InputDialogContainer />
-            <AlertDialogContainer />
-            <ClipboardHandler />
-            <ScreenshotCapture />
-            <Toast />
-            <ProgressBar />
-            <ZoneCreatorHud />
-            <NoclipHud />
-            <ZoneConfirmDialog />
-            <PlacementHud />
-            <PlacementConfirmDialog />
-            <MinigameContainer />
-            <DevHarness />
+            <ErrorBoundary surface="interaction selector"><InteractSelect /></ErrorBoundary>
+            <ErrorBoundary surface="target HUD"><TargetHud /></ErrorBoundary>
+            <ErrorBoundary surface="text UI"><TextUi /></ErrorBoundary>
+            <ErrorBoundary surface="app shell"><AppShell /></ErrorBoundary>
+            <ErrorBoundary surface="menu"><MenuContainer /></ErrorBoundary>
+            <ErrorBoundary surface="menu header"><MenuHeader /></ErrorBoundary>
+            <ErrorBoundary surface="context menu"><ContextMenuContainer /></ErrorBoundary>
+            <ErrorBoundary surface="radial menu"><RadialMenuContainer /></ErrorBoundary>
+            <ErrorBoundary surface="input dialog"><InputDialogContainer /></ErrorBoundary>
+            <ErrorBoundary surface="alert dialog"><AlertDialogContainer /></ErrorBoundary>
+            <ErrorBoundary surface="clipboard"><ClipboardHandler /></ErrorBoundary>
+            <ErrorBoundary surface="screenshot capture"><ScreenshotCapture /></ErrorBoundary>
+            <ErrorBoundary surface="notifications"><Toast /></ErrorBoundary>
+            <ErrorBoundary surface="progress bar"><ProgressBar /></ErrorBoundary>
+            <ErrorBoundary surface="zone creator HUD"><ZoneCreatorHud /></ErrorBoundary>
+            <ErrorBoundary surface="noclip HUD"><NoclipHud /></ErrorBoundary>
+            <ErrorBoundary surface="zone dialog"><ZoneConfirmDialog /></ErrorBoundary>
+            <ErrorBoundary surface="placement HUD"><PlacementHud /></ErrorBoundary>
+            <ErrorBoundary surface="placement dialog"><PlacementConfirmDialog /></ErrorBoundary>
+            <ErrorBoundary surface="minigames"><MinigameContainer /></ErrorBoundary>
+            <ErrorBoundary surface="development harness"><DevHarness /></ErrorBoundary>
         </>
     )
 }

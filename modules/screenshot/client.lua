@@ -189,12 +189,32 @@ RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
 
     local token = payload.token
     local options = {}
-    for key, value in pairs(payload) do
-        if key ~= 'token' and key ~= 'timeout' and key ~= 'rawBody' then options[key] = value end
-    end
+    for key, value in pairs(payload) do if key ~= 'token' and key ~= 'timeout' then options[key] = value end end
     local timeout = tonumber(payload.timeout) or screenshotConfig().requestTimeout or 30000
     local captureTimeout = math.max(1000, timeout - 1000)
     TriggerServerEvent('qblib:server:screenshotProgressed', token, 'received')
+
+    if payload.rawBody then
+        local endpoint = GetCurrentServerEndpoint()
+        if type(endpoint) ~= 'string' or endpoint == '' then
+            TriggerServerEvent('qblib:server:screenshotFailed', token, 'The current server endpoint is unavailable.')
+            return
+        end
+
+        endpoint = endpoint:gsub('/+$', '')
+        if not endpoint:match('^https?://') then endpoint = 'http://' .. endpoint end
+        options.url = ('%s/%s/screenshot/upload/%s'):format(endpoint, GetCurrentResourceName(), token)
+        options.headers = {}
+
+        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'sending')
+        QB.nui.request('screenshot:upload', options, captureTimeout):next(function()
+            -- The HTTP handler owns successful completion; there is no large
+            -- Lua/event payload to acknowledge here.
+        end, function(err)
+            TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err))
+        end)
+        return
+    end
 
     beginCapture(options, captureTimeout):next(function(dataUri)
         if type(dataUri) ~= 'string' or dataUri == '' then

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 
 import type { CancelledAttempt, SkillbarAttempt, SkillbarPuzzle } from "@/lib/types"
 import { triangleWave } from "@/lib/triangleWave"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface SkillbarGameProps {
     puzzle: SkillbarPuzzle
@@ -21,17 +22,19 @@ interface SkillbarGameProps {
 export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: SkillbarGameProps) {
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
-    const [elapsed, setElapsed] = useState(0)
+    const indicatorRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         let raf: number
         function tick() {
-            setElapsed(performance.now() - startRef.current)
+            if (doneRef.current) return
+            const position = triangleWave(performance.now() - startRef.current, puzzle.speed)
+            if (indicatorRef.current) indicatorRef.current.style.left = `${position * 100}%`
             raf = requestAnimationFrame(tick)
         }
         raf = requestAnimationFrame(tick)
         return () => cancelAnimationFrame(raf)
-    }, [])
+    }, [puzzle.speed])
 
     function finish(elapsedAtPress: number) {
         if (doneRef.current) return
@@ -45,10 +48,7 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(elapsed)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(performance.now() - startRef.current))
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
@@ -60,8 +60,6 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
         window.addEventListener("keydown", onKeyDown)
         return () => window.removeEventListener("keydown", onKeyDown)
     }, [])
-
-    const position = triangleWave(elapsed, puzzle.speed)
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
@@ -82,8 +80,9 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
                         style={{ left: `${puzzle.zoneStart * 100}%`, width: `${(puzzle.zoneEnd - puzzle.zoneStart) * 100}%` }}
                     />
                     <div
+                        ref={indicatorRef}
                         className="absolute top-1/2 h-5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
-                        style={{ left: `${position * 100}%` }}
+                        style={{ left: "0%" }}
                     />
                 </div>
 

@@ -72,6 +72,23 @@ return function(library)
         assert(options.pattern == nil or type(options.pattern) == 'string', 'Configuration pattern must be a string.')
         assert(options.options == nil or type(options.options) == 'table', 'Configuration options must be a table.')
         assert(options.sensitive == nil or type(options.sensitive) == 'boolean', 'Configuration sensitive must be a boolean.')
+        assert(options.min == nil or (options.min == options.min and options.min ~= math.huge and options.min ~= -math.huge),
+            'Configuration min must be finite.')
+        assert(options.max == nil or (options.max == options.max and options.max ~= math.huge and options.max ~= -math.huge),
+            'Configuration max must be finite.')
+        assert(options.step == nil or (options.step == options.step and options.step > 0 and options.step ~= math.huge),
+            'Configuration step must be a positive finite number.')
+        assert(options.min == nil or options.max == nil or options.min <= options.max,
+            'Configuration min cannot exceed max.')
+        assert(options.minLength == nil or (options.minLength >= 0 and options.minLength % 1 == 0),
+            'Configuration minLength must be a non-negative integer.')
+        assert(options.maxLength == nil or (options.maxLength >= 0 and options.maxLength % 1 == 0),
+            'Configuration maxLength must be a non-negative integer.')
+        assert(options.minLength == nil or options.maxLength == nil or options.minLength <= options.maxLength,
+            'Configuration minLength cannot exceed maxLength.')
+        if options.pattern then
+            assert(pcall(string.match, '', options.pattern), 'Configuration pattern must be a valid Lua pattern.')
+        end
     end
 
     local function inferKind(value)
@@ -126,6 +143,7 @@ return function(library)
         if kind == 'object' then
             assert(type(value) == 'table', 'A configuration object must be a table.')
             schema.fields = {}
+            schema.fieldKeys = {}
             local values = {}
             for key, child in pairs(value) do
                 assert(type(key) == 'string' or type(key) == 'number', 'Configuration object keys must be strings or numbers.')
@@ -134,6 +152,7 @@ return function(library)
                 local childSchema, childValue = makeSchema(child, childPath, scope, skipUnsupported)
                 if childSchema then
                     schema.fields[tostring(key)] = childSchema
+                    schema.fieldKeys[tostring(key)] = key
                     values[key] = childValue
                 end
             end
@@ -416,25 +435,52 @@ return function(library)
     end
 
     local function findSchema(schema, path, index)
+        if not schema then return nil end
         if index > #path then return schema end
+        if schema.kind == 'optional' then return findSchema(schema.inner, path, index) end
         if schema.kind == 'object' then return findSchema(schema.fields[path[index]], path, index + 1) end
         if schema.kind == 'map' then return findSchema(schema.item or schema.values[path[index]], path, index + 1) end
         if schema.kind == 'list' then return findSchema(schema.item or schema.items[tonumber(path[index])], path, index + 1) end
     end
 
-    local function readPath(root, path)
+    local function unwrapOptional(schema)
+        while schema and schema.kind == 'optional' do schema = schema.inner end
+        return schema
+    end
+
+    local function childSchema(schema, key)
+        schema = unwrapOptional(schema)
+        if not schema then return nil end
+        if schema.kind == 'object' then return schema.fields[key] end
+        if schema.kind == 'map' then return schema.item or schema.values[key] end
+        if schema.kind == 'list' then return schema.item or schema.items[tonumber(key)] end
+    end
+
+    local function pathTableKey(schema, key)
+        schema = unwrapOptional(schema)
+        if schema and schema.kind == 'list' then return tonumber(key) end
+        if schema and schema.kind == 'object' then return schema.fieldKeys[key] or key end
+        return key
+    end
+
+    local function readPath(root, path, schema)
         local current = root
         for _, key in ipairs(path) do
             if type(current) ~= 'table' then return nil end
-            current = current[tonumber(key) or key]
+            current = current[pathTableKey(schema, key)]
+            schema = childSchema(schema, key)
         end
         return current
     end
 
-    local function writePath(root, path, value)
+    local function writePath(root, path, value, schema)
         local current = root
-        for index = 1, #path - 1 do current = current[tonumber(path[index]) or path[index]] end
-        current[tonumber(path[#path]) or path[#path]] = value
+        for index = 1, #path - 1 do
+            local key = path[index]
+            current = current[pathTableKey(schema, key)]
+            schema = childSchema(schema, key)
+        end
+        current[pathTableKey(schema, path[#path])] = value
     end
 
     local function clientProjection(schema, configured)
@@ -500,6 +546,8 @@ return function(library)
         options = options or {}
         assert(type(options) == 'table', 'QB.config.define options must be a table.')
         local schema, plain = makeSchema(values, {}, options.scope or 'shared', options.skipUnsupported == true)
+        local valid, validationError = validate(schema, plain)
+        assert(valid, ('Invalid authored configuration: %s.'):format(validationError))
         local defaults = copy(plain)
         local configured = copy(plain)
         local fileName = options.fileName or 'config.local.lua'
@@ -585,6 +633,8 @@ return function(library)
         options = options or {}
         local extensionSchema, extensionDefaults = makeSchema(values, {}, options.scope or 'shared', options.skipUnsupported == true)
         assert(extensionSchema.kind == 'object', 'QB.config.extend expects an object.')
+        local valid, validationError = validate(extensionSchema, extensionDefaults)
+        assert(valid, ('Invalid authored configuration extension: %s.'):format(validationError))
         local extensionConfigured = copy(extensionDefaults)
         if isServer then mergeKnown(extensionSchema, extensionConfigured, readOverrides(state.fileName)) end
 
@@ -669,7 +719,7 @@ return function(library)
 
         local oldConfigured = copy(state.configured)
         local oldBackup = LoadResourceFile(RESOURCE, state.fileName .. '.bak')
-        writePath(state.configured, path, value)
+        writePath(state.configured, path, value, state.schema)
         local saved, saveError = persist()
         if not saved then state.configured = oldConfigured; return { ok = false, error = saveError } end
 
@@ -677,7 +727,7 @@ return function(library)
         state.revision = state.revision + 1
         local applied = false
         if schema.live then
-            local oldValue = readPath(state.values, path)
+            local oldValue = readPath(state.values, path, state.schema)
             if schema.scope ~= 'client' then
                 local handler = changeHandlers[pathKey({ displayPath(path) })]
                 if handler then
@@ -695,7 +745,7 @@ return function(library)
                     end
                 end
             end
-            writePath(state.values, path, value)
+            writePath(state.values, path, value, state.schema)
             applied = true
             if isServer and schema.scope ~= 'server' then
                 TriggerClientEvent('qblib:client:configUpdated', -1, RESOURCE, path, encodeStorage(value), state.revision)
@@ -712,7 +762,7 @@ return function(library)
         local path = normalizedPath(request.path)
         local schema = path and findSchema(state.schema, path, 1) or nil
         if not schema or schema.kind == 'object' then return { ok = false, error = 'Unknown configuration option.' } end
-        local defaultValue = readPath(state.defaults, path)
+        local defaultValue = readPath(state.defaults, path, state.schema)
         return commit({ path = path, value = encodeStorage(defaultValue), revision = state.revision })
     end
 
@@ -749,9 +799,9 @@ return function(library)
             local schema = normalized and findSchema(state.schema, normalized, 1) or nil
             if not schema or schema.scope == 'server' then return end
             local value = decodeStorage(encoded)
-            local oldValue = readPath(state.values, normalized)
-            writePath(state.configured, normalized, value)
-            writePath(state.values, normalized, value)
+            local oldValue = readPath(state.values, normalized, state.schema)
+            writePath(state.configured, normalized, value, state.schema)
+            writePath(state.values, normalized, value, state.schema)
             state.revision = revision or state.revision
             local handler = changeHandlers[pathKey({ displayPath(normalized) })]
             if handler then
@@ -777,8 +827,8 @@ return function(library)
                 local valid, value = validate(schema, incoming)
                 if not valid then return end
                 if #path == 0 then return end
-                writePath(state.configured, path, value)
-                writePath(state.values, path, value)
+                writePath(state.configured, path, value, state.schema)
+                writePath(state.values, path, value, state.schema)
                 local handler = changeHandlers[pathKey({ displayPath(path) })]
                 if handler and not equal(oldValue, value) then pcall(handler, value, oldValue) end
             end

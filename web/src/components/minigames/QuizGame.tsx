@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import type { CancelledAttempt, QuizAnswer, QuizAttempt, QuizPuzzle } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface QuizGameProps {
     puzzle: QuizPuzzle
@@ -22,18 +23,7 @@ export function QuizGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const answersRef = useRef<QuizAnswer[]>([])
-    const [elapsed, setElapsed] = useState(0)
     const [index, setIndex] = useState(0)
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(answers: QuizAnswer[]) {
         if (doneRef.current) return
@@ -47,10 +37,7 @@ export function QuizGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(answersRef.current)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(answersRef.current))
 
     function choose(option: string) {
         if (doneRef.current || index >= puzzle.questions.length) return

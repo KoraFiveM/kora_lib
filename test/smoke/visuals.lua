@@ -143,6 +143,32 @@ harness.test("a solo effect with nothing else running still resets its own multi
         "a solo effect must still reset the multiplier normally when nothing has superseded it")
 end)
 
+harness.test("a newer short effect restores the older effect still running underneath", function()
+    resetRecorders()
+    forcedRandom = 999999
+    currentPed = 100
+
+    QB.visuals.coke(2000)
+    net.step()
+    net.step() -- coke now owns the multiplier and has entered its 20-tick loop
+    QB.visuals.meth(2000)
+    runToCompletion(80)
+
+    local sawMeth, restoredCoke = false, false
+    for _, call in ipairs(multiplierCalls) do
+        if call.multiplier == 1.49 then
+            sawMeth = true
+        elseif sawMeth and call.multiplier == 1.1 then
+            restoredCoke = true
+        end
+    end
+
+    harness.assertTrue(restoredCoke,
+        "when the newer meth boost ends first it should restore the older coke boost, not reset to 1.0")
+    harness.assertEqual(multiplierCalls[#multiplierCalls].multiplier, 1.0,
+        "the final remaining effect should still restore the native default")
+end)
+
 harness.test("meth applies its tuned multiplier and tick count, and never ragdolls", function()
     resetRecorders()
     forcedRandom = 1 -- every probability check succeeds

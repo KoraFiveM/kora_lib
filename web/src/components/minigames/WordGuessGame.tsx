@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 
 import type { CancelledAttempt, WordGuessAttempt, WordGuessLetter, WordGuessPuzzle } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface WordGuessGameProps {
     puzzle: WordGuessPuzzle
@@ -23,18 +24,7 @@ export function WordGuessGame({ puzzle, attempt, attempts, timeLimit, lastResult
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const guessesRef = useRef<WordGuessLetter[]>([])
-    const [elapsed, setElapsed] = useState(0)
     const [guessed, setGuessed] = useState<string[]>([])
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(guesses: WordGuessLetter[]) {
         if (doneRef.current) return
@@ -48,10 +38,7 @@ export function WordGuessGame({ puzzle, attempt, attempts, timeLimit, lastResult
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(guessesRef.current)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(guessesRef.current))
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {

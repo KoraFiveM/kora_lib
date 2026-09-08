@@ -2,6 +2,8 @@
 local active = {}
 local changeListeners = {}
 local nextListenerId = 0
+local movementMultiplier = 1.0
+local movementLoopRunning = false
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across qblib modules.
@@ -15,15 +17,29 @@ local listenerRegistry = QB.resources.registry(function(listenerId)
     changeListeners[listenerId] = nil
 end)
 
+local function startMovementLoop()
+    if movementLoopRunning or movementMultiplier == 1.0 then return end
+
+    movementLoopRunning = true
+    CreateThread(function()
+        while movementMultiplier ~= 1.0 do
+            SetPedMoveRateOverride(PlayerPedId(), movementMultiplier)
+            Wait(0)
+        end
+        movementLoopRunning = false
+    end)
+end
+
 local function reconcileMovement()
-    local multiplier = 1.0
+    movementMultiplier = 1.0
     for _, entry in pairs(active) do
         local movement = entry.def.movement
         if movement and movement.speedMultiplier then
-            multiplier = multiplier * movement.speedMultiplier
+            movementMultiplier = movementMultiplier * movement.speedMultiplier
         end
     end
-    SetPedMoveRateOverride(PlayerPedId(), multiplier)
+    SetPedMoveRateOverride(PlayerPedId(), movementMultiplier)
+    startMovementLoop()
 end
 
 local function notifyChange(name, applied)
@@ -105,13 +121,30 @@ function QB.status.apply(name, opts)
     opts = opts or {}
 
     local existing = active[name]
+    local now = GetGameTimer()
+    if existing and existing.expiresAt and existing.expiresAt <= now then
+        clearRender(existing.rendered, existing.def)
+        existing = nil
+    end
     if existing then clearRender(existing.rendered, existing.def) end
 
-    local duration = opts.duration or def.duration
-    local expiresAt = duration and (GetGameTimer() + duration) or nil
+    local stacking = def.stacking or "replace"
+    local appliedDuration = opts.duration or def.duration
+    local expiresAt
+    if appliedDuration then
+        if stacking == "extend" and existing and existing.expiresAt then
+            expiresAt = existing.expiresAt + appliedDuration
+        else
+            expiresAt = now + appliedDuration
+        end
+    end
+    local remainingDuration = expiresAt and math.max(0, expiresAt - now) or nil
 
     local severity = opts.severity
     if severity == nil then severity = existing and existing.severity end
+    if opts.severity ~= nil and stacking == "stack" and existing and existing.severity then
+        severity = math.min(def.severityLevels or opts.severity, existing.severity + opts.severity)
+    end
 
     active[name] = {
         def = def,
@@ -124,9 +157,9 @@ function QB.status.apply(name, opts)
 
     notifyChange(name, true)
 
-    if duration then
+    if remainingDuration then
         CreateThread(function()
-            Wait(duration)
+            Wait(remainingDuration)
             local current = active[name]
             -- Only remove if this is still the SAME application (not
             -- superseded by a later apply/remove in the meantime) and it's

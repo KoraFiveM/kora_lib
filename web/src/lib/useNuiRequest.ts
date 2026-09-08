@@ -10,6 +10,11 @@ interface PendingRequest<TPayload> {
     payload: TPayload
 }
 
+interface CancelledRequest {
+    requestId: number
+    token: string
+}
+
 /**
  * Shared "listen for a Lua QB.nui.request, track it, respond exactly once"
  * primitive used by the dialog-shaped NUI components (menus, the input
@@ -53,6 +58,21 @@ export function useNuiRequest<TPayload, TResult = unknown>(
     }, [])
 
     useNuiEvent<NuiRequestEnvelope<TPayload>>(action, handleOpen)
+
+    const handleCancellation = useCallback((message: CancelledRequest) => {
+        const pending = pendingRef.current
+        if (!pending || pending.requestId !== message.requestId || pending.token !== message.token) return
+
+        // Lua has already rejected and removed this owned request. Clear the
+        // surface without posting a second response to a request that no longer
+        // exists, and mark it responded so a same-tick superseding open cannot
+        // answer the cancelled request either.
+        respondedRef.current = true
+        pendingRef.current = null
+        setRequest(null)
+    }, [])
+
+    useNuiEvent<CancelledRequest>("cancelNuiRequest", handleCancellation)
 
     // Deliberately NOT inside the setState updater below -- respondToNui is a
     // side effect, and setState updaters must stay pure (React can, and in

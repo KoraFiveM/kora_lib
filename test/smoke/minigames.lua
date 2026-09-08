@@ -45,12 +45,6 @@ dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread comp
 -- synchronously (see mocks.lua), an entire multi-round QB.minigames.play()
 -- flow runs to completion within one CreateThread resume, with no need for
 -- net.step(). Left nil, a "minigames:round" request is simply never answered.
--- The resource-stop dispose handler in client.lua releases focus by calling
--- this native directly (best-effort cleanup, bypassing the normal QB.nui.*
--- focus-managed flow) -- module-specific, so mocked here rather than in
--- test/mocks.lua, same convention test/smoke/nui.lua follows for this exact native.
-_G.SetNuiFocus = function() end
-
 local sentMessages = {}
 local roundResponder = nil
 

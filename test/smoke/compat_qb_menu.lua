@@ -32,6 +32,8 @@ _G.exports = {
 -- event to fire), not just hand a promise back to its own caller.
 local sentItems = nil
 local nextMenuResult = nil
+local sentActions = {}
+local playerFocus
 
 QB.nui = {
     openMenu = function(items)
@@ -40,11 +42,14 @@ QB.nui = {
         p:resolve(nextMenuResult)
         return p
     end,
-    send = function(action)
-        harness.assertEqual(action, 'closeMenu', 'closeMenu should ask the active menu to cancel')
+    send = function(action, data)
+        sentActions[#sentActions + 1] = { action = action, data = data }
     end,
 }
-QB.keybind = { add = function() return { remove = function() return true end } end }
+QB.keybind = { add = function(options)
+    if options.name == 'playerfocus' then playerFocus = options.onPressed end
+    return { remove = function() return true end }
+end }
 
 dofile(repoRoot .. "compat/client/exports.lua")
 dofile(repoRoot .. "compat/client/qb-menu.lua")
@@ -63,6 +68,7 @@ end
 
 local openMenu = getExport("qb-menu", "openMenu")
 local closeMenu = getExport("qb-menu", "closeMenu")
+local showHeader = getExport("qb-menu", "showHeader")
 
 harness.test("openMenu translates header/txt/disabled onto label/description/disabled", function()
     nextMenuResult = { cancelled = true }
@@ -189,6 +195,32 @@ end)
 harness.test("closeMenu force-dismisses through the NUI cancellation action", function()
     local ok = pcall(closeMenu)
     harness.assertTrue(ok, "closeMenu should not error")
+    harness.assertEqual(sentActions[#sentActions].action, 'closeMenu',
+        'closeMenu should ask the active menu to cancel')
+end)
+
+harness.test("playerfocus turns a read-only showHeader into the interactive managed menu", function()
+    local received
+    AddEventHandler("header:test:fired", function(args) received = args end)
+    nextMenuResult = { selectedId = "1" }
+
+    showHeader({ { header = "Open garage", params = {
+        event = "header:test:fired", args = { currentSelection = 2 },
+    } } })
+    harness.assertEqual(sentActions[#sentActions].action, 'showMenuHeader',
+        'showHeader should remain a display-only prompt until the focus key is pressed')
+
+    playerFocus()
+
+    harness.assertEqual(sentItems[1].label, "Open garage",
+        'the focus key should open the same translated rows interactively')
+    harness.assertEqual(received.currentSelection, 2,
+        'selecting the focused header should retain the original dispatch payload')
+    local hidHeader = false
+    for _, message in ipairs(sentActions) do
+        if message.action == 'hideMenuHeader' then hidHeader = true break end
+    end
+    harness.assertTrue(hidHeader, 'the read-only header should hide before the interactive menu opens')
 end)
 
 harness.test("the qb-menu:client:openMenu net event drives the same flow as the export", function()

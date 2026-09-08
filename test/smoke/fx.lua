@@ -133,4 +133,45 @@ harness.test("screenEffect starts and stops a named effect", function()
     harness.assertEqual(screenStops[#screenStops], "TestEffect", "should stop the same named effect")
 end)
 
+harness.test("same-name screen effects keep independent caller lifetimes", function()
+    local stopsBefore = #screenStops
+    _G.GetInvokingResource = function() return "effect_owner_a" end
+    local first = QB.fx.screenEffect("SharedEffect", 0, true)
+    _G.GetInvokingResource = function() return "effect_owner_b" end
+    local second = QB.fx.screenEffect("SharedEffect", 0, true)
+    _G.GetInvokingResource = function() return nil end
+
+    harness.assertTrue(QB.fx.stopScreenEffect(first), "the first handle should be released")
+    harness.assertEqual(#screenStops, stopsBefore,
+        "releasing one caller must not stop another caller's same-name effect")
+    harness.assertTrue(QB.fx.stopScreenEffect(second), "the final handle should be released")
+    harness.assertEqual(screenStops[#screenStops], "SharedEffect", "the final release should stop the native effect")
+end)
+
+harness.test("resource cleanup releases only that owner's same-name screen effect", function()
+    local stopsBefore = #screenStops
+    _G.GetInvokingResource = function() return "stopping_effect_owner" end
+    QB.fx.screenEffect("ResourceSharedEffect", 0, true)
+    _G.GetInvokingResource = function() return "surviving_effect_owner" end
+    local survivor = QB.fx.screenEffect("ResourceSharedEffect", 0, true)
+    _G.GetInvokingResource = function() return nil end
+
+    net.fire("onClientResourceStop", "stopping_effect_owner")
+    harness.assertEqual(#screenStops, stopsBefore,
+        "stopping one owner must leave the surviving same-name effect running")
+    harness.assertTrue(QB.fx.stopScreenEffect(survivor), "the surviving owner should retain a usable handle")
+end)
+
+harness.test("legacy name-only handles release one effect owned by their caller", function()
+    _G.GetInvokingResource = function() return "legacy_effect_owner" end
+    QB.fx.screenEffect("LegacyEffect", 0, true)
+    _G.GetInvokingResource = function() return "different_effect_owner" end
+    harness.assertFalse(QB.fx.stopScreenEffect({ name = "LegacyEffect" }),
+        "a legacy name-only handle must not release another resource's effect")
+    _G.GetInvokingResource = function() return "legacy_effect_owner" end
+    harness.assertTrue(QB.fx.stopScreenEffect({ name = "LegacyEffect" }),
+        "the owning resource's legacy name-only handle should remain compatible")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.report("fx")

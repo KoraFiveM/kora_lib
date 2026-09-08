@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import type { CancelledAttempt, PinpadAttempt, PinpadDigit, PinpadPuzzle } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface PinpadGameProps {
     puzzle: PinpadPuzzle
@@ -23,18 +24,7 @@ export function PinpadGame({ puzzle, attempt, attempts, timeLimit, lastResult, r
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const digitsRef = useRef<PinpadDigit[]>([])
-    const [elapsed, setElapsed] = useState(0)
     const [entered, setEntered] = useState<number[]>([])
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(digits: PinpadDigit[]) {
         if (doneRef.current) return
@@ -48,10 +38,7 @@ export function PinpadGame({ puzzle, attempt, attempts, timeLimit, lastResult, r
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(digitsRef.current)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(digitsRef.current))
 
     function press(value: number) {
         if (doneRef.current || entered.length >= puzzle.digitCount) return

@@ -101,9 +101,11 @@ export function Toast() {
         if (!title && !message) return
 
         const id = nextToastId++
-        const requestedDuration =
-            typeof payload.duration === "number" && payload.duration > 0 ? payload.duration : DEFAULT_DURATION
-        const duration = Math.max(DEFAULT_DURATION, requestedDuration)
+        const duration = typeof payload.duration === "number"
+            && Number.isFinite(payload.duration)
+            && payload.duration > 0
+            ? payload.duration
+            : DEFAULT_DURATION
 
         const entry: ToastEntry = {
             id,

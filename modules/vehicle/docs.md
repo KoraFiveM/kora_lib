@@ -24,3 +24,7 @@ Obtains network control before applying any change (`opts.timeout`, default
 `true`, or `false, error` if the vehicle is invalid or control cannot be
 obtained. Explicit `false` and `0` values are applied rather than mistaken for
 missing fields.
+
+RGB colors are returned as JSON-stable `{ r, g, b }` objects. The setter also
+accepts numeric arrays and legacy JSON-decoded objects with `"1"`, `"2"`, and
+`"3"` keys, so existing garage rows remain restorable.

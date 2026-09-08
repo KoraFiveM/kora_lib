@@ -70,8 +70,7 @@ end
 ---list, model set, visibility) before the caller-supplied predicate, which
 ---may be arbitrarily expensive -- matching the AABB-then-exact-shape
 ---discipline modules/zones already documents for its own containment tests.
----@return {entity: number, coords: table, distance: number}[]
-local function collectCandidates(entityType, coords, radiusSq, options)
+local function visitCandidates(entityType, coords, radiusSq, options, visit)
     options = options or {}
 
     local modelSet = buildModelSet(options.models)
@@ -80,8 +79,6 @@ local function collectCandidates(entityType, coords, radiusSq, options)
     local includeInvisible = options.includeInvisible or false
     local ownPed = PlayerPedId()
     local origin = toVec3(coords)
-
-    local results = {}
 
     for _, entity in ipairs(poolEntities(entityType)) do
         if entity ~= 0 and DoesEntityExist(entity)
@@ -94,14 +91,26 @@ local function collectCandidates(entityType, coords, radiusSq, options)
             local dSq = distSq(origin, entityCoords)
 
             if dSq <= radiusSq then
-                local distance = math.sqrt(dSq)
-
+                local distance = options.predicate and math.sqrt(dSq) or nil
                 if not options.predicate or options.predicate(entity, entityCoords, distance) then
-                    results[#results + 1] = { entity = entity, coords = entityCoords, distance = distance }
+                    local result = visit(entity, entityCoords, dSq, distance)
+                    if result ~= nil then return result end
                 end
             end
         end
     end
+end
+
+---@return {entity: number, coords: table, distance: number}[]
+local function collectCandidates(entityType, coords, radiusSq, options)
+    local results = {}
+    visitCandidates(entityType, coords, radiusSq, options, function(entity, entityCoords, dSq, distance)
+        results[#results + 1] = {
+            entity = entity,
+            coords = entityCoords,
+            distance = distance or math.sqrt(dSq),
+        }
+    end)
 
     return results
 end
@@ -139,16 +148,15 @@ function QB.world.getClosestEntity(entityType, coords, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
 
     local radius = (options and options.radius) or Config.world.defaultRadius
-    local matches = collectCandidates(entityType, coords, radius * radius, options)
+    local closestEntity, closestCoords, closestDistanceSq
+    visitCandidates(entityType, coords, radius * radius, options, function(entity, entityCoords, dSq)
+        if not closestDistanceSq or dSq < closestDistanceSq then
+            closestEntity, closestCoords, closestDistanceSq = entity, entityCoords, dSq
+        end
+    end)
 
-    if #matches == 0 then return false end
-
-    local closest = matches[1]
-    for i = 2, #matches do
-        if matches[i].distance < closest.distance then closest = matches[i] end
-    end
-
-    return closest.entity, closest.coords, closest.distance
+    if not closestEntity then return false end
+    return closestEntity, closestCoords, math.sqrt(closestDistanceSq)
 end
 
 ---@class QBWorldGroundOptions
@@ -254,5 +262,6 @@ function QB.world.isSpawnClear(coords, radius, options)
     for key, value in pairs(options) do query[key] = value end
     query.includeInvisible = true
 
-    return #collectCandidates('vehicle', coords, radius * radius, query) == 0
+    local occupied = visitCandidates('vehicle', coords, radius * radius, query, function() return true end)
+    return occupied ~= true
 end

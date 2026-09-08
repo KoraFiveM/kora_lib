@@ -3,8 +3,8 @@ layout: default
 title: qblib
 ---
 
-Shared helper library for the qbcore2 resource set — no direct dependencies of
-its own. Populates a single global `QB` table over dynamically-generated
+Shared helper library for the qbcore2 resource set. Populates a single global
+`QB` table over dynamically-generated
 exports (`QB.<module>.<function>` → `exports.qblib:<module>_<function>`), and
 covers the ground every FiveM resource needs: a headless NUI framework (menus,
 context menus, radial menus, input dialogs, alerts) with matching theme
@@ -17,14 +17,19 @@ commands, permissions, hash-to-name lookup catalogs, and logging. Also ships dro
 
 ## Requirements
 
-None.
+`qbtheme` must start before qblib; the manifest declares it as a dependency.
 
 ## Installation
 
 `server.cfg`:
 ```
+ensure qbtheme
 ensure qblib
 ```
+
+See [ox_lib parity](ox_lib-parity.md) before migrating an ox_lib consumer. The
+libraries overlap substantially, but their globals, signatures, result shapes,
+and several runtime semantics are intentionally not drop-in compatible.
 
 Any consumer resource pulls the `QB` proxy into its own script scope with:
 ```lua
@@ -303,6 +308,10 @@ QB.distance.entity(entity, distance)  QB.distance.x/y/xy(point, distance)
 ### Blips / drawing / visuals
 ```lua
 QB.blips.create(coords, options)  QB.blips.remove(blip)
+QB.blips.getCategoryIds()  -- shared fixed name -> native id catalogue
+QB.blips.getCategories()  QB.blips.getRegistered()
+QB.blips.hideCategory(category)  QB.blips.showCategory(category)
+QB.blips.hide(blip)  QB.blips.show(blip)
 QB.drawing.text3d(coords, text, options)
 QB.visuals.fade(duration, fn)  -- legacy visuals.fade(coords, duration) remains supported
 QB.teleport.player(coords, opts)  QB.teleport.entity(entity, coords, opts)
@@ -310,6 +319,10 @@ QB.teleport.toWaypoint(opts)
 QB.vehicle.plate(vehicle)  QB.vehicle.label(vehicle)
 QB.vehicle.getProperties(vehicle)  QB.vehicle.setProperties(vehicle, properties, opts)
 ```
+
+Players can run `/blips` to open the client-local category visibility settings.
+The screen updates immediately and persists each player's choices; resource
+ownership metadata is shown only to server-confirmed admins.
 
 ### State bags (`QB.state`)
 ```lua

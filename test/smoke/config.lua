@@ -194,6 +194,45 @@ H.test('invalid values and stale edits are refused without persistence', functio
     H.assertFalse(stale.ok)
 end)
 
+H.test('invalid authored defaults and incoherent field constraints fail at startup', function()
+    files = {}
+    registered = {}
+    local config = makeConfig(library)
+    H.assertThrows(function()
+        config.define({ amount = config.integer(1.5) })
+    end, 'an integer descriptor must not accept a fractional authored default')
+
+    config = makeConfig(library)
+    H.assertThrows(function()
+        config.define({ amount = config.number(2, { min = 3, max = 1 }) })
+    end, 'a field minimum must not exceed its maximum')
+end)
+
+H.test('unknown nested paths return a normal validation error', function()
+    files = {}
+    registered = {}
+    local config = makeConfig(library)
+    config.define({ nested = { enabled = true } })
+
+    local ok, result = pcall(registered.qblib_configCommit,
+        { path = { 'missing', 'enabled' }, value = false, revision = 1 })
+    H.assertTrue(ok, 'an unknown nested path must not crash the configuration bridge')
+    H.assertFalse(result.ok)
+    H.assertEqual(result.error, 'Unknown configuration option.')
+end)
+
+H.test('numeric-looking map keys remain strings when edited', function()
+    files = {}
+    registered = {}
+    local config = makeConfig(library)
+    config.define({ flags = config.map({ ['1'] = true }, config.boolean(false)) })
+
+    local result = registered.qblib_configCommit({ path = { 'flags', '1' }, value = false, revision = 1 })
+    H.assertTrue(result.ok, result.error)
+    H.assertFalse(result.configured.flags['1'])
+    H.assertEqual(result.configured.flags[1], nil)
+end)
+
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
 H.report('config')

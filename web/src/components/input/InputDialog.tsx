@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react"
 
-import { FormFields, createFieldValues, validateFields } from "@/components/input/FormFields"
+import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { FieldValue, InputDialogResult, OpenInputDialogPayload } from "@/lib/types"
@@ -18,7 +18,7 @@ export function InputDialogContainer() {
     const cancel = useCallback(() => respond({ cancelled: true }), [respond])
     const submit = (event: FormEvent) => {
         event.preventDefault()
-        if (!hasErrors) respond({ values })
+        if (!hasErrors) respond({ values: submissionValues(fields, values) })
     }
 
     if (!isOpen || !payload) return null
@@ -32,7 +32,7 @@ export function InputDialogContainer() {
                         {payload.title ? <DialogTitle>{payload.title}</DialogTitle> : null}
                         {payload.description ? <DialogDescription>{payload.description}</DialogDescription> : null}
                     </DialogHeader>
-                ) : null}
+                ) : <DialogTitle className="sr-only">Input</DialogTitle>}
                 <form className="flex flex-col gap-3" onSubmit={submit}>
                     <FormFields fields={fields} values={values} errors={errors} labels={payload.labels} onChange={setValues} idPrefix="dialog" />
                     <DialogFooter>

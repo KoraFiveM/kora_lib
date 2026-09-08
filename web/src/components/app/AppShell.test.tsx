@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AppShell } from "@/components/app/AppShell"
 import { InputDialogContainer } from "@/components/input/InputDialog"
 import type { AppDefinition, NuiWireMessage } from "@/lib/types"
-import { fetchNui } from "@/lib/fetchNui"
+import { fetchNui, respondToNui } from "@/lib/fetchNui"
 
 vi.mock("@/lib/fetchNui", () => ({
     fetchNui: vi.fn(),
@@ -14,6 +14,7 @@ vi.mock("@/lib/fetchNui", () => ({
 }))
 
 const fetchNuiMock = vi.mocked(fetchNui)
+const respondToNuiMock = vi.mocked(respondToNui)
 let requestId = 0
 
 function dispatch<T>(action: string, data: T) {
@@ -33,9 +34,35 @@ function baseApp(content: AppDefinition["navigation"][number]["content"], extras
 beforeEach(() => {
     fetchNuiMock.mockReset()
     fetchNuiMock.mockResolvedValue({ ok: true })
+    respondToNuiMock.mockReset()
+    respondToNuiMock.mockResolvedValue(undefined)
 })
 
 describe("shared fields", () => {
+    it("keeps optional number fields blank and omits them on submit", async () => {
+        const user = userEvent.setup()
+        render(<InputDialogContainer />)
+        dispatch("openInputDialog", { requestId: 28, token: "optional-token", payload: { fields: [
+            { id: "report_id", label: "Initial report # (optional)", type: "number", min: 1 },
+        ] } })
+
+        expect(screen.getByLabelText("Initial report # (optional)")).toHaveValue("")
+        await user.click(screen.getByRole("button", { name: "Confirm" }))
+        expect(respondToNuiMock).toHaveBeenCalledWith(28, "optional-token", true, { values: {} })
+    })
+
+    it("requires an explicit number and lets Enter submit a valid value", async () => {
+        const user = userEvent.setup()
+        render(<InputDialogContainer />)
+        dispatch("openInputDialog", { requestId: 27, token: "required-token", payload: { fields: [
+            { id: "amount", label: "Amount", type: "number", required: true, min: 1 },
+        ] } })
+
+        expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled()
+        await user.type(screen.getByLabelText(/^Amount/), "7{enter}")
+        expect(respondToNuiMock).toHaveBeenCalledWith(27, "required-token", true, { values: { amount: 7 } })
+    })
+
     it("keeps decimal number drafts intact while they are being typed", async () => {
         const user = userEvent.setup()
         render(<InputDialogContainer />)
@@ -73,6 +100,18 @@ describe("shared fields", () => {
 })
 
 describe("AppShell", () => {
+    it("omits an optional blank number from an action payload", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(baseApp({ actions: [{ id: "create", label: "Create", fields: [
+            { id: "report_id", label: "Initial report # (optional)", type: "number", min: 1 },
+        ] }] }))
+
+        await user.click(screen.getByRole("button", { name: "Create" }))
+        await user.click(screen.getByRole("button", { name: "Run action" }))
+        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:action", expect.objectContaining({ value: {} }))
+    })
+
     it("renders a bounded progress graph with accessible values", () => {
         render(<AppShell />)
         openApp(baseApp({ blocks: [{ type: "progress", title: "Skills", items: [
@@ -232,6 +271,32 @@ describe("AppShell", () => {
         dispatch("updateApp", { appId: "test:app", token, app: app("Fresh weather") })
         expect(screen.getByText("Fresh weather")).toBeInTheDocument()
         expect(screen.queryByText("Old weather")).not.toBeInTheDocument()
+    })
+
+    it("clamps list pagination after a live update removes the current page", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        const app = (items: string[]) => baseApp({ blocks: [{
+            type: "list", id: "people", pageSize: 1,
+            items: items.map((label) => ({ id: label.toLowerCase(), label })),
+        }] })
+        const token = openApp(app(["Ada", "Grace"]))
+
+        await user.click(screen.getByRole("button", { name: "Next" }))
+        expect(screen.getByText("Grace")).toBeInTheDocument()
+        dispatch("updateApp", { appId: "test:app", token, app: app(["Ada"]) })
+        expect(screen.getByText("Ada")).toBeInTheDocument()
+        expect(screen.queryByText("Nothing here")).not.toBeInTheDocument()
+    })
+
+    it("cancels a stopped resource request without posting a second response", () => {
+        render(<AppShell />)
+        const token = openApp(baseApp({ title: "Owned app" }))
+        expect(screen.getByRole("heading", { name: "Owned app" })).toBeInTheDocument()
+
+        dispatch("cancelNuiRequest", { requestId, token })
+        expect(screen.queryByRole("heading", { name: "Owned app" })).not.toBeInTheDocument()
+        expect(respondToNuiMock).not.toHaveBeenCalled()
     })
 
     it("lazily renders tile maps and selectable markers", async () => {

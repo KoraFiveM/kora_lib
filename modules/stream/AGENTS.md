@@ -21,7 +21,9 @@ This module provides model-streaming helpers for loading and validating game mod
 - `assert(IsModelValid(model), ...)` is used to fail fast on bad input.
 - An already-loaded model short-circuits the polling loop.
 - `RequestModel` is issued once, then `QB.loops.controlled` polls
-  `HasModelLoaded` with exponential backoff and a 10 second timeout.
+  `HasModelLoaded` once per frame with a 10 second timeout. Streaming is a
+  latency-sensitive render-path dependency; exponential sleeps can add almost
+  a full second after the asset is already ready.
 - A timed-out load releases the request and returns `false` without invoking the callback.
 - The callback runs under `pcall` so `SetModelAsNoLongerNeeded(model)` is reached
   even when the callback errors; the error is then re-raised to the caller.

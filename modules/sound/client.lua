@@ -20,15 +20,38 @@
 ---@field bank? string Audio bank to request before playing (e.g. `"DLC_MPHEIST/HEIST_FLEECA_BANK"`). Waits for the load.
 ---@field releaseAfter? number Milliseconds before the sound id is auto-released. Defaults to `Config.sound.defaultReleaseAfter`.
 
--- soundId -> true. The registry sweeps ids still held when their owning
+local live = {}
+local bankRefs = {}
+local nextClaimGeneration = 0
+
+local function releaseBank(bank)
+    if not bank then return end
+    local count = bankRefs[bank]
+    if not count then return end
+    if count > 1 then
+        bankRefs[bank] = count - 1
+    else
+        bankRefs[bank] = nil
+        ReleaseNamedScriptAudioBank(bank)
+    end
+end
+
+local function disposeSound(soundId)
+    local entry = live[soundId]
+    if not entry then return false end
+    live[soundId] = nil
+    StopSound(soundId)
+    ReleaseSoundId(soundId)
+    releaseBank(entry.bank)
+    return true
+end
+
+-- soundId -> claim metadata. The registry sweeps ids still held when their owning
 -- resource stops; StopSound before ReleaseSoundId because releasing an id
 -- that is still playing leaves the audio running with no handle to stop it.
 local soundRegistry = QB.resources.registry(function(soundId)
-    StopSound(soundId)
-    ReleaseSoundId(soundId)
+    disposeSound(soundId)
 end)
-
-local live = {}
 
 ---@param name any
 ---@param set any
@@ -49,19 +72,32 @@ local function claim(owner, options)
         -- QB.stream.loadAudioBank yields until the bank is resident. Playing
         -- before it loads is a silent no-op, not an error, which is the other
         -- classic "the sound sometimes doesn't play" cause.
-        local loaded = QB.stream.loadAudioBank(options.bank)
-        if not loaded then return false, ("Failed to load audio bank '%s'."):format(options.bank) end
+        if bankRefs[options.bank] then
+            bankRefs[options.bank] = bankRefs[options.bank] + 1
+        else
+            local loaded = QB.stream.loadAudioBank(options.bank)
+            if not loaded then return false, ("Failed to load audio bank '%s'."):format(options.bank) end
+            bankRefs[options.bank] = 1
+        end
     end
 
     local soundId = GetSoundId()
-    if not soundId or soundId == -1 then return false, "No free sound id available." end
+    if not soundId or soundId == -1 then
+        releaseBank(options.bank)
+        return false, "No free sound id available."
+    end
 
-    live[soundId] = true
+    nextClaimGeneration = nextClaimGeneration + 1
+    local generation = nextClaimGeneration
+    live[soundId] = { generation = generation, bank = options.bank }
     soundRegistry.track(owner, soundId)
 
     local releaseAfter = options.releaseAfter or Config.sound.defaultReleaseAfter
     if releaseAfter and releaseAfter > 0 then
-        QB.timers.setTimeout(function() QB.sound.stop(soundId) end, releaseAfter)
+        QB.timers.setTimeout(function()
+            local current = live[soundId]
+            if current and current.generation == generation then QB.sound.stop(soundId) end
+        end, releaseAfter)
     end
 
     return soundId
@@ -143,11 +179,8 @@ function QB.sound.stop(soundId)
         return false, "Sound id is not tracked by QB.sound."
     end
 
-    live[soundId] = nil
     soundRegistry.untrack(soundId)
-
-    StopSound(soundId)
-    ReleaseSoundId(soundId)
+    disposeSound(soundId)
 
     return true
 end
@@ -156,5 +189,5 @@ end
 ---@param soundId number
 ---@return boolean
 function QB.sound.isLive(soundId)
-    return live[soundId] == true
+    return live[soundId] ~= nil
 end

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 
 import type { CancelledAttempt, MashAttempt, MashPuzzle } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useMinigameTimeout } from "@/components/minigames/useMinigameTimer"
 
 interface MashKeyGameProps {
     puzzle: MashPuzzle
@@ -21,18 +22,7 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const pressesRef = useRef<number[]>([])
-    const [elapsed, setElapsed] = useState(0)
     const [pressCount, setPressCount] = useState(0)
-
-    useEffect(() => {
-        let raf: number
-        function tick() {
-            setElapsed(performance.now() - startRef.current)
-            raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(raf)
-    }, [])
 
     function finish(pressTimestamps: number[]) {
         if (doneRef.current) return
@@ -46,10 +36,7 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         respond({ cancelled: true })
     }
 
-    useEffect(() => {
-        if (elapsed >= timeLimit) finish(pressesRef.current)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [elapsed, timeLimit])
+    useMinigameTimeout(timeLimit, () => finish(pressesRef.current))
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {

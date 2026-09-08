@@ -27,12 +27,16 @@ local resourceFiles = {
     ['restartable\0value.lua'] = "return 'old'",
 }
 local readCounts = {}
+local qblibReadCounts = {}
 local stopHandlers = {}
 local exportCalls = {}
 
 _G.LoadResourceFile = function(resource, path)
-    if resource == 'qblib' and path == 'modules/require/loader.lua' then return loaderSource end
-    if resource == 'qblib' and path == 'modules/config/consumer.lua' then return configConsumerSource end
+    if resource == 'qblib' then
+        qblibReadCounts[path] = (qblibReadCounts[path] or 0) + 1
+        if path == 'modules/require/loader.lua' then return loaderSource end
+        if path == 'modules/config/consumer.lua' then return configConsumerSource end
+    end
 
     local key = resource .. '\0' .. path
     readCounts[key] = (readCounts[key] or 0) + 1
@@ -55,6 +59,21 @@ _G.exports = {
 }
 
 dofile(repoRoot .. 'init.lua')
+
+harness.test('consumer-local modules load only when first accessed', function()
+    harness.assertEqual(qblibReadCounts['modules/require/loader.lua'], nil)
+    harness.assertEqual(qblibReadCounts['modules/config/consumer.lua'], nil)
+
+    local requireModule = QB.require
+    harness.assertTrue(type(requireModule) == 'table')
+    harness.assertEqual(qblibReadCounts['modules/require/loader.lua'], 1)
+    harness.assertEqual(qblibReadCounts['modules/config/consumer.lua'], nil)
+
+    local configModule = QB.config
+    harness.assertTrue(type(configModule) == 'table')
+    harness.assertEqual(QB.config, configModule)
+    harness.assertEqual(qblibReadCounts['modules/config/consumer.lua'], 1)
+end)
 
 harness.test('load returns one value per requested path in order', function()
     local config, data, params = QB.require.load('qbapartments', { 'config', 'public/data', 'params' })

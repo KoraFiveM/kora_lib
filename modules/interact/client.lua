@@ -14,7 +14,10 @@ local active
 local callbackRegistered = false
 local zonesByName = {}
 local reopenFns = {}
+local zoneOwners = {}
+local targetHandles = { entity = {}, model = {} }
 local targetRegistry = QB.resources.registry(function(handle)
+    targetHandles[handle.kind][handle.id] = nil
     if handle.kind == 'entity' then
         exports.qbtarget:removeEntity(handle.value, handle.id)
     else
@@ -265,6 +268,18 @@ local function open(options, source, owner)
     return true
 end
 
+local function removeNamedZone(name)
+    local zone = zonesByName[name]
+    if not zone then return false end
+
+    zonesByName[name] = nil
+    reopenFns[name] = nil
+    zoneOwners[name] = nil
+    if active and active.source == name then hide(active) end
+    zone.remove()
+    return true
+end
+
 ---Opens the compact, game-input-driven selector. No NUI focus is granted.
 ---@param options QBInteractOption[]
 ---@return boolean opened False when disabled or no option passes its restrictions.
@@ -296,12 +311,10 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     assert(type(targetOptions) == "table",
         "interact target options require an options array.")
 
-    if zonesByName[name] then zonesByName[name].remove() end
+    if zonesByName[name] then removeNamedZone(name) end
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local function enter() open(targetOptions, name, owner) end
-    reopenFns[name] = enter
-
     local zone = QB.zones.sphere({
         coords = coords,
         radius = radius or 5.0,
@@ -313,6 +326,8 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     })
 
     zonesByName[name] = zone
+    reopenFns[name] = enter
+    zoneOwners[name] = owner
     return zone
 end
 
@@ -332,12 +347,10 @@ function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
     assert(type(targetOptions) == "table",
         "interact target options require an options array.")
 
-    if zonesByName[name] then zonesByName[name].remove() end
+    if zonesByName[name] then removeNamedZone(name) end
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local function enter() open(targetOptions, name, owner) end
-    reopenFns[name] = enter
-
     local zone = QB.zones.box({
         coords = { x = coords.x, y = coords.y, z = coords.z },
         size = { x = size.x, y = size.y, z = size.z },
@@ -350,6 +363,8 @@ function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
     })
 
     zonesByName[name] = zone
+    reopenFns[name] = enter
+    zoneOwners[name] = owner
     return zone
 end
 
@@ -357,14 +372,7 @@ end
 ---@param name string
 ---@return boolean removed
 function QB.interact.removeZone(name)
-    local zone = zonesByName[name]
-    if not zone then return false end
-
-    zonesByName[name] = nil
-    reopenFns[name] = nil
-    if active and active.source == name then hide(active) end
-    zone.remove()
-    return true
+    return removeNamedZone(name)
 end
 
 ---Adds static object zones for every currently streamed object matching model(s).
@@ -446,7 +454,9 @@ function QB.interact.addEntity(entity, options, distance)
     local id = exports.qbtarget:addEntity(entity, translated, distance)
     -- qbtarget's removeEntity takes one entity even when registration covered
     -- several; removing by id tears down that whole registration.
-    targetRegistry.track(owner, { kind = 'entity', value = type(entity) == 'table' and entity[1] or entity, id = id })
+    local handle = { kind = 'entity', value = type(entity) == 'table' and entity[1] or entity, id = id }
+    targetHandles.entity[id] = handle
+    targetRegistry.track(owner, handle)
     return id
 end
 
@@ -454,7 +464,25 @@ end
 ---@param id? integer
 ---@return boolean
 function QB.interact.removeEntity(entity, id)
-    return exports.qbtarget:removeEntity(entity, id)
+    local removed = exports.qbtarget:removeEntity(entity, id)
+    if removed ~= true then return false end
+
+    if id then
+        local handle = targetHandles.entity[id]
+        if handle then
+            targetHandles.entity[id] = nil
+            targetRegistry.untrack(handle)
+        end
+    else
+        for targetId, handle in pairs(targetHandles.entity) do
+            if handle.value == entity then
+                targetHandles.entity[targetId] = nil
+                targetRegistry.untrack(handle)
+            end
+        end
+    end
+
+    return true
 end
 
 ---@param model string|number|(string|number)[]
@@ -478,7 +506,9 @@ function QB.interact.addModel(model, options, distance)
         }
     end
     local id = exports.qbtarget:addModel(model, translated, distance)
-    targetRegistry.track(owner, { kind = 'model', value = model, id = id })
+    local handle = { kind = 'model', value = model, id = id }
+    targetHandles.model[id] = handle
+    targetRegistry.track(owner, handle)
     return id
 end
 
@@ -486,11 +516,37 @@ end
 ---@param id? integer
 ---@return boolean
 function QB.interact.removeModel(model, id)
-    return exports.qbtarget:removeModel(model, id)
+    local removed = exports.qbtarget:removeModel(model, id)
+    if removed ~= true then return false end
+
+    if id then
+        local handle = targetHandles.model[id]
+        if handle then
+            targetHandles.model[id] = nil
+            targetRegistry.untrack(handle)
+        end
+    else
+        for targetId, handle in pairs(targetHandles.model) do
+            if handle.value == model then
+                targetHandles.model[targetId] = nil
+                targetRegistry.untrack(handle)
+            end
+        end
+    end
+
+    return true
 end
 
 AddEventHandler("onClientResourceStop", function(resourceName)
     if active and (active.owner == resourceName or resourceName == GetCurrentResourceName()) then
         hide(active)
     end
+
+    local ownedNames = {}
+    for name, owner in pairs(zoneOwners) do
+        if owner == resourceName or resourceName == GetCurrentResourceName() then
+            ownedNames[#ownedNames + 1] = name
+        end
+    end
+    for i = 1, #ownedNames do removeNamedZone(ownedNames[i]) end
 end)

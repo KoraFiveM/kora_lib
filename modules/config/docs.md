@@ -44,6 +44,11 @@ its allowed entries in `options`. `color` accepts `#RRGGBB`; numeric fields
 reject non-finite values; vector fields accept native CfxLua vectors and the
 plain component tables sent by the editor.
 
+Authored defaults are validated when the schema is defined. Invalid defaults,
+reversed bounds, non-positive steps, invalid length limits, and malformed Lua
+patterns fail immediately instead of publishing a configuration that cannot be
+saved or reset through the editor.
+
 Mark a value `sensitive = true` when it must never be shown or changed in the
 in-game editor. Do not register secrets, convars, database-managed data,
 executable values, or runtime state as editable settings.

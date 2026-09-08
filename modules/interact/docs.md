@@ -30,6 +30,7 @@ The current signatures are:
 zones around the current entity/model positions. They do not follow moving
 entities; use the aim-target facade below when movement tracking is required.
 `QB.interact.removeZone(name)` returns `true` only when a named zone existed.
+Named zones are also removed automatically when their invoking resource stops.
 
 `QB.interact.open(options)` opens the selector without a zone.
 `QB.interact.close()` closes it, and `QB.interact.isActive()` reports whether a
@@ -50,7 +51,8 @@ Each option needs a non-empty `label`. On selection it calls `action()`, or trig
 qbtarget. They use the same `label`, `action`, `event`, `args`, and restriction
 fields as zones, follow moving entities, and clean up automatically when the
 invoking resource stops. Use `QB.interact.removeEntity(entity, id?)` or
-`QB.interact.removeModel(model, id?)` for early teardown.
+`QB.interact.removeModel(model, id?)` for early teardown; manual teardown also
+clears the ownership record so resource-stop cleanup never removes it twice.
 
 While the selector is visible, E or left-click confirms the highlighted option. Space and Enter do not confirm it. Up/Down or the mouse wheel changes the highlighted option, and Escape/Backspace/Pause closes the selector.
 

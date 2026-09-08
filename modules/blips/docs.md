@@ -1,7 +1,11 @@
 # Blips module
 
 ## Overview
-The blips module creates map blips for the calling client only, cleaning them up automatically when the resource that created them stops.
+The blips module creates map blips for the calling client only, groups them in
+a fixed pause-map catalogue, and cleans them up automatically when the resource
+that created them stops. It also exposes the registered blips so a client UI can
+let each player hide categories without changing the native handles returned to
+calling resources.
 
 ## API
 
@@ -15,9 +19,13 @@ Creates a map blip.
   - `color: number` — Blip color index. Defaults to `Config.blips.defaultColor`.
   - `scale: number` — Blip scale. Defaults to `Config.blips.defaultScale`.
   - `shortRange: boolean` — Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange` (`true`).
-  - `label: string` — Blip name shown on the map/legend. Left as the sprite's own default label when omitted.
-  - `category: number | string` — A numeric native category, or a named custom
-    legend category shared by every blip using the same string.
+  - `category: number | string` — A fixed category name, supported legacy alias,
+    or numeric native category. Defaults to `Other`. Unknown strings fail fast.
+  - `name: string` — Location name within the category. Unless it matches the
+    category name, the displayed label becomes `Category: Name`.
+  - `label: string` — Backwards-compatible explicit map-label override.
+  - `display: integer` — Native display mode. Defaults to
+    `Config.blips.defaultDisplay` (`4`) and is restored after the blip is shown.
   - `route: boolean` — Draws a waypoint route line to the blip. If `color` is also set, the route is colored to match.
   - `info: QBBlipInfo` — Optional detail panel shown when the player highlights the blip in the pause map.
 
@@ -27,7 +35,8 @@ Creates a map blip.
 
 #### Behavior
 1. The calling resource is captured immediately via `GetInvokingResource()` (falling back to `GetCurrentResourceName()`).
-2. The blip is created with `AddBlipForCoord`, then sprite/color/scale/shortRange/category/label/route are applied.
+2. The blip is created with `AddBlipForCoord`, then
+   sprite/color/scale/shortRange/category/label/display/route are applied.
 3. The blip is tracked against the invoking resource and automatically removed if that resource stops.
 
 #### Example
@@ -35,7 +44,8 @@ Creates a map blip.
 local blip, err = QB.blips.create(GetEntityCoords(PlayerPedId()), {
     sprite = 1,
     color = 2,
-    label = 'Test Blip',
+    category = 'Business',
+    name = 'Test Blip', -- displayed as "Business: Test Blip"
     route = true,
 })
 
@@ -44,30 +54,94 @@ if not blip then
 end
 ```
 
-### Grouping service blips in the pause-map legend
+### Fixed pause-map categories
 
-Pass a string as `category` for normal service blips. qblib assigns it one of
-GTA's named custom categories (12-133), registers the heading, and reuses that
-category for every matching string. This collapses every branch of a service
-under one pause-map legend heading.
+Pass a fixed category name for normal service blips. Category matching trims
+whitespace and is case-insensitive. Every blip receives a category; omission
+uses `Other` (12). Unknown strings assert instead of silently consuming or
+changing native category ids.
 
-Numeric values are forwarded directly to `SetBlipCategory`. Category **2**
-shows every blip as a separate distance-bearing row; it does not group them.
-Categories 7, 10, and 11 are reserved GTA groupings, and 12-133 are the custom
-range managed by qblib when a string is supplied.
+| Category | ID | Category | ID |
+| --- | ---: | --- | ---: |
+| Other | 12 | Bank | 13 |
+| Bar | 14 | Business | 15 |
+| Clothing | 16 | Convenience | 17 |
+| Dispatch | 18 | Evidence | 19 |
+| Fuel | 20 | Garage | 21 |
+| Gang Garage | 22 | Grooming | 23 |
+| Hospital | 24 | Impound | 25 |
+| Jewellery | 26 | Job Garage | 27 |
+| Juice | 28 | Liquor | 29 |
+| Mechanic | 30 | Pharmacy | 31 |
+| Police | 32 | Recycling | 33 |
+| Restaurant | 34 | Scrapyard | 35 |
+| Tattoo | 36 | Vehicle Dealer | 37 |
+| Vehicle Tracking | 38 | Weapons | 39 |
+
+Legacy aliases remain accepted: `Ammu-Nation` → `Weapons`, `Clothing Store` →
+`Clothing`, `Tattoo Artist` → `Tattoo`, `Hairdresser`/`Barber` → `Grooming`,
+`Police Station` → `Police`, `Dispatch calls` → `Dispatch`, and `Rob's Liquor`
+→ `Liquor`. Numeric values remain a backwards-compatible pass-through to
+`SetBlipCategory`, but fixed names should be used by new code.
 
 ```lua
 for _, store in ipairs(Config.shops) do
     QB.blips.create(store.coords, {
         sprite = 73,
         color = 47,
-        label = 'Clothing Store',
-        category = 'Clothing Store',
+        category = 'Clothing',
+        name = store.name,
     })
 end
 ```
 
-Omit `category` for a marker that should not appear in the legend.
+`QB.blips.getCategoryIds()` returns a fresh canonical name-to-id table in both
+client and server realms. Mutating the returned table does not alter qblib's
+catalogue.
+
+### Registry and player visibility
+
+- `QB.blips.getCategories()` returns categories ordered by native id. Each
+  record contains `key`, `name`, `label`, `id`, `visible`, and `count`.
+- `QB.blips.getCategory(category)` returns one category record. Names, aliases,
+  and numeric native ids are accepted.
+- `QB.blips.getRegistered()` returns snapshots containing `handle`, `resource`,
+  numeric `category`, `categoryKey`, `name`, `label`, `sprite`, `color`,
+  `display`, `route`, and effective `visible` state.
+- `QB.blips.isCategoryVisible(category)` reads the player's current preference.
+- `QB.blips.hideCategory(category)` and `QB.blips.showCategory(category)` persist
+  the preference locally and return whether it changed.
+- `QB.blips.hide(blip)` and `QB.blips.show(blip)` change one tracked native blip
+  and return `true`, or `false, error` when the handle is invalid/untracked.
+
+A hidden blip uses display mode `0`. Showing it restores its configured display
+mode. Hiding also disables an active route line; showing restores the route and
+its configured color. `show(blip)` never overrides a hidden category.
+
+```lua
+for _, category in ipairs(QB.blips.getCategories()) do
+    print(category.label, category.count, category.visible)
+end
+
+QB.blips.hideCategory('Fuel')
+QB.blips.showCategory('Fuel')
+```
+
+### Player settings UI
+
+Players can run `/blips` to open qblib's compact AppShell settings screen. The
+screen lists the fixed categories and nests every currently registered blip
+beneath its category. Category actions apply immediately, update the open
+screen in place, and use the same client KVP preference as
+`hideCategory`/`showCategory`; they never change another player's map.
+
+Each registered blip shows its sprite and documented blip-colour name/index/hex
+metadata. Sprites used by first-party resources use the official FiveM
+`docs-backend.fivem.net/blips/<radar_name>` image. New or custom sprite ids use
+a generic map pin instead of guessing a broken asset URL, while retaining a
+link to the [FiveM blip reference](https://docs.fivem.net/docs/game-references/blips/).
+The creating resource is operational information and appears only when the
+server confirms the viewer has the `admin` ACE permission.
 
 ### Pause-map blip details
 
@@ -93,7 +167,7 @@ local blip = QB.blips.create(contract.coords, {
 })
 ```
 
-`image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`.
+`image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Shared dictionaries are retained once and released after the final panel using them is cleared or removed. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`. While a detailed blip is highlighted, qblib refreshes the frontend column every frame because GTA rebuilds pause-map columns continuously; the renderer returns to its low-frequency idle poll as soon as the highlight ends.
 
 ### `QB.blips.setInfo(blip, info)`
 

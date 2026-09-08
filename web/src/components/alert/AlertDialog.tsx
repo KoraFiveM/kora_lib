@@ -67,7 +67,7 @@ export function AlertDialogContainer() {
                     </div>
                 )}
                 <DialogHeader>
-                    {payload.title && <DialogTitle>{payload.title}</DialogTitle>}
+                    <DialogTitle className={payload.title ? undefined : "sr-only"}>{payload.title ?? "Confirmation"}</DialogTitle>
                     <DialogDescription className="whitespace-pre-line">{payload.message}</DialogDescription>
                 </DialogHeader>
 

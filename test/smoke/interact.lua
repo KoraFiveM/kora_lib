@@ -23,6 +23,7 @@ local player = { job = { name = "police" }, gang = { name = "ballas" }, citizeni
 local inventory = { key = true }
 local removedZones = 0
 local targetRegistrations = {}
+local targetRemovals = {}
 
 _G.RegisterNUICallback = function(name, fn) nuiCallbacks[name] = fn end
 _G.SendNUIMessage = function(message) nuiMessages[#nuiMessages + 1] = message end
@@ -48,8 +49,14 @@ _G.exports = {
             targetRegistrations[#targetRegistrations + 1] = { kind = 'model', value = model, options = options, distance = distance }
             return #targetRegistrations
         end,
-        removeEntity = function() return true end,
-        removeModel = function() return true end,
+        removeEntity = function(_, entity, id)
+            targetRemovals[#targetRemovals + 1] = { kind = 'entity', value = entity, id = id }
+            return true
+        end,
+        removeModel = function(_, model, id)
+            targetRemovals[#targetRemovals + 1] = { kind = 'model', value = model, id = id }
+            return true
+        end,
     },
 }
 
@@ -95,6 +102,7 @@ local function reset()
     boxOptions = {}
     removedZones = 0
     targetRegistrations = {}
+    targetRemovals = {}
     player = { job = { name = "police" }, gang = { name = "ballas" }, citizenid = "CID-1" }
     inventory = { key = true }
 end
@@ -134,6 +142,19 @@ harness.test('aim-target facade translates qblib actions and restrictions', func
     harness.assertTrue(registration.options[1].canInteract(202, 1.0, {}), 'job restriction should be evaluated by qblib')
     registration.options[1].onSelect(202, {})
     harness.assertEqual(selected, 1, 'target selection should dispatch the qblib action')
+end)
+
+harness.test('manual aim-target removal clears resource-stop ownership', function()
+    reset()
+    _G.GetInvokingResource = function() return 'manual_target_owner' end
+    local id = QB.interact.addEntity(202, { { label = 'Use' } }, 2.0)
+    _G.GetInvokingResource = function() return nil end
+
+    harness.assertTrue(QB.interact.removeEntity(202, id), 'manual removal should succeed')
+    mockHandle.fire('onClientResourceStop', 'manual_target_owner')
+
+    harness.assertEqual(#targetRemovals, 1,
+        'resource cleanup must not remove an aim target a second time after manual teardown')
 end)
 
 harness.test("selectOption dispatches the selected client event once and hides", function()
@@ -295,6 +316,19 @@ harness.test("named zones replace and remove cleanly", function()
     harness.assertTrue(QB.interact.removeZone("replace-me"), "removing an existing name should succeed")
     harness.assertEqual(removedZones, 2, "removeZone should call the underlying handle")
     harness.assertFalse(QB.interact.removeZone("replace-me"), "removed names should not be removed twice")
+end)
+
+harness.test("named zones are removed when their invoking resource stops", function()
+    reset()
+    _G.GetInvokingResource = function() return "zone_owner" end
+    QB.interact.addCircleZone("owned-zone", { x = 0, y = 0, z = 0 }, 1,
+        { options = { { label = "Owned" } } }, false)
+    _G.GetInvokingResource = function() return nil end
+
+    mockHandle.fire("onClientResourceStop", "zone_owner")
+
+    harness.assertEqual(removedZones, 1, "resource cleanup should remove the owner's named zone")
+    harness.assertFalse(QB.interact.removeZone("owned-zone"), "resource cleanup should clear the name registry")
 end)
 
 harness.test("target model and entity helpers create static box zones", function()

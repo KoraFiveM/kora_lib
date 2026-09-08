@@ -144,7 +144,12 @@ _G.IsRawKeyDown = function() return shiftDown end
 _G.IsControlPressed = function() return false end
 
 local radarCalls = {}
-_G.DisplayRadar = function(visible) radarCalls[#radarCalls + 1] = visible end
+local radarHidden = false
+_G.IsRadarHidden = function() return radarHidden end
+_G.DisplayRadar = function(visible)
+    radarCalls[#radarCalls + 1] = visible
+    radarHidden = not visible
+end
 
 dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
@@ -382,6 +387,18 @@ harness.test("confirmation returns full transform data and deletes the preview",
     harness.assertFalse(QB.placement.isActive(), "placement should be inactive after camera teardown")
     harness.assertEqual(frozen[1], false, "the player should be unfrozen after camera teardown")
     harness.assertTrue(radarCalls[#radarCalls] == true, "the radar should be restored")
+end)
+
+harness.test("placement preserves a radar that was already hidden", function()
+    radarHidden = true
+    radarCalls = {}
+
+    local p = QB.placement.start(OBJECT_MODEL)
+    cancelPlacement()
+
+    harness.assertEqual(p.state, "resolved", "cancel should still settle placement")
+    harness.assertFalse(radarCalls[#radarCalls], "placement must not force an originally hidden radar on")
+    radarHidden = false
 end)
 
 harness.test("an unexpectedly deleted preview rejects and cleans up", function()

@@ -131,9 +131,9 @@ end
 ---Waits for the initial handshake token if it hasn't arrived yet.
 ---@param name string
 ---@param ... any
----@return promise|any ... A promise for a same-VM caller (unchanged, awaitable as before -- it resolves
----with a `table.pack`'d `{n=, ...}` envelope, since the handler can return more than one value; unpack it
----yourself). For a genuine cross-resource caller, the handler's own return values themselves, unpacked --
+---@return promise|any ... A promise for a same-VM caller (unchanged, awaitable as before -- its resolved
+---value is the handler's first return value, while additional values remain available to qblib's internal
+---cross-resource settlement path). For a genuine cross-resource caller, the handler's return values are unpacked --
 ---e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
 ---settleForExport above).
 function QB.callback.trigger(name, ...)
@@ -199,7 +199,11 @@ end)
 -- TriggerClientEvent calls, same reasoning as QB.events.push/onPush.
 RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
     local handler = registry[name]
-    if handler == nil then return end
+    if handler == nil then
+        TriggerServerEvent(events.clientResponse, requestId, false,
+            ("Callback '%s' is not registered on the client."):format(tostring(name)))
+        return
+    end
 
     -- table.pack, not `local ok, result = pcall(...)` -- see the identical
     -- comment on server.lua's events.invoke handler for why a two-variable

@@ -35,7 +35,8 @@ export function TextUi() {
     return (
         <div
             className={`pointer-events-none fixed z-hud max-w-[calc(100vw-3rem)] select-none ${positionClasses[state.position]}`}
-            aria-hidden="true"
+            role="status"
+            aria-live="polite"
         >
             <div className="hud-chip overlay-text flex min-h-11 items-center gap-2 px-3 py-2 text-card-foreground">
                 {state.key && (

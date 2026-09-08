@@ -15,6 +15,8 @@ _G.GetControlInstructionalButton = function() return 't_K' end
 
 local invokingResource
 _G.GetInvokingResource = function() return invokingResource end
+local pauseMenuActive = false
+_G.IsPauseMenuActive = function() return pauseMenuActive end
 
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'local/resources/client.lua')
@@ -102,6 +104,21 @@ harness.test('disabled state suppresses callbacks and disabling while held clear
     net.commands['-disabled_action']()
     harness.assertEqual(presses, 2)
     harness.assertEqual(releases, 1)
+end)
+
+harness.test('pause menu suppresses new keybind presses', function()
+    local presses = 0
+    local handle = QB.keybind.add({
+        name = 'pause_safe_action', description = 'Pause safe', defaultKey = 'P',
+        onPressed = function() presses = presses + 1 end,
+    })
+
+    pauseMenuActive = true
+    net.commands['+pause_safe_action']()
+    pauseMenuActive = false
+
+    harness.assertEqual(presses, 0, 'a gameplay keybind should not fire through the pause menu')
+    harness.assertFalse(handle.isPressed(), 'a suppressed pause-menu press must not leave held state behind')
 end)
 
 harness.test('getCurrentBinding returns FiveM current primary display token', function()

@@ -203,7 +203,7 @@ RegisterNetEvent('qblib:server:screenshotProgressed', function(token, stage, val
     local stages = {
         received = 'client received request',
         captured = 'client encoded game frame',
-        sending = 'client started latent upload',
+        sending = 'client started browser upload',
     }
     local label = type(stage) == 'string' and stages[stage] or nil
     if not label then return end
@@ -306,6 +306,16 @@ local function receiveUpload(request, response)
     if not session then
         reply(response, 404, 'Capture request expired')
         return
+    end
+
+
+    local maxBytes = screenshotConfig().maxBytes or (12 * 1024 * 1024)
+    for name, value in pairs(request.headers or {}) do
+        if tostring(name):lower() == 'content-length' and tonumber(value) and tonumber(value) > maxBytes then
+            finish(session, 'The screenshot exceeded qblib\'s upload limit.')
+            reply(response, 413, 'The screenshot exceeded qblib\'s upload limit.')
+            return
+        end
     end
 
     request.setDataHandler(function(data)

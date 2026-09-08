@@ -9,6 +9,8 @@ local mocks = require('mocks')
 local net = mocks.install()
 local registeredExports = {}
 local nuiMessages = {}
+local nuiRequests = {}
+local httpHandler
 _G.exports = function(name, callback) registeredExports[name] = callback end
 
 dofile(repoRoot .. 'config.lua')
@@ -18,11 +20,26 @@ dofile(repoRoot .. 'build/initiate.lua')
 -- test can verify the capture wrapper without a browser or native texture.
 QB.nui = {
     request = function(action, payload)
+        nuiRequests[#nuiRequests + 1] = { action = action, payload = payload }
         local p = promise.new()
         if action == 'screenshot:capture' then
             p:resolve({ data = 'data:image/jpeg;base64,/9j/c21va2U=' })
         elseif action == 'screenshot:upload' then
-            p:resolve('uploaded')
+            if payload.rawBody and httpHandler then
+                local status
+                httpHandler({
+                    method = 'POST',
+                    path = payload.url:match('^https?://[^/]+(.+)$'),
+                    headers = { ['Content-Length'] = '8' },
+                    setDataHandler = function(handler) handler('\255\216\255smoke') end,
+                }, {
+                    writeHead = function(code) status = code end,
+                    send = function() end,
+                })
+                if status and status >= 200 and status < 300 then p:resolve('ok') else p:reject(('HTTP %s'):format(tostring(status))) end
+            else
+                p:resolve('uploaded')
+            end
         else
             p:reject('unexpected NUI action')
         end
@@ -65,8 +82,9 @@ harness.test('qblib registers its direct screenshot exports', function()
         'qblib should expose requestScreenshotUpload directly')
 end)
 
-_G.SetHttpHandler = function() end
+_G.SetHttpHandler = function(handler) httpHandler = handler end
 _G.GetPlayerName = function(player) return player == mocks.SOURCE and 'Smoke Tester' or nil end
+_G.GetCurrentServerEndpoint = function() return '127.0.0.1:30120' end
 
 dofile(repoRoot .. 'modules/screenshot/server.lua')
 
@@ -75,7 +93,7 @@ harness.test('qblib registers requestClientScreenshot directly', function()
         'qblib should expose requestClientScreenshot for server callers')
 end)
 
-harness.test('server capture returns one tokenized latent client upload', function()
+harness.test('server capture uses one tokenized raw browser upload', function()
     local callbackErr, callbackResult
     local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function(err, result)
         callbackErr, callbackResult = err, result
@@ -85,9 +103,13 @@ harness.test('server capture returns one tokenized latent client upload', functi
     local sent = mocks.lastEntry(net.triggeredClientEvents, 'qblib:client:screenshotRequested')
     harness.assertTrue(sent ~= nil, 'the server should ask the selected player to capture')
     harness.assertEqual(sent[1].token, token, 'the player should receive the one-time capture token')
-    local upload = mocks.lastEntry(net.triggeredServerEvents, 'qblib:server:screenshotCaptured')
-    harness.assertTrue(upload ~= nil and upload[1] == token,
-        'the client should return the image through the tokenized latent event')
+    local upload = nuiRequests[#nuiRequests]
+    harness.assertEqual(upload.action, 'screenshot:upload')
+    harness.assertTrue(upload.payload.rawBody, 'server captures should upload a binary Blob without creating a data URI')
+    harness.assertTrue(upload.payload.url:find('/qblib_test/screenshot/upload/' .. token, 1, true) ~= nil,
+        'the browser upload should carry the one-time server token')
+    harness.assertEqual(mocks.lastEntry(net.triggeredServerEvents, 'qblib:server:screenshotCaptured'), nil,
+        'new clients must not send multi-megabyte screenshot data through a Lua event')
     harness.assertEqual(callbackErr, false, 'success callback should receive false for err')
     harness.assertTrue(type(callbackResult) == 'string' and callbackResult:find('data:image/jpeg;base64,', 1, true) == 1,
         'a capture without a fileName should return a JPEG data URI')

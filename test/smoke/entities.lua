@@ -16,6 +16,7 @@ local VEHICLE_MODEL = 2001
 local OBJECT_MODEL = 3001
 local STUCK_MODEL = 9999 -- never reports as loaded, to exercise entities.create's failure path
 local DELAYED_MODEL = 4001 -- streams after the scope exits, to exercise the async cleanup path
+local THROW_MODEL = 5001
 
 local modelType = { [PED_MODEL] = "ped", [VEHICLE_MODEL] = "vehicle" }
 local neverLoads = { [STUCK_MODEL] = true }
@@ -24,6 +25,7 @@ local delayedLoads = { [DELAYED_MODEL] = true }
 local existingEntities = {}
 local entityCalls = {}
 local nextEntity = 0
+local throwSpawn = false
 
 function _G.IsModelValid() return true end
 function _G.HasModelLoaded(model) return not neverLoads[model] and not delayedLoads[model] end
@@ -40,7 +42,10 @@ local function spawn()
 end
 
 function _G.CreatePed() return spawn() end
-function _G.CreateObjectNoOffset() return spawn() end
+function _G.CreateObjectNoOffset(model)
+    if model == THROW_MODEL and throwSpawn then error('simulated spawn failure') end
+    return spawn()
+end
 function _G.CreateVehicle() return spawn() end
 function _G.DoesEntityExist(e) return existingEntities[e] == true end
 function _G.DeleteEntity(e) existingEntities[e] = nil end
@@ -212,6 +217,38 @@ harness.test("a scope exit while streaming never leaves a late entity behind", f
     net.step()
 
     harness.assertTrue(scope.entity == nil, "the completed stream must not create an entity after exit")
+    scope.remove()
+end)
+
+harness.test("re-entering while a model streams retains the completed entity", function()
+    delayedLoads[DELAYED_MODEL] = true
+    local scope = QB.entities.createScoped(DELAYED_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local zone = scopedZones[#scopedZones]
+
+    zone.opts.onEnter()
+    zone.opts.onExit()
+    zone.opts.onEnter()
+    delayedLoads[DELAYED_MODEL] = nil
+    net.step()
+
+    harness.assertTrue(scope.entity ~= nil and _G.DoesEntityExist(scope.entity),
+        "a re-entry during streaming should keep the entity completed by the in-flight spawn")
+    scope.remove()
+end)
+
+harness.test("a scoped spawn exception clears its guard so a later entry can retry", function()
+    throwSpawn = true
+    local scope = QB.entities.createScoped(THROW_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local zone = scopedZones[#scopedZones]
+
+    zone.opts.onEnter()
+    harness.assertTrue(scope.entity == nil, "a throwing creator must not leave an entity")
+    zone.opts.onExit()
+    throwSpawn = false
+    zone.opts.onEnter()
+
+    harness.assertTrue(scope.entity ~= nil and _G.DoesEntityExist(scope.entity),
+        "the scope should retry after a prior spawn exception")
     scope.remove()
 end)
 

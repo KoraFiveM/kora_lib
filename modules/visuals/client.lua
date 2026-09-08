@@ -37,34 +37,41 @@ local function setSprintMultiplier(multiplier)
     SetRunSprintMultiplierForPlayer(PlayerId(), multiplier)
 end
 
--- Overlapping drug effects (e.g. meth started while crack's boost is still
--- running) must not stomp each other's sprint multiplier: each effect's own
--- CreateThread ends with an unconditional reset to 1.0, so whichever effect
--- finishes first would otherwise cancel a still-active later effect's boost.
--- sprintEffectGeneration is a monotonically increasing token: beginSprintEffect
--- bumps it and hands the new value back to the caller; endSprintEffect only
--- resets the multiplier if the token it was given still matches the CURRENT
--- generation -- i.e. only if no later effect has started since. A later
--- effect's own beginSprintEffect call invalidates every earlier token, so an
--- earlier effect's teardown becomes a no-op once superseded.
+-- Overlapping drug effects need stack-like ownership of the one native sprint
+-- multiplier. The most recently started live effect wins. If it finishes
+-- first, the previous live effect is restored; if an older effect finishes
+-- first, the current value is left alone.
 local sprintEffectGeneration = 0
+local sprintEffects = {}
+local currentSprintToken = nil
 
 ---@param multiplier number
 ---@return integer token Pass to endSprintEffect once this effect's loop finishes.
 local function beginSprintEffect(multiplier)
     sprintEffectGeneration = sprintEffectGeneration + 1
+    local token = sprintEffectGeneration
+    sprintEffects[token] = multiplier
+    currentSprintToken = token
     setSprintMultiplier(multiplier)
-    return sprintEffectGeneration
+    return token
 end
 
----Resets the sprint multiplier to 1.0, but only if `token` still matches the
----current generation -- i.e. only if no later effect has claimed the slot
----since. A no-op otherwise, leaving the still-active later effect alone.
+---Releases one sprint effect and restores the newest still-live effect, or
+---the native default when none remain.
 ---@param playerId integer
 ---@param token integer
 local function endSprintEffect(playerId, token)
-    if token ~= sprintEffectGeneration then return end
-    SetRunSprintMultiplierForPlayer(playerId, 1.0)
+    if sprintEffects[token] == nil then return end
+    sprintEffects[token] = nil
+    if token ~= currentSprintToken then return end
+
+    local newestToken = nil
+    for candidate in pairs(sprintEffects) do
+        if not newestToken or candidate > newestToken then newestToken = candidate end
+    end
+
+    currentSprintToken = newestToken
+    SetRunSprintMultiplierForPlayer(playerId, newestToken and sprintEffects[newestToken] or 1.0)
 end
 
 ---@class QBVisualsStaminaEffectOptions

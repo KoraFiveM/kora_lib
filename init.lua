@@ -86,6 +86,12 @@ QB = setmetatable({}, {
             return module
         end
 
+        if k == 'config' then
+            local module = getConfigModule()
+            rawset(t, k, module)
+            return module
+        end
+
         -- Computed once per module access, not per call -- __call's own
         -- implicit self (the proxy table) still has to be stripped below,
         -- since a metamethod always receives it as its first argument
@@ -115,8 +121,3 @@ QB = setmetatable({}, {
         return proxy
     end,
 })
-
--- Make QB.config a real local table rather than an export proxy. Calling its
--- helpers records a schema in this resource and only then announces the
--- serializable catalog to qblib's server-side coordinator.
-rawset(QB, 'config', getConfigModule())

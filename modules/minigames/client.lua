@@ -40,17 +40,17 @@ end
 -- resource that called QB.minigames.play() stops mid-round, the coroutine
 -- driving beginPlay below is simply abandoned (there's no way to force a
 -- suspended Citizen.Await to unwind) -- this registry's onDispose is
--- best-effort visual cleanup: drop the guard so a new session can start,
--- release focus so the player isn't left mouse-locked, and close the
--- overlay so it isn't left on screen for an operation nothing is driving
--- anymore. The abandoned coroutine still terminates on its own once its
+-- best-effort visual cleanup: drop the guard so a new session can start and
+-- close the overlay so it isn't left on screen for an operation nothing is
+-- driving anymore. QB.nui owns and releases this session's focus lease and
+-- pending request through the same resource-stop event. The abandoned coroutine
+-- still terminates on its own once its
 -- pending promise settles or times out (every QB.callback.trigger and the
 -- round's QB.nui.request both have finite timeouts), it just has no one left
 -- to report its result to.
 local minigameOwnership = QB.resources.registry(function(token)
     if activeSession == token then
         activeSession = nil
-        SetNuiFocus(false, false)
         QB.nui.send("minigames:close", { result = "cancelled" })
     end
 end)
@@ -85,7 +85,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                         timeLimit = round.timeLimit,
                         lastResult = lastResult,
                         puzzle = round.public,
-                    }, round.timeLimit + Config.minigames.roundTimeoutBuffer))
+                    }, round.timeLimit + Config.minigames.roundTimeoutBuffer, resource))
 
                     -- Player pressed Escape (every minigame's Dialog resolves
                     -- {cancelled = true} on Escape/backdrop, same vocabulary
@@ -123,7 +123,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                     lastResult = "fail"
                     round = submitResult
                 end
-            end)
+            end, resource)
         end)
 
         minigameOwnership.untrack(token)

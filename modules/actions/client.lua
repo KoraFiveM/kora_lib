@@ -38,12 +38,12 @@ function QB.actions.run(options, ...)
     if active then return false, 'Another action is already active.' end
     active = true
 
-    local args = { ... }
+    local args = table.pack(...)
     local token, authorization
     local began, completionAttempted = false, false
     local ok, started, result = pcall(function()
         local beginErr
-        token, beginErr, authorization = options.begin(table.unpack(args))
+        token, beginErr, authorization = options.begin(table.unpack(args, 1, args.n))
         if not token then return false, beginErr end
         began = true
 
@@ -69,7 +69,7 @@ function QB.actions.run(options, ...)
             completed = uxCompleted == true,
             proof = proof,
             authorization = authorization,
-        }, table.unpack(args))
+        }, table.unpack(args, 1, args.n))
     end)
 
     active = false
@@ -79,7 +79,7 @@ function QB.actions.run(options, ...)
                 token = token,
                 completed = false,
                 authorization = authorization,
-            }, table.unpack(args))
+            }, table.unpack(args, 1, args.n))
             if not abortOk then
                 print(('^1[qblib:actions]^7 action abort callback failed: %s'):format(tostring(abortErr)))
             end

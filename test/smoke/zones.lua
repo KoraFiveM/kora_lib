@@ -77,7 +77,12 @@ _G.GetCamRot = function() return { x = 0, y = 0, z = 0 } end
 -- player with no map is exactly the kind of thing that goes unnoticed in a
 -- manual test.
 local radarCalls = {}
-_G.DisplayRadar = function(shown) radarCalls[#radarCalls + 1] = shown end
+local radarHidden = false
+_G.IsRadarHidden = function() return radarHidden end
+_G.DisplayRadar = function(shown)
+    radarCalls[#radarCalls + 1] = shown
+    radarHidden = not shown
+end
 
 dofile(repoRoot .. "modules/raycast/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
@@ -518,6 +523,7 @@ harness.test("isCreatorActive reflects whether a creator session is running", fu
 end)
 
 harness.test("the creator restores the minimap when it ends", function()
+    radarHidden = false
     radarCalls = {}
 
     local p = QB.zones.startCreator("box")
@@ -531,6 +537,19 @@ harness.test("the creator restores the minimap when it ends", function()
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
     harness.assertTrue(radarCalls[#radarCalls] == true,
         "the minimap must be restored on teardown -- leaving it hidden strands the player with no map")
+end)
+
+harness.test("the creator preserves a minimap that was already hidden", function()
+    radarHidden = true
+    radarCalls = {}
+
+    local p = QB.zones.startCreator("box")
+    registeredCommands["qblib_zonecreator_cancel"]()
+    net.step()
+
+    harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
+    harness.assertFalse(radarCalls[#radarCalls], "creator teardown must not force an originally hidden minimap on")
+    radarHidden = false
 end)
 
 harness.test("the creator holds and releases its camera control lease", function()

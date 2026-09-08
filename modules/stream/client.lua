@@ -1,6 +1,6 @@
 ---Generic request -> poll-until-loaded -> callback -> cleanup driver shared by
 ---every `QB.stream.load*` function, including `loadModel`. Skips the request
----if already loaded, polls with an exponential backoff up to a 10s timeout.
+---if already loaded, polls once per frame up to a 10s timeout.
 ---Cleanup runs on the failure path and right after a callback returns; when
 ---called WITHOUT a callback the asset is deliberately left loaded and the
 ---caller owns releasing it -- see each public function's doc comment for the
@@ -25,7 +25,7 @@ local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifie
     if not hasLoaded(identifier) then
         local ok, err = QB.loops.controlled(function()
             if hasLoaded(identifier) then return true end
-        end, false, 10000, true)
+        end, false, 10000, false)
 
         if not ok then
             remove(identifier)
@@ -187,7 +187,7 @@ function QB.stream.loadCollision(coords, cb, entity)
     local ok, err = QB.loops.controlled(function()
         RequestCollisionAtCoord(coords.x, coords.y, coords.z)
         return HasCollisionLoadedAroundEntity(entity)
-    end, false, 10000, true)
+    end, false, 10000, false)
 
     if not ok then
         return false, err
