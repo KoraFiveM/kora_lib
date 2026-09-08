@@ -137,6 +137,53 @@ H.test('adoption preserves executable and runtime-only legacy fields outside the
     H.assertEqual(registrations[#registrations].schema.fields.registry, nil)
 end)
 
+H.test('adoption validates sparse numeric object keys against their authored values', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local legacy = {
+        restricted = {
+            [2] = { enabled = true },
+            [10] = { enabled = false },
+        },
+    }
+    local config = makeConfig(library)
+
+    config.adopt(legacy)
+
+    H.assertTrue(legacy.restricted[2].enabled)
+    H.assertFalse(legacy.restricted[10].enabled)
+    H.assertTrue(registrations[#registrations].client.restricted[2].enabled)
+    H.assertFalse(registrations[#registrations].client.restricted[10].enabled)
+end)
+
+H.test('sparse numeric object keys persist and reload without becoming strings', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    local values = { classes = { [8] = true, [13] = true } }
+    config.adopt(values)
+
+    local result = registered.qblib_configCommit({ path = { 'classes', '13' }, value = false, revision = 1 })
+
+    H.assertTrue(result.ok, result.error)
+    H.assertTrue(result.restartRequired)
+    H.assertTrue(result.configured.classes[8])
+    H.assertFalse(result.configured.classes[13])
+    H.assertEqual(result.configured.classes['13'], nil)
+    H.assertTrue(files['config.local.lua']:find('%[13%] = false') ~= nil, files['config.local.lua'])
+    H.assertTrue(values.classes[13])
+
+    registered = {}
+    registrations = {}
+    config = makeConfig(library)
+    values = { classes = { [8] = true, [13] = true } }
+    config.adopt(values)
+    H.assertFalse(values.classes[13])
+    H.assertEqual(values.classes['13'], nil)
+end)
+
 H.test('nullable descriptors retain a nil authored default', function()
     files = {}
     registered = {}

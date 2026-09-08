@@ -262,6 +262,10 @@ return function(library)
         return out
     end
 
+    local function objectTableKey(schema, key)
+        return schema.fieldKeys and schema.fieldKeys[key] or key
+    end
+
     local function quote(value)
         return string.format('%q', value)
     end
@@ -288,7 +292,10 @@ return function(library)
         table.sort(numeric)
         table.sort(entries, function(a, b) return tostring(a) < tostring(b) end)
         local lines = {}
-        for _, key in ipairs(numeric) do lines[#lines + 1] = nextIndent .. serialize(value[key], nextIndent, seen) .. ',' end
+        for _, key in ipairs(numeric) do
+            lines[#lines + 1] = nextIndent .. '[' .. serialize(key, nextIndent, seen) .. '] = '
+                .. serialize(value[key], nextIndent, seen) .. ','
+        end
         for _, key in ipairs(entries) do
             lines[#lines + 1] = nextIndent .. '[' .. serialize(key, nextIndent, seen) .. '] = ' .. serialize(value[key], nextIndent, seen) .. ','
         end
@@ -339,7 +346,8 @@ return function(library)
         elseif schema.kind == 'object' then
             if type(value) ~= 'table' then return false, 'must be an object' end
             for key, child in pairs(schema.fields) do
-                local ok, err = validate(child, value[key])
+                local tableKey = objectTableKey(schema, key)
+                local ok, err = validate(child, value[tableKey])
                 if not ok then return false, ('%s %s'):format(key, err) end
             end
         elseif schema.kind == 'list' then
@@ -367,12 +375,13 @@ return function(library)
         if type(override) ~= 'table' then return end
         if schema.kind == 'object' then
             for key, child in pairs(schema.fields) do
-                if override[key] ~= nil then
-                    if child.kind == 'object' and type(target[key]) == 'table' then
-                        mergeKnown(child, target[key], override[key])
+                local tableKey = objectTableKey(schema, key)
+                if override[tableKey] ~= nil then
+                    if child.kind == 'object' and type(target[tableKey]) == 'table' then
+                        mergeKnown(child, target[tableKey], override[tableKey])
                     else
-                        local ok, value = validate(child, decodeStorage(override[key]))
-                        if ok then target[key] = value end
+                        local ok, value = validate(child, decodeStorage(override[tableKey]))
+                        if ok then target[tableKey] = value end
                     end
                 end
             end
@@ -428,8 +437,9 @@ return function(library)
         end
         local out = {}
         for key, child in pairs(schema.fields) do
-            local encoded = pruneOverrides(child, current[key], defaults[key])
-            if encoded ~= nil then out[key] = encoded end
+            local tableKey = objectTableKey(schema, key)
+            local encoded = pruneOverrides(child, current[tableKey], defaults[tableKey])
+            if encoded ~= nil then out[tableKey] = encoded end
         end
         return next(out) and out or nil
     end
@@ -459,7 +469,7 @@ return function(library)
     local function pathTableKey(schema, key)
         schema = unwrapOptional(schema)
         if schema and schema.kind == 'list' then return tonumber(key) end
-        if schema and schema.kind == 'object' then return schema.fieldKeys[key] or key end
+        if schema and schema.kind == 'object' then return objectTableKey(schema, key) end
         return key
     end
 
@@ -488,8 +498,9 @@ return function(library)
         if schema.kind == 'object' then
             local out = {}
             for key, child in pairs(schema.fields) do
-                local childValue = clientProjection(child, configured[key])
-                if childValue ~= nil then out[key] = childValue end
+                local tableKey = objectTableKey(schema, key)
+                local childValue = clientProjection(child, configured[tableKey])
+                if childValue ~= nil then out[tableKey] = childValue end
             end
             return out
         end
@@ -558,10 +569,11 @@ return function(library)
         if options.mutate then
             local function applyKnown(schemaBranch, target, source)
                 for key, child in pairs(schemaBranch.fields or {}) do
-                    if child.kind == 'object' and type(target[key]) == 'table' then
-                        applyKnown(child, target[key], source[key])
+                    local tableKey = objectTableKey(schemaBranch, key)
+                    if child.kind == 'object' and type(target[tableKey]) == 'table' then
+                        applyKnown(child, target[tableKey], source[tableKey])
                     else
-                        target[key] = copy(source[key])
+                        target[tableKey] = copy(source[tableKey])
                     end
                 end
             end
@@ -640,16 +652,19 @@ return function(library)
 
         local function mergeBranch(targetSchema, targetDefaults, targetConfigured, targetValues, sourceSchema, sourceDefaults, sourceConfigured)
             for key, childSchema in pairs(sourceSchema.fields or {}) do
-                local childDefaults = sourceDefaults[key]
-                local childConfigured = sourceConfigured[key]
+                local sourceTableKey = objectTableKey(sourceSchema, key)
+                local targetTableKey = objectTableKey(targetSchema, key)
+                local childDefaults = sourceDefaults[sourceTableKey]
+                local childConfigured = sourceConfigured[sourceTableKey]
                 if targetSchema.fields[key] and targetSchema.fields[key].kind == 'object' and childSchema.kind == 'object' then
-                    mergeBranch(targetSchema.fields[key], targetDefaults[key], targetConfigured[key], targetValues[key],
+                    mergeBranch(targetSchema.fields[key], targetDefaults[targetTableKey], targetConfigured[targetTableKey], targetValues[targetTableKey],
                         childSchema, childDefaults, childConfigured)
                 else
                     targetSchema.fields[key] = childSchema
-                    targetDefaults[key] = copy(childDefaults)
-                    targetConfigured[key] = copy(childConfigured)
-                    targetValues[key] = copy(childConfigured)
+                    targetSchema.fieldKeys[key] = sourceTableKey
+                    targetDefaults[sourceTableKey] = copy(childDefaults)
+                    targetConfigured[sourceTableKey] = copy(childConfigured)
+                    targetValues[sourceTableKey] = copy(childConfigured)
                 end
             end
         end
@@ -817,9 +832,10 @@ return function(library)
                 if schema.scope == 'server' or incoming == nil then return end
                 if schema.kind == 'object' then
                     for key, child in pairs(schema.fields) do
+                        local tableKey = objectTableKey(schema, key)
                         local childPath = copy(path)
                         childPath[#childPath + 1] = key
-                        apply(child, current[key], incoming[key], childPath)
+                        apply(child, current[tableKey], incoming[tableKey], childPath)
                     end
                     return
                 end
