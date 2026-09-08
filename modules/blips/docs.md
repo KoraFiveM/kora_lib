@@ -19,6 +19,7 @@ Creates a map blip.
   - `category: number | string` — A numeric native category, or a named custom
     legend category shared by every blip using the same string.
   - `route: boolean` — Draws a waypoint route line to the blip. If `color` is also set, the route is colored to match.
+  - `info: QBBlipInfo` — Optional detail panel shown when the player highlights the blip in the pause map.
 
 #### Returns
 - `number | false` — The created blip handle, or `false` if creation failed.
@@ -67,6 +68,43 @@ end
 ```
 
 Omit `category` for a marker that should not appear in the legend.
+
+### Pause-map blip details
+
+Set `info` to show activity-specific detail when the player highlights a blip in
+the pause map. This is best for unique or changing markers such as dispatch
+calls, contracts, and tracked evidence; a label and category remain the better
+choice for large groups of identical locations.
+
+```lua
+local blip = QB.blips.create(contract.coords, {
+    sprite = 68,
+    color = 5,
+    label = 'Tow Contract',
+    info = {
+        title = 'Abandoned vehicle',
+        money = '$2,500',
+        rows = {
+            { kind = 'name', label = 'Vehicle', value = 'Buffalo STX' },
+            { kind = 'icon', label = 'Difficulty', value = 'Medium', icon = 18, color = 5 },
+            { kind = 'wrappedText', value = 'Recover the vehicle without alerting the guards.' },
+        },
+    },
+})
+```
+
+`image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`.
+
+### `QB.blips.setInfo(blip, info)`
+
+Replaces a detail panel for a blip created by the calling resource. This also
+refreshes the panel when that blip is currently highlighted. It returns `false,
+error` if the blip no longer exists or belongs to another resource.
+
+### `QB.blips.clearInfo(blip)`
+
+Removes the calling resource's detail panel from one of its tracked blips.
+Returns the same success/error shape as `setInfo`.
 
 ### `QB.blips.remove(blip)`
 Removes one tracked blip immediately.

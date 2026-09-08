@@ -45,7 +45,7 @@ export function TextUi() {
                 )}
                 {!state.key && Icon && <Icon aria-hidden className="h-4 w-4 shrink-0 text-primary" />}
                 {state.key && Icon && <Icon aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                <span className="max-w-sm text-sm font-medium">{state.text}</span>
+                <span className="max-w-sm whitespace-pre-line text-sm font-medium leading-5">{state.text}</span>
             </div>
         </div>
     )

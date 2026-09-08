@@ -7,7 +7,8 @@ prematurely hiding one another.
 
 ## `QB.textui.show(text, opts?) -> id`
 
-Adds an entry and returns its integer handle. Options:
+Adds an entry and returns its integer handle. `text` may include newlines for
+a compact read-only status view. Options:
 
 - `key`: short control text such as `E` or `F6`.
 - `icon`: a supported Lucide icon name such as `Car` or `Key`.

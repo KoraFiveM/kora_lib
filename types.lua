@@ -240,6 +240,23 @@
 ---@field shortRange? boolean
 ---@field category? integer|string
 ---@field route? boolean
+---@field info? QBBlipInfo
+
+---@class QBBlipInfoRow
+---@field kind 'text'|'icon'|'name'|'header'|'wrappedText'
+---@field label? string|number Left-hand text. Omit for a wrapped-text row.
+---@field value? string|number Right-hand or wrapped text.
+---@field icon? integer Icon id for an `icon` row.
+---@field color? integer Icon color for an `icon` row.
+---@field checked? boolean Whether an `icon` row is checked.
+
+---@class QBBlipInfo
+---@field title string
+---@field verified? boolean Display the verified title mark.
+---@field image? {dictionary: string, texture: string} Pause-menu texture dictionary and texture name.
+---@field rp? string|number Optional RP title metadata.
+---@field money? string|number Optional money title metadata.
+---@field rows? QBBlipInfoRow[] Detail rows displayed below the title.
 
 ---@class QBControlsOptions
 ---@field inputGroup? integer
@@ -452,6 +469,7 @@
 ---@field label string
 ---@field icon? string
 ---@field variant? QBAppActionVariant
+---@field state? boolean Current boolean state for a toggle action, rendered as an On/Off indicator.
 ---@field disabled? boolean
 ---@field data? any
 ---@field fields? QBInputField[] Fields collected inline by AppShell before this action runs.
@@ -866,6 +884,8 @@
 ---@class QBLibBlips
 ---@field create fun(coords: QBCoords, options?: QBBlipsCreateOptions): integer|false, string? [client]
 ---@field remove fun(blip: integer): boolean, string? [client]
+---@field setInfo fun(blip: integer, info: QBBlipInfo): boolean, string? [client]
+---@field clearInfo fun(blip: integer): boolean, string? [client]
 
 ---@class QBConfigFieldOptions
 ---@field label? string

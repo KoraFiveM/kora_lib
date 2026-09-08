@@ -362,7 +362,11 @@ labels, and content remain the consumer's responsibility.
 
 Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.
 Button variants are `primary`, `secondary`, `outline`, `ghost`, and
-`destructive`. Icon strings use the same curated Lucide resolver as menus.
+`destructive`. Set an action's boolean `state` for a toggle: AppShell exposes
+an accessible pressed state and an explicit `On` or `Off` indicator beside the
+action label. Keep the label action-oriented (for example, `Turn Admin Duty
+Off`) so both the present state and the result of clicking are clear. Icon
+strings use the same curated Lucide resolver as menus.
 
 ## Legacy compat: `qb-menu` / `qb-input` / `qb-radialmenu`
 

@@ -55,9 +55,7 @@ export function ZoneConfirmDialog() {
     }, [payload])
 
     const handleCopyAndConfirm = useCallback(async () => {
-        await copySnippet()
-
-        respond({ confirmed: true })
+        if (await copySnippet()) respond({ confirmed: true })
     }, [copySnippet, respond])
 
     if (!isOpen || !payload) return null
@@ -79,6 +77,9 @@ export function ZoneConfirmDialog() {
                     <ScrollArea className="code-frame max-h-72 rounded-lg border">
                         <pre className="whitespace-pre p-3 font-mono text-[11px] leading-5 tabular-nums text-foreground">{payload.snippet}</pre>
                     </ScrollArea>
+                    {copyState === "failed" && (
+                        <p className="text-xs text-destructive" role="alert">Clipboard copy failed. The zone creator is still open.</p>
+                    )}
                 </div>
 
                 <DialogFooter>

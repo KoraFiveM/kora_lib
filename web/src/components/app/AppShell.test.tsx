@@ -36,6 +36,20 @@ beforeEach(() => {
 })
 
 describe("shared fields", () => {
+    it("keeps decimal number drafts intact while they are being typed", async () => {
+        const user = userEvent.setup()
+        render(<InputDialogContainer />)
+        dispatch("openInputDialog", { requestId: 29, token: "decimal-token", payload: { title: "Door settings", fields: [
+            { id: "tolerance", label: "Lockpick tolerance", type: "number", min: 0.03, max: 0.35, default: 0.14 },
+        ] } })
+
+        const tolerance = screen.getByLabelText("Lockpick tolerance")
+        await user.clear(tolerance)
+        await user.type(tolerance, "0.14")
+        expect(tolerance).toHaveValue("0.14")
+        expect(screen.getByRole("button", { name: "Confirm" })).toBeEnabled()
+    })
+
     it("applies the same validation, conditional fields, and multiselect behavior in dialogs", async () => {
         const user = userEvent.setup()
         render(<InputDialogContainer />)
@@ -77,6 +91,15 @@ describe("AppShell", () => {
         const form = screen.getByLabelText("Title").closest("form")
         expect(form).toBeTruthy()
         expect(screen.getByText("Other").compareDocumentPosition(form!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    })
+
+    it("shows a toggle action's current state and exposes it to assistive technology", () => {
+        render(<AppShell />)
+        openApp(baseApp({ actions: [{ id: "duty", label: "Turn Admin Duty Off", state: true }] }))
+        const action = screen.getByRole("button", { name: /Turn Admin Duty Off/ })
+        expect(action).toHaveAttribute("aria-pressed", "true")
+        expect(action).toHaveAttribute("data-state", "on")
+        expect(action).toHaveTextContent("On")
     })
 
     it("keeps controlling values while atomically resetting dependent choices", async () => {
@@ -174,6 +197,12 @@ describe("AppShell", () => {
         openApp({ id: "test:right", title: "Roster", layout: "compact", placement: "right", navigation: [{ id: "jobs", label: "Jobs" }] })
         expect(container.querySelector("main")).toHaveAttribute("data-placement", "right")
         expect(container.querySelector("main")?.parentElement).toHaveClass("justify-end")
+    })
+
+    it("keeps the game visible around the app shell", () => {
+        const { container } = render(<AppShell />)
+        openApp(baseApp({ title: "Home" }))
+        expect(container.querySelector("main")?.parentElement).not.toHaveClass("bg-modal-overlay")
     })
 
     it("supports searchable paged tables and nested card lists", async () => {

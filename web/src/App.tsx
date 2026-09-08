@@ -7,6 +7,7 @@ import { ClipboardHandler } from "@/components/clipboard/ClipboardHandler"
 import { Toast } from "@/components/notify/Toast"
 import { ProgressBar } from "@/components/progressbar/ProgressBar"
 import { ZoneCreatorHud } from "@/components/zones/ZoneCreatorHud"
+import { NoclipHud } from "@/components/noclip/NoclipHud"
 import { ZoneConfirmDialog } from "@/components/zones/ZoneConfirmDialog"
 import { PlacementHud } from "@/components/placement/PlacementHud"
 import { PlacementConfirmDialog } from "@/components/placement/PlacementConfirmDialog"
@@ -45,6 +46,7 @@ export default function App() {
             <Toast />
             <ProgressBar />
             <ZoneCreatorHud />
+            <NoclipHud />
             <ZoneConfirmDialog />
             <PlacementHud />
             <PlacementConfirmDialog />

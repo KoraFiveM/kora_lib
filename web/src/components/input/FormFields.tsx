@@ -173,9 +173,23 @@ function NumericKeypad({ value, maxLength, labels, onChange }: { value: string; 
 
 function NumberField({ id, field, value, error, describedBy, labels, onChange }: { id: string; field: InputField; value: FieldValue; error?: string; describedBy?: string; labels?: Partial<AppShellLabels>; onChange: (value: number) => void }) {
     const parsed = typeof value === "number" && Number.isFinite(value) ? value : 0
+    const [draft, setDraft] = useState(String(parsed))
     const step = field.step ?? 1
     const adjust = (direction: 1 | -1) => onChange(Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, parsed + direction * step)))
-    return <div className="flex items-center gap-2"><Input id={id} type="number" min={field.min} max={field.max} step={step} placeholder={field.placeholder} value={String(value ?? 0)} onChange={(event) => onChange(Number(event.target.value) || 0)} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="number-field min-w-0 flex-1" /><Button type="button" variant="outline" size="icon" aria-label={(labels?.decrease ?? "Decrease %{field}").replace("%{field}", field.label)} disabled={field.min !== undefined && parsed <= field.min} onClick={() => adjust(-1)}><Minus aria-hidden /></Button><Button type="button" variant="outline" size="icon" aria-label={(labels?.increase ?? "Increase %{field}").replace("%{field}", field.label)} disabled={field.max !== undefined && parsed >= field.max} onClick={() => adjust(1)}><Plus aria-hidden /></Button></div>
+
+    useEffect(() => setDraft(String(parsed)), [parsed])
+
+    const updateDraft = (next: string) => {
+        setDraft(next)
+        const nextValue = Number(next)
+        if (next !== "" && Number.isFinite(nextValue)) onChange(nextValue)
+    }
+
+    const resetInvalidDraft = () => {
+        if (draft === "" || !Number.isFinite(Number(draft))) setDraft(String(parsed))
+    }
+
+    return <div className="flex items-center gap-2"><Input id={id} type="text" inputMode="decimal" placeholder={field.placeholder} value={draft} onChange={(event) => updateDraft(event.target.value)} onBlur={resetInvalidDraft} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur() } }} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="number-field min-w-0 flex-1" /><Button type="button" variant="outline" size="icon" aria-label={(labels?.decrease ?? "Decrease %{field}").replace("%{field}", field.label)} disabled={field.min !== undefined && parsed <= field.min} onClick={() => adjust(-1)}><Minus aria-hidden /></Button><Button type="button" variant="outline" size="icon" aria-label={(labels?.increase ?? "Increase %{field}").replace("%{field}", field.label)} disabled={field.max !== undefined && parsed >= field.max} onClick={() => adjust(1)}><Plus aria-hidden /></Button></div>
 }
 
 function RangeValueInput({ field, value, error, describedBy, labels, onChange }: { field: InputField; value: number; error?: string; describedBy?: string; labels?: Partial<AppShellLabels>; onChange: (value: number) => void }) {

@@ -234,6 +234,8 @@ export interface AppAction {
     label: string
     icon?: string
     variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive"
+    /** Current boolean state for a toggle action. Shown as an On/Off indicator. */
+    state?: boolean
     disabled?: boolean
     data?: unknown
     /** Optional fields collected in the app shell before this action is sent. */
@@ -587,6 +589,13 @@ export interface ZoneCreatorConfirmPayload {
 }
 
 export type ZoneCreatorConfirmResult = { confirmed: boolean }
+
+// action: "noclip:hud" (fire-and-forget) -- show the noclip control HUD, or
+// unmount it when the payload is nullish. The owning resource controls the
+// movement and keybinds; this component is instructional only.
+export interface NoclipHudPayload {
+    active: boolean
+}
 
 // action: "progressStart" (fire-and-forget) -- mount ProgressBar. See
 // modules/progressbar/. Lua owns the actual timing/completion decision (a

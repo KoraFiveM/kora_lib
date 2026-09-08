@@ -14,7 +14,13 @@ dofile(repoRoot .. "build/initiate.lua")
 local existingBlips = {}
 local blipCalls = {}
 local textEntries = {}
+local missionCreatorBlips = {}
+local scaleformCalls = {}
+local textureRequests = {}
 local nextBlip = 0
+local frontendReady = false
+local hoveringBlip = false
+local selectedBlip = 0
 
 local function recordCall(blip, key, value)
     blipCalls[blip] = blipCalls[blip] or {}
@@ -39,6 +45,23 @@ function _G.SetBlipCategory(blip, category) recordCall(blip, "category", categor
 function _G.SetBlipRoute(blip, on) recordCall(blip, "route", on) end
 function _G.SetBlipRouteColour(blip, color) recordCall(blip, "routeColor", color) end
 function _G.AddTextEntry(key, value) textEntries[key] = value end
+function _G.SetBlipAsMissionCreatorBlip(blip, enabled) missionCreatorBlips[blip] = enabled end
+
+function _G.IsFrontendReadyForControl() return frontendReady end
+function _G.IsHoveringOverMissionCreatorBlip() return hoveringBlip end
+function _G.GetNewSelectedMissionCreatorBlip() return selectedBlip end
+function _G.BeginScaleformMovieMethodOnFrontend(method)
+    scaleformCalls[#scaleformCalls + 1] = method
+    return true
+end
+function _G.ScaleformMovieMethodAddParamInt(_) end
+function _G.ScaleformMovieMethodAddParamBool(_) end
+function _G.PushScaleformMovieFunctionParameterString(_) end
+function _G.EndScaleformMovieMethod() end
+function _G.BeginTextCommandScaleformString(_) end
+function _G.EndTextCommandScaleformString() end
+function _G.RequestStreamedTextureDict(dictionary) textureRequests[#textureRequests + 1] = dictionary end
+function _G.HasStreamedTextureDictLoaded(_) return true end
 
 function _G.BeginTextCommandSetBlipName(_) end
 function _G.AddTextComponentSubstringPlayerName(text) _G.__lastLabelText = text end
@@ -83,6 +106,53 @@ harness.test("route without an explicit color does not set a route color", funct
     harness.assertEqual(blipCalls[blip].routeColor, nil, "route color should be left unset without an explicit color")
 end)
 
+harness.test("creates and renders an optional pause-map detail panel", function()
+    local blip = QB.blips.create({ x = 0, y = 0, z = 0 }, {
+        info = {
+            title = "Abandoned Vehicle",
+            money = "$2,500",
+            image = { dictionary = "test_blips", texture = "vehicle" },
+            rows = {
+                { kind = "name", label = "Vehicle", value = "Buffalo STX" },
+                { kind = "icon", label = "Difficulty", value = "Medium", icon = 18, color = 5 },
+            },
+        },
+    })
+
+    harness.assertTrue(missionCreatorBlips[blip], "detailed blips should be selectable in the pause map")
+    harness.assertEqual(textureRequests[#textureRequests], "test_blips", "a panel image should request its texture dictionary")
+
+    frontendReady = true
+    hoveringBlip = true
+    selectedBlip = blip
+    net.step()
+
+    harness.assertEqual(scaleformCalls[#scaleformCalls], "DISPLAY_DATA_SLOT",
+        "hovering a detailed blip should render its data panel")
+
+    frontendReady = false
+    hoveringBlip = false
+    selectedBlip = 0
+end)
+
+harness.test("only the owner can change or clear a blip detail panel", function()
+    _G.GetInvokingResource = function() return "detail_owner" end
+    local blip = QB.blips.create({ x = 0, y = 0, z = 0 })
+    _G.GetInvokingResource = function() return nil end
+
+    local ok, err = QB.blips.setInfo(blip, { title = "Not allowed" })
+    harness.assertFalse(ok, "a different resource should not change blip details")
+    harness.assertEqual(err, "Blip is not owned by the calling resource.", "should explain the ownership refusal")
+
+    _G.GetInvokingResource = function() return "detail_owner" end
+    ok, err = QB.blips.setInfo(blip, { title = "Allowed" })
+    harness.assertTrue(ok, "the owner should be able to set blip details")
+    ok, err = QB.blips.clearInfo(blip)
+    harness.assertTrue(ok, "the owner should be able to clear blip details")
+    harness.assertFalse(missionCreatorBlips[blip], "clearing details should make the blip non-selectable")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.test("groups matching named categories under one custom legend entry", function()
     local first = QB.blips.create({ x = 0, y = 0, z = 0 }, { category = "Ammu-Nation" })
     local second = QB.blips.create({ x = 1, y = 1, z = 1 }, { category = "Ammu-Nation" })
@@ -103,6 +173,7 @@ harness.test("remove deletes a tracked blip", function()
     local ok = QB.blips.remove(blip)
     harness.assertTrue(ok, "remove should report success")
     harness.assertFalse(_G.DoesBlipExist(blip), "the blip should no longer exist after remove")
+    harness.assertEqual(missionCreatorBlips[blip], nil, "remove should discard the detail panel state")
 end)
 
 harness.test("remove reports failure for an already-removed blip", function()
