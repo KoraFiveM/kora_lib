@@ -392,6 +392,7 @@ payloads, cache behavior, and callbacks.
 
 ### Utilities (shared)
 ```lua
+QB.random.pick(list, options)  -- one value, or an array when options.count > 1
 QB.util.clamp(value, min, max)  QB.util.round(value, decimals)  QB.util.randomFloat(min, max)
 QB.util.weightedChoice(list)  QB.util.tableContains(t, value)  QB.util.deepClone(value)
 QB.util.lerp(a, b, t)

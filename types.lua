@@ -19,6 +19,10 @@
 ---@field max integer Maximum accepted calls in the sliding window.
 ---@field window integer Sliding-window length in milliseconds.
 
+---@class QBRandomPickOptions
+---@field count? integer Number of independent picks. Defaults to 1.
+---@field maxIndex? integer Highest eligible array index. Defaults to the array length.
+
 ---@alias QBScreenshotEncoding 'jpg'|'png'|'webp'
 
 ---@class QBScreenshotOptions
@@ -932,6 +936,7 @@
 ---@field print QBLibPrint
 ---@field progressbar QBLibProgressbar
 ---@field raycast QBLibRaycast
+---@field random QBLibRandom
 ---@field require QBLibRequire
 ---@field resources QBLibResources
 ---@field rewards QBLibRewards
@@ -1328,6 +1333,9 @@
 ---@field startFromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
 ---@field await fun(rayHandle: integer): boolean, QBCoords?, integer?, QBCoords? [client]
 ---@field poll fun(rayHandle: integer): boolean, boolean, QBCoords?, integer?, QBCoords? [client; settled, hit, coords, entityHit, surfaceNormal]
+
+---@class QBLibRandom
+---@field pick fun(list: any[], options?: QBRandomPickOptions): any|any[] [shared]
 
 ---@class QBLibRequire
 ---@field load fun(resource: string, paths: string|string[]): any [shared; an array returns one value per path]
