@@ -128,6 +128,19 @@ harness.test("vecDistance2d ignores height, vecDistance does not", function()
     harness.assertTrue(QB.util.vecDistance(a, b) > 100, "the 3D measure must include z")
 end)
 
+harness.test("vecDistance uses only dimensions shared by both vectors", function()
+    local vec2 = { x = 0, y = 0 }
+    local vec3 = { x = 3, y = 4, z = 100 }
+    local vec4 = { x = 3, y = 4, z = 12, w = 270 }
+
+    harness.assertEqual(QB.util.vecDistance(vec2, vec3), 5,
+        "vector2 versus vector3 should ignore the unavailable z component")
+    harness.assertEqual(QB.util.vecDistance(vec3, vec4), 88,
+        "vector3 versus vector4 should compare xyz and ignore heading")
+    harness.assertEqual(QB.util.vecDistance(vec4, { x = 0, y = 0, z = 0, w = -999 }), 13,
+        "different vector4 headings must not affect distance")
+end)
+
 harness.test("vecNormalize produces a unit vector and survives a zero vector", function()
     local unit = QB.util.vecNormalize({ x = 0, y = 5, z = 0 })
     assertClose(QB.util.vecLength(unit), 1, "a normalized vector has length 1")

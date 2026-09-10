@@ -15,11 +15,11 @@ Small shared, dependency-free helpers:
 
 ## Vector helpers (shared)
 
-These accept `vector3`/`vector4`/`{x, y, z}` interchangeably and always **return
-a plain `{x, y, z}` table**, never a CfxLua `vector3`. Two reasons: this file is
-shared and loads in the plain-Lua smoke-test harness where `vector3` doesn't
-exist, and a plain table survives `json.encode` and the exports boundary
-unchanged, which a `vector3` does not.
+These accept `vector2`/`vector3`/`vector4` and coordinate tables interchangeably
+and always **return a plain `{x, y, z}` table**, never a CfxLua `vector3`. Two
+reasons: this file is shared and loads in the plain-Lua smoke-test harness where
+`vector3` doesn't exist, and a plain table survives `json.encode` and the
+exports boundary unchanged, which a `vector3` does not.
 
 Names are flat (`vecAdd`, not `vec.add`) because `build/finalise.lua` only
 exports functions sitting directly on the module table — a nested sub-table
@@ -27,7 +27,9 @@ would be invisible to every other resource.
 
 - `QB.util.vecAdd(a, b)`, `QB.util.vecSub(a, b)`, `QB.util.vecScale(v, scalar)`
 - `QB.util.vecLength(v)`
-- `QB.util.vecDistance(a, b)` — 3D
+- `QB.util.vecDistance(a, b)` — compares every spatial component available on
+  both inputs. It is 2D when either input is a `vector2`, otherwise 3D; a
+  `vector4`'s `w` heading is always ignored.
 - `QB.util.vecDistance2d(a, b)` — ground-plane, ignoring `z`. The right measure
   for "how far away is that call": a caller three storeys up isn't 30 metres of
   driving away.

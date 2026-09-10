@@ -197,11 +197,29 @@ harness.test("creates and renders an optional pause-map detail panel", function(
         "the refreshed detail panel should remain visible")
     harness.assertEqual(textEntryCalls, labelsAfterFirstFrame,
         "reasserting the panel should reuse its registered text entries")
+    local emptyCalls = 0
+    for index = callsAfterFirstFrame + 1, #scaleformCalls do
+        if scaleformCalls[index] == "SET_DATA_SLOT_EMPTY" then emptyCalls = emptyCalls + 1 end
+    end
+    harness.assertEqual(emptyCalls, 0,
+        "refreshing unchanged content must not empty the visible column")
+
+    hoveringBlip = false
+    local callsBeforeTransientMiss = #scaleformCalls
+    net.step()
+    harness.assertEqual(#scaleformCalls, callsBeforeTransientMiss,
+        "one transient hover miss should leave the visible column untouched")
+    hoveringBlip = true
+    net.step()
+    harness.assertEqual(scaleformCalls[#scaleformCalls], "DISPLAY_DATA_SLOT",
+        "the detail panel should recover without being hidden after a transient miss")
 
     frontendReady = false
     hoveringBlip = false
     selectedBlip = 0
     local callsBeforeClose = #scaleformCalls
+    net.step()
+    net.step()
     net.step()
     harness.assertTrue(#scaleformCalls > callsBeforeClose,
         "closing the pause frontend should clear qblib's active detail column")

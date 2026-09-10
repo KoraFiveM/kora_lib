@@ -83,8 +83,8 @@ end
 
 -- --- vector helpers -------------------------------------------------------
 --
--- These accept vector3/vector4/{x,y,z} interchangeably and always RETURN a
--- plain `{x, y, z}` table, never a CfxLua `vector3`. Two reasons: this file is
+-- These accept vector2/vector3/vector4 and coordinate tables interchangeably
+-- and always RETURN a plain `{x, y, z}` table, never a CfxLua `vector3`. Two reasons: this file is
 -- shared and loads in the plain-Lua smoke-test harness where `vector3` doesn't
 -- exist, and a plain table survives json.encode and the exports boundary
 -- unchanged, which a vector3 does not. Callers that want a real vector3 can
@@ -99,8 +99,17 @@ end
 ---@return number x, number y, number z
 local function xyz(v, label)
     assert(v and type(v.x) == "number" and type(v.y) == "number",
-        ("%s expects a vector3/vector4 or {x, y, z} table."):format(label or "QB.util"))
-    return v.x, v.y, v.z or 0.0
+        ("%s expects a vector2/vector3/vector4 or coordinate table."):format(label or "QB.util"))
+
+    local z = type(v) == "vector2" and 0.0 or v.z or 0.0
+    return v.x, v.y, z
+end
+
+---@param v any
+---@return boolean
+local function hasZ(v)
+    local kind = type(v)
+    return kind == "vector3" or kind == "vector4" or (kind == "table" and v.z ~= nil)
 end
 
 ---Linear interpolation. `t` is not clamped -- pass a clamped value if you need
@@ -147,12 +156,23 @@ function QB.util.vecLength(v)
     return math.sqrt(x * x + y * y + z * z)
 end
 
----3D distance between two points.
----@param a vector3 | {x: number, y: number, z: number}
----@param b vector3 | {x: number, y: number, z: number}
+---Distance between two points using the dimensions available on both. This is
+---2D if either point has no `z`, otherwise it is 3D. A vector4's `w` heading is
+---never part of the distance.
+---@param a vector2 | vector3 | vector4 | {x: number, y: number, z?: number, w?: number}
+---@param b vector2 | vector3 | vector4 | {x: number, y: number, z?: number, w?: number}
 ---@return number
 function QB.util.vecDistance(a, b)
-    return QB.util.vecLength(QB.util.vecSub(a, b))
+    local ax, ay, az = xyz(a, "QB.util.vecDistance")
+    local bx, by, bz = xyz(b, "QB.util.vecDistance")
+    local dx, dy = ax - bx, ay - by
+
+    if not hasZ(a) or not hasZ(b) then
+        return math.sqrt(dx * dx + dy * dy)
+    end
+
+    local dz = az - bz
+    return math.sqrt(dx * dx + dy * dy + dz * dz)
 end
 
 ---2D (ground-plane) distance, ignoring z. This is the right measure for

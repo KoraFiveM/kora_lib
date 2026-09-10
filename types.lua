@@ -15,6 +15,13 @@
 ---@field w? number
 ---@field heading? number
 
+---@class QBSpatialVector
+---@field x number
+---@field y number
+---@field z? number
+---@field w? number
+---@field heading? number
+
 ---@class QBRateLimit
 ---@field max integer Maximum accepted calls in the sliding window.
 ---@field window integer Sliding-window length in milliseconds.
@@ -1441,16 +1448,16 @@
 ---@field weightedChoice fun(list: {[1]: any, [2]: number}[]): any [shared]
 ---@field tableContains fun(t: table, value: any): boolean [shared]
 ---@field lerp fun(a: number, b: number, t: number): number [shared]
----@field vecAdd fun(a: QBCoords, b: QBCoords): QBCoords [shared]
----@field vecSub fun(a: QBCoords, b: QBCoords): QBCoords [shared]
----@field vecScale fun(v: QBCoords, scalar: number): QBCoords [shared]
----@field vecLength fun(v: QBCoords): number [shared]
----@field vecDistance fun(a: QBCoords, b: QBCoords): number [shared]
----@field vecDistance2d fun(a: QBCoords, b: QBCoords): number [shared]
----@field vecNormalize fun(v: QBCoords): QBCoords [shared]
+---@field vecAdd fun(a: QBSpatialVector, b: QBSpatialVector): QBCoords [shared]
+---@field vecSub fun(a: QBSpatialVector, b: QBSpatialVector): QBCoords [shared]
+---@field vecScale fun(v: QBSpatialVector, scalar: number): QBCoords [shared]
+---@field vecLength fun(v: QBSpatialVector): number [shared]
+---@field vecDistance fun(a: QBSpatialVector, b: QBSpatialVector): number [shared]
+---@field vecDistance2d fun(a: QBSpatialVector, b: QBSpatialVector): number [shared]
+---@field vecNormalize fun(v: QBSpatialVector): QBCoords [shared]
 ---@field headingToDirection fun(heading: number): QBCoords [shared]
----@field directionToHeading fun(v: QBCoords): number [shared]
----@field bearing fun(origin: QBCoords, target: QBCoords): number [shared]
+---@field directionToHeading fun(v: QBSpatialVector): number [shared]
+---@field bearing fun(origin: QBSpatialVector, target: QBSpatialVector): number [shared]
 ---@field worldToScreen fun(coords: QBCoords): number, number, boolean [client]
 ---@field worldToScreenPixels fun(coords: QBCoords): number, number, boolean [client]
 

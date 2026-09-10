@@ -21,6 +21,9 @@ local INFO_ROW_STYLE = {
 local infoByBlip = {}
 local displayColumn = 1
 local selectedBlip = nil
+local renderedInfo = nil
+local missedSelectionPolls = 0
+local SELECTION_GRACE_POLLS = 3
 local textureRefcounts = {}
 local categoryCatalog = assert(QB.blips._categoryCatalog, 'QB.blips category catalogue did not load.')
 local registeredByBlip = {}
@@ -290,8 +293,9 @@ end
 
 ---@param blip number
 ---@param info QBBlipInfo
-local function renderInfo(blip, info)
-    clearDisplay()
+---@param clearExisting boolean
+local function renderInfo(blip, info, clearExisting)
+    if clearExisting then clearDisplay() end
 
     if BeginScaleformMovieMethodOnFrontend("SET_COLUMN_TITLE") then
         ScaleformMovieMethodAddParamInt(displayColumn)
@@ -338,39 +342,41 @@ CreateThread(function()
         local sleep = 1000
         local hasInfo = next(infoByBlip) ~= nil
         local frontendReady = hasInfo and IsFrontendReadyForControl()
-
-        -- Clear the last qblib column once the pause frontend closes or the
-        -- selected blip loses its final info record. Without this edge the
-        -- renderer can remain logically selected while its idle path sleeps.
-        if selectedBlip and not frontendReady then
-            selectedBlip = nil
-            setDisplayVisible(false)
-        end
+        local blip
+        local info
 
         if frontendReady then
             sleep = 50
-            local blip = GetNewSelectedMissionCreatorBlip()
+            if IsHoveringOverMissionCreatorBlip() then
+                blip = GetNewSelectedMissionCreatorBlip()
+                if DoesBlipExist(blip) then info = infoByBlip[blip] end
+            end
+        end
 
-            if IsHoveringOverMissionCreatorBlip() and DoesBlipExist(blip) then
-                local info = infoByBlip[blip]
-                local imageReady = info and (not info.image or HasStreamedTextureDictLoaded(info.image.dictionary))
-                if info and not imageReady then RequestStreamedTextureDict(info.image.dictionary) end
+        if info then
+            local imageReady = not info.image or HasStreamedTextureDictLoaded(info.image.dictionary)
+            if not imageReady then RequestStreamedTextureDict(info.image.dictionary) end
 
-                if info then
-                    -- The pause-map frontend rebuilds its columns continuously
-                    -- and can discard a one-shot SET_DATA_SLOT update on the
-                    -- next frame. Reassert the active detail panel every frame;
-                    -- the zero-wait loop only runs while one qblib blip is
-                    -- actually highlighted, so the idle path stays cheap.
-                    sleep = 0
-                    selectedBlip = blip
-                    renderInfo(blip, info)
-                elseif not info and selectedBlip then
-                    selectedBlip = nil
-                    setDisplayVisible(false)
-                end
-            elseif selectedBlip then
+            -- The pause-map frontend rebuilds its columns continuously and can
+            -- discard a one-shot update. Reassert the populated slots every
+            -- frame, but only empty the column when its content actually
+            -- changes; clearing a stable column every frame makes it flash.
+            sleep = 0
+            missedSelectionPolls = 0
+            local contentChanged = selectedBlip ~= blip or renderedInfo ~= info
+            selectedBlip = blip
+            renderedInfo = info
+            renderInfo(blip, info, contentChanged)
+        elseif selectedBlip then
+            -- Frontend selection natives can report a transient false result
+            -- while the pause map refreshes. Require consecutive misses so a
+            -- single bad frame cannot repeatedly hide and show the column.
+            sleep = 50
+            missedSelectionPolls = missedSelectionPolls + 1
+            if missedSelectionPolls >= SELECTION_GRACE_POLLS then
                 selectedBlip = nil
+                renderedInfo = nil
+                missedSelectionPolls = 0
                 setDisplayVisible(false)
             end
         end

@@ -397,7 +397,8 @@ QB.util.clamp(value, min, max)  QB.util.round(value, decimals)  QB.util.randomFl
 QB.util.weightedChoice(list)  QB.util.tableContains(t, value)  QB.util.deepClone(value)
 QB.util.lerp(a, b, t)
 QB.util.vecAdd/vecSub/vecScale/vecLength/vecNormalize(...)
-QB.util.vecDistance(a, b)  QB.util.vecDistance2d(a, b)   -- 2d ignores z; the right "how far is that call"
+QB.util.vecDistance(a, b)  -- shared dimensions only: vector2 = xy, vector3/vector4 = xyz; w is ignored
+QB.util.vecDistance2d(a, b)   -- always ignores z; the right "how far is that call"
 QB.util.headingToDirection(heading)  QB.util.directionToHeading(v)  QB.util.bearing(origin, target)
 QB.util.worldToScreen(coords)  QB.util.worldToScreenPixels(coords)   -- client
 QB.print.debug/info/warn/error/success(...)
