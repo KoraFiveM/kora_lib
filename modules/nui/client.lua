@@ -286,6 +286,8 @@ local function assertAppContent(content, location, actionIds)
     assert(type(content) == "table", ("%s content must be a table."):format(location))
     assert(content.title == nil or type(content.title) == "string", location .. " title must be a string.")
     assert(content.description == nil or type(content.description) == "string", location .. " description must be a string.")
+    assert(content.scrollable == nil or type(content.scrollable) == "boolean",
+        location .. " scrollable must be a boolean.")
 
     if content.actions ~= nil then
         assert(type(content.actions) == "table", ("%s actions must be a table."):format(location))
@@ -351,6 +353,8 @@ local function assertAppContent(content, location, actionIds)
             assert(block.layout == nil or block.layout == "list" or block.layout == "grid" or block.layout == "cards",
                 blockLocation .. " layout must be 'list', 'grid', or 'cards'.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
+            assert(block.scrollable == nil or type(block.scrollable) == "boolean",
+                blockLocation .. " scrollable must be a boolean.")
             assertCollectionOptions(block, blockLocation)
             assertListItems(block.items, blockLocation, actionIds)
         elseif block.type == "table" then

@@ -507,7 +507,7 @@ export type AppBlock =
     | { type: "stats"; title?: string; items: AppStat[] }
     | { type: "progress"; id?: string; title?: string; items: AppProgressItem[] }
     | { type: "table"; id?: string; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
-    | { type: "list"; id?: string; title?: string; items: AppListItem[]; empty?: string; layout?: "list" | "grid" | "cards"; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
+    | { type: "list"; id?: string; title?: string; items: AppListItem[]; empty?: string; layout?: "list" | "grid" | "cards"; searchable?: boolean; searchPlaceholder?: string; pageSize?: number; scrollable?: boolean }
     | { type: "actions"; id?: string; title?: string; actions: AppAction[] }
     | { type: "form"; id: string; title?: string; description?: string; fields: InputField[]; action: AppAction; submitLabel?: string }
     | { type: "details"; id?: string; title?: string; columns?: number; items: AppDetailItem[] }
@@ -520,6 +520,8 @@ export interface AppContent {
     description?: string
     actions?: AppAction[]
     blocks?: AppBlock[]
+    /** Set false to keep the shell fixed while a scrollable collection block owns overflow. */
+    scrollable?: boolean
 }
 
 export interface AppTab {

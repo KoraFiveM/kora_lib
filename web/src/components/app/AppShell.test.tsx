@@ -261,6 +261,22 @@ describe("AppShell", () => {
         expect(screen.getByText("Weather")).toBeInTheDocument()
     })
 
+    it("lets a collection own scrolling while the surrounding content stays fixed", () => {
+        render(<AppShell />)
+        openApp(baseApp({ scrollable: false, blocks: [
+            { type: "stats", items: [{ label: "Recipes", value: 2 }] },
+            { type: "list", id: "craftables", title: "Craftables", scrollable: true, items: [
+                { id: "board", label: "Board" }, { id: "nails", label: "Nails" },
+            ] },
+        ] }))
+
+        const list = screen.getByText("Craftables").closest("section")!
+        expect(list).toHaveClass("flex", "min-h-0")
+        expect(list.parentElement).toHaveClass("flex", "min-h-0")
+        expect(list.parentElement?.parentElement).toHaveClass("overflow-hidden")
+        expect(screen.getByText("Board").closest("article")?.parentElement).toHaveClass("overflow-y-auto")
+    })
+
     it("reconciles nested list navigation with live updates", async () => {
         const user = userEvent.setup()
         render(<AppShell />)

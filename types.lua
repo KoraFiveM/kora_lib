@@ -681,6 +681,7 @@
 ---@field searchable? boolean Enable client-side filtering.
 ---@field searchPlaceholder? string
 ---@field pageSize? integer Enable client-side paging when positive.
+---@field scrollable? boolean Let a list block own vertical overflow inside fixed content.
 ---@field fields? QBInputField[] Always-visible form fields.
 ---@field submitLabel? string Always-visible form submit label.
 ---@field tiles? QBAppMapTiles Map tile URL/projection definition.
@@ -699,6 +700,7 @@
 ---@field description? string
 ---@field actions? QBAppAction[]
 ---@field blocks? QBAppBlock[]
+---@field scrollable? boolean Set false to keep the content frame fixed.
 
 ---@class QBAppTab
 ---@field id string

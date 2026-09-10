@@ -375,7 +375,10 @@ labels, and content remain the consumer's responsibility.
   `searchPlaceholder?`, and `pageSize?`. A cell may be a scalar or
   `{ value?, label?, description?, icon?, tone?, badge? }`.
 - `list`: `id?`, `title?`, `layout = 'list'|'grid'|'cards'`, `searchable?`,
-  `searchPlaceholder?`, `pageSize?`, and recursive items. Items support
+  `searchPlaceholder?`, `pageSize?`, `scrollable?`, and recursive items. Set
+  content-level `scrollable = false` with a list-level `scrollable = true` when
+  the surrounding header and blocks should remain fixed while only the list
+  owns vertical overflow. Items support
   `description`, `image`, `icon`, `badge`, `tone`, `metadata`, `children`, a
   primary `action`, and multiple `actions`.
 - `actions`: `title?`, `actions`
