@@ -123,3 +123,38 @@ local entityHit, entityCoords, entityHandle = QB.raycast.await(entities) -- alre
 - `entityHit` is `0` (not `nil`) when the ray strikes bare world geometry rather than an entity -- check `entity ~= 0` before treating it as an entity handle.
 - Client-only: raycasting only makes sense against the calling client's own rendered world/camera, so this module has no `shared.lua`/`server.lua`, the same shape as `modules/stream` and `modules/zones`.
 - `modules/zones`' zone creator now calls `QB.raycast.fromCamera` instead of its own private copy; behavior there is unchanged.
+
+## Coordinate grabber
+
+### `QB.raycast.getCoords(data?)`
+
+Runs a small blocking coordinate-capture tool using the gameplay camera. With
+no options it draws a white orb at the current ray hit. Press E to return the
+coordinates or Backspace to cancel.
+
+```lua
+local result = QB.raycast.getCoords()
+if result then print(result.coords.x, result.coords.y, result.coords.z) end
+```
+
+Pass an object model for a temporary prop preview. Left and Right adjust only
+its heading; the preview is deleted when the grabber finishes and is never the
+persisted object itself.
+
+```lua
+local result = QB.raycast.getCoords({
+    type = 'object',
+    object = 'prop_bin_08',
+})
+
+if result then
+    print(result.object, result.coords.x, result.coords.y, result.coords.z, result.coords.w)
+end
+```
+
+The returned values are rounded to two decimal places. `coords.w` is included
+only in object mode. Optional `heading`, `maxDistance`, and shape-test `flags`
+can override the defaults of 180 degrees, 50 metres, and all intersections.
+Only one coordinate grabber may be active at once. UI, disabled controls, and
+the local preview entity are cleaned up on confirmation, cancellation, errors,
+or when either qblib or the calling resource stops.

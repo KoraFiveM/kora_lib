@@ -288,6 +288,7 @@ QB.fx.screenEffect(name, duration, looped)  QB.fx.stopScreenEffect(handle)
 QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)
 QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)
 QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
+QB.raycast.getCoords(data)
 ```
 
 ### World / entities / closest / distance

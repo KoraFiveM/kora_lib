@@ -23,6 +23,12 @@ end
 -- observed to surface as stale entity handles. Keep the wait bounded so a
 -- broken/invalid test can never strand its caller.
 local SHAPE_TEST_TIMEOUT_MS = 1000
+local COORD_GRABBER_CONTROLS = { 38, 174, 175, 177 }
+local COORD_GRABBER_DISTANCE = 50.0
+local COORD_GRABBER_ROTATION_SPEED = 60.0
+local COORD_GRABBER_PREVIEW_ALPHA = 100
+
+local activeCoordGrabber
 
 local function awaitShapeTest(rayHandle)
     local deadline = GetGameTimer() + SHAPE_TEST_TIMEOUT_MS
@@ -162,3 +168,130 @@ function QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
 
     return QB.raycast.fromCoords(camCoord, camDestination(camCoord, GetCamRot(cam, 2), maxDistance), flags, ignoreEntity)
 end
+
+local function roundToTwoPlaces(value)
+    return tonumber(("%.2f"):format(value))
+end
+
+local function releaseCoordGrabber(state)
+    if state.released then return end
+    state.released = true
+
+    if activeCoordGrabber == state then activeCoordGrabber = nil end
+    if state.controlLease then pcall(QB.controls.release, state.controlLease) end
+    if state.textui then pcall(QB.textui.hide, state.textui) end
+    if state.entity then pcall(QB.entities.remove, state.entity) end
+end
+
+local function coordGrabberResult(coords, heading, model)
+    local resultCoords = {
+        x = roundToTwoPlaces(coords.x),
+        y = roundToTwoPlaces(coords.y),
+        z = roundToTwoPlaces(coords.z),
+    }
+
+    if model then resultCoords.w = roundToTwoPlaces(heading) end
+
+    return {
+        coords = resultCoords,
+        object = model or false,
+    }
+end
+
+local function drawCoordMarker(coords)
+    DrawMarker(28, coords.x, coords.y, coords.z,
+        0.0, 0.0, 0.0, 0.0, 180.0, 0.0,
+        0.1, 0.1, 0.1, 255, 255, 255, 255,
+        false, true, 2, false, false, false, false)
+end
+
+local function runCoordGrabber(state)
+    state.controlLease = QB.controls.acquire(COORD_GRABBER_CONTROLS)
+    state.textui = QB.textui.show(state.model
+        and "**Left / Right:** rotate  ·  **E:** confirm  ·  **Backspace:** cancel"
+        or "**E:** confirm  ·  **Backspace:** cancel", {
+        icon = state.model and "Box" or "Crosshair",
+    }, state.owner)
+
+    while activeCoordGrabber == state do
+        local hit, coords = QB.raycast.fromCamera(state.maxDistance, state.flags,
+            state.entity or state.playerPed)
+
+        if hit and coords then
+            if state.model then
+                if not state.entity then
+                    local entity, createErr = QB.entities.create(state.model, coords, {
+                        preset = "static",
+                        heading = state.heading,
+                    })
+                    if not entity then error(createErr or "Failed to create coordinate preview.") end
+
+                    state.entity = entity
+                    SetEntityCollision(entity, false, false)
+                    SetEntityAlpha(entity, COORD_GRABBER_PREVIEW_ALPHA, false)
+                else
+                    SetEntityCoordsNoOffset(state.entity, coords.x, coords.y, coords.z, false, false, false)
+                end
+
+                if IsDisabledControlPressed(0, 174) then
+                    state.heading = (state.heading - COORD_GRABBER_ROTATION_SPEED * GetFrameTime()) % 360.0
+                elseif IsDisabledControlPressed(0, 175) then
+                    state.heading = (state.heading + COORD_GRABBER_ROTATION_SPEED * GetFrameTime()) % 360.0
+                end
+                SetEntityHeading(state.entity, state.heading)
+            else
+                drawCoordMarker(coords)
+            end
+
+            if IsDisabledControlJustReleased(0, 38) then
+                return coordGrabberResult(coords, state.heading, state.model)
+            end
+        end
+
+        if IsDisabledControlJustReleased(0, 177) then return nil end
+        Wait(0)
+    end
+
+    return nil
+end
+
+---Captures coordinates under the gameplay-camera crosshair. With no options,
+---a small orb marks the current hit. Passing `{ type = "object", object = model }`
+---uses a temporary heading-only prop preview instead. The preview is always
+---removed; this function only returns where a future object could be created.
+---@param data? { type?: 'object', object?: string|number, heading?: number, maxDistance?: number, flags?: number }
+---@return { coords: { x: number, y: number, z: number, w?: number }, object: string|number|false }? result
+function QB.raycast.getCoords(data)
+    data = data or {}
+    assert(type(data) == "table", "Coordinate grabber options must be a table.")
+    assert(data.type == nil or data.type == "object", "Coordinate grabber type must be 'object' when provided.")
+    assert(data.type ~= "object" or type(data.object) == "string" or type(data.object) == "number",
+        "Coordinate grabber object must be a model name or hash.")
+    assert(data.heading == nil or type(data.heading) == "number", "Coordinate grabber heading must be a number.")
+    assert(data.maxDistance == nil or type(data.maxDistance) == "number" and data.maxDistance > 0,
+        "Coordinate grabber maxDistance must be greater than zero.")
+    assert(data.flags == nil or type(data.flags) == "number", "Coordinate grabber flags must be a number.")
+    assert(not activeCoordGrabber, "A coordinate grabber is already active.")
+
+    local state = {
+        owner = GetInvokingResource() or GetCurrentResourceName(),
+        playerPed = PlayerPedId(),
+        model = data.type == "object" and data.object or nil,
+        heading = (data.heading or 180.0) % 360.0,
+        maxDistance = data.maxDistance or COORD_GRABBER_DISTANCE,
+        flags = data.flags,
+    }
+    activeCoordGrabber = state
+
+    local ok, result = pcall(runCoordGrabber, state)
+    releaseCoordGrabber(state)
+    if not ok then error(result, 0) end
+    return result
+end
+
+AddEventHandler("onClientResourceStop", function(resourceName)
+    local state = activeCoordGrabber
+    if state and (resourceName == state.owner or resourceName == GetCurrentResourceName()) then
+        releaseCoordGrabber(state)
+    end
+end)

@@ -13,6 +13,11 @@ This module fires world-geometry raycasts and reports what they hit -- coordinat
 - `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
   - Builds a ray from a given scripted camera handle's `GetCamCoord`/`GetCamRot(cam, 2)` out to `maxDistance`, then delegates to `fromCoords`.
   - Same return shape as `fromCoords`.
+- `QB.raycast.getCoords(data?)`
+  - Runs an interactive gameplay-camera coordinate picker. No options draws an
+    orb; `{ type = "object", object = model }` creates a heading-only preview.
+  - Returns rounded `{ coords, object }` data on E or `nil` on Backspace, and
+    always removes its temporary UI, controls lease, and preview.
 - `QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)` / `QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
   - Fire the shape test and return its raw handle immediately, without settling it.
 - `QB.raycast.await(rayHandle)`

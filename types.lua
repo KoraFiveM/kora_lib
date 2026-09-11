@@ -1338,10 +1338,22 @@
 ---@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; returns hit, coords, entityHit, surfaceNormal]
 ---@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; qblib order differs from ox_lib]
 ---@field fromCam fun(cam: integer, maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client]
+---@field getCoords fun(data?: QBRaycastCoordsOptions): QBRaycastCoordsResult? [client; blocks until confirmed or cancelled]
 ---@field start fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
 ---@field startFromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
 ---@field await fun(rayHandle: integer): boolean, QBCoords?, integer?, QBCoords? [client]
 ---@field poll fun(rayHandle: integer): boolean, boolean, QBCoords?, integer?, QBCoords? [client; settled, hit, coords, entityHit, surfaceNormal]
+
+---@class QBRaycastCoordsOptions
+---@field type? 'object' Omit for the default orb marker.
+---@field object? string|integer Preview model; required when type is object.
+---@field heading? number Initial preview heading. Defaults to 180.
+---@field maxDistance? number Maximum camera ray distance. Defaults to 50 metres.
+---@field flags? integer Shape-test flags. Defaults to all intersections.
+
+---@class QBRaycastCoordsResult
+---@field coords { x: number, y: number, z: number, w?: number } Two-decimal coordinates; w is present for object previews.
+---@field object string|integer|false Preview model, or false for the orb picker.
 
 ---@class QBLibRandom
 ---@field pick fun(list: any[], options?: QBRandomPickOptions): any|any[] [shared]

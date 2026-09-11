@@ -6,7 +6,7 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
-mocks.install()
+local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
@@ -212,6 +212,166 @@ harness.test("poll reports a settled miss as settled, not pending", function()
     local settled, hit = QB.raycast.poll(handle)
     harness.assertTrue(settled, "a completed miss is settled -- a caller must not poll it forever")
     harness.assertFalse(hit, "a miss reports hit = false")
+end)
+
+local acquiredLeases = 0
+local releasedLeases = 0
+local shownPrompts = 0
+local hiddenPrompts = 0
+local markerCalls = 0
+local createdPreview
+local removedPreview
+local confirmAfterPolls = 1
+local confirmPolls = 0
+local cancelPressed = false
+local rotateLeft = false
+
+QB.controls.acquire = function()
+    acquiredLeases = acquiredLeases + 1
+    return acquiredLeases
+end
+QB.controls.release = function()
+    releasedLeases = releasedLeases + 1
+    return true
+end
+QB.textui.show = function()
+    shownPrompts = shownPrompts + 1
+    return shownPrompts
+end
+QB.textui.hide = function()
+    hiddenPrompts = hiddenPrompts + 1
+    return true
+end
+QB.entities.create = function(model, coords, options)
+    createdPreview = {
+        entity = 99,
+        model = model,
+        coords = coords,
+        heading = options.heading,
+    }
+    return 99
+end
+QB.entities.remove = function(entity)
+    removedPreview = entity
+    return true
+end
+
+_G.DrawMarker = function() markerCalls = markerCalls + 1 end
+_G.SetEntityCollision = function() end
+_G.SetEntityAlpha = function() end
+_G.SetEntityCoordsNoOffset = function() end
+_G.SetEntityHeading = function() end
+_G.GetFrameTime = function() return 0.1 end
+_G.IsDisabledControlPressed = function(_, control)
+    return rotateLeft and control == 174
+end
+_G.IsDisabledControlJustReleased = function(_, control)
+    if control == 38 then
+        confirmPolls = confirmPolls + 1
+        return confirmPolls >= confirmAfterPolls
+    end
+    return control == 177 and cancelPressed
+end
+
+local function resetGrabberMocks()
+    markerCalls = 0
+    createdPreview = nil
+    removedPreview = nil
+    confirmAfterPolls = 1
+    confirmPolls = 0
+    cancelPressed = false
+    rotateLeft = false
+end
+
+harness.test("getCoords defaults to an orb and returns rounded coordinates", function()
+    resetGrabberMocks()
+    nextResult = {
+        hit = 1,
+        coords = { x = 1.234, y = -5.678, z = 9.876 },
+        surfaceNormal = { x = 0, y = 0, z = 1 },
+        entityHit = 0,
+    }
+
+    local result = QB.raycast.getCoords()
+
+    harness.assertEqual(result.coords.x, 1.23, "x should be rounded to two decimal places")
+    harness.assertEqual(result.coords.y, -5.68, "negative values should be rounded to two decimal places")
+    harness.assertEqual(result.coords.z, 9.88, "z should be rounded to two decimal places")
+    harness.assertFalse(result.object, "orb mode should not report an object")
+    harness.assertEqual(markerCalls, 1, "orb mode should draw its marker at the hit")
+    harness.assertEqual(releasedLeases, acquiredLeases, "confirm should release its controls")
+    harness.assertEqual(hiddenPrompts, shownPrompts, "confirm should hide its prompt")
+end)
+
+harness.test("getCoords uses a heading-only object preview and ignores it on later rays", function()
+    resetGrabberMocks()
+    confirmAfterPolls = 2
+    rotateLeft = true
+    nextResult = {
+        hit = 1,
+        coords = { x = 10, y = 20, z = 30 },
+        surfaceNormal = { x = 0, y = 0, z = 1 },
+        entityHit = 0,
+    }
+
+    local result = QB.raycast.getCoords({ type = "object", object = "prop_bin_08" })
+
+    harness.assertEqual(createdPreview.model, "prop_bin_08", "the requested preview model should be created")
+    harness.assertEqual(lastRayArgs[8], 99, "later rays should ignore the preview instead of hitting it")
+    harness.assertEqual(result.coords.w, 168, "only heading should change while rotate-left is held")
+    harness.assertEqual(result.object, "prop_bin_08", "the result should identify the preview model")
+    harness.assertEqual(removedPreview, 99, "confirm should remove the temporary preview")
+end)
+
+harness.test("getCoords cancels without coordinates when Backspace is released", function()
+    resetGrabberMocks()
+    confirmAfterPolls = math.huge
+    cancelPressed = true
+    nextResult = { hit = 0 }
+
+    local result = QB.raycast.getCoords()
+
+    harness.assertTrue(result == nil, "cancel should return nil")
+    harness.assertEqual(releasedLeases, acquiredLeases, "cancel should release its controls")
+    harness.assertEqual(hiddenPrompts, shownPrompts, "cancel should hide its prompt")
+end)
+
+harness.test("getCoords cleans up and reports preview creation failures", function()
+    resetGrabberMocks()
+    nextResult = {
+        hit = 1,
+        coords = { x = 1, y = 2, z = 3 },
+        surfaceNormal = { x = 0, y = 0, z = 1 },
+        entityHit = 0,
+    }
+    local create = QB.entities.create
+    QB.entities.create = function() return false, "model did not load" end
+
+    local ok, err = pcall(QB.raycast.getCoords, { type = "object", object = "missing_prop" })
+    QB.entities.create = create
+
+    harness.assertFalse(ok, "a failed preview should reject the grabber")
+    harness.assertTrue(tostring(err):find("model did not load", 1, true) ~= nil,
+        "the entity creation error should reach the caller")
+    harness.assertEqual(releasedLeases, acquiredLeases, "errors should release controls")
+    harness.assertEqual(hiddenPrompts, shownPrompts, "errors should hide the prompt")
+end)
+
+harness.test("getCoords exits cleanly when its owning resource stops", function()
+    resetGrabberMocks()
+    confirmAfterPolls = math.huge
+    nextResult = { hit = 0 }
+    local wait = Wait
+    _G.Wait = function()
+        net.fire("onClientResourceStop", "qblib_test")
+    end
+
+    local result = QB.raycast.getCoords()
+    _G.Wait = wait
+
+    harness.assertTrue(result == nil, "resource shutdown should cancel the grabber")
+    harness.assertEqual(releasedLeases, acquiredLeases, "resource shutdown should release controls")
+    harness.assertEqual(hiddenPrompts, shownPrompts, "resource shutdown should hide the prompt")
 end)
 
 harness.report("raycast")
