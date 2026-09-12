@@ -4,6 +4,11 @@
 Shared infrastructure for the pattern nearly every owned-state module needs: track which resource created/registered a given id, and automatically release everything a resource owned when it stops. `modules/entities`, `modules/zones`, `modules/cache`, `local/callback`, and `local/events` all used to hand-roll this themselves (a `byResource[resource] = {id set}` table, a reverse `id -> resource` lookup, and a `onClientResourceStop`/`onResourceStop` sweep); `local/resources` factors that shape out into one reusable factory per realm so a module doesn't have to copy it.
 
 ## Public API
+- `QB.resources.isStarted(resourceName)` (shared)
+- `QB.resources.awaitStarted(resourceName, options?)` (shared)
+  - Waits for `started` with bounded `timeout` and `interval` options.
+  - Returns immediately with `false, "missing"` for an unknown resource and
+    `false, "timeout"` when a known dependency does not start in time.
 - `QB.resources.registry(onDispose)` (client)
 - `QB.resources.serverRegistry(onDispose)` (server)
   - Same shape on both realms, swept on `onClientResourceStop` vs `onResourceStop` respectively. Each creates and returns a new, isolated registry: `{ track, untrack, owner }`.

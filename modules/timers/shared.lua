@@ -310,6 +310,43 @@ function QB.timers.throttle(fn, interval)
     })
 end
 
+---Creates independent leading-edge cooldowns keyed by player, action, or any
+---other scalar identity. The handle contains no cleanup policy: callers reset
+---player keys on disconnect when the handle is retained by long-lived code.
+---@param interval number Minimum milliseconds between accepted uses.
+---@return table cooldown `.use(key)`, `.remaining(key)`, and `.reset(key?)` survive the export boundary.
+function QB.timers.cooldown(interval)
+    interval = assertInterval(interval, 'QB.timers.cooldown')
+    local usedAt = {}
+    local cooldown = {}
+
+    function cooldown.use(key)
+        assert(key ~= nil, 'QB.timers cooldown use requires a key.')
+        local now = GetGameTimer()
+        local previous = usedAt[key]
+        if previous and now - previous < interval then return false end
+        usedAt[key] = now
+        return true
+    end
+
+    function cooldown.remaining(key)
+        assert(key ~= nil, 'QB.timers cooldown remaining requires a key.')
+        local previous = usedAt[key]
+        if not previous then return 0 end
+        return math.max(0, interval - (GetGameTimer() - previous))
+    end
+
+    function cooldown.reset(key)
+        if key == nil then
+            usedAt = {}
+            return
+        end
+        usedAt[key] = nil
+    end
+
+    return cooldown
+end
+
 ---Live timer count, for diagnostics and tests. Debounce/throttle wrappers are
 ---not timers themselves; a debouncer with a pending run contributes one.
 ---@return integer

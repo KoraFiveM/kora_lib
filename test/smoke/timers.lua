@@ -214,6 +214,20 @@ harness.test("throttle forwards arguments to the wrapped function", function()
     harness.assertEqual(seen[2], 42, "second argument should be forwarded")
 end)
 
+harness.test("keyed cooldowns keep identities independent", function()
+    local cooldown = QB.timers.cooldown(1000)
+    harness.assertTrue(cooldown.use('a'))
+    harness.assertFalse(cooldown.use('a'))
+    harness.assertTrue(cooldown.use('b'))
+    harness.assertTrue(cooldown.remaining('a') > 0)
+
+    cooldown.reset('a')
+    harness.assertTrue(cooldown.use('a'))
+    cooldown.reset()
+    harness.assertEqual(cooldown.remaining('a'), 0)
+    harness.assertEqual(cooldown.remaining('b'), 0)
+end)
+
 -- The `__call` metamethod does not cross the export boundary, so every handle
 -- must also expose a plain `.run` field -- funcrefs DO cross. Dropping `.run`
 -- is what broke qbpolice's melee detector with "attempt to call a table value".

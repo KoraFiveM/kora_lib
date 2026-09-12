@@ -5,6 +5,25 @@ Shared infrastructure for tracking which resource created/registered a given id,
 
 ## API
 
+### `QB.resources.isStarted(resourceName)` (shared)
+
+Returns `true` only when `GetResourceState(resourceName)` is `started`.
+
+### `QB.resources.awaitStarted(resourceName, options?)` (shared)
+
+Waits for a dependency without creating an unbounded startup loop. Options are
+`timeout` (default `10000`) and `interval` (default `100`), both milliseconds.
+Returns `true` when ready, `false, "missing"` for an unknown resource, or
+`false, "timeout"` when the deadline expires.
+
+```lua
+local ready, reason = QB.resources.awaitStarted('qbinventory', {
+    timeout = 30000,
+    interval = 200,
+})
+if not ready then print(('qbinventory unavailable: %s'):format(reason)) end
+```
+
 ### `QB.resources.registry(onDispose)` (client)
 ### `QB.resources.serverRegistry(onDispose)` (server)
 Creates a new, isolated ownership registry. Identical shape on both realms — swept on `onClientResourceStop` (client) or `onResourceStop` (server).

@@ -72,6 +72,24 @@ function QB.util.isFiniteNumber(value)
     return type(value) == "number" and value == value and value > -math.huge and value < math.huge
 end
 
+---Returns whether a value is a finite integer.
+---@param value any
+---@return boolean
+function QB.util.isInteger(value)
+    return QB.util.isFiniteNumber(value) and value % 1 == 0
+end
+
+---Decodes JSON without throwing on malformed external data.
+---@param value string
+---@return any decoded
+---@return string? reason
+function QB.util.decodeJson(value)
+    assert(type(value) == 'string', 'QB.util.decodeJson requires a string.')
+    local ok, decoded = pcall(json.decode, value)
+    if not ok then return nil, 'invalid_json' end
+    return decoded
+end
+
 ---@param value number
 ---@param min number
 ---@param max number

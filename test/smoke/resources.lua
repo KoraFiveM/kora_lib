@@ -9,8 +9,32 @@ local mocks = require("mocks")
 local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
+dofile(repoRoot .. "local/resources/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
+
+harness.test("isStarted reports only the started state", function()
+    _G.GetResourceState = function(name) return name == "ready" and "started" or "stopped" end
+    harness.assertTrue(QB.resources.isStarted("ready"))
+    harness.assertFalse(QB.resources.isStarted("waiting"))
+end)
+
+harness.test("awaitStarted distinguishes started, missing, and timeout", function()
+    _G.GetResourceState = function(name)
+        if name == "ready" then return "started" end
+        if name == "absent" then return "missing" end
+        return "stopped"
+    end
+
+    harness.assertTrue(QB.resources.awaitStarted("ready"))
+    local absent, absentReason = QB.resources.awaitStarted("absent")
+    harness.assertFalse(absent)
+    harness.assertEqual(absentReason, "missing")
+    local waiting, waitingReason = QB.resources.awaitStarted("waiting", { timeout = 10, interval = 5 })
+    harness.assertFalse(waiting)
+    harness.assertEqual(waitingReason, "timeout")
+end)
 
 harness.test("track then owner reports the tracking resource", function()
     local disposed = {}

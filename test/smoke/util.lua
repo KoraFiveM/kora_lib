@@ -5,6 +5,13 @@ package.path = testDir .. "?.lua;" .. package.path
 
 local harness = require("harness")
 
+_G.json = {
+    decode = function(value)
+        if value == '{"ok":true}' then return { ok = true } end
+        error('malformed')
+    end,
+}
+
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
@@ -66,6 +73,22 @@ harness.test("isFiniteNumber rejects non-numbers, NaN, and infinities", function
     harness.assertFalse(QB.util.isFiniteNumber(0 / 0))
     harness.assertFalse(QB.util.isFiniteNumber(math.huge))
     harness.assertFalse(QB.util.isFiniteNumber(-math.huge))
+end)
+
+harness.test("isInteger accepts only finite whole numbers", function()
+    harness.assertTrue(QB.util.isInteger(3))
+    harness.assertTrue(QB.util.isInteger(-2))
+    harness.assertFalse(QB.util.isInteger(1.5))
+    harness.assertFalse(QB.util.isInteger(math.huge))
+    harness.assertFalse(QB.util.isInteger("3"))
+end)
+
+harness.test("decodeJson returns a stable recoverable failure", function()
+    local decoded = QB.util.decodeJson('{"ok":true}')
+    harness.assertTrue(decoded.ok)
+    local invalid, reason = QB.util.decodeJson('{')
+    harness.assertEqual(invalid, nil)
+    harness.assertEqual(reason, 'invalid_json')
 end)
 
 harness.test("clamp bounds a value within min/max", function()

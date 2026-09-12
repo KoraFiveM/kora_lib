@@ -13,6 +13,10 @@ Small shared, dependency-free helpers:
   without splitting a codepoint. Invalid UTF-8 returns `nil, "invalid_utf8"`.
 - `QB.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
   strings, NaN, and positive/negative infinity.
+- `QB.util.isInteger(value)` accepts only finite whole numbers.
+- `QB.util.decodeJson(value)` decodes JSON without throwing on malformed
+  external data; failures return `nil, "invalid_json"`. It deliberately does
+  not choose a fallback value or log policy for the caller.
 - `QB.util.clamp(value, min, max)` bounds a number.
 - `QB.util.round(value, decimals?)` rounds to decimal places.
 - `QB.util.randomFloat(min, max)` returns a uniform float in the range.

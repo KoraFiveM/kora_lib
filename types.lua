@@ -48,6 +48,15 @@
 ---@field untrack fun(id: any): string?
 ---@field owner fun(id: any): string?
 
+---@class QBResourceAwaitOptions
+---@field timeout? number Defaults to 10000 milliseconds.
+---@field interval? number Defaults to 100 milliseconds.
+
+---@class QBCooldownHandle
+---@field use fun(key: any): boolean
+---@field remaining fun(key: any): integer
+---@field reset fun(key?: any)
+
 ---@class QBKeybindOptions
 ---@field name string Stable command name without whitespace.
 ---@field description string FiveM settings label.
@@ -1373,6 +1382,8 @@
 ---@field ["local"] fun(paths: string|string[]): any [shared; bracket-form alias of current]
 
 ---@class QBLibResources
+---@field isStarted fun(resourceName: string): boolean [shared]
+---@field awaitStarted fun(resourceName: string, options?: QBResourceAwaitOptions): boolean, string? [shared]
 ---@field registry fun(onDispose: fun(id: any)): QBResourcesRegistry [client]
 ---@field serverRegistry fun(onDispose: fun(id: any)): QBResourcesRegistry [server]
 
@@ -1459,6 +1470,7 @@
 ---@field clearTimeout fun(id: integer): boolean [shared]
 ---@field debounce fun(fn: fun(...), wait: number): QBDebounced [shared]
 ---@field throttle fun(fn: fun(...), interval: number): QBThrottled [shared]
+---@field cooldown fun(interval: number): QBCooldownHandle [shared]
 ---@field count fun(): integer [shared]
 
 ---@class QBLibUtil
@@ -1468,6 +1480,8 @@
 ---@field trim fun(value: any): any [shared]
 ---@field truncateUtf8 fun(value: string, maximum: integer): string|nil, string? [shared]
 ---@field isFiniteNumber fun(value: any): boolean [shared]
+---@field isInteger fun(value: any): boolean [shared]
+---@field decodeJson fun(value: string): any, string? [shared]
 ---@field clamp fun(value: number, min: number, max: number): number [shared]
 ---@field round fun(value: number, decimals?: integer): number [shared]
 ---@field randomFloat fun(min: number, max: number): number [shared]

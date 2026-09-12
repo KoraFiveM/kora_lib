@@ -124,6 +124,23 @@ reportMelee.run()  -- correct everywhere
 value are identical. Test mocks must mirror the shape — returning a bare
 function from a mocked `throttle` hides this class of bug.
 
+### `QB.timers.cooldown(interval)`
+
+Creates independent leading-edge cooldowns within one handle. Use a player
+source, action name, or composite scalar as the key.
+
+- `.use(key)` → `boolean` accepts the first use after the interval.
+- `.remaining(key)` → `integer` returns milliseconds until ready.
+- `.reset(key?)` clears one key, or every key when omitted.
+
+The handle deliberately does not guess key lifecycle. Long-lived server code
+using player sources should reset that source from `playerDropped`.
+
+```lua
+local requests = QB.timers.cooldown(1000)
+if not requests.use(source) then return end
+```
+
 ### `QB.timers.count()`
 Live timer count, for diagnostics and tests. Debounce/throttle wrappers are not
 timers themselves; a debouncer with a pending run contributes one.
