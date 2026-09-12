@@ -15,6 +15,21 @@ function QB.util.deepClone(value)
     return copy
 end
 
+---Returns the lowercase, eight-character hexadecimal FNV-1a checksum of a
+---string. This is a compact change detector, not a cryptographic hash.
+---@param value string
+---@return string checksum
+function QB.util.fnv1a(value)
+    assert(type(value) == "string", "QB.util.fnv1a requires a string.")
+
+    local hash = 2166136261
+    for index = 1, #value do
+        hash = ((hash ~ value:byte(index)) * 16777619) & 0xFFFFFFFF
+    end
+
+    return ("%08x"):format(hash)
+end
+
 ---Returns whether `value` is a real finite number (not NaN or either infinity).
 ---@param value any
 ---@return boolean

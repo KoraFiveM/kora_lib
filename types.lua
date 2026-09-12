@@ -1453,6 +1453,7 @@
 
 ---@class QBLibUtil
 ---@field deepClone fun(value: any): any [shared]
+---@field fnv1a fun(value: string): string [shared]
 ---@field isFiniteNumber fun(value: any): boolean [shared]
 ---@field clamp fun(value: number, min: number, max: number): number [shared]
 ---@field round fun(value: number, decimals?: integer): number [shared]
@@ -1501,6 +1502,7 @@
 ---@field getCardinalDirection fun(value?: number, options?: {entity?: boolean}): 'N'|'NW'|'W'|'SW'|'S'|'SE'|'E'|'NE' [client]
 ---@field getWaypointCoords fun(): QBCoords|false, string? [client]
 ---@field isSpawnClear fun(coords: QBCoords, radius: number, options?: QBWorldQueryOptions): boolean [client/server]
+---@field resolveNetworkEntity fun(src: integer, networkId: integer, options?: QBWorldNetworkEntityOptions): integer|nil, string? [server]
 
 ---@class QBLibZones
 ---@field box fun(opts: QBZoneOptions): QBZoneHandle [client]

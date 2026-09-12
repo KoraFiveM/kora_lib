@@ -33,6 +33,12 @@ harness.test("deepClone passes non-table values through unchanged", function()
     harness.assertEqual(QB.util.deepClone("x"), "x", "strings pass through")
 end)
 
+harness.test("fnv1a returns a stable lowercase checksum", function()
+    harness.assertEqual(QB.util.fnv1a("hello"), "4f9f2cab")
+    harness.assertEqual(QB.util.fnv1a(""), "811c9dc5")
+    harness.assertThrows(function() QB.util.fnv1a({}) end, "non-string input must be rejected")
+end)
+
 harness.test("isFiniteNumber rejects non-numbers, NaN, and infinities", function()
     harness.assertTrue(QB.util.isFiniteNumber(0))
     harness.assertTrue(QB.util.isFiniteNumber(-12.5))

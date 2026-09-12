@@ -57,16 +57,7 @@ end
 ---@return boolean controlled
 ---@return string? error
 function QB.vehicle.requestControl(entity, timeout)
-    assert(type(entity) == 'number' and entity ~= 0, 'QB.vehicle.requestControl requires an entity.')
-    if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
-    if NetworkHasControlOfEntity(entity) then return true end
-
-    local controlled, err = QB.loops.controlled(function()
-        NetworkRequestControlOfEntity(entity)
-        return NetworkHasControlOfEntity(entity)
-    end, false, timeout or 1000, true)
-
-    return controlled ~= false, err
+    return QB.entities.requestControl(entity, timeout)
 end
 
 ---Safely deletes a vehicle after obtaining control. Call this only after the

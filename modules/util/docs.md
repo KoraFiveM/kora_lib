@@ -3,6 +3,8 @@
 Small shared, dependency-free helpers:
 
 - `QB.util.deepClone(value)` recursively copies plain tables.
+- `QB.util.fnv1a(value)` returns a stable eight-character hexadecimal FNV-1a
+  checksum for change detection and migration fingerprints.
 - `QB.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
   strings, NaN, and positive/negative infinity.
 - `QB.util.clamp(value, min, max)` bounds a number.

@@ -293,18 +293,33 @@ end)
 local serverPools = { CPed = {}, CVehicle = {}, CObject = {} }
 local serverPlayers = {}
 local serverPlayerPeds = {}
+local networkEntities = {}
+local entityTypes = {}
+local entityBuckets = {}
+local playerBuckets = {}
+local driverByVehicle = {}
 
 _G.GetAllPeds = function() return serverPools.CPed end
 _G.GetAllVehicles = function() return serverPools.CVehicle end
 _G.GetAllObjects = function() return serverPools.CObject end
 _G.GetPlayers = function() return serverPlayers end
 _G.GetPlayerPed = function(playerId) return serverPlayerPeds[playerId] end
+_G.NetworkGetEntityFromNetworkId = function(networkId) return networkEntities[networkId] or 0 end
+_G.GetEntityType = function(entity) return entityTypes[entity] or 0 end
+_G.GetEntityRoutingBucket = function(entity) return entityBuckets[entity] or 0 end
+_G.GetPlayerRoutingBucket = function(playerId) return playerBuckets[playerId] or 0 end
+_G.GetPedInVehicleSeat = function(vehicle) return driverByVehicle[vehicle] or 0 end
 
 local function serverReset()
     entityData = {}
     serverPools = { CPed = {}, CVehicle = {}, CObject = {} }
     serverPlayers = {}
     serverPlayerPeds = {}
+    networkEntities = {}
+    entityTypes = {}
+    entityBuckets = {}
+    playerBuckets = {}
+    driverByVehicle = {}
 end
 
 local function addToServerPool(poolType, entity, x, y, z, model)
@@ -317,6 +332,7 @@ dofile(repoRoot .. "modules/world/server.lua")
 local serverGetNearbyEntities = QB.world.getNearbyEntities
 local serverGetClosestEntity = QB.world.getClosestEntity
 local serverIsSpawnClear = QB.world.isSpawnClear
+local resolveNetworkEntity = QB.world.resolveNetworkEntity
 
 harness.test("[server] getNearbyEntities sorts matches ascending by distance", function()
     serverReset()
@@ -424,6 +440,54 @@ harness.test('[server] isSpawnClear detects nearby vehicles', function()
     addToServerPool('CVehicle', 60, 2, 0, 0)
     harness.assertFalse(serverIsSpawnClear(ORIGIN, 3), 'nearby server vehicle should block spawning')
     harness.assertTrue(serverIsSpawnClear(ORIGIN, 1), 'vehicle outside the radius should leave spawn clear')
+end)
+
+harness.test('[server] resolveNetworkEntity validates type, bucket, distance, and driver', function()
+    serverReset()
+    local source, ped, vehicle = 7, 70, 80
+    serverPlayerPeds[source] = ped
+    entityData[ped] = { coords = { x = 0, y = 0, z = 0 }, model = 1 }
+    entityData[vehicle] = { coords = { x = 3, y = 4, z = 0 }, model = 2 }
+    networkEntities[100] = vehicle
+    entityTypes[vehicle] = 2
+    playerBuckets[source], entityBuckets[vehicle] = 5, 5
+    driverByVehicle[vehicle] = ped
+
+    local resolved = resolveNetworkEntity(source, 100, {
+        entityType = 'vehicle',
+        maxDistance = 5,
+        requireDriver = true,
+    })
+    harness.assertEqual(resolved, vehicle, 'a valid nearby driven vehicle should resolve')
+
+    entityBuckets[vehicle] = 6
+    local _, bucketReason = resolveNetworkEntity(source, 100, { entityType = 'vehicle' })
+    harness.assertEqual(bucketReason, 'routing_bucket_mismatch')
+
+    entityBuckets[vehicle] = 5
+    entityData[vehicle].coords.x = 6
+    local _, distanceReason = resolveNetworkEntity(source, 100, { maxDistance = 5 })
+    harness.assertEqual(distanceReason, 'too_far')
+
+    entityData[vehicle].coords.x = 3
+    driverByVehicle[vehicle] = 999
+    local _, driverReason = resolveNetworkEntity(source, 100, {
+        entityType = 'vehicle',
+        requireDriver = true,
+    })
+    harness.assertEqual(driverReason, 'driver_required')
+end)
+
+harness.test('[server] resolveNetworkEntity returns stable input and entity errors', function()
+    serverReset()
+    serverPlayerPeds[7] = 70
+    entityData[70] = { coords = ORIGIN, model = 1 }
+
+    local _, inputReason = resolveNetworkEntity(7, 0)
+    harness.assertEqual(inputReason, 'invalid_network_id')
+
+    local _, missingReason = resolveNetworkEntity(7, 100)
+    harness.assertEqual(missingReason, 'entity_unavailable')
 end)
 
 harness.report("world")

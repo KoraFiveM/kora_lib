@@ -65,8 +65,9 @@ function _G.SetEntityInvincible(e, on)
     entityCalls[e] = entityCalls[e] or {}
     entityCalls[e].invincible = on
 end
-function _G.NetworkHasControlOfEntity() return true end
-function _G.NetworkRequestControlOfEntity() end
+local hasNetworkControl = true
+function _G.NetworkHasControlOfEntity() return hasNetworkControl end
+function _G.NetworkRequestControlOfEntity() hasNetworkControl = true end
 function _G.SetEntityAsMissionEntity() end
 
 dofile(repoRoot .. "modules/stream/client.lua")
@@ -258,6 +259,16 @@ harness.test('delete removes an authorized networked entity', function()
     local ok, err = QB.entities.delete(foreignEntity)
     harness.assertTrue(ok, tostring(err))
     harness.assertFalse(_G.DoesEntityExist(foreignEntity), 'the authorized entity should be deleted')
+end)
+
+harness.test('requestControl acquires control for any existing entity type', function()
+    local foreignEntity = 424244
+    existingEntities[foreignEntity] = true
+    hasNetworkControl = false
+
+    local controlled, err = QB.entities.requestControl(foreignEntity, 100)
+    harness.assertTrue(controlled, tostring(err))
+    harness.assertTrue(hasNetworkControl, 'the network control should be acquired')
 end)
 
 harness.report("entities")

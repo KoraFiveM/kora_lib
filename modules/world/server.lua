@@ -20,6 +20,7 @@ local function distSq(a, b)
 end
 
 local ENTITY_TYPES = { ped = true, vehicle = true, object = true, player = true }
+local ENTITY_TYPE_IDS = { ped = 1, vehicle = 2, object = 3 }
 
 -- GetGamePool is client-only -- the server-side equivalents are one native
 -- per entity kind rather than a single pool-name-keyed native.
@@ -163,4 +164,65 @@ function QB.world.isSpawnClear(coords, radius, options)
     assert(type(radius) == 'number' and radius > 0, 'radius must be a positive number.')
     local occupied = visitCandidates('vehicle', coords, radius * radius, options, function() return true end)
     return occupied ~= true
+end
+
+---@class QBWorldNetworkEntityOptions
+---@field entityType? "ped" | "vehicle" | "object" Required live entity type.
+---@field maxDistance? number Maximum distance from the player's ped in metres.
+---@field sameBucket? boolean Require the entity and player to share a routing bucket. Defaults to true.
+---@field requireDriver? boolean Require the player's ped to occupy the vehicle's driver seat.
+
+---Resolves and validates a client-supplied network entity before server code
+---acts on it. Failure reasons are stable machine-readable codes so callers
+---retain ownership of player-facing messages.
+---@param src integer
+---@param networkId integer
+---@param options? QBWorldNetworkEntityOptions
+---@return integer|nil entity
+---@return string|nil reason
+function QB.world.resolveNetworkEntity(src, networkId, options)
+    options = options or {}
+
+    assert(type(src) == "number" and src > 0 and src % 1 == 0,
+        "QB.world.resolveNetworkEntity requires a player source.")
+    assert(options.entityType == nil or ENTITY_TYPE_IDS[options.entityType],
+        "entityType must be 'ped', 'vehicle', or 'object'.")
+    assert(options.maxDistance == nil or (type(options.maxDistance) == "number"
+        and options.maxDistance >= 0 and options.maxDistance < math.huge),
+        "maxDistance must be a non-negative number.")
+    assert(options.sameBucket == nil or type(options.sameBucket) == "boolean",
+        "sameBucket must be a boolean.")
+    assert(options.requireDriver == nil or type(options.requireDriver) == "boolean",
+        "requireDriver must be a boolean.")
+    assert(not options.requireDriver or options.entityType == "vehicle",
+        "requireDriver requires entityType = 'vehicle'.")
+
+    if type(networkId) ~= "number" or networkId < 1 or networkId % 1 ~= 0 then
+        return nil, "invalid_network_id"
+    end
+
+    local entity = NetworkGetEntityFromNetworkId(networkId)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then
+        return nil, "entity_unavailable"
+    end
+    if options.entityType and GetEntityType(entity) ~= ENTITY_TYPE_IDS[options.entityType] then
+        return nil, "wrong_entity_type"
+    end
+
+    local playerPed = GetPlayerPed(src)
+    if not playerPed or playerPed == 0 or not DoesEntityExist(playerPed) then
+        return nil, "player_unavailable"
+    end
+    if options.sameBucket ~= false and GetPlayerRoutingBucket(src) ~= GetEntityRoutingBucket(entity) then
+        return nil, "routing_bucket_mismatch"
+    end
+    if options.maxDistance and distSq(toVec3(GetEntityCoords(playerPed)), toVec3(GetEntityCoords(entity)))
+        > options.maxDistance * options.maxDistance then
+        return nil, "too_far"
+    end
+    if options.requireDriver and GetPedInVehicleSeat(entity, -1) ~= playerPed then
+        return nil, "driver_required"
+    end
+
+    return entity
 end

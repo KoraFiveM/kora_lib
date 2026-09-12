@@ -32,6 +32,12 @@ function _G.DoesEntityExist(entity) return entity == VEHICLE and state.exists en
 function _G.IsEntityAVehicle(entity) return entity == VEHICLE end
 function _G.NetworkHasControlOfEntity() return state.control end
 function _G.NetworkRequestControlOfEntity() if requestSucceeds then state.control = true end end
+QB.entities.requestControl = function(entity)
+    if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
+    if NetworkHasControlOfEntity(entity) then return true end
+    NetworkRequestControlOfEntity(entity)
+    return NetworkHasControlOfEntity(entity), 'Could not acquire control.'
+end
 function _G.SetEntityAsMissionEntity() end
 function _G.DeleteVehicle() state.exists = false; record('DeleteVehicle') end
 function _G.GetPedInVehicleSeat() return 50 end

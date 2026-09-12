@@ -17,6 +17,8 @@ This module spawns local, non-networked entities (ped/object/vehicle) that are v
   - Registers a radius around the entity location and creates the local entity only while the player is inside it.
   - Returns a persistent scope handle; `handle.entity` is the transient entity handle (or `nil` outside the scope), and `handle.remove()` unregisters it.
   - Entry state is updated before checking the asynchronous spawn guard. The spawn runs under `pcall` and always clears that guard, so a leave/re-enter during streaming is retained and an exception cannot wedge the scope permanently.
+- `QB.entities.requestControl(entity, timeout?)` — bounded network-control acquisition for any live entity type.
+- `QB.entities.delete(entity, timeout?)` — acquires control and deletes a server-authorized network entity; unlike `remove`, it is not limited to qblib-owned local entities.
 
 ## Implementation notes
 - Entities are created **non-networked** (`isNetwork = false`) and **not** registered as script-host mission entities -- cleanup is handled entirely by this module, not by GTA's native pinning.
