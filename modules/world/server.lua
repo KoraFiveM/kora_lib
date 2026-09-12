@@ -226,3 +226,50 @@ function QB.world.resolveNetworkEntity(src, networkId, options)
 
     return entity
 end
+
+---@class QBWorldNearbyPlayerOptions
+---@field maxDistance number Maximum distance between the players in metres.
+---@field sameBucket? boolean Require both players to share a routing bucket. Defaults to true.
+---@field allowSelf? boolean Permit `src` and `targetSrc` to be equal. Defaults to false.
+
+---Resolves a player-controlled target and verifies server-authoritative
+---proximity before gameplay code acts on it.
+---@param src integer
+---@param targetSrc integer
+---@param options QBWorldNearbyPlayerOptions
+---@return integer|nil targetPed
+---@return number|string reasonOrDistance Distance on success; stable reason code on failure.
+function QB.world.resolveNearbyPlayer(src, targetSrc, options)
+    assert(type(src) == "number" and src > 0 and src % 1 == 0,
+        "QB.world.resolveNearbyPlayer requires a player source.")
+    assert(type(options) == "table", "QB.world.resolveNearbyPlayer requires an options table.")
+    assert(type(options.maxDistance) == "number" and options.maxDistance >= 0
+        and options.maxDistance < math.huge,
+        "maxDistance must be a non-negative finite number.")
+    assert(options.sameBucket == nil or type(options.sameBucket) == "boolean",
+        "sameBucket must be a boolean.")
+    assert(options.allowSelf == nil or type(options.allowSelf) == "boolean",
+        "allowSelf must be a boolean.")
+
+    if type(targetSrc) ~= "number" or targetSrc < 1 or targetSrc % 1 ~= 0 then
+        return nil, "invalid_player"
+    end
+    if targetSrc == src and options.allowSelf ~= true then return nil, "self_not_allowed" end
+
+    local sourcePed = GetPlayerPed(src)
+    if not sourcePed or sourcePed == 0 or not DoesEntityExist(sourcePed) then
+        return nil, "player_unavailable"
+    end
+
+    local targetPed = GetPlayerPed(targetSrc)
+    if not targetPed or targetPed == 0 or not DoesEntityExist(targetPed) then
+        return nil, "target_unavailable"
+    end
+    if options.sameBucket ~= false and GetPlayerRoutingBucket(src) ~= GetPlayerRoutingBucket(targetSrc) then
+        return nil, "routing_bucket_mismatch"
+    end
+
+    local distanceSq = distSq(toVec3(GetEntityCoords(sourcePed)), toVec3(GetEntityCoords(targetPed)))
+    if distanceSq > options.maxDistance * options.maxDistance then return nil, "too_far" end
+    return targetPed, math.sqrt(distanceSq)
+end

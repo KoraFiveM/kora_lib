@@ -7,6 +7,13 @@ permalink: /legacy-compat/
 
 qblib can replace several older standalone resources while consumers migrate to the native `QB` APIs. Its manifest uses `provide` so dependency checks succeed, and its compatibility bridge registers exports under each legacy resource identity.
 
+Compatibility providers can use
+`QB.compat.provideExport(resourceName, exportName, callable)` in either realm.
+It registers the hidden CFX export event that `provide` alone does not create;
+the callable may be a Lua function or a FiveM funcref. Registration executes
+inside the consuming resource, so the alias handler stops with its provider
+instead of surviving as a stale qblib-owned reference.
+
 These bridges preserve the documented call shape, but they cannot reproduce behavior for which qblib has no equivalent. Review the caveats below before removing the original resource.
 
 ## qb-menu

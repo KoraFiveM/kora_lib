@@ -51,7 +51,7 @@ QB.keybind = { add = function(options)
     return { remove = function() return true end }
 end }
 
-dofile(repoRoot .. "compat/client/exports.lua")
+dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-menu.lua")
 
 -- Mirrors what a real cross-resource exports['qb-menu']:Fn() call does under

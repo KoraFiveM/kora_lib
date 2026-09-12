@@ -41,9 +41,7 @@ end
 -- cannot reach it through the QB proxy.
 QB.lookup._state = state
 
-local function trim(value)
-    return value:match('^%s*(.-)%s*$')
-end
+local trim = QB.util.trim
 
 ---@param value integer|string
 ---@return integer hash

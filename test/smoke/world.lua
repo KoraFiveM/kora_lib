@@ -333,6 +333,7 @@ local serverGetNearbyEntities = QB.world.getNearbyEntities
 local serverGetClosestEntity = QB.world.getClosestEntity
 local serverIsSpawnClear = QB.world.isSpawnClear
 local resolveNetworkEntity = QB.world.resolveNetworkEntity
+local resolveNearbyPlayer = QB.world.resolveNearbyPlayer
 
 harness.test("[server] getNearbyEntities sorts matches ascending by distance", function()
     serverReset()
@@ -488,6 +489,38 @@ harness.test('[server] resolveNetworkEntity returns stable input and entity erro
 
     local _, missingReason = resolveNetworkEntity(7, 100)
     harness.assertEqual(missingReason, 'entity_unavailable')
+end)
+
+harness.test('[server] resolveNearbyPlayer validates peds, buckets, and distance', function()
+    serverReset()
+    serverPlayerPeds[7], serverPlayerPeds[8] = 70, 80
+    entityData[70] = { coords = { x = 0, y = 0, z = 0 }, model = 1 }
+    entityData[80] = { coords = { x = 3, y = 4, z = 0 }, model = 1 }
+    playerBuckets[7], playerBuckets[8] = 2, 2
+
+    local ped, distance = resolveNearbyPlayer(7, 8, { maxDistance = 5 })
+    harness.assertEqual(ped, 80)
+    harness.assertEqual(distance, 5)
+
+    playerBuckets[8] = 3
+    local _, bucketReason = resolveNearbyPlayer(7, 8, { maxDistance = 5 })
+    harness.assertEqual(bucketReason, 'routing_bucket_mismatch')
+
+    playerBuckets[8] = 2
+    entityData[80].coords.x = 6
+    local _, distanceReason = resolveNearbyPlayer(7, 8, { maxDistance = 5 })
+    harness.assertEqual(distanceReason, 'too_far')
+end)
+
+harness.test('[server] resolveNearbyPlayer rejects invalid and self targets', function()
+    serverReset()
+    serverPlayerPeds[7] = 70
+    entityData[70] = { coords = ORIGIN, model = 1 }
+
+    local _, invalidReason = resolveNearbyPlayer(7, '8', { maxDistance = 2 })
+    harness.assertEqual(invalidReason, 'invalid_player')
+    local _, selfReason = resolveNearbyPlayer(7, 7, { maxDistance = 2 })
+    harness.assertEqual(selfReason, 'self_not_allowed')
 end)
 
 harness.report("world")

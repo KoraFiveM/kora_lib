@@ -9,6 +9,8 @@ This repository is a lightweight Lua library for FiveM-style export registration
 - `build/finalise.lua` exports each top-level `QB` function/table to the resource environment.
 - `modules/` contains feature modules, each under its own subfolder.
 - `local/` contains infrastructure modules (`resources`, `callback`, `events`) that other modules build on — same per-folder `shared`/`client`/`server` layout and same `QB.<module>` registration as `modules/`, just loaded from a separate tree. `modules/**` is globbed in `fxmanifest.lua`, but `local/**` is listed file-by-file instead: `local/resources` must load before `local/callback`/`local/events` (they call `QB.resources.registry()`/`serverRegistry()` at their own load time), and a `local/**/client.lua`-style glob expands alphabetically — "resources" would sort after both. Add a new `local/` module's `client.lua`/`server.lua` to that explicit list in `fxmanifest.lua`, after `local/resources`.
+- `compat/provider.lua` is loaded into each consumer by `init.lua`; this keeps
+  provided export aliases owned by the resource that registered them.
 
 ## Conventions
 - Use one module per folder inside `modules/`.

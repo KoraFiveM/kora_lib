@@ -30,6 +30,41 @@ function QB.util.fnv1a(value)
     return ("%08x"):format(hash)
 end
 
+---Returns whether a value can be called directly. In addition to functions,
+---this accepts tables with a callable metatable and raw FiveM funcrefs.
+---@param value any
+---@return boolean
+QB.util.isCallable = QB.compat.isCallable
+
+---Removes leading and trailing whitespace from a string. Non-string values
+---are returned unchanged so normalisers can preserve their own type policy.
+---@generic T
+---@param value T
+---@return T
+function QB.util.trim(value)
+    if type(value) ~= "string" then return value end
+    return value:match("^%s*(.-)%s*$")
+end
+
+---Truncates a valid UTF-8 string to at most `maximum` characters without
+---splitting a codepoint. Invalid UTF-8 returns nil.
+---@param value string
+---@param maximum integer
+---@return string|nil value
+---@return string|nil reason
+function QB.util.truncateUtf8(value, maximum)
+    assert(type(value) == "string", "QB.util.truncateUtf8 requires a string.")
+    assert(type(maximum) == "number" and maximum >= 0 and maximum % 1 == 0,
+        "QB.util.truncateUtf8 requires a non-negative integer maximum.")
+
+    local valid, length = pcall(utf8.len, value)
+    if not valid or not length then return nil, "invalid_utf8" end
+    if length <= maximum then return value end
+
+    local offset = utf8.offset(value, maximum + 1)
+    return offset and value:sub(1, offset - 1) or value
+end
+
 ---Returns whether `value` is a real finite number (not NaN or either infinity).
 ---@param value any
 ---@return boolean

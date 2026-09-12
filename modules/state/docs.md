@@ -1,5 +1,18 @@
 # State module
 
+## `QB.state.awaitGlobal(key, timeoutMs?, pollIntervalMs?)` — shared
+
+Waits for a `GlobalState` key to become non-nil without allowing an unbounded
+startup loop. The timeout defaults to 5000 ms and polling defaults to 50 ms.
+It returns the value (including `false`) or `nil, "timeout"`.
+
+```lua
+local jewellery, reason = QB.state.awaitGlobal('Jewellery', 10000)
+if not jewellery then
+    print(('Jewellery state unavailable: %s'):format(reason))
+end
+```
+
 ## `QB.state.onChange(keyFilter?, bagFilter?, handler)` — client/server
 
 Registers a state-bag subscription. Either filter may be `nil` to match every

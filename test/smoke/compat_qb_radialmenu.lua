@@ -48,7 +48,7 @@ QB.keybind = {
     end,
 }
 
-dofile(repoRoot .. "compat/client/exports.lua")
+dofile(repoRoot .. "compat/shared.lua")
 
 -- Controllable mock qbcore PlayerData -- the built-in job/vehicle content
 -- reads job/metadata via exports.qbcore:getPlayerData/getShared (pcall-

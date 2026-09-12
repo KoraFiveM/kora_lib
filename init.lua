@@ -1,6 +1,7 @@
 local library = exports.qblib
 local requireModule
 local configModule
+local compatModule
 
 -- Requiring Lua files is deliberately consumer-local. Running this through a
 -- qblib export would execute the required chunk in qblib's Lua environment,
@@ -37,6 +38,17 @@ local function getConfigModule()
     assert(type(createConfig) == 'function', ('@qblib/%s must return a factory function'):format(path))
     configModule = createConfig(library)
     return configModule
+end
+
+local function getCompatModule()
+    if compatModule then return compatModule end
+    local path = 'compat/provider.lua'
+    local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+    assert(chunk, compileError)
+    local createCompat = chunk()
+    compatModule = createCompat()
+    return compatModule
 end
 
 -- FXServer's export dispatch has a known bug (citizenfx/fivem#2408): calling
@@ -88,6 +100,11 @@ QB = setmetatable({}, {
 
         if k == 'config' then
             local module = getConfigModule()
+            rawset(t, k, module)
+            return module
+        end
+        if k == 'compat' then
+            local module = getCompatModule()
             rawset(t, k, module)
             return module
         end

@@ -16,8 +16,8 @@ dependency 'qbtheme'
 -- exports['qb-menu']:openMenu(...)/exports['qb-input']:ShowInput(...)/
 -- exports['qb-radialmenu']:AddOption(...)/exports['qb-minigames']:Hacking(...)
 -- (etc.) reach compat/client/qb-menu.lua/qb-input.lua/qb-radialmenu.lua/
--- qb-minigames.lua is the __cfx_export_ identity hijack those files register
--- themselves (see their own header comments).
+-- qb-minigames.lua is the __cfx_export_ identity bridge those files register
+-- through QB.compat.provideExport (see their own header comments).
 provide 'qb-menu'
 provide 'qb-input'
 provide 'qb-radialmenu'
@@ -37,6 +37,9 @@ files {
     -- Like QB.require, QB.config executes in each consuming resource so it
     -- can safely own that resource's Config table and config.local.lua.
     'modules/config/consumer.lua',
+    -- Loaded into each consumer so compatibility handlers belong to and stop
+    -- with the resource that provides the alias.
+    'compat/provider.lua',
     'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
     -- Lookup bundles are loaded on demand with LoadResourceFile; source JSON
     -- stays out of the runtime resource (source.json only records provenance).
@@ -70,7 +73,9 @@ shared_scripts {
     'config.lua',
     'build/initiate.lua',
     'local/**/shared.lua',
-    'modules/**/shared.lua'
+    'modules/**/shared.lua',
+    -- Shared so compatibility providers can register aliases in either realm.
+    'compat/shared.lua'
 }
 
 -- local/resources must load before every other local/ module: callback and
@@ -98,7 +103,6 @@ client_scripts {
     -- Loaded after every module client so the built-in settings app can use
     -- both the blip registry and the shared AppShell without load-order races.
     'modules/blips/settings.lua',
-    'compat/client/exports.lua',
     'compat/client/qb-menu.lua',
     'compat/client/qb-input.lua',
     'compat/client/qb-radialmenu.lua',

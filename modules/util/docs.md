@@ -5,6 +5,12 @@ Small shared, dependency-free helpers:
 - `QB.util.deepClone(value)` recursively copies plain tables.
 - `QB.util.fnv1a(value)` returns a stable eight-character hexadecimal FNV-1a
   checksum for change detection and migration fingerprints.
+- `QB.util.isCallable(value)` recognizes functions and tables with callable
+  metatables, including FiveM funcrefs.
+- `QB.util.trim(value)` removes leading and trailing whitespace from strings;
+  non-strings pass through unchanged.
+- `QB.util.truncateUtf8(value, maximum)` bounds text by Unicode characters
+  without splitting a codepoint. Invalid UTF-8 returns `nil, "invalid_utf8"`.
 - `QB.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
   strings, NaN, and positive/negative infinity.
 - `QB.util.clamp(value, min, max)` bounds a number.

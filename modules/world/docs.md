@@ -99,3 +99,19 @@ server code acts on it. Options are `entityType` (`ped`, `vehicle`, or
 is a stable code such as `invalid_network_id`, `entity_unavailable`,
 `wrong_entity_type`, `player_unavailable`, `routing_bucket_mismatch`,
 `too_far`, or `driver_required`.
+
+### `QB.world.resolveNearbyPlayer(source, targetSource, options)` (server)
+
+Validates two live player peds using server-authoritative coordinates. The
+required `maxDistance` option bounds the interaction; `sameBucket` defaults to
+true and `allowSelf` defaults to false. On success it returns the target ped
+and distance. On failure it returns `nil` with a stable code:
+`invalid_player`, `self_not_allowed`, `player_unavailable`,
+`target_unavailable`, `routing_bucket_mismatch`, or `too_far`.
+
+```lua
+local targetPed, distanceOrReason = QB.world.resolveNearbyPlayer(source, targetSource, {
+    maxDistance = 3.0,
+})
+if not targetPed then return false, distanceOrReason end
+```

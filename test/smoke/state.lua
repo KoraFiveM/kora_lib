@@ -7,6 +7,18 @@ local harness = require('harness')
 local mocks = require('mocks')
 local net = mocks.install()
 
+_G.GlobalState = {}
+dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/state/shared.lua')
+
+harness.test('awaitGlobal returns false as a resolved value and times out safely', function()
+    GlobalState.ready = false
+    harness.assertEqual(QB.state.awaitGlobal('ready', 10), false)
+    local value, reason = QB.state.awaitGlobal('missing', 10, 5)
+    harness.assertEqual(value, nil)
+    harness.assertEqual(reason, 'timeout')
+end)
+
 local nextCookie = 0
 local nativeHandlers, removed = {}, {}
 _G.AddStateBagChangeHandler = function(keyFilter, bagFilter, handler)
@@ -28,7 +40,6 @@ end
 local invokingResource
 _G.GetInvokingResource = function() return invokingResource end
 
-dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'local/resources/client.lua')
 dofile(repoRoot .. 'local/resources/server.lua')
 

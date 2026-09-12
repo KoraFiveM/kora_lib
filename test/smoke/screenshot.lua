@@ -51,7 +51,7 @@ QB.nui = {
 }
 
 dofile(repoRoot .. 'modules/screenshot/client.lua')
-dofile(repoRoot .. 'compat/client/exports.lua')
+dofile(repoRoot .. 'compat/shared.lua')
 dofile(repoRoot .. 'compat/client/screenshot-basic.lua')
 
 harness.test('client capture resolves the NUI data URI', function()

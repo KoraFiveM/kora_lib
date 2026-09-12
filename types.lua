@@ -237,6 +237,11 @@
 ---@field attempts? integer
 ---@field retryDelay? integer
 
+---@class QBWorldNearbyPlayerOptions
+---@field maxDistance number
+---@field sameBucket? boolean
+---@field allowSelf? boolean
+
 ---@class QBTeleportOptions
 ---@field fade? boolean|number
 
@@ -915,12 +920,16 @@
 ---@field resources? string[] Sorted custom resources contributing this entry.
 ---@field metadata? QBLookupMetadata Namespace-specific curated metadata.
 
+---@class QBLibCompat
+---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
+
 ---@class QBLib
 ---@field actions QBLibActions
 ---@field anim QBLibAnim
 ---@field blips QBLibBlips
 ---@field cache QBLibCache
 ---@field callback QBLibCallback
+---@field compat QBLibCompat
 ---@field closest QBLibClosest
 ---@field commands QBLibCommands
 ---@field config QBLibConfig
@@ -1391,6 +1400,7 @@
 ---@field isLive fun(soundId: number): boolean [client]
 
 ---@class QBLibState
+---@field awaitGlobal fun(key: string, timeoutMs?: integer, pollIntervalMs?: integer): any, string? [shared]
 ---@field onChange fun(keyFilter: string?, bagFilter: string?, handler: fun(change: QBStateChange)): integer [client/server]
 ---@field offChange fun(listenerId: integer): boolean [client/server]
 
@@ -1454,6 +1464,9 @@
 ---@class QBLibUtil
 ---@field deepClone fun(value: any): any [shared]
 ---@field fnv1a fun(value: string): string [shared]
+---@field isCallable fun(value: any): boolean [shared]
+---@field trim fun(value: any): any [shared]
+---@field truncateUtf8 fun(value: string, maximum: integer): string|nil, string? [shared]
 ---@field isFiniteNumber fun(value: any): boolean [shared]
 ---@field clamp fun(value: number, min: number, max: number): number [shared]
 ---@field round fun(value: number, decimals?: integer): number [shared]
@@ -1503,6 +1516,7 @@
 ---@field getWaypointCoords fun(): QBCoords|false, string? [client]
 ---@field isSpawnClear fun(coords: QBCoords, radius: number, options?: QBWorldQueryOptions): boolean [client/server]
 ---@field resolveNetworkEntity fun(src: integer, networkId: integer, options?: QBWorldNetworkEntityOptions): integer|nil, string? [server]
+---@field resolveNearbyPlayer fun(src: integer, targetSrc: integer, options: QBWorldNearbyPlayerOptions): integer|nil, number|string [server]
 
 ---@class QBLibZones
 ---@field box fun(opts: QBZoneOptions): QBZoneHandle [client]

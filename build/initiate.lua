@@ -16,8 +16,8 @@ QB = setmetatable({}, {
 })
 
 -- Internal cross-realm compatibility helpers. build/finalise.lua deliberately
--- skips QB.compat, so these are shared by qblib's own chunks without becoming
--- public exports. Cfx funcrefs may arrive as functions, callable proxy tables,
+-- keeps these private except for the explicitly published `provideExport` API.
+-- Cfx funcrefs may arrive as functions, callable proxy tables,
 -- or raw __cfx_functionReference envelopes depending on the boundary crossed.
 local function isCallable(value, seen)
     if type(value) == 'function' then return true end

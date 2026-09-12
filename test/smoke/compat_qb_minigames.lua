@@ -28,7 +28,7 @@ QB.minigames.play = function(gameType, opts)
     return p
 end
 
-dofile(repoRoot .. "compat/client/exports.lua")
+dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-minigames.lua")
 
 -- Mirrors what a real cross-resource exports['qb-minigames']:Fn() call does

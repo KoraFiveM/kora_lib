@@ -21,7 +21,11 @@ local loaded = exports.qblib:stream_loadModel(model)
 
 Use the documented `QB` form in Lua. It provides language-server types and keeps consumer code consistent when an implementation changes behind the proxy.
 
-`QB.require` and `QB.config` are deliberate exceptions. They execute inside the consuming resource so required modules, globals, and configuration state remain isolated from qblib and from other consumers.
+`QB.require`, `QB.config`, and `QB.compat` are deliberate exceptions. They
+execute inside the consuming resource so required modules, globals,
+configuration state, and compatibility export handlers remain owned by that
+resource. Aliases registered with `QB.compat.provideExport` are therefore
+removed naturally when their provider stops.
 
 ## Realms
 
