@@ -1,4 +1,19 @@
-theme: jekyll-theme-cayman
 title: qblib
-description: "Lightweight Lua library exposing a shared QB namespace over FiveM exports"
-show_downloads: false
+description: Lightweight, typed building blocks for FiveM resources
+url: https://qbcore2.github.io
+baseurl: /qblib
+repository: qbcore2/qblib
+permalink: pretty
+markdown: kramdown
+highlighter: rouge
+strict_front_matter: true
+
+exclude:
+  - build.sh
+  - README.md
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

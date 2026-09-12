@@ -1,17 +1,32 @@
-# Visual effects module
+# Visual effects
 
-Client-side screen/drug-effect conveniences.
+Client-side screen and drug-effect conveniences. Drug effects start asynchronously and return immediately; multiple effects may overlap. qblib restores the default sprint multiplier after the last live effect finishes.
 
-- `QB.visuals.fade(duration?, fn?)` fades out, runs `fn` while black, and
-  always fades back in. The legacy `fade(coords, duration?)` move remains.
-- `QB.visuals.trevor(duration?)`
-- `QB.visuals.meth(duration?)`
-- `QB.visuals.ecstacy(duration?)`
-- `QB.visuals.alien(duration?)`
-- `QB.visuals.crack(duration?)`
-- `QB.visuals.coke(duration?)`
+## Screen fade
 
-The named helpers reproduce their established GTA screen/stamina/ragdoll
-effects. Long-lived sprint effects are stacked by start order: the newest live
-effect owns the multiplier, and ending it restores the previous effect (or the
-native default when none remain).
+`QB.visuals.fade(duration?, fn?)` fades to black over `duration` milliseconds (default `500`), runs `fn` while the screen is fully black, and always fades back in. If the callback raises, the screen is restored before the error is re-raised.
+
+```lua
+QB.visuals.fade(500, function()
+    SetEntityCoords(PlayerPedId(), destination.x, destination.y, destination.z)
+end)
+```
+
+The legacy `QB.visuals.fade(coords, duration?)` form still moves the local ped, including the heading from `coords.w`. New movement code should use `QB.teleport.player` or `QB.teleport.entity`, which owns the teleport behavior explicitly.
+
+## Drug and camera effects
+
+All functions take an optional duration in milliseconds:
+
+- `QB.visuals.trevor(duration?)` plays the Trevor clown screen-effect sequence.
+- `QB.visuals.alien(duration?)` plays the Michael alien screen-effect sequence.
+- `QB.visuals.meth(duration?)` adds a temporary sprint multiplier and stamina ticks, with occasional effect replays.
+- `QB.visuals.ecstacy(duration?)` adds repeated flashes, camera shakes, and stamina restoration, then may ragdoll a running ped.
+- `QB.visuals.crack(duration?)` combines the alien effect with stamina, sprint, and running ragdolls.
+- `QB.visuals.coke(duration?)` combines its screen effect with stamina, sprint, replay delays, and a final running ragdoll.
+
+```lua
+QB.visuals.meth(3000)
+```
+
+For the helpers with a three-stage screen effect, the duration is split across the transition waits. Stamina loops have their own fixed or effect-specific lifetime. These functions are visual/gameplay presentation only and must not be used as server-side evidence that an item was consumed.

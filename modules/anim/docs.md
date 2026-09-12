@@ -1,13 +1,62 @@
-# Anim module
+# Animations
 
-`QB.anim.play` streams and tracks a normal animation, while `QB.anim.stop` and
-`QB.anim.stopHandle` safely end it. `QB.anim.isPlaying(entity)` reads its live
-native state. `QB.anim.attachProp`/`QB.anim.detachProp` manage local attached
-props and resource-stop cleanup.
+Client-side, resource-owned animation and attached-prop helpers. Animation dictionaries and prop models are streamed automatically. qblib releases loaded dictionaries, stops tracked animations, and deletes attached props when their owning resource stops.
 
-For native scenario/task flows, use:
+Only one qblib animation is tracked per entity. Starting a new animation replaces the tracked handle; `QB.anim.stopHandle` prevents an older system from stopping that newer animation.
 
-- `QB.anim.playScenario(entity, scenario, enterVehicle?)`
-- `QB.anim.clear(entity, immediate?)`
+## `QB.anim.play(entity, dict, clip, opts?)`
 
-`clear` also stops a tracked qblib animation before clearing ped tasks.
+Streams `dict`, starts `clip` on `entity`, and returns an animation handle. It returns `false, reason` when the dictionary cannot be loaded. An invalid entity, dictionary, or clip is a programmer error and raises an assertion.
+
+Options:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `duration` | `-1` | Milliseconds passed to `TaskPlayAnim`. A positive value also schedules qblib cleanup. |
+| `flag` | `1` | FiveM animation flag bitmask. |
+| `blendInSpeed` | `8.0` | Animation blend-in speed. |
+| `blendOutSpeed` | `8.0` | Animation blend-out speed. |
+| `playbackRate` | `0.0` | Playback rate passed to the native. |
+| `lockX`, `lockY`, `lockZ` | `false` | Lock the corresponding movement axis. |
+| `onFinish` | none | Called with `entity` after a positive duration expires. It is not called after explicit cancellation or replacement. |
+
+```lua
+local handle, reason = QB.anim.play(PlayerPedId(), 'amb@world_human_hang_out_street@male_c@idle_a', 'idle_b', {
+    duration = 3000,
+    flag = 49,
+})
+
+if not handle then
+    print(reason)
+end
+```
+
+## Stopping and inspecting
+
+- `QB.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active.
+- `QB.anim.stopHandle(handle, blendOutSpeed?)` stops only when `handle` is still current for its entity. It returns `false` for a stale or invalid handle.
+- `QB.anim.isPlaying(entity)` returns whether the tracked dictionary and clip are currently playing according to the native state.
+- `QB.anim.clear(entity, immediate?)` stops qblib's tracked animation and clears all ped tasks. `immediate = true` uses immediate task clearing.
+
+## Scenarios
+
+`QB.anim.playScenario(entity, scenario, enterVehicle?)` starts a named scenario. When `enterVehicle` is true it uses the vehicle-entry scenario task; otherwise it starts the scenario in place.
+
+## Attached props
+
+`QB.anim.attachProp(entity, model, bone, offset?, rotation?, opts?)` creates a local, non-networked object and attaches it to the named bone. It returns the prop entity, or `false, reason` if the model cannot load, the bone is absent, or object creation fails.
+
+`offset` and `rotation` default to zero vectors. Options map to `AttachEntityToEntity`:
+
+- `softPin` defaults to `false`.
+- `collision` defaults to `false`.
+- `vertexIndex` defaults to `0`.
+- `fixedRot` defaults to `true`.
+
+```lua
+local prop, reason = QB.anim.attachProp(PlayerPedId(), 'prop_cs_tablet', 'IK_R_Hand',
+    vector3(0.03, 0.002, -0.01),
+    vector3(10.0, 160.0, 0.0))
+```
+
+`QB.anim.detachProp(prop)` only accepts a prop created by this module. It detaches, deletes, and untracks the object, returning `true`; an unowned or missing prop returns `false, reason`.
