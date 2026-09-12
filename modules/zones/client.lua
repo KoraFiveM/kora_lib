@@ -382,7 +382,8 @@ local function initPoly(zone, opts)
     local minY, maxY = math.huge, -math.huge
     local lowestZ = math.huge
 
-    for i, point in ipairs(opts.points) do
+    for i = 1, #opts.points do
+        local point = opts.points[i]
         local v = toVec3(point)
         points[i] = v
         minX, maxX = math.min(minX, v.x), math.max(maxX, v.x)
@@ -488,18 +489,21 @@ end
 local function drawDebugBox(zone, color)
     local corners = {}
 
-    for i, signs in ipairs(BOX_SIGNS) do
+    for i = 1, #BOX_SIGNS do
+        local signs = BOX_SIGNS[i]
         corners[i] = { boxCorner(zone, signs[1], signs[2], signs[3]) }
     end
 
-    for _, edge in ipairs(BOX_EDGES) do
+    for edgeIndex = 1, #BOX_EDGES do
+        local edge = BOX_EDGES[edgeIndex]
         local a, b = corners[edge[1]], corners[edge[2]]
         DrawLine(a[1], a[2], a[3], b[1], b[2], b[3], color.r, color.g, color.b, color.a)
     end
 
     local walls = wallColor(color)
 
-    for _, face in ipairs(BOX_FACES) do
+    for faceIndex = 1, #BOX_FACES do
+        local face = BOX_FACES[faceIndex]
         local a, b, c, d = corners[face[1]], corners[face[2]], corners[face[3]], corners[face[4]]
         drawWallQuad(a[1], a[2], a[3], b[1], b[2], b[3], c[1], c[2], c[3], d[1], d[2], d[3], walls)
     end
@@ -893,7 +897,8 @@ end
 local function nearestPointIndex(points, coords)
     local bestIndex, bestDist = nil, math.huge
 
-    for i, point in ipairs(points) do
+    for i = 1, #points do
+        local point = points[i]
         local d = distSq(point, coords)
         if d < bestDist then bestIndex, bestDist = i, d end
     end
@@ -946,7 +951,8 @@ function QB.zones.generateSnippet(zoneType, opts)
     end
 
     local pointLines = {}
-    for i, point in ipairs(opts.points) do
+    for i = 1, #opts.points do
+        local point = opts.points[i]
         pointLines[i] = "        " .. formatCoords(point) .. ","
     end
 
@@ -1047,7 +1053,8 @@ local function seedCreatorState(state, opts)
                 ("Seeded poly points must be a table of at most %d points."):format(Config.zones.creator.maxPolyPoints))
 
             local points = {}
-            for i, point in ipairs(opts.points) do
+            for i = 1, #opts.points do
+                local point = opts.points[i]
                 points[i] = toVec3(point)
             end
             state.points = points
@@ -1094,7 +1101,8 @@ local function creatorOpts(state)
     -- Poly has no single centre to shift, so every point moves together --
     -- which keeps the footprint identical and just slides the height band.
     local points = {}
-    for i, point in ipairs(state.points) do
+    for i = 1, #state.points do
+        local point = state.points[i]
         points[i] = raise(point, state.zOffset)
     end
 
@@ -1499,7 +1507,8 @@ local function ensureCreatorThread(state)
             -- because you need to see which vertex is hovered/grabbed. In
             -- between, the real preview's own debug draw already marks them.
             if state.type == "poly" and (editing or #state.points < 3) then
-                for i, point in ipairs(state.points) do
+                for i = 1, #state.points do
+                    local point = state.points[i]
                     local grabbedHere = editing and state.grabbing and i == state.editIndex
                     local hoveredHere = editing and not state.grabbing and i == state.editIndex
 

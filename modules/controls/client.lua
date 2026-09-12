@@ -69,7 +69,8 @@ releaseLease = function(leaseId, alreadyUntracked)
     if not alreadyUntracked then leaseRegistry.untrack(leaseId) end
 
     local counts = controlCounts[lease.inputGroup]
-    for _, control in ipairs(lease.controls) do
+    for controlIndex = 1, #lease.controls do
+        local control = lease.controls[controlIndex]
         local count = counts[control] - 1
         if count == 0 then
             counts[control] = nil
@@ -105,7 +106,8 @@ function QB.controls.acquire(controlIds, options)
 
     local controls = {}
     local seen = {}
-    for index, control in ipairs(controlIds) do
+    for index = 1, #controlIds do
+        local control = controlIds[index]
         assertInteger(control, ("Control lease ID at index %d must be a non-negative integer."):format(index))
         if not seen[control] then
             seen[control] = true
@@ -141,7 +143,8 @@ function QB.controls.acquire(controlIds, options)
         controlCounts[inputGroup] = counts
     end
 
-    for _, control in ipairs(controls) do
+    for controlIndex = 1, #controls do
+        local control = controls[controlIndex]
         counts[control] = (counts[control] or 0) + 1
     end
 

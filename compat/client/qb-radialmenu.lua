@@ -120,7 +120,8 @@ local function translateOption(option, leafById)
 
     if type(option.items) == "table" and #option.items > 0 then
         local children = {}
-        for _, child in ipairs(option.items) do
+        for childIndex = 1, #option.items do
+            local child = option.items[childIndex]
             children[#children + 1] = translateOption(child, leafById)
         end
         translated.submenu = { title = option.title or option.label, items = children }
@@ -142,7 +143,8 @@ end
 local function translateItems(leafById)
     local topItems, restItems = {}, {}
 
-    for _, id in ipairs(order) do
+    for idIndex = 1, #order do
+        local id = order[idIndex]
         local option = byId[id]
         local translated = translateOption(option, leafById)
 
@@ -154,8 +156,8 @@ local function translateItems(leafById)
     end
 
     local items = {}
-    for _, item in ipairs(topItems) do items[#items + 1] = item end
-    for _, item in ipairs(restItems) do items[#items + 1] = item end
+    for i = 1, #topItems do items[#items + 1] = topItems[i] end
+    for i = 1, #restItems do items[#items + 1] = restItems[i] end
     return items
 end
 
@@ -219,7 +221,7 @@ end
 -- `option.shouldClose` is already set, which wins as the more explicit of
 -- the two), anything else non-nil -> the explicit id, exactly like upstream.
 -- Defaults to true (select -> wheel closes) same as real qb-radialmenu.
-local function AddOption(option, second)
+local function addOption(option, second)
     assert(type(option) == "table", "qb-radialmenu compat: AddOption requires an option table.")
 
     local id
@@ -246,12 +248,13 @@ end
 
 -- Removes a previously-registered option by id. A no-op if the id isn't
 -- currently registered (real qb-radialmenu doesn't error on this either).
-local function RemoveOption(id)
+local function removeOption(id)
     id = tostring(id)
     if not byId[id] then return end
 
     byId[id] = nil
-    for i, existingId in ipairs(order) do
+    for i = 1, #order do
+        local existingId = order[i]
         if existingId == id then
             table.remove(order, i)
             break
@@ -404,14 +407,15 @@ local function setupVehicleMenu()
 
     if not vehicle or vehicle == 0 then
         if vehicleMenuRegistered then
-            RemoveOption(VEHICLE_SLOT_ID)
+            removeOption(VEHICLE_SLOT_ID)
             vehicleMenuRegistered = false
         end
         return
     end
 
     local doorItems = {}
-    for _, door in ipairs(VEHICLE_DOOR_ITEMS) do
+    for doorIndex = 1, #VEHICLE_DOOR_ITEMS do
+        local door = VEHICLE_DOOR_ITEMS[doorIndex]
         doorItems[#doorItems + 1] = {
             id = door.id, title = door.title, doorIndex = door.doorIndex,
             type = "client", event = "qblib:radialmenuCompat:client:openDoor", shouldClose = false,
@@ -452,7 +456,7 @@ local function setupVehicleMenu()
         end
     end
 
-    AddOption({ id = VEHICLE_SLOT_ID, title = "Vehicle", items = items }, VEHICLE_SLOT_ID)
+    addOption({ id = VEHICLE_SLOT_ID, title = "Vehicle", items = items }, VEHICLE_SLOT_ID)
     vehicleMenuRegistered = true
 end
 
@@ -471,13 +475,13 @@ local function setupJobMenu(job, jobType)
 
     if not entries or #entries == 0 or job.onduty ~= true then
         if jobMenuRegistered then
-            RemoveOption(JOB_SLOT_ID)
+            removeOption(JOB_SLOT_ID)
             jobMenuRegistered = false
         end
         return
     end
 
-    AddOption({ id = JOB_SLOT_ID, title = "Work", items = entries }, JOB_SLOT_ID)
+    addOption({ id = JOB_SLOT_ID, title = "Work", items = entries }, JOB_SLOT_ID)
     jobMenuRegistered = true
 end
 
@@ -551,18 +555,18 @@ local function openRegisteredRadial()
     end
 end
 
-QB.compat.provideExport("qb-radialmenu", "AddOption", AddOption)
-QB.compat.provideExport("qb-radialmenu", "RemoveOption", RemoveOption)
+QB.compat.provideExport("qb-radialmenu", "AddOption", addOption)
+QB.compat.provideExport("qb-radialmenu", "RemoveOption", removeOption)
 
-RegisterNetEvent("qb-radialmenu:client:AddOption", AddOption)
-RegisterNetEvent("qb-radialmenu:client:RemoveOption", RemoveOption)
+RegisterNetEvent("qb-radialmenu:client:AddOption", addOption)
+RegisterNetEvent("qb-radialmenu:client:RemoveOption", removeOption)
 
 AddEventHandler("onClientResourceStop", function(resource)
     local owned = {}
     for id, option in pairs(byId) do
         if option.__qblibOwner == resource then owned[#owned + 1] = id end
     end
-    for i = 1, #owned do RemoveOption(owned[i]) end
+    for i = 1, #owned do removeOption(owned[i]) end
 end)
 
 -- Real qb-radialmenu opens on a fixed keybind rather than a script-triggered

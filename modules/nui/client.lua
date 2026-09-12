@@ -9,6 +9,26 @@ local focusLeases = {}
 local nextFocusLease = 0
 local focusBaseKeepInput
 
+local APP_LABEL_FALLBACKS = {
+    cancel = 'Cancel', confirm = 'Confirm', working = 'Working…', run_action = 'Run action',
+    search = 'Search…', previous = 'Previous', next = 'Next', no_records = 'No records',
+    nothing_here = 'Nothing here', empty_title = 'Nothing here yet',
+    empty_description = 'This section is ready for its application content.', close = 'Close',
+    select = 'Select…', required = 'Required.', invalid_format = 'Invalid format.',
+    min_value = 'Must be at least %{value}.', max_value = 'Must be at most %{value}.',
+    min_length = 'Must be at least %{value} characters.', max_length = 'Must be at most %{value} characters.',
+    page = 'Page %{current} of %{total}', recenter = 'Recenter map', clear = 'Clear', backspace = 'Backspace',
+    back = 'Back', open = 'Open', yes = 'Yes', no = 'No', map = 'Map', zoom_in = 'Zoom in', zoom_out = 'Zoom out',
+    value = 'value', decrease = 'Decrease %{field}', increase = 'Increase %{field}',
+}
+local MENU_ITEM_STRING_FIELDS = { 'description', 'icon', 'image' }
+local MENU_SIZE_FIELDS = { 'maxWidth', 'maxHeight' }
+local MENU_OFFSET_FIELDS = { 'offsetX', 'offsetY' }
+local ALERT_STRING_FIELDS = { 'title', 'image', 'confirmLabel', 'cancelLabel' }
+local ALERT_BOOLEAN_FIELDS = {
+    'cancellable', 'showCancel', 'showClose', 'dismissOnBackdrop', 'destructive', 'centered', 'overflow',
+}
+
 local function nextId()
     nextRequestId = nextRequestId + 1
     return nextRequestId
@@ -35,38 +55,27 @@ local function assertAppId(id)
         "App id must be a non-empty namespaced string without whitespace.")
 end
 
+local function translateAppLabel(key)
+    if QB.locale and QB.locale.translate then return QB.locale.translate('qblib', 'app.' .. key) end
+    return APP_LABEL_FALLBACKS[key]
+end
+
 -- Handlers belong in Lua and cannot be JSON-encoded into SendNUIMessage. Keep
 -- the callable in the private registry and copy only the browser definition.
 local function appLabels()
-    local fallbacks = {
-        cancel = 'Cancel', confirm = 'Confirm', working = 'Working…', run_action = 'Run action',
-        search = 'Search…', previous = 'Previous', next = 'Next', no_records = 'No records',
-        nothing_here = 'Nothing here', empty_title = 'Nothing here yet',
-        empty_description = 'This section is ready for its application content.', close = 'Close',
-        select = 'Select…', required = 'Required.', invalid_format = 'Invalid format.',
-        min_value = 'Must be at least %{value}.', max_value = 'Must be at most %{value}.',
-        min_length = 'Must be at least %{value} characters.', max_length = 'Must be at most %{value} characters.',
-        page = 'Page %{current} of %{total}', recenter = 'Recenter map', clear = 'Clear', backspace = 'Backspace',
-        back = 'Back', open = 'Open', yes = 'Yes', no = 'No', map = 'Map', zoom_in = 'Zoom in', zoom_out = 'Zoom out',
-        value = 'value', decrease = 'Decrease %{field}', increase = 'Increase %{field}',
-    }
-    local translate = function(key)
-        if QB.locale and QB.locale.translate then return QB.locale.translate('qblib', 'app.' .. key) end
-        return fallbacks[key]
-    end
     return {
-        cancel = translate('cancel'), confirm = translate('confirm'), working = translate('working'),
-        runAction = translate('run_action'), search = translate('search'), previous = translate('previous'),
-        next = translate('next'), noRecords = translate('no_records'), nothingHere = translate('nothing_here'),
-        emptyTitle = translate('empty_title'), emptyDescription = translate('empty_description'),
-        close = translate('close'), select = translate('select'), required = translate('required'),
-        invalidFormat = translate('invalid_format'), minValue = translate('min_value'),
-        maxValue = translate('max_value'), minLength = translate('min_length'),
-        maxLength = translate('max_length'), page = translate('page'), recenter = translate('recenter'),
-        clear = translate('clear'), backspace = translate('backspace'),
-        back = translate('back'), open = translate('open'), yes = translate('yes'), no = translate('no'),
-        map = translate('map'), zoomIn = translate('zoom_in'), zoomOut = translate('zoom_out'), value = translate('value'),
-        decrease = translate('decrease'), increase = translate('increase'),
+        cancel = translateAppLabel('cancel'), confirm = translateAppLabel('confirm'), working = translateAppLabel('working'),
+        runAction = translateAppLabel('run_action'), search = translateAppLabel('search'), previous = translateAppLabel('previous'),
+        next = translateAppLabel('next'), noRecords = translateAppLabel('no_records'), nothingHere = translateAppLabel('nothing_here'),
+        emptyTitle = translateAppLabel('empty_title'), emptyDescription = translateAppLabel('empty_description'),
+        close = translateAppLabel('close'), select = translateAppLabel('select'), required = translateAppLabel('required'),
+        invalidFormat = translateAppLabel('invalid_format'), minValue = translateAppLabel('min_value'),
+        maxValue = translateAppLabel('max_value'), minLength = translateAppLabel('min_length'),
+        maxLength = translateAppLabel('max_length'), page = translateAppLabel('page'), recenter = translateAppLabel('recenter'),
+        clear = translateAppLabel('clear'), backspace = translateAppLabel('backspace'),
+        back = translateAppLabel('back'), open = translateAppLabel('open'), yes = translateAppLabel('yes'), no = translateAppLabel('no'),
+        map = translateAppLabel('map'), zoomIn = translateAppLabel('zoom_in'), zoomOut = translateAppLabel('zoom_out'),
+        value = translateAppLabel('value'), decrease = translateAppLabel('decrease'), increase = translateAppLabel('increase'),
     }
 end
 
@@ -79,14 +88,14 @@ local function browserApp(definition)
     return result
 end
 
-local validFieldTypes = {
+local VALID_FIELD_TYPES = {
     text = true, password = true, textarea = true, number = true, checkbox = true,
     select = true, multiselect = true, range = true, combobox = true,
     date = true, ['date-range'] = true, time = true, color = true,
 }
 
-local validTones = { neutral = true, primary = true, success = true, warning = true, destructive = true }
-local validActionVariants = { primary = true, secondary = true, outline = true, ghost = true, destructive = true }
+local VALID_TONES = { neutral = true, primary = true, success = true, warning = true, destructive = true }
+local VALID_ACTION_VARIANTS = { primary = true, secondary = true, outline = true, ghost = true, destructive = true }
 
 local function assertPositiveInteger(value, message)
     assert(type(value) == "number" and value > 0 and value % 1 == 0, message)
@@ -95,7 +104,8 @@ end
 local function assertOptions(options, location)
     assert(type(options) == "table", location .. " must be a table.")
     local values = {}
-    for index, option in ipairs(options) do
+    for index = 1, #options do
+        local option = options[index]
         local optionLocation = ("%s option %d"):format(location, index)
         assert(type(option) == "table", optionLocation .. " must be a table.")
         assert((type(option.value) == "string" or type(option.value) == "number")
@@ -110,13 +120,14 @@ end
 
 local function assertMetadata(items, location)
     assert(type(items) == "table", location .. " metadata must be a table.")
-    for index, item in ipairs(items) do
+    for index = 1, #items do
+        local item = items[index]
         local itemLocation = ("%s metadata item %d"):format(location, index)
         assert(type(item) == "table" and type(item.label) == "string" and item.label ~= "",
             itemLocation .. " requires a label.")
         assert(type(item.value) == "string" or type(item.value) == "number" or type(item.value) == "boolean",
             itemLocation .. " requires a scalar value.")
-        assert(item.tone == nil or validTones[item.tone], itemLocation .. " has an invalid tone.")
+        assert(item.tone == nil or VALID_TONES[item.tone], itemLocation .. " has an invalid tone.")
     end
 end
 
@@ -134,13 +145,14 @@ end
 local function assertInputFields(fields, location)
     assert(type(fields) == "table", ("%s fields must be a table."):format(location))
     local ids = {}
-    for index, field in ipairs(fields) do
+    for index = 1, #fields do
+        local field = fields[index]
         local fieldLocation = ("%s field %d"):format(location, index)
         assert(type(field) == "table", fieldLocation .. " must be a table.")
         assert(type(field.id) == "string" and field.id ~= "", fieldLocation .. " requires an id.")
         assert(not ids[field.id], ("%s field id '%s' is duplicated."):format(location, field.id))
         assert(type(field.label) == "string" and field.label ~= "", fieldLocation .. " requires a label.")
-        assert(validFieldTypes[field.type], fieldLocation .. " has an invalid type.")
+        assert(VALID_FIELD_TYPES[field.type], fieldLocation .. " has an invalid type.")
         assert(field.description == nil or type(field.description) == "string", fieldLocation .. " description must be a string.")
         assert(field.required == nil or type(field.required) == "boolean", fieldLocation .. " required must be a boolean.")
         assert(field.disabled == nil or type(field.disabled) == "boolean", fieldLocation .. " disabled must be a boolean.")
@@ -199,7 +211,8 @@ local function assertInputFields(fields, location)
         end
         if field.presets ~= nil then
             assert(type(field.presets) == "table", fieldLocation .. " presets must be a table.")
-            for presetIndex, preset in ipairs(field.presets) do
+            for presetIndex = 1, #field.presets do
+                local preset = field.presets[presetIndex]
                 assert(type(preset) == "table" and type(preset.value) == "number",
                     ("%s preset %d requires a numeric value."):format(fieldLocation, presetIndex))
                 assert(preset.label == nil or type(preset.label) == "string",
@@ -216,7 +229,8 @@ local function assertInputFields(fields, location)
                 assert(type(field.default) == "number", fieldLocation .. " numeric default must be a number.")
             elseif field.type == "multiselect" or field.type == "date-range" then
                 assert(type(field.default) == "table", fieldLocation .. " multiselect default must be an array.")
-                for defaultIndex, value in ipairs(field.default) do
+                for defaultIndex = 1, #field.default do
+                    local value = field.default[defaultIndex]
                     assert(type(value) == "string" or type(value) == "number",
                         ("%s default item %d must be a string or number."):format(fieldLocation, defaultIndex))
                 end
@@ -227,7 +241,8 @@ local function assertInputFields(fields, location)
         end
         ids[field.id] = true
     end
-    for index, field in ipairs(fields) do
+    for index = 1, #fields do
+        local field = fields[index]
         assert(field.dependsOn == nil or ids[field.dependsOn], ("%s field %d depends on an unknown field."):format(location, index))
         assert(field.visibleWhen == nil or ids[field.visibleWhen.fieldId], ("%s field %d visibility depends on an unknown field."):format(location, index))
     end
@@ -249,7 +264,7 @@ local function assertAppAction(action, location, actionIds)
     assert(type(action.label) == "string" and action.label ~= "", ("%s action label must be a non-empty string."):format(location))
     if action.fields ~= nil then assertInputFields(action.fields, location .. " action") end
     assert(action.icon == nil or type(action.icon) == "string", ("%s action icon must be a string."):format(location))
-    assert(action.variant == nil or validActionVariants[action.variant], ("%s action variant is invalid."):format(location))
+    assert(action.variant == nil or VALID_ACTION_VARIANTS[action.variant], ("%s action variant is invalid."):format(location))
     assert(action.disabled == nil or type(action.disabled) == "boolean", ("%s action disabled must be a boolean."):format(location))
     assert(action.confirm == nil or type(action.confirm) == "string", ("%s action confirm must be a string."):format(location))
     assert(action.closeBeforeAction == nil or type(action.closeBeforeAction) == "boolean", ("%s action closeBeforeAction must be a boolean."):format(location))
@@ -259,14 +274,15 @@ end
 local function assertListItems(items, location, actionIds)
     assert(type(items) == "table", location .. " requires an items table.")
     local ids = {}
-    for index, item in ipairs(items) do
+    for index = 1, #items do
+        local item = items[index]
         local itemLocation = ("%s item %d"):format(location, index)
         assert(type(item) == "table" and type(item.id) == "string" and item.id ~= "", itemLocation .. " requires an id.")
         assert(not ids[item.id], ("%s item id '%s' is duplicated."):format(location, item.id))
         assert(type(item.label) == "string" and item.label ~= "", itemLocation .. " requires a label.")
         assert(item.description == nil or type(item.description) == "string", itemLocation .. " description must be a string.")
         assert(item.image == nil or type(item.image) == "string", itemLocation .. " image must be a string.")
-        assert(item.tone == nil or validTones[item.tone], itemLocation .. " has an invalid tone.")
+        assert(item.tone == nil or VALID_TONES[item.tone], itemLocation .. " has an invalid tone.")
         if item.metadata ~= nil then assertMetadata(item.metadata, itemLocation) end
         if item.action ~= nil then
             if type(item.action) == "table" then assertAppAction(item.action, itemLocation, actionIds)
@@ -274,7 +290,9 @@ local function assertListItems(items, location, actionIds)
         end
         if item.actions ~= nil then
             assert(type(item.actions) == "table", itemLocation .. " actions must be a table.")
-            for _, action in ipairs(item.actions) do assertAppAction(action, itemLocation, actionIds) end
+            for actionIndex = 1, #item.actions do
+                assertAppAction(item.actions[actionIndex], itemLocation, actionIds)
+            end
         end
         if item.children ~= nil then assertListItems(item.children, itemLocation .. " children", actionIds) end
         ids[item.id] = true
@@ -291,7 +309,9 @@ local function assertAppContent(content, location, actionIds)
 
     if content.actions ~= nil then
         assert(type(content.actions) == "table", ("%s actions must be a table."):format(location))
-        for _, action in ipairs(content.actions) do assertAppAction(action, location, actionIds) end
+        for actionIndex = 1, #content.actions do
+            assertAppAction(content.actions[actionIndex], location, actionIds)
+        end
     end
 
     if content.blocks == nil then return end
@@ -300,7 +320,8 @@ local function assertAppContent(content, location, actionIds)
         form = true, details = true, timeline = true, map = true, empty = true }
 
     local blockIds = {}
-    for index, block in ipairs(content.blocks) do
+    for index = 1, #content.blocks do
+        local block = content.blocks[index]
         local blockLocation = ("%s block %d"):format(location, index)
         assert(type(block) == "table" and blockTypes[block.type], blockLocation .. " has an invalid type.")
         if block.id ~= nil then
@@ -312,7 +333,8 @@ local function assertAppContent(content, location, actionIds)
             assert(type(block.text) == "string", blockLocation .. " requires text.")
         elseif block.type == "stats" then
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
-            for itemIndex, item in ipairs(block.items) do
+            for itemIndex = 1, #block.items do
+                local item = block.items[itemIndex]
                 assert(type(item) == "table" and type(item.label) == "string" and item.label ~= ""
                     and (type(item.value) == "string" or type(item.value) == "number"),
                     ("%s item %d is invalid."):format(blockLocation, itemIndex))
@@ -320,11 +342,12 @@ local function assertAppContent(content, location, actionIds)
                     ("%s item %d description must be a string."):format(blockLocation, itemIndex))
                 assert(item.icon == nil or type(item.icon) == "string",
                     ("%s item %d icon must be a string."):format(blockLocation, itemIndex))
-                assert(item.tone == nil or validTones[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
+                assert(item.tone == nil or VALID_TONES[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
             end
         elseif block.type == "progress" then
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
-            for itemIndex, item in ipairs(block.items) do
+            for itemIndex = 1, #block.items do
+                local item = block.items[itemIndex]
                 assert(type(item) == "table" and type(item.label) == "string" and item.label ~= ""
                     and type(item.value) == "number" and type(item.max) == "number" and item.max > 0,
                     ("%s item %d requires a label, numeric value, and positive max."):format(blockLocation, itemIndex))
@@ -336,18 +359,19 @@ local function assertAppContent(content, location, actionIds)
                     ("%s item %d detail must be a string."):format(blockLocation, itemIndex))
                 assert(item.icon == nil or type(item.icon) == "string",
                     ("%s item %d icon must be a string."):format(blockLocation, itemIndex))
-                assert(item.tone == nil or validTones[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
+                assert(item.tone == nil or VALID_TONES[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
             end
         elseif block.type == "details" then
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
             assert(block.columns == nil or (type(block.columns) == "number" and block.columns >= 1 and block.columns <= 3 and block.columns % 1 == 0),
                 blockLocation .. " columns must be an integer from 1 to 3.")
-            for itemIndex, item in ipairs(block.items) do
+            for itemIndex = 1, #block.items do
+                local item = block.items[itemIndex]
                 assert(type(item) == "table" and type(item.label) == "string" and item.label ~= "",
                     ("%s item %d requires a label."):format(blockLocation, itemIndex))
                 assert(item.value == nil or type(item.value) == "string" or type(item.value) == "number" or type(item.value) == "boolean",
                     ("%s item %d value must be scalar."):format(blockLocation, itemIndex))
-                assert(item.tone == nil or validTones[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
+                assert(item.tone == nil or VALID_TONES[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
             end
         elseif block.type == "list" then
             assert(block.layout == nil or block.layout == "list" or block.layout == "grid" or block.layout == "cards",
@@ -363,7 +387,8 @@ local function assertAppContent(content, location, actionIds)
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             assertCollectionOptions(block, blockLocation)
             local columnKeys = {}
-            for columnIndex, column in ipairs(block.columns) do
+            for columnIndex = 1, #block.columns do
+                local column = block.columns[columnIndex]
                 local columnLocation = ("%s column %d"):format(blockLocation, columnIndex)
                 assert(type(column) == "table" and type(column.key) == "string" and column.key ~= ""
                     and type(column.label) == "string" and column.label ~= "", columnLocation .. " is invalid.")
@@ -373,12 +398,17 @@ local function assertAppContent(content, location, actionIds)
                 assert(column.sortable == nil or type(column.sortable) == "boolean", columnLocation .. " sortable must be a boolean.")
                 columnKeys[column.key] = true
             end
-            for rowIndex, row in ipairs(block.rows) do assert(type(row) == "table", ("%s row %d must be a table."):format(blockLocation, rowIndex)) end
+            for rowIndex = 1, #block.rows do
+                assert(type(block.rows[rowIndex]) == "table",
+                    ("%s row %d must be a table."):format(blockLocation, rowIndex))
+            end
             assert(block.idKey == nil or type(block.idKey) == "string", blockLocation .. " idKey must be a string.")
             if block.action ~= nil then declareAction(actionIds, block.action, false, blockLocation) end
         elseif block.type == "actions" then
             assert(type(block.actions) == "table", blockLocation .. " requires an actions table.")
-            for _, action in ipairs(block.actions) do assertAppAction(action, blockLocation, actionIds) end
+            for actionIndex = 1, #block.actions do
+                assertAppAction(block.actions[actionIndex], blockLocation, actionIds)
+            end
         elseif block.type == "form" then
             assert(type(block.id) == "string" and block.id ~= "", blockLocation .. " requires an id.")
             assert(block.submitLabel == nil or type(block.submitLabel) == "string", blockLocation .. " submitLabel must be a string.")
@@ -388,7 +418,8 @@ local function assertAppContent(content, location, actionIds)
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             local itemIds = {}
-            for itemIndex, item in ipairs(block.items) do
+            for itemIndex = 1, #block.items do
+                local item = block.items[itemIndex]
                 assert(type(item) == "table" and type(item.id) == "string" and item.id ~= ""
                     and type(item.title) == "string" and item.title ~= "",
                     ("%s item %d is invalid."):format(blockLocation, itemIndex))
@@ -397,11 +428,13 @@ local function assertAppContent(content, location, actionIds)
                     ("%s item %d description must be a string."):format(blockLocation, itemIndex))
                 assert(item.timestamp == nil or type(item.timestamp) == "string",
                     ("%s item %d timestamp must be a string."):format(blockLocation, itemIndex))
-                assert(item.tone == nil or validTones[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
+                assert(item.tone == nil or VALID_TONES[item.tone], ("%s item %d has an invalid tone."):format(blockLocation, itemIndex))
                 if item.metadata ~= nil then assertMetadata(item.metadata, blockLocation .. " timeline") end
                 if item.actions ~= nil then
                     assert(type(item.actions) == "table", blockLocation .. " timeline actions must be a table.")
-                    for _, action in ipairs(item.actions) do assertAppAction(action, blockLocation, actionIds) end
+                    for actionIndex = 1, #item.actions do
+                        assertAppAction(item.actions[actionIndex], blockLocation, actionIds)
+                    end
                 end
                 itemIds[item.id] = true
             end
@@ -439,7 +472,8 @@ local function assertAppContent(content, location, actionIds)
             assert(block.selectedId == nil or type(block.selectedId) == "string", blockLocation .. " selectedId must be a string.")
             if block.action ~= nil then declareAction(actionIds, block.action, false, blockLocation) end
             local markerIds = {}
-            for markerIndex, marker in ipairs(block.markers) do
+            for markerIndex = 1, #block.markers do
+                local marker = block.markers[markerIndex]
                 assert(type(marker) == "table" and type(marker.id) == "string" and marker.id ~= ""
                     and type(marker.x) == "number" and type(marker.y) == "number" and type(marker.label) == "string",
                     ("%s marker %d is invalid."):format(blockLocation, markerIndex))
@@ -452,7 +486,7 @@ local function assertAppContent(content, location, actionIds)
                     ("%s marker %d expiresAt must be a number."):format(blockLocation, markerIndex))
                 assert(marker.fadeDuration == nil or (type(marker.fadeDuration) == "number" and marker.fadeDuration >= 0),
                     ("%s marker %d fadeDuration must be non-negative."):format(blockLocation, markerIndex))
-                assert(marker.tone == nil or validTones[marker.tone], ("%s marker %d has an invalid tone."):format(blockLocation, markerIndex))
+                assert(marker.tone == nil or VALID_TONES[marker.tone], ("%s marker %d has an invalid tone."):format(blockLocation, markerIndex))
                 if marker.action ~= nil then declareAction(actionIds, marker.action, false, blockLocation) end
                 markerIds[marker.id] = true
             end
@@ -484,7 +518,8 @@ local function assertBrowserApp(definition)
 
     local viewIds, actionIds = {}, {}
     local hasEnabledView = false
-    for viewIndex, view in ipairs(definition.navigation) do
+    for viewIndex = 1, #definition.navigation do
+        local view = definition.navigation[viewIndex]
         local location = ("App navigation item %d"):format(viewIndex)
         assert(type(view) == "table", location .. " must be a table.")
         assert(type(view.id) == "string" and view.id ~= "", location .. " requires an id.")
@@ -499,7 +534,8 @@ local function assertBrowserApp(definition)
             assert(type(view.tabs) == "table" and #view.tabs > 0,
                 ("App view '%s' tabs must contain at least one tab."):format(view.id))
             local tabIds = {}
-            for tabIndex, tab in ipairs(view.tabs) do
+            for tabIndex = 1, #view.tabs do
+                local tab = view.tabs[tabIndex]
                 local tabLocation = ("App view '%s' tab %d"):format(view.id, tabIndex)
                 assert(type(tab) == "table", tabLocation .. " must be a table.")
                 assert(type(tab.id) == "string" and tab.id ~= "", tabLocation .. " requires an id.")
@@ -895,13 +931,15 @@ local function assertMenuItems(items, context, visited)
     end
     assert(itemCount == #items, ("%s items must be a dense array."):format(context))
 
-    for index, item in ipairs(items) do
+    for index = 1, #items do
+        local item = items[index]
         assert(type(item) == "table", ("%s item %d must be a table."):format(context, index))
         assert(type(item.id) == "string" and item.id ~= "",
             ("%s item %d requires a non-empty string id."):format(context, index))
         assert(type(item.label) == "string" and item.label ~= "",
             ("%s item %d requires a non-empty string label."):format(context, index))
-        for _, field in ipairs({ "description", "icon", "image" }) do
+        for fieldIndex = 1, #MENU_ITEM_STRING_FIELDS do
+            local field = MENU_ITEM_STRING_FIELDS[fieldIndex]
             assert(item[field] == nil or type(item[field]) == "string",
                 ("%s item %d %s must be a string."):format(context, index, field))
         end
@@ -920,7 +958,8 @@ local function assertMenuItems(items, context, visited)
         if item.values ~= nil then
             assert(type(item.values) == "table" and #item.values > 0,
                 ("%s item %d values must be a non-empty array."):format(context, index))
-            for valueIndex, value in ipairs(item.values) do
+            for valueIndex = 1, #item.values do
+                local value = item.values[valueIndex]
                 assert(type(value) == "string" or (type(value) == "table" and type(value.label) == "string"
                     and (value.description == nil or type(value.description) == "string")),
                     ("%s item %d value %d must be a string or label/description table."):format(context, index, valueIndex))
@@ -953,7 +992,8 @@ local function assertMenuGeometry(title, opts)
     assert(opts.startIndex == nil or (type(opts.startIndex) == "number" and opts.startIndex > 0 and opts.startIndex % 1 == 0),
         "Menu startIndex must be a positive integer.")
 
-    for _, field in ipairs({ "maxWidth", "maxHeight" }) do
+    for i = 1, #MENU_SIZE_FIELDS do
+        local field = MENU_SIZE_FIELDS[i]
         assert(opts[field] == nil or (isFiniteNumber(opts[field]) and opts[field] > 0),
             ("Menu %s must be a positive finite number."):format(field))
     end
@@ -964,7 +1004,8 @@ local function assertMenuGeometry(title, opts)
             "Menu horizontal position must be left, center, or right.")
         assert(position.vertical == nil or position.vertical == "top" or position.vertical == "center" or position.vertical == "bottom",
             "Menu vertical position must be top, center, or bottom.")
-        for _, field in ipairs({ "offsetX", "offsetY" }) do
+        for i = 1, #MENU_OFFSET_FIELDS do
+            local field = MENU_OFFSET_FIELDS[i]
             assert(position[field] == nil or (isFiniteNumber(position[field]) and position[field] >= 0),
                 ("Menu position %s must be a non-negative finite number."):format(field))
         end
@@ -1045,11 +1086,13 @@ end
 function QB.nui.openAlert(opts)
     assert(type(opts) == "table", "openAlert requires an options table.")
     assert(type(opts.message) == "string" and #opts.message > 0, "openAlert requires a message string.")
-    for _, field in ipairs({ "title", "image", "confirmLabel", "cancelLabel" }) do
+    for i = 1, #ALERT_STRING_FIELDS do
+        local field = ALERT_STRING_FIELDS[i]
         assert(opts[field] == nil or type(opts[field]) == "string",
             ("openAlert %s must be a string."):format(field))
     end
-    for _, field in ipairs({ "cancellable", "showCancel", "showClose", "dismissOnBackdrop", "destructive", "centered", "overflow" }) do
+    for i = 1, #ALERT_BOOLEAN_FIELDS do
+        local field = ALERT_BOOLEAN_FIELDS[i]
         assert(opts[field] == nil or type(opts[field]) == "boolean",
             ("openAlert %s must be a boolean."):format(field))
     end
@@ -1299,8 +1342,6 @@ function QB.nui.isAppOpen(id)
     return activeApp ~= nil and (id == nil or activeApp.id == id)
 end
 
-local appTones = { neutral = true, primary = true, success = true, warning = true, destructive = true }
-
 local function notifyClosedAppError(message)
     if QB.notify and QB.notify.send then QB.notify.send({ type = "error", message = message }) end
 end
@@ -1314,13 +1355,16 @@ local function validateActionResult(registration, result)
         assert(type(result.navigate) == "table" and type(result.navigate.viewId) == "string",
             "App action result navigate requires a viewId.")
         local view
-        for _, candidate in ipairs(registration.browser.navigation) do
+        for candidateIndex = 1, #registration.browser.navigation do
+            local candidate = registration.browser.navigation[candidateIndex]
             if candidate.id == result.navigate.viewId and not candidate.disabled then view = candidate break end
         end
         assert(view, "App action result navigate references an unknown or disabled view.")
         if result.navigate.tabId ~= nil then
             local found = false
-            for _, tab in ipairs(view.tabs or {}) do
+            local tabs = view.tabs or {}
+            for tabIndex = 1, #tabs do
+                local tab = tabs[tabIndex]
                 if tab.id == result.navigate.tabId then found = true break end
             end
             assert(found, "App action result navigate references an unknown tab.")
@@ -1330,7 +1374,7 @@ local function validateActionResult(registration, result)
     end
 
     if result.notice ~= nil then
-        assert(type(result.notice) == "table" and appTones[result.notice.tone]
+        assert(type(result.notice) == "table" and VALID_TONES[result.notice.tone]
             and type(result.notice.message) == "string" and result.notice.message ~= "",
             "App action result notice requires a valid tone and message.")
     end

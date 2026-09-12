@@ -3,7 +3,9 @@
 -- See the identical note in modules/closest/client.lua: QB.world's "player"
 -- entityType returns a ped, but QB.closest.player's contract is a player id.
 local function pedToPlayerId(ped)
-    for _, playerId in ipairs(GetPlayers()) do
+    local players = GetPlayers()
+    for playerIndex = 1, #players do
+        local playerId = players[playerIndex]
         if GetPlayerPed(playerId) == ped then return tonumber(playerId) or playerId end
     end
     return nil

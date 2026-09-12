@@ -35,7 +35,9 @@ local poolFnByEntityType = {
 local function poolEntities(entityType)
     if entityType == "player" then
         local peds = {}
-        for _, playerId in ipairs(GetPlayers()) do
+        local players = GetPlayers()
+        for playerIndex = 1, #players do
+            local playerId = players[playerIndex]
             peds[#peds + 1] = GetPlayerPed(playerId)
         end
         return peds
@@ -50,7 +52,8 @@ local function buildModelSet(models)
     if not models then return nil end
 
     local set = {}
-    for _, model in ipairs(models) do
+    for modelIndex = 1, #models do
+        local model = models[modelIndex]
         set[type(model) == "string" and joaat(model) or model] = true
     end
     return set
@@ -62,7 +65,7 @@ local function buildExcludeSet(entities)
     if not entities then return nil end
 
     local set = {}
-    for _, entity in ipairs(entities) do set[entity] = true end
+    for i = 1, #entities do set[entities[i]] = true end
     return set
 end
 
@@ -73,7 +76,9 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
     local excludeSet = buildExcludeSet(options.excludeEntities)
     local origin = toVec3(coords)
 
-    for _, entity in ipairs(poolEntities(entityType)) do
+    local entities = poolEntities(entityType)
+    for entityIndex = 1, #entities do
+        local entity = entities[entityIndex]
         if entity ~= 0 and DoesEntityExist(entity)
             and not (excludeSet and excludeSet[entity])
             and not (modelSet and not modelSet[GetEntityModel(entity)])

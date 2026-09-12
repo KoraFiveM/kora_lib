@@ -601,7 +601,8 @@ end
 -- never be trusted to grade itself.
 function generate.quiz(cfg)
     local publicQuestions = {}
-    for i, q in ipairs(cfg.questions) do
+    for i = 1, #cfg.questions do
+        local q = cfg.questions[i]
         publicQuestions[i] = { numb = i, question = q.question, options = q.options }
     end
 
@@ -745,7 +746,8 @@ function validate.keys(session, attempt)
     local lastElapsed = -floor
     local faults = 0
 
-    for i, key in ipairs(solution.pattern) do
+    for i = 1, #solution.pattern do
+        local key = solution.pattern[i]
         local press = attempt.presses[i]
         if press == nil or type(press) ~= "table" or type(press.key) ~= "string" or
             #press.key == 0 or #press.key > 5 or not isFiniteNumber(press.elapsed) then

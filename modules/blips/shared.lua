@@ -3,7 +3,7 @@
 -- creation order makes the same category move between ids after resource
 -- restarts. Keeping the catalogue in shared code gives every realm and every
 -- client the same name -> native id contract.
-local definitions = {
+local DEFINITIONS = {
     { key = 'Other', name = 'Other', label = 'Other', id = 12 },
     { key = 'Bank', name = 'Bank', label = 'Bank', id = 13 },
     { key = 'Bar', name = 'Bar', label = 'Bar', id = 14 },
@@ -34,12 +34,12 @@ local definitions = {
     { key = 'Weapons', name = 'Weapons', label = 'Weapons', id = 39 },
 }
 
-local aliases = {
+local ALIASES = {
     ['ammu-nation'] = 'Weapons',
     ['clothing store'] = 'Clothing',
     ['tattoo artist'] = 'Tattoo',
-    ['hairdresser'] = 'Grooming',
-    ['barber'] = 'Grooming',
+    hairdresser = 'Grooming',
+    barber = 'Grooming',
     ['police station'] = 'Police',
     ['dispatch calls'] = 'Dispatch',
     ["rob's liquor"] = 'Liquor',
@@ -62,13 +62,13 @@ end
 
 local byLookup = {}
 local byId = {}
-for index = 1, #definitions do
-    local definition = definitions[index]
+for index = 1, #DEFINITIONS do
+    local definition = DEFINITIONS[index]
     byLookup[lookupKey(definition.key)] = definition
     byId[definition.id] = definition
 end
 
-for alias, category in pairs(aliases) do
+for alias, category in pairs(ALIASES) do
     byLookup[lookupKey(alias)] = assert(byLookup[lookupKey(category)])
 end
 
@@ -100,7 +100,7 @@ end
 -- so this shared catalogue is available to the client implementation without
 -- accidentally publishing mutable internals as exports.
 QB.blips._categoryCatalog = {
-    definitions = definitions,
+    definitions = DEFINITIONS,
     byId = byId,
     normaliseLabel = normaliseLabel,
     resolve = resolve,
@@ -112,8 +112,8 @@ QB.blips._categoryCatalog = {
 ---@return table<string, integer> categoryIds
 function QB.blips.getCategoryIds()
     local result = {}
-    for index = 1, #definitions do
-        local definition = definitions[index]
+    for index = 1, #DEFINITIONS do
+        local definition = DEFINITIONS[index]
         result[definition.name] = definition.id
     end
     return result

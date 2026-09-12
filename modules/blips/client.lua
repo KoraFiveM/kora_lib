@@ -95,7 +95,9 @@ local function normaliseInfo(info)
     end
 
     assert(info.rows == nil or type(info.rows) == "table", "Invalid info.rows: expected an array.")
-    for index, row in ipairs(info.rows or {}) do
+    local rows = info.rows or {}
+    for index = 1, #rows do
+        local row = rows[index]
         assert(type(row) == "table", ("Invalid info.rows[%d]: expected a table."):format(index))
         local style = INFO_ROW_STYLE[row.kind]
         assert(style, ("Invalid info.rows[%d].kind: expected text, icon, name, header, or wrappedText."):format(index))
@@ -138,7 +140,8 @@ local function registerInfoLabels(blip, info)
     if info.rp ~= "" then AddTextEntry(infoLabelName(blip, "rp"), info.rp) end
     if info.money ~= "" then AddTextEntry(infoLabelName(blip, "money"), info.money) end
 
-    for index, row in ipairs(info.rows) do
+    for index = 1, #info.rows do
+        local row = info.rows[index]
         local slot = index - 1
         AddTextEntry(infoLabelName(blip, ("%d_label"):format(slot)), row.label)
         AddTextEntry(infoLabelName(blip, ("%d_value"):format(slot)), row.value)
@@ -331,7 +334,7 @@ local function renderInfo(blip, info, clearExisting)
         EndScaleformMovieMethod()
     end
 
-    for index, row in ipairs(info.rows) do renderRow(blip, index - 1, row) end
+    for index = 1, #info.rows do renderRow(blip, index - 1, info.rows[index]) end
 
     setDisplayVisible(true)
     updateDisplay()

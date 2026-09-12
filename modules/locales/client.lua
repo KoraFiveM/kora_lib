@@ -15,7 +15,9 @@ function QB.locale.setLanguage(language)
     if not validLanguage(language) then return false, 'Language codes may only contain letters, numbers, hyphens, and underscores.' end
 
     local allowed = false
-    for _, candidate in ipairs(QB.locale.getLanguages()) do
+    local languages = QB.locale.getLanguages()
+    for candidateIndex = 1, #languages do
+        local candidate = languages[candidateIndex]
         if candidate == language then
             allowed = true
             break

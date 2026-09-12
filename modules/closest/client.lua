@@ -5,7 +5,9 @@
 -- established contract is a player id (usable with e.g. GetPlayerServerId),
 -- not a ped handle -- so the ped has to be mapped back to its owning player.
 local function pedToPlayerId(ped)
-    for _, playerId in ipairs(GetActivePlayers()) do
+    local players = GetActivePlayers()
+    for playerIndex = 1, #players do
+        local playerId = players[playerIndex]
         if GetPlayerPed(playerId) == ped then return playerId end
     end
     return nil

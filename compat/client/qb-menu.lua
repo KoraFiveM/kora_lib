@@ -59,7 +59,7 @@ end
 
 local function sorted(menu, sort, skipFirst)
     local copy = {}
-    for i, item in ipairs(menu) do copy[i] = item end
+    for i = 1, #menu do copy[i] = menu[i] end
     if not sort then return copy end
     local first = skipFirst and table.remove(copy, 1) or nil
     table.sort(copy, function(a, b) return tostring(a.header or '') < tostring(b.header or '') end)
@@ -77,7 +77,9 @@ local function translateItems(menu, sort, skipFirst)
 
     local items, byId = {}, {}
 
-    for _, item in ipairs(sorted(menu, sort, skipFirst)) do
+    local sortedItems = sorted(menu, sort, skipFirst)
+    for itemIndex = 1, #sortedItems do
+        local item = sortedItems[itemIndex]
         if not item.hidden then
             local index = #items + 1
             local id = tostring(index)

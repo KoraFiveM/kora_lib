@@ -46,7 +46,9 @@ end
 local function translateOptions(options)
     local translated = {}
 
-    for i, option in ipairs(options or {}) do
+    options = options or {}
+    for i = 1, #options do
+        local option = options[i]
         translated[i] = {
             value = tostring(option.value),
             label = option.text or option.label or tostring(option.value),
@@ -76,7 +78,8 @@ end
 -- `name` as before.
 local function translateCheckboxOptions(input, fields)
     local prefix = (input.text and input.text ~= "") and (input.text .. ": ") or ""
-    for _, option in ipairs(input.options) do
+    for optionIndex = 1, #input.options do
+        local option = input.options[optionIndex]
         fields[#fields + 1] = {
             id = tostring(option.value),
             label = prefix .. (option.text or option.label or tostring(option.value)),
@@ -145,14 +148,15 @@ end
 -- caller has to unwrap. QB.nui.openInputDialog already performs that wait when
 -- this compatibility export was invoked by another resource. A direct qblib
 -- invocation still returns a promise, so retain the await for that path.
-local function ShowInput(data)
+local function showInput(data)
     -- Upstream returns nil for an empty request or while its one dialog is
     -- already active. Preserve that non-reentrant contract instead of opening
     -- overlapping request promises that neither caller can safely own.
     if type(data) ~= "table" or type(data.inputs) ~= "table" or inputOpen then return nil end
 
     local fields = {}
-    for _, input in ipairs(data.inputs) do
+    for inputIndex = 1, #data.inputs do
+        local input = data.inputs[inputIndex]
         if input.type == "checkbox" and type(input.options) == "table" and #input.options > 0 then
             translateCheckboxOptions(input, fields)
         else
@@ -177,4 +181,4 @@ local function ShowInput(data)
     return result.values
 end
 
-QB.compat.provideExport("qb-input", "ShowInput", ShowInput)
+QB.compat.provideExport("qb-input", "ShowInput", showInput)

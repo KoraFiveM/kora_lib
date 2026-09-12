@@ -168,7 +168,8 @@ return function(library)
                 itemPath[#itemPath + 1] = '*'
                 schema.item = select(1, makeSchema(wrapped.item, itemPath, scope, skipUnsupported))
             end
-            for index, child in ipairs(value) do
+            for index = 1, #value do
+                local child = value[index]
                 local childPath = copy(path)
                 childPath[#childPath + 1] = tostring(index)
                 local childSchema, childValue = makeSchema(child, childPath, scope, skipUnsupported)
@@ -292,11 +293,13 @@ return function(library)
         table.sort(numeric)
         table.sort(entries, function(a, b) return tostring(a) < tostring(b) end)
         local lines = {}
-        for _, key in ipairs(numeric) do
+        for keyIndex = 1, #numeric do
+            local key = numeric[keyIndex]
             lines[#lines + 1] = nextIndent .. '[' .. serialize(key, nextIndent, seen) .. '] = '
                 .. serialize(value[key], nextIndent, seen) .. ','
         end
-        for _, key in ipairs(entries) do
+        for keyIndex = 1, #entries do
+            local key = entries[keyIndex]
             lines[#lines + 1] = nextIndent .. '[' .. serialize(key, nextIndent, seen) .. '] = ' .. serialize(value[key], nextIndent, seen) .. ','
         end
         seen[value] = nil
@@ -323,7 +326,9 @@ return function(library)
             if schema.max and value > schema.max then return false, ('must be at most %s'):format(schema.max) end
         elseif schema.kind == 'enum' then
             local found = false
-            for _, option in ipairs(schema.options or {}) do
+            local options = schema.options or {}
+            for optionIndex = 1, #options do
+                local option = options[optionIndex]
                 local candidate = type(option) == 'table' and option.value or option
                 if candidate == value then found = true break end
             end
@@ -352,7 +357,8 @@ return function(library)
             end
         elseif schema.kind == 'list' then
             if not isArray(value) then return false, 'must be a list' end
-            for index, child in ipairs(value) do
+            for index = 1, #value do
+                local child = value[index]
                 local item = schema.item or schema.items[index]
                 if not item then return false, 'contains an unsupported item' end
                 local ok, err = validate(item, child)
@@ -475,7 +481,8 @@ return function(library)
 
     local function readPath(root, path, schema)
         local current = root
-        for _, key in ipairs(path) do
+        for keyIndex = 1, #path do
+            local key = path[keyIndex]
             if type(current) ~= 'table' then return nil end
             current = current[pathTableKey(schema, key)]
             schema = childSchema(schema, key)
@@ -714,7 +721,8 @@ return function(library)
         end
         if type(path) ~= 'table' or #path == 0 then return nil end
         local out = {}
-        for index, key in ipairs(path) do
+        for index = 1, #path do
+            local key = path[index]
             if type(key) ~= 'string' and type(key) ~= 'number' then return nil end
             out[index] = tostring(key)
         end

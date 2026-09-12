@@ -6,6 +6,7 @@ local SYNC_PUSH = 'qblib:lookup:syncBatch'
 local MAX_BATCH_BYTES = 23 * 1024
 local MAX_SCANNED_FILE_BYTES = 16 * 1024 * 1024
 local MAX_OVERRIDE_BYTES = 1024 * 1024
+local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
 
 local pendingClients = {}
 local snapshotBatches = nil
@@ -68,13 +69,13 @@ local function readDirectory(path)
     return entries
 end
 
-local skippedDirectories = {
+local SKIPPED_DIRECTORIES = {
     ['.git'] = true,
-    ['node_modules'] = true,
-    ['web'] = true,
-    ['html'] = true,
-    ['dist'] = true,
-    ['build'] = true,
+    node_modules = true,
+    web = true,
+    html = true,
+    dist = true,
+    build = true,
 }
 
 local function collectFiles(resource, mountPath, relativePath, includeAll, output, depth)
@@ -82,13 +83,14 @@ local function collectFiles(resource, mountPath, relativePath, includeAll, outpu
     local entries = readDirectory(mountPath)
     if entries == nil then return end
 
-    for _, name in ipairs(entries) do
+    for nameIndex = 1, #entries do
+        local name = entries[nameIndex]
         local childMount = mountPath:gsub('/$', '') .. '/' .. name
         local childRelative = relativePath == '' and name or (relativePath .. '/' .. name)
         local childEntries = readDirectory(childMount)
 
         if childEntries ~= nil then
-            if includeAll or not skippedDirectories[name:lower()] then
+            if includeAll or not SKIPPED_DIRECTORIES[name:lower()] then
                 collectFiles(resource, childMount, childRelative, includeAll, output, depth + 1)
             end
         else
@@ -114,7 +116,8 @@ local function resourceFiles(resource)
     collectFiles(resource, ('@%s/'):format(resource), '', false, files, 0)
 
     local unique = {}
-    for _, path in ipairs(files) do
+    for pathIndex = 1, #files do
+        local path = files[pathIndex]
         if not seen[path] then
             seen[path] = true
             unique[#unique + 1] = path
@@ -255,7 +258,7 @@ local function decodeOverride(resource)
 end
 
 
-local metadataFields = {
+local METADATA_FIELDS = {
     vehicle = { class = 'string', manufacturer = 'string', type = 'string', seats = 'integer' },
     ped = { pedType = 'string' },
     weapon = { modelName = 'string', damageType = 'string' },
@@ -268,7 +271,7 @@ local function validateMetadata(namespace, value)
     if value == nil then return nil end
     if type(value) ~= 'table' then return false end
 
-    local accepted, definition = {}, metadataFields[namespace]
+    local accepted, definition = {}, METADATA_FIELDS[namespace]
     for field in pairs(value) do
         if definition[field] == nil then return false end
     end
@@ -290,7 +293,8 @@ local function validateMetadata(namespace, value)
                     if type(key) ~= 'number' or key % 1 ~= 0 or key < 1 or key > #entry then return false end
                 end
                 if count ~= #entry then return false end
-                for _, item in ipairs(entry) do
+                for itemIndex = 1, #entry do
+                    local item = entry[itemIndex]
                     item = boundedString(item, 128)
                     if item == nil then return false end
                     if not seen[item] then
@@ -329,7 +333,8 @@ local function validateOverrideEntry(resource, entry)
     end
 
     local common = {}
-    for _, field in ipairs({ 'label', 'labelKey', 'category', 'dlc' }) do
+    for i = 1, #COMMON_FIELDS do
+        local field = COMMON_FIELDS[i]
         if entry[field] ~= nil then
             common[field] = boundedString(entry[field])
             if common[field] == nil then
@@ -352,7 +357,9 @@ end
 local function scanResource(resource)
     local inferred, unresolvedYft, binaryYtyp = {}, 0, 0
 
-    for _, path in ipairs(resourceFiles(resource)) do
+    local files = resourceFiles(resource)
+    for pathIndex = 1, #files do
+        local path = files[pathIndex]
         local lower = path:lower()
         local name = path:match('([^/]+)$') or path
 
@@ -393,7 +400,9 @@ local function scanResource(resource)
     end
 
     local excluded = {}
-    for _, entry in ipairs(overrideExclusions or {}) do
+    overrideExclusions = overrideExclusions or {}
+    for entryIndex = 1, #overrideExclusions do
+        local entry = overrideExclusions[entryIndex]
         local name = type(entry) == 'table' and boundedString(entry.name, 128) or nil
         if type(entry) == 'table' and state.namespaces[entry.namespace] and name then
             excluded[entry.namespace .. ':' .. name:lower()] = true
@@ -403,12 +412,15 @@ local function scanResource(resource)
     end
 
     local records = {}
-    for _, record in ipairs(inferred) do
+    for recordIndex = 1, #inferred do
+        local record = inferred[recordIndex]
         if not excluded[record.namespace .. ':' .. record.name:lower()] then
             records[#records + 1] = record
         end
     end
-    for _, entry in ipairs(overrideEntries or {}) do
+    overrideEntries = overrideEntries or {}
+    for entryIndex = 1, #overrideEntries do
+        local entry = overrideEntries[entryIndex]
         local record = validateOverrideEntry(resource, entry)
         if record then records[#records + 1] = record end
     end
@@ -420,16 +432,20 @@ local function scanResource(resource)
     return records
 end
 
-local function mergeResourceNames(left, right)
-    local seen, values = {}, {}
-    for _, list in ipairs({ left, right }) do
-        for _, resource in ipairs(list or {}) do
-            if not seen[resource] then
-                seen[resource] = true
-                values[#values + 1] = resource
-            end
+local function appendUniqueResources(resources, seen, output)
+    for i = 1, #(resources or {}) do
+        local resource = resources[i]
+        if not seen[resource] then
+            seen[resource] = true
+            output[#output + 1] = resource
         end
     end
+end
+
+local function mergeResourceNames(left, right)
+    local seen, values = {}, {}
+    appendUniqueResources(left, seen, values)
+    appendUniqueResources(right, seen, values)
     table.sort(values)
     return values
 end
@@ -449,7 +465,8 @@ local function addWorking(working, record)
     local resources = mergeResourceNames(current.resources, record.resources)
     if (record._priority or 1) > (current._priority or 1) then
         record.resources = resources
-        for _, field in ipairs({ 'label', 'labelKey', 'category', 'dlc' }) do
+        for i = 1, #COMMON_FIELDS do
+            local field = COMMON_FIELDS[i]
             if record[field] == nil then record[field] = current[field] end
         end
         local metadata = copyTable(current.metadata) or {}
@@ -460,7 +477,8 @@ local function addWorking(working, record)
     end
 
     current.resources = resources
-    for _, field in ipairs({ 'label', 'labelKey', 'category', 'dlc' }) do
+    for i = 1, #COMMON_FIELDS do
+        local field = COMMON_FIELDS[i]
         if current[field] == nil then current[field] = record[field] end
     end
     current.metadata = current.metadata or {}
@@ -472,11 +490,14 @@ end
 
 local function finalizeOverlay(working)
     local overlay, total = {}, 0
-    for _, namespace in ipairs(state.namespaceOrder) do
+    for namespaceIndex = 1, #state.namespaceOrder do
+        local namespace = state.namespaceOrder[namespaceIndex]
         overlay[namespace] = {}
         for hash, byName in pairs(working[namespace]) do
             local candidates = {}
-            for _, name in ipairs(sortedKeys(byName)) do
+            local names = sortedKeys(byName)
+            for nameIndex = 1, #names do
+                local name = names[nameIndex]
                 local record = byName[name]
                 record._priority = nil
                 candidates[#candidates + 1] = record
@@ -490,7 +511,9 @@ end
 
 local function scanAll()
     local working = {}
-    for _, namespace in ipairs(state.namespaceOrder) do working[namespace] = {} end
+    for namespaceIndex = 1, #state.namespaceOrder do
+        working[state.namespaceOrder[namespaceIndex]] = {}
+    end
 
     local resources = {}
     for index = 0, GetNumResources() - 1 do
@@ -499,10 +522,11 @@ local function scanAll()
     end
     table.sort(resources)
 
-    for _, resource in ipairs(resources) do
+    for resourceIndex = 1, #resources do
+        local resource = resources[resourceIndex]
         local ok, records = pcall(scanResource, resource)
         if ok then
-            for _, record in ipairs(records) do addWorking(working, record) end
+            for recordIndex = 1, #records do addWorking(working, records[recordIndex]) end
         else
             warn(('%s could not be scanned and was skipped: %s'):format(resource, tostring(records)))
         end
@@ -517,9 +541,14 @@ state.scanAll = scanAll
 
 local function flattenOverlay()
     local records = {}
-    for _, namespace in ipairs(state.namespaceOrder) do
-        for _, hash in ipairs(sortedKeys(state.overlay[namespace])) do
-            for _, record in ipairs(state.overlay[namespace][hash]) do
+    for namespaceIndex = 1, #state.namespaceOrder do
+        local namespace = state.namespaceOrder[namespaceIndex]
+        local hashes = sortedKeys(state.overlay[namespace])
+        for hashIndex = 1, #hashes do
+            local hash = hashes[hashIndex]
+            local candidates = state.overlay[namespace][hash]
+            for recordIndex = 1, #candidates do
+                local record = candidates[recordIndex]
                 local resources = record.resources or {}
                 if #resources <= MAX_RESOURCES_PER_WIRE_RECORD then
                     records[#records + 1] = record
@@ -550,7 +579,9 @@ end
 
 local function buildBatches()
     local batches, batch, size = {}, {}, 2
-    for _, record in ipairs(flattenOverlay()) do
+    local records = flattenOverlay()
+    for recordIndex = 1, #records do
+        local record = records[recordIndex]
         local bytes = recordSize(record)
         if #batch > 0 and size + bytes > MAX_BATCH_BYTES then
             batches[#batches + 1] = batch
@@ -567,7 +598,8 @@ state.buildBatches = buildBatches
 
 local function sendSnapshot(target)
     snapshotBatches = snapshotBatches or buildBatches()
-    for index, batch in ipairs(snapshotBatches) do
+    for index = 1, #snapshotBatches do
+        local batch = snapshotBatches[index]
         QB.events.push(target, SYNC_PUSH, state.overlayVersion, index, #snapshotBatches, batch)
     end
 end

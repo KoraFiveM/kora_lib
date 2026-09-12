@@ -55,7 +55,8 @@ function QB.util.weightedChoice(list)
     assert(type(list) == "table" and #list > 0, "QB.util.weightedChoice requires a non-empty list.")
 
     local total = 0
-    for _, entry in ipairs(list) do
+    for entryIndex = 1, #list do
+        local entry = list[entryIndex]
         assert(type(entry[2]) == "number" and entry[2] > 0, "Every weightedChoice entry needs a positive weight.")
         total = total + entry[2]
     end
@@ -63,7 +64,8 @@ function QB.util.weightedChoice(list)
     local roll = math.random() * total
     local cumulative = 0
 
-    for _, entry in ipairs(list) do
+    for entryIndex = 1, #list do
+        local entry = list[entryIndex]
         cumulative = cumulative + entry[2]
         if roll <= cumulative then return entry[1] end
     end

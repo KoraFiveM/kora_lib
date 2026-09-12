@@ -35,7 +35,8 @@ local function publicArgs(args)
     if type(args) ~= 'table' then return args end
 
     local result = {}
-    for index, arg in ipairs(args) do
+    for index = 1, #args do
+        local arg = args[index]
         result[index] = {
             name = arg.name,
             help = arg.help,
@@ -219,7 +220,7 @@ function QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)
 
     local candidates = {}
     if type(argument.values) == 'table' then
-        for _, value in ipairs(argument.values) do candidates[#candidates + 1] = value end
+        for i = 1, #argument.values do candidates[#candidates + 1] = argument.values[i] end
     end
 
     if isCallable(argument.provider) then
@@ -233,13 +234,14 @@ function QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)
             print(("^3[qblib:commands]^7 suggestion provider for /%s argument %d errored: %s")
                 :format(name, argumentIndex, tostring(provided)))
         elseif type(provided) == 'table' then
-            for _, value in ipairs(provided) do candidates[#candidates + 1] = value end
+            for i = 1, #provided do candidates[#candidates + 1] = provided[i] end
         end
     end
 
     local loweredQuery = query:lower()
     local seen, result = {}, {}
-    for _, candidate in ipairs(candidates) do
+    for candidateIndex = 1, #candidates do
+        local candidate = candidates[candidateIndex]
         local value, label, help
         if type(candidate) == 'table' then
             value, label, help = candidate.value, candidate.label, candidate.help

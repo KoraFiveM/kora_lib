@@ -72,7 +72,8 @@ function QB.permissions.getLevel(src, levels, prefixOrOptions)
     assert(type(levels) == 'table' and #levels > 0, 'Permission levels must be a non-empty array.')
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
 
-    for _, level in ipairs(levels) do
+    for levelIndex = 1, #levels do
+        local level = levels[levelIndex]
         assert(type(level) == 'string' and level ~= '', 'Each permission level must be a non-empty string.')
         if level == 'user' or aceAllows(src, level, prefix, false) or discordAllows(src, level, discordRoles) then
             return level
@@ -94,7 +95,8 @@ function QB.permissions.hasLevel(src, required, levels, prefixOrOptions)
 
     local held = QB.permissions.getLevel(src, levels, prefixOrOptions)
     local heldIndex, requiredIndex
-    for index, level in ipairs(levels) do
+    for index = 1, #levels do
+        local level = levels[index]
         if level == held then heldIndex = index end
         if level == required then requiredIndex = index end
     end
@@ -130,11 +132,13 @@ function QB.permissions.explain(src, levels, prefixOrOptions)
     local prefix = resolveOptions(prefixOrOptions)
     local checks = {}
 
-    for _, level in ipairs(levels) do
+    for levelIndex = 1, #levels do
+        local level = levels[levelIndex]
         local objects = {}
         if prefix ~= nil then objects[#objects + 1] = prefix .. '.' .. level end
         objects[#objects + 1] = 'group.' .. level
-        for _, object in ipairs(objects) do
+        for objectIndex = 1, #objects do
+            local object = objects[objectIndex]
             local raw = IsPlayerAceAllowed(src, object)
             checks[#checks + 1] = {
                 level = level,

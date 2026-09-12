@@ -54,7 +54,8 @@ local function setValue(key, value)
     local handlers = listeners[key]
     if not handlers then return end
 
-    for _, entry in ipairs(handlers) do
+    for entryIndex = 1, #handlers do
+        local entry = handlers[entryIndex]
         local ok, err = pcall(entry.handler, value, old)
         if not ok then
             print(("[qblib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))

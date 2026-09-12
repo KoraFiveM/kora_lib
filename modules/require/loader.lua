@@ -105,11 +105,11 @@ return function(currentResource)
             if key > count then count = key end
         end
 
-        if count == 0 then error('paths must contain at least one module path', 3) end
+        assert(count > 0, 'paths must contain at least one module path')
 
         local results = {}
         for i = 1, count do
-            if rawget(paths, i) == nil then error('paths must be a dense array of strings', 3) end
+            assert(rawget(paths, i) ~= nil, 'paths must be a dense array of strings')
             results[i] = requireOne(resource, paths[i])
         end
 

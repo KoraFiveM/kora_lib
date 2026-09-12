@@ -64,6 +64,10 @@ local MOUSE_CONTROLS = { 1, 2, 106 }
 local MOVEMENT_CONTROLS = { 21, 30, 31, 36 }
 local OX_COMBAT_CONTROLS = { 25 }
 local OX_CAR_CONTROLS = { 63, 64, 71, 72, 75 }
+local BEHAVIOUR_FIELDS = { 'useWhileDead', 'allowRagdoll', 'allowCuffed', 'allowFalling', 'allowSwimming' }
+local DISABLE_FIELDS = { 'move', 'sprint', 'combat', 'car', 'mouse' }
+local ANIM_LOCK_FIELDS = { 'lockX', 'lockY', 'lockZ' }
+local PROP_BOOLEAN_FIELDS = { 'softPinning', 'collision', 'syncRotation' }
 
 local function deleteProgressProp(entity)
     if not entity or not DoesEntityExist(entity) then return end
@@ -118,7 +122,8 @@ local function assertPayload(payload)
         end
         assert(count == #payload.cancelControls, 'Progress bar cancelControls must be a dense array.')
     end
-    for _, field in ipairs({ 'useWhileDead', 'allowRagdoll', 'allowCuffed', 'allowFalling', 'allowSwimming' }) do
+    for i = 1, #BEHAVIOUR_FIELDS do
+        local field = BEHAVIOUR_FIELDS[i]
         assert(payload[field] == nil or type(payload[field]) == 'boolean',
             ("Progress bar %s must be a boolean."):format(field))
     end
@@ -128,7 +133,8 @@ local function assertPayload(payload)
         "Progress bar position must be 'middle' or 'bottom'.")
     if payload.disable then
         assert(type(payload.disable) == 'table', 'Progress bar disable must be a table.')
-        for _, field in ipairs({ 'move', 'sprint', 'combat', 'car', 'mouse' }) do
+        for i = 1, #DISABLE_FIELDS do
+            local field = DISABLE_FIELDS[i]
             assert(payload.disable[field] == nil or type(payload.disable[field]) == 'boolean',
                 ("Progress bar disable.%s must be a boolean."):format(field))
         end
@@ -144,7 +150,8 @@ local function assertPayload(payload)
         assert(payload.anim.duration == nil or isInteger(payload.anim.duration), 'Progress bar anim duration must be an integer.')
         assert(payload.anim.playbackRate == nil or type(payload.anim.playbackRate) == 'number', 'Progress bar anim playbackRate must be a number.')
         assert(payload.anim.stopBlendOut == nil or type(payload.anim.stopBlendOut) == 'number', 'Progress bar anim stopBlendOut must be a number.')
-        for _, field in ipairs({ 'lockX', 'lockY', 'lockZ' }) do
+        for i = 1, #ANIM_LOCK_FIELDS do
+            local field = ANIM_LOCK_FIELDS[i]
             assert(payload.anim[field] == nil or type(payload.anim[field]) == 'boolean',
                 ("Progress bar anim %s must be a boolean."):format(field))
         end
@@ -175,7 +182,8 @@ local function assertPayload(payload)
     end
     assert(propCount == #payload.props, "Progress bar props must be a dense array.")
 
-    for index, prop in ipairs(payload.props) do
+    for index = 1, #payload.props do
+        local prop = payload.props[index]
         assert(type(prop) == "table", ("Progress bar prop %d must be a table."):format(index))
         assert(type(prop.model) == "string" or isInteger(prop.model),
             ("Progress bar prop %d requires a string model name or integer hash."):format(index))
@@ -188,7 +196,8 @@ local function assertPayload(payload)
         if prop.offset ~= nil then assertVector(prop.offset, "offset", index) end
         if prop.rotation ~= nil then assertVector(prop.rotation, "rotation", index) end
 
-        for _, field in ipairs({ "softPinning", "collision", "syncRotation" }) do
+        for i = 1, #PROP_BOOLEAN_FIELDS do
+            local field = PROP_BOOLEAN_FIELDS[i]
             assert(prop[field] == nil or type(prop[field]) == "boolean",
                 ("Progress bar prop %d %s must be a boolean."):format(index, field))
         end
@@ -262,7 +271,8 @@ local function cleanupSession(session, cancelled)
         session.animStarted = false
     end
 
-    for _, entity in ipairs(session.props) do
+    for i = 1, #session.props do
+        local entity = session.props[i]
         propRegistry.untrack(entity)
         safeCleanup("prop", function() deleteProgressProp(entity) end)
     end
@@ -278,7 +288,8 @@ local function discardProp(session, entity)
     propRegistry.untrack(entity)
     safeCleanup("prop", function() deleteProgressProp(entity) end)
 
-    for index, tracked in ipairs(session.props) do
+    for index = 1, #session.props do
+        local tracked = session.props[index]
         if tracked == entity then
             table.remove(session.props, index)
             return
@@ -305,7 +316,7 @@ local function prepareProp(session, definition, index)
             local boneIndex = type(bone) == "string"
                 and GetEntityBoneIndexByName(session.ped, bone)
                 or GetPedBoneIndex(session.ped, bone)
-            if boneIndex == -1 then error(("ped bone '%s' was not found."):format(tostring(bone))) end
+            assert(boneIndex ~= -1, ("ped bone '%s' was not found."):format(tostring(bone)))
 
             local offset = definition.offset or { x = 0.0, y = 0.0, z = 0.0 }
             local rotation = definition.rotation or { x = 0.0, y = 0.0, z = 0.0 }
@@ -320,7 +331,7 @@ local function prepareProp(session, definition, index)
                 definition.syncRotation ~= false)
         end)
 
-        if not loaded then error(loadErr or "model streaming timed out.") end
+        assert(loaded, loadErr or "model streaming timed out.")
     end)
 
     if not ok then
@@ -366,7 +377,9 @@ function QB.progressbar.start(payload, owner)
     activeSession = session
 
     local ok, result = pcall(function()
-        for index, prop in ipairs(payload.props or {}) do
+        local props = payload.props or {}
+        for index = 1, #props do
+            local prop = props[index]
             prepareProp(session, prop, index)
             if session.cleaned then return false end
         end
@@ -436,7 +449,8 @@ function QB.progressbar.start(payload, owner)
                 payload.disable and payload.disable.controlProfile)
 
             if payload.canCancel and cancelControls then
-                for _, control in ipairs(cancelControls) do
+                for i = 1, #cancelControls do
+                    local control = cancelControls[i]
                     if IsControlJustPressed(0, control) then return true end
                 end
             end

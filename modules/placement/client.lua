@@ -365,7 +365,7 @@ local function ensurePlacementThread(state)
     CreateThread(function()
         local ok, err = pcall(function()
             while activeState == state do
-                if not DoesEntityExist(state.entity) then error("The placement preview entity disappeared.") end
+                assert(DoesEntityExist(state.entity), "The placement preview entity disappeared.")
 
                 local multiplier = shiftHeld() and Config.placement.shiftMultiplier or 1.0
                 if not state.dialogOpen then
@@ -476,16 +476,16 @@ function QB.placement.start(model)
         local gameplayCamCoord = GetGameplayCamCoord()
         local gameplayCamRot = GetGameplayCamRot(ROTATION_ORDER)
         local hit, coords = QB.raycast.fromCamera(Config.placement.raycastDistance)
-        if not hit or not coords then error("Aim at a solid surface before starting entity placement.") end
-        if state.aborted then error("The placement owner stopped while placement was starting.") end
+        assert(hit and coords, "Aim at a solid surface before starting entity placement.")
+        assert(not state.aborted, "The placement owner stopped while placement was starting.")
 
         local entity, createErr = QB.entities.create(model, coords, {
             preset = "static",
             heading = gameplayCamRot.z,
         })
-        if not entity then error(createErr or "Failed to create the placement preview entity.") end
+        assert(entity, createErr or "Failed to create the placement preview entity.")
         state.entity = entity
-        if state.aborted then error("The placement owner stopped while the preview was loading.") end
+        assert(not state.aborted, "The placement owner stopped while the preview was loading.")
 
         state.coords = plainVec3(coords)
         state.rotation = { pitch = 0.0, roll = 0.0, yaw = normalizeSignedAngle(gameplayCamRot.z) }

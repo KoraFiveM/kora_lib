@@ -40,7 +40,8 @@ local function matchesRestriction(actual, required)
     if type(required) == "string" then return actual == required end
     if type(required) ~= "table" then return false end
 
-    for _, value in ipairs(required) do
+    for valueIndex = 1, #required do
+        local value = required[valueIndex]
         if actual == value then return true end
     end
 
@@ -84,7 +85,8 @@ local function visibleOptions(options)
     assert(type(options) == "table" and #options > 0, "interact options must be a non-empty array.")
 
     local needsPlayerData = false
-    for _, option in ipairs(options) do
+    for optionIndex = 1, #options do
+        local option = options[optionIndex]
         if type(option) == "table" and (option.job or option.gang or option.citizenid) then
             needsPlayerData = true
             break
@@ -94,7 +96,8 @@ local function visibleOptions(options)
     local data = needsPlayerData and playerData() or nil
     local visible = {}
 
-    for _, option in ipairs(options) do
+    for optionIndex = 1, #options do
+        local option = options[optionIndex]
         if isAvailable(option, data) then
             -- Keep the original option for selection, but construct a compact
             -- NUI payload so no action/event data leaks into the browser.
@@ -192,7 +195,8 @@ local function ensureCallbacks()
 end
 
 local function isPressed(controls)
-    for _, control in ipairs(controls) do
+    for controlIndex = 1, #controls do
+        local control = controls[controlIndex]
         if IsDisabledControlJustPressed(0, control) then return true end
     end
     return false
@@ -216,14 +220,17 @@ end
 
 local function interactionControls()
     local controls, seen = {}, {}
-
-    for _, list in ipairs({
+    local controlLists = {
         Config.interact.previousControls,
         Config.interact.nextControls,
         Config.interact.selectControls,
         Config.interact.cancelControls,
-    }) do
-        for _, control in ipairs(list) do
+    }
+
+    for listIndex = 1, #controlLists do
+        local list = controlLists[listIndex]
+        for controlIndex = 1, #list do
+            local control = list[controlIndex]
             if not seen[control] then
                 seen[control] = true
                 controls[#controls + 1] = control
@@ -253,7 +260,8 @@ local function open(options, source, owner)
     active = session
 
     local labels = {}
-    for index, option in ipairs(available) do
+    for index = 1, #available do
+        local option = available[index]
         labels[index] = { label = option.label }
     end
 
@@ -389,13 +397,16 @@ function QB.interact.addTargetModel(models, size, targetOptions, debug)
 
     if type(models) ~= "table" then models = { models } end
     local wanted = {}
-    for _, model in ipairs(models) do
+    for modelIndex = 1, #models do
+        local model = models[modelIndex]
         assert(type(model) == "string" or type(model) == "number", "interact target models must be strings or hashes.")
         wanted[type(model) == "number" and model or joaat(model)] = true
     end
 
     local zones = {}
-    for _, entity in ipairs(GetGamePool("CObject")) do
+    local objects = GetGamePool("CObject")
+    for entityIndex = 1, #objects do
+        local entity = objects[entityIndex]
         if wanted[GetEntityModel(entity)] then
             local coords = GetEntityCoords(entity)
             local size = {x = size.x or 3.0, y = size.y or 3.0, z = size.z or 4.0, w = size.w or GetEntityHeading(entity)}
@@ -438,7 +449,8 @@ function QB.interact.addEntity(entity, options, distance)
     assert(type(options) == 'table' and #options > 0, 'interact entity options must be a non-empty array.')
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local translated = {}
-    for i, option in ipairs(options) do
+    for i = 1, #options do
+        local option = options[i]
         translated[i] = {
             label = option.label,
             icon = option.icon,
@@ -493,7 +505,8 @@ function QB.interact.addModel(model, options, distance)
     assert(type(options) == 'table' and #options > 0, 'interact model options must be a non-empty array.')
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local translated = {}
-    for i, option in ipairs(options) do
+    for i = 1, #options do
+        local option = options[i]
         translated[i] = {
             label = option.label,
             icon = option.icon,

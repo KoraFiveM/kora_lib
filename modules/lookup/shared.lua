@@ -3,8 +3,10 @@
 local UINT32 = 4294967296
 local INT32_MIN = -2147483648
 local UINT32_MAX = 4294967295
+local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
+local MODEL_NAMESPACES = { 'vehicle', 'ped', 'object' }
 
-local namespaceOrder = {
+local NAMESPACE_ORDER = {
     'vehicle',
     'ped',
     'object',
@@ -13,8 +15,8 @@ local namespaceOrder = {
     'pickup',
 }
 
-local namespaces = {}
-for _, namespace in ipairs(namespaceOrder) do namespaces[namespace] = true end
+local NAMESPACES = {}
+for i = 1, #NAMESPACE_ORDER do NAMESPACES[NAMESPACE_ORDER[i]] = true end
 
 local state = {
     base = {},
@@ -23,11 +25,12 @@ local state = {
     overlay = {},
     overlayReady = false,
     overlayVersion = 0,
-    namespaceOrder = namespaceOrder,
-    namespaces = namespaces,
+    namespaceOrder = NAMESPACE_ORDER,
+    namespaces = NAMESPACES,
 }
 
-for _, namespace in ipairs(namespaceOrder) do
+for namespaceIndex = 1, #NAMESPACE_ORDER do
+    local namespace = NAMESPACE_ORDER[namespaceIndex]
     state.materialized[namespace] = {}
     state.resolved[namespace] = {}
     state.overlay[namespace] = {}
@@ -92,7 +95,7 @@ end
 local function copyArray(value)
     if type(value) ~= 'table' then return nil end
     local copy = {}
-    for index, entry in ipairs(value) do copy[index] = entry end
+    for index = 1, #value do copy[index] = value[index] end
     return copy
 end
 
@@ -158,7 +161,8 @@ local function baseCandidates(namespace, hash)
     local candidates = {}
     if type(compact) == 'table' then
         if type(compact[1]) == 'table' then
-            for _, entry in ipairs(compact) do
+            for entryIndex = 1, #compact do
+                local entry = compact[entryIndex]
                 candidates[#candidates + 1] = materialize(namespace, hash, entry)
             end
         else
@@ -173,7 +177,9 @@ end
 local function mergeResources(left, right)
     local seen, merged = {}, {}
     local function append(values)
-        for _, resource in ipairs(values or {}) do
+        values = values or {}
+        for resourceIndex = 1, #values do
+            local resource = values[resourceIndex]
             if type(resource) == 'string' and not seen[resource] then
                 seen[resource] = true
                 merged[#merged + 1] = resource
@@ -190,7 +196,8 @@ local function mergeRecords(base, custom)
     local merged = shallowCopy(base or custom)
 
     if base and custom then
-        for _, field in ipairs({ 'label', 'labelKey', 'category', 'dlc' }) do
+        for i = 1, #COMMON_FIELDS do
+            local field = COMMON_FIELDS[i]
             if custom[field] ~= nil then merged[field] = custom[field] end
         end
         merged.source = 'base+custom'
@@ -214,11 +221,15 @@ local function resolvedCandidates(namespace, hash)
     if cached ~= nil then return cached end
 
     local byName = {}
-    for _, record in ipairs(baseCandidates(namespace, hash)) do
+    local baseRecords = baseCandidates(namespace, hash)
+    for recordIndex = 1, #baseRecords do
+        local record = baseRecords[recordIndex]
         byName[record.name:lower()] = record
     end
 
-    for _, custom in ipairs(state.overlay[namespace][hash] or {}) do
+    local customRecords = state.overlay[namespace][hash] or {}
+    for customIndex = 1, #customRecords do
+        local custom = customRecords[customIndex]
         local key = custom.name:lower()
         byName[key] = mergeRecords(byName[key], custom)
     end
@@ -245,12 +256,15 @@ end
 
 local function setOverlay(overlay, version)
     local normalized = {}
-    for _, namespace in ipairs(namespaceOrder) do normalized[namespace] = overlay[namespace] or {} end
+    for i = 1, #NAMESPACE_ORDER do
+        local namespace = NAMESPACE_ORDER[i]
+        normalized[namespace] = overlay[namespace] or {}
+    end
     state.overlay = normalized
     state.overlayReady = true
     state.overlayVersion = version or (state.overlayVersion + 1)
     state.resolved = {}
-    for _, namespace in ipairs(namespaceOrder) do state.resolved[namespace] = {} end
+    for i = 1, #NAMESPACE_ORDER do state.resolved[NAMESPACE_ORDER[i]] = {} end
 end
 
 state.normalize = normalize
@@ -263,7 +277,7 @@ state.setOverlay = setOverlay
 ---@return string? reason
 ---@return table[]? candidates
 function QB.lookup.get(namespace, value)
-    assert(namespaces[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
+    assert(NAMESPACES[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
     return lookupHash(namespace, normalize(value))
 end
 
@@ -283,8 +297,11 @@ function QB.lookup.model(value, kind)
 
     local hash = normalize(value)
     local candidates = {}
-    for _, namespace in ipairs({ 'vehicle', 'ped', 'object' }) do
-        for _, record in ipairs(resolvedCandidates(namespace, hash)) do
+    for i = 1, #MODEL_NAMESPACES do
+        local namespace = MODEL_NAMESPACES[i]
+        local records = resolvedCandidates(namespace, hash)
+        for recordIndex = 1, #records do
+            local record = records[recordIndex]
             candidates[#candidates + 1] = record
         end
     end
@@ -324,15 +341,16 @@ end
 ---@return boolean
 function QB.lookup.preload(selected)
     if selected == nil then
-        selected = namespaceOrder
+        selected = NAMESPACE_ORDER
     elseif type(selected) == 'string' then
         selected = { selected }
     else
         assert(type(selected) == 'table', 'Lookup preload expects a namespace or array of namespaces.')
     end
 
-    for _, namespace in ipairs(selected) do
-        assert(namespaces[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
+    for namespaceIndex = 1, #selected do
+        local namespace = selected[namespaceIndex]
+        assert(NAMESPACES[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
         loadNamespace(namespace)
     end
     return true

@@ -5,6 +5,10 @@
 local API_BASE = 'https://discord.com/api/v10'
 local USER_AGENT = 'DiscordBot (https://github.com/qbcore2/qblib, 1.0.0)'
 local MAX_RATE_LIMIT_RETRIES = 1
+local EMBED_TEXT_FIELDS = { 'title', 'description', 'url' }
+local FOOTER_FIELDS = { 'text', 'icon_url' }
+local AUTHOR_FIELDS = { 'name', 'url', 'icon_url' }
+local URL_FIELDS = { 'url' }
 
 local function assertCallback(callback)
     assert(callback == nil or type(callback) == 'function', 'Discord callback must be a function or nil.')
@@ -67,7 +71,8 @@ local function copyTextObject(value, label, fields)
 
     assert(type(value) == 'table', ('Discord embed %s must be a string or table.'):format(label))
     local out = {}
-    for _, field in ipairs(fields) do
+    for fieldIndex = 1, #fields do
+        local field = fields[fieldIndex]
         local item = value[field]
         assert(item == nil or type(item) == 'string',
             ('Discord embed %s.%s must be a string.'):format(label, field))
@@ -96,7 +101,8 @@ function QB.discord.createEmbed(options)
     assert(type(options) == 'table', 'Discord embed options must be a table.')
 
     local embed = {}
-    for _, field in ipairs({ 'title', 'description', 'url' }) do
+    for i = 1, #EMBED_TEXT_FIELDS do
+        local field = EMBED_TEXT_FIELDS[i]
         local value = options[field]
         assert(value == nil or type(value) == 'string', ('Discord embed %s must be a string.'):format(field))
         embed[field] = value
@@ -117,19 +123,19 @@ function QB.discord.createEmbed(options)
     end
 
     if options.footer ~= nil then
-        embed.footer = copyTextObject(options.footer, 'footer', { 'text', 'icon_url' })
+        embed.footer = copyTextObject(options.footer, 'footer', FOOTER_FIELDS)
         assert(type(embed.footer.text) == 'string', 'Discord embed footer.text is required.')
     end
     if options.author ~= nil then
-        embed.author = copyTextObject(options.author, 'author', { 'name', 'url', 'icon_url' })
+        embed.author = copyTextObject(options.author, 'author', AUTHOR_FIELDS)
         assert(type(embed.author.name) == 'string', 'Discord embed author.name is required.')
     end
     if options.image ~= nil then
-        embed.image = copyTextObject(options.image, 'image', { 'url' })
+        embed.image = copyTextObject(options.image, 'image', URL_FIELDS)
         assert(type(embed.image.url) == 'string', 'Discord embed image.url is required.')
     end
     if options.thumbnail ~= nil then
-        embed.thumbnail = copyTextObject(options.thumbnail, 'thumbnail', { 'url' })
+        embed.thumbnail = copyTextObject(options.thumbnail, 'thumbnail', URL_FIELDS)
         assert(type(embed.thumbnail.url) == 'string', 'Discord embed thumbnail.url is required.')
     end
 
@@ -138,7 +144,8 @@ function QB.discord.createEmbed(options)
         assert(#options.fields <= 25, 'Discord embeds support at most 25 fields.')
         embed.fields = {}
 
-        for index, field in ipairs(options.fields) do
+        for index = 1, #options.fields do
+            local field = options.fields[index]
             assert(type(field) == 'table', ('Discord embed field %d must be a table.'):format(index))
             assert(type(field.name) == 'string', ('Discord embed field %d name must be a string.'):format(index))
             assert(type(field.value) == 'string', ('Discord embed field %d value must be a string.'):format(index))
@@ -332,7 +339,7 @@ function QB.discord.setMemberRoles(guildId, userId, roleIds, callback, auditReas
     if not requireBot(callback) then return false end
     assert(type(roleIds) == 'table', 'Discord role IDs must be an array.')
     local roles = {}
-    for index, roleId in ipairs(roleIds) do roles[index] = requireSnowflake(roleId, 'role ID') end
+    for index = 1, #roleIds do roles[index] = requireSnowflake(roleIds[index], 'role ID') end
     return QB.discord.updateMember(guildId, userId, { roles = roles }, callback, auditReason)
 end
 
@@ -513,7 +520,9 @@ end
 local function cacheGuildRoles(guildId, roles, syncedAt)
     local cache = { byId = {}, byName = {}, list = {}, syncedAt = syncedAt or os.time() }
 
-    for _, rawRole in ipairs(roles or {}) do
+    roles = roles or {}
+    for roleIndex = 1, #roles do
+        local rawRole = roles[roleIndex]
         if type(rawRole) == 'table' and type(rawRole.id) == 'string' and type(rawRole.name) == 'string' then
             local role = copyRole(rawRole)
             role.color = tonumber(role.color) or 0
@@ -546,7 +555,9 @@ end
 local function cacheMemberRoles(guildId, userId, roleIds, syncedAt)
     guildMemberCache[guildId] = guildMemberCache[guildId] or {}
     local entry = { roles = {}, syncedAt = syncedAt or os.time(), stale = false }
-    for _, roleId in ipairs(roleIds or {}) do
+    roleIds = roleIds or {}
+    for roleIndex = 1, #roleIds do
+        local roleId = roleIds[roleIndex]
         if type(roleId) == 'string' and roleId:match('^%d+$') then entry.roles[roleId] = true end
     end
     guildMemberCache[guildId][userId] = entry
@@ -669,7 +680,8 @@ local function loadDatabaseCache()
     if not roleRows then return false, roleErr end
 
     local rolesByGuild = {}
-    for _, role in ipairs(roleRows) do
+    for roleIndex = 1, #roleRows do
+        local role = roleRows[roleIndex]
         rolesByGuild[role.guild_id] = rolesByGuild[role.guild_id] or {}
         rolesByGuild[role.guild_id][#rolesByGuild[role.guild_id] + 1] = role
     end
@@ -680,7 +692,8 @@ local function loadDatabaseCache()
     local memberRows, memberErr = sqlQuery('SELECT `guild_id`,`user_id`,`synced_at` FROM `qblib_discord_members`')
     if not memberRows then return false, memberErr end
     local loadedMembers = {}
-    for _, member in ipairs(memberRows) do
+    for memberIndex = 1, #memberRows do
+        local member = memberRows[memberIndex]
         guildMemberCache[member.guild_id] = guildMemberCache[member.guild_id] or {}
         if not guildMemberCache[member.guild_id][member.user_id] then
             cacheMemberRoles(member.guild_id, member.user_id, {}, tonumber(member.synced_at) or 0)
@@ -691,7 +704,8 @@ local function loadDatabaseCache()
     local assignmentRows, assignmentErr = sqlQuery(
         'SELECT `guild_id`,`user_id`,`role_id` FROM `qblib_discord_member_roles`')
     if not assignmentRows then return false, assignmentErr end
-    for _, assignment in ipairs(assignmentRows) do
+    for assignmentIndex = 1, #assignmentRows do
+        local assignment = assignmentRows[assignmentIndex]
         local guild = guildMemberCache[assignment.guild_id]
         local member = guild and guild[assignment.user_id]
         if member and loadedMembers[assignment.guild_id .. ':' .. assignment.user_id] then
@@ -751,7 +765,8 @@ local function persistGuildRoles(guildId, roles)
 
     if #roles > 0 then
         local values, params = {}, {}
-        for _, role in ipairs(roles) do
+        for roleIndex = 1, #roles do
+            local role = roles[roleIndex]
             values[#values + 1] = '(?,?,?,?,?,?,?,?)'
             params[#params + 1] = guildId
             params[#params + 1] = role.id
@@ -780,7 +795,8 @@ local function persistGuildRoles(guildId, roles)
     local deleteSql = 'DELETE FROM `qblib_discord_roles` WHERE `guild_id` = ?'
     if #roles > 0 then
         local placeholders = {}
-        for _, role in ipairs(roles) do
+        for roleIndex = 1, #roles do
+            local role = roles[roleIndex]
             placeholders[#placeholders + 1] = '?'
             deleteParams[#deleteParams + 1] = role.id
         end
@@ -813,7 +829,8 @@ local function persistMemberRoles(guildId, userId, entry)
     table.sort(roleIds)
     if #roleIds > 0 then
         local values, params = {}, {}
-        for _, roleId in ipairs(roleIds) do
+        for roleIdIndex = 1, #roleIds do
+            local roleId = roleIds[roleIdIndex]
             values[#values + 1] = '(?,?,?)'
             params[#params + 1] = guildId
             params[#params + 1] = userId
@@ -858,7 +875,7 @@ function QB.discord.getGuildRoles(guildId)
     local cache = guildRoleCache[resolved]
     if not cache then return nil, 'Discord guild role catalog is not cached yet.' end
     local out = {}
-    for index, role in ipairs(cache.list) do out[index] = copyRole(role) end
+    for index = 1, #cache.list do out[index] = copyRole(cache.list[index]) end
     return out
 end
 
@@ -960,7 +977,8 @@ function QB.discord.hasRoles(id, roles, requireAll)
     if type(roles) ~= 'table' or #roles == 0 then return false, 'Discord roles must be a non-empty array or string.' end
     requireAll = requireAll ~= false
 
-    for _, role in ipairs(roles) do
+    for roleIndex = 1, #roles do
+        local role = roles[roleIndex]
         local has, err = QB.discord.hasRole(id, role)
         if err then return false, err end
         if requireAll and not has then return false end
@@ -1074,7 +1092,8 @@ local function runFullRoleSync()
     local players = GetPlayers()
     summary.players = #players
     local seen = {}
-    for _, sourceString in ipairs(players) do
+    for sourceStringIndex = 1, #players do
+        local sourceString = players[sourceStringIndex]
         local userId = discordIdForPlayer(sourceString)
         if not userId or seen[userId] then
             summary.skipped = summary.skipped + 1

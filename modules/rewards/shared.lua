@@ -51,7 +51,8 @@ local function resolveChances(items, mode)
     local chances = {}
     local unspecified = 0
 
-    for i, item in ipairs(items) do
+    for i = 1, #items do
+        local item = items[i]
         if item.chance ~= nil then
             assert(type(item.chance) == "number" and item.chance > 0, "item.chance must be a positive number")
             if mode == "percent" then
@@ -65,7 +66,8 @@ local function resolveChances(items, mode)
 
     if unspecified > 0 then
         local defaultChance = mode == "percent" and (100 / unspecified) or 1
-        for i, item in ipairs(items) do
+        for i = 1, #items do
+            local item = items[i]
             if item.chance == nil then
                 chances[i] = defaultChance
             end
@@ -81,7 +83,8 @@ end
 ---@return {[1]: QBRewardItem, [2]: number}[]
 local function toWeightedPairs(items, chances)
     local pairs_ = {}
-    for i, item in ipairs(items) do
+    for i = 1, #items do
+        local item = items[i]
         pairs_[i] = { item, chances[i] }
     end
     return pairs_
@@ -101,7 +104,8 @@ local function roll(items, chances, weightedPairs, mode)
     end
 
     local hits = {}
-    for i, item in ipairs(items) do
+    for i = 1, #items do
+        local item = items[i]
         if math.random() * 100 <= chances[i] then
             hits[#hits + 1] = item
         end
@@ -136,7 +140,9 @@ function QB.rewards.generate(items, opts)
 
     local rewards = {}
     for _ = 1, rolls do
-        for _, item in ipairs(roll(items, chances, weightedPairs, mode)) do
+        local rolledItems = roll(items, chances, weightedPairs, mode)
+        for itemIndex = 1, #rolledItems do
+            local item = rolledItems[itemIndex]
             rewards[#rewards + 1] = toReward(item)
         end
     end

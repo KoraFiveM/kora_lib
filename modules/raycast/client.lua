@@ -224,7 +224,7 @@ local function runCoordGrabber(state)
                         preset = "static",
                         heading = state.heading,
                     })
-                    if not entity then error(createErr or "Failed to create coordinate preview.") end
+                    assert(entity, createErr or "Failed to create coordinate preview.")
 
                     state.entity = entity
                     SetEntityCollision(entity, false, false)

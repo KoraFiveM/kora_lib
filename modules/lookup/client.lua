@@ -1,6 +1,7 @@
 local state = QB.lookup._state
 local SYNC_REQUEST = 'qblib:lookup:sync'
 local SYNC_PUSH = 'qblib:lookup:syncBatch'
+local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
 
 local assemblies = {}
 
@@ -14,7 +15,8 @@ end
 local function copyStringArray(value)
     if type(value) ~= 'table' then return nil end
     local copy, seen = {}, {}
-    for _, entry in ipairs(value) do
+    for entryIndex = 1, #value do
+        local entry = value[entryIndex]
         if type(entry) == 'string' and entry ~= '' and not seen[entry] then
             seen[entry] = true
             copy[#copy + 1] = entry
@@ -60,7 +62,8 @@ end
 
 local function mergeAccepted(current, incoming)
     if current == nil then return incoming end
-    for _, field in ipairs({ 'label', 'labelKey', 'category', 'dlc' }) do
+    for i = 1, #COMMON_FIELDS do
+        local field = COMMON_FIELDS[i]
         if current[field] == nil then current[field] = incoming[field] end
     end
     current.metadata = current.metadata or {}
@@ -70,8 +73,11 @@ local function mergeAccepted(current, incoming)
     if next(current.metadata) == nil then current.metadata = nil end
 
     local seen = {}
-    for _, resource in ipairs(current.resources or {}) do seen[resource] = true end
-    for _, resource in ipairs(incoming.resources or {}) do
+    local currentResources = current.resources or {}
+    for resourceIndex = 1, #currentResources do seen[currentResources[resourceIndex]] = true end
+    local incomingResources = incoming.resources or {}
+    for resourceIndex = 1, #incomingResources do
+        local resource = incomingResources[resourceIndex]
         if not seen[resource] then
             seen[resource] = true
             current.resources = current.resources or {}
@@ -84,13 +90,16 @@ end
 
 local function publish(version, assembly)
     local overlay, working = {}, {}
-    for _, namespace in ipairs(state.namespaceOrder) do
+    for namespaceIndex = 1, #state.namespaceOrder do
+        local namespace = state.namespaceOrder[namespaceIndex]
         overlay[namespace] = {}
         working[namespace] = {}
     end
 
     for index = 1, assembly.total do
-        for _, rawRecord in ipairs(assembly.batches[index]) do
+        local batch = assembly.batches[index]
+        for recordIndex = 1, #batch do
+            local rawRecord = batch[recordIndex]
             local record = acceptRecord(rawRecord)
             if record then
                 local bucket = working[record.namespace][record.hash]
@@ -104,7 +113,8 @@ local function publish(version, assembly)
         end
     end
 
-    for _, namespace in ipairs(state.namespaceOrder) do
+    for namespaceIndex = 1, #state.namespaceOrder do
+        local namespace = state.namespaceOrder[namespaceIndex]
         for hash, byName in pairs(working[namespace]) do
             local candidates = {}
             overlay[namespace][hash] = candidates

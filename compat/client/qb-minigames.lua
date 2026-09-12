@@ -36,12 +36,12 @@ end
 
 local warnedSkillbarKeys = false
 
-local function Hacking(solutionsize, timeout)
+local function playHacking(solutionsize, timeout)
     local result = playSafely('hacking', { solutionsize = solutionsize, timeout = timeout })
     return result.success
 end
 
-local function KeyMinigame(amount)
+local function playKeyMinigame(amount)
     local result = playSafely('keys', { amount = amount })
     return { quit = result.cancelled or false, faults = result.faults or 0 }
 end
@@ -52,17 +52,17 @@ end
 -- Rather than build a second, upstream-faithful lockpick alongside qblib's
 -- existing one, `pins` is mapped onto pinCount -- close enough in spirit
 -- (more pins = harder) without claiming pixel/mechanic parity.
-local function Lockpick(pins)
+local function playLockpick(pins)
     local result = playSafely('lockpick', { pinCount = pins })
     return result.success
 end
 
-local function StartPinpad(numbers)
+local function startPinpad(numbers)
     local result = playSafely('pinpad', { numbers = numbers })
     return { quit = result.cancelled or false, correct = result.success }
 end
 
-local function Quiz(questions, correctRequired, timer)
+local function playQuiz(questions, correctRequired, timer)
     local result = playSafely('quiz', { questions = questions, correctRequired = correctRequired, timer = timer })
     return result.success
 end
@@ -76,7 +76,7 @@ end
 -- qblib equivalent to upstream's easy/medium/hard levels.
 local SKILLBAR_ZONE_SIZE = { easy = 0.20, medium = 0.14, hard = 0.08 }
 
-local function Skillbar(difficulty, validKeys)
+local function playSkillbar(difficulty, validKeys)
     if validKeys ~= nil and not warnedSkillbarKeys then
         warnedSkillbarKeys = true
         print("^3[qb-minigames compat]^7 Skillbar's validKeys has no equivalent in qblib's skillbar minigame -- ignored.")
@@ -87,21 +87,21 @@ local function Skillbar(difficulty, validKeys)
     return result.success
 end
 
-local function WordGuess(word, hint, guesses)
+local function playWordGuess(word, hint, guesses)
     local result = playSafely('wordguess', { word = word, hint = hint, guesses = guesses })
     return result.success
 end
 
-local function WordScramble(word, hint, timer)
+local function playWordScramble(word, hint, timer)
     local result = playSafely('wordscramble', { word = word, hint = hint, timer = timer })
     return result.success
 end
 
-QB.compat.provideExport("qb-minigames", "Hacking", Hacking)
-QB.compat.provideExport("qb-minigames", "KeyMinigame", KeyMinigame)
-QB.compat.provideExport("qb-minigames", "Lockpick", Lockpick)
-QB.compat.provideExport("qb-minigames", "StartPinpad", StartPinpad)
-QB.compat.provideExport("qb-minigames", "Quiz", Quiz)
-QB.compat.provideExport("qb-minigames", "Skillbar", Skillbar)
-QB.compat.provideExport("qb-minigames", "WordGuess", WordGuess)
-QB.compat.provideExport("qb-minigames", "WordScramble", WordScramble)
+QB.compat.provideExport("qb-minigames", "Hacking", playHacking)
+QB.compat.provideExport("qb-minigames", "KeyMinigame", playKeyMinigame)
+QB.compat.provideExport("qb-minigames", "Lockpick", playLockpick)
+QB.compat.provideExport("qb-minigames", "StartPinpad", startPinpad)
+QB.compat.provideExport("qb-minigames", "Quiz", playQuiz)
+QB.compat.provideExport("qb-minigames", "Skillbar", playSkillbar)
+QB.compat.provideExport("qb-minigames", "WordGuess", playWordGuess)
+QB.compat.provideExport("qb-minigames", "WordScramble", playWordScramble)
