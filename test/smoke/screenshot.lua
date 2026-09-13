@@ -11,6 +11,7 @@ local registeredExports = {}
 local nuiMessages = {}
 local nuiRequests = {}
 local httpHandler
+local rejectRawUpload = false
 _G.exports = function(name, callback) registeredExports[name] = callback end
 
 dofile(repoRoot .. 'config.lua')
@@ -25,6 +26,10 @@ QB.nui = {
         if action == 'screenshot:capture' then
             p:resolve({ data = 'data:image/jpeg;base64,/9j/c21va2U=' })
         elseif action == 'screenshot:upload' then
+            if rejectRawUpload then
+                p:reject('TypeError: Failed to fetch')
+                return p
+            end
             if payload.rawBody and httpHandler then
                 local status
                 httpHandler({
@@ -84,7 +89,7 @@ end)
 
 _G.SetHttpHandler = function(handler) httpHandler = handler end
 _G.GetPlayerName = function(player) return player == mocks.SOURCE and 'Smoke Tester' or nil end
-_G.GetCurrentServerEndpoint = function() return '127.0.0.1:30120' end
+_G.GetCurrentServerEndpoint = function() return 'https://127.0.0.1:30120' end
 
 dofile(repoRoot .. 'modules/screenshot/server.lua')
 
@@ -113,6 +118,46 @@ harness.test('server capture uses one tokenized raw browser upload', function()
     harness.assertEqual(callbackErr, false, 'success callback should receive false for err')
     harness.assertTrue(type(callbackResult) == 'string' and callbackResult:find('data:image/jpeg;base64,', 1, true) == 1,
         'a capture without a fileName should return a JPEG data URI')
+end)
+
+harness.test('server capture falls back when the browser cannot reach the HTTP upload route', function()
+    local destination = os.tmpname()
+    local callbackErr, callbackResult
+    rejectRawUpload = true
+    QB.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)
+        callbackErr, callbackResult = err, result
+    end)
+    rejectRawUpload = false
+
+    local file = io.open(destination, 'rb')
+    harness.assertTrue(file ~= nil, 'the latent fallback should save the screenshot')
+    local bytes = file:read('*a')
+    file:close()
+    os.remove(destination)
+
+    harness.assertEqual(callbackErr, false, 'the fallback should complete the original request')
+    harness.assertEqual(callbackResult, destination, 'the fallback should retain the requested destination')
+    harness.assertEqual(bytes, '\255\216\255smoke', 'the fallback should preserve the captured JPEG')
+    harness.assertTrue(mocks.lastEntry(net.triggeredServerEvents, 'qblib:server:screenshotCaptured') ~= nil,
+        'a failed browser upload should use the bounded latent receiver')
+end)
+
+harness.test('server capture avoids mixed-content fetches for a plain HTTP endpoint', function()
+    local destination = os.tmpname()
+    local callbackErr
+    _G.GetCurrentServerEndpoint = function() return 'zap.ssite.co.uk:30121' end
+    QB.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err)
+        callbackErr = err
+    end)
+    _G.GetCurrentServerEndpoint = function() return 'https://127.0.0.1:30120' end
+
+    local file = io.open(destination, 'rb')
+    harness.assertTrue(file ~= nil, 'the plain-HTTP fallback should save the screenshot')
+    file:close()
+    os.remove(destination)
+    harness.assertEqual(callbackErr, false, 'the plain-HTTP fallback should complete successfully')
+    harness.assertEqual(nuiRequests[#nuiRequests].action, 'screenshot:capture',
+        'plain HTTP should use latent capture without attempting a browser upload')
 end)
 
 harness.test('server capture fails promptly when the client NUI rejects capture', function()

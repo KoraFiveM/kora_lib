@@ -184,6 +184,24 @@ if exports then
     exports('requestScreenshotUpload', QB.screenshot.requestScreenshotUpload)
 end
 
+local function sendLatentScreenshot(token, options, timeout)
+    beginCapture(options, timeout):next(function(dataUri)
+        if type(dataUri) ~= 'string' or dataUri == '' then
+            TriggerServerEvent('qblib:server:screenshotFailed', token, 'The NUI returned an empty screenshot.')
+            return
+        end
+
+        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'captured', #dataUri)
+        local bytesPerSecond = tonumber(screenshotConfig().uploadBytesPerSecond) or (2 * 1024 * 1024)
+        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'sending', #dataUri)
+        local ok, err = pcall(TriggerLatentServerEvent,
+            'qblib:server:screenshotCaptured', bytesPerSecond, token, dataUri)
+        if not ok then TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err)) end
+    end, function(err)
+        TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err))
+    end)
+end
+
 RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
     if type(payload) ~= 'table' or type(payload.token) ~= 'string' then return end
 
@@ -197,12 +215,16 @@ RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
     if payload.rawBody then
         local endpoint = GetCurrentServerEndpoint()
         if type(endpoint) ~= 'string' or endpoint == '' then
-            TriggerServerEvent('qblib:server:screenshotFailed', token, 'The current server endpoint is unavailable.')
+            sendLatentScreenshot(token, options, captureTimeout)
             return
         end
 
         endpoint = endpoint:gsub('/+$', '')
         if not endpoint:match('^https?://') then endpoint = 'http://' .. endpoint end
+        if endpoint:match('^http://') then
+            sendLatentScreenshot(token, options, captureTimeout)
+            return
+        end
         options.url = ('%s/%s/screenshot/upload/%s'):format(endpoint, GetCurrentResourceName(), token)
         options.headers = {}
 
@@ -210,24 +232,14 @@ RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
         QB.nui.request('screenshot:upload', options, captureTimeout):next(function()
             -- The HTTP handler owns successful completion; there is no large
             -- Lua/event payload to acknowledge here.
-        end, function(err)
-            TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err))
+        end, function()
+            -- Secure NUI pages cannot always fetch a server's plain-HTTP
+            -- endpoint. Re-capture through the bounded latent-event receiver
+            -- so server-initiated diagnostics remain available in that setup.
+            sendLatentScreenshot(token, options, captureTimeout)
         end)
         return
     end
 
-    beginCapture(options, captureTimeout):next(function(dataUri)
-        if type(dataUri) ~= 'string' or dataUri == '' then
-            TriggerServerEvent('qblib:server:screenshotFailed', token, 'The NUI returned an empty screenshot.')
-            return
-        end
-
-        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'captured', #dataUri)
-        local bytesPerSecond = tonumber(screenshotConfig().uploadBytesPerSecond) or (2 * 1024 * 1024)
-        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'sending', #dataUri)
-        local ok, err = pcall(TriggerLatentServerEvent, 'qblib:server:screenshotCaptured', bytesPerSecond, token, dataUri)
-        if not ok then TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err)) end
-    end, function(err)
-        TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err))
-    end)
+    sendLatentScreenshot(token, options, captureTimeout)
 end)

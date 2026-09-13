@@ -41,10 +41,11 @@ callback)` retains screenshot-basic's callback API.
 For server-initiated captures, the browser posts the encoded image bytes
 directly to qblib's one-time HTTP upload endpoint. The multi-megabyte image does
 not become a base64 Lua string or cross a network event; only small progress or
-failure messages do. Capture or transfer failures reach the callback instead
-of waiting silently, so callers can continue their workflow without a
-screenshot. The legacy tokenized latent-event receiver remains accepted during
-rolling upgrades, but new clients do not use it.
+failure messages do in the normal path. If a secure NUI page cannot reach a
+plain-HTTP server endpoint, the client automatically retries through the
+bounded tokenized latent-event receiver. Capture failures reach the callback
+instead of waiting silently, so callers can continue their workflow without a
+screenshot.
 
 ## `screenshot-basic` compatibility
 
