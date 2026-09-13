@@ -28,6 +28,8 @@ local textureRefcounts = {}
 local categoryCatalog = assert(QB.blips._categoryCatalog, 'QB.blips category catalogue did not load.')
 local registeredByBlip = {}
 local categoryVisibility = {}
+local infoThreadRunning = false
+local ensureInfoThread
 
 local function retainTexture(dictionary)
     local refs = textureRefcounts[dictionary] or 0
@@ -162,6 +164,7 @@ local function storeInfo(blip, info)
     infoByBlip[blip] = normalised
     registerInfoLabels(blip, normalised)
     SetBlipAsMissionCreatorBlip(blip, true)
+    ensureInfoThread()
 end
 
 ---@param blip number
@@ -340,53 +343,60 @@ local function renderInfo(blip, info, clearExisting)
     updateDisplay()
 end
 
-CreateThread(function()
-    while true do
-        local sleep = 1000
-        local hasInfo = next(infoByBlip) ~= nil
-        local frontendReady = hasInfo and IsFrontendReadyForControl()
-        local blip
-        local info
+ensureInfoThread = function()
+    if infoThreadRunning then return end
+    infoThreadRunning = true
 
-        if frontendReady then
-            sleep = 50
-            if IsHoveringOverMissionCreatorBlip() then
-                blip = GetNewSelectedMissionCreatorBlip()
-                if DoesBlipExist(blip) then info = infoByBlip[blip] end
+    CreateThread(function()
+        while next(infoByBlip) ~= nil or selectedBlip ~= nil do
+            local sleep = 1000
+            local hasInfo = next(infoByBlip) ~= nil
+            local frontendReady = hasInfo and IsFrontendReadyForControl()
+            local blip
+            local info
+
+            if frontendReady then
+                sleep = 50
+                if IsHoveringOverMissionCreatorBlip() then
+                    blip = GetNewSelectedMissionCreatorBlip()
+                    if DoesBlipExist(blip) then info = infoByBlip[blip] end
+                end
             end
-        end
 
-        if info then
-            local imageReady = not info.image or HasStreamedTextureDictLoaded(info.image.dictionary)
-            if not imageReady then RequestStreamedTextureDict(info.image.dictionary) end
+            if info then
+                local imageReady = not info.image or HasStreamedTextureDictLoaded(info.image.dictionary)
+                if not imageReady then RequestStreamedTextureDict(info.image.dictionary) end
 
-            -- The pause-map frontend rebuilds its columns continuously and can
-            -- discard a one-shot update. Reassert the populated slots every
-            -- frame, but only empty the column when its content actually
-            -- changes; clearing a stable column every frame makes it flash.
-            sleep = 0
-            missedSelectionPolls = 0
-            local contentChanged = selectedBlip ~= blip or renderedInfo ~= info
-            selectedBlip = blip
-            renderedInfo = info
-            renderInfo(blip, info, contentChanged)
-        elseif selectedBlip then
-            -- Frontend selection natives can report a transient false result
-            -- while the pause map refreshes. Require consecutive misses so a
-            -- single bad frame cannot repeatedly hide and show the column.
-            sleep = 50
-            missedSelectionPolls = missedSelectionPolls + 1
-            if missedSelectionPolls >= SELECTION_GRACE_POLLS then
-                selectedBlip = nil
-                renderedInfo = nil
+                -- The pause-map frontend rebuilds its columns continuously and can
+                -- discard a one-shot update. Reassert the populated slots every
+                -- frame, but only empty the column when its content actually
+                -- changes; clearing a stable column every frame makes it flash.
+                sleep = 0
                 missedSelectionPolls = 0
-                setDisplayVisible(false)
+                local contentChanged = selectedBlip ~= blip or renderedInfo ~= info
+                selectedBlip = blip
+                renderedInfo = info
+                renderInfo(blip, info, contentChanged)
+            elseif selectedBlip then
+                -- Frontend selection natives can report a transient false result
+                -- while the pause map refreshes. Require consecutive misses so a
+                -- single bad frame cannot repeatedly hide and show the column.
+                sleep = 50
+                missedSelectionPolls = missedSelectionPolls + 1
+                if missedSelectionPolls >= SELECTION_GRACE_POLLS then
+                    selectedBlip = nil
+                    renderedInfo = nil
+                    missedSelectionPolls = 0
+                    setDisplayVisible(false)
+                end
             end
+
+            Wait(sleep)
         end
 
-        Wait(sleep)
-    end
-end)
+        infoThreadRunning = false
+    end)
+end
 
 ---Creates a map blip at `coords`, visible only to the calling client, and
 ---tracks it against whichever resource invoked `create` (via

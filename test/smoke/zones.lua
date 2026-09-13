@@ -131,6 +131,29 @@ harness.test("sphere zone contains points within its radius", function()
     zone.remove()
 end)
 
+harness.test("predicate-only zones retain contains without entering the player tracker", function()
+    local entered = 0
+    local zone = QB.zones.box({
+        coords = { x = 0, y = 0, z = 0 },
+        size = { x = 4, y = 4, z = 4 },
+        trackPlayer = false,
+        onEnter = function() entered = entered + 1 end,
+    })
+
+    harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }),
+        "predicate-only zones must retain exact containment")
+    net.step()
+    harness.assertEqual(entered, 0, "predicate-only zones must not run player enter callbacks")
+    harness.assertFalse(zone.isInside(), "predicate-only zones must never enter player-tracked state")
+    zone.remove()
+end)
+
+harness.test("trackPlayer requires a boolean", function()
+    harness.assertThrows(function()
+        QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 2, trackPlayer = "no" })
+    end, "invalid trackPlayer values should be rejected")
+end)
+
 harness.test("poly zone respects both its footprint and its height band", function()
     local zone = QB.zones.poly({
         points = {

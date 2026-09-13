@@ -4,6 +4,8 @@ local nextSessionId = 0
 local authorizations = {}
 local proofs = {}
 local endSession
+local expirySweepRunning = false
+local ensureExpirySweep
 
 local function roundExpiry(now, cfg, overallExpiresAt)
     local roundWindow = math.max(
@@ -275,6 +277,7 @@ end
 local function issueAuthorization(src, gameType, cfg)
     local issuer = GetInvokingResource() or GetCurrentResourceName()
     local token = generateOpaqueToken()
+    ensureExpirySweep()
     authorizations[token] = {
         src = src,
         gameType = gameType,
@@ -326,6 +329,7 @@ local function createProof(session)
     if session.authorization == nil then return nil end
 
     local token = generateOpaqueToken()
+    ensureExpirySweep()
     proofs[token] = {
         src = session.src,
         gameType = session.gameType,
@@ -837,22 +841,35 @@ end)
 -- without this an abandoned session would otherwise sit in `sessions`
 -- forever. 30s is coarse on purpose: this only needs to reclaim memory
 -- eventually, not the moment a session goes stale.
-CreateThread(function()
-    while true do
-        Wait(30000)
+local function hasExpiringState()
+    return next(sessions) ~= nil or next(authorizations) ~= nil or next(proofs) ~= nil
+end
 
-        local now = GetGameTimer()
-        for _, session in pairs(sessions) do
-            if now > session.expiresAt then endSession(session) end
+ensureExpirySweep = function()
+    if expirySweepRunning then return end
+    expirySweepRunning = true
+
+    CreateThread(function()
+        while true do
+            Wait(30000)
+
+            local now = GetGameTimer()
+            for _, session in pairs(sessions) do
+                if now > session.expiresAt then endSession(session) end
+            end
+            for token, authorization in pairs(authorizations) do
+                if now > authorization.expiresAt then removeAuthorization(token) end
+            end
+            for token, proof in pairs(proofs) do
+                if now > proof.expiresAt then removeProof(token) end
+            end
+
+            if not hasExpiringState() then break end
         end
-        for token, authorization in pairs(authorizations) do
-            if now > authorization.expiresAt then removeAuthorization(token) end
-        end
-        for token, proof in pairs(proofs) do
-            if now > proof.expiresAt then removeProof(token) end
-        end
-    end
-end)
+
+        expirySweepRunning = false
+    end)
+end
 
 QB.callback.register("qblib:minigames:start", function(src, gameType, opts, authorizationToken)
     assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
@@ -891,6 +908,7 @@ QB.callback.register("qblib:minigames:start", function(src, gameType, opts, auth
 
     nextSessionId = nextSessionId + 1
     local sessionId = nextSessionId
+    ensureExpirySweep()
     local now = GetGameTimer()
     -- `sessionTTL` remains the minimum abandoned-round lifetime. A legitimate
     -- long round (or a later retry) receives its own bounded window, while the

@@ -817,6 +817,7 @@
 ---@field onEnter? fun(zone: QBZoneHandle)
 ---@field onExit? fun(zone: QBZoneHandle)
 ---@field inside? fun(zone: QBZoneHandle)
+---@field trackPlayer? boolean Set false for predicate-only zones that use contains() but do not need enter/exit tracking.
 
 ---@class QBZoneHandle
 ---@field id integer

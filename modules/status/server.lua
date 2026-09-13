@@ -4,6 +4,8 @@
 
 -- active[target][name] = {expiresAt: integer?, severity: integer?}
 local active = {}
+local expirySweepRunning = false
+local ensureExpirySweep
 
 local function bucketFor(target)
     local bucket = active[target]
@@ -38,6 +40,7 @@ function QB.status.apply(target, name, opts)
     local existing = bucket[name]
     local stacking = def.stacking or "replace"
     local duration = opts.duration or def.duration
+    if duration then ensureExpirySweep() end
     local now = GetGameTimer()
 
     if existing and existing.expiresAt and existing.expiresAt <= now then
@@ -127,20 +130,38 @@ end)
 -- Periodic sweep so an effect nobody ever polls isActive/getActive for still
 -- gets dropped from memory once it expires, instead of sitting in `active`
 -- indefinitely. 30s matches modules/minigames' own session-sweep cadence.
-CreateThread(function()
-    while true do
-        Wait(30000)
-
-        local now = GetGameTimer()
-        for target, bucket in pairs(active) do
-            for name, entry in pairs(bucket) do
-                if entry.expiresAt and entry.expiresAt <= now then
-                    bucket[name] = nil
-                end
-            end
-            if next(bucket) == nil then
-                active[target] = nil
-            end
+local function hasExpiringEntries()
+    for _, bucket in pairs(active) do
+        for _, entry in pairs(bucket) do
+            if entry.expiresAt then return true end
         end
     end
-end)
+    return false
+end
+
+ensureExpirySweep = function()
+    if expirySweepRunning then return end
+    expirySweepRunning = true
+
+    CreateThread(function()
+        while true do
+            Wait(30000)
+
+            local now = GetGameTimer()
+            for target, bucket in pairs(active) do
+                for name, entry in pairs(bucket) do
+                    if entry.expiresAt and entry.expiresAt <= now then
+                        bucket[name] = nil
+                    end
+                end
+                if next(bucket) == nil then
+                    active[target] = nil
+                end
+            end
+
+            if not hasExpiringEntries() then break end
+        end
+
+        expirySweepRunning = false
+    end)
+end

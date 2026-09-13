@@ -131,7 +131,8 @@ local function refresh()
     if enteringVehicle == 0 then enteringVehicle = false end
     local enteringSeat = enteringVehicle and GetSeatPedIsTryingToEnter and GetSeatPedIsTryingToEnter(ped) or false
 
-    local vehicle = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or false
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 then vehicle = false end
     local seat = computeSeat(vehicle, ped, cache.seat)
 
     -- Order matters to onChange consumers: an entering attempt is reported

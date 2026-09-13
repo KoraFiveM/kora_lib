@@ -13,6 +13,7 @@ Creates a rotatable box zone.
 - `size: vector3` — Full extents (x, y, z), all greater than 0.
 - `rotation: number | nil` — Degrees around the Z axis. Defaults to `0`.
 - `onEnter: fun(zone) | nil`, `onExit: fun(zone) | nil`, `inside: fun(zone, coords) | nil` — Callbacks.
+- `trackPlayer: boolean | nil` — Set `false` for a predicate-only zone that only uses `contains()`. It is then omitted from the player-position grid and `isInside()` remains false. Defaults to `true`.
 - `debug: boolean | nil` — Draw the zone's bounds while it exists. Defaults to `false`.
 - `data: any` — Arbitrary passthrough value, not validated. Read it back via `zone.data` on the returned handle.
 
@@ -36,7 +37,7 @@ Creates a sphere zone.
 #### Parameters
 - `coords: vector3` — Sphere center.
 - `radius: number` — Must be greater than 0.
-- `onEnter`, `onExit`, `inside`, `debug`, `data` — Same as `box`.
+- `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
 
 #### Example
 ```lua
@@ -54,7 +55,7 @@ Creates a polygon zone: a 2D footprint extruded across a vertical height band.
 - `points: vector3[]` — At least 3 points. Only their XY defines the footprint.
 - `thickness: number | nil` — Height of the band, measured **upward from the lowest point's Z** (so the zone sits on the surface the points were drawn on, and `thickness` is simply how tall it is). Defaults to `Config.zones.defaultPolyThickness`. Ignored if `minZ`/`maxZ` are given — pass those explicitly for a band that floats above the points.
 - `minZ: number | nil`, `maxZ: number | nil` — Explicit height band. Must both be given, or neither.
-- `onEnter`, `onExit`, `inside`, `debug`, `data` — Same as `box`.
+- `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
 
 #### Behavior
 This is a **2D footprint plus a height range**, not an arbitrary 3D-oriented volume — matching ox_lib's own poly zones. It covers building floors, parking lots, and interiors well; it does not support a tilted/rotated polygon plane.
@@ -78,7 +79,7 @@ Creates a point zone. Not a separate shape — a sphere with a small default rad
 #### Parameters
 - `coords: vector3` — Point location.
 - `radius: number | nil` — Defaults to `Config.zones.defaultPointRadius` (1.0m).
-- `onEnter`, `onExit`, `inside`, `debug`, `data` — Same as `box`.
+- `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
 
 #### Example
 ```lua

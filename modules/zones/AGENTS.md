@@ -4,11 +4,12 @@
 This module provides ox_lib-style trigger zones for the local player: box, sphere, and poly shapes with `onEnter`/`onExit`/`inside` callbacks, plus points as a thin convenience wrapper over sphere rather than a separate shape or module. It's built to stay cheap with many zones registered across many resources, not just correct.
 
 ## Public API
-- `QB.zones.box(opts)` — `coords`, `size` (vec3 extents), `rotation` (degrees around Z, default 0), `onEnter`/`onExit`/`inside`, `debug`, `data`.
+- `QB.zones.box(opts)` — `coords`, `size` (vec3 extents), `rotation` (degrees around Z, default 0), `onEnter`/`onExit`/`inside`, `trackPlayer`, `debug`, `data`.
 - `QB.zones.sphere(opts)` — `coords`, `radius`, `onEnter`/`onExit`/`inside`, `debug`, `data`.
 - `QB.zones.poly(opts)` — `points` (array of vec3; XY defines the footprint), `thickness` or explicit `minZ`/`maxZ`, `onEnter`/`onExit`/`inside`, `debug`, `data`.
 - `QB.zones.point(opts)` — `coords`, `radius` (defaults to `Config.zones.defaultPointRadius`), same callbacks. Internally just `createZone("sphere", opts, initSphere)` — it is not a parallel code path, and the resulting zone is indistinguishable from a plain sphere.
 - Every constructor returns a handle (`QBZoneHandle` — the option/handle shapes are declared as `---@class` blocks above the constructors): `{ id, type, resource, data, remove(), contains(coords), isInside() }`.
+- `trackPlayer = false` creates a predicate-only handle: geometry, ownership, debug drawing, editing, removal, and `contains()` still work, but the zone is never inserted into the player-position grid and never starts/wakes its tick thread. `isInside()` remains false. Use this for consumers such as qbtarget that maintain their own spatial index.
 - `QB.zones.startCreator(zoneType, existingOpts?)` — in-world interactive zone builder for `"box" | "sphere" | "poly"`, optionally seeded from an existing zone's opts (to reposition/resize it) via `existingOpts`. Returns a promise resolving `{ type, opts }` once confirmed (`opts` is directly usable as `QB.zones.<type>(opts)`), `nil` if cancelled, or rejecting if a creator is already running, `zoneType` is invalid, or `Config.zones.creator.enabled` is `false`.
 - `QB.zones.getInside(resource?)` — every zone currently containing the player, optionally filtered to one owning resource. Returns the cached handles (see below), read off the tick loop's existing enter/exit state — no containment maths.
 - `QB.zones.generateSnippet(zoneType, opts)` — pure formatter, `opts -> "QB.zones.<type>({...})"` string. Powers the creator's confirm dialog/clipboard copy, but doesn't need the creator running to call directly.

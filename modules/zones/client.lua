@@ -23,6 +23,7 @@ local setZoneDebug
 
 local nextZoneId = 0
 local tickThreadStarted = false
+local trackedZoneCount = 0
 local debugThreadStarted = false
 
 -- Plain { x, y, z } tables, not glm.vec3 -- the `glm` global isn't guaranteed
@@ -195,7 +196,10 @@ destroyZone = function(zone)
     if zone.removed then return end
     zone.removed = true
 
-    removeFromGrid(zone)
+    if zone.trackPlayer then
+        removeFromGrid(zone)
+        trackedZoneCount = trackedZoneCount - 1
+    end
     debugZones[zone.id] = nil
     zoneOwnership.untrack(zone.id)
 
@@ -269,7 +273,7 @@ local function editZone(handle, opts)
     -- the zone's current ones -- e.g. a caller re-editing onEnter/onExit
     -- while re-passing the coords it already has.
     if coords ~= nil and (coords.x ~= zone.coords.x or coords.y ~= zone.coords.y or coords.z ~= zone.coords.z) then
-        removeFromGrid(zone)
+        if zone.trackPlayer then removeFromGrid(zone) end
 
         zone.coords = coords
 
@@ -294,7 +298,7 @@ local function editZone(handle, opts)
             )
         end
 
-        insertIntoGrid(zone)
+        if zone.trackPlayer then insertIntoGrid(zone) end
     end
 
     if opts.onEnter ~= nil then
@@ -323,6 +327,7 @@ local function assertCommonOptions(opts)
     assert(opts.onExit == nil or isCallable(opts.onExit), "onExit must be a function.")
     assert(opts.inside == nil or isCallable(opts.inside), "inside must be a function.")
     assert(opts.debug == nil or type(opts.debug) == "boolean", "debug must be a boolean.")
+    assert(opts.trackPlayer == nil or type(opts.trackPlayer) == "boolean", "trackPlayer must be a boolean.")
 end
 
 local function initBox(zone, opts)
@@ -596,6 +601,7 @@ local function createZone(zoneType, opts, initShape)
         onEnter = opts.onEnter,
         onExit = opts.onExit,
         inside = opts.inside,
+        trackPlayer = opts.trackPlayer ~= false,
         debug = false,
         data = opts.data,
         resource = GetInvokingResource() or GetCurrentResourceName(),
@@ -607,7 +613,10 @@ local function createZone(zoneType, opts, initShape)
     initShape(zone, opts)
 
     zoneRegistry[zone.id] = zone
-    insertIntoGrid(zone)
+    if zone.trackPlayer then
+        insertIntoGrid(zone)
+        trackedZoneCount = trackedZoneCount + 1
+    end
 
     zoneOwnership.track(zone.resource, zone.id)
 
@@ -619,7 +628,7 @@ local function createZone(zoneType, opts, initShape)
         setZoneDebug(zone, true)
     end
 
-    ensureTickThread()
+    if zone.trackPlayer then ensureTickThread() end
 
     -- Built once and cached on the zone rather than per call, so the handle
     -- QB.zones.getInside() hands back is the same table the constructor
@@ -777,7 +786,7 @@ local function candidatesFor(cx, cy)
 end
 
 tickLoop = function()
-    while next(zoneRegistry) ~= nil do
+    while trackedZoneCount > 0 do
         local ped = PlayerPedId()
         -- The vector3 from the native is used directly. Copying it into a
         -- {x,y,z} table allocated one more object per tick and bought nothing:
@@ -786,6 +795,7 @@ tickLoop = function()
         local p = GetEntityCoords(ped)
 
         local list = candidatesFor(worldToCell(p.x, p.y))
+        local locked = interactionsLocked()
 
         local minDistSq = math.huge
         local needsPerFrame = false
@@ -802,7 +812,7 @@ tickLoop = function()
                 -- real world. Treat all gameplay zones as exited until that
                 -- mode ends so beds, banks, doors, and similar callbacks
                 -- cannot open over the selection UI.
-                if interactionsLocked() then
+                if locked then
                     if zone.isInside then
                         zone.isInside = false
                         if zone.onExit then safeCall(zone, "onExit", zone.onExit, zone) end
