@@ -58,6 +58,13 @@ harness.test("trim preserves non-strings and removes edge whitespace", function(
     harness.assertEqual(QB.util.trim(7), 7)
 end)
 
+harness.test("cleanText applies the shared external-text policy", function()
+    harness.assertEqual(QB.util.cleanText("  hello\t\0world  "), "hello world")
+    harness.assertEqual(QB.util.cleanText("éclair", { maxLength = 2 }), "éc")
+    harness.assertEqual(QB.util.cleanText("   "), nil)
+    harness.assertEqual(QB.util.cleanText(7), nil)
+end)
+
 harness.test("truncateUtf8 counts characters and rejects malformed text", function()
     harness.assertEqual(QB.util.truncateUtf8("héllo", 2), "hé")
     harness.assertEqual(QB.util.truncateUtf8("short", 20), "short")

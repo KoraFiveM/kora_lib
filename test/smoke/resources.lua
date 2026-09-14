@@ -45,6 +45,17 @@ harness.test("track then owner reports the tracking resource", function()
     harness.assertEqual(registry.owner(1), "resource_a", "owner should report the resource that tracked the id")
 end)
 
+harness.test("registry accepts a callable-table disposer like a FiveM funcref", function()
+    local disposed = {}
+    local callable = setmetatable({}, {
+        __call = function(_, id) disposed[#disposed + 1] = id end,
+    })
+    local registry = QB.resources.registry(callable)
+    registry.track("resource_a", 7)
+    net.fire("onClientResourceStop", "resource_a")
+    harness.assertEqual(disposed[1], 7)
+end)
+
 harness.test("untrack drops tracking and returns the prior owner, without calling onDispose", function()
     local disposed = {}
     local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)

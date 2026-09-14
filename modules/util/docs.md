@@ -9,6 +9,10 @@ Small shared, dependency-free helpers:
   metatables, including FiveM funcrefs.
 - `QB.util.trim(value)` removes leading and trailing whitespace from strings;
   non-strings pass through unchanged.
+- `QB.util.cleanText(value, options?)` validates and cleans external text. By
+  default it removes ASCII control characters, collapses whitespace, trims,
+  and rejects empty or invalid UTF-8 values. `maxLength`, `whitespace`,
+  `controlCharacters`, and `empty` make deviations explicit.
 - `QB.util.truncateUtf8(value, maximum)` bounds text by Unicode characters
   without splitting a codepoint. Invalid UTF-8 returns `nil, "invalid_utf8"`.
 - `QB.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting

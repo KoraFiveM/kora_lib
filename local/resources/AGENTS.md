@@ -32,6 +32,10 @@ Shared infrastructure for the pattern nearly every owned-state module needs: tra
 - `modules/blips` — one registry, id = blip handle, `onDispose` removes the blip.
 - `local/callback` — one `registry`/`serverRegistry` per realm, id = callback name.
 - `local/events` — one `registry`/`serverRegistry` per realm, id = push/event name.
+- External qblib consumers may also create a registry through the imported
+  `QB.resources` proxy. Returned methods and the disposer are FiveM funcrefs;
+  keep the registry handle in the consuming resource and treat it like any
+  other cross-resource qblib handle.
 
 ## Best practices
 - Create a registry once per module (and per realm), at load time — not per call.

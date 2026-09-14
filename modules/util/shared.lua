@@ -46,6 +46,52 @@ function QB.util.trim(value)
     return value:match("^%s*(.-)%s*$")
 end
 
+---@class QBCleanTextOptions
+---@field maxLength? integer Maximum UTF-8 character count.
+---@field whitespace? 'collapse'|'preserve' Collapses all whitespace to single spaces by default.
+---@field controlCharacters? 'remove'|'preserve' Removes ASCII control characters by default.
+---@field empty? 'nil'|'allow' Returns nil for empty text by default.
+
+---Cleans external text using one explicit, reusable policy.
+---@param value any
+---@param options? QBCleanTextOptions
+---@return string|nil text
+---@return string|nil reason
+function QB.util.cleanText(value, options)
+    options = options or {}
+
+    assert(type(options) == "table", "QB.util.cleanText options must be a table.")
+    assert(options.maxLength == nil or QB.util.isInteger(options.maxLength) and options.maxLength >= 0,
+        "QB.util.cleanText maxLength must be a non-negative integer.")
+    assert(options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "preserve",
+        "QB.util.cleanText whitespace must be 'collapse' or 'preserve'.")
+    assert(options.controlCharacters == nil or options.controlCharacters == "remove"
+        or options.controlCharacters == "preserve",
+        "QB.util.cleanText controlCharacters must be 'remove' or 'preserve'.")
+    assert(options.empty == nil or options.empty == "nil" or options.empty == "allow",
+        "QB.util.cleanText empty must be 'nil' or 'allow'.")
+
+    if type(value) ~= "string" then return nil, "invalid_type" end
+
+    local text = value
+    if (options.controlCharacters or "remove") == "remove" then
+        text = text:gsub("[%z\1-\31\127]", " ")
+    end
+    if (options.whitespace or "collapse") == "collapse" then
+        text = text:gsub("%s+", " ")
+    end
+    text = QB.util.trim(text)
+
+    local valid, length = pcall(utf8.len, text)
+    if not valid or not length then return nil, "invalid_utf8" end
+    if options.maxLength and length > options.maxLength then
+        text = assert(QB.util.truncateUtf8(text, options.maxLength))
+    end
+    if text == "" and (options.empty or "nil") == "nil" then return nil, "empty" end
+
+    return text
+end
+
 ---Truncates a valid UTF-8 string to at most `maximum` characters without
 ---splitting a codepoint. Invalid UTF-8 returns nil.
 ---@param value string

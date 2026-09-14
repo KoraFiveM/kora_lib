@@ -3,6 +3,13 @@
 Client-side vehicle helpers. Persistent garage, ownership, impound, and payment
 rules remain in qbcore or the resource that owns them.
 
+`QB.vehicle.normalizePlate(value, options?)` is shared across client and server.
+It trims and uppercases plates, collapses internal whitespace, validates
+alphanumeric characters, and enforces an eight-character default maximum.
+Use `whitespace = 'remove'`/`'preserve'`, `characters = 'any'`, or `maxLength`
+only when an existing storage contract requires different behavior. Invalid
+external values return `nil, reason`.
+
 - `QB.vehicle.requestControl(entity, timeout?)` requests network control.
 - `QB.vehicle.delete(vehicle, { timeout? })` obtains control and deletes it.
 - `QB.vehicle.isDriver(vehicle)` checks the local driver seat.

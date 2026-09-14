@@ -100,7 +100,22 @@ for _, name in ipairs(setters) do
     _G[name] = function(...) record(name, ...) end
 end
 
+dofile(repoRoot .. 'modules/util/shared.lua')
+dofile(repoRoot .. 'modules/vehicle/shared.lua')
 dofile(repoRoot .. 'modules/vehicle/client.lua')
+
+harness.test('normalizePlate applies explicit whitespace and character policies', function()
+    harness.assertEqual(QB.vehicle.normalizePlate(' ab  12 '), 'AB 12')
+    harness.assertEqual(QB.vehicle.normalizePlate(' ab  12 ', { whitespace = 'remove' }), 'AB12')
+    harness.assertEqual(QB.vehicle.normalizePlate(' ab  12 ', { whitespace = 'preserve' }), 'AB  12')
+    local invalid, reason = QB.vehicle.normalizePlate('AB-12')
+    harness.assertEqual(invalid, nil)
+    harness.assertEqual(reason, 'invalid_characters')
+    harness.assertEqual(QB.vehicle.normalizePlate('CUSTOM-PLATE', {
+        maxLength = 32,
+        characters = 'any',
+    }), 'CUSTOM-PLATE')
+end)
 
 harness.test('vehicle delete acquires control before deleting', function()
     reset()

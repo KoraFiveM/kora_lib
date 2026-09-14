@@ -122,6 +122,21 @@
 ---@class QBVehicleDeleteOptions
 ---@field timeout? integer Network-control timeout in milliseconds; defaults to 1000.
 
+---@class QBVehicleNormalizePlateOptions
+---@field maxLength? integer Defaults to 8.
+---@field whitespace? 'collapse'|'remove'|'preserve'
+---@field characters? 'alphanumeric'|'any'
+
+---@class QBCleanTextOptions
+---@field maxLength? integer
+---@field whitespace? 'collapse'|'preserve'
+---@field controlCharacters? 'remove'|'preserve'
+---@field empty? 'nil'|'allow'
+
+---@class QBStreamLoadOptions
+---@field timeout? integer Defaults to 10000 milliseconds.
+---@field shouldContinue? fun(): boolean Cancels the wait when it returns false.
+
 ---@class QBVehicleSetPropertiesOptions
 ---@field timeout? integer Network-control timeout in milliseconds; defaults to 1000.
 
@@ -1427,9 +1442,9 @@
 ---@field offChange fun(listenerId: integer) [client]
 
 ---@class QBLibStream
----@field loadModel fun(model: string|integer, cb?: fun(hash: integer)): integer|false, string? [client]
----@field loadPtfx fun(fxName: string, cb?: fun(name: string)): string|false, string? [client]
----@field loadAnimDict fun(animDict: string, cb?: fun(name: string)): string|false, string? [client]
+---@field loadModel fun(model: string|integer, cb?: fun(hash: integer), options?: QBStreamLoadOptions): integer|false, string? [client]
+---@field loadPtfx fun(fxName: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
+---@field loadAnimDict fun(animDict: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
 ---@field loadAnimSet fun(animSet: string, cb?: fun(name: string)): string|false, string? [client]
 ---@field loadClipSet fun(clipSet: string, cb?: fun(name: string)): string|false, string? [client]
 ---@field loadIpl fun(iplName: string, cb?: fun(name: string)): string|false, string? [client]
@@ -1479,6 +1494,7 @@
 ---@field fnv1a fun(value: string): string [shared]
 ---@field isCallable fun(value: any): boolean [shared]
 ---@field trim fun(value: any): any [shared]
+---@field cleanText fun(value: any, options?: QBCleanTextOptions): string|nil, string? [shared]
 ---@field truncateUtf8 fun(value: string, maximum: integer): string|nil, string? [shared]
 ---@field isFiniteNumber fun(value: any): boolean [shared]
 ---@field isInteger fun(value: any): boolean [shared]
@@ -1503,6 +1519,7 @@
 ---@field worldToScreenPixels fun(coords: QBCoords): number, number, boolean [client]
 
 ---@class QBLibVehicle
+---@field normalizePlate fun(value: any, options?: QBVehicleNormalizePlateOptions): string|nil, string? [shared]
 ---@field requestControl fun(entity: integer, timeout?: integer): boolean, string? [client]
 ---@field delete fun(vehicle: integer, options?: QBVehicleDeleteOptions): boolean, string? [client]
 ---@field isDriver fun(vehicle: integer): boolean [client]

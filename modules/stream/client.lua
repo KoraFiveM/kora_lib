@@ -11,9 +11,17 @@
 ---@param key any Value passed into `request`, and the identifier for `hasLoaded`/`remove` unless `identifierFromRequest` is set.
 ---@param cb? fun(identifier: any): nil Optional callback invoked once loaded, before cleanup.
 ---@param identifierFromRequest? boolean Set true when `request`'s return value (not `key`) is what `hasLoaded`/`remove` expect -- required for scaleform movie handles.
+---@param options? QBStreamLoadOptions
 ---@return any | false identifier `key`, or the value returned by `request` when `identifierFromRequest` is set, or false if it never loaded.
 ---@return string? error
-local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifierFromRequest)
+local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifierFromRequest, options)
+    options = options or {}
+    assert(type(options) == "table", "QB.stream load options must be a table.")
+    assert(options.timeout == nil or QB.util.isInteger(options.timeout) and options.timeout >= 0,
+        "QB.stream timeout must be a non-negative integer.")
+    assert(options.shouldContinue == nil or QB.util.isCallable(options.shouldContinue),
+        "QB.stream shouldContinue must be callable.")
+
     local identifier = key
 
     if identifierFromRequest then
@@ -23,13 +31,18 @@ local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifie
     end
 
     if not hasLoaded(identifier) then
+        local cancelled = false
         local ok, err = QB.loops.controlled(function()
+            if options.shouldContinue and not options.shouldContinue() then
+                cancelled = true
+                return true
+            end
             if hasLoaded(identifier) then return true end
-        end, false, 10000, false)
+        end, false, options.timeout or 10000, false)
 
-        if not ok then
+        if cancelled or not ok then
             remove(identifier)
-            return false, err
+            return false, cancelled and "cancelled" or err
         end
     end
 
@@ -44,13 +57,14 @@ end
 
 ---@param model string | number The model to be loaded.
 ---@param cb? fun(model: number) : nil You can pass a callback function. An example would be to create a ped. Then the model will automatically clean up afterwards.
+---@param options? QBStreamLoadOptions
 ---@return number | false model The loaded model hash, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadModel(model, cb)
+function QB.stream.loadModel(model, cb, options)
     if type(model) == "string" then model = joaat(model) end
     assert(IsModelValid(model), ("Invalid model: %s"):format(model))
 
-    return loadStreamingAsset(RequestModel, HasModelLoaded, SetModelAsNoLongerNeeded, model, cb)
+    return loadStreamingAsset(RequestModel, HasModelLoaded, SetModelAsNoLongerNeeded, model, cb, false, options)
 end
 
 ---Loads a named particle effect (ptfx) asset, runs an optional callback, then
@@ -58,11 +72,12 @@ end
 ---the callback's synchronous scope should not be requested this way.
 ---@param fxName string The particle effect asset name.
 ---@param cb? fun(fxName: string) : nil Optional callback run once loaded; asset is released right after it returns.
+---@param options? QBStreamLoadOptions
 ---@return string | false fxName The loaded asset name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadPtfx(fxName, cb)
+function QB.stream.loadPtfx(fxName, cb, options)
     assert(type(fxName) == "string", ("Invalid ptfx asset name: %s"):format(fxName))
-    return loadStreamingAsset(RequestNamedPtfxAsset, HasNamedPtfxAssetLoaded, RemoveNamedPtfxAsset, fxName, cb)
+    return loadStreamingAsset(RequestNamedPtfxAsset, HasNamedPtfxAssetLoaded, RemoveNamedPtfxAsset, fxName, cb, false, options)
 end
 
 ---Loads an animation dictionary, runs an optional callback, then releases it
@@ -70,12 +85,13 @@ end
 ---callback's synchronous scope should not be requested this way.
 ---@param animDict string The animation dictionary to load.
 ---@param cb? fun(animDict: string) : nil Optional callback run once loaded; dict is released right after it returns.
+---@param options? QBStreamLoadOptions
 ---@return string | false animDict The loaded dictionary name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadAnimDict(animDict, cb)
+function QB.stream.loadAnimDict(animDict, cb, options)
     assert(type(animDict) == "string", ("Invalid anim dict: %s"):format(animDict))
     assert(DoesAnimDictExist(animDict), ("Anim dict does not exist: %s"):format(animDict))
-    return loadStreamingAsset(RequestAnimDict, HasAnimDictLoaded, RemoveAnimDict, animDict, cb)
+    return loadStreamingAsset(RequestAnimDict, HasAnimDictLoaded, RemoveAnimDict, animDict, cb, false, options)
 end
 
 ---Loads an animation set, runs an optional callback, then releases it

@@ -5,12 +5,14 @@ The streaming module centralizes model loading operations. It is intended for ca
 
 ## API
 
-### `QB.stream.loadModel(model, cb)`
+### `QB.stream.loadModel(model, cb, options?)`
 Loads a model and optionally executes a callback once it is ready.
 
 #### Parameters
 - `model: string | number` — The model name or hash to load.
 - `cb: function | nil` — Optional callback invoked after the model loads.
+- `options.timeout: integer | nil` — Override the default 10-second timeout.
+- `options.shouldContinue: function | nil` — Cancel the wait when it returns false.
 
 #### Returns
 - `number | false` — The loaded model hash, or `false` if the model never loaded.
@@ -52,8 +54,8 @@ All follow the same request → poll-until-loaded → run callback → release l
 
 | Function | Loads | Returns |
 |---|---|---|
-| `QB.stream.loadPtfx(fxName, cb)` | A named particle effect (ptfx) asset. | `fxName \| false`, `error?` |
-| `QB.stream.loadAnimDict(animDict, cb)` | An animation dictionary (validated with `DoesAnimDictExist`). | `animDict \| false`, `error?` |
+| `QB.stream.loadPtfx(fxName, cb, options?)` | A named particle effect (ptfx) asset. | `fxName \| false`, `error?` |
+| `QB.stream.loadAnimDict(animDict, cb, options?)` | An animation dictionary (validated with `DoesAnimDictExist`). | `animDict \| false`, `error?` |
 | `QB.stream.loadAnimSet(animSet, cb)` | An animation set. | `animSet \| false`, `error?` |
 | `QB.stream.loadClipSet(clipSet, cb)` | A clip set. | `clipSet \| false`, `error?` |
 | `QB.stream.loadIpl(iplName, cb)` | An interior proplist (checked via `IsIplActive`, not `Has...Loaded`). | `iplName \| false`, `error?` |

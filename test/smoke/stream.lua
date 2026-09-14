@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 -- A model only "loads" after RequestModel has been called for it, except
 -- entries in neverLoads, which stay unloaded forever (to exercise the
@@ -85,6 +86,20 @@ harness.test("loadModel gives up and still cleans up when a model never streams 
     harness.assertFalse(model, "should report failure for a model that never loads")
     harness.assertTrue(err ~= nil, "the failure should come with a reason")
     harness.assertTrue(removedModels[9999], "the stuck request should still be released")
+end)
+
+harness.test("loadModel supports caller cancellation while waiting", function()
+    local polls = 0
+    local model, err = QB.stream.loadModel(9999, nil, {
+        timeout = 5000,
+        shouldContinue = function()
+            polls = polls + 1
+            return polls < 2
+        end,
+    })
+    harness.assertFalse(model)
+    harness.assertEqual(err, "cancelled")
+    harness.assertTrue(removedModels[9999])
 end)
 
 harness.test("loadModel re-raises a callback error after cleaning up", function()
