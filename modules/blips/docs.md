@@ -21,8 +21,8 @@ Creates a map blip.
   - `shortRange: boolean` — Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange` (`true`).
   - `category: number | string` — A fixed category name, supported legacy alias,
     or numeric native category. Defaults to `Other`. Unknown strings fail fast.
-  - `name: string` — Location name within the category. Unless it matches the
-    category name, the displayed label becomes `Category: Name`.
+  - `name: string` — Location name shown after GTA's native category heading.
+    The category is not embedded in this text because the pause map adds it.
   - `label: string` — Backwards-compatible explicit map-label override.
   - `display: integer` — Native display mode. Defaults to
     `Config.blips.defaultDisplay` (`4`) and is restored after the blip is shown.

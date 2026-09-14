@@ -2,7 +2,7 @@
 ---@field sprite? number Blip sprite id. Defaults to `Config.blips.defaultSprite`.
 ---@field color? number Blip color index. Defaults to `Config.blips.defaultColor`.
 ---@field scale? number Blip scale. Defaults to `Config.blips.defaultScale`.
----@field name? string Location/name within the category. Used to build the map label when `label` is omitted.
+---@field name? string Location/name shown after GTA's category heading.
 ---@field label? string Backwards-compatible explicit map-label override.
 ---@field shortRange? boolean Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange`.
 ---@field category? number | string Fixed category name/alias or numeric native category. Defaults to `Other`.
@@ -225,8 +225,8 @@ local function resolveNameAndLabel(options, category)
     local explicitLabel = options.label and categoryCatalog.normaliseLabel(options.label) or nil
     local name = options.name and categoryCatalog.normaliseLabel(options.name) or explicitLabel or category.label
     if explicitLabel then return name, explicitLabel end
-    if name:lower() == category.label:lower() then return name, category.label end
-    return name, ('%s: %s'):format(category.label, name)
+    if name:lower() == category.label:lower() then return name, '' end
+    return name, name
 end
 
 ---Applies `label` as the blip's display name via the text-command trio FiveM

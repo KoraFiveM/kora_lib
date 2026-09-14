@@ -134,7 +134,8 @@ harness.test("creates a blip with config defaults when no options are given", fu
     harness.assertEqual(blipCalls[blip].shortRange, Config.blips.defaultShortRange, "should use the default shortRange")
     harness.assertEqual(blipCalls[blip].category, 12, "uncategorized blips should use the fixed Other category")
     harness.assertEqual(blipCalls[blip].display, Config.blips.defaultDisplay, "visible blips should use the default display")
-    harness.assertEqual(blipCalls[blip].label, "Other", "the default category should supply the map label")
+    harness.assertEqual(blipCalls[blip].label, "",
+        "the default blip name should not repeat GTA's category heading")
 end)
 
 harness.test("creates a blip honoring every explicit option", function()
@@ -284,10 +285,11 @@ harness.test("unknown named categories fail clearly while numeric categories rem
 
     local blip = QB.blips.create({ x = 0, y = 0, z = 0 }, { category = 7, name = "Legacy" })
     harness.assertEqual(blipCalls[blip].category, 7, "numeric native categories should pass through")
-    harness.assertEqual(blipCalls[blip].label, "Category 7: Legacy", "numeric categories should still get a useful label")
+    harness.assertEqual(blipCalls[blip].label, "Legacy",
+        "numeric category headings should not be embedded in the blip name")
 end)
 
-harness.test("name builds a normalized category label and explicit label remains an override", function()
+harness.test("name stays separate from GTA's category heading and explicit label remains an override", function()
     local named = QB.blips.create({ x = 0, y = 0, z = 0 }, {
         category = "Garage", name = "  Alta   Street  ",
     })
@@ -298,8 +300,8 @@ harness.test("name builds a normalized category label and explicit label remains
         label = "  Legacy   Marker  ",
     })
 
-    harness.assertEqual(blipCalls[named].label, "Garage: Alta Street")
-    harness.assertEqual(blipCalls[same].label, "Garage")
+    harness.assertEqual(blipCalls[named].label, "Alta Street")
+    harness.assertEqual(blipCalls[same].label, "")
     harness.assertEqual(blipCalls[legacy].label, "Legacy Marker",
         "an explicit legacy label should not be prefixed with Other")
 end)
@@ -329,7 +331,7 @@ harness.test("category and registered snapshots expose stable UI metadata", func
     harness.assertEqual(found.category, 13)
     harness.assertEqual(found.categoryKey, "Bank")
     harness.assertEqual(found.name, "Pacific Standard")
-    harness.assertEqual(found.label, "Bank: Pacific Standard")
+    harness.assertEqual(found.label, "Pacific Standard")
     harness.assertEqual(found.sprite, 108)
     harness.assertEqual(found.color, 2)
     harness.assertEqual(found.display, 6)

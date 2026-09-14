@@ -11,8 +11,10 @@ This module creates map blips visible only to the calling client, with automatic
     native category and defaults to `Other`. Every created blip receives
     `SetBlipCategory`; an unknown string is an assertion so typos cannot drift
     client category ids.
-  - `options.name` produces `Category: Name`, except when it equals the category
-    label case-insensitively. `options.label` remains an explicit legacy
+  - `options.name` is the location text supplied beneath GTA's native category
+    heading; never prefix it with the category because the pause map does that
+    automatically. A name equal to the category becomes an empty location label
+    so the heading is not repeated. `options.label` remains an explicit legacy
     override. All category/name/label inputs are trimmed and whitespace-normalized.
   - `options.display` defaults to `Config.blips.defaultDisplay` and is retained
     so visibility controls can restore the caller's native display mode.

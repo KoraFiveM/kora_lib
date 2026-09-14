@@ -280,7 +280,7 @@
 ---@field sprite? integer
 ---@field color? integer
 ---@field scale? number
----@field name? string Location/name within the category; used to compose the map label.
+---@field name? string Location/name shown after GTA's native category heading.
 ---@field label? string Backwards-compatible explicit map-label override.
 ---@field shortRange? boolean
 ---@field category? integer|string Fixed category name/legacy alias or numeric native category. Defaults to Other.
@@ -302,7 +302,7 @@
 ---@field category integer Native category id.
 ---@field categoryKey string Canonical fixed category key/name, or `native:<id>` for a numeric compatibility category.
 ---@field name string Normalized location/name within the category.
----@field label string Computed or explicitly overridden map label.
+---@field label string Location label passed to GTA, or an explicit legacy override.
 ---@field sprite integer
 ---@field color integer
 ---@field display integer Configured display mode restored after show.
