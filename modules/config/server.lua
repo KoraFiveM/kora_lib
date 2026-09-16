@@ -91,6 +91,12 @@ function QB.config.commit(resource, request)
     if result.ok then
         entry.revision = result.revision or entry.revision
         entry.configured = copy(result.configured or entry.configured)
+        entry.values = copy(result.values or entry.values)
+        -- This is a local server event, so every subscribing resource can
+        -- refresh its in-memory copy without a cross-resource export call in
+        -- a gameplay loop. The target resource has already applied its own
+        -- handler before returning success.
+        TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
 end

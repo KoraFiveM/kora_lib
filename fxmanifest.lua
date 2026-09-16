@@ -100,6 +100,9 @@ client_scripts {
     'local/callback/client.lua',
     'local/events/client.lua',
     'modules/**/client.lua',
+    -- The configuration editor needs the config consumer and AppShell, both
+    -- supplied by the preceding module glob.
+    'modules/config/editor_client.lua',
     -- Loaded after every module client so the built-in settings app can use
     -- both the blip registry and the shared AppShell without load-order races.
     'modules/blips/settings.lua',
@@ -117,5 +120,6 @@ server_scripts {
     'local/callback/server.lua',
     'local/events/server.lua',
     'modules/**/server.lua',
+    'modules/config/editor_server.lua',
     'build/finalise.lua'
 }

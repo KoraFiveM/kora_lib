@@ -114,7 +114,7 @@ Config.radialmenuCompat = {
     -- Real qb-radialmenu's own default Config.JobInteractions ships entries
     -- for ambulance/police/tow/taxi/mechanic/hotdog, but every one of those
     -- (besides the ambulance actions below) fires an event owned by a
-    -- COMPANION job resource (qb-ambulancejob, qb-policejob, qb-tow,
+    -- COMPANION job resource (qb-tow,
     -- qb-taxi, qb-tunerchip, qb-houses, qb-hotdogjob) or requires the wheel
     -- to know an aimed-at/nearby TARGET player (search/escort/jail/seize
     -- license) that the wheel's own event payload never carries -- copying

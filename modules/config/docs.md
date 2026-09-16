@@ -96,10 +96,11 @@ Each resource writes only its own files through `SaveResourceFile`. qblib’s
 central catalog coordinates requests but never receives cross-resource
 filesystem access. Add both generated files to the resource’s `.gitignore`.
 
-qbadmin’s owner-only Configuration workspace reads the catalog, shows saved
+qblib’s ACE-gated `/config` workspace reads the catalog, shows saved
 and running values, and labels a field **Applies now** or **Restart required**.
-It audits successful saves and resets. Sensitive fields are removed before
-they reach the workspace.
+Sensitive fields are removed before they reach the workspace. Grant access
+explicitly with `add_ace <principal> qblib.config.edit allow`; qbadmin may
+optionally open the workspace through `QB.config.open()` but is not required.
 
 ## Server catalog API
 
@@ -116,3 +117,30 @@ as qbadmin; ordinary resources use the consumer API above:
 
 `QB.config.register(definition)` is qblib’s internal bridge registration API.
 It only accepts a registration from the resource it names.
+
+## Live consumer API
+
+Resources that consume another resource's setting should keep a local value
+through `bind`, rather than repeatedly calling an export in gameplay code:
+
+```lua
+local targetSettings
+QB.config.bind('qbtarget', { 'target' }, function(value)
+    targetSettings = value
+    rebuildTargeting(value)
+end)
+```
+
+`QB.config.get(resource, path)` returns a copied active value, or
+`nil, 'not_ready'` before its snapshot arrives. `QB.config.whenReady({
+'qbtarget', 'qbhud' }, handler)` runs once the listed active snapshots are
+available. Bindings receive an initial callback and subsequent live active
+changes. They are process-local: qblib distributes network snapshots to each
+client resource and broadcasts server changes locally, so no gameplay read
+performs database or export work.
+
+Owners can use `QB.config.register(values, options)` as the named alias of
+`define`, `QB.config.onValidate(handler)` to reject a complete proposed server
+snapshot, and `QB.config.onApply(handler)` to reconfigure server behavior for
+eligible live changes. Validation and apply hooks run only on the owning
+server; client-scoped fields do not invoke server apply hooks.

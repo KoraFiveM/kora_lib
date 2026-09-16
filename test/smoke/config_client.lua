@@ -27,7 +27,13 @@ _G.TriggerServerEvent = function(name, ...)
 end
 _G.exports = nil
 
-local config = makeConfig({})
+local openedResource
+local config = makeConfig({
+    config_open = function(_, resource)
+        openedResource = resource
+        return true
+    end,
+})
 local values = config.define({
     shared = config.number(10, { live = true }),
     clientOnly = config.string('blue', { scope = 'client', live = true }),
@@ -57,6 +63,11 @@ H.test('live client updates apply a new revision', function()
     H.assertEqual(values.shared, 20)
     H.assertEqual(observed[1], 20)
     H.assertEqual(observed[2], 15)
+end)
+
+H.test('consumer-local QB.config forwards editor opens to qblib', function()
+    H.assertTrue(config.open('sample'))
+    H.assertEqual(openedResource, 'sample')
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

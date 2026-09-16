@@ -1048,7 +1048,7 @@
 ---@field maxLength? integer
 ---@field pattern? string
 ---@field options? table[]
----@field sensitive? boolean Excluded from qbadmin's in-game editor.
+---@field sensitive? boolean Excluded from qblib's in-game editor.
 
 ---@class QBLibConfig
 ---@field define fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
@@ -1068,11 +1068,17 @@
 ---@field list fun(value: table, item?: table, options?: QBConfigFieldOptions): table [shared]
 ---@field map fun(value: table, item?: table, options?: QBConfigFieldOptions): table [shared]
 ---@field optional fun(value: any, inner: table, options?: QBConfigFieldOptions): table [shared]
+---@field get fun(resource?: string, path?: string|string[]): any, string? [client/server; consumer-local]
+---@field bind fun(resource: string, path: string|string[]|nil, handler: fun(value: any, previous: any, change: table)): fun() [client/server; consumer-local]
+---@field whenReady fun(resources: string[], handler: fun()) [client/server; consumer-local]
+---@field onValidate fun(handler: fun(proposed: table, previous: table, path: string[]): boolean?, string?) [server; consumer-local]
+---@field onApply fun(handler: fun(configured: table, active: table, path: string[]): boolean?) [server; consumer-local]
 ---@field register fun(definition: table): boolean [server; qblib internal]
 ---@field catalog fun(): table[] [server]
 ---@field read fun(resource: string): table|nil [server]
 ---@field commit fun(resource: string, request: table): table [server]
 ---@field reset fun(resource: string, request: table): table [server]
+---@field open fun(resource?: string) [client]
 
 ---@class QBLibCache
 ---@field get fun(key: string): any [client]

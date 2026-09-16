@@ -280,6 +280,32 @@ H.test('numeric-looking map keys remain strings when edited', function()
     H.assertEqual(result.configured.flags[1], nil)
 end)
 
+H.test('owner validation, application, and bindings use the active snapshot', function()
+    files = {}
+    registered = {}
+    local config = makeConfig(library)
+    local values = config.register({ enabled = config.boolean(true, { live = true }) })
+    config.onValidate(function(proposed)
+        return proposed.enabled ~= false, 'enabled cannot be disabled'
+    end)
+    local refused = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    H.assertFalse(refused.ok)
+    H.assertTrue(values.enabled)
+
+    config = makeConfig(library)
+    values = config.register({ enabled = config.boolean(true, { live = true }) })
+    local applied, observed
+    config.onApply(function(proposed, active) applied = { proposed.enabled, active.enabled } end)
+    config.bind('sample', { 'enabled' }, function(value, previous, change) observed = { value, previous, change } end)
+    local result = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    H.assertTrue(result.ok, result.error)
+    H.assertFalse(applied[1])
+    H.assertTrue(applied[2])
+    H.assertFalse(observed[1])
+    H.assertTrue(observed[2])
+    H.assertFalse(config.get('sample', { 'enabled' }))
+end)
+
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
 H.report('config')

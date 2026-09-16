@@ -13,10 +13,21 @@ return function(library)
     local config = {}
     local state
     local changeHandlers = {}
+    local validateHandlers = {}
+    local applyHandlers = {}
+    local bindings = {}
+    local remoteValues = {}
+    local readyResources = {}
 
     local function requestSnapshot()
         if not isServer and type(TriggerServerEvent) == 'function' then
             TriggerServerEvent('qblib:server:configRequested', RESOURCE)
+        end
+    end
+
+    local function requestResourceSnapshot(resource)
+        if not isServer and type(TriggerServerEvent) == 'function' then
+            TriggerServerEvent('qblib:server:configRequested', resource)
         end
     end
 
@@ -26,6 +37,22 @@ return function(library)
 
     local function displayPath(path)
         return table.concat(path, '.')
+    end
+
+    local function normalizedBindingPath(path)
+        if path == nil then return {} end
+        if type(path) == 'string' then
+            local out = {}
+            for key in path:gmatch('[^.]+') do out[#out + 1] = key end
+            return out
+        end
+        assert(type(path) == 'table', 'Configuration path must be a string or array.')
+        local out = {}
+        for index = 1, #path do
+            assert(type(path[index]) == 'string' or type(path[index]) == 'number', 'Configuration path entries must be strings or numbers.')
+            out[index] = tostring(path[index])
+        end
+        return out
     end
 
     local function copy(value, seen)
@@ -490,6 +517,40 @@ return function(library)
         return current
     end
 
+    local function readPlainPath(root, path)
+        local current = root
+        for index = 1, #path do
+            if type(current) ~= 'table' then return nil end
+            current = current[path[index]]
+        end
+        return current
+    end
+
+    local function notifyBindings(resource, changedPath, previous, change)
+        local resourceBindings = bindings[resource]
+        if not resourceBindings then return end
+        for _, binding in ipairs(resourceBindings) do
+            local value = resource == RESOURCE and state and readPath(state.values, binding.path, state.schema)
+                or readPlainPath(remoteValues[resource], binding.path)
+            local wasAffected = #changedPath == 0
+            if not wasAffected then
+                wasAffected = true
+                local common = math.min(#binding.path, #changedPath)
+                for index = 1, common do
+                    if binding.path[index] ~= changedPath[index] then wasAffected = false break end
+                end
+            end
+            if wasAffected then
+                local ok, err = pcall(binding.handler, copy(value), copy(previous), change)
+                if not ok then print(('[qblib:config] Binding for %s failed: %s'):format(resource, err)) end
+            end
+        end
+    end
+
+    local function markReady(resource)
+        readyResources[resource] = true
+    end
+
     local function writePath(root, path, value, schema)
         local current = root
         for index = 1, #path - 1 do
@@ -597,6 +658,7 @@ return function(library)
             fileName = fileName,
             revision = 1,
         }
+        markReady(RESOURCE)
         announce()
         requestSnapshot()
         return runtime
@@ -689,6 +751,102 @@ return function(library)
         changeHandlers[pathKey({ path })] = handler
     end
 
+    ---Registers an owner schema. This is the named equivalent of define and
+    ---keeps resources from needing a second configuration wrapper.
+    function config.register(values, options)
+        return declare(values, options)
+    end
+
+    ---Registers server-side validation for a complete desired snapshot.
+    function config.onValidate(handler)
+        assert(isServer, 'QB.config.onValidate is server-only.')
+        assert(type(handler) == 'function', 'Configuration validation handler must be a function.')
+        validateHandlers[#validateHandlers + 1] = handler
+    end
+
+    ---Registers a server-side reconfiguration hook for eligible live changes.
+    function config.onApply(handler)
+        assert(isServer, 'QB.config.onApply is server-only.')
+        assert(type(handler) == 'function', 'Configuration apply handler must be a function.')
+        applyHandlers[#applyHandlers + 1] = handler
+    end
+
+    ---Returns the active local snapshot for an owner/path. Tables are copied
+    ---so callers cannot mutate the shared runtime cache.
+    function config.get(resource, path)
+        if path == nil then path, resource = resource, RESOURCE end
+        assert(type(resource) == 'string' and resource ~= '', 'Configuration resource must be a non-empty string.')
+        local normalized = normalizedBindingPath(path)
+        local root = resource == RESOURCE and state and state.values or remoteValues[resource]
+        if root == nil then return nil, 'not_ready' end
+        return copy(resource == RESOURCE and readPath(root, normalized, state.schema) or readPlainPath(root, normalized))
+    end
+
+    ---Binds a consumer to an owner's active setting. The callback receives
+    ---value, previous value, and change metadata; it runs immediately once a
+    ---snapshot is available and again for relevant active changes.
+    function config.bind(resource, path, handler)
+        assert(type(resource) == 'string' and resource ~= '', 'Configuration bind needs a resource name.')
+        assert(type(handler) == 'function', 'Configuration bind needs a handler.')
+        local binding = { path = normalizedBindingPath(path), handler = handler }
+        bindings[resource] = bindings[resource] or {}
+        bindings[resource][#bindings[resource] + 1] = binding
+
+        local value = config.get(resource, binding.path)
+        if value ~= nil then
+            local ok, err = pcall(handler, value, nil, { initial = true, resource = resource })
+            if not ok then print(('[qblib:config] Binding for %s failed: %s'):format(resource, err)) end
+        elseif resource ~= RESOURCE then
+            if isServer and type(library.config_read) == 'function' then
+                local ok, snapshot = pcall(function() return library:config_read(resource) end)
+                if ok and type(snapshot) == 'table' and type(snapshot.values) == 'table' then
+                    remoteValues[resource] = decodeStorage(snapshot.values)
+                    markReady(resource)
+                    local current = config.get(resource, binding.path)
+                    if current ~= nil then pcall(handler, current, nil, { initial = true, resource = resource, revision = snapshot.revision }) end
+                end
+            else
+                requestResourceSnapshot(resource)
+            end
+        end
+
+        return function()
+            local resourceBindings = bindings[resource]
+            if not resourceBindings then return end
+            for index = #resourceBindings, 1, -1 do
+                if resourceBindings[index] == binding then table.remove(resourceBindings, index) break end
+            end
+        end
+    end
+
+    function config.whenReady(resources, handler)
+        assert(type(resources) == 'table', 'QB.config.whenReady needs a resource list.')
+        assert(type(handler) == 'function', 'QB.config.whenReady needs a handler.')
+        local completed = false
+        local function runIfReady()
+            if completed then return true end
+            for index = 1, #resources do
+                local resource = resources[index]
+                if resource == RESOURCE then
+                    if not state then return false end
+                elseif not readyResources[resource] then
+                    return false
+                end
+            end
+            completed = true
+            handler()
+            return true
+        end
+        if not runIfReady() then
+            for index = 1, #resources do
+                local resource = resources[index]
+                if resource ~= RESOURCE and not readyResources[resource] then
+                    config.bind(resource, {}, function() runIfReady() end)
+                end
+            end
+        end
+    end
+
     -- Server-side consumers such as qbadmin use the same QB.config namespace
     -- to reach qblib's catalog. Individual resources still cannot write one
     -- another's files: qblib sends every mutation back through the target's
@@ -741,6 +899,14 @@ return function(library)
         if not ok then return { ok = false, error = ('%s %s'):format(displayPath(path), value) } end
 
         local oldConfigured = copy(state.configured)
+        local proposedConfigured = copy(state.configured)
+        writePath(proposedConfigured, path, value, state.schema)
+        for index = 1, #validateHandlers do
+            local worked, valid, reason = pcall(validateHandlers[index], copy(proposedConfigured), copy(oldConfigured), path)
+            if not worked or valid == false then
+                return { ok = false, error = worked and (reason or 'The configuration was refused by its owner.') or tostring(valid) }
+            end
+        end
         local oldBackup = LoadResourceFile(RESOURCE, state.fileName .. '.bak')
         writePath(state.configured, path, value, state.schema)
         local saved, saveError = persist()
@@ -768,8 +934,22 @@ return function(library)
                     end
                 end
             end
+            if schema.scope ~= 'client' then
+                for index = 1, #applyHandlers do
+                    local worked, handlerError = pcall(applyHandlers[index], copy(state.configured), copy(state.values), path)
+                    if not worked or handlerError == false then
+                        state.configured = oldConfigured
+                        persist()
+                        state.revision = previousRevision
+                        return { ok = false, revision = state.revision,
+                            error = worked and 'The live update was refused.' or tostring(handlerError) }
+                    end
+                end
+            end
             writePath(state.values, path, value, state.schema)
             applied = true
+            markReady(RESOURCE)
+            notifyBindings(RESOURCE, path, oldValue, { resource = RESOURCE, path = copy(path), revision = state.revision })
             if isServer and schema.scope ~= 'server' then
                 TriggerClientEvent('qblib:client:configUpdated', -1, RESOURCE, path, encodeStorage(value), state.revision)
             end
@@ -817,7 +997,23 @@ return function(library)
 
     if not isServer and type(RegisterNetEvent) == 'function' then
         RegisterNetEvent('qblib:client:configUpdated', function(resource, path, encoded, revision)
-            if resource ~= RESOURCE or not state then return end
+            if resource ~= RESOURCE then
+                local normalizedRemote = normalizedPath(path)
+                if not normalizedRemote or not bindings[resource] then return end
+                local previous = readPlainPath(remoteValues[resource], normalizedRemote)
+                remoteValues[resource] = remoteValues[resource] or {}
+                local current = remoteValues[resource]
+                for index = 1, #normalizedRemote - 1 do
+                    current[normalizedRemote[index]] = current[normalizedRemote[index]] or {}
+                    current = current[normalizedRemote[index]]
+                end
+                current[normalizedRemote[#normalizedRemote]] = decodeStorage(encoded)
+                markReady(resource)
+                notifyBindings(resource, normalizedRemote, previous,
+                    { resource = resource, path = copy(normalizedRemote), revision = revision })
+                return
+            end
+            if not state then return end
             local normalized = normalizedPath(path)
             local schema = normalized and findSchema(state.schema, normalized, 1) or nil
             if not schema or schema.scope == 'server' then return end
@@ -831,10 +1027,20 @@ return function(library)
                 local ok, err = pcall(handler, value, oldValue)
                 if not ok then print(('[qblib:config] Client update %s failed: %s'):format(displayPath(normalized), err)) end
             end
+            notifyBindings(RESOURCE, normalized, oldValue,
+                { resource = RESOURCE, path = copy(normalized), revision = state.revision })
         end)
 
         RegisterNetEvent('qblib:client:configSnapshot', function(resource, encoded, revision)
-            if resource ~= RESOURCE or not state or type(encoded) ~= 'table' then return end
+            if type(encoded) ~= 'table' then return end
+            if resource ~= RESOURCE then
+                if not bindings[resource] then return end
+                remoteValues[resource] = decodeStorage(encoded)
+                markReady(resource)
+                notifyBindings(resource, {}, nil, { initial = true, resource = resource, revision = revision })
+                return
+            end
+            if not state then return end
             local values = decodeStorage(encoded)
             local function apply(schema, current, incoming, path)
                 if schema.scope == 'server' or incoming == nil then return end
@@ -855,9 +1061,24 @@ return function(library)
                 writePath(state.values, path, value, state.schema)
                 local handler = changeHandlers[pathKey({ displayPath(path) })]
                 if handler and not equal(oldValue, value) then pcall(handler, value, oldValue) end
+                if not equal(oldValue, value) then
+                    notifyBindings(RESOURCE, path, oldValue,
+                        { initial = true, resource = RESOURCE, path = copy(path), revision = revision })
+                end
             end
             apply(state.schema, state.values, values, {})
             state.revision = revision or state.revision
+            markReady(RESOURCE)
+        end)
+    end
+
+    if isServer and type(AddEventHandler) == 'function' then
+        AddEventHandler('qblib:server:configChanged', function(resource, encoded, revision)
+            if resource == RESOURCE or not bindings[resource] or type(encoded) ~= 'table' then return end
+            local previous = remoteValues[resource]
+            remoteValues[resource] = decodeStorage(encoded)
+            markReady(resource)
+            notifyBindings(resource, {}, previous, { resource = resource, revision = revision })
         end)
     end
 
@@ -865,6 +1086,16 @@ return function(library)
         AddEventHandler('onClientResourceStart', function(resource)
             if resource == RESOURCE and state then requestSnapshot() end
         end)
+
+        -- `QB.config` is consumer-local so resource-owned Config tables stay
+        -- local. Keep the standalone editor reachable from that same API by
+        -- forwarding this one client convenience call to qblib's export.
+        function config.open(resource)
+            assert(resource == nil or type(resource) == 'string', 'Configuration resource must be a string.')
+            assert(type(library) == 'table' and type(library.config_open) == 'function',
+                'The qblib configuration editor is unavailable.')
+            return library:config_open(resource)
+        end
     end
 
     return config
