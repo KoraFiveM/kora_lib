@@ -173,12 +173,14 @@ H.test('vectors and optional values use typed controls instead of raw JSON', fun
 end)
 
 H.test('restart-required resources expose and run an explicit apply action', function()
+    otherEntry.configured = { mode = 2, nickname = '' }
     QB.config.open('other')
     local view = navigation('resource:other')
     H.assertEqual(view.content.actions[2].id, 'config:restart')
     local result = definition.onAction('config:restart', { viewId = 'resource:other' })
     H.assertEqual(restarted, 'other')
     H.assertEqual(result.notice.tone, 'success')
+    otherEntry.configured = { mode = 1, nickname = '' }
 end)
 
 H.test('enum values retain their authored type and strings may be empty', function()
@@ -348,6 +350,45 @@ H.test('advanced toggle filters rows and counts without changing saved settings'
     end
     definition.onAction('config:advanced', { viewId = 'resource:sample' })
     H.assertEqual(entry.configured.timeout, 1000)
+end)
+
+H.test('restart actions reflect actual nested changes including hidden advanced settings', function()
+    entry.schema = { kind = 'object', fields = {
+        mapping = { kind = 'map', path = { 'mapping' }, label = 'Mapping', advanced = true },
+    } }
+    entry.configured = { mapping = { one = false, two = { 1, 2 } } }
+    entry.values = { mapping = { two = { 1, 2 }, one = false } }
+    QB.config.open('sample')
+    H.assertEqual(#navigation('resource:sample').content.actions, 1)
+    entry.configured = { mapping = { one = false, two = { 1, 3 } } }
+    QB.config.open('sample')
+    H.assertEqual(navigation('resource:sample').content.actions[2].id, 'config:restart')
+    entry.configured = { mapping = { one = false, two = { 1, 2 }, added = true } }
+    QB.config.open('sample')
+    H.assertEqual(navigation('resource:sample').content.actions[2].id, 'config:restart')
+end)
+
+H.test('only the selected resource gets a populated settings page', function()
+    QB.config.open('other')
+    H.assertEqual(navigation('resource:sample').content.blocks[1].type, 'empty')
+    H.assertEqual(navigation('resource:other').content.blocks[1].type, 'table')
+end)
+
+H.test('advanced preference survives reopening the editor runtime', function()
+    local stored
+    SetResourceKvpInt = function(key, value)
+        H.assertEqual(key, 'qblib:config:advanced')
+        stored = value
+    end
+    definition.onAction('config:advanced', { viewId = 'resource:other' })
+    H.assertEqual(stored, 1)
+    GetResourceKvpInt = function() return stored end
+    dofile(repoRoot .. 'modules/config/editor_client.lua')
+    QB.config.open('sample')
+    H.assertEqual(#navigation('resource:sample').content.blocks[1].rows, 1)
+    definition.onAction('config:advanced', { viewId = 'resource:sample' })
+    H.assertEqual(stored, 0)
+    GetResourceKvpInt, SetResourceKvpInt = nil, nil
 end)
 
 H.report('config_editor_client')

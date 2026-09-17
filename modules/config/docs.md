@@ -93,6 +93,13 @@ for fixed choices. Advanced is a presentation filter, not an access permission;
 server authorization and validation apply equally in both views. The toggle
 changes neither saved settings nor their live/restart behaviour.
 
+The Advanced preference is saved locally for each user and survives reconnects.
+Resource counts follow that preference. Restart actions appear only when a saved
+restart-only value differs from the running value, including changes hidden by
+the Advanced filter. Opening the editor builds the selected resource's settings
+page; other resources keep lightweight placeholders until opened. Cached field
+indexes and counts are invalidated when their snapshot or revision changes.
+
 ## Scopes and lifecycle
 
 `shared` is the default. `client` fields are synchronized to clients; `server`

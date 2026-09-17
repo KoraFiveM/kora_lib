@@ -5,7 +5,9 @@ local catalog = {}
 local entriesByResource = {}
 local resourcesByView = {}
 local activeEdit
-local showAdvanced = false
+local activeResource
+local ADVANCED_PREFERENCE = 'qblib:config:advanced'
+local showAdvanced = type(GetResourceKvpInt) == 'function' and GetResourceKvpInt(ADVANCED_PREFERENCE) == 1
 local ENUM_OPTION_PREFIX = 'config-option:'
 
 local function pathId(path) return table.concat(path, '\31') end
@@ -74,25 +76,51 @@ local function schemaLeaves(schema, configured, running, out)
     out[#out + 1] = { schema = schema, configured = configured, running = running }
 end
 
+local function valuesEqual(left, right)
+    if type(left) ~= type(right) then return false end
+    if type(left) ~= 'table' then return left == right end
+    for key, value in pairs(left) do
+        if not valuesEqual(value, right[key]) then return false end
+    end
+    for key in pairs(right) do
+        if left[key] == nil then return false end
+    end
+    return true
+end
+
 local function settingsFor(entry)
     if entry._settings and entry._settingsSchema == entry.schema
-        and entry._settingsConfigured == entry.configured and entry._settingsValues == entry.values then
+        and entry._settingsConfigured == entry.configured and entry._settingsValues == entry.values
+        and entry._settingsRevision == entry.revision and entry._settingsLoaded == entry.loaded then
         return entry._settings
     end
     local leaves = {}
     if not entry.unavailable then schemaLeaves(entry.schema, entry.configured, entry.values, leaves) end
-    table.sort(leaves, function(a, b) return displayPath(a.schema.path) < displayPath(b.schema.path) end)
+    entry._settingsById = {}
+    entry._basicCount = 0
+    entry._pendingCount = 0
+    for _, setting in ipairs(leaves) do
+        setting.id = pathId(setting.schema.path)
+        setting.key = displayPath(setting.schema.path)
+        setting.pending = entry.loaded == true and not setting.schema.live
+            and not valuesEqual(setting.configured, setting.running)
+        entry._settingsById[setting.id] = setting
+        if not setting.schema.advanced then entry._basicCount = entry._basicCount + 1 end
+        if setting.pending then entry._pendingCount = entry._pendingCount + 1 end
+    end
+    table.sort(leaves, function(a, b) return a.key < b.key end)
     entry._settings = leaves
     entry._settingsSchema = entry.schema
     entry._settingsConfigured = entry.configured
     entry._settingsValues = entry.values
+    entry._settingsRevision = entry.revision
+    entry._settingsLoaded = entry.loaded
     return leaves
 end
 
 local function findSetting(entry, id)
-    for _, setting in ipairs(settingsFor(entry)) do
-        if pathId(setting.schema.path) == id then return setting end
-    end
+    settingsFor(entry)
+    return entry._settingsById[id]
 end
 
 local function encodeFieldValue(value)
@@ -359,7 +387,7 @@ local function settingsContent(entry)
         }
     end
 
-    if not entry.loaded then
+    if not entry.loaded or entry.resource ~= activeResource then
         return {
             title = entry.resource,
             description = ('%d editable configuration option%s.'):format(#settingsFor(entry),
@@ -376,15 +404,16 @@ local function settingsContent(entry)
             hiddenCount = hiddenCount + 1
         else
             rows[#rows + 1] = {
-                id = pathId(setting.schema.path),
+                id = setting.id,
                 label = {
                     label = setting.schema.label,
-                    description = ('Key: %s'):format(displayPath(setting.schema.path)),
+                    description = ('Key: %s'):format(setting.key),
                 },
-                key = displayPath(setting.schema.path),
+                key = setting.key,
                 description = setting.schema.description,
                 value = displayValue(setting.configured, setting.schema),
-                status = { label = setting.schema.live and 'Applies now' or 'Restart required', badge = true,
+                status = { label = setting.pending and 'Saved; restart needed'
+                    or setting.schema.live and 'Applies now' or 'After restart', badge = true,
                     tone = setting.schema.live and 'success' or 'warning' },
                 scope = setting.schema.scope,
             }
@@ -413,11 +442,10 @@ local function settingsContent(entry)
             idKey = 'id',
         } },
     }
-    local needsRestart = false
-    for _, setting in ipairs(settingsFor(entry)) do
-        if not setting.schema.live then needsRestart = true break end
+    if entry._pendingCount > 0 then
+        content.description = content.description .. (' %d saved changes are waiting for a restart.'):format(entry._pendingCount)
     end
-    if needsRestart and entry.resource ~= 'qblib' then
+    if entry._pendingCount > 0 and entry.resource ~= 'qblib' then
         content.actions[#content.actions + 1] = {
             id = 'config:restart', label = 'Restart resource to apply saved changes', icon = 'refresh-cw',
             variant = 'outline',
@@ -434,7 +462,7 @@ local function editContent(entry, setting)
             confirm = 'Restore this setting to its original value?' },
         { id = 'config:back', label = ('Back to %s'):format(entry.resource), icon = 'arrow-left', variant = 'ghost' },
     }
-    if not appliesNow and entry.resource ~= 'qblib' then
+    if setting.pending and entry.resource ~= 'qblib' then
         table.insert(actions, 2, {
             id = 'config:restart', label = 'Restart resource now', icon = 'refresh-cw', variant = 'outline',
             confirm = ('Restart %s now? Active scripts in this resource will briefly stop and connected players may notice the interruption.'):format(entry.resource),
@@ -501,10 +529,8 @@ local function buildDefinition()
     }
 
     for _, entry in ipairs(catalog) do
-        local count = 0
-        for _, setting in ipairs(settingsFor(entry)) do
-            if showAdvanced or not setting.schema.advanced then count = count + 1 end
-        end
+        local settings = settingsFor(entry)
+        local count = showAdvanced and #settings or entry._basicCount
         rows[#rows + 1] = {
             id = entry.resource,
             resource = entry.resource,
@@ -566,6 +592,9 @@ local function handleAction(action, context)
 
     if action == 'config:advanced' then
         showAdvanced = not showAdvanced
+        if type(SetResourceKvpInt) == 'function' then
+            SetResourceKvpInt(ADVANCED_PREFERENCE, showAdvanced and 1 or 0)
+        end
         activeEdit = nil
         return updateNavigation(nil, context.viewId)
     end
@@ -577,6 +606,7 @@ local function handleAction(action, context)
         end
         local entry, readError = readResource(resource)
         if not entry then return updateNavigation({ tone = 'destructive', message = readError }) end
+        activeResource = resource
         activeEdit = nil
         return updateNavigation(nil, resourceViewId(entry.resource))
     end
@@ -682,6 +712,7 @@ local function openEditor(resource)
         if entry and not entry.unavailable then viewId = resourceViewId(entry.resource) end
     end
 
+    activeResource = viewId and resource or nil
     local definition = buildDefinition()
     definition.onAction = handleAction
     QB.nui.registerApp(definition)
