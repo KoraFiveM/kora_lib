@@ -30,11 +30,22 @@ local function triggerCallback(name, ...)
     return result
 end
 
-local function displayValue(value)
+local function collectionSize(value)
+    local count = 0
+    if type(value) == 'table' then for _ in pairs(value) do count = count + 1 end end
+    return count
+end
+
+local function displayValue(value, schema)
+    if schema and (schema.kind == 'list' or schema.kind == 'map') then
+        local count = collectionSize(value)
+        return ('%d %s'):format(count, count == 1 and 'row' or 'rows')
+    end
     if type(value) == 'table' then
         local ok, encoded = pcall(json.encode, value)
         return ok and encoded or '[complex value]'
     end
+    if type(value) == 'number' then return ('%.12g'):format(value) end
     return value == nil and 'nil' or tostring(value)
 end
 
@@ -77,6 +88,7 @@ end
 
 local function encodeFieldValue(value)
     if value == nil then return '' end
+    if type(value) == 'number' then return ('%.12g'):format(value) end
     local ok, encoded = pcall(json.encode, value)
     return ok and encoded or ''
 end
@@ -94,10 +106,13 @@ local function tableRows(value, kind)
 
     local keys = {}
     for key in pairs(value) do keys[#keys + 1] = key end
-    table.sort(keys)
+    table.sort(keys, function(a, b)
+        if type(a) == type(b) then return a < b end
+        return type(a) == 'number'
+    end)
     for index = 1, #keys do
         local key = keys[index]
-        rows[#rows + 1] = { key = key, value = encodeFieldValue(value[key]) }
+        rows[#rows + 1] = { key = tostring(key), value = encodeFieldValue(value[key]) }
     end
     return rows
 end
@@ -180,7 +195,10 @@ fieldForSchema = function(schema, value, id, label, description)
     if schema.kind == 'list' or schema.kind == 'map' then
         common.type = 'key-value'
         common.default = tableRows(value, schema.kind)
-        common.keyMode = schema.kind == 'list' and 'integer' or 'string'
+        common.keyMode = schema.kind == 'list' and 'integer'
+            or schema.keyType == 'integer' and 'integer-map'
+            or schema.keyType == 'mixed' and 'mixed'
+            or 'string'
         common.keyLabel = schema.kind == 'list' and 'Position' or 'Key'
         common.valueLabel = 'Value (JSON or text)'
         common.addRowLabel = 'Add row'
@@ -232,9 +250,10 @@ local function decodeRowValue(raw, rowIndex)
     return raw
 end
 
-local function inputTableValue(kind, rows)
+local function inputTableValue(schema, rows)
     if type(rows) ~= 'table' then error('Enter one or more key and value rows.', 0) end
 
+    local kind = schema.kind
     local output, seen = {}, {}
     for index = 1, #rows do
         local row = rows[index]
@@ -247,6 +266,11 @@ local function inputTableValue(kind, rows)
             key = tonumber(key)
             if not key or key < 1 or key % 1 ~= 0 then
                 error(('Row %d needs a positive whole-number position.'):format(index), 0)
+            end
+        elseif schema.keyType == 'integer' or schema.keyType == 'mixed' and key:match('^-?%d+$') then
+            key = tonumber(key)
+            if not key or key % 1 ~= 0 then
+                error(('Row %d needs a whole-number key.'):format(index), 0)
             end
         end
         if seen[key] then error(('Key %q is used more than once.'):format(tostring(key)), 0) end
@@ -282,7 +306,7 @@ local function inputValueForSchema(schema, values, id)
         or kind == 'integer' or kind == 'vector2' or kind == 'vector3' or kind == 'vector4' then
         return values[id]
     end
-    if kind == 'list' or kind == 'map' then return inputTableValue(kind, values[id]) end
+    if kind == 'list' or kind == 'map' then return inputTableValue(schema, values[id]) end
     local ok, decoded = pcall(json.decode, values[id] or '')
     if not ok or decoded == nil then error('Enter a valid JSON value.', 0) end
     return decoded
@@ -346,7 +370,7 @@ local function settingsContent(entry)
             },
             key = displayPath(setting.schema.path),
             description = setting.schema.description,
-            value = displayValue(setting.configured),
+            value = displayValue(setting.configured, setting.schema),
             status = { label = setting.schema.live and 'Applies now' or 'Restart required', badge = true,
                 tone = setting.schema.live and 'success' or 'warning' },
             scope = setting.schema.scope,

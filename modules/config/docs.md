@@ -39,14 +39,18 @@ editable empty or dynamically-sized collections. `optional(nil, inner)`
 creates a nullable field.
 
 The common options are `label`, `description`, `scope`, `live`, `min`, `max`,
-`step`, `minLength`, `maxLength`, `pattern`, and `sensitive`. `enum` receives
+`step`, `minLength`, `maxLength`, `pattern`, and `sensitive`. Maps additionally
+accept `keyType = 'string' | 'integer' | 'mixed'` and a `requiredKeys` array;
+this preserves GTA-style numeric indexes and protects mandatory fallback rows.
+`enum` receives
 its allowed string or number entries in `options`; entries may be
 `{ value = ..., label = ... }` when the displayed label should differ from the
 stored value. `color` accepts `#RRGGBB`; numeric fields reject non-finite
 values; vector fields accept native CfxLua vectors and the plain component
 tables sent by the editor. Fields without authored presentation metadata get
-a readable label derived from their key and a type-aware description, so every
-editable option remains understandable in the workspace.
+a readable label derived from their complete configuration path and a
+type-aware description, so generic leaves such as `enabled`, `max`, or
+`window` retain their owning context in the workspace.
 
 The workspace renders every supported kind directly: booleans use a checkbox,
 integers and numbers use bounded numeric controls, enums use authored choices,
@@ -118,8 +122,9 @@ filesystem access. Add both generated files to the resource’s `.gitignore`.
 
 qblib’s ACE-gated `/config` workspace reads the catalog, shows saved
 and running values, and labels a field **Applies now** or **Restart required**.
-Lists and maps use key/value rows: list keys are consecutive positions, map
-keys are text, and row values accept JSON or plain text. Rows can be added or
+Lists and maps use key/value rows: list keys are consecutive positions, while
+maps accept text keys by default and can explicitly opt into integer or mixed
+text/integer keys with `keyType`. Row values accept JSON or plain text. Rows can be added or
 deleted in the workspace; the owning resource validates the reconstructed
 table before it is persisted. Large collections are paged in the browser so
 opening an unusually large configuration does not mount every row at once.

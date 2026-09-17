@@ -161,6 +161,24 @@ describe("FormFields key/value tables", () => {
         ] }).rows).toBe("List positions must run consecutively from 1.")
     })
 
+    it("accepts sparse integer maps without list-style position rules", () => {
+        const fields: InputField[] = [{ id: "rows", type: "key-value", label: "Rates", keyMode: "integer-map" }]
+        expect(validateFields(fields, { rows: [
+            { key: "0", value: "0.1" },
+            { key: "7", value: "1.0" },
+        ] })).toEqual({})
+        expect(validateFields(fields, { rows: [{ key: "class", value: "1" }] }).rows)
+            .toContain("whole-number")
+    })
+
+    it("accepts maps containing both text and integer keys", () => {
+        const fields: InputField[] = [{ id: "rows", type: "key-value", label: "Rates", keyMode: "mixed" }]
+        expect(validateFields(fields, { rows: [
+            { key: "default", value: "0.5" },
+            { key: "0", value: "0.1" },
+        ] })).toEqual({})
+    })
+
     it("paginates large tables so only one bounded row set is mounted", async () => {
         const user = userEvent.setup()
         const rows = Array.from({ length: 51 }, (_, index) => ({ key: String(index + 1), value: "true" }))

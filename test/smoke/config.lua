@@ -151,6 +151,55 @@ H.test('explicit maps accept newly added string keys', function()
     H.assertTrue(registrations[#registrations].client.roles.ambulance)
 end)
 
+H.test('explicit mixed-key maps preserve integer and text keys', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ rates = config.map({ default = 0.5, [0] = 0.1 }, config.number(0, { min = 0 }), {
+        keyType = 'mixed',
+    }) })
+
+    local result = registered.qblib_configCommit({
+        path = { 'rates' }, value = { default = 0.75, [0] = 0.2, [7] = 1.0 }, revision = 1,
+    })
+    H.assertTrue(result.ok, result.error)
+    H.assertEqual(result.configured.rates.default, 0.75)
+    H.assertEqual(result.configured.rates[0], 0.2)
+    H.assertEqual(result.configured.rates[7], 1.0)
+    H.assertEqual(result.configured.rates['7'], nil)
+    H.assertEqual(registrations[#registrations].schema.fields.rates.keyType, 'mixed')
+    H.assertTrue(files['config.local.lua']:find('%[0%] = 0.2') ~= nil, files['config.local.lua'])
+end)
+
+H.test('maps can protect required fallback keys', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ rates = config.map({ default = 0.5, [0] = 0.1 }, config.number(0), {
+        keyType = 'mixed', requiredKeys = { 'default' },
+    }) })
+
+    local result = registered.qblib_configCommit({
+        path = { 'rates' }, value = { [0] = 0.2 }, revision = 1,
+    })
+    H.assertFalse(result.ok)
+    H.assertTrue(result.error:find('default', 1, true) ~= nil, result.error)
+end)
+
+H.test('inferred labels include their configuration context', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ serviceRateLimit = { max = 5, window = 10000 } })
+
+    local schema = registrations[#registrations].schema.fields.serviceRateLimit.fields
+    H.assertEqual(schema.max.label, 'Service Rate Limit Max')
+    H.assertEqual(schema.window.label, 'Service Rate Limit Window')
+end)
+
 H.test('restart-required changes are saved but do not alter running values', function()
     files = {}
     registered = {}

@@ -276,11 +276,15 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
                     errors[field.id] = `Row ${rowNumber} needs a key.`
                     break
                 }
-                if (field.keyMode === "integer" && (!/^\d+$/.test(key) || Number(key) < 1)) {
-                    errors[field.id] = `Row ${rowNumber} needs a positive whole-number key.`
+                const integerKeys = field.keyMode === "integer" || field.keyMode === "integer-map"
+                if (integerKeys && (!/^-?\d+$/.test(key) || (field.keyMode === "integer" && Number(key) < 1))) {
+                    errors[field.id] = field.keyMode === "integer"
+                        ? `Row ${rowNumber} needs a positive whole-number key.`
+                        : `Row ${rowNumber} needs a whole-number key.`
                     break
                 }
-                const canonicalKey = field.keyMode === "integer" ? String(Number(key)) : key
+                const numericKey = integerKeys || (field.keyMode === "mixed" && /^-?\d+$/.test(key))
+                const canonicalKey = numericKey ? `number:${Number(key)}` : `string:${key}`
                 if (keys.has(canonicalKey)) {
                     errors[field.id] = `Key “${key}” is used more than once.`
                     break
@@ -293,7 +297,7 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
             }
             if (!errors[field.id] && field.keyMode === "integer") {
                 for (let index = 1; index <= rows.length; index += 1) {
-                    if (!keys.has(String(index))) {
+                    if (!keys.has(`number:${index}`)) {
                         errors[field.id] = "List positions must run consecutively from 1."
                         break
                     }
@@ -445,7 +449,7 @@ function KeyValueField({ id, field, value, error, describedBy, onChange }: {
         </div>
         <div className="flex max-h-80 flex-col gap-2 overflow-y-auto p-2">
             {rows.length === 0 ? <p className="px-2 py-4 text-center text-sm text-muted-foreground">No rows yet.</p> : visibleRows.map((row, index) => { const rowIndex = firstRow + index; return <div key={rowIndex} className="grid grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)_2.25rem] items-center gap-2">
-                <Input aria-label={`${field.label} row ${rowIndex + 1} key`} inputMode={field.keyMode === "integer" ? "numeric" : undefined} value={row.key} onChange={(event) => update(rowIndex, "key", field.keyMode === "integer" ? event.target.value.replace(/\D/g, "") : event.target.value)} className="min-w-0 font-mono text-xs" />
+                <Input aria-label={`${field.label} row ${rowIndex + 1} key`} inputMode={field.keyMode === "integer" || field.keyMode === "integer-map" ? "numeric" : undefined} value={row.key} onChange={(event) => update(rowIndex, "key", field.keyMode === "integer" ? event.target.value.replace(/\D/g, "") : field.keyMode === "integer-map" ? event.target.value.replace(/(?!^-)[^\d]/g, "") : event.target.value)} className="min-w-0 font-mono text-xs" />
                 <Textarea aria-label={`${field.label} row ${rowIndex + 1} value`} rows={1} value={row.value} placeholder='Text, 42, true, {"name":"value"}…' onChange={(event) => update(rowIndex, "value", event.target.value)} className="min-h-9 min-w-0 resize-y py-2 font-mono text-xs" />
                 <Button type="button" variant="ghost" size="icon" aria-label={`${field.removeRowLabel ?? "Delete row"} ${rowIndex + 1}`} title={field.removeRowLabel ?? "Delete row"} onClick={() => remove(rowIndex)}><X aria-hidden /></Button>
             </div> })}

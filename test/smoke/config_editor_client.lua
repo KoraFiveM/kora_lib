@@ -66,6 +66,7 @@ json = {
         if value == '42' then return 42 end
         if value == 'true' then return true end
         if value == 'false' then return false end
+        if tonumber(value) ~= nil then return tonumber(value) end
         local quoted = value:match('^"(.*)"$')
         if quoted then return quoted end
         return {}
@@ -285,6 +286,39 @@ H.test('map settings accept new text keys and boolean values', function()
     } } })
     H.assertTrue(committed.value.police)
     H.assertFalse(committed.value.ambulance)
+end)
+
+H.test('mixed-key maps round-trip numeric keys and use compact table summaries', function()
+    entry.schema = { kind = 'object', fields = {
+        rates = { kind = 'map', keyType = 'mixed', path = { 'rates' }, label = 'Rates',
+            description = 'Rates by class.', scope = 'shared',
+            item = { kind = 'number', path = { 'rates', '*' }, label = 'Rate' },
+            values = {} },
+    } }
+    entry.configured = { rates = { default = 0.5, [0] = 0.1 } }
+    entry.values = { rates = { default = 0.5, [0] = 0.1 } }
+
+    QB.config.open('sample')
+    local overview = navigation('resource:sample').content.blocks[1]
+    H.assertEqual(overview.rows[1].value, '2 rows')
+    local result = definition.onAction('config:setting', {
+        viewId = 'resource:sample', itemId = 'rates',
+    })
+    local field
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then field = item.content.blocks[2].fields[1] break end
+    end
+    H.assertEqual(field.keyMode, 'mixed')
+    H.assertEqual(field.default[1].key, '0')
+    H.assertEqual(field.default[1].value, '0.1')
+
+    definition.onAction('config:save', { viewId = 'resource:sample', value = { value = {
+        { key = 'default', value = '0.75' },
+        { key = '7', value = '1' },
+    } } })
+    H.assertEqual(committed.value.default, 0.75)
+    H.assertEqual(committed.value[7], 1)
+    H.assertEqual(committed.value['7'], nil)
 end)
 
 H.test('unavailable resource actions return a visible workflow error', function()

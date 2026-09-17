@@ -99,6 +99,10 @@ return function(library)
         assert(options.pattern == nil or type(options.pattern) == 'string', 'Configuration pattern must be a string.')
         assert(options.options == nil or type(options.options) == 'table', 'Configuration options must be a table.')
         assert(options.sensitive == nil or type(options.sensitive) == 'boolean', 'Configuration sensitive must be a boolean.')
+        assert(options.keyType == nil or options.keyType == 'string' or options.keyType == 'integer'
+            or options.keyType == 'mixed', 'Configuration keyType must be string, integer, or mixed.')
+        assert(options.requiredKeys == nil or type(options.requiredKeys) == 'table',
+            'Configuration requiredKeys must be a table.')
         assert(options.min == nil or (options.min == options.min and options.min ~= math.huge and options.min ~= -math.huge),
             'Configuration min must be finite.')
         assert(options.max == nil or (options.max == options.max and options.max ~= math.huge and options.max ~= -math.huge),
@@ -146,6 +150,17 @@ return function(library)
             words[#words + 1] = acronym or (word:sub(1, 1):upper() .. word:sub(2))
         end
         return table.concat(words, ' ')
+    end
+
+    local function pathLabel(path)
+        local parts = {}
+        for index = 1, #path do
+            local part = path[index]
+            if part ~= '*' and not tostring(part):match('^%d+$') then
+                parts[#parts + 1] = humanizeLabel(part)
+            end
+        end
+        return #parts > 0 and table.concat(parts, ' ') or 'Setting'
     end
 
     local function defaultDescription(label, kind, path)
@@ -217,7 +232,10 @@ return function(library)
         end
         local kind = wrapped and wrapped.kind or inferKind(value)
         local scope = options.scope or inheritedScope or 'shared'
-        local label = options.label or humanizeLabel(path[#path] or RESOURCE)
+        -- A leaf name such as `max`, `enabled`, or `timeout` is meaningless in
+        -- isolation in the editor. Keep its owning path in the inferred label;
+        -- explicitly authored labels remain untouched.
+        local label = options.label or pathLabel(path)
         local schema = {
             kind = kind,
             path = copy(path),
@@ -233,6 +251,8 @@ return function(library)
             pattern = options.pattern,
             options = copy(options.options),
             sensitive = options.sensitive == true,
+            keyType = options.keyType,
+            requiredKeys = copy(options.requiredKeys),
         }
 
         if kind == 'object' then
@@ -279,6 +299,8 @@ return function(library)
 
         if kind == 'map' then
             assert(type(value) == 'table', 'A configuration map must be a table.')
+            local keyType = options.keyType or 'string'
+            schema.keyType = keyType
             schema.values = {}
             local values = {}
             if wrapped and wrapped.item then
@@ -287,15 +309,30 @@ return function(library)
                 schema.item = select(1, makeSchema(wrapped.item, itemPath, scope, skipUnsupported))
                 if containsSensitive(schema.item) then schema.sensitive = true end
             end
+            local seenKeys = {}
             for key, child in pairs(value) do
-                assert(type(key) == 'string', 'Configuration map keys must be strings.')
+                local actualKeyType = type(key)
+                local validKey = keyType == 'mixed' and (actualKeyType == 'string'
+                    or (actualKeyType == 'number' and key % 1 == 0))
+                    or keyType == 'integer' and actualKeyType == 'number' and key % 1 == 0
+                    or keyType == 'string' and actualKeyType == 'string'
+                assert(validKey, ('Configuration %s map keys do not accept %s keys.'):format(keyType, actualKeyType))
+                local serializedKey = tostring(key)
+                assert(not seenKeys[serializedKey], ('Configuration map key %q is ambiguous.'):format(serializedKey))
+                seenKeys[serializedKey] = true
                 local childPath = copy(path)
-                childPath[#childPath + 1] = key
+                childPath[#childPath + 1] = serializedKey
                 local childSchema, childValue = makeSchema(child, childPath, scope, skipUnsupported)
                 if not childSchema then return nil end
-                schema.values[key] = childSchema
+                schema.values[serializedKey] = childSchema
                 values[key] = childValue
                 if containsSensitive(childSchema) then schema.sensitive = true end
+            end
+            for _, requiredKey in ipairs(schema.requiredKeys or {}) do
+                assert(type(requiredKey) == 'string' or type(requiredKey) == 'number',
+                    'Configuration required map keys must be strings or numbers.')
+                assert(values[requiredKey] ~= nil,
+                    ('Configuration required map key %q needs an authored default.'):format(tostring(requiredKey)))
             end
             return schema, values
         end
@@ -490,9 +527,19 @@ return function(library)
             end
         elseif schema.kind == 'map' then
             if type(value) ~= 'table' then return false, 'must be a map' end
+            for _, requiredKey in ipairs(schema.requiredKeys or {}) do
+                if value[requiredKey] == nil then
+                    return false, ('must include the %s key'):format(tostring(requiredKey))
+                end
+            end
             for key, child in pairs(value) do
-                if type(key) ~= 'string' then return false, 'keys must be text' end
-                local item = schema.item or schema.values[key]
+                local keyType = type(key)
+                local validKey = schema.keyType == 'mixed' and (keyType == 'string'
+                    or (keyType == 'number' and key % 1 == 0))
+                    or schema.keyType == 'integer' and keyType == 'number' and key % 1 == 0
+                    or (schema.keyType == nil or schema.keyType == 'string') and keyType == 'string'
+                if not validKey then return false, ('keys must match the %s key type'):format(schema.keyType or 'string') end
+                local item = schema.item or schema.values[tostring(key)]
                 if not item then return false, ('key %s is not allowed'):format(key) end
                 local ok, err = validate(item, child)
                 if not ok then return false, ('%s %s'):format(key, err) end
@@ -600,6 +647,8 @@ return function(library)
         schema = unwrapOptional(schema)
         if schema and schema.kind == 'list' then return tonumber(key) end
         if schema and schema.kind == 'object' then return objectTableKey(schema, key) end
+        if schema and schema.kind == 'map' and schema.keyType == 'integer' then return tonumber(key) end
+        if schema and schema.kind == 'map' and schema.keyType == 'mixed' and key:match('^-?%d+$') then return tonumber(key) end
         return key
     end
 
@@ -755,6 +804,8 @@ return function(library)
             scope = schema.scope, live = schema.live, min = schema.min, max = schema.max, step = schema.step,
             minLength = schema.minLength, maxLength = schema.maxLength, pattern = schema.pattern,
             options = copy(schema.options), sensitive = schema.sensitive,
+            keyType = schema.keyType,
+            requiredKeys = copy(schema.requiredKeys),
         }
         if schema.fields then
             out.fields = {}

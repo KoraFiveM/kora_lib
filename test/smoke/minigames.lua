@@ -158,7 +158,7 @@ harness.test("skill checks capture the server-adjusted difficulty in their autho
     local started = serverCall('qblib:minigames:start', 1, 'skillbar', { zoneSize = 0.05 }, authorization)
     skillAdjustment = nil
 
-    harness.assertEqual(started.public.zoneEnd - started.public.zoneStart, 0.6,
+    harness.assertTrue(math.abs((started.public.zoneEnd - started.public.zoneStart) - 0.6) < 1e-9,
         'the client options must not replace the skill-adjusted authorized configuration')
     Citizen.Await(QB.callback.trigger('qblib:minigames:cancel', started.sessionId))
 end)

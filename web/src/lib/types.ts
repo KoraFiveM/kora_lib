@@ -244,7 +244,7 @@ export interface InputField {
     description?: string
     placeholder?: string
     /** Key handling and labels for editable table rows. */
-    keyMode?: "string" | "integer"
+    keyMode?: "string" | "integer" | "integer-map" | "mixed"
     keyLabel?: string
     valueLabel?: string
     addRowLabel?: string
