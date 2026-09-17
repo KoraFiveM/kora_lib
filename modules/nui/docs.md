@@ -209,7 +209,12 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
   - `wholeNumber?: boolean` — rejects fractional number input.
   - `dimensions?: 2|3|4` — required by `vector`; the result is a component
     table with finite numeric `x`, `y`, and optional `z`/`w` values.
-  - `keyMode?: "string"|"integer"`, `keyLabel?`, `valueLabel?`,
+  - `valueField?: InputField` selects a scalar `text`, `number`, `checkbox`, or
+    `select` control for table values. Rows still transport JSON strings; select
+    option values must be the encoded JSON values. Nested controls are rejected.
+    `requiredKeys?: (string|number)[]` protects mandatory rows from renaming or
+    deletion. Server-side validation remains authoritative.
+  - `keyMode?: "string"|"integer"|"integer-map"|"mixed"`, `keyLabel?`, `valueLabel?`,
     `addRowLabel?`, `removeRowLabel?` — configure `key-value` rows. Integer
     keys must be consecutive from one; large row sets are paged automatically.
   - `searchable?: boolean` — adds a fixed-choice filter to select/multiselect;

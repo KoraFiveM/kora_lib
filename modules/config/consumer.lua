@@ -174,7 +174,7 @@ return function(library)
             return ('Selects %s for %s. Only the authored choices are accepted for %s, preventing an unsupported mode from being saved.'):format(label, RESOURCE, key)
         end
         if kind == 'number' or kind == 'integer' then
-            return ('Sets %s for %s. The numeric value is stored at %s, and any displayed minimum, maximum, or step limits are enforced when saved.'):format(label, RESOURCE, key)
+            return ('Sets %s for %s. Minimum and maximum limits are checked when saved; the step controls the input buttons, not the allowed precision. Ask the resource developer to document the units and gameplay effect for %s before changing it.'):format(label, RESOURCE, key)
         end
         if kind == 'vector2' or kind == 'vector3' or kind == 'vector4' then
             return ('Defines the world coordinates used by %s for %s. Enter each coordinate component stored at %s as a finite number.'):format(RESOURCE, label, key)
@@ -725,7 +725,9 @@ return function(library)
             local out = {}
             for key, child in pairs(schema.fields) do
                 local tableKey = objectTableKey(schema, key)
-                local childValue = clientProjection(child, type(configured) == 'table' and configured[tableKey] or nil)
+                local rawValue
+                if type(configured) == 'table' then rawValue = configured[tableKey] end
+                local childValue = clientProjection(child, rawValue)
                 if childValue ~= nil then out[tableKey] = childValue end
             end
             return out
@@ -735,7 +737,8 @@ return function(library)
             if type(configured) ~= 'table' then return out end
             for index, value in pairs(configured) do
                 local child = listChildSchema(schema, index)
-                local childValue = child and clientProjection(child, value) or nil
+                local childValue
+                if child then childValue = clientProjection(child, value) end
                 if childValue ~= nil then out[index] = childValue end
             end
             return out
@@ -744,8 +747,9 @@ return function(library)
             local out = {}
             if type(configured) ~= 'table' then return out end
             for key, value in pairs(configured) do
-                local child = schema.item or (schema.values or {})[key]
-                local childValue = child and clientProjection(child, value) or nil
+                local child = schema.item or (schema.values or {})[tostring(key)]
+                local childValue
+                if child then childValue = clientProjection(child, value) end
                 if childValue ~= nil then out[key] = childValue end
             end
             return out
@@ -768,7 +772,9 @@ return function(library)
             local out = {}
             for key, child in pairs(schema.fields) do
                 local tableKey = objectTableKey(schema, key)
-                local projected = projectValues(child, type(value) == 'table' and value[tableKey] or nil)
+                local rawValue
+                if type(value) == 'table' then rawValue = value[tableKey] end
+                local projected = projectValues(child, rawValue)
                 if projected ~= nil then out[tableKey] = projected end
             end
             return out
@@ -777,7 +783,9 @@ return function(library)
         if schema.kind == 'list' then
             local out = {}
             for index, child in pairs(schema.items or {}) do
-                local projected = projectValues(child, type(value) == 'table' and value[index] or nil)
+                local rawValue
+                if type(value) == 'table' then rawValue = value[index] end
+                local projected = projectValues(child, rawValue)
                 if projected ~= nil then out[index] = projected end
             end
             local fallback = schema.item or (schema.items or {})[1]
@@ -791,13 +799,12 @@ return function(library)
 
         if schema.kind == 'map' then
             local out = {}
-            for key, child in pairs(schema.values or {}) do
-                local projected = projectValues(child, type(value) == 'table' and value[key] or nil)
-                if projected ~= nil then out[key] = projected end
-            end
-            if schema.item and type(value) == 'table' then
-                for key, childValue in pairs(value) do
-                    if out[key] == nil then out[key] = projectValues(schema.item, childValue) end
+            if type(value) ~= 'table' then return out end
+            for key, childValue in pairs(value) do
+                local child = schema.item or (schema.values or {})[tostring(key)]
+                if child then
+                    local projected = projectValues(child, childValue)
+                    if projected ~= nil then out[key] = projected end
                 end
             end
             return out
@@ -1051,7 +1058,8 @@ return function(library)
         local normalized = normalizedBindingPath(path)
         local root = resource == RESOURCE and state and state.values or remoteValues[resource]
         if root == nil then return nil, 'not_ready' end
-        return copy(resource == RESOURCE and readPath(root, normalized, state.schema) or readPlainPath(root, normalized))
+        if resource == RESOURCE then return copy(readPath(root, normalized, state.schema)) end
+        return copy(readPlainPath(root, normalized))
     end
 
     ---Binds a consumer to an owner's active setting. The callback receives

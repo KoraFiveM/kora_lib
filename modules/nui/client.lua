@@ -206,8 +206,22 @@ local function assertInputFields(fields, location)
         assert(field.wholeNumber == nil or type(field.wholeNumber) == "boolean", fieldLocation .. " wholeNumber must be a boolean.")
         assert(field.dimensions == nil or field.dimensions == 2 or field.dimensions == 3 or field.dimensions == 4,
             fieldLocation .. " dimensions must be 2, 3, or 4.")
-        assert(field.keyMode == nil or field.keyMode == "string" or field.keyMode == "integer",
-            fieldLocation .. " keyMode must be string or integer.")
+        assert(field.keyMode == nil or field.keyMode == "string" or field.keyMode == "integer"
+            or field.keyMode == "integer-map" or field.keyMode == "mixed",
+            fieldLocation .. " keyMode must be string, integer, integer-map, or mixed.")
+        if field.requiredKeys ~= nil then
+            assert(type(field.requiredKeys) == 'table', fieldLocation .. ' requiredKeys must be an array.')
+            for _, key in ipairs(field.requiredKeys) do
+                assert(type(key) == 'string' or type(key) == 'number', fieldLocation .. ' required keys must be strings or numbers.')
+            end
+        end
+        if field.valueField ~= nil then
+            local item = field.valueField
+            assert(type(item) == 'table' and (item.type == 'text' or item.type == 'number'
+                or item.type == 'checkbox' or item.type == 'select'), fieldLocation .. ' valueField must be a scalar control.')
+            assert(item.valueField == nil, fieldLocation .. ' valueField cannot contain nested controls.')
+            assertInputFields({ item }, fieldLocation .. ' valueField')
+        end
         for _, key in ipairs({ "keyLabel", "valueLabel", "addRowLabel", "removeRowLabel" }) do
             assert(field[key] == nil or type(field[key]) == "string", fieldLocation .. " " .. key .. " must be a string.")
         end

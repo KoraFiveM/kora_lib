@@ -118,7 +118,7 @@ H.test('editing stays inside the resource view and saves via qblib callbacks', f
     H.assertEqual(result.notice.tone, 'success')
     for _, item in ipairs(result.update.navigation) do
         if item.id == 'resource:sample' then
-            H.assertEqual(item.content.blocks[2].id, 'config-edit-form-3')
+            H.assertEqual(item.content.blocks[2].id, 'config-edit-form-sample:enabled:3')
             break
         end
     end
@@ -389,6 +389,39 @@ H.test('advanced preference survives reopening the editor runtime', function()
     definition.onAction('config:advanced', { viewId = 'resource:sample' })
     H.assertEqual(stored, 0)
     GetResourceKvpInt, SetResourceKvpInt = nil, nil
+end)
+
+H.test('false values and setting identities survive editing', function()
+    entry.schema = { kind = 'object', fields = {
+        flag = { kind = 'optional', path = { 'flag' }, label = 'Flag', innerDefault = true,
+            inner = { kind = 'boolean', label = 'Flag' } },
+        choice = { kind = 'enum', path = { 'choice' }, label = 'Choice',
+            options = { { value = false, label = 'Off' }, { value = true, label = 'On' } } },
+        rates = { kind = 'map', path = { 'rates' }, label = 'Rates', requiredKeys = { 'default' },
+            item = { kind = 'number', min = 0, max = 10 } },
+    } }
+    entry.configured = { flag = false, choice = false, rates = { default = 1.234567890123 } }
+    entry.values = entry.configured
+    QB.config.open('sample')
+    local function openSetting(key)
+        local result = definition.onAction('config:setting', { viewId = 'resource:sample', itemId = key })
+        for _, item in ipairs(result.update.navigation) do
+            if item.id == 'resource:sample' then return item.content.blocks[2] end
+        end
+    end
+    local form = openSetting('flag')
+    H.assertFalse(form.fields[2].default)
+    local firstId = form.id
+    form = openSetting('choice')
+    H.assertTrue(firstId ~= form.id)
+    H.assertEqual(form.fields[1].default, 'config-option:1')
+    definition.onAction('config:save', { viewId = 'resource:sample', value = { value = 'config-option:1' } })
+    H.assertFalse(committed.value)
+    form = openSetting('rates')
+    H.assertEqual(form.fields[1].valueField.type, 'number')
+    H.assertEqual(form.fields[1].valueField.max, 10)
+    H.assertEqual(form.fields[1].requiredKeys[1], 'default')
+    H.assertEqual(form.fields[1].default[1].value, tostring(1.234567890123))
 end)
 
 H.report('config_editor_client')

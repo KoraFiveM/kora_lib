@@ -125,7 +125,6 @@ end
 
 local function encodeFieldValue(value)
     if value == nil then return '' end
-    if type(value) == 'number' then return ('%.12g'):format(value) end
     local ok, encoded = pcall(json.encode, value)
     return ok and encoded or ''
 end
@@ -168,7 +167,8 @@ fieldForSchema = function(schema, value, id, label, description)
             type = 'checkbox',
             default = value ~= nil,
         } }
-        local innerValue = value ~= nil and value or schema.innerDefault
+        local innerValue = value
+        if innerValue == nil then innerValue = schema.innerDefault end
         local innerFields = fieldForSchema(schema.inner, innerValue, id, label or schema.label,
             description or schema.description)
         for _, field in ipairs(innerFields) do
@@ -197,7 +197,8 @@ fieldForSchema = function(schema, value, id, label, description)
         local options = {}
         local selected
         for index, option in ipairs(schema.options or {}) do
-            local candidate = type(option) == 'table' and option.value or option
+            local candidate = option
+            if type(option) == 'table' then candidate = option.value end
             local token = ENUM_OPTION_PREFIX .. index
             options[#options + 1] = {
                 value = token,
@@ -240,6 +241,21 @@ fieldForSchema = function(schema, value, id, label, description)
         common.valueLabel = 'Value (JSON or text)'
         common.addRowLabel = 'Add row'
         common.removeRowLabel = 'Delete row'
+        common.requiredKeys = schema.requiredKeys
+        local item = schema.item
+        if item and (item.kind == 'string' or item.kind == 'number' or item.kind == 'integer'
+            or item.kind == 'boolean' or item.kind == 'enum') then
+            common.valueField = fieldForSchema(item, nil, 'item', 'Value')[1]
+            common.valueField.description = nil
+            if item.kind == 'enum' then
+                for index, option in ipairs(item.options) do
+                    local candidate = option
+                    if type(option) == 'table' then candidate = option.value end
+                    common.valueField.options[index].value = encodeFieldValue(candidate)
+                end
+            end
+            common.valueLabel = 'Value'
+        end
         return { common }
     end
     if schema.kind == 'vector2' or schema.kind == 'vector3' or schema.kind == 'vector4' then
@@ -337,7 +353,8 @@ local function inputValueForSchema(schema, values, id)
             and tonumber(raw:sub(#ENUM_OPTION_PREFIX + 1)) or nil
         local option = index and (schema.options or {})[index] or nil
         if option == nil then error('Choose one of the available options.', 0) end
-        return type(option) == 'table' and option.value or option
+        if type(option) == 'table' then return option.value end
+        return option
     end
     if kind == 'string' or kind == 'color' or kind == 'boolean' or kind == 'number'
         or kind == 'integer' or kind == 'vector2' or kind == 'vector3' or kind == 'vector4' then
@@ -413,7 +430,7 @@ local function settingsContent(entry)
                 description = setting.schema.description,
                 value = displayValue(setting.configured, setting.schema),
                 status = { label = setting.pending and 'Saved; restart needed'
-                    or setting.schema.live and 'Applies now' or 'After restart', badge = true,
+                    or setting.schema.live and 'No restart needed' or 'After restart', badge = true,
                     tone = setting.schema.live and 'success' or 'warning' },
                 scope = setting.schema.scope,
             }
@@ -471,7 +488,7 @@ local function editContent(entry, setting)
     local details = {
         { label = 'Saved value', value = displayValue(setting.configured, setting.schema) },
         { label = 'Currently in use', value = displayValue(setting.running, setting.schema) },
-        { label = 'Applies', value = appliesNow and 'Immediately' or 'After a resource restart',
+        { label = 'Applies', value = appliesNow and 'Without a resource restart' or 'After a resource restart',
             tone = appliesNow and 'success' or 'warning' },
     }
     if showAdvanced then
@@ -488,11 +505,11 @@ local function editContent(entry, setting)
             },
             {
                 -- AppShell retains drafts by block id. Include the resource
-                -- revision so save/reset rebuilds the form from the freshly
+                -- setting identity and revision so navigation/save/reset rebuilds the form from the freshly
                 -- read value instead of leaving the previous draft visible.
-                id = 'config-edit-form-' .. tostring(entry.revision), type = 'form',
+                id = 'config-edit-form-' .. entry.resource .. ':' .. setting.id .. ':' .. tostring(entry.revision), type = 'form',
                 title = appliesNow and 'New value' or 'New value (applies after restart)',
-                description = appliesNow and 'This change applies immediately.'
+                description = appliesNow and 'No resource restart is needed. See the setting description for when existing gameplay or new actions use the change.'
                     or 'This change is saved and applies when the resource restarts.',
                 fields = fieldFor(setting),
                 action = { id = 'config:save', label = 'Save setting', icon = 'save', variant = 'primary' },

@@ -155,7 +155,11 @@ qblib’s ACE-gated `/config` workspace reads the catalog, shows saved
 and running values, and labels a field **Applies now** or **Restart required**.
 Lists and maps use key/value rows: list keys are consecutive positions, while
 maps accept text keys by default and can explicitly opt into integer or mixed
-text/integer keys with `keyType`. Row values accept JSON or plain text. Rows can be added or
+text/integer keys with `keyType`. An explicit scalar item schema uses text,
+number, checkbox or enum dropdown controls, with matching browser validation.
+Structured or inferred heterogeneous rows retain JSON/plain-text editing.
+Required map rows cannot be renamed or deleted; list positions are assigned
+automatically. Rows can be added or
 deleted in the workspace; the owning resource validates the reconstructed
 table before it is persisted. Large collections are paged in the browser so
 opening an unusually large configuration does not mount every row at once.

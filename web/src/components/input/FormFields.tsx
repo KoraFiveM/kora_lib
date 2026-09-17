@@ -290,6 +290,17 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
                     break
                 }
                 keys.add(canonicalKey)
+                if (field.valueField) {
+                    const item = field.valueField
+                    const parsed = item.type === "select" ? rows[index].value : scalarRowValue(rows[index].value)
+                    const expected = item.type === "checkbox" ? "boolean" : item.type === "number" ? "number" : "string"
+                    const message = typeof parsed !== expected || (item.type === "select" && !item.options?.some((option) => option.value === parsed)) ? labels.invalidFormat
+                        : validateFields([item], { [item.id]: parsed }, labelOverrides)[item.id]
+                    if (message) {
+                        errors[field.id] = `Row ${rowNumber}: ${message}`
+                        break
+                    }
+                }
                 if (!validKeyValueDraft(rows[index].value)) {
                     errors[field.id] = `Row ${rowNumber} needs a valid value.`
                     break
@@ -302,6 +313,9 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
                         break
                     }
                 }
+            }
+            if (!errors[field.id] && field.requiredKeys?.some((key) => !rows.some((row) => row.key === String(key)))) {
+                errors[field.id] = "Keep all required rows."
             }
         }
     }
@@ -409,6 +423,10 @@ function validKeyValueDraft(value: string) {
     }
 }
 
+function scalarRowValue(value: string): FieldValue {
+    try { return JSON.parse(value) as FieldValue } catch { return value }
+}
+
 function KeyValueField({ id, field, value, error, describedBy, onChange }: {
     id: string
     field: InputField
@@ -432,7 +450,8 @@ function KeyValueField({ id, field, value, error, describedBy, onChange }: {
         onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, [property]: nextValue } : row))
     }
     const add = () => {
-        const nextRows = [...rows, { key: field.keyMode === "integer" ? String(rows.length + 1) : "", value: "" }]
+        const initial = field.valueField?.type === "checkbox" ? "false" : field.valueField?.type === "text" ? '""' : ""
+        const nextRows = [...rows, { key: field.keyMode === "integer" ? String(rows.length + 1) : "", value: initial }]
         setPage(Math.floor((nextRows.length - 1) / KEY_VALUE_PAGE_SIZE))
         onChange(nextRows)
     }
@@ -449,9 +468,15 @@ function KeyValueField({ id, field, value, error, describedBy, onChange }: {
         </div>
         <div className="flex max-h-80 flex-col gap-2 overflow-y-auto p-2">
             {rows.length === 0 ? <p className="px-2 py-4 text-center text-sm text-muted-foreground">No rows yet.</p> : visibleRows.map((row, index) => { const rowIndex = firstRow + index; return <div key={rowIndex} className="grid grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)_2.25rem] items-center gap-2">
-                <Input aria-label={`${field.label} row ${rowIndex + 1} key`} inputMode={field.keyMode === "integer" || field.keyMode === "integer-map" ? "numeric" : undefined} value={row.key} onChange={(event) => update(rowIndex, "key", field.keyMode === "integer" ? event.target.value.replace(/\D/g, "") : field.keyMode === "integer-map" ? event.target.value.replace(/(?!^-)[^\d]/g, "") : event.target.value)} className="min-w-0 font-mono text-xs" />
-                <Textarea aria-label={`${field.label} row ${rowIndex + 1} value`} rows={1} value={row.value} placeholder='Text, 42, true, {"name":"value"}…' onChange={(event) => update(rowIndex, "value", event.target.value)} className="min-h-9 min-w-0 resize-y py-2 font-mono text-xs" />
-                <Button type="button" variant="ghost" size="icon" aria-label={`${field.removeRowLabel ?? "Delete row"} ${rowIndex + 1}`} title={field.removeRowLabel ?? "Delete row"} onClick={() => remove(rowIndex)}><X aria-hidden /></Button>
+                <Input aria-label={`${field.label} row ${rowIndex + 1} key`} readOnly={field.keyMode === "integer" || field.requiredKeys?.some((key) => String(key) === row.key)} inputMode={field.keyMode === "integer" || field.keyMode === "integer-map" ? "numeric" : undefined} value={row.key} onChange={(event) => update(rowIndex, "key", field.keyMode === "integer" ? event.target.value.replace(/\D/g, "") : field.keyMode === "integer-map" ? event.target.value.replace(/(?!^-)[^\d]/g, "") : event.target.value)} className="min-w-0 font-mono text-xs" />
+                {field.valueField ? <FormFields
+                    idPrefix={`${id}-row-${rowIndex}`}
+                    fields={[{ ...field.valueField, label: `${field.label} row ${rowIndex + 1} value` }]}
+                    values={{ [field.valueField.id]: field.valueField.type === "select" ? row.value : scalarRowValue(row.value) }}
+                    errors={{}}
+                    onChange={(next) => update(rowIndex, "value", field.valueField!.type === "select" ? String(next[field.valueField!.id]) : JSON.stringify(next[field.valueField!.id]))}
+                /> : <Textarea aria-label={`${field.label} row ${rowIndex + 1} value`} rows={1} value={row.value} placeholder='Text, 42, true, {"name":"value"}…' onChange={(event) => update(rowIndex, "value", event.target.value)} className="min-h-9 min-w-0 resize-y py-2 font-mono text-xs" />}
+                <Button type="button" variant="ghost" size="icon" disabled={field.requiredKeys?.some((key) => String(key) === row.key)} aria-label={`${field.removeRowLabel ?? "Delete row"} ${rowIndex + 1}`} title={field.requiredKeys?.some((key) => String(key) === row.key) ? "Required row" : field.removeRowLabel ?? "Delete row"} onClick={() => remove(rowIndex)}><X aria-hidden /></Button>
             </div> })}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border p-2"><Button type="button" variant="outline" size="sm" onClick={add}><Plus aria-hidden />{field.addRowLabel ?? "Add row"}</Button>{pageCount > 1 ? <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Rows {firstRow + 1}–{Math.min(firstRow + KEY_VALUE_PAGE_SIZE, rows.length)} of {rows.length}</span><Button type="button" variant="outline" size="sm" disabled={visiblePage === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>Previous</Button><Button type="button" variant="outline" size="sm" disabled={visiblePage >= pageCount - 1} onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}>Next</Button></div> : null}</div>

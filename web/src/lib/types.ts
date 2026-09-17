@@ -246,7 +246,10 @@ export interface InputField {
     /** Key handling and labels for editable table rows. */
     keyMode?: "string" | "integer" | "integer-map" | "mixed"
     keyLabel?: string
+    requiredKeys?: Array<string | number>
     valueLabel?: string
+    /** Typed scalar table values; transport remains JSON strings per row. */
+    valueField?: InputField & { type: "text" | "number" | "checkbox" | "select" }
     addRowLabel?: string
     removeRowLabel?: string
     /** Require a number field to contain an integer. */

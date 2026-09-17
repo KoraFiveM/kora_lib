@@ -133,6 +133,38 @@ function KeyValueHarness() {
 }
 
 describe("FormFields key/value tables", () => {
+    it("edits typed switches without JSON and protects required rows", async () => {
+        const user = userEvent.setup()
+        function TypedTable() {
+            const fields: InputField[] = [{ id: "rows", type: "key-value", label: "Roles", requiredKeys: ["default"],
+                valueField: { id: "item", type: "checkbox", label: "Value" },
+                default: [{ key: "default", value: "false" }] }]
+            const [values, setValues] = useState(createFieldValues(fields))
+            return <><FormFields fields={fields} values={values} errors={{}} onChange={setValues} /><output data-testid="typed-values">{JSON.stringify(values)}</output></>
+        }
+        render(<TypedTable />)
+        expect(screen.getByLabelText("Roles row 1 key")).toHaveAttribute("readonly")
+        expect(screen.getByRole("button", { name: "Delete row 1" })).toBeDisabled()
+        const toggle = screen.getByRole("checkbox", { name: "Roles row 1 value" })
+        expect(toggle).not.toBeChecked()
+        await user.click(toggle)
+        expect(screen.getByTestId("typed-values")).toHaveTextContent('"value":"true"')
+    })
+
+    it("validates typed row limits, choices and string identity", () => {
+        const field: InputField = { id: "rows", type: "key-value", label: "Rates",
+            valueField: { id: "item", type: "number", label: "Value", required: true, min: 0, wholeNumber: true } }
+        expect(validateFields([field], { rows: [{ key: "default", value: "-1" }] }).rows).toContain("at least 0")
+        expect(validateFields([field], { rows: [{ key: "default", value: "0.5" }] }).rows).toContain("whole number")
+        expect(validateFields([field], { rows: [{ key: "default", value: '""' }] }).rows).toBeTruthy()
+        const text: InputField = { ...field, valueField: { id: "item", type: "text", label: "Value" } }
+        expect(validateFields([text], { rows: [{ key: "code", value: '"42"' }] })).toEqual({})
+        expect(validateFields([text], { rows: [{ key: "code", value: "42" }] }).rows).toBeTruthy()
+        const choice: InputField = { ...field, valueField: { id: "item", type: "select", label: "Value", options: [{ value: "false", label: "Off" }] } }
+        expect(validateFields([choice], { rows: [{ key: "flag", value: "false" }] })).toEqual({})
+        expect(validateFields([choice], { rows: [{ key: "flag", value: "true" }] }).rows).toBeTruthy()
+    })
+
     it("adds, edits, validates, and deletes rows", async () => {
         const user = userEvent.setup()
         render(<KeyValueHarness />)

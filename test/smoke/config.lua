@@ -624,6 +624,32 @@ H.test('advanced metadata inherits and permits explicit everyday overrides', fun
     H.assertFalse(valid)
 end)
 
+H.test('snapshots preserve false values in every container and numeric map keys', function()
+    files, registered, registrations = {}, {}, {}
+    local config = makeConfig(library)
+    config.define({
+        enabled = false,
+        nested = { enabled = false },
+        flags = config.list({ false, true }, config.boolean(false)),
+        inferred = config.map({ default = false }, nil),
+        classes = config.map({ [0] = false, [7] = true }, nil, { keyType = 'integer' }),
+        optional = config.optional(false, config.boolean(true)),
+        private = config.boolean(false, { scope = 'server' }),
+    })
+    local snapshot = registered.qblib_configRead()
+    H.assertEqual(config.get('sample', { 'classes', '0' }), false)
+    for _, values in ipairs({ snapshot.values, snapshot.configured, snapshot.client }) do
+        H.assertEqual(values.enabled, false)
+        H.assertEqual(values.nested.enabled, false)
+        H.assertEqual(values.flags[1], false)
+        H.assertEqual(values.inferred.default, false)
+        H.assertEqual(values.classes[0], false)
+        H.assertEqual(values.classes[7], true)
+        H.assertEqual(values.optional, false)
+    end
+    H.assertEqual(snapshot.client.private, nil)
+end)
+
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
 H.report('config')
