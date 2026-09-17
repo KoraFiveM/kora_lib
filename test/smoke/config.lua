@@ -600,6 +600,30 @@ H.test('clients re-request their active snapshot when qblib restarts', function(
     end
 end)
 
+H.test('advanced metadata inherits and permits explicit everyday overrides', function()
+    files = {}
+    local config = makeConfig(library)
+    config.define({
+        enabled = true,
+        entries = config.list({}, config.string('')),
+        tuning = config.object({
+            timeout = 1000,
+            visible = config.boolean(true, { advanced = false }),
+        }, { advanced = true }),
+        everydayList = config.list({}, config.string(''), { advanced = false }),
+    })
+    local fields = registrations[#registrations].schema.fields
+    H.assertFalse(fields.enabled.advanced)
+    H.assertTrue(fields.entries.advanced)
+    H.assertTrue(fields.tuning.fields.timeout.advanced)
+    H.assertFalse(fields.tuning.fields.visible.advanced)
+    H.assertFalse(fields.everydayList.advanced)
+    local valid = pcall(function()
+        makeConfig(library).define({ value = config.number(1, { advanced = 'yes' }) })
+    end)
+    H.assertFalse(valid)
+end)
+
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
 H.report('config')

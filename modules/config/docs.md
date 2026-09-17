@@ -69,6 +69,30 @@ Mark a value `sensitive = true` when it must never be shown or changed in the
 in-game editor. Do not register secrets, convars, database-managed data,
 executable values, or runtime state as editable settings.
 
+## Everyday and advanced settings
+
+The settings panel starts with Advanced off. Use `advanced = true` in any
+field's options for developer tuning, diagnostic controls, internal identifiers,
+or settings requiring knowledge of the code. An object marked advanced passes
+that classification to its children; `advanced = false` explicitly keeps a
+child in the everyday view. Lists, maps, and coordinates default to advanced
+unless explicitly overridden. Ordinary scalar fields default to everyday.
+
+```lua
+Config = QB.config.define({
+    enabled = QB.config.boolean(true, { label = 'Enable fuel consumption' }),
+    polling = QB.config.object({
+        interval = QB.config.integer(1000, { min = 100, label = 'Update interval (milliseconds)' }),
+    }, { advanced = true }),
+})
+```
+
+Give everyday settings plain-language labels, units, and descriptions explaining
+the effect on gameplay. Prefer enums with readable option labels over free text
+for fixed choices. Advanced is a presentation filter, not an access permission;
+server authorization and validation apply equally in both views. The toggle
+changes neither saved settings nor their live/restart behaviour.
+
 ## Scopes and lifecycle
 
 `shared` is the default. `client` fields are synchronized to clients; `server`

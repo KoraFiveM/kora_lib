@@ -89,6 +89,7 @@ return function(library)
         assert(scope == nil or scope == 'shared' or scope == 'client' or scope == 'server',
             'Configuration scope must be shared, client, or server.')
         assert(options.live == nil or type(options.live) == 'boolean', 'Configuration live must be a boolean.')
+        assert(options.advanced == nil or type(options.advanced) == 'boolean', 'Configuration advanced must be a boolean.')
         assert(options.label == nil or type(options.label) == 'string', 'Configuration label must be a string.')
         assert(options.description == nil or type(options.description) == 'string', 'Configuration description must be a string.')
         assert(options.min == nil or type(options.min) == 'number', 'Configuration min must be a number.')
@@ -212,7 +213,7 @@ return function(library)
         return false
     end
 
-    local function makeSchema(node, path, inheritedScope, skipUnsupported)
+    local function makeSchema(node, path, inheritedScope, skipUnsupported, inheritedAdvanced)
         local wrapped = type(node) == 'table' and node[MARKER] == true and node or nil
         local options = wrapped and wrapped.options or {}
         checkOptions(options)
@@ -231,6 +232,11 @@ return function(library)
             return nil
         end
         local kind = wrapped and wrapped.kind or inferKind(value)
+        local advanced = options.advanced
+        if advanced == nil then advanced = inheritedAdvanced end
+        if advanced == nil and kind ~= 'object' and kind ~= 'optional' then
+            advanced = kind == 'list' or kind == 'map' or kind:match('^vector') ~= nil
+        end
         local scope = options.scope or inheritedScope or 'shared'
         -- A leaf name such as `max`, `enabled`, or `timeout` is meaningless in
         -- isolation in the editor. Keep its owning path in the inferred label;
@@ -243,6 +249,7 @@ return function(library)
             description = options.description or defaultDescription(label, kind, path),
             scope = scope,
             live = options.live == true,
+            advanced = advanced,
             min = options.min,
             max = options.max,
             step = options.step,
@@ -264,7 +271,7 @@ return function(library)
                 assert(type(key) == 'string' or type(key) == 'number', 'Configuration object keys must be strings or numbers.')
                 local childPath = copy(path)
                 childPath[#childPath + 1] = tostring(key)
-                local childSchema, childValue = makeSchema(child, childPath, scope, skipUnsupported)
+                local childSchema, childValue = makeSchema(child, childPath, scope, skipUnsupported, advanced)
                 if childSchema then
                     schema.fields[tostring(key)] = childSchema
                     schema.fieldKeys[tostring(key)] = key
@@ -338,10 +345,11 @@ return function(library)
         end
 
         if kind == 'optional' then
-            local innerSchema, innerDefault = makeSchema(wrapped.inner, path, scope, skipUnsupported)
+            local innerSchema, innerDefault = makeSchema(wrapped.inner, path, scope, skipUnsupported, advanced)
             assert(innerSchema, 'A configuration optional field needs a supported inner field.')
             assert(innerSchema.kind ~= 'optional', 'Nested optional configuration fields are not supported.')
             schema.inner = innerSchema
+            if schema.advanced == nil then schema.advanced = innerSchema.advanced end
             schema.innerDefault = copy(innerDefault)
             if containsSensitive(innerSchema) then schema.sensitive = true end
             return schema, copy(value)
@@ -804,6 +812,7 @@ return function(library)
             scope = schema.scope, live = schema.live, min = schema.min, max = schema.max, step = schema.step,
             minLength = schema.minLength, maxLength = schema.maxLength, pattern = schema.pattern,
             options = copy(schema.options), sensitive = schema.sensitive,
+            advanced = schema.advanced,
             keyType = schema.keyType,
             requiredKeys = copy(schema.requiredKeys),
         }

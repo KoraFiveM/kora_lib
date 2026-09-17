@@ -201,6 +201,13 @@ local function registerQblibConfig()
             options = { 'top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right' },
         })
     end
+    -- Infrastructure tuning is useful to developers, but is rarely part of
+    -- day-to-day server administration. Children may explicitly opt back in.
+    for _, key in ipairs({ 'callback', 'cache', 'screenshot', 'drawing', 'zones', 'radialmenuCompat' }) do
+        if type(Config[key]) == 'table' then
+            Config[key] = bridge.object(Config[key], { advanced = true })
+        end
+    end
     Config = bridge.adopt(Config)
     if type(discord) == 'table' then
         Config.discord = discord

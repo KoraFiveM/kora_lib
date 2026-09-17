@@ -90,7 +90,7 @@ H.test('every registered resource remains available in the sidebar', function()
     local tableBlock = navigation('resource:sample').content.blocks[1]
     H.assertEqual(tableBlock.columns[1].key, 'label')
     H.assertEqual(tableBlock.columns[2].key, 'description')
-    H.assertEqual(tableBlock.columns[2].width, '34%')
+    H.assertEqual(tableBlock.columns[2].width, '42%')
     H.assertEqual(tableBlock.rows[1].label.label, 'Enabled')
     H.assertEqual(tableBlock.rows[1].label.description, 'Key: enabled')
     H.assertEqual(tableBlock.rows[1].key, 'enabled')
@@ -175,7 +175,7 @@ end)
 H.test('restart-required resources expose and run an explicit apply action', function()
     QB.config.open('other')
     local view = navigation('resource:other')
-    H.assertEqual(view.content.actions[1].id, 'config:restart')
+    H.assertEqual(view.content.actions[2].id, 'config:restart')
     local result = definition.onAction('config:restart', { viewId = 'resource:other' })
     H.assertEqual(restarted, 'other')
     H.assertEqual(result.notice.tone, 'success')
@@ -224,8 +224,8 @@ H.test('numeric config keys keep their authored values in the editor', function(
     for _, item in ipairs(result.update.navigation) do
         if item.id == 'resource:sample' then details = item.content.blocks[1].items break end
     end
-    H.assertEqual(details[2].value, 'true')
-    H.assertEqual(details[3].value, 'false')
+    H.assertEqual(details[1].value, 'On')
+    H.assertEqual(details[2].value, 'Off')
 end)
 
 H.test('list settings use editable key and value rows and preserve value types', function()
@@ -325,6 +325,29 @@ H.test('unavailable resource actions return a visible workflow error', function(
     local result = definition.onAction('config:resource', { viewId = 'resources', itemId = 'missing' })
     H.assertEqual(result.notice.tone, 'destructive')
     H.assertEqual(result.notice.message, 'configuration is unavailable')
+end)
+
+H.test('advanced toggle filters rows and counts without changing saved settings', function()
+    entry.schema = { kind = 'object', fields = {
+        enabled = { kind = 'boolean', path = { 'enabled' }, label = 'Enabled', live = true },
+        timeout = { kind = 'integer', path = { 'timeout' }, label = 'Timeout', advanced = true },
+    } }
+    entry.configured = { enabled = true, timeout = 1000 }
+    entry.values = { enabled = true, timeout = 1000 }
+    QB.config.open('sample')
+    local content = navigation('resource:sample').content
+    H.assertEqual(#content.blocks[1].rows, 1)
+    H.assertEqual(content.blocks[1].rows[1].value, 'On')
+    H.assertEqual(navigation('resource:sample').badge, 1)
+    local result = definition.onAction('config:advanced', { viewId = 'resource:sample' })
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then
+            H.assertEqual(#item.content.blocks[1].rows, 2)
+            H.assertEqual(item.badge, 2)
+        end
+    end
+    definition.onAction('config:advanced', { viewId = 'resource:sample' })
+    H.assertEqual(entry.configured.timeout, 1000)
 end)
 
 H.report('config_editor_client')

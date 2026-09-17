@@ -5,6 +5,7 @@ local catalog = {}
 local entriesByResource = {}
 local resourcesByView = {}
 local activeEdit
+local showAdvanced = false
 local ENUM_OPTION_PREFIX = 'config-option:'
 
 local function pathId(path) return table.concat(path, '\31') end
@@ -37,6 +38,13 @@ local function collectionSize(value)
 end
 
 local function displayValue(value, schema)
+    if schema and schema.kind == 'enum' then
+        for _, option in ipairs(schema.options or {}) do
+            if type(option) == 'table' and option.value == value then
+                return option.label or tostring(value)
+            end
+        end
+    end
     if schema and (schema.kind == 'list' or schema.kind == 'map') then
         local count = collectionSize(value)
         return ('%d %s'):format(count, count == 1 and 'row' or 'rows')
@@ -46,7 +54,8 @@ local function displayValue(value, schema)
         return ok and encoded or '[complex value]'
     end
     if type(value) == 'number' then return ('%.12g'):format(value) end
-    return value == nil and 'nil' or tostring(value)
+    if type(value) == 'boolean' then return value and 'On' or 'Off' end
+    return value == nil and 'Not set' or tostring(value)
 end
 
 local function schemaLeaves(schema, configured, running, out)
@@ -361,37 +370,45 @@ local function settingsContent(entry)
     end
 
     local rows = {}
+    local hiddenCount = 0
     for _, setting in ipairs(settingsFor(entry)) do
-        rows[#rows + 1] = {
-            id = pathId(setting.schema.path),
-            label = {
-                label = setting.schema.label,
-                description = ('Key: %s'):format(displayPath(setting.schema.path)),
-            },
-            key = displayPath(setting.schema.path),
-            description = setting.schema.description,
-            value = displayValue(setting.configured, setting.schema),
-            status = { label = setting.schema.live and 'Applies now' or 'Restart required', badge = true,
-                tone = setting.schema.live and 'success' or 'warning' },
-            scope = setting.schema.scope,
-        }
+        if setting.schema.advanced and not showAdvanced then
+            hiddenCount = hiddenCount + 1
+        else
+            rows[#rows + 1] = {
+                id = pathId(setting.schema.path),
+                label = {
+                    label = setting.schema.label,
+                    description = ('Key: %s'):format(displayPath(setting.schema.path)),
+                },
+                key = displayPath(setting.schema.path),
+                description = setting.schema.description,
+                value = displayValue(setting.configured, setting.schema),
+                status = { label = setting.schema.live and 'Applies now' or 'Restart required', badge = true,
+                    tone = setting.schema.live and 'success' or 'warning' },
+                scope = setting.schema.scope,
+            }
+        end
     end
 
     local content = {
         title = entry.resource,
-        description = ('%d editable configuration option%s.'):format(#rows, #rows == 1 and '' or 's'),
+        description = ('%d settings. Choose a setting to change it.'):format(#rows)
+            .. (hiddenCount > 0 and (' %d advanced settings are hidden.'):format(hiddenCount) or ''),
+        actions = { { id = 'config:advanced', label = showAdvanced and 'Advanced: on' or 'Advanced: off',
+            icon = 'sliders-horizontal', variant = showAdvanced and 'primary' or 'outline' } },
         blocks = { {
             id = 'config-settings', type = 'table', searchable = true, pageSize = 20,
             searchPlaceholder = 'Search settings…',
             columns = {
-                { key = 'label', label = 'Setting', sortable = true, width = '18%' },
-                { key = 'description', label = 'Description', width = '34%' },
-                { key = 'value', label = 'Saved value', width = '26%' },
-                { key = 'scope', label = 'Scope', width = '9%' },
-                { key = 'status', label = 'Effect', width = '9%' },
+                { key = 'label', label = 'Setting', sortable = true, width = '24%' },
+                { key = 'description', label = 'Description', width = '42%' },
+                { key = 'value', label = 'Value', width = '18%' },
+                { key = 'status', label = 'Applies', width = '16%' },
             },
             rows = rows,
-            empty = 'This resource has no editable settings.',
+            empty = hiddenCount > 0 and 'All settings here are advanced. Turn on Advanced to see them.'
+                or 'This resource has no editable settings.',
             action = 'config:setting',
             idKey = 'id',
         } },
@@ -401,11 +418,11 @@ local function settingsContent(entry)
         if not setting.schema.live then needsRestart = true break end
     end
     if needsRestart and entry.resource ~= 'qblib' then
-        content.actions = { {
+        content.actions[#content.actions + 1] = {
             id = 'config:restart', label = 'Restart resource to apply saved changes', icon = 'refresh-cw',
             variant = 'outline',
             confirm = ('Restart %s now? Active scripts in this resource will briefly stop and connected players may notice the interruption.'):format(entry.resource),
-        } }
+        }
     end
     return content
 end
@@ -413,8 +430,8 @@ end
 local function editContent(entry, setting)
     local appliesNow = setting.schema.live == true
     local actions = {
-        { id = 'config:reset', label = 'Reset to authored default', icon = 'rotate-ccw', variant = 'outline',
-            confirm = 'Remove this in-game override?' },
+        { id = 'config:reset', label = 'Restore default', icon = 'rotate-ccw', variant = 'outline',
+            confirm = 'Restore this setting to its original value?' },
         { id = 'config:back', label = ('Back to %s'):format(entry.resource), icon = 'arrow-left', variant = 'ghost' },
     }
     if not appliesNow and entry.resource ~= 'qblib' then
@@ -423,20 +440,23 @@ local function editContent(entry, setting)
             confirm = ('Restart %s now? Active scripts in this resource will briefly stop and connected players may notice the interruption.'):format(entry.resource),
         })
     end
+    local details = {
+        { label = 'Saved value', value = displayValue(setting.configured, setting.schema) },
+        { label = 'Currently in use', value = displayValue(setting.running, setting.schema) },
+        { label = 'Applies', value = appliesNow and 'Immediately' or 'After a resource restart',
+            tone = appliesNow and 'success' or 'warning' },
+    }
+    if showAdvanced then
+        details[#details + 1] = { label = 'Configuration key', value = displayPath(setting.schema.path) }
+        details[#details + 1] = { label = 'Scope', value = setting.schema.scope }
+    end
     return {
         title = setting.schema.label,
         description = setting.schema.description or displayPath(setting.schema.path),
         blocks = {
             {
                 id = 'config-edit-details', type = 'details', columns = 3,
-                items = {
-                    { label = 'Configuration key', value = displayPath(setting.schema.path) },
-                    { label = 'Saved value', value = displayValue(setting.configured) },
-                    { label = 'Running value', value = displayValue(setting.running) },
-                    { label = 'Scope', value = setting.schema.scope },
-                    { label = 'Effect', value = appliesNow and 'Applies immediately' or 'Restart required',
-                        tone = appliesNow and 'success' or 'warning' },
-                },
+                items = details,
             },
             {
                 -- AppShell retains drafts by block id. Include the resource
@@ -462,6 +482,8 @@ local function buildDefinition()
             id = 'resources', label = 'Overview', icon = 'boxes', content = {
                 title = 'Registered resources',
                 description = 'Choose a resource here or directly from the sidebar.',
+                actions = { { id = 'config:advanced', label = showAdvanced and 'Advanced: on' or 'Advanced: off',
+                    icon = 'sliders-horizontal', variant = showAdvanced and 'primary' or 'outline' } },
                 blocks = { {
                     id = 'config-resources', type = 'table', searchable = true, pageSize = 18,
                     searchPlaceholder = 'Search resources…',
@@ -479,7 +501,10 @@ local function buildDefinition()
     }
 
     for _, entry in ipairs(catalog) do
-        local count = #settingsFor(entry)
+        local count = 0
+        for _, setting in ipairs(settingsFor(entry)) do
+            if showAdvanced or not setting.schema.advanced then count = count + 1 end
+        end
         rows[#rows + 1] = {
             id = entry.resource,
             resource = entry.resource,
@@ -512,10 +537,10 @@ local function buildDefinition()
 
     return {
         id = 'qblib:config',
-        title = 'Configuration',
+        title = 'Server settings',
         icon = 'settings',
         defaultView = 'resources',
-        description = 'Edit registered resource settings without replacing their authored config.lua files.',
+        description = 'Choose a resource to customise your server.',
         footer = 'Live changes apply now. Other changes are saved for the next resource restart.',
         navigation = navigation,
     }
@@ -538,6 +563,12 @@ end
 
 local function handleAction(action, context)
     context = context or {}
+
+    if action == 'config:advanced' then
+        showAdvanced = not showAdvanced
+        activeEdit = nil
+        return updateNavigation(nil, context.viewId)
+    end
 
     if action == 'config:resource' then
         local resource = resourcesByView[context.itemId] or context.itemId
