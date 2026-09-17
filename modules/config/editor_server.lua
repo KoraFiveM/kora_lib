@@ -223,11 +223,30 @@ QB.callback.register('qblib:configReset', function(source, request)
     return result
 end)
 
-QB.commands.add('config', 'Open the qblib configuration editor', nil, false, function(source, args)
-    local resource = type(args[1]) == 'string' and args[1] or nil
-    TriggerClientEvent('qblib:client:configOpened', source, resource)
-end, {
-    permission = ACE,
-    checkPermission = function(source) return source == 0 or allowed(source) end,
-    resource = 'qblib',
-})
+-- qbadmin provides the server's owner-gated `/config` presentation layer. Do
+-- not re-register the same command when it is running: qblib resources can
+-- restart independently, and taking the name back would route the command
+-- through qblib's different ACE boundary and editor callbacks.
+local function registerFallbackCommand()
+    if type(GetResourceState) == 'function' and GetResourceState('qbadmin') == 'started' then return end
+
+    QB.commands.add('config', 'Open the qblib configuration editor', nil, false, function(source, args)
+        local resource = type(args[1]) == 'string' and args[1] or nil
+        TriggerClientEvent('qblib:client:configOpened', source, resource)
+    end, {
+        permission = ACE,
+        checkPermission = function(source) return source == 0 or allowed(source) end,
+        resource = 'qblib',
+    })
+end
+
+registerFallbackCommand()
+
+-- If qbadmin is stopped after qblib, restore the standalone fallback. The
+-- deferred registration lets qbadmin finish releasing its command ownership.
+if type(AddEventHandler) == 'function' then
+    AddEventHandler('onResourceStop', function(resource)
+        if resource ~= 'qbadmin' or type(SetTimeout) ~= 'function' then return end
+        SetTimeout(0, registerFallbackCommand)
+    end)
+end

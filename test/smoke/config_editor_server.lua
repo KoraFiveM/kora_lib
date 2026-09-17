@@ -15,7 +15,7 @@ local startedResource
 
 _G.IsPlayerAceAllowed = function(_, object) return allowed and object == 'qblib.config.edit' end
 _G.GetCurrentResourceName = function() return 'qblib' end
-_G.GetResourceState = function() return 'started' end
+_G.GetResourceState = function(resource) return resource == 'qbadmin' and 'stopped' or 'started' end
 _G.StopResource = function(resource) stoppedResource = resource; return true end
 _G.StartResource = function(resource) startedResource = resource; return true end
 QB = {
