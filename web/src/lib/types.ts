@@ -207,9 +207,21 @@ export interface NuiRequestEventEnvelope<T = unknown> {
     data: T
 }
 
-export type FieldValue = string | number | boolean | Array<string | number>
+export interface KeyValueEntry {
+    key: string
+    value: string
+}
 
-export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color"
+export interface VectorFieldValue {
+    x: number | string
+    y: number | string
+    z?: number | string
+    w?: number | string
+}
+
+export type FieldValue = string | number | boolean | Array<string | number> | KeyValueEntry[] | VectorFieldValue
+
+export type InputFieldType = "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color" | "key-value" | "vector"
 
 export interface InputOption {
     value: string | number
@@ -231,6 +243,16 @@ export interface InputField {
     default?: FieldValue
     description?: string
     placeholder?: string
+    /** Key handling and labels for editable table rows. */
+    keyMode?: "string" | "integer"
+    keyLabel?: string
+    valueLabel?: string
+    addRowLabel?: string
+    removeRowLabel?: string
+    /** Require a number field to contain an integer. */
+    wholeNumber?: boolean
+    /** Number of editable vector components. */
+    dimensions?: 2 | 3 | 4
     // textarea only; ignored by every other field type.
     rows?: number
     // Validation, all optional and opt-in -- a field with none of these set
@@ -384,6 +406,8 @@ export interface AppTableColumn {
     label: string
     align?: "left" | "center" | "right"
     sortable?: boolean
+    /** Optional CSS width. Supplying any column width enables fixed table layout. */
+    width?: string | number
 }
 
 export interface AppRichValue {
@@ -539,6 +563,8 @@ export interface AppNavigationItem {
     badge?: string | number
     group?: string
     disabled?: boolean
+    /** Action invoked when the user opens this view, useful for lazy data loading. */
+    onOpen?: string
     defaultTab?: string
     tabs?: AppTab[]
     content?: AppContent

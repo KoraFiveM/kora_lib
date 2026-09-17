@@ -73,6 +73,84 @@ H.test('defines typed settings and writes only an override file', function()
     H.assertEqual(savedResources[#savedResources], 'sample')
 end)
 
+H.test('generates readable labels and descriptions when a field does not provide them', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({
+        speedUnit = config.enum('kmh', { options = { 'kmh', 'mph' } }),
+        allowCustomisation = true,
+        spawnPoints = { 'airport' },
+    })
+
+    local fields = registrations[#registrations].schema.fields
+    H.assertEqual(fields.speedUnit.label, 'Speed Unit')
+    H.assertEqual(fields.speedUnit.description,
+        'Selects Speed Unit for sample. Only the authored choices are accepted for speedUnit, preventing an unsupported mode from being saved.')
+    H.assertEqual(fields.allowCustomisation.label, 'Allow Customisation')
+    H.assertEqual(fields.allowCustomisation.description,
+        'Enables or disables Allow Customisation for sample. This true/false value is read from allowCustomisation.')
+    H.assertEqual(fields.spawnPoints.description,
+        'Defines the ordered entries used by sample for Spawn Points. Add, remove, or edit numbered rows; every row is checked against the resource schema before spawnPoints is saved.')
+end)
+
+H.test('uses authored description overrides and preserves common acronyms in labels', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ analysisTTL = 300000 }, {
+        descriptions = { analysisTTL = 'Maximum time allowed for the complete analysis workflow.' },
+    })
+
+    local field = registrations[#registrations].schema.fields.analysisTTL
+    H.assertEqual(field.label, 'Analysis TTL')
+    H.assertEqual(field.description, 'Maximum time allowed for the complete analysis workflow.')
+end)
+
+H.test('inferred lists accept new rows using the authored first row as their schema', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ locations = { 'airport' } })
+
+    local result = registered.qblib_configCommit({
+        path = { 'locations' }, value = { 'airport', 'city' }, revision = 1,
+    })
+    H.assertTrue(result.ok, result.error)
+    H.assertEqual(result.configured.locations[2], 'city')
+
+    registered = {}
+    registrations = {}
+    config = makeConfig(library)
+    local restarted = config.define({ locations = { 'airport' } })
+    H.assertEqual(restarted.locations[2], 'city')
+    H.assertEqual(registrations[#registrations].client.locations[2], 'city')
+end)
+
+H.test('explicit maps accept newly added string keys', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ roles = config.map({ police = true }, config.boolean(false)) })
+
+    local result = registered.qblib_configCommit({
+        path = { 'roles' }, value = { police = true, ambulance = true }, revision = 1,
+    })
+    H.assertTrue(result.ok, result.error)
+    H.assertTrue(result.configured.roles.ambulance)
+
+    registered = {}
+    registrations = {}
+    config = makeConfig(library)
+    local restarted = config.define({ roles = config.map({ police = true }, config.boolean(false)) })
+    H.assertTrue(restarted.roles.ambulance)
+    H.assertTrue(registrations[#registrations].client.roles.ambulance)
+end)
+
 H.test('restart-required changes are saved but do not alter running values', function()
     files = {}
     registered = {}
@@ -84,6 +162,8 @@ H.test('restart-required changes are saved but do not alter running values', fun
     H.assertEqual(values.restart, 'old')
     H.assertEqual(result.configured.restart, 'new')
     H.assertTrue(result.restartRequired)
+    H.assertEqual(registrations[#registrations].client.restart, 'old')
+    H.assertEqual(registered.qblib_configRead().client.restart, 'old')
     local reset = registered.qblib_configReset({ path = { 'restart' }, revision = result.revision })
     H.assertTrue(reset.ok, reset.error)
     H.assertTrue(files['config.local.lua']:find('restart', 1, true) == nil)
@@ -96,6 +176,21 @@ H.test('server-only roots register an empty client snapshot', function()
     local config = makeConfig(library)
     config.define({ webhook = config.string('https://example.invalid') }, { scope = 'server' })
     H.assertEqual(next(registrations[#registrations].client), nil)
+end)
+
+H.test('nested server-only collection values are excluded from client snapshots', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({
+        groups = config.map({ internal = 'secret' }, config.string('', { scope = 'server' })),
+        visible = config.list({ 'public' }, config.string('')),
+    })
+
+    local client = registrations[#registrations].client
+    H.assertEqual(next(client.groups), nil)
+    H.assertEqual(client.visible[1], 'public')
 end)
 
 H.test('client-only live settings update clients without running server handlers', function()
@@ -135,6 +230,9 @@ H.test('adoption preserves executable and runtime-only legacy fields outside the
     H.assertTrue(type(legacy.registry) == 'table')
     H.assertEqual(registrations[#registrations].schema.fields.callback, nil)
     H.assertEqual(registrations[#registrations].schema.fields.registry, nil)
+    local read = registered.qblib_configRead()
+    H.assertEqual(read.values.callback, nil)
+    H.assertEqual(read.values.registry, nil)
 end)
 
 H.test('adoption validates sparse numeric object keys against their authored values', function()
@@ -155,6 +253,8 @@ H.test('adoption validates sparse numeric object keys against their authored val
     H.assertFalse(legacy.restricted[10].enabled)
     H.assertTrue(registrations[#registrations].client.restricted[2].enabled)
     H.assertFalse(registrations[#registrations].client.restricted[10].enabled)
+    H.assertEqual(registrations[#registrations].schema.fieldKeys.restricted, 'restricted')
+    H.assertEqual(registrations[#registrations].schema.fields.restricted.fieldKeys['2'], 2)
 end)
 
 H.test('sparse numeric object keys persist and reload without becoming strings', function()
@@ -190,8 +290,44 @@ H.test('nullable descriptors retain a nil authored default', function()
     local config = makeConfig(library)
     local values = config.define({ message = config.optional(nil, config.string('example')) })
     H.assertEqual(values.message, nil)
+    H.assertEqual(registrations[#registrations].schema.fields.message.innerDefault, 'example')
     local result = registered.qblib_configCommit({ path = { 'message' }, value = 'hello', revision = 1 })
     H.assertTrue(result.ok, result.error)
+end)
+
+H.test('optional fields do not publish sensitive inner defaults or accept redundant nesting', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({ secret = config.optional(nil, config.string('do-not-publish', { sensitive = true })) })
+    local secret = registrations[#registrations].schema.fields.secret
+    H.assertTrue(secret.sensitive)
+    H.assertEqual(secret.innerDefault, nil)
+
+    H.assertThrows(function()
+        config.define({ nested = config.optional(nil, config.optional(nil, config.string('value'))) })
+    end, 'nested optional fields should fail at definition time')
+end)
+
+H.test('editable collections become sensitive when any nested value is sensitive', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    config.define({
+        secrets = config.list({}, config.object({
+            name = config.string('service'),
+            token = config.string('do-not-publish', { sensitive = true }),
+        })),
+        credentials = config.map({}, config.string('do-not-publish', { sensitive = true })),
+    })
+
+    local fields = registrations[#registrations].schema.fields
+    H.assertTrue(fields.secrets.sensitive,
+        'a list edited as one value must hide nested sensitive object fields')
+    H.assertTrue(fields.credentials.sensitive,
+        'a map edited as one value must hide sensitive entries')
 end)
 
 H.test('typed lists, maps, colours, and vectors validate and serialize', function()
@@ -215,6 +351,59 @@ H.test('typed lists, maps, colours, and vectors validate and serialize', functio
     H.assertTrue(files['config.local.lua']:find('%["secondary"%] = true', 1) ~= nil)
 end)
 
+H.test('every editable value kind can update the active snapshot live', function()
+    files = {}
+    registered = {}
+    registrations = {}
+    local config = makeConfig(library)
+    local values = config.define({
+        enabled = config.boolean(true, { live = true }),
+        title = config.string('old', { live = true }),
+        count = config.integer(1, { live = true }),
+        ratio = config.number(1.5, { live = true }),
+        mode = config.enum('one', { options = { 'one', 'two' }, live = true }),
+        colour = config.color('#000000', { live = true }),
+        point2 = config.vector2({ x = 1, y = 2 }, { live = true }),
+        point3 = config.vector3({ x = 1, y = 2, z = 3 }, { live = true }),
+        point4 = config.vector4({ x = 1, y = 2, z = 3, w = 4 }, { live = true }),
+        tags = config.list({ 'old' }, config.string(''), { live = true }),
+        flags = config.map({ old = true }, config.boolean(false), { live = true }),
+        note = config.optional(nil, config.string('example'), { live = true }),
+    })
+    local edits = {
+        { 'enabled', false },
+        { 'title', 'new' },
+        { 'count', 2 },
+        { 'ratio', 2.5 },
+        { 'mode', 'two' },
+        { 'colour', '#95FF00' },
+        { 'point2', { x = 2, y = 3 } },
+        { 'point3', { x = 2, y = 3, z = 4 } },
+        { 'point4', { x = 2, y = 3, z = 4, w = 5 } },
+        { 'tags', { 'new', 'second' } },
+        { 'flags', { new = false } },
+        { 'note', 'set' },
+        { 'note', nil },
+    }
+    for index, edit in ipairs(edits) do
+        local result = registered.qblib_configCommit({ path = { edit[1] }, value = edit[2], revision = index })
+        H.assertTrue(result.ok, result.error)
+        H.assertTrue(result.applied, edit[1] .. ' should apply live')
+    end
+    H.assertFalse(values.enabled)
+    H.assertEqual(values.title, 'new')
+    H.assertEqual(values.count, 2)
+    H.assertEqual(values.ratio, 2.5)
+    H.assertEqual(values.mode, 'two')
+    H.assertEqual(values.colour, '#95FF00')
+    H.assertEqual(values.point2.x, 2)
+    H.assertEqual(values.point3.z, 4)
+    H.assertEqual(values.point4.w, 5)
+    H.assertEqual(values.tags[2], 'second')
+    H.assertFalse(values.flags.new)
+    H.assertEqual(values.note, nil)
+end)
+
 H.test('a refused live handler rolls back the saved value and revision', function()
     files = {}
     registered = {}
@@ -227,6 +416,20 @@ H.test('a refused live handler rolls back the saved value and revision', functio
     H.assertTrue(files['config.local.lua']:find('enabled', 1, true) == nil,
         files['config.local.lua'])
     H.assertEqual(files['config.local.lua.bak'], '')
+end)
+
+H.test('a refused apply hook restores the prior backup', function()
+    files = { ['config.local.lua.bak'] = 'return { preserved = true }' }
+    registered = {}
+    local config = makeConfig(library)
+    config.define({ enabled = config.boolean(true, { live = true }) })
+    config.onApply(function() return false end)
+
+    local result = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    H.assertFalse(result.ok)
+    H.assertEqual(result.revision, 1)
+    H.assertTrue(files['config.local.lua']:find('enabled', 1, true) == nil, files['config.local.lua'])
+    H.assertEqual(files['config.local.lua.bak'], 'return { preserved = true }')
 end)
 
 H.test('invalid values and stale edits are refused without persistence', function()
@@ -253,6 +456,11 @@ H.test('invalid authored defaults and incoherent field constraints fail at start
     H.assertThrows(function()
         config.define({ amount = config.number(2, { min = 3, max = 1 }) })
     end, 'a field minimum must not exceed its maximum')
+
+    config = makeConfig(library)
+    H.assertThrows(function()
+        config.define({ mode = config.enum(true, { options = { true, false } }) })
+    end, 'enum options must use browser-safe string or number values')
 end)
 
 H.test('unknown nested paths return a normal validation error', function()
@@ -304,6 +512,43 @@ H.test('owner validation, application, and bindings use the active snapshot', fu
     H.assertFalse(observed[1])
     H.assertTrue(observed[2])
     H.assertFalse(config.get('sample', { 'enabled' }))
+end)
+
+H.test('clients re-request their active snapshot when qblib restarts', function()
+    local previousIsDuplicityVersion = _G.IsDuplicityVersion
+    local previousAddEventHandler = _G.AddEventHandler
+    local previousRegisterNetEvent = _G.RegisterNetEvent
+    local previousTriggerServerEvent = _G.TriggerServerEvent
+    local handlers, requests = {}, {}
+
+    _G.IsDuplicityVersion = function() return false end
+    _G.AddEventHandler = function(name, handler) handlers[name] = handler end
+    _G.RegisterNetEvent = function() end
+    _G.TriggerServerEvent = function(name, resource)
+        requests[#requests + 1] = { name = name, resource = resource }
+    end
+
+    local worked, failure = pcall(function()
+        local clientConfig = makeConfig({})
+        clientConfig.define({ speedUnit = clientConfig.enum('kmh', {
+            options = { 'kmh', 'mph' }, live = true,
+        }) })
+        handlers.onClientResourceStart('unrelated')
+        handlers.onClientResourceStart('qblib')
+        handlers.onClientResourceStart('sample')
+    end)
+
+    _G.IsDuplicityVersion = previousIsDuplicityVersion
+    _G.AddEventHandler = previousAddEventHandler
+    _G.RegisterNetEvent = previousRegisterNetEvent
+    _G.TriggerServerEvent = previousTriggerServerEvent
+
+    H.assertTrue(worked, failure)
+    H.assertEqual(#requests, 3, 'define, qblib restart, and owner restart should each request a snapshot')
+    for index = 1, #requests do
+        H.assertEqual(requests[index].name, 'qblib:server:configRequested')
+        H.assertEqual(requests[index].resource, 'sample')
+    end
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

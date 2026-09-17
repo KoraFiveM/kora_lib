@@ -195,7 +195,7 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 #### Parameters
 - `fields: table[]` — one per input:
   - `id: string`, `label: string`
-  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color"`
+  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color" | "key-value" | "vector"`
   - `description?: string` — help text shared by standalone dialogs and AppShell forms.
   - `options?: { value, label, disabled? }[]` — `select`, `multiselect`, and `combobox`. Numeric values are accepted for Lua compatibility and normalized to strings in browser results. `select` restricts the result to one option; `multiselect` returns a string array; `combobox` is free text with filtered suggestions (matched against label and value, capped at 8).
   - `rows?: integer` — `textarea` only (default 3).
@@ -206,6 +206,12 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
   - `numericOnly?: boolean`, `keypad?: boolean` — restrict textual entry to digits and optionally render the compact keypad.
   - `presets?: { value: number, label?: string }[]` — quick choices below a number field.
   - `step?: number` — increment for number and range controls.
+  - `wholeNumber?: boolean` — rejects fractional number input.
+  - `dimensions?: 2|3|4` — required by `vector`; the result is a component
+    table with finite numeric `x`, `y`, and optional `z`/`w` values.
+  - `keyMode?: "string"|"integer"`, `keyLabel?`, `valueLabel?`,
+    `addRowLabel?`, `removeRowLabel?` — configure `key-value` rows. Integer
+    keys must be consecutive from one; large row sets are paged automatically.
   - `searchable?: boolean` — adds a fixed-choice filter to select/multiselect;
     unlike `combobox`, typed search text can never become the submitted value.
   - `dateMin?`, `dateMax?` — ISO strings or numeric timestamps, normalized in
@@ -304,6 +310,11 @@ local result = QB.nui.openApp('qbmdt:police', {
   and switches to horizontal navigation on smaller viewports. `layout =
   'compact'` always uses horizontal navigation, permits a 420px minimum width,
   and is intended for ATMs and focused single-workspace tools.
+- A navigation item may set `onOpen = 'action-id'`. Selecting that view first
+  navigates to it and then invokes the declared action with the opened view id
+  in `context.itemId`. This supports lazy data loading without making an app
+  transfer every record when it opens; returning `update` plus `navigate` can
+  replace the loading content with the fresh view atomically.
 - `QB.nui.openApp(id, opts?)` opens it and returns after X/Escape, an action
   requests closure, the owner calls `closeApp`, the app is superseded, or its
   resource stops. The result is

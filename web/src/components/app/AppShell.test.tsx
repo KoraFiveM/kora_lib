@@ -209,6 +209,21 @@ describe("AppShell", () => {
         expect(screen.getByRole("heading", { name: "Home" })).toBeInTheDocument()
     })
 
+    it("runs a view's lazy-load action when sidebar navigation opens it", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp({ id: "test:app", title: "Test App", navigation: [
+            { id: "home", label: "Home" },
+            { id: "resource:sample", label: "Sample", onOpen: "load-resource", content: { title: "Loading" } },
+        ] })
+
+        await user.click(screen.getAllByRole("button", { name: "Sample" })[0])
+        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:action", expect.objectContaining({
+            actionId: "load-resource",
+            itemId: "resource:sample",
+        }))
+    })
+
     it("navigates against a definition returned by the same action", async () => {
         const user = userEvent.setup()
         const updated = { id: "test:app", title: "Test App", navigation: [
@@ -259,6 +274,27 @@ describe("AppShell", () => {
         expect(within(people).getByText("Ada")).toBeInTheDocument()
         await user.click(screen.getByRole("button", { name: /Admin/ }))
         expect(screen.getByText("Weather")).toBeInTheDocument()
+    })
+
+    it("supports fixed table widths and hover details on rich values", () => {
+        const { container } = render(<AppShell />)
+        openApp(baseApp({ blocks: [{
+            type: "table",
+            columns: [
+                { key: "name", label: "Setting", width: "20%" },
+                { key: "description", label: "Description", width: "80%" },
+            ],
+            rows: [{
+                name: { label: "Speed unit", description: "Key: hud.speedUnit" },
+                description: "Controls the unit displayed by the vehicle speedometer.",
+            }],
+        }] }))
+
+        const table = container.querySelector("table")
+        expect(table).toHaveClass("table-fixed")
+        expect(table?.querySelector("col")).toHaveStyle({ width: "20%" })
+        expect(screen.getByText("Speed unit").closest("[title]"))
+            .toHaveAttribute("title", "Key: hud.speedUnit")
     })
 
     it("lets a collection own scrolling while the surrounding content stays fixed", () => {

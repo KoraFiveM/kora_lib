@@ -119,3 +119,100 @@ describe("FormFields ox-compatible temporal fields", () => {
         expect(validateFields(temporalFields, values).window).toBe("Invalid format.")
     })
 })
+
+function KeyValueHarness() {
+    const tableFields: InputField[] = [{
+        id: "roles",
+        type: "key-value",
+        label: "Authorised roles",
+        keyMode: "string",
+        default: [{ key: "police", value: "true" }],
+    }]
+    const [values, setValues] = useState<Record<string, FieldValue>>(createFieldValues(tableFields))
+    return <><FormFields fields={tableFields} values={values} errors={validateFields(tableFields, values)} onChange={setValues} /><output data-testid="table-values">{JSON.stringify(values)}</output></>
+}
+
+describe("FormFields key/value tables", () => {
+    it("adds, edits, validates, and deletes rows", async () => {
+        const user = userEvent.setup()
+        render(<KeyValueHarness />)
+
+        expect(screen.getByRole("textbox", { name: "Authorised roles row 1 key" })).toHaveValue("police")
+        await user.click(screen.getByRole("button", { name: "Add row" }))
+        await user.type(screen.getByRole("textbox", { name: "Authorised roles row 2 key" }), "ambulance")
+        await user.type(screen.getByRole("textbox", { name: "Authorised roles row 2 value" }), "true")
+
+        expect(screen.getByTestId("table-values")).toHaveTextContent('"key":"ambulance","value":"true"')
+        await user.click(screen.getByRole("button", { name: "Delete row 1" }))
+        expect(screen.queryByDisplayValue("police")).not.toBeInTheDocument()
+        expect(screen.getByDisplayValue("ambulance")).toBeInTheDocument()
+    })
+
+    it("reports duplicate keys and malformed structured values", () => {
+        const tableFields: InputField[] = [{ id: "rows", type: "key-value", label: "Rows" }]
+        expect(validateFields(tableFields, { rows: [
+            { key: "one", value: "true" },
+            { key: "one", value: "{" },
+        ] }).rows).toBe("Key “one” is used more than once.")
+        expect(validateFields(tableFields, { rows: [{ key: "one", value: "{" }] }).rows).toBe("Row 1 needs a valid value.")
+        expect(validateFields([{ ...tableFields[0], keyMode: "integer" }], { rows: [
+            { key: "1", value: "true" },
+            { key: "3", value: "true" },
+        ] }).rows).toBe("List positions must run consecutively from 1.")
+    })
+
+    it("paginates large tables so only one bounded row set is mounted", async () => {
+        const user = userEvent.setup()
+        const rows = Array.from({ length: 51 }, (_, index) => ({ key: String(index + 1), value: "true" }))
+        function LargeTableHarness() {
+            const largeFields: InputField[] = [{ id: "rows", type: "key-value", label: "Rows", keyMode: "integer", default: rows }]
+            const [values, setValues] = useState<Record<string, FieldValue>>(createFieldValues(largeFields))
+            return <FormFields fields={largeFields} values={values} errors={{}} onChange={setValues} />
+        }
+        render(<LargeTableHarness />)
+
+        expect(screen.getByRole("textbox", { name: "Rows row 50 key" })).toBeInTheDocument()
+        expect(screen.queryByRole("textbox", { name: "Rows row 51 key" })).not.toBeInTheDocument()
+        await user.click(screen.getByRole("button", { name: "Next" }))
+        expect(screen.getByRole("textbox", { name: "Rows row 51 key" })).toBeInTheDocument()
+    })
+})
+
+describe("FormFields configuration types", () => {
+    const typedFields: InputField[] = [
+        { id: "count", type: "number", label: "Count", wholeNumber: true, required: true },
+        { id: "colour", type: "color", label: "Colour", required: true },
+        { id: "spawn", type: "vector", label: "Spawn", dimensions: 3, required: true },
+    ]
+
+    it("validates whole numbers, colour drafts, and every vector component", () => {
+        expect(validateFields(typedFields, {
+            count: 1.5,
+            colour: "not-a-colour",
+            spawn: { x: 1, y: 2, z: "bad" },
+        })).toEqual({
+            count: "Must be a whole number.",
+            colour: "Invalid format.",
+            spawn: "Every coordinate must be a finite number.",
+        })
+        expect(validateFields(typedFields, {
+            count: 2,
+            colour: "#95ff00",
+            spawn: { x: 1, y: 2, z: 3 },
+        })).toEqual({})
+    })
+
+    it("edits vectors through dedicated coordinate inputs", async () => {
+        const user = userEvent.setup()
+        function VectorHarness() {
+            const fields: InputField[] = [{ id: "spawn", type: "vector", label: "Spawn", dimensions: 3,
+                default: { x: 1, y: 2, z: 3 } }]
+            const [values, setValues] = useState<Record<string, FieldValue>>(createFieldValues(fields))
+            return <><FormFields fields={fields} values={values} errors={validateFields(fields, values)} onChange={setValues} /><output data-testid="vector-values">{JSON.stringify(values)}</output></>
+        }
+        render(<VectorHarness />)
+        await user.clear(screen.getByRole("textbox", { name: "Spawn X" }))
+        await user.type(screen.getByRole("textbox", { name: "Spawn X" }), "4.5")
+        expect(screen.getByTestId("vector-values")).toHaveTextContent('"x":4.5')
+    })
+})

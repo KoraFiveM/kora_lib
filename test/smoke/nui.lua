@@ -868,6 +868,35 @@ harness.test("AppShell validates and returns navigation and notice action result
     respond(requestId, token, true, { closed = true, reason = "close" })
 end)
 
+harness.test("AppShell declares lazy view actions and typed configuration fields", function()
+    local received
+    QB.nui.registerApp({
+        id = "smoke:lazy-view",
+        title = "Lazy view",
+        navigation = {
+            { id = "home", label = "Home" },
+            { id = "resource", label = "Resource", onOpen = "load-resource", content = { blocks = { {
+                type = "form", id = "typed-config", fields = {
+                    { id = "position", label = "Position", type = "vector", dimensions = 3,
+                        default = { x = 1, y = 2, z = 3 }, wholeNumber = false },
+                    { id = "rows", label = "Rows", type = "key-value", keyMode = "integer",
+                        default = { { key = "1", value = "true" } } },
+                }, action = { id = "save", label = "Save" },
+            } } } },
+        },
+        onAction = function(action, context) received = { action, context.itemId } end,
+    })
+    QB.nui.openApp("smoke:lazy-view")
+    local requestId, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["qblib:app:action"]({ appId = "smoke:lazy-view", token = token,
+        actionId = "load-resource", viewId = "home", itemId = "resource" }, function(value) response = value end)
+    harness.assertTrue(response.ok, "a declared view-open action should be callable")
+    harness.assertEqual(received[1], "load-resource", "the lazy action should reach its owner")
+    harness.assertEqual(received[2], "resource", "the opened view id should reach its owner")
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
 harness.test("AppShell applies updates before validating result navigation", function()
     QB.nui.registerApp({
         id = "smoke:update-navigation",

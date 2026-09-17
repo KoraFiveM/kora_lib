@@ -92,6 +92,7 @@ local VALID_FIELD_TYPES = {
     text = true, password = true, textarea = true, number = true, checkbox = true,
     select = true, multiselect = true, range = true, combobox = true,
     date = true, ['date-range'] = true, time = true, color = true,
+    ['key-value'] = true, vector = true,
 }
 
 local VALID_TONES = { neutral = true, primary = true, success = true, warning = true, destructive = true }
@@ -202,6 +203,15 @@ local function assertInputFields(fields, location)
             fieldLocation .. " visibleWhen must contain fieldId and equals.")
         assert(field.keypad == nil or type(field.keypad) == "boolean", fieldLocation .. " keypad must be a boolean.")
         assert(field.numericOnly == nil or type(field.numericOnly) == "boolean", fieldLocation .. " numericOnly must be a boolean.")
+        assert(field.wholeNumber == nil or type(field.wholeNumber) == "boolean", fieldLocation .. " wholeNumber must be a boolean.")
+        assert(field.dimensions == nil or field.dimensions == 2 or field.dimensions == 3 or field.dimensions == 4,
+            fieldLocation .. " dimensions must be 2, 3, or 4.")
+        assert(field.keyMode == nil or field.keyMode == "string" or field.keyMode == "integer",
+            fieldLocation .. " keyMode must be string or integer.")
+        for _, key in ipairs({ "keyLabel", "valueLabel", "addRowLabel", "removeRowLabel" }) do
+            assert(field[key] == nil or type(field[key]) == "string", fieldLocation .. " " .. key .. " must be a string.")
+        end
+        assert(field.type ~= "vector" or field.dimensions ~= nil, fieldLocation .. " vector requires dimensions.")
         if field.options ~= nil then assertOptions(field.options, fieldLocation .. " options") end
         if field.optionsByValue ~= nil then
             for key, options in pairs(field.optionsByValue) do
@@ -233,6 +243,20 @@ local function assertInputFields(fields, location)
                     local value = field.default[defaultIndex]
                     assert(type(value) == "string" or type(value) == "number",
                         ("%s default item %d must be a string or number."):format(fieldLocation, defaultIndex))
+                end
+            elseif field.type == "key-value" then
+                assert(type(field.default) == "table", fieldLocation .. " key-value default must be a row array.")
+                for defaultIndex = 1, #field.default do
+                    local row = field.default[defaultIndex]
+                    assert(type(row) == "table" and type(row.key) == "string" and type(row.value) == "string",
+                        ("%s default row %d needs string key and value fields."):format(fieldLocation, defaultIndex))
+                end
+            elseif field.type == "vector" then
+                assert(type(field.default) == "table", fieldLocation .. " vector default must be a component table.")
+                local axes = { "x", "y", "z", "w" }
+                for axisIndex = 1, field.dimensions do
+                    assert(type(field.default[axes[axisIndex]]) == "number",
+                        ("%s vector default %s must be a number."):format(fieldLocation, axes[axisIndex]))
                 end
             else
                 assert(type(field.default) == "string" or type(field.default) == "number",
@@ -526,6 +550,7 @@ local function assertBrowserApp(definition)
         assert(not viewIds[view.id], ("App navigation id '%s' is duplicated."):format(view.id))
         assert(type(view.label) == "string" and view.label ~= "", location .. " requires a label.")
         assert(view.disabled == nil or type(view.disabled) == "boolean", location .. " disabled must be a boolean.")
+        if view.onOpen ~= nil then declareAction(actionIds, view.onOpen, false, location) end
         viewIds[view.id] = true
         if not view.disabled then hasEnabledView = true end
         assertAppContent(view.content, ("App view '%s'"):format(view.id), actionIds)

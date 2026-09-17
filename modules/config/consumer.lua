@@ -130,6 +130,73 @@ return function(library)
         error(('Unsupported configuration value type %q. Use an explicit QB.config field or keep it out of the editor.'):format(kind))
     end
 
+    local function humanizeLabel(value)
+        local text = tostring(value):gsub('([%l%d])([%u])', '%1 %2'):gsub('[_%-]+', ' '):gsub('%s+', ' ')
+        text = text:match('^%s*(.-)%s*$') or ''
+        if text == '' then return 'Setting' end
+
+        local acronyms = {
+            ace = 'ACE', api = 'API', bolo = 'BOLO', id = 'ID', ids = 'IDs', kvp = 'KVP',
+            mdt = 'MDT', npc = 'NPC', nui = 'NUI', qb = 'QB', qbcore = 'QB Core', sql = 'SQL',
+            ttl = 'TTL', ui = 'UI', url = 'URL', urls = 'URLs', xp = 'XP',
+        }
+        local words = {}
+        for word in text:gmatch('%S+') do
+            local acronym = acronyms[word:lower()]
+            words[#words + 1] = acronym or (word:sub(1, 1):upper() .. word:sub(2))
+        end
+        return table.concat(words, ' ')
+    end
+
+    local function defaultDescription(label, kind, path)
+        local key = displayPath(path)
+        if key == '' then key = 'the root configuration table' end
+        if kind == 'boolean' then
+            return ('Enables or disables %s for %s. This true/false value is read from %s.'):format(label, RESOURCE, key)
+        end
+        if kind == 'enum' then
+            return ('Selects %s for %s. Only the authored choices are accepted for %s, preventing an unsupported mode from being saved.'):format(label, RESOURCE, key)
+        end
+        if kind == 'number' or kind == 'integer' then
+            return ('Sets %s for %s. The numeric value is stored at %s, and any displayed minimum, maximum, or step limits are enforced when saved.'):format(label, RESOURCE, key)
+        end
+        if kind == 'vector2' or kind == 'vector3' or kind == 'vector4' then
+            return ('Defines the world coordinates used by %s for %s. Enter each coordinate component stored at %s as a finite number.'):format(RESOURCE, label, key)
+        end
+        if kind == 'list' then
+            return ('Defines the ordered entries used by %s for %s. Add, remove, or edit numbered rows; every row is checked against the resource schema before %s is saved.'):format(RESOURCE, label, key)
+        end
+        if kind == 'map' then
+            return ('Defines the keyed entries used by %s for %s. Each key identifies one entry, and every value is checked against the resource schema before %s is saved.'):format(RESOURCE, label, key)
+        end
+        if kind == 'object' then
+            return ('Groups the related %s settings used by %s. Child values are edited separately and remain stored beneath %s.'):format(label, RESOURCE, key)
+        end
+        if kind == 'color' then
+            return ('Sets the colour used by %s for %s. The value stored at %s must remain a six-digit hexadecimal colour.'):format(RESOURCE, label, key)
+        end
+        if kind == 'optional' then
+            return ('Sets the optional %s value used by %s at %s. Leave it empty to disable the override, or provide a value matching the documented format.'):format(label, RESOURCE, key)
+        end
+        return ('Sets the text used by %s for %s. The saved value is read from %s whenever the owning feature is loaded.'):format(RESOURCE, label, key)
+    end
+
+    local function containsSensitive(schema)
+        if not schema then return false end
+        if schema.sensitive then return true end
+        if containsSensitive(schema.inner) or containsSensitive(schema.item) then return true end
+        for _, branch in pairs(schema.fields or {}) do
+            if containsSensitive(branch) then return true end
+        end
+        for _, branch in pairs(schema.items or {}) do
+            if containsSensitive(branch) then return true end
+        end
+        for _, branch in pairs(schema.values or {}) do
+            if containsSensitive(branch) then return true end
+        end
+        return false
+    end
+
     local function makeSchema(node, path, inheritedScope, skipUnsupported)
         local wrapped = type(node) == 'table' and node[MARKER] == true and node or nil
         local options = wrapped and wrapped.options or {}
@@ -150,11 +217,12 @@ return function(library)
         end
         local kind = wrapped and wrapped.kind or inferKind(value)
         local scope = options.scope or inheritedScope or 'shared'
+        local label = options.label or humanizeLabel(path[#path] or RESOURCE)
         local schema = {
             kind = kind,
             path = copy(path),
-            label = options.label or (path[#path] and tostring(path[#path]) or RESOURCE),
-            description = options.description,
+            label = label,
+            description = options.description or defaultDescription(label, kind, path),
             scope = scope,
             live = options.live == true,
             min = options.min,
@@ -194,6 +262,7 @@ return function(library)
                 local itemPath = copy(path)
                 itemPath[#itemPath + 1] = '*'
                 schema.item = select(1, makeSchema(wrapped.item, itemPath, scope, skipUnsupported))
+                if containsSensitive(schema.item) then schema.sensitive = true end
             end
             for index = 1, #value do
                 local child = value[index]
@@ -203,6 +272,7 @@ return function(library)
                 if not childSchema then return nil end
                 schema.items[index] = childSchema
                 values[index] = childValue
+                if containsSensitive(childSchema) then schema.sensitive = true end
             end
             return schema, values
         end
@@ -215,6 +285,7 @@ return function(library)
                 local itemPath = copy(path)
                 itemPath[#itemPath + 1] = '*'
                 schema.item = select(1, makeSchema(wrapped.item, itemPath, scope, skipUnsupported))
+                if containsSensitive(schema.item) then schema.sensitive = true end
             end
             for key, child in pairs(value) do
                 assert(type(key) == 'string', 'Configuration map keys must be strings.')
@@ -224,17 +295,37 @@ return function(library)
                 if not childSchema then return nil end
                 schema.values[key] = childSchema
                 values[key] = childValue
+                if containsSensitive(childSchema) then schema.sensitive = true end
             end
             return schema, values
         end
 
         if kind == 'optional' then
-            schema.inner = select(1, makeSchema(wrapped.inner, path, scope, skipUnsupported))
+            local innerSchema, innerDefault = makeSchema(wrapped.inner, path, scope, skipUnsupported)
+            assert(innerSchema, 'A configuration optional field needs a supported inner field.')
+            assert(innerSchema.kind ~= 'optional', 'Nested optional configuration fields are not supported.')
+            schema.inner = innerSchema
+            schema.innerDefault = copy(innerDefault)
+            if containsSensitive(innerSchema) then schema.sensitive = true end
             return schema, copy(value)
         end
 
         if kind == 'enum' then
             assert(type(options.options) == 'table' and #options.options > 0, 'Configuration enum needs non-empty options.')
+            local seenOptions = {}
+            for index = 1, #options.options do
+                local option = options.options[index]
+                local candidate = type(option) == 'table' and option.value or option
+                assert(type(candidate) == 'string' or type(candidate) == 'number',
+                    'Configuration enum option values must be strings or numbers.')
+                if type(option) == 'table' then
+                    assert(option.label == nil or type(option.label) == 'string',
+                        'Configuration enum option labels must be strings.')
+                end
+                local key = type(candidate) .. ':' .. tostring(candidate)
+                assert(not seenOptions[key], 'Configuration enum option values must be unique.')
+                seenOptions[key] = true
+            end
         end
 
         return schema, copy(value)
@@ -292,6 +383,12 @@ return function(library)
 
     local function objectTableKey(schema, key)
         return schema.fieldKeys and schema.fieldKeys[key] or key
+    end
+
+    local function listChildSchema(schema, index)
+        if schema.item then return schema.item end
+        local items = schema.items or {}
+        return items[index] or items[1]
     end
 
     local function quote(value)
@@ -386,7 +483,7 @@ return function(library)
             if not isArray(value) then return false, 'must be a list' end
             for index = 1, #value do
                 local child = value[index]
-                local item = schema.item or schema.items[index]
+                local item = listChildSchema(schema, index)
                 if not item then return false, 'contains an unsupported item' end
                 local ok, err = validate(item, child)
                 if not ok then return false, ('item %d %s'):format(index, err) end
@@ -483,7 +580,7 @@ return function(library)
         if schema.kind == 'optional' then return findSchema(schema.inner, path, index) end
         if schema.kind == 'object' then return findSchema(schema.fields[path[index]], path, index + 1) end
         if schema.kind == 'map' then return findSchema(schema.item or schema.values[path[index]], path, index + 1) end
-        if schema.kind == 'list' then return findSchema(schema.item or schema.items[tonumber(path[index])], path, index + 1) end
+        if schema.kind == 'list' then return findSchema(listChildSchema(schema, tonumber(path[index])), path, index + 1) end
     end
 
     local function unwrapOptional(schema)
@@ -496,7 +593,7 @@ return function(library)
         if not schema then return nil end
         if schema.kind == 'object' then return schema.fields[key] end
         if schema.kind == 'map' then return schema.item or schema.values[key] end
-        if schema.kind == 'list' then return schema.item or schema.items[tonumber(key)] end
+        if schema.kind == 'list' then return listChildSchema(schema, tonumber(key)) end
     end
 
     local function pathTableKey(schema, key)
@@ -563,16 +660,93 @@ return function(library)
 
     local function clientProjection(schema, configured)
         if schema.scope == 'server' then return nil end
+        if schema.kind == 'optional' then
+            if configured == nil then return nil end
+            return clientProjection(schema.inner, configured)
+        end
         if schema.kind == 'object' then
             local out = {}
             for key, child in pairs(schema.fields) do
                 local tableKey = objectTableKey(schema, key)
-                local childValue = clientProjection(child, configured[tableKey])
+                local childValue = clientProjection(child, type(configured) == 'table' and configured[tableKey] or nil)
                 if childValue ~= nil then out[tableKey] = childValue end
             end
             return out
         end
+        if schema.kind == 'list' then
+            local out = {}
+            if type(configured) ~= 'table' then return out end
+            for index, value in pairs(configured) do
+                local child = listChildSchema(schema, index)
+                local childValue = child and clientProjection(child, value) or nil
+                if childValue ~= nil then out[index] = childValue end
+            end
+            return out
+        end
+        if schema.kind == 'map' then
+            local out = {}
+            if type(configured) ~= 'table' then return out end
+            for key, value in pairs(configured) do
+                local child = schema.item or (schema.values or {})[key]
+                local childValue = child and clientProjection(child, value) or nil
+                if childValue ~= nil then out[key] = childValue end
+            end
+            return out
+        end
         return encodeStorage(configured)
+    end
+
+    -- `adopt` deliberately leaves unsupported legacy members (for example,
+    -- callbacks and resource-populated registries) on the resource's public
+    -- Config table. Only project the registered schema when returning running
+    -- values to qblib; otherwise one such member makes the whole editor read
+    -- fail even though it was correctly omitted from the editable catalog.
+    local function projectValues(schema, value)
+        if schema.kind == 'optional' then
+            if value == nil then return nil end
+            return projectValues(schema.inner, value)
+        end
+
+        if schema.kind == 'object' then
+            local out = {}
+            for key, child in pairs(schema.fields) do
+                local tableKey = objectTableKey(schema, key)
+                local projected = projectValues(child, type(value) == 'table' and value[tableKey] or nil)
+                if projected ~= nil then out[tableKey] = projected end
+            end
+            return out
+        end
+
+        if schema.kind == 'list' then
+            local out = {}
+            for index, child in pairs(schema.items or {}) do
+                local projected = projectValues(child, type(value) == 'table' and value[index] or nil)
+                if projected ~= nil then out[index] = projected end
+            end
+            local fallback = schema.item or (schema.items or {})[1]
+            if fallback and type(value) == 'table' then
+                for index, childValue in pairs(value) do
+                    if out[index] == nil then out[index] = projectValues(fallback, childValue) end
+                end
+            end
+            return out
+        end
+
+        if schema.kind == 'map' then
+            local out = {}
+            for key, child in pairs(schema.values or {}) do
+                local projected = projectValues(child, type(value) == 'table' and value[key] or nil)
+                if projected ~= nil then out[key] = projected end
+            end
+            if schema.item and type(value) == 'table' then
+                for key, childValue in pairs(value) do
+                    if out[key] == nil then out[key] = projectValues(schema.item, childValue) end
+                end
+            end
+            return out
+        end
+
+        return copy(value)
     end
 
     local function metadata(schema)
@@ -586,6 +760,7 @@ return function(library)
             out.fields = {}
             for key, child in pairs(schema.fields) do out.fields[key] = metadata(child) end
         end
+        if schema.fieldKeys then out.fieldKeys = copy(schema.fieldKeys) end
         if schema.item then out.item = metadata(schema.item) end
         if schema.items then
             out.items = {}
@@ -596,6 +771,9 @@ return function(library)
             for key, child in pairs(schema.values) do out.values[key] = metadata(child) end
         end
         if schema.inner then out.inner = metadata(schema.inner) end
+        if schema.innerDefault ~= nil and not schema.sensitive then
+            out.innerDefault = encodeStorage(schema.innerDefault)
+        end
         return out
     end
 
@@ -605,9 +783,26 @@ return function(library)
             resource = RESOURCE,
             schema = metadata(state.schema),
             configured = encodeStorage(state.configured),
-            client = clientProjection(state.schema, state.configured) or {},
+            client = clientProjection(state.schema, state.values) or {},
             revision = state.revision,
         })
+    end
+
+    -- A consumer's shared config can execute while qblib is still finishing
+    -- its own server bootstrap. Re-announce after the resource start event so
+    -- the catalog cannot remain empty when the initial export call raced
+    -- qblib's finalise step.
+    if isServer and type(AddEventHandler) == 'function' then
+        AddEventHandler('onResourceStart', function(resource)
+            if resource ~= RESOURCE and resource ~= 'qblib' then return end
+            if type(SetTimeout) == 'function' then
+                SetTimeout(0, function()
+                    if state then announce() end
+                end)
+            elseif state then
+                announce()
+            end
+        end)
     end
 
     local function persist()
@@ -625,6 +820,23 @@ return function(library)
         options = options or {}
         assert(type(options) == 'table', 'QB.config.define options must be a table.')
         local schema, plain = makeSchema(values, {}, options.scope or 'shared', options.skipUnsupported == true)
+        if options.descriptions ~= nil then
+            assert(type(options.descriptions) == 'table', 'QB.config.define descriptions must be a table.')
+            for key, description in pairs(options.descriptions) do
+                assert(type(key) == 'string' and type(description) == 'string',
+                    'QB.config.define descriptions must contain strings keyed by configuration path.')
+            end
+            local function applyDescriptions(branch)
+                local description = options.descriptions[displayPath(branch.path)]
+                if description then branch.description = description end
+                for _, child in pairs(branch.fields or {}) do applyDescriptions(child) end
+                for _, child in pairs(branch.items or {}) do applyDescriptions(child) end
+                for _, child in pairs(branch.values or {}) do applyDescriptions(child) end
+                if branch.item then applyDescriptions(branch.item) end
+                if branch.inner then applyDescriptions(branch.inner) end
+            end
+            applyDescriptions(schema)
+        end
         local valid, validationError = validate(schema, plain)
         assert(valid, ('Invalid authored configuration: %s.'):format(validationError))
         local defaults = copy(plain)
@@ -940,6 +1152,8 @@ return function(library)
                     if not worked or handlerError == false then
                         state.configured = oldConfigured
                         persist()
+                        local backupContents = oldBackup or ''
+                        SaveResourceFile(RESOURCE, state.fileName .. '.bak', backupContents, #backupContents)
                         state.revision = previousRevision
                         return { ok = false, revision = state.revision,
                             error = worked and 'The live update was refused.' or tostring(handlerError) }
@@ -977,7 +1191,8 @@ return function(library)
         exports('qblib_configRead', function()
             if not state then return nil end
             return { resource = RESOURCE, schema = metadata(state.schema), configured = encodeStorage(state.configured),
-                values = encodeStorage(state.values), revision = state.revision }
+                values = encodeStorage(projectValues(state.schema, state.values)),
+                client = clientProjection(state.schema, state.values) or {}, revision = state.revision }
         end)
         exports('qblib_configCommit', function(request)
             local caller = GetInvokingResource()
@@ -1084,7 +1299,12 @@ return function(library)
 
     if not isServer and type(AddEventHandler) == 'function' then
         AddEventHandler('onClientResourceStart', function(resource)
-            if resource == RESOURCE and state then requestSnapshot() end
+            -- A qblib restart replaces the authoritative server registry but
+            -- does not necessarily restart every consuming client resource.
+            -- Re-request this owner's active snapshot in either case so a
+            -- client can never remain on its authored defaults after qblib is
+            -- reloaded during development or maintenance.
+            if (resource == RESOURCE or resource == 'qblib') and state then requestSnapshot() end
         end)
 
         -- `QB.config` is consumer-local so resource-owned Config tables stay

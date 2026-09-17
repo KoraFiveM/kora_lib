@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/cn"
-import type { AppShellLabels, FieldValue, InputField, InputOption } from "@/lib/types"
+import type { AppShellLabels, FieldValue, InputField, InputOption, KeyValueEntry, VectorFieldValue } from "@/lib/types"
 import { resolveIcon } from "@/lib/icon"
 
 const RANGE_FALLBACK_MIN = 0
 const RANGE_FALLBACK_MAX = 100
 const COMBOBOX_MAX_SUGGESTIONS = 8
 const MAX_PATTERN_INPUT_LENGTH = 256
+const KEY_VALUE_PAGE_SIZE = 50
 const TEXTUAL_TYPES = new Set<InputField["type"]>(["text", "password", "textarea", "combobox"])
 
 export const defaultFormLabels: Pick<AppShellLabels, "required" | "invalidFormat" | "minValue" | "maxValue" | "minLength" | "maxLength" | "select"> = {
@@ -38,12 +39,18 @@ export function defaultValueFor(field: InputField): FieldValue {
         if (field.type === "date-range") return Array.isArray(field.default) ? field.default.slice(0, 2).map(localDateInputValue) : []
         if (field.type === "time" && (typeof field.default === "number" || field.default === true)) return localTimeInputValue(field.default === true ? Date.now() : field.default)
         if (field.type === "multiselect") return Array.isArray(field.default) ? field.default.map(String) : []
+        if (field.type === "key-value") return keyValueEntries(field.default).map((entry) => ({ ...entry }))
+        if (field.type === "vector") {
+            const vector = vectorFieldValue(field.default)
+            return vector ? { ...vector } : { x: "", y: "" }
+        }
         if (field.type === "select") return String(field.default)
         return field.default
     }
     if (field.type === "checkbox") return false
     if (field.type === "multiselect") return []
     if (field.type === "date-range") return []
+    if (field.type === "key-value") return []
     if (field.type === "range") return field.min ?? RANGE_FALLBACK_MIN
     return ""
 }
@@ -145,6 +152,28 @@ function formatColor(value: string, format: InputField["colorFormat"] = "hex") {
     return hex
 }
 
+function validColorDraft(value: string) {
+    if (/^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(value)) return true
+    const rgb = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(\d*\.?\d+))?\s*\)$/i)
+    if (rgb) {
+        const channels = rgb.slice(1, 4).map(Number)
+        const alpha = rgb[4] === undefined ? 1 : Number(rgb[4])
+        return channels.every((channel) => channel >= 0 && channel <= 255) && alpha >= 0 && alpha <= 1
+    }
+    const hsl = value.match(/^hsla?\(\s*(-?\d*\.?\d+)\s*,\s*(\d*\.?\d+)%\s*,\s*(\d*\.?\d+)%(?:\s*,\s*(\d*\.?\d+))?\s*\)$/i)
+    if (!hsl) return false
+    const saturation = Number(hsl[2])
+    const lightness = Number(hsl[3])
+    const alpha = hsl[4] === undefined ? 1 : Number(hsl[4])
+    return Number.isFinite(Number(hsl[1])) && saturation >= 0 && saturation <= 100
+        && lightness >= 0 && lightness <= 100 && alpha >= 0 && alpha <= 1
+}
+
+function vectorFieldValue(value: FieldValue | undefined): VectorFieldValue | undefined {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+        && "x" in value && "y" in value ? value as VectorFieldValue : undefined
+}
+
 export function submissionValues(fields: InputField[], values: Record<string, FieldValue>) {
     const submitted = { ...values }
     for (const field of fields) {
@@ -209,8 +238,19 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
         }
         if ((field.type === "number" || field.type === "range") && !empty) {
             if (typeof value !== "number" || !Number.isFinite(value)) errors[field.id] = labels.invalidFormat
+            else if (field.wholeNumber && !Number.isInteger(value)) errors[field.id] = "Must be a whole number."
             else if (field.min !== undefined && value < field.min) errors[field.id] = interpolate(labels.minValue, field.min)
             else if (field.max !== undefined && value > field.max) errors[field.id] = interpolate(labels.maxValue, field.max)
+        }
+        if (field.type === "color" && !empty && (typeof value !== "string" || !validColorDraft(value))) {
+            errors[field.id] = labels.invalidFormat
+        }
+        if (field.type === "vector") {
+            const vector = vectorFieldValue(value)
+            const axes = ["x", "y", "z", "w"].slice(0, field.dimensions ?? 3) as Array<keyof VectorFieldValue>
+            if (!vector || axes.some((axis) => typeof vector[axis] !== "number" || !Number.isFinite(vector[axis]))) {
+                errors[field.id] = "Every coordinate must be a finite number."
+            }
         }
         if (TEXTUAL_TYPES.has(field.type) && typeof value === "string") {
             if (field.minLength !== undefined && value.length < field.minLength) errors[field.id] = interpolate(labels.minLength, field.minLength)
@@ -225,6 +265,40 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
         }
         if (field.type === "date-range" && Array.isArray(value) && value.length === 2 && String(value[0]) > String(value[1])) {
             errors[field.id] = labels.invalidFormat
+        }
+        if (field.type === "key-value") {
+            const rows = keyValueEntries(value)
+            const keys = new Set<string>()
+            for (let index = 0; index < rows.length; index += 1) {
+                const key = rows[index].key.trim()
+                const rowNumber = index + 1
+                if (!key) {
+                    errors[field.id] = `Row ${rowNumber} needs a key.`
+                    break
+                }
+                if (field.keyMode === "integer" && (!/^\d+$/.test(key) || Number(key) < 1)) {
+                    errors[field.id] = `Row ${rowNumber} needs a positive whole-number key.`
+                    break
+                }
+                const canonicalKey = field.keyMode === "integer" ? String(Number(key)) : key
+                if (keys.has(canonicalKey)) {
+                    errors[field.id] = `Key “${key}” is used more than once.`
+                    break
+                }
+                keys.add(canonicalKey)
+                if (!validKeyValueDraft(rows[index].value)) {
+                    errors[field.id] = `Row ${rowNumber} needs a valid value.`
+                    break
+                }
+            }
+            if (!errors[field.id] && field.keyMode === "integer") {
+                for (let index = 1; index <= rows.length; index += 1) {
+                    if (!keys.has(String(index))) {
+                        errors[field.id] = "List positions must run consecutively from 1."
+                        break
+                    }
+                }
+            }
         }
     }
     return errors
@@ -282,13 +356,15 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
             const options = fieldOptions(field, values)
             const FieldIcon = resolveIcon(field.icon)
             const describedBy = [field.description ? `${id}-description` : undefined, error ? errorId : undefined].filter(Boolean).join(" ") || undefined
-            return <fieldset key={field.id} disabled={field.disabled} className={cn("flex min-w-0 flex-col gap-1 disabled:opacity-[.48]", columns === 2 && (field.type === "textarea" || field.type === "date-range") && "sm:col-span-2")}>
+            return <fieldset key={field.id} disabled={field.disabled} className={cn("flex min-w-0 flex-col gap-1 disabled:opacity-[.48]", columns === 2 && (field.type === "textarea" || field.type === "date-range" || field.type === "key-value" || field.type === "vector") && "sm:col-span-2")}>
                 {field.type === "checkbox" ? <label htmlFor={id} className="focus-within-ring flex min-h-9 cursor-pointer items-center gap-2 rounded-md text-sm font-medium">
                     <input id={id} type="checkbox" className="h-4 w-4 shrink-0 rounded-sm border border-input bg-background accent-primary" checked={Boolean(values[field.id])} onChange={(event) => setValue(field.id, event.target.checked)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
                     {FieldIcon ? <FieldIcon aria-hidden className="h-4 w-4" style={{ color: field.iconColor }} /> : null}<span>{field.label}{field.required ? <span className="text-destructive"> *</span> : null}</span>
                 </label> : <>
                     <label htmlFor={id} className="flex items-center gap-1.5 text-sm font-medium leading-5">{FieldIcon ? <FieldIcon aria-hidden className="h-4 w-4" style={{ color: field.iconColor }} /> : null}{field.label}{field.required ? <span className="text-destructive"> *</span> : null}</label>
-                    {field.type === "textarea" ? <Textarea id={id} rows={field.minRows ?? field.rows ?? 3} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => setValue(field.id, event.target.value)} onInput={(event) => { if (!field.autosize) return; const area = event.currentTarget; area.style.height = "auto"; const lineHeight = Number.parseFloat(getComputedStyle(area).lineHeight) || 20; const maxHeight = field.maxRows ? lineHeight * field.maxRows + 16 : area.scrollHeight; area.style.height = `${Math.min(area.scrollHeight, maxHeight)}px` }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
+                    {field.type === "key-value" ? <KeyValueField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} onChange={(value) => setValue(field.id, value)} />
+                        : field.type === "vector" ? <VectorField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} onChange={(value) => setValue(field.id, value)} />
+                        : field.type === "textarea" ? <Textarea id={id} rows={field.minRows ?? field.rows ?? 3} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => setValue(field.id, event.target.value)} onInput={(event) => { if (!field.autosize) return; const area = event.currentTarget; area.style.height = "auto"; const lineHeight = Number.parseFloat(getComputedStyle(area).lineHeight) || 20; const maxHeight = field.maxRows ? lineHeight * field.maxRows + 16 : area.scrollHeight; area.style.height = `${Math.min(area.scrollHeight, maxHeight)}px` }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
                         : field.type === "number" ? <NumberField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} labels={labels} onChange={(value) => setValue(field.id, value)} />
                         : field.type === "range" ? <div className="flex items-center gap-3"><input id={id} type="range" min={field.min ?? RANGE_FALLBACK_MIN} max={field.max ?? RANGE_FALLBACK_MAX} step={field.step ?? 1} value={Number(values[field.id] ?? field.min ?? RANGE_FALLBACK_MIN)} onChange={(event) => setValue(field.id, Number(event.target.value))} className="h-9 min-w-0 flex-1 cursor-pointer accent-primary" aria-invalid={Boolean(error)} aria-describedby={describedBy} /><RangeValueInput field={field} value={Number(values[field.id] ?? field.min ?? RANGE_FALLBACK_MIN)} error={error} describedBy={describedBy} labels={labels} onChange={(value) => setValue(field.id, value)} /></div>
                         : field.type === "select" ? field.searchable
@@ -299,7 +375,7 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
                         : field.type === "date-range" ? <DateRangeField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} onChange={(value) => setValue(field.id, value)} />
                         : field.type === "date" ? <Input id={id} type="date" min={dateInputConstraint(field.dateMin)} max={dateInputConstraint(field.dateMax)} value={String(values[field.id] ?? "")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
                         : field.type === "time" ? <div className="flex items-center gap-1"><Input id={id} type="time" lang={field.timeFormat === "12" ? "en-US" : field.timeFormat === "24" ? "en-GB" : undefined} value={String(values[field.id] ?? "")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.clearable && values[field.id] !== "" ? <Button type="button" variant="ghost" size="icon" aria-label={`Clear ${field.label}`} onClick={() => setValue(field.id, "")}><X aria-hidden /></Button> : null}</div>
-                        : field.type === "color" ? <div className="flex items-center gap-2"><Input id={id} type="color" value={colorHex(String(values[field.id] || "#ffffff"))} onChange={(event) => setValue(field.id, formatColor(event.target.value, field.colorFormat))} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="h-10 w-16 shrink-0 cursor-pointer p-1" /><Input aria-label={`${field.label} value`} value={String(values[field.id] || "#ffffff")} onChange={(event) => setValue(field.id, event.target.value)} className="min-w-0 font-mono text-xs" /></div>
+                        : field.type === "color" ? <div className="flex items-center gap-2"><Input id={id} type="color" value={colorHex(String(values[field.id] || "#ffffff"))} onChange={(event) => setValue(field.id, formatColor(event.target.value, field.colorFormat))} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="h-10 w-16 shrink-0 cursor-pointer p-1" /><Input aria-label={`${field.label} value`} value={String(values[field.id] || "#ffffff")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="min-w-0 font-mono text-xs" /></div>
                         : <><Input id={id} type={field.type} inputMode={field.numericOnly ? "numeric" : undefined} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => { const cleaned = field.numericOnly ? event.target.value.replace(/\D/g, "") : event.target.value; setValue(field.id, field.maxLength === undefined ? cleaned : cleaned.slice(0, field.maxLength)) }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.keypad ? <NumericKeypad value={String(values[field.id] ?? "")} maxLength={field.maxLength} labels={labels} onChange={(value) => setValue(field.id, value)} /> : null}</>}
                     {field.type === "number" && field.presets?.length ? <div className="grid grid-cols-4 gap-1.5">{field.presets.map((preset) => <Button key={preset.value} type="button" size="sm" variant="outline" className="font-mono text-xs" onClick={() => setValue(field.id, preset.value)}>{preset.label ?? preset.value}</Button>)}</div> : null}
                 </>}
@@ -308,6 +384,106 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
             </fieldset>
         })}
     </div>
+}
+
+function keyValueEntries(value: FieldValue | undefined): KeyValueEntry[] {
+    if (!Array.isArray(value)) return []
+    return value.filter((entry): entry is KeyValueEntry => typeof entry === "object" && entry !== null
+        && typeof entry.key === "string" && typeof entry.value === "string")
+}
+
+function validKeyValueDraft(value: string) {
+    const draft = value.trim()
+    if (!draft) return false
+    try {
+        return JSON.parse(draft) !== null
+    } catch {
+        // Bare text is accepted as a string. Text that starts like JSON must
+        // be valid JSON so a mistyped object, array, quote, or scalar cannot
+        // silently turn into a different value type.
+        return !/^[\[{\"]/.test(draft) && !/^(?:true|false|null|-?(?:\d|\.\d))/i.test(draft)
+    }
+}
+
+function KeyValueField({ id, field, value, error, describedBy, onChange }: {
+    id: string
+    field: InputField
+    value: FieldValue
+    error?: string
+    describedBy?: string
+    onChange: (value: KeyValueEntry[]) => void
+}) {
+    const rows = keyValueEntries(value)
+    const [page, setPage] = useState(0)
+    const pageCount = Math.max(1, Math.ceil(rows.length / KEY_VALUE_PAGE_SIZE))
+    const visiblePage = Math.min(page, pageCount - 1)
+    const firstRow = visiblePage * KEY_VALUE_PAGE_SIZE
+    const visibleRows = rows.slice(firstRow, firstRow + KEY_VALUE_PAGE_SIZE)
+
+    useEffect(() => {
+        if (page !== visiblePage) setPage(visiblePage)
+    }, [page, visiblePage])
+
+    const update = (index: number, property: keyof KeyValueEntry, nextValue: string) => {
+        onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, [property]: nextValue } : row))
+    }
+    const add = () => {
+        const nextRows = [...rows, { key: field.keyMode === "integer" ? String(rows.length + 1) : "", value: "" }]
+        setPage(Math.floor((nextRows.length - 1) / KEY_VALUE_PAGE_SIZE))
+        onChange(nextRows)
+    }
+    const remove = (index: number) => {
+        const remaining = rows.filter((_, rowIndex) => rowIndex !== index)
+        onChange(field.keyMode === "integer"
+            ? remaining.map((row, rowIndex) => ({ ...row, key: String(rowIndex + 1) }))
+            : remaining)
+    }
+
+    return <div id={id} className="overflow-hidden rounded-lg border border-border bg-background" aria-invalid={Boolean(error)} aria-describedby={describedBy}>
+        <div className="grid grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)_2.25rem] gap-2 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+            <span>{field.keyLabel ?? "Key"}</span><span>{field.valueLabel ?? "Value (JSON or text)"}</span><span className="sr-only">Actions</span>
+        </div>
+        <div className="flex max-h-80 flex-col gap-2 overflow-y-auto p-2">
+            {rows.length === 0 ? <p className="px-2 py-4 text-center text-sm text-muted-foreground">No rows yet.</p> : visibleRows.map((row, index) => { const rowIndex = firstRow + index; return <div key={rowIndex} className="grid grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)_2.25rem] items-center gap-2">
+                <Input aria-label={`${field.label} row ${rowIndex + 1} key`} inputMode={field.keyMode === "integer" ? "numeric" : undefined} value={row.key} onChange={(event) => update(rowIndex, "key", field.keyMode === "integer" ? event.target.value.replace(/\D/g, "") : event.target.value)} className="min-w-0 font-mono text-xs" />
+                <Textarea aria-label={`${field.label} row ${rowIndex + 1} value`} rows={1} value={row.value} placeholder='Text, 42, true, {"name":"value"}…' onChange={(event) => update(rowIndex, "value", event.target.value)} className="min-h-9 min-w-0 resize-y py-2 font-mono text-xs" />
+                <Button type="button" variant="ghost" size="icon" aria-label={`${field.removeRowLabel ?? "Delete row"} ${rowIndex + 1}`} title={field.removeRowLabel ?? "Delete row"} onClick={() => remove(rowIndex)}><X aria-hidden /></Button>
+            </div> })}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border p-2"><Button type="button" variant="outline" size="sm" onClick={add}><Plus aria-hidden />{field.addRowLabel ?? "Add row"}</Button>{pageCount > 1 ? <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Rows {firstRow + 1}–{Math.min(firstRow + KEY_VALUE_PAGE_SIZE, rows.length)} of {rows.length}</span><Button type="button" variant="outline" size="sm" disabled={visiblePage === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>Previous</Button><Button type="button" variant="outline" size="sm" disabled={visiblePage >= pageCount - 1} onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}>Next</Button></div> : null}</div>
+    </div>
+}
+
+function VectorField({ id, field, value, error, describedBy, onChange }: {
+    id: string
+    field: InputField
+    value: FieldValue
+    error?: string
+    describedBy?: string
+    onChange: (value: VectorFieldValue) => void
+}) {
+    const vector = vectorFieldValue(value) ?? { x: "", y: "", z: "", w: "" }
+    const axes = ["x", "y", "z", "w"].slice(0, field.dimensions ?? 3) as Array<keyof VectorFieldValue>
+    return <div role="group" aria-label={field.label} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {axes.map((axis) => <VectorAxisField key={axis} id={axis === "x" ? id : `${id}-${axis}`} label={`${field.label} ${axis.toUpperCase()}`} axis={axis} value={vector[axis]} onChange={(nextValue) => onChange({ ...vector, [axis]: nextValue })} />)}
+    </div>
+}
+
+function VectorAxisField({ id, label, axis, value, onChange }: {
+    id: string
+    label: string
+    axis: keyof VectorFieldValue
+    value: number | string | undefined
+    onChange: (value: number | string) => void
+}) {
+    const [draft, setDraft] = useState(String(value ?? ""))
+    useEffect(() => setDraft(String(value ?? "")), [value])
+    const update = (next: string) => {
+        setDraft(next)
+        const parsed = Number(next)
+        onChange(next !== "" && Number.isFinite(parsed) ? parsed : next)
+    }
+    return <label className="grid gap-1 text-xs font-medium uppercase text-muted-foreground"><span>{axis}</span><Input id={id} aria-label={label} type="text" inputMode="decimal" value={draft} onChange={(event) => update(event.target.value)} className="font-mono tabular-nums" /></label>
 }
 
 function DateRangeField({ id, field, value, error, describedBy, onChange }: { id: string; field: InputField; value: FieldValue; error?: string; describedBy?: string; onChange: (value: string[]) => void }) {

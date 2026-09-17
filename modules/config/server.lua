@@ -3,6 +3,7 @@
 -- resource's consumer-local bridge, where SaveResourceFile is permitted.
 
 local registry = {}
+local discoverRegistrations
 
 local function copy(value, seen)
     if type(value) ~= 'table' then return value end
@@ -21,8 +22,45 @@ end
 local function assertRegistered(resource)
     assert(validResource(resource), 'Configuration resource must be a resource name.')
     local entry = registry[resource]
+    if not entry and discoverRegistrations then
+        discoverRegistrations()
+        entry = registry[resource]
+    end
     assert(entry, ('Resource %q has not registered a qblib configuration.'):format(resource))
     return entry
+end
+
+local function isRegistrationFrom(resource, definition)
+    return type(definition) == 'table'
+        and definition.resource == resource
+        and validResource(resource)
+        and type(definition.schema) == 'table'
+        and type(definition.configured) == 'table'
+        and type(definition.client) == 'table'
+        and type(definition.revision) == 'number'
+end
+
+-- A resource normally announces its schema while starting. Catalog discovery
+-- also reads the owner-local bridge directly, so a transient startup/export
+-- race cannot leave the in-game editor permanently empty. The bridge cannot
+-- forge another resource's entry because the returned owner must match the
+-- resource whose export was queried. Probe every started resource: an
+-- `@qblib/init.lua` import is a valid consumer even when the manifest does not
+-- repeat qblib as an explicit dependency metadata entry.
+discoverRegistrations = function()
+    if type(GetNumResources) ~= 'function' or type(GetResourceByFindIndex) ~= 'function'
+        or type(GetResourceState) ~= 'function' then return end
+
+    for index = 0, GetNumResources() - 1 do
+        local resource = GetResourceByFindIndex(index)
+        if resource and not registry[resource] and GetResourceState(resource) == 'started' then
+            local target = exports[resource]
+            if target then
+                local ok, definition = pcall(function() return target:qblib_configRead() end)
+                if ok and isRegistrationFrom(resource, definition) then registry[resource] = copy(definition) end
+            end
+        end
+    end
 end
 
 local function callResource(resource, method, request)
@@ -56,6 +94,7 @@ end
 
 ---@return table[]
 function QB.config.catalog()
+    discoverRegistrations()
     local out = {}
     for resource, entry in pairs(registry) do
         out[#out + 1] = { resource = resource, schema = copy(entry.schema), revision = entry.revision }
@@ -73,6 +112,7 @@ function QB.config.read(resource)
         entry.schema = copy(fresh.schema or entry.schema)
         entry.configured = copy(fresh.configured or entry.configured)
         entry.values = copy(fresh.values or entry.values)
+        entry.client = copy(fresh.client or entry.client)
         entry.revision = fresh.revision or entry.revision
     end
     return copy({ resource = resource, schema = entry.schema, configured = entry.configured,
@@ -113,6 +153,8 @@ function QB.config.reset(resource, request)
     if result.ok then
         entry.revision = result.revision or entry.revision
         entry.configured = copy(result.configured or entry.configured)
+        entry.values = copy(result.values or entry.values)
+        TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
 end

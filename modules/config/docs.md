@@ -40,9 +40,21 @@ creates a nullable field.
 
 The common options are `label`, `description`, `scope`, `live`, `min`, `max`,
 `step`, `minLength`, `maxLength`, `pattern`, and `sensitive`. `enum` receives
-its allowed entries in `options`. `color` accepts `#RRGGBB`; numeric fields
-reject non-finite values; vector fields accept native CfxLua vectors and the
-plain component tables sent by the editor.
+its allowed string or number entries in `options`; entries may be
+`{ value = ..., label = ... }` when the displayed label should differ from the
+stored value. `color` accepts `#RRGGBB`; numeric fields reject non-finite
+values; vector fields accept native CfxLua vectors and the plain component
+tables sent by the editor. Fields without authored presentation metadata get
+a readable label derived from their key and a type-aware description, so every
+editable option remains understandable in the workspace.
+
+The workspace renders every supported kind directly: booleans use a checkbox,
+integers and numbers use bounded numeric controls, enums use authored choices,
+colours use a picker plus validated text, and vectors expose separate X/Y/Z/W
+number inputs. Optional fields have an explicit **Set a value** switch and use
+their inner descriptor's normal control when enabled. Objects remain groups of
+individually editable leaves rather than requiring an owner to replace an
+entire configuration branch at once.
 
 Authored defaults are validated when the schema is defined. Invalid defaults,
 reversed bounds, non-positive steps, invalid length limits, and malformed Lua
@@ -78,6 +90,14 @@ tables, since legacy configs commonly use them as callbacks or resource-filled
 registries. Keep those values on `Config`; use explicit `object`, `list`, or
 `map` descriptors when an empty collection is intentionally configurable.
 
+Inferred fields receive a readable, path-aware description. Resources should
+replace that fallback with a precise explanation of the setting's runtime
+effect whenever the code has constraints that the type alone cannot express.
+Pass `{ descriptions = { ['feature.setting'] = '...' } }` to `define` or
+`adopt` to document legacy fields without wrapping every value in a descriptor.
+Common abbreviations such as API, ID, MDT, NPC, TTL, and UI remain capitalised
+in generated labels.
+
 Use `QB.config.extend(values, { scope = 'server' })` from a later
 `server/config.lua` to add a server-only branch without putting it in a
 client-downloaded config file. `scope = 'client'` is supported for an
@@ -98,9 +118,26 @@ filesystem access. Add both generated files to the resource’s `.gitignore`.
 
 qblib’s ACE-gated `/config` workspace reads the catalog, shows saved
 and running values, and labels a field **Applies now** or **Restart required**.
-Sensitive fields are removed before they reach the workspace. Grant access
-explicitly with `add_ace <principal> qblib.config.edit allow`; qbadmin may
-optionally open the workspace through `QB.config.open()` but is not required.
+Lists and maps use key/value rows: list keys are consecutive positions, map
+keys are text, and row values accept JSON or plain text. Rows can be added or
+deleted in the workspace; the owning resource validates the reconstructed
+table before it is persisted. Large collections are paged in the browser so
+opening an unusually large configuration does not mount every row at once.
+Every registered resource remains in the sidebar while a setting is edited;
+the overview also shows its editable-setting count and availability. Sensitive
+fields are removed before they reach the workspace. Grant access explicitly
+with `add_ace <principal> qblib.config.edit allow`; qbadmin may optionally open
+the workspace through `QB.config.open()` but is not required.
+
+The initial catalog transfers only sanitized schemas. Saved and running values
+are fetched when a resource is opened from either the overview or sidebar,
+which keeps `/config` responsive even on servers with many large resources and
+also refreshes the optimistic revision before editing. For a restart-required
+setting, an authorised owner can use **Restart resource now** after saving; the
+editor asks for confirmation, restarts only that registered resource, reads it
+back, and reports whether its persisted configuration loaded successfully.
+qblib cannot restart itself from its own editor, so its restart-required values
+must be applied from the server console or during a normal server restart.
 
 ## Server catalog API
 
