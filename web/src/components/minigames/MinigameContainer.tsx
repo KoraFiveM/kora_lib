@@ -6,6 +6,7 @@ import type {
     KeysPuzzle,
     LockpickPuzzle,
     MashPuzzle,
+    FishingPuzzle,
     MinigameAttempt,
     MinigamesClosePayload,
     MinigamesRoundPayload,
@@ -27,6 +28,7 @@ import { WordGuessGame } from "./WordGuessGame"
 import { WordScrambleGame } from "./WordScrambleGame"
 import { KeysGame } from "./KeysGame"
 import { HackingGame } from "./HackingGame"
+import { FishingGame } from "./FishingGame"
 
 /**
  * Headless dispatcher for QB.minigames.play (modules/minigames/client.lua).
@@ -73,6 +75,8 @@ export function MinigameContainer() {
             return <CircuitGame key={roundKey} puzzle={payload.puzzle as CircuitPuzzle} {...shared} />
         case "mash":
             return <MashKeyGame key={roundKey} puzzle={payload.puzzle as MashPuzzle} {...shared} />
+        case "fishing":
+            return <FishingGame key={roundKey} puzzle={payload.puzzle as FishingPuzzle} {...shared} />
         case "pinpad":
             return <PinpadGame key={roundKey} puzzle={payload.puzzle as PinpadPuzzle} {...shared} />
         case "quiz":

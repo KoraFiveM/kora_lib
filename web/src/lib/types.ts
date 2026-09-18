@@ -801,6 +801,7 @@ export type MinigameType =
     | "skillbar"
     | "circuit"
     | "mash"
+    | "fishing"
     | "pinpad"
     | "quiz"
     | "wordguess"
@@ -883,6 +884,24 @@ export interface MashPuzzle {
 
 export interface MashAttempt {
     pressTimestamps: number[]
+}
+
+export interface FishingPuzzle {
+    biteCount: number
+    zoneSize: number
+    speed: number
+    /** Visible center of each bite window, in bottom-to-top gauge coordinates. */
+    targets: number[]
+}
+
+export interface FishingReel {
+    index: number
+    /** Milliseconds since the round started; the server recomputes the marker position. */
+    elapsed: number
+}
+
+export interface FishingAttempt {
+    reels: FishingReel[]
 }
 
 export interface CancelledAttempt {
@@ -988,6 +1007,7 @@ export type MinigamePuzzle =
     | SkillbarPuzzle
     | CircuitPuzzle
     | MashPuzzle
+    | FishingPuzzle
     | PinpadPuzzle
     | QuizPuzzle
     | WordGuessPuzzle
@@ -1000,6 +1020,7 @@ export type MinigameAttempt =
     | SkillbarAttempt
     | CircuitAttempt
     | MashAttempt
+    | FishingAttempt
     | PinpadAttempt
     | QuizAttempt
     | WordGuessAttempt

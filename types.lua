@@ -853,7 +853,7 @@
 ---@field rolls? integer
 ---@field allowNone? boolean
 
----@alias QBMinigameType 'lockpick'|'skillbar'|'circuit'|'mash'|'pinpad'|'quiz'|'wordguess'|'wordscramble'|'keys'|'hacking'
+---@alias QBMinigameType 'lockpick'|'skillbar'|'circuit'|'mash'|'fishing'|'pinpad'|'quiz'|'wordguess'|'wordscramble'|'keys'|'hacking'
 ---@class QBMinigameOptions
 ---@field duration? integer
 ---@field difficulty? number|string
@@ -1227,10 +1227,10 @@
 ---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean): any, string? [shared]
 
 ---@class QBLibMinigames
----@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): QBMinigameResult|promise [client]
+---@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): QBMinigameResult [client; waits for the round to finish]
 ---@field playAsync fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): promise [client; internal composition primitive]
 ---@field cancel fun(): boolean [client]
----@field playSkillCheck fun(skill: string, gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult|promise [client]
+---@field playSkillCheck fun(skill: string, gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult [client; waits for the round to finish]
 ---@field authorizeProof fun(src: integer, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
 ---@field authorizeSkillCheck fun(src: integer, skill: string, gameType: QBMinigameType, trustedOpts?: QBMinigameOptions): string [server]
 ---@field consumeProof fun(src: integer, token: string, gameType: QBMinigameType, authorization: string): boolean [server]

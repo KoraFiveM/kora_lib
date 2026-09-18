@@ -150,6 +150,17 @@ function resolveConfig.mash(opts)
     }
 end
 
+function resolveConfig.fishing(opts)
+    local cfg = Config.minigames.fishing
+    return {
+        attempts = clampInt(opts and opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
+        bites = clampInt(opts and opts.bites, cfg.bites, 1, 8),
+        zoneSize = clampNumber(opts and opts.zoneSize, cfg.zoneSize, 0.08, 0.45),
+        speed = clampNumber(opts and opts.speed, cfg.speed, 0.3, 2.5),
+        timeLimit = clampNumber(opts and opts.timeLimit, cfg.timeLimit, 3000, 30000),
+    }
+end
+
 ------------------------------------------------------------------------------
 -- The six types below back compat/client/qb-minigames.lua. Unlike
 -- lockpick/skillbar/circuit/mash, their puzzle CONTENT (the PIN, the word,
@@ -551,6 +562,41 @@ function validate.mash(session, attempt)
     end
 
     return pressCount >= solution.requiredPresses
+end
+
+function generate.fishing(cfg)
+    local targets = {}
+    for i = 1, cfg.bites do
+        targets[i] = randomFloat(cfg.zoneSize / 2, 1 - cfg.zoneSize / 2)
+    end
+
+    local solution = { targets = targets, speed = cfg.speed, zoneSize = cfg.zoneSize }
+    local public = { biteCount = cfg.bites, speed = cfg.speed, zoneSize = cfg.zoneSize, targets = targets }
+    return solution, public
+end
+
+function validate.fishing(session, attempt)
+    assert(type(attempt) == "table" and type(attempt.reels) == "table", "malformed fishing attempt.")
+
+    local solution = session.solution
+    local reelCount = denseArrayLength(attempt.reels, "fishing reels", #solution.targets, #solution.targets)
+    assert(reelCount == #solution.targets, "fishing attempt must reel every bite exactly once.")
+
+    local floor = Config.minigames.fishing.minReelInterval
+    local lastElapsed = -floor
+    for i = 1, reelCount do
+        local reel = attempt.reels[i]
+        assert(type(reel) == "table" and isInteger(reel.index), "malformed fishing reel.")
+        assert(reel.index == i, "fishing bites must be reeled in order.")
+        assertElapsed(reel.elapsed, session.timeLimit, "fishing reel")
+        assert(reel.elapsed >= lastElapsed + floor, "fishing reels are too close together to be human.")
+
+        local position = QB.minigames.triangleWave(reel.elapsed, solution.speed)
+        if math.abs(position - solution.targets[i]) > solution.zoneSize / 2 then return false end
+        lastElapsed = reel.elapsed
+    end
+
+    return true
 end
 
 -- The PIN's digits are exactly what a real keypad shows the player (there's

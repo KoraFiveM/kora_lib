@@ -12,16 +12,6 @@ local active = false
 
 local isCallable = QB.compat.isCallable
 
--- QB.minigames.play returns a promise to same-resource callers, but settles
--- that promise before returning across a real exports boundary because Cfx
--- cannot faithfully marshal a promise's state. Accept both shapes so actions
--- compose correctly whether they are called inside qblib or by another
--- resource through exports.
-local function awaitIfPromise(value)
-    if type(value) ~= 'table' or not isCallable(value.next) then return value end
-    return Citizen.Await(value)
-end
-
 ---Runs one server-authorized player action. `begin` and `complete` are kept
 ---resource-owned so the library never defines a resource's security contract;
 ---it only owns the exclusive progressbar/minigame UX in between them.
@@ -49,8 +39,8 @@ function QB.actions.run(options, ...)
 
         local uxCompleted, proof
         if options.minigame then
-            local minigame = awaitIfPromise(QB.minigames.play(options.minigame,
-                { duration = options.duration }, authorization))
+            local minigame = QB.minigames.play(options.minigame,
+                { duration = options.duration }, authorization)
             uxCompleted = minigame and minigame.success == true
             proof = uxCompleted and minigame.proof or nil
         else

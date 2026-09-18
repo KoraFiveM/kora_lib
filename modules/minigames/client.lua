@@ -1,26 +1,3 @@
--- A promise object doesn't survive crossing a real cross-resource exports()
--- call back to the caller: only METHOD CALLS on it reach the real promise
--- inside qblib, while plain field reads (.state, .value -- what Citizen.Await
--- itself checks) on the crossed reference never reflect the real remote
--- promise's settlement, so the caller's own Citizen.Await silently resolves
--- nil regardless of the real outcome. GetInvokingResource() is nil for a
--- same-VM call (qblib's own modules, every dofile()'d smoke test) and the
--- real calling resource's name for a genuine cross-resource exports() call --
--- exactly the distinction that matters here. Same-VM callers get the real
--- promise back unchanged. A genuine cross-resource caller gets the
--- already-awaited plain value (or a raised error on rejection, which -- like
--- every other qblib error -- surfaces to that caller as a printed
--- export-call error and a nil return, not a catchable Lua error) instead of
--- a promise it can't usefully await. Deliberately duplicated per-file -- see
--- local/callback/{client,server}.lua, local/events/{client,server}.lua, and
--- modules/{cache,zones,nui}/client.lua for the other copies.
-local function settleForExport(p)
-    if GetInvokingResource() then
-        return Citizen.Await(p)
-    end
-    return p
-end
-
 -- Only one minigame can be on screen for this player at a time -- a second
 -- concurrent QB.minigames.play() call is rejected immediately rather than
 -- queued or allowed to stack overlays, same as modules/zones' single
@@ -165,26 +142,25 @@ local function beginPlay(gameType, opts, authorization, resource)
 end
 
 ---Plays one round-based minigame session -- lockpick, skillbar, circuit,
----mash, pinpad, quiz, wordguess, wordscramble, keys, or hacking -- against
+---mash, fishing, pinpad, quiz, wordguess, wordscramble, keys, or hacking -- against
 ---the server, which independently generates and validates every round (see
 ---modules/minigames/server.lua and this module's AGENTS.md). The client only
 ---ever renders the puzzle and reports raw input timestamps/selections (and,
 ---for circuit, which nodes were connected); it never computes or reports a
 ---pass/fail itself, so the result can't be forged by a modified client beyond
 ---the basic timestamp-plausibility floor documented in AGENTS.md.
----@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
+---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "fishing" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table Per-type overrides merged over Config.minigames.<type> and clamped/validated server-side -- see docs.md for the accepted fields per type. For pinpad/quiz/wordguess/wordscramble, opts also carries the puzzle's actual CONTENT (numbers/questions/word), since the caller supplies it rather than the server randomizing it.
 ---@param authorization? string Opaque token returned by the gameplay resource's server-side QB.minigames.authorizeProof call. When present, the server ignores opts and uses the trusted options captured by that authorization. Successful unauthorized legacy sessions remain proof-less.
----@return promise|any result Resolves/returns { success: boolean, attempts: integer, proof?: string, cancelled?: true, faults?: integer }
----(attempts = how many tries it took before success/exhaustion/cancellation; faults is only ever present for
----"keys", see server.lua's validate.keys) for a same-VM caller (unchanged, awaitable as before) or a genuine
----cross-resource caller respectively (see settleForExport above). `cancelled` is present (and `success` false)
+---@return QBMinigameResult result The resolved result; this public function waits for the round to finish.
+---(`attempts` = how many tries it took before success/exhaustion/cancellation; faults is only ever present for
+---"keys", see server.lua's validate.keys). Callers do not need to wrap this function in Citizen.Await. `cancelled` is present (and `success` false)
 ---when the player backed out via Escape/backdrop instead of exhausting their attempts or the round trip
 ---failing outright -- see docs.md's "Cancelling" note. Rejects/errors if a minigame is already in progress for
 ---this player (checked both here and, in case a modified client skips this, server-side), gameType is
 ---invalid, or the underlying NUI/callback round trip fails.
 function QB.minigames.play(gameType, opts, authorization, owner)
-    return settleForExport(QB.minigames.playAsync(gameType, opts, authorization,
+    return Citizen.Await(QB.minigames.playAsync(gameType, opts, authorization,
         owner or GetInvokingResource() or GetCurrentResourceName()))
 end
 
@@ -232,7 +208,7 @@ end
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table
 ---@param authorization? string
----@return promise|any result
+---@return QBMinigameResult result
 function QB.minigames.playSkillCheck(skill, gameType, opts, authorization)
     assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
     assert(QB.minigames.GAME_TYPES[gameType], 'invalid minigame type -- see QB.minigames.GAME_TYPES.')

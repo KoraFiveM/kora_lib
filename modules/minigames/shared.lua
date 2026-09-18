@@ -7,6 +7,7 @@ QB.minigames.GAME_TYPES = {
     skillbar = true,
     circuit = true,
     mash = true,
+    fishing = true,
     pinpad = true,
     quiz = true,
     wordguess = true,

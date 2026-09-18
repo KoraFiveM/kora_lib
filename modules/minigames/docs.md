@@ -1,20 +1,21 @@
 # Minigames
 
 ## Overview
-The minigames module gives you ten server-validated skill-check minigames -- lockpick, skillbar, circuit, mash-key, pinpad, quiz, wordguess, wordscramble, keys, and hacking. The server generates every round's solution and validates every submitted attempt; the client only renders the puzzle and reports bounded raw input. For a result that gates a real server action, use the authorization/proof flow below: ordinary and legacy client-only calls remain playable but deliberately cannot mint a server-consumable proof. The last six types back `compat/client/qb-minigames.lua`, a drop-in shim for the real `github.com/qbcore-fivem/qb-minigames` resource -- see "Legacy compat" below.
+The minigames module gives you eleven server-validated skill-check minigames -- lockpick, skillbar, circuit, mash-key, fishing, pinpad, quiz, wordguess, wordscramble, keys, and hacking. The server generates every round's solution and validates every submitted attempt; the client only renders the puzzle and reports bounded raw input. For a result that gates a real server action, use the authorization/proof flow below: ordinary and legacy client-only calls remain playable but deliberately cannot mint a server-consumable proof. The last six types back `compat/client/qb-minigames.lua`, a drop-in shim for the real `github.com/qbcore-fivem/qb-minigames` resource -- see "Legacy compat" below.
 
 ## API
 
 ### `QB.minigames.play(gameType, opts, authorization)`
-Plays one round-based minigame session, opening a full-screen overlay and blocking (via the returned promise) until the player succeeds, runs out of attempts, or the round trip fails.
+Plays one round-based minigame session, opening a full-screen overlay and waiting until the player succeeds, runs out of attempts, or the round trip fails. The public function returns the result directly; callers do not need `Citizen.Await`.
 
 #### Parameters
-- `gameType: "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"`
+- `gameType: "lockpick" | "skillbar" | "circuit" | "mash" | "fishing" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"`
 - `opts?: table` -- per-type overrides, merged over `Config.minigames.<type>` and clamped/validated server-side (a modified client sending extreme values can't trivialize the puzzle). Accepted fields per type:
   - `lockpick`: `attempts`, `pinCount`, `tolerance`, `speed`, `timeLimit`
   - `skillbar`: `attempts`, `zoneSize`, `speed`, `timeLimit`
   - `circuit`: `attempts`, `nodeCount`, `timeLimit`
   - `mash`: `attempts`, `requiredPresses`, `timeLimit`
+  - `fishing`: `attempts`, `bites`, `zoneSize`, `speed`, `timeLimit`
   - `pinpad`: `numbers` (the PIN, e.g. `1234`; digit count randomized from `digits` if omitted), `digits`, `attempts`, `timeLimit`
   - `quiz`: `questions` (required -- `{ question, answer, options }[]`), `correctRequired`, `timer` (seconds per question), `attempts`
   - `wordguess`: `word` (required), `hint`, `guesses`, `attempts`, `timeLimit`
@@ -36,7 +37,7 @@ Opens NUI focus once and keeps the same overlay mounted for every attempt -- a f
 Round expiry is scheduled against one exact browser deadline. Whole-second countdown labels update at a low cadence, while the lockpick and skillbar indicators alone animate at display refresh rate. This keeps input and animation responsive without re-rendering the entire overlay every frame.
 
 #### Returns
-- `promise|any result` -- resolves/returns `{ success: boolean, attempts: integer, proof?: string, cancelled?: true, faults?: integer }` (`attempts` = how many tries it took before success/exhaustion/cancellation) for a same-VM caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. `proof` is present only after a successful authorized session. `cancelled` is present (and `success` false) when the player backed out early -- see "Cancelling" below. `faults` is present only for `"keys"` -- see its note below. Rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, the authorization is invalid/expired/already used, or the round trip fails outright.
+- The function returns `{ success: boolean, attempts: integer, proof?: string, cancelled?: true, faults?: integer }` directly (`attempts` = how many tries it took before success/exhaustion/cancellation). `proof` is present only after a successful authorized session. `cancelled` is present (and `success` false) when the player backed out early -- see "Cancelling" below. `faults` is present only for `"keys"` -- see its note below. It rejects/errors if a minigame is already active for this player (checked client- and server-side), `gameType` is invalid, the authorization is invalid/expired/already used, or the round trip fails outright.
 
 #### `keys` always succeeds
 Unlike every other type, `keys` never fails -- `success` is always `true` (unless cancelled). It mirrors upstream `KeyMinigame`, which has no pass/fail concept of its own; the result's `faults` field (how many prompts were missed or mistimed) is what the calling script checks, e.g. `if result.faults > 3 then ... end`.
@@ -47,7 +48,7 @@ Every minigame's dialog closes on Escape or a backdrop click, same as `QB.nui.op
 #### Example
 ```lua
 RegisterCommand('lockpick_door', function()
-    local result = Citizen.Await(QB.minigames.play("lockpick", { pinCount = 5, timeLimit = 10000 }))
+    local result = QB.minigames.play("lockpick", { pinCount = 5, timeLimit = 10000 })
 
     if result.success then
         print(("unlocked in %d attempt(s)"):format(result.attempts))
@@ -69,7 +70,7 @@ end
 owner-aware composition form used by compatibility providers that need to
 retain a cancellable promise. `QB.minigames.cancel()` settles the active round
 through the normal cancelled-result path. Gameplay resources should normally
-use `play`.
+use `play`, which waits and returns the result directly.
 
 ## Notes
 - **Proofs require server authorization.** A bare `play` call can still report UX success to its client caller, but it never returns a proof. A gameplay resource must issue an authorization first and later consume the matching proof on the server.
@@ -99,7 +100,7 @@ local authorization = QB.minigames.authorizeSkillCheck(src, 'mining', 'skillbar'
 })
 
 -- client
-local result = Citizen.Await(QB.minigames.playSkillCheck('mining', 'skillbar', nil, authorization))
+local result = QB.minigames.playSkillCheck('mining', 'skillbar', nil, authorization)
 ```
 
 ## Supporting APIs
@@ -133,7 +134,7 @@ end)
 
 -- client
 local begun = Citizen.Await(QB.callback.trigger('my-resource:begin'))
-local result = Citizen.Await(QB.minigames.play('mash', nil, begun.authorization))
+local result = QB.minigames.play('mash', nil, begun.authorization)
 TriggerServerEvent('my-resource:complete', begun.actionToken,
     begun.authorization, result.proof)
 ```

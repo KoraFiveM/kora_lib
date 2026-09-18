@@ -20,9 +20,7 @@ local minigameAuthorization
 QB.minigames = {
     play = function(_, _, authorization)
         minigameAuthorization = authorization
-        local p = promise.new()
-        p:resolve({ success = true, proof = 'proof:value' })
-        return p
+        return { success = true, proof = 'proof:value' }
     end,
 }
 

@@ -288,6 +288,14 @@ Config.minigames = {
         timeLimit = 4000,       -- ms for the whole round
         minPressInterval = 60,  -- ms; anti-cheat floor between two presses, not client-adjustable
     },
+    fishing = {
+        attempts = 2,
+        bites = 3,
+        zoneSize = 0.18,        -- height of each catch window, 0..1 scale
+        speed = 0.85,            -- triangle-wave cycles per second
+        timeLimit = 9000,        -- ms for the whole round
+        minReelInterval = 250,   -- ms; anti-cheat floor between reel inputs
+    },
 
     -- The six types below back the qb-minigames compat shim
     -- (compat/client/qb-minigames.lua) -- unlike lockpick/skillbar/circuit/mash,

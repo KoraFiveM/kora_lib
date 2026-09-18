@@ -42,7 +42,7 @@ dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread comp
 -- when set, is called synchronously with the "minigames:round" request data
 -- and its return value settles the request immediately -- since every
 -- QB.callback.trigger call in this mock environment ALSO resolves
--- synchronously (see mocks.lua), an entire multi-round QB.minigames.play()
+-- synchronously (see mocks.lua), an entire multi-round QB.minigames.playAsync()
 -- flow runs to completion within one CreateThread resume, with no need for
 -- net.step(). Left nil, a "minigames:round" request is simply never answered.
 local sentMessages = {}
@@ -134,11 +134,22 @@ harness.test("triangleWave is a symmetric triangle over one full cycle", functio
 end)
 
 harness.test("play rejects an invalid game type", function()
-    harness.assertThrows(function() QB.minigames.play("cardgame", {}) end, "an unsupported game type should raise")
+    harness.assertThrows(function() QB.minigames.playAsync("cardgame", {}) end, "an unsupported game type should raise")
 end)
 
 harness.test("play rejects non-table opts", function()
-    harness.assertThrows(function() QB.minigames.play("mash", "fast") end, "a non-table opts should raise")
+    harness.assertThrows(function() QB.minigames.playAsync("mash", "fast") end, "a non-table opts should raise")
+end)
+
+harness.test("play returns the resolved result without exposing a promise", function()
+    roundResponder = function() return { pressTimestamps = { 0, 1000, 2000 } } end
+
+    local result = QB.minigames.play("mash", { attempts = 1, requiredPresses = 3 })
+    roundResponder = nil
+
+    harness.assertTrue(result.success, "the public play function should return the completed result directly")
+    harness.assertTrue(result.state == nil and result.value == nil,
+        "the public play function should not return the internal promise")
 end)
 
 harness.test("skill checks capture the server-adjusted difficulty in their authorization", function()
@@ -169,7 +180,7 @@ harness.test("lockpick: succeeds on the first correct attempt", function()
         return { presses = { { index = 1, elapsed = elapsedForTarget(pin.target, data.puzzle.speed) } } }
     end
 
-    local p = QB.minigames.play("lockpick", { pinCount = 1 })
+    local p = QB.minigames.playAsync("lockpick", { pinCount = 1 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "the promise should resolve within the mocked synchronous flow")
@@ -190,7 +201,7 @@ harness.test("lockpick: a malformed first attempt fails gracefully and a correct
     end
 
     sentMessages = {}
-    local p = QB.minigames.play("lockpick", { pinCount = 1, attempts = 3 })
+    local p = QB.minigames.playAsync("lockpick", { pinCount = 1, attempts = 3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "a malformed attempt must not error the whole play() call")
@@ -207,7 +218,7 @@ end)
 harness.test("mash: fails and exhausts every attempt when never enough presses are reported", function()
     roundResponder = function() return { pressTimestamps = {} } end
 
-    local p = QB.minigames.play("mash", { attempts = 2, requiredPresses = 5 })
+    local p = QB.minigames.playAsync("mash", { attempts = 2, requiredPresses = 5 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "running out of attempts should still resolve, not reject")
@@ -219,7 +230,7 @@ harness.test("cancelling a round ends the session immediately without consuming 
     sentMessages = {}
     roundResponder = function() return { cancelled = true } end
 
-    local p = QB.minigames.play("mash", { attempts = 3 })
+    local p = QB.minigames.playAsync("mash", { attempts = 3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "a cancel should resolve cleanly, not reject")
@@ -252,11 +263,21 @@ harness.test("skillbar: succeeds when the reported elapsed lands in the target z
         return { elapsed = elapsedForTarget(mid, data.puzzle.speed) }
     end
 
-    local p = QB.minigames.play("skillbar", { speed = 0.3 })
+    local p = QB.minigames.playAsync("skillbar", { speed = 0.3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
     harness.assertTrue(p.value.success, "hitting the middle of the target zone should succeed")
+end)
+
+harness.test("fishing: malformed timing fails cleanly", function()
+    roundResponder = function() return { reels = {} } end
+
+    local p = QB.minigames.playAsync("fishing", { bites = 3 })
+    roundResponder = nil
+
+    harness.assertEqual(p.state, "resolved", "should resolve")
+    harness.assertFalse(p.value.success, "missing reels should fail the round")
 end)
 
 harness.test("circuit: succeeds by connecting every matching color pair", function()
@@ -278,7 +299,7 @@ harness.test("circuit: succeeds by connecting every matching color pair", functi
         return { connections = connections }
     end
 
-    local p = QB.minigames.play("circuit", { nodeCount = 3 })
+    local p = QB.minigames.playAsync("circuit", { nodeCount = 3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -321,7 +342,7 @@ harness.test("a rejected NUI round cancels its server session before rejecting p
         return rejected
     end
 
-    local result = QB.minigames.play("mash", { attempts = 1 })
+    local result = QB.minigames.playAsync("mash", { attempts = 1 })
     QB.nui.request = originalRequest
     harness.assertEqual(result.state, "rejected", "the NUI error should reject play")
 
@@ -402,11 +423,11 @@ harness.test("play rejects a concurrent call while one is already in flight", fu
     -- play() call's CreateThread is still executing, before it has cleared
     -- its own activeSession guard.
     roundResponder = function()
-        innerP = QB.minigames.play("mash", {})
+        innerP = QB.minigames.playAsync("mash", {})
         return { pressTimestamps = {} }
     end
 
-    local outerP = QB.minigames.play("mash", { requiredPresses = 1000, attempts = 1 })
+    local outerP = QB.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
     roundResponder = nil
 
     harness.assertTrue(innerP ~= nil, "the responder should have attempted a concurrent call")
@@ -427,13 +448,13 @@ harness.test("resource-stop cleanup clears the client-side guard and closes the 
         -- unboundedly, since the mock resolves everything synchronously.
         local outerResponder = roundResponder
         roundResponder = function() return { pressTimestamps = {} } end
-        innerP = QB.minigames.play("mash", { requiredPresses = 1000, attempts = 1 })
+        innerP = QB.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
         roundResponder = outerResponder
 
         return { pressTimestamps = {} }
     end
 
-    QB.minigames.play("mash", { requiredPresses = 1000, attempts = 1 })
+    QB.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
     roundResponder = nil
 
     harness.assertTrue(innerP ~= nil, "the responder should have attempted a fresh call")
@@ -464,7 +485,7 @@ harness.test("pinpad: succeeds when the submitted digits match, with human-plaus
         return { digits = digits }
     end
 
-    local p = QB.minigames.play("pinpad", { numbers = 1222 })
+    local p = QB.minigames.playAsync("pinpad", { numbers = 1222 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -480,7 +501,7 @@ harness.test("pinpad: fails when a digit is wrong", function()
         return { digits = digits }
     end
 
-    local p = QB.minigames.play("pinpad", { numbers = 1234, attempts = 1 })
+    local p = QB.minigames.playAsync("pinpad", { numbers = 1234, attempts = 1 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -500,7 +521,7 @@ harness.test("quiz: succeeds once enough answers are correct", function()
         return { answers = answers }
     end
 
-    local p = QB.minigames.play("quiz", { questions = questions, correctRequired = 2, timer = 10 })
+    local p = QB.minigames.playAsync("quiz", { questions = questions, correctRequired = 2, timer = 10 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -517,7 +538,7 @@ harness.test("wordguess: succeeds once every letter of the word is found", funct
         return { guesses = guesses }
     end
 
-    local p = QB.minigames.play("wordguess", { word = "cat", hint = "an animal", guesses = 5 })
+    local p = QB.minigames.playAsync("wordguess", { word = "cat", hint = "an animal", guesses = 5 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -534,7 +555,7 @@ harness.test("wordguess: fails once wrong guesses exceed the allowance", functio
         return { guesses = guesses }
     end
 
-    local p = QB.minigames.play("wordguess", { word = "cat", hint = "an animal", guesses = 2, attempts = 1 })
+    local p = QB.minigames.playAsync("wordguess", { word = "cat", hint = "an animal", guesses = 2, attempts = 1 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -546,7 +567,7 @@ harness.test("wordscramble: succeeds when the submitted guess matches the origin
         return { guess = "fivem", elapsed = Config.minigames.wordscramble.minSubmitTime + 10 }
     end
 
-    local p = QB.minigames.play("wordscramble", { word = "fivem", hint = "the game modification", timer = 30 })
+    local p = QB.minigames.playAsync("wordscramble", { word = "fivem", hint = "the game modification", timer = 30 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -564,7 +585,7 @@ harness.test("keys: always succeeds and reports a faults count", function()
         return { presses = presses }
     end
 
-    local p = QB.minigames.play("keys", { amount = 4 })
+    local p = QB.minigames.playAsync("keys", { amount = 4 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -577,7 +598,7 @@ harness.test("hacking: succeeds when the submitted code matches the generated on
         return { submitted = data.puzzle.code, elapsed = Config.minigames.hacking.minTimePerFind + 10 }
     end
 
-    local p = QB.minigames.play("hacking", { solutionsize = 5, timeout = 30 })
+    local p = QB.minigames.playAsync("hacking", { solutionsize = 5, timeout = 30 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -589,7 +610,7 @@ harness.test("hacking: fails when the submitted code is wrong", function()
         return { submitted = "ZZZZZ", elapsed = Config.minigames.hacking.minTimePerFind + 10 }
     end
 
-    local p = QB.minigames.play("hacking", { solutionsize = 5, timeout = 30 })
+    local p = QB.minigames.playAsync("hacking", { solutionsize = 5, timeout = 30 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -628,7 +649,7 @@ harness.test("authorized play ignores client opts and returns a bound opaque pro
         seen = data
         return mashAttempt(data.puzzle.requiredPresses)
     end
-    local p = QB.minigames.play("mash", { attempts = 10, requiredPresses = 3, timeLimit = 1000 }, authorization)
+    local p = QB.minigames.playAsync("mash", { attempts = 10, requiredPresses = 3, timeLimit = 1000 }, authorization)
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "the authorized play should resolve")
@@ -694,7 +715,7 @@ harness.test("failed and cancelled authorized sessions never return a proof", fu
         return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     roundResponder = function() return { cancelled = true } end
-    local cancelled = QB.minigames.play("mash", nil, cancelledAuthorization)
+    local cancelled = QB.minigames.playAsync("mash", nil, cancelledAuthorization)
     roundResponder = nil
     harness.assertTrue(cancelled.value.cancelled, "the session should report cancellation")
     harness.assertTrue(cancelled.value.proof == nil, "a cancelled authorized session must not mint a proof")
