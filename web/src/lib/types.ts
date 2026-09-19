@@ -887,7 +887,7 @@ export interface MashAttempt {
 }
 
 export interface FishingPuzzle {
-    biteCount: number
+    gameCount: number
     zoneSize: number
     speed: number
     /** Visible center of each bite window, in bottom-to-top gauge coordinates. */

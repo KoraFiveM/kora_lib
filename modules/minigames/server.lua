@@ -152,11 +152,18 @@ end
 
 function resolveConfig.fishing(opts)
     local cfg = Config.minigames.fishing
+    local requestedGames = opts and (opts.games or opts.bites)
+    local requestedSpeed = opts and opts.speed
+    local speedPresets = { easy = 0.6, medium = 0.85, hard = 1.2 }
+    if type(requestedSpeed) == "string" then
+        requestedSpeed = speedPresets[requestedSpeed:lower()]
+    end
+
     return {
         attempts = clampInt(opts and opts.attempts, cfg.attempts, 1, Config.minigames.maxAttemptsCap),
-        bites = clampInt(opts and opts.bites, cfg.bites, 1, 8),
+        games = clampInt(requestedGames, cfg.games, 1, 3),
         zoneSize = clampNumber(opts and opts.zoneSize, cfg.zoneSize, 0.08, 0.45),
-        speed = clampNumber(opts and opts.speed, cfg.speed, 0.3, 2.5),
+        speed = clampNumber(requestedSpeed, cfg.speed, 0.3, 2.5),
         timeLimit = clampNumber(opts and opts.timeLimit, cfg.timeLimit, 3000, 30000),
     }
 end
@@ -566,12 +573,12 @@ end
 
 function generate.fishing(cfg)
     local targets = {}
-    for i = 1, cfg.bites do
+    for i = 1, cfg.games do
         targets[i] = randomFloat(cfg.zoneSize / 2, 1 - cfg.zoneSize / 2)
     end
 
     local solution = { targets = targets, speed = cfg.speed, zoneSize = cfg.zoneSize }
-    local public = { biteCount = cfg.bites, speed = cfg.speed, zoneSize = cfg.zoneSize, targets = targets }
+    local public = { gameCount = cfg.games, speed = cfg.speed, zoneSize = cfg.zoneSize, targets = targets }
     return solution, public
 end
 

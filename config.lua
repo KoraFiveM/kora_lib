@@ -290,7 +290,7 @@ Config.minigames = {
     },
     fishing = {
         attempts = 2,
-        bites = 3,
+        games = 3,              -- number of bite games in one round, 1..3
         zoneSize = 0.18,        -- height of each catch window, 0..1 scale
         speed = 0.85,            -- triangle-wave cycles per second
         timeLimit = 9000,        -- ms for the whole round

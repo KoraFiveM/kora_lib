@@ -57,7 +57,7 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         function onKeyDown(event: KeyboardEvent) {
             if (event.repeat || (event.code !== "Space" && event.code !== "Enter")) return
             event.preventDefault()
-            if (doneRef.current || biteIndex >= puzzle.biteCount) return
+            if (doneRef.current || biteIndex >= puzzle.gameCount) return
 
             const elapsed = performance.now() - startRef.current
             const position = triangleWave(elapsed, puzzle.speed)
@@ -66,7 +66,7 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
             const reel = { index: biteIndex + 1, elapsed }
             reelsRef.current = [...reelsRef.current, reel]
             setCaught((previous) => [...previous, hit])
-            if (biteIndex + 1 >= puzzle.biteCount) finish(reelsRef.current)
+            if (biteIndex + 1 >= puzzle.gameCount) finish(reelsRef.current)
             else setBiteIndex((previous) => previous + 1)
         }
         window.addEventListener("keydown", onKeyDown)
@@ -75,7 +75,7 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
-            <DialogContent hideClose className="max-w-sm">
+            <DialogContent hideClose className="right-4 left-auto max-w-sm translate-x-0 sm:right-8">
                 <DialogHeader>
                     <DialogTitle>Fishing &mdash; attempt {attempt} of {attempts}</DialogTitle>
                 </DialogHeader>
@@ -103,15 +103,15 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                     <div className="flex flex-col gap-2 text-sm">
                         <p className="font-medium">Keep the marker in the bite zone.</p>
                         <div className="flex gap-1.5">
-                            {Array.from({ length: puzzle.biteCount }, (_, index) => (
+                            {Array.from({ length: puzzle.gameCount }, (_, index) => (
                                 <span key={index} className={cn("h-2 w-8 rounded-full bg-secondary", index < caught.length && (caught[index] ? "bg-success" : "bg-destructive"))} />
                             ))}
                         </div>
-                        <p className="text-xs text-muted-foreground">Reel {Math.min(biteIndex + 1, puzzle.biteCount)} of {puzzle.biteCount}</p>
+                        <p className="text-xs text-muted-foreground">Game {Math.min(biteIndex + 1, puzzle.gameCount)} of {puzzle.gameCount}</p>
                     </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Space</span> when the marker is over the center line. Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
+                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Space</span> when the marker is in the highlighted zone. Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
             </DialogContent>
         </Dialog>
     )

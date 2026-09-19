@@ -15,7 +15,7 @@ Plays one round-based minigame session, opening a full-screen overlay and waitin
   - `skillbar`: `attempts`, `zoneSize`, `speed`, `timeLimit`
   - `circuit`: `attempts`, `nodeCount`, `timeLimit`
   - `mash`: `attempts`, `requiredPresses`, `timeLimit`
-  - `fishing`: `attempts`, `bites`, `zoneSize`, `speed`, `timeLimit`
+  - `fishing`: `attempts`, `games` (1, 2, or 3), `zoneSize`, `speed` (`"easy"`, `"medium"`, or `"hard"`), `timeLimit`
   - `pinpad`: `numbers` (the PIN, e.g. `1234`; digit count randomized from `digits` if omitted), `digits`, `attempts`, `timeLimit`
   - `quiz`: `questions` (required -- `{ question, answer, options }[]`), `correctRequired`, `timer` (seconds per question), `attempts`
   - `wordguess`: `word` (required), `hint`, `guesses`, `attempts`, `timeLimit`

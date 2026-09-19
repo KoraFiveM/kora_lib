@@ -273,7 +273,7 @@ end)
 harness.test("fishing: malformed timing fails cleanly", function()
     roundResponder = function() return { reels = {} } end
 
-    local p = QB.minigames.playAsync("fishing", { bites = 3 })
+    local p = QB.minigames.playAsync("fishing", { games = 3, speed = "hard" })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
