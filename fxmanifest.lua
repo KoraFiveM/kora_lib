@@ -40,6 +40,13 @@ files {
     -- Loaded into each consumer so compatibility handlers belong to and stop
     -- with the resource that provides the alias.
     'compat/provider.lua',
+    -- Stateless hot-path helpers execute in the consumer that imports
+    -- init.lua. stream is client-only so model/asset natives belong to the
+    -- calling script; init.lua selects only files valid for the current realm.
+    'modules/loops/shared.lua',
+    'modules/util/shared.lua',
+    'modules/util/client.lua',
+    'modules/stream/client.lua',
     'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
     -- Lookup bundles are loaded on demand with LoadResourceFile; source JSON
     -- stays out of the runtime resource (source.json only records provenance).

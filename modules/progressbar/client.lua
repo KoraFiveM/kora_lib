@@ -28,6 +28,7 @@
 ---@field model string|integer Model name or hash.
 ---@field bone? string|integer Ped bone name or ID. Defaults to 60309.
 ---@field offset? vector3|table Local attachment offset. Defaults to vector3(0, 0, 0).
+---@field coords? vector3 Legacy `prop`/`proptwo` attachment offset.
 ---@field rotation? vector3|table Local attachment rotation. Defaults to vector3(0, 0, 0).
 ---@field softPinning? boolean Defaults to true.
 ---@field collision? boolean Defaults to false.
@@ -52,6 +53,9 @@
 ---@field strictAnim? boolean Raise when an animation dictionary cannot load; ox_lib compatibility enables this.
 ---@field scenario? QBProgressBarScenario Played in place for the duration, stopped automatically when the bar ends. Mutually exclusive with `anim`.
 ---@field props? QBProgressBarProp[] Local cosmetic props attached to the player for the duration.
+---@field prop? QBProgressBarProp Local cosmetic prop using `coords`.
+---@field proptwo? QBProgressBarProp Second local cosmetic prop using `coords`.
+---@field emote? string Played when neither `anim` nor `scenario` is supplied.
 ---@field maxProps? integer|false Override the local prop cap; false matches ox_lib's uncapped local props.
 
 local busy = false
@@ -95,6 +99,35 @@ end
 
 local function modelHash(model)
     return type(model) == "string" and joaat(model) or model
+end
+
+local function assertProp(prop, index, requireCoords)
+    assert(type(prop) == "table", ("Progress bar prop %d must be a table."):format(index))
+    assert(type(prop.model) == "string" or isInteger(prop.model),
+        ("Progress bar prop %d requires a string model name or integer hash."):format(index))
+    assert(IsModelValid(modelHash(prop.model)), ("Progress bar prop %d has an invalid model."):format(index))
+    assert(not requireCoords or prop.coords ~= nil, ("Progress bar prop %d requires coords."):format(index))
+    assert(not requireCoords or isInteger(prop.bone), ("Progress bar prop %d requires an integer bone ID."):format(index))
+    assert(not requireCoords or prop.rotation ~= nil, ("Progress bar prop %d requires rotation."):format(index))
+
+    if prop.bone ~= nil then
+        assert((type(prop.bone) == "string" and #prop.bone > 0) or (isInteger(prop.bone) and prop.bone >= 0),
+            ("Progress bar prop %d bone must be a non-negative integer ID or non-empty name."):format(index))
+    end
+    if prop.offset ~= nil then assertVector(prop.offset, "offset", index) end
+    if prop.coords ~= nil then assertVector(prop.coords, "coords", index) end
+    if prop.rotation ~= nil then assertVector(prop.rotation, "rotation", index) end
+
+    for i = 1, #PROP_BOOLEAN_FIELDS do
+        local field = PROP_BOOLEAN_FIELDS[i]
+        assert(prop[field] == nil or type(prop[field]) == "boolean",
+            ("Progress bar prop %d %s must be a boolean."):format(index, field))
+    end
+
+    if prop.rotationOrder ~= nil then
+        assert(isInteger(prop.rotationOrder) and prop.rotationOrder >= 0 and prop.rotationOrder <= 5,
+            ("Progress bar prop %d rotationOrder must be an integer from 0 to 5."):format(index))
+    end
 end
 
 ---@param payload QBProgressBarPayload
@@ -158,6 +191,7 @@ local function assertPayload(payload)
     end
     assert(payload.strictAnim == nil or type(payload.strictAnim) == 'boolean',
         'Progress bar strictAnim must be a boolean.')
+    assert(payload.emote == nil or type(payload.emote) == 'string', 'Progress bar emote must be a string.')
 
     if payload.scenario then
         assert(type(payload.scenario) == "table" and type(payload.scenario.name) == "string" and #payload.scenario.name > 0,
@@ -166,47 +200,26 @@ local function assertPayload(payload)
 
     assert(not (payload.anim and payload.scenario), "Progress bar cannot play both anim and scenario -- pick one.")
 
-    if payload.props == nil then return end
-    assert(type(payload.props) == "table", "Progress bar props must be an array.")
-    assert(payload.maxProps == nil or payload.maxProps == false or (isInteger(payload.maxProps) and payload.maxProps > 0),
-        "Progress bar maxProps must be a positive integer or false.")
-    local maxProps = payload.maxProps == nil and Config.progressbar.maxProps or payload.maxProps
-    assert(maxProps == false or #payload.props <= maxProps,
-        ("Progress bar supports at most %d props."):format(maxProps or Config.progressbar.maxProps))
+    if payload.props ~= nil then
+        assert(type(payload.props) == "table", "Progress bar props must be an array.")
+        assert(payload.maxProps == nil or payload.maxProps == false or (isInteger(payload.maxProps) and payload.maxProps > 0),
+            "Progress bar maxProps must be a positive integer or false.")
+        local maxProps = payload.maxProps == nil and Config.progressbar.maxProps or payload.maxProps
+        assert(maxProps == false or #payload.props <= maxProps,
+            ("Progress bar supports at most %d props."):format(maxProps or Config.progressbar.maxProps))
 
-    local propCount = 0
-    for key in pairs(payload.props) do
-        assert(type(key) == "number" and key % 1 == 0 and key >= 1,
-            "Progress bar props must be a dense array.")
-        propCount = propCount + 1
+        local propCount = 0
+        for key in pairs(payload.props) do
+            assert(type(key) == "number" and key % 1 == 0 and key >= 1,
+                "Progress bar props must be a dense array.")
+            propCount = propCount + 1
+        end
+        assert(propCount == #payload.props, "Progress bar props must be a dense array.")
+
+        for index = 1, #payload.props do assertProp(payload.props[index], index, false) end
     end
-    assert(propCount == #payload.props, "Progress bar props must be a dense array.")
-
-    for index = 1, #payload.props do
-        local prop = payload.props[index]
-        assert(type(prop) == "table", ("Progress bar prop %d must be a table."):format(index))
-        assert(type(prop.model) == "string" or isInteger(prop.model),
-            ("Progress bar prop %d requires a string model name or integer hash."):format(index))
-        assert(IsModelValid(modelHash(prop.model)), ("Progress bar prop %d has an invalid model."):format(index))
-
-        if prop.bone ~= nil then
-            assert((type(prop.bone) == "string" and #prop.bone > 0) or (isInteger(prop.bone) and prop.bone >= 0),
-                ("Progress bar prop %d bone must be a non-negative integer ID or non-empty name."):format(index))
-        end
-        if prop.offset ~= nil then assertVector(prop.offset, "offset", index) end
-        if prop.rotation ~= nil then assertVector(prop.rotation, "rotation", index) end
-
-        for i = 1, #PROP_BOOLEAN_FIELDS do
-            local field = PROP_BOOLEAN_FIELDS[i]
-            assert(prop[field] == nil or type(prop[field]) == "boolean",
-                ("Progress bar prop %d %s must be a boolean."):format(index, field))
-        end
-
-        if prop.rotationOrder ~= nil then
-            assert(isInteger(prop.rotationOrder) and prop.rotationOrder >= 0 and prop.rotationOrder <= 5,
-                ("Progress bar prop %d rotationOrder must be an integer from 0 to 5."):format(index))
-        end
-    end
+    if payload.prop then assertProp(payload.prop, 1, true) end
+    if payload.proptwo then assertProp(payload.proptwo, 2, true) end
 end
 
 ---@param dict string
@@ -269,6 +282,11 @@ local function cleanupSession(session, cancelled)
         safeCleanup("animation dictionary", function() RemoveAnimDict(session.anim.dict) end)
         session.animLoaded = false
         session.animStarted = false
+    end
+
+    if session.emoteStarted then
+        safeCleanup("emote", function() exports.qbemotemenu:cancelEmote(true) end)
+        session.emoteStarted = false
     end
 
     for i = 1, #session.props do
@@ -383,6 +401,16 @@ function QB.progressbar.start(payload, owner)
             prepareProp(session, prop, index)
             if session.cleaned then return false end
         end
+        if payload.prop then
+            prepareProp(session, { model = payload.prop.model, bone = payload.prop.bone, offset = payload.prop.coords,
+                rotation = payload.prop.rotation }, #props + 1)
+            if session.cleaned then return false end
+        end
+        if payload.proptwo then
+            prepareProp(session, { model = payload.proptwo.model, bone = payload.proptwo.bone,
+                offset = payload.proptwo.coords, rotation = payload.proptwo.rotation }, #props + 2)
+            if session.cleaned then return false end
+        end
 
         if payload.anim then
             session.animLoaded = ensureAnimDict(payload.anim.dict)
@@ -402,6 +430,9 @@ function QB.progressbar.start(payload, owner)
         elseif payload.scenario then
             TaskStartScenarioInPlace(session.ped, payload.scenario.name, 0, payload.scenario.playEnter ~= false)
             session.scenarioStarted = true
+        elseif payload.emote then
+            exports.qbemotemenu:playEmote(payload.emote)
+            session.emoteStarted = true
         end
 
         if payload.disable and payload.disable.move then

@@ -14,6 +14,12 @@ end
 
 local loaderSource = readFile(repoRoot .. 'modules/require/loader.lua')
 local configConsumerSource = readFile(repoRoot .. 'modules/config/consumer.lua')
+local compatProviderSource = readFile(repoRoot .. 'compat/provider.lua')
+local loopsSource = readFile(repoRoot .. 'modules/loops/shared.lua')
+local originalLoopsSource = loopsSource
+local streamSource = readFile(repoRoot .. 'modules/stream/client.lua')
+local utilSharedSource = readFile(repoRoot .. 'modules/util/shared.lua')
+local utilClientSource = readFile(repoRoot .. 'modules/util/client.lua')
 local resourceFiles = {
     ['qbapartments\0config.lua'] = "return { name = 'apartments' }",
     ['qbapartments\0public/data.lua'] = "return { first = 'alta' }",
@@ -36,6 +42,11 @@ _G.LoadResourceFile = function(resource, path)
         qblibReadCounts[path] = (qblibReadCounts[path] or 0) + 1
         if path == 'modules/require/loader.lua' then return loaderSource end
         if path == 'modules/config/consumer.lua' then return configConsumerSource end
+        if path == 'compat/provider.lua' then return compatProviderSource end
+        if path == 'modules/loops/shared.lua' then return loopsSource end
+        if path == 'modules/stream/client.lua' then return streamSource end
+        if path == 'modules/util/shared.lua' then return utilSharedSource end
+        if path == 'modules/util/client.lua' then return utilClientSource end
     end
 
     local key = resource .. '\0' .. path
@@ -44,6 +55,7 @@ _G.LoadResourceFile = function(resource, path)
 end
 
 _G.GetCurrentResourceName = function() return 'consumer' end
+_G.IsDuplicityVersion = function() return false end
 _G.AddEventHandler = function(name, handler)
     stopHandlers[name] = stopHandlers[name] or {}
     stopHandlers[name][#stopHandlers[name] + 1] = handler
@@ -80,6 +92,44 @@ harness.test('load returns one value per requested path in order', function()
     harness.assertEqual(config.name, 'apartments')
     harness.assertEqual(data.first, 'alta')
     harness.assertEqual(params, 42)
+end)
+
+harness.test('stateless and streaming modules load lazily inside the consumer', function()
+    harness.assertEqual(qblibReadCounts['modules/loops/shared.lua'], nil)
+    harness.assertEqual(qblibReadCounts['modules/stream/client.lua'], nil)
+    harness.assertEqual(qblibReadCounts['modules/util/shared.lua'], nil)
+
+    local loops = QB.loops
+    harness.assertTrue(type(loops.controlled) == 'function')
+    harness.assertEqual(qblibReadCounts['modules/loops/shared.lua'], 1)
+    harness.assertEqual(QB.loops, loops)
+    harness.assertEqual(qblibReadCounts['modules/loops/shared.lua'], 1)
+
+    local requestedModel
+    _G.joaat = function() return 42 end
+    _G.IsModelValid = function() return true end
+    _G.HasModelLoaded = function(model) return requestedModel == model end
+    _G.RequestModel = function(model) requestedModel = model end
+    _G.SetModelAsNoLongerNeeded = function() end
+
+    harness.assertEqual(QB.stream.loadModel('consumer_model', nil, { timeout = 1000 }), 42)
+    harness.assertEqual(requestedModel, 42)
+    harness.assertEqual(qblibReadCounts['modules/stream/client.lua'], 1)
+    harness.assertEqual(qblibReadCounts['modules/util/shared.lua'], 1)
+    harness.assertEqual(qblibReadCounts['modules/util/client.lua'], 1)
+    harness.assertEqual(qblibReadCounts['compat/provider.lua'], 1)
+end)
+
+harness.test('the qblib update event refreshes loaded modules in place', function()
+    local loops = QB.loops
+    loopsSource = "function QB.loops.controlled() return 'updated' end"
+
+    for _, handler in ipairs(stopHandlers['qblib:client:updated'] or {}) do handler() end
+
+    harness.assertEqual(QB.loops, loops)
+    harness.assertEqual(loops.controlled(), 'updated')
+    harness.assertEqual(qblibReadCounts['modules/loops/shared.lua'], 2)
+    loopsSource = originalLoopsSource
 end)
 
 harness.test('load accepts a single path and an explicit lua extension', function()

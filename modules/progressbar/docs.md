@@ -33,6 +33,8 @@ Runs a progress bar for `payload.duration` ms.
   - `scenario?: table` — Alternative to `anim`; the two cannot be combined.
     - `name: string` — Scenario name, such as `WORLD_HUMAN_HAMMERING`.
     - `playEnter?: boolean` — Whether to play its enter animation. Defaults to `true`.
+  - `emote?: string` — Plays `exports.qbemotemenu:playEmote(emote)` for the duration and cancels it during cleanup. Ignored when `anim` or `scenario` is supplied.
+  - `prop?: table`, `proptwo?: table` — Legacy singular local cosmetic props. Each requires `model: string|integer`, `coords: vector3`, `bone: integer`, and `rotation: vector3`. Both may be supplied and are attached and deleted with the same lifecycle as `props`.
   - `props?: table[]` — Up to `Config.progressbar.maxProps` local cosmetic objects (2 by default), created before the timer begins and deleted when it ends.
     - `model: string | integer` — Model name or hash. Required.
     - `bone?: string | integer` — Ped bone name or ID. Defaults to `60309`.

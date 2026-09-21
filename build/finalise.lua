@@ -20,3 +20,9 @@ for key, value in pairs(QB) do
         end
     end
 end
+
+-- Consumers keep a few stateless modules in their own Lua environment. Tell
+-- already-running consumers to pull fresh source after a qblib restart; the
+-- event carries no functions or state across the resource boundary.
+local isServer = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
+TriggerEvent(isServer and 'qblib:server:updated' or 'qblib:client:updated')

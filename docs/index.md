@@ -57,7 +57,10 @@ local zone = QB.zones.sphere({
 })
 ```
 
-The proxy resolves `QB.<module>.<function>` to qblib's generated export named `<module>_<function>`. You normally use the `QB` form; direct exports are available when a language cannot load the Lua proxy.
+The proxy lazily loads stateless helpers and client streaming functions inside
+the consumer; stateful modules resolve to qblib's generated exports. You
+normally use the `QB` form either way. Direct exports remain available when a
+language cannot load the Lua proxy.
 
 ## Where to go next
 
