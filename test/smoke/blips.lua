@@ -111,6 +111,7 @@ harness.test("the shared fixed catalogue returns a fresh canonical name-to-id ma
         ['Vehicle Dealer'] = 37,
         ['Vehicle Tracking'] = 38,
         Weapons = 39,
+        Trucking = 40,
     }
     local first = QB.blips.getCategoryIds()
     local count = 0
@@ -320,7 +321,7 @@ harness.test("category and registered snapshots expose stable UI metadata", func
 
     local categories = QB.blips.getCategories()
     harness.assertEqual(categories[1].id, 12, "the fixed catalogue should be returned in id order")
-    harness.assertEqual(categories[#categories].id, 39)
+    harness.assertEqual(categories[#categories].id, 40)
     local registered = QB.blips.getRegistered()
     local found
     for _, record in ipairs(registered) do

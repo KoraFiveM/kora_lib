@@ -38,7 +38,7 @@ This module creates map blips visible only to the calling client, with automatic
 
 ## Implementation notes
 - Ownership tracking is delegated entirely to `QB.resources.registry` (`local/resources`) rather than hand-rolled here — see that module's `AGENTS.md` for why. `blips` is the first consumer.
-- Named category ids are a fixed shared catalogue in `shared.lua` (12-39). Never
+- Named category ids are a fixed shared catalogue in `shared.lua` (12-40). Never
   allocate them in creation order: that would make the same name resolve to
   different ids across resources, clients, or restarts.
 - Visibility is implemented with `SetBlipDisplay(blip, 0)` and restored from the
