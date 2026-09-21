@@ -425,6 +425,7 @@
 ---@field model string|integer
 ---@field bone? string|integer
 ---@field offset? QBCoords
+---@field coords? QBCoords Legacy `prop`/`proptwo` attachment offset.
 ---@field rotation? QBCoords
 ---@field softPinning? boolean
 ---@field collision? boolean
@@ -449,6 +450,9 @@
 ---@field strictAnim? boolean Raise when the animation dictionary cannot load; used by strict compatibility providers.
 ---@field scenario? QBProgressBarScenario
 ---@field props? QBProgressBarProp[]
+---@field prop? QBProgressBarProp
+---@field proptwo? QBProgressBarProp
+---@field emote? string
 ---@field maxProps? integer|false Override local prop cap; false allows all validated props.
 
 ---@class QBActionsResult

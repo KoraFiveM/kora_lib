@@ -3,6 +3,50 @@ local requireModule
 local configModule
 local compatModule
 
+-- These modules are intentionally instantiated inside each consumer. They
+-- contain no shared registry or long-lived ownership state, and their native
+-- calls should be attributed to the script that uses them. Everything else
+-- stays behind qblib's exports so there remains one authoritative instance.
+local consumerModuleFiles = {
+    loops = { 'modules/loops/shared.lua' },
+    util = { 'modules/util/shared.lua' },
+}
+
+local isServer = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
+if not isServer then
+    consumerModuleFiles.stream = { 'modules/stream/client.lua' }
+    consumerModuleFiles.util[#consumerModuleFiles.util + 1] = 'modules/util/client.lua'
+end
+
+local function loadConsumerModule(namespace, name, paths)
+    local module = {}
+    local previous = rawget(namespace, name)
+
+    -- Install the table before executing the files: module chunks populate it
+    -- through QB.<name>, which must resolve back here rather than recurse into
+    -- this loader.
+    rawset(namespace, name, module)
+
+    local ok, loadError = pcall(function()
+        for index = 1, #paths do
+            local path = paths[index]
+            local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
+            local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+            assert(chunk, compileError)
+            chunk()
+        end
+
+        assert(next(module), ('Consumer module QB.%s did not register any functions.'):format(name))
+    end)
+
+    if not ok then
+        rawset(namespace, name, previous)
+        error(loadError, 2)
+    end
+
+    return module
+end
+
 -- Requiring Lua files is deliberately consumer-local. Running this through a
 -- qblib export would execute the required chunk in qblib's Lua environment,
 -- leaking globals between resources and making the cache survive a consumer
@@ -24,8 +68,8 @@ end
 
 -- Configuration has to run inside the CONSUMING resource: its Config table,
 -- override file, and live handlers are all local to that resource. The normal
--- QB proxy deliberately routes calls into qblib instead, so config is the one
--- explicit consumer-local module alongside QB.require.
+-- exported-module path deliberately routes calls into qblib instead, so config
+-- uses its own consumer factory rather than the module loader above.
 local function getConfigModule()
     if configModule then return configModule end
 
@@ -109,6 +153,11 @@ QB = setmetatable({}, {
             return module
         end
 
+        local consumerFiles = consumerModuleFiles[k]
+        if consumerFiles then
+            return loadConsumerModule(t, k, consumerFiles)
+        end
+
         -- Computed once per module access, not per call -- __call's own
         -- implicit self (the proxy table) still has to be stripped below,
         -- since a metamethod always receives it as its first argument
@@ -138,3 +187,19 @@ QB = setmetatable({}, {
         return proxy
     end,
 })
+
+-- qblib emits this after rebuilding its exports. Refresh only modules this
+-- consumer already touched; untouched modules remain lazy. Copying into the
+-- original table also keeps `local stream = QB.stream` references current.
+AddEventHandler(isServer and 'qblib:server:updated' or 'qblib:client:updated', function()
+    for name, paths in pairs(consumerModuleFiles) do
+        local current = rawget(QB, name)
+        if current then
+            local updated = loadConsumerModule(QB, name, paths)
+
+            for key in pairs(current) do current[key] = nil end
+            for key, value in pairs(updated) do current[key] = value end
+            rawset(QB, name, current)
+        end
+    end
+end)

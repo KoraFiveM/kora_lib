@@ -58,6 +58,15 @@ local detachedEntities = {}
 local namedBoneCalls = {}
 local pedBoneCalls = {}
 local deadError = false
+local playedEmotes = {}
+local cancelledEmotes = {}
+
+_G.exports = {
+    qbemotemenu = {
+        playEmote = function(_, emote) playedEmotes[#playedEmotes + 1] = emote end,
+        cancelEmote = function(_, forced) cancelledEmotes[#cancelledEmotes + 1] = forced end,
+    },
+}
 
 function _G.PlayerPedId() return 1 end
 function _G.PlayerId() return 7 end
@@ -174,6 +183,8 @@ local function reset()
     namedBoneCalls = {}
     pedBoneCalls = {}
     deadError = false
+    playedEmotes = {}
+    cancelledEmotes = {}
 end
 
 harness.test("start rejects a missing label", function()
@@ -482,6 +493,49 @@ harness.test("local props use defaults, custom attachment fields, and clean up",
     harness.assertEqual(#deletedEntities, 2, "both props should be deleted after completion")
     harness.assertEqual(#detachedEntities, 2, "both props should be detached before deletion")
     harness.assertEqual(#networkCalls, 0, "local progress props must not call network configuration natives")
+end)
+
+harness.test("legacy prop and proptwo attach with coords and clean up", function()
+    reset()
+    local completed = QB.progressbar.start({
+        label = "Working...",
+        duration = 100,
+        prop = { model = "prop_one", coords = { x = 1.0, y = 2.0, z = 3.0 }, bone = 57005,
+            rotation = { x = 4.0, y = 5.0, z = 6.0 } },
+        proptwo = { model = "prop_two", coords = { x = 7.0, y = 8.0, z = 9.0 }, bone = 60309,
+            rotation = { x = 10.0, y = 11.0, z = 12.0 } },
+    })
+
+    harness.assertTrue(completed, "legacy props should not change successful completion")
+    harness.assertEqual(#createdObjects, 2, "both legacy props should be created")
+    harness.assertEqual(pedBoneCalls[1], 57005, "the first supplied bone should be used")
+    harness.assertEqual(pedBoneCalls[2], 60309, "the second supplied bone should be used")
+    harness.assertEqual(attachCalls[1][4], 1.0, "coords should become the attachment offset")
+    harness.assertEqual(attachCalls[2][4], 7.0, "proptwo coords should become the attachment offset")
+    harness.assertEqual(#deletedEntities, 2, "both legacy props should be deleted")
+end)
+
+harness.test("emotes are cleaned up and animation takes priority", function()
+    reset()
+    harness.assertTrue(QB.progressbar.start({ label = "Reading", duration = 100, emote = "clipboard" }))
+    harness.assertEqual(playedEmotes[1], "clipboard", "an emote-only bar should play its emote")
+    harness.assertTrue(cancelledEmotes[1], "the active emote should be cancelled at completion")
+
+    reset()
+    pressedControls[73] = true
+    harness.assertFalse(QB.progressbar.start({ label = "Reading", duration = 5000, canCancel = true, emote = "clipboard" }),
+        "X should use the normal cancellation path")
+    harness.assertEqual(playedEmotes[1], "clipboard", "a cancellable emote-only bar should play its emote")
+    harness.assertTrue(cancelledEmotes[1], "cancellation should stop the active emote")
+
+    reset()
+    animDictsLoaded["anim@test"] = true
+    harness.assertTrue(QB.progressbar.start({
+        label = "Working", duration = 100, emote = "clipboard",
+        anim = { dict = "anim@test", clip = "loop" },
+    }), "an animation-backed bar should complete")
+    harness.assertEqual(#playedEmotes, 0, "an animation should suppress the emote")
+    harness.assertEqual(#stoppedAnims, 1, "cancellation should stop the animation")
 end)
 
 harness.test("a prop creation failure is cosmetic and cleans up earlier props", function()

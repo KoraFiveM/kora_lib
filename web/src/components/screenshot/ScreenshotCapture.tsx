@@ -179,9 +179,8 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 }
 
 /**
- * A permanently mounted but invisible capture service. Unlike screenshot-basic
- * it does not run requestAnimationFrame continuously: it copies the CfxTexture
- * only after a Lua request, then releases all frame work until the next one.
+ * A permanently mounted but invisible capture service. CfxTexture needs a
+ * render on every browser frame to receive the current game view.
  */
 export function ScreenshotCapture() {
     const resourcesRef = useRef<CaptureResources | null>(null)
@@ -280,7 +279,19 @@ export function ScreenshotCapture() {
     })
 
     useEffect(() => {
+        let frameId: number
+        const renderGameView = () => {
+            const resources = resourcesRef.current
+            if (resources) {
+                resources.renderer.clear()
+                resources.renderer.render(resources.scene, resources.camera, resources.renderTarget, true)
+            }
+            frameId = requestAnimationFrame(renderGameView)
+        }
+
+        frameId = requestAnimationFrame(renderGameView)
         return () => {
+            cancelAnimationFrame(frameId)
             if (resourcesRef.current) destroyResources(resourcesRef.current)
             resourcesRef.current = null
         }

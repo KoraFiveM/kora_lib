@@ -13,19 +13,28 @@ The recommended call form is:
 QB.<module>.<function>(...)
 ```
 
-For example, `QB.stream.loadModel(model)` resolves to qblib's `stream_loadModel` export. A non-Lua consumer can call that generated export directly:
+For example, a stateful call such as `QB.entities.create(...)` resolves to
+qblib's `entities_create` export. A non-Lua consumer can call generated exports
+directly:
 
 ```lua
-local loaded = exports.qblib:stream_loadModel(model)
+local entity = exports.qblib:entities_create(model, coords)
 ```
 
 Use the documented `QB` form in Lua. It provides language-server types and keeps consumer code consistent when an implementation changes behind the proxy.
 
-`QB.require`, `QB.config`, and `QB.compat` are deliberate exceptions. They
-execute inside the consuming resource so required modules, globals,
-configuration state, and compatibility export handlers remain owned by that
-resource. Aliases registered with `QB.compat.provideExport` are therefore
-removed naturally when their provider stops.
+`QB.require`, `QB.config`, `QB.compat`, `QB.util`, and `QB.loops` are loaded
+lazily inside the consuming resource. `QB.stream` is loaded the same way on
+the client, so model and asset streaming natives execute in the resource that
+requested them. These modules are cached for the lifetime of that consumer.
+After qblib restarts, an update notification reloads only the local helper and
+streaming modules that were already used; untouched modules remain lazy.
+Existing module table references are updated in place.
+
+Modules with shared registries, long-lived handles, or central state continue
+to dispatch through qblib exports. Direct exports remain available for every
+module, including the consumer-local modules, for non-Lua callers and explicit
+compatibility use.
 
 ## Realms
 
