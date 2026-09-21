@@ -26,6 +26,7 @@ local spriteDocs = {
     [357] = { name = 'radar_garage', extension = 'png' },
     [365] = { name = 'radar_spawn_point_pickup', extension = 'png' },
     [380] = { name = 'radar_vehicle_deathmatch', extension = 'png' },
+    [477] = { name = 'radar_truck', extension = 'png' },
     [499] = { name = 'radar_production_meth', extension = 'png' },
     [616] = { name = 'radar_bat_truck', extension = 'png' },
     [617] = { name = 'radar_bat_hack_jewel', extension = 'png' },

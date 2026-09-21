@@ -32,6 +32,7 @@ local DEFINITIONS = {
     { key = 'Vehicle Dealer', name = 'Vehicle Dealer', label = 'Vehicle Dealer', id = 37 },
     { key = 'Vehicle Tracking', name = 'Vehicle Tracking', label = 'Vehicle Tracking', id = 38 },
     { key = 'Weapons', name = 'Weapons', label = 'Weapons', id = 39 },
+    { key = 'Trucking', name = 'Trucking', label = 'Trucking', id = 40 },
 }
 
 local ALIASES = {

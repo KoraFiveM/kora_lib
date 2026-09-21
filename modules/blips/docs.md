@@ -77,6 +77,7 @@ changing native category ids.
 | Restaurant | 34 | Scrapyard | 35 |
 | Tattoo | 36 | Vehicle Dealer | 37 |
 | Vehicle Tracking | 38 | Weapons | 39 |
+| Trucking | 40 | | |
 
 Legacy aliases remain accepted: `Ammu-Nation` → `Weapons`, `Clothing Store` →
 `Clothing`, `Tattoo Artist` → `Tattoo`, `Hairdresser`/`Barber` → `Grooming`,
