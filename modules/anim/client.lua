@@ -17,7 +17,7 @@
 ---@class QBAnimAttachOptions
 ---@field softPin? boolean Passed to `AttachEntityToEntity`'s useSoftPinning. Defaults to false.
 ---@field collision? boolean Passed to `AttachEntityToEntity`'s collision. Defaults to false.
----@field vertexIndex? number Defaults to 0.
+---@field vertexIndex? number Legacy option name for the native's rotationOrder. Defaults to 0.
 ---@field fixedRot? boolean Defaults to true.
 
 -- Keyed by entity, not a synthetic handle id -- QB.anim.stop/isPlaying take
@@ -160,7 +160,7 @@ end
 function QB.anim.isPlaying(entity)
     local handle = activeByEntity[entity]
     if not handle then return false end
-    return IsEntityPlayingAnim(entity, handle.dict, handle.clip, 3) == 1
+    return IsEntityPlayingAnim(entity, handle.dict, handle.clip, 3)
 end
 
 ---Creates a local, non-networked prop (`CreateObjectNoOffset`, same
@@ -197,7 +197,7 @@ function QB.anim.attachProp(entity, model, bone, offset, rotation, opts)
 
         AttachEntityToEntity(created, entity, boneIndex,
             offset.x, offset.y, offset.z, rotation.x, rotation.y, rotation.z,
-            opts.softPin or false, opts.collision or false, false,
+            false, opts.softPin or false, opts.collision or false, IsEntityAPed(entity),
             opts.vertexIndex or 0, opts.fixedRot ~= false)
 
         propRegistry.track(invokingResource, created)

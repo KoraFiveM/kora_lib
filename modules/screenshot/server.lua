@@ -146,6 +146,9 @@ function QB.screenshot.requestClient(player, options, callback)
     assert(not playerUploads[player], 'A screenshot is already pending for this player.')
 
     local normalized = normalizeOptions(options)
+    local timeout = options and options.timeout or screenshotConfig().requestTimeout or 30000
+    assert(type(timeout) == 'number' and timeout > 1000 and timeout % 1 == 0,
+        'Screenshot timeout must be an integer greater than 1000 milliseconds.')
     local token = generateToken(48)
     local session = {
         token = token,
@@ -158,9 +161,6 @@ function QB.screenshot.requestClient(player, options, callback)
     pendingUploads[token] = session
     playerUploads[player] = token
 
-    local timeout = options and options.timeout or screenshotConfig().requestTimeout or 30000
-    assert(type(timeout) == 'number' and timeout > 1000 and timeout % 1 == 0,
-        'Screenshot timeout must be an integer greater than 1000 milliseconds.')
     SetTimeout(timeout, function()
         if pendingUploads[token] == session then
             finish(session, 'Screenshot capture timed out.')

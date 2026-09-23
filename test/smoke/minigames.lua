@@ -15,6 +15,9 @@ local mocks = require("mocks")
 -- QB.callback.trigger calls -- made later, at CALL time -- resolve to the
 -- CLIENT version instead.
 local net = mocks.install()
+local browserElapsed = 0
+local mockGameTimer = GetGameTimer
+_G.GetGameTimer = function() return mockGameTimer() + browserElapsed end
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
@@ -53,7 +56,11 @@ QB.nui = {
     request = function(action, data)
         local p = promise.new()
         if action == "minigames:round" and roundResponder then
-            p:resolve(roundResponder(data))
+            local attempt = roundResponder(data)
+            -- Simulate time spent in the browser without suspending the
+            -- synchronous request fixture. Direct server tests control time.
+            browserElapsed = browserElapsed + data.timeLimit
+            p:resolve(attempt)
         end
         return p
     end,
@@ -729,6 +736,7 @@ harness.test("resource stop removes pending authorizations, live sessions, and p
         return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local proofRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
+    Wait(2 * Config.minigames.mash.minPressInterval)
     local proofResult = serverCall("qblib:minigames:submit", mocks.SOURCE, proofRound.sessionId, mashAttempt(3))
 
     local activeAuthorization = asResource("consumer_cleanup", function()
@@ -763,6 +771,7 @@ harness.test("authorization and proof TTLs are enforced", function()
         return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local round = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
+    Wait(2 * Config.minigames.mash.minPressInterval)
     local result = serverCall("qblib:minigames:submit", mocks.SOURCE, round.sessionId, mashAttempt(3))
     Wait(Config.minigames.proofTTL + 1)
     harness.assertFalse(asResource("consumer_ttl", function()
@@ -830,6 +839,7 @@ harness.test("playerDropped removes every minigame capability and active session
         return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local proofRound = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
+    Wait(2 * Config.minigames.mash.minPressInterval)
     local proofResult = serverCall("qblib:minigames:submit", mocks.SOURCE, proofRound.sessionId, mashAttempt(3))
     local activeAuthorization = asResource("consumer_player", function()
         return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
@@ -854,6 +864,43 @@ harness.test("playerDropped removes every minigame capability and active session
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
     _G.source = nil
+end)
+
+harness.test("authorized proofs reject future input timestamps and reset timing on retry", function()
+    local authorization = QB.minigames.authorizeProof(mocks.SOURCE, 'mash', { attempts = 3, requiredPresses = 20 })
+    local round = serverCall('qblib:minigames:start', mocks.SOURCE, 'mash', nil, authorization)
+    local attempt = mashAttempt(20)
+    local first = serverCall('qblib:minigames:submit', mocks.SOURCE, round.sessionId, attempt)
+    harness.assertFalse(first.done, 'future timestamps should consume an attempt, not produce a proof')
+    harness.assertEqual(first.proof, nil)
+
+    Wait(attempt.pressTimestamps[20])
+    local second = serverCall('qblib:minigames:submit', mocks.SOURCE, round.sessionId, { pressTimestamps = {} })
+    harness.assertFalse(second.done)
+    local third = serverCall('qblib:minigames:submit', mocks.SOURCE, round.sessionId, attempt)
+    harness.assertTrue(third.done)
+    harness.assertFalse(third.success, 'a retry cannot reuse time spent in the previous round')
+    harness.assertEqual(third.proof, nil)
+
+    authorization = QB.minigames.authorizeProof(mocks.SOURCE, 'mash', { attempts = 1, requiredPresses = 20 })
+    round = serverCall('qblib:minigames:start', mocks.SOURCE, 'mash', nil, authorization)
+    Wait(attempt.pressTimestamps[20])
+    local valid = serverCall('qblib:minigames:submit', mocks.SOURCE, round.sessionId, attempt)
+    harness.assertTrue(valid.success)
+    harness.assertTrue(QB.minigames.consumeProof(mocks.SOURCE, valid.proof, 'mash', authorization))
+end)
+
+harness.test("single-input rounds enforce the server clock with a bounded margin", function()
+    local elapsed = Config.minigames.hacking.minTimePerFind
+    for _, margin in ipairs({ 51, 50 }) do
+        local authorization = QB.minigames.authorizeProof(mocks.SOURCE, 'hacking')
+        local round = serverCall('qblib:minigames:start', mocks.SOURCE, 'hacking', nil, authorization)
+        Wait(elapsed - margin)
+        local result = serverCall('qblib:minigames:submit', mocks.SOURCE, round.sessionId,
+            { submitted = round.public.code, elapsed = elapsed })
+        harness.assertEqual(result.success, margin == 50)
+        if margin == 51 then harness.assertEqual(result.proof, nil) end
+    end
 end)
 
 harness.report("minigames")

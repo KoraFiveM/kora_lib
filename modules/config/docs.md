@@ -36,7 +36,9 @@ Use `boolean`, `string`, `integer`, `number`, `enum`, `color`, `vector2`,
 explicit. `list(default, item, options)` and `map(default, item, options)`
 use their `item` descriptor for every entry; this is the right way to allow
 editable empty or dynamically-sized collections. `optional(nil, inner)`
-creates a nullable field.
+creates a nullable field. Clearing an optional field with a non-nil default
+persists an explicit clear and also clears the value for newly connected clients;
+resetting it restores the authored default.
 
 The common options are `label`, `description`, `scope`, `live`, `min`, `max`,
 `step`, `minLength`, `maxLength`, `pattern`, and `sensitive`. Maps additionally

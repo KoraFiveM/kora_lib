@@ -11,7 +11,7 @@ local AUTHOR_FIELDS = { 'name', 'url', 'icon_url' }
 local URL_FIELDS = { 'url' }
 
 local function assertCallback(callback)
-    assert(callback == nil or type(callback) == 'function', 'Discord callback must be a function or nil.')
+    assert(callback == nil or QB.compat.isCallable(callback), 'Discord callback must be callable or nil.')
 end
 
 local function decodeResponse(statusCode, body, headers, errorData)
@@ -292,7 +292,7 @@ end
 ---@param callback function|nil
 ---@return boolean queued
 function QB.discord.getGuild(guildId, callback)
-    if type(guildId) == 'function' and callback == nil then callback, guildId = guildId, nil end
+    if QB.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
     if not requireBot(callback) then return false end
     return QB.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId), nil, callback)
 end
@@ -324,7 +324,7 @@ end
 ---@param callback function|nil
 ---@return boolean queued
 function QB.discord.fetchGuildRoles(guildId, callback)
-    if type(guildId) == 'function' and callback == nil then callback, guildId = guildId, nil end
+    if QB.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
     if not requireBot(callback) then return false end
     return QB.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId) .. '/roles', nil, callback)
 end
@@ -408,7 +408,7 @@ end
 ---@param callback function|nil
 ---@return boolean queued
 function QB.discord.getChannels(guildId, callback)
-    if type(guildId) == 'function' and callback == nil then callback, guildId = guildId, nil end
+    if QB.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
     if not requireBot(callback) then return false end
     return QB.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId) .. '/channels', nil, callback)
 end

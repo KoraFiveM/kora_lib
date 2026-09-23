@@ -98,6 +98,20 @@ harness.test('qblib registers requestClientScreenshot directly', function()
         'qblib should expose requestClientScreenshot for server callers')
 end)
 
+harness.test('invalid timeout does not reserve the player capture slot', function()
+    for _, timeout in ipairs({ 0, 1000, 1500.5, 'invalid' }) do
+        harness.assertThrows(function()
+            QB.screenshot.requestClient(mocks.SOURCE, { timeout = timeout })
+        end)
+    end
+    local completed = false
+    QB.screenshot.requestClient(mocks.SOURCE, { timeout = 30000 }, function(err)
+        harness.assertEqual(err, false)
+        completed = true
+    end)
+    harness.assertTrue(completed, 'a valid request must complete after rejected timeout options')
+end)
+
 harness.test('server capture uses one tokenized raw browser upload', function()
     local callbackErr, callbackResult
     local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function(err, result)

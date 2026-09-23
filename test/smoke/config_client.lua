@@ -70,6 +70,31 @@ H.test('consumer-local QB.config forwards editor opens to qblib', function()
     H.assertEqual(openedResource, 'sample')
 end)
 
+H.test('snapshots clear optional scalar and object defaults and notify bindings', function()
+    local config = makeConfig({})
+    local values = config.define({
+        note = config.optional('enabled', config.string('example'), { live = true }),
+        details = config.optional({ label = 'default' }, config.object({ label = '' }), { live = true }),
+    })
+    local changes = 0
+    config.onChange('note', function(value, previous)
+        H.assertEqual(value, nil)
+        H.assertEqual(previous, 'enabled')
+        changes = changes + 1
+    end)
+    local bound = 'not updated'
+    config.bind('remote', 'note', function(value) bound = value end)
+    netEvents['qblib:client:configSnapshot']('remote', { note = 'enabled' }, 1)
+    H.assertEqual(bound, 'enabled')
+    local cleared = { __qblibConfigType = 'nil' }
+    netEvents['qblib:client:configSnapshot']('sample', { note = cleared, details = cleared }, 2)
+    netEvents['qblib:client:configSnapshot']('remote', { note = cleared }, 2)
+    H.assertEqual(values.note, nil)
+    H.assertEqual(values.details, nil)
+    H.assertEqual(changes, 1)
+    H.assertEqual(bound, nil, 'remote bindings must receive the cleared value')
+end)
+
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
 H.report('config_client')

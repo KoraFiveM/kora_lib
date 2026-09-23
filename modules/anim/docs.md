@@ -50,8 +50,8 @@ end
 
 - `softPin` defaults to `false`.
 - `collision` defaults to `false`.
-- `vertexIndex` defaults to `0`.
-- `fixedRot` defaults to `true`.
+- `vertexIndex` is the legacy option name for the native's rotation order and defaults to `0`.
+- `fixedRot` controls rotation synchronization and defaults to `true`.
 
 ```lua
 local prop, reason = QB.anim.attachProp(PlayerPedId(), 'prop_cs_tablet', 'IK_R_Hand',

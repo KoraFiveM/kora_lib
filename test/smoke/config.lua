@@ -333,6 +333,43 @@ H.test('sparse numeric object keys persist and reload without becoming strings',
     H.assertEqual(values.classes['13'], nil)
 end)
 
+H.test('adopted runtime callbacks do not break commit or reset responses', function()
+    files, registered, registrations = {}, {}, {}
+    local config = makeConfig(library)
+    local callback = function() end
+    local values = { amount = config.number(10, { live = true }), callback = callback, runtime = {} }
+    config.adopt(values)
+    values.runtime.callback = callback
+    local result = registered.qblib_configCommit({ path = { 'amount' }, value = 15, revision = 1 })
+    H.assertTrue(result.ok, result.error)
+    H.assertEqual(values.amount, 15)
+    H.assertEqual(result.values.amount, 15)
+    H.assertEqual(result.values.callback, nil)
+    H.assertEqual(result.values.runtime, nil)
+    H.assertEqual(values.callback, callback)
+    result = registered.qblib_configReset({ path = { 'amount' }, revision = 2 })
+    H.assertTrue(result.ok, result.error)
+    H.assertEqual(result.values.amount, 10)
+end)
+
+H.test('cleared optional defaults survive reload and can be reset', function()
+    files, registered, registrations = {}, {}, {}
+    local config = makeConfig(library)
+    local values = config.define({ note = config.optional('enabled', config.string('example'), { live = true }) })
+    local result = registered.qblib_configCommit({ path = { 'note' }, revision = 1 })
+    H.assertTrue(result.ok, result.error)
+    H.assertEqual(values.note, nil)
+    H.assertEqual(registrations[#registrations].client.note.__qblibConfigType, 'nil')
+
+    config = makeConfig(library)
+    values = config.define({ note = config.optional('enabled', config.string('example'), { live = true }) })
+    H.assertEqual(values.note, nil, 'reload must preserve the explicit clear')
+    result = registered.qblib_configReset({ path = { 'note' }, revision = 1 })
+    H.assertTrue(result.ok, result.error)
+    H.assertEqual(values.note, 'enabled')
+    H.assertEqual(next(assert(load(files['config.local.lua']))()), nil, 'reset must remove the override')
+end)
+
 H.test('nullable descriptors retain a nil authored default', function()
     files = {}
     registered = {}

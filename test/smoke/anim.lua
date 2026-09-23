@@ -40,7 +40,7 @@ end
 
 function _G.IsEntityPlayingAnim(entity, dict, clip)
     local call = playCalls[entity]
-    return (call and call.dict == dict and call.clip == clip and stopCalls[entity] == nil) and 1 or 0
+    return (call and call.dict == dict and call.clip == clip and stopCalls[entity] == nil) and true or false
 end
 
 function _G.DoesEntityExist(e) return existingEntities[e] == true or existingProps[e] == true end
@@ -58,8 +58,9 @@ function _G.CreateObjectNoOffset()
     return nextProp
 end
 
-function _G.AttachEntityToEntity(prop, entity, boneIndex)
-    propAttach[prop] = { entity = entity, boneIndex = boneIndex }
+function _G.IsEntityAPed(entity) return entity == 1 end
+function _G.AttachEntityToEntity(prop, entity, boneIndex, ...)
+    propAttach[prop] = { entity = entity, boneIndex = boneIndex, args = table.pack(...) }
 end
 
 function _G.DetachEntity(prop) propAttach[prop] = nil end
@@ -124,6 +125,24 @@ harness.test("attachProp creates and attaches a prop at the resolved bone", func
     harness.assertTrue(_G.DoesEntityExist(prop), "the prop should exist")
     harness.assertEqual(propAttach[prop].entity, 1, "the prop should be attached to the given entity")
     harness.assertEqual(propAttach[prop].boneIndex, 5, "the prop should be attached at the resolved bone index")
+end)
+
+harness.test("attachProp forwards the complete native signature for ped and object targets", function()
+    for _, entity in ipairs({ 1, 2 }) do
+        local prop = QB.anim.attachProp(entity, "test_prop", "test_bone",
+            { x = 1, y = 2, z = 3 }, { x = 4, y = 5, z = 6 },
+            { softPin = true, collision = true, vertexIndex = 2, fixedRot = false })
+        local args = propAttach[prop].args
+        harness.assertEqual(args.n, 12, "native needs twelve arguments after the bone index")
+        for index = 1, 6 do harness.assertEqual(args[index], index) end
+        harness.assertEqual(args[7], false, "p9")
+        harness.assertEqual(args[8], true, "soft pinning")
+        harness.assertEqual(args[9], true, "collision")
+        harness.assertEqual(args[10], entity == 1, "ped flag")
+        harness.assertEqual(args[11], 2, "rotation order")
+        harness.assertEqual(args[12], false, "rotation synchronization")
+        QB.anim.detachProp(prop)
+    end
 end)
 
 harness.test("attachProp refuses an unknown bone", function()

@@ -411,6 +411,7 @@ return function(library)
     local function decodeStorage(value)
         if type(value) ~= 'table' then return value end
         local marker = rawget(value, STORAGE_MARKER)
+        if marker == 'nil' then return nil end
         if marker == 'vector2' or marker == 'vector3' or marker == 'vector4' then
             local constructor = rawget(_G, marker)
             if type(constructor) == 'function' then
@@ -618,6 +619,9 @@ return function(library)
     local function pruneOverrides(schema, current, defaults)
         if schema.kind ~= 'object' then
             if equal(current, defaults) then return nil end
+            -- Absence means use the authored default; clearing an optional
+            -- value needs an explicit representation in the override file.
+            if schema.kind == 'optional' and current == nil then return { [STORAGE_MARKER] = 'nil' } end
             return encodeStorage(current)
         end
         local out = {}
@@ -718,7 +722,7 @@ return function(library)
     local function clientProjection(schema, configured)
         if schema.scope == 'server' then return nil end
         if schema.kind == 'optional' then
-            if configured == nil then return nil end
+            if configured == nil then return { [STORAGE_MARKER] = 'nil' } end
             return clientProjection(schema.inner, configured)
         end
         if schema.kind == 'object' then
@@ -1238,7 +1242,7 @@ return function(library)
         end
         announce()
         return { ok = true, revision = state.revision, applied = applied, restartRequired = not schema.live,
-            configured = encodeStorage(state.configured), values = encodeStorage(state.values) }
+            configured = encodeStorage(state.configured), values = encodeStorage(projectValues(state.schema, state.values)) }
     end
 
     local function reset(request)
@@ -1324,7 +1328,6 @@ return function(library)
                 return
             end
             if not state then return end
-            local values = decodeStorage(encoded)
             local function apply(schema, current, incoming, path)
                 if schema.scope == 'server' or incoming == nil then return end
                 if schema.kind == 'object' then
@@ -1337,7 +1340,7 @@ return function(library)
                     return
                 end
                 local oldValue = copy(current)
-                local valid, value = validate(schema, incoming)
+                local valid, value = validate(schema, decodeStorage(incoming))
                 if not valid then return end
                 if #path == 0 then return end
                 writePath(state.configured, path, value, state.schema)
@@ -1349,7 +1352,7 @@ return function(library)
                         { initial = true, resource = RESOURCE, path = copy(path), revision = revision })
                 end
             end
-            apply(state.schema, state.values, values, {})
+            apply(state.schema, state.values, encoded, {})
             state.revision = revision or state.revision
             markReady(RESOURCE)
         end)

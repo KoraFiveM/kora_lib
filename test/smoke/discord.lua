@@ -363,4 +363,23 @@ harness.test("a Discord 429 is retried once after retry_after", function()
     harness.assertTrue(callbackOk, "a successful retry should report success")
 end)
 
+harness.test("exported callback references work for webhook and bot APIs", function()
+    convars = { qblib_discord_bot_token = "test-token", qblib_discord_guild_id = GUILD_ID }
+    resetHttp()
+    local calls = 0
+    local callback = setmetatable({ __cfx_functionReference = 'test:callback' }, {
+        __call = function(_, ok)
+            harness.assertTrue(ok)
+            calls = calls + 1
+        end,
+    })
+    QB.discord.sendWebhook('https://example.invalid/webhook', 'test', callback)
+    QB.discord.botRequest('GET', '/users/@me', nil, callback)
+    QB.discord.getGuild(callback)
+    QB.discord.fetchGuildRoles(callback)
+    QB.discord.getChannels(callback)
+    harness.assertEqual(calls, 5, 'full and shorthand APIs must invoke callable-table callbacks')
+    harness.assertThrows(function() QB.discord.sendWebhook(nil, 'test', {}) end)
+end)
+
 harness.report("discord")

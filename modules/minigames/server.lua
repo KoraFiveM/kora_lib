@@ -92,9 +92,13 @@ local function denseArrayLength(value, label, maxLength, minLength)
     return count
 end
 
-local function assertElapsed(value, timeLimit, label)
+local function assertElapsed(value, session, label)
     assert(isFiniteNumber(value), label .. " must be a finite number.")
-    assert(value >= 0 and value <= timeLimit, label .. " is outside the round's time limit.")
+    assert(value >= 0 and value <= session.timeLimit, label .. " is outside the round's time limit.")
+    -- The browser starts after the server sends the round. Allow only a small
+    -- clock-quantization margin; network latency already increases this budget.
+    assert(value <= GetGameTimer() - session.roundStartedAt + 50,
+        label .. " exceeds the time elapsed on the server.")
 end
 
 ------------------------------------------------------------------------------
@@ -435,7 +439,7 @@ function validate.lockpick(session, attempt)
         local press = attempt.presses[i]
         assert(type(press) == "table" and isInteger(press.index), "malformed lockpick press.")
         assert(press.index == i, "lockpick pins must be pressed in order.")
-        assertElapsed(press.elapsed, session.timeLimit, "lockpick press")
+        assertElapsed(press.elapsed, session, "lockpick press")
         assert(press.elapsed >= lastElapsed + floor, "lockpick presses are too close together to be human.")
 
         local pin = solution.pins[press.index]
@@ -461,7 +465,7 @@ end
 
 function validate.skillbar(session, attempt)
     assert(type(attempt) == "table", "malformed skillbar attempt.")
-    assertElapsed(attempt.elapsed, session.timeLimit, "skillbar press")
+    assertElapsed(attempt.elapsed, session, "skillbar press")
     assert(attempt.elapsed >= Config.minigames.skillbar.minReactionTime, "skillbar press too fast to be human.")
 
     local solution = session.solution
@@ -525,7 +529,7 @@ function validate.circuit(session, attempt)
             "malformed circuit connection.")
         boundedString(conn.from, "circuit input id", 16, false)
         boundedString(conn.to, "circuit output id", 16, false)
-        assertElapsed(conn.elapsed, session.timeLimit, "circuit connection")
+        assertElapsed(conn.elapsed, session, "circuit connection")
         assert(conn.elapsed >= lastElapsed + floor, "circuit connections are too close together to be human.")
         assert(not usedInputs[conn.from], "circuit input connected more than once.")
         assert(not usedOutputs[conn.to], "circuit output connected more than once.")
@@ -563,7 +567,7 @@ function validate.mash(session, attempt)
 
     for i = 1, pressCount do
         local t = attempt.pressTimestamps[i]
-        assertElapsed(t, solution.timeLimit, "mash press")
+        assertElapsed(t, session, "mash press")
         assert(t >= last + floor, "mash presses are too close together to be human.")
         last = t
     end
@@ -595,7 +599,7 @@ function validate.fishing(session, attempt)
         local reel = attempt.reels[i]
         assert(type(reel) == "table" and isInteger(reel.index), "malformed fishing reel.")
         assert(reel.index == i, "fishing bites must be reeled in order.")
-        assertElapsed(reel.elapsed, session.timeLimit, "fishing reel")
+        assertElapsed(reel.elapsed, session, "fishing reel")
         assert(reel.elapsed >= lastElapsed + floor, "fishing reels are too close together to be human.")
 
         local position = QB.minigames.triangleWave(reel.elapsed, solution.speed)
@@ -642,7 +646,7 @@ function validate.pinpad(session, attempt)
         local entry = attempt.digits[i]
         assert(type(entry) == "table" and isInteger(entry.value) and entry.value >= 0 and entry.value <= 9,
             "malformed pinpad digit.")
-        assertElapsed(entry.elapsed, session.timeLimit, "pinpad digit")
+        assertElapsed(entry.elapsed, session, "pinpad digit")
         assert(entry.elapsed >= lastElapsed + floor, "pinpad digits are too close together to be human.")
         lastElapsed = entry.elapsed
 
@@ -684,7 +688,7 @@ function validate.quiz(session, attempt)
         local entry = attempt.answers[i]
         assert(type(entry) == "table" and type(entry.choice) == "string", "malformed quiz answer.")
         boundedString(entry.choice, "quiz answer choice", Config.minigames.inputLimits.quizOptionBytes, true)
-        assertElapsed(entry.elapsed, session.timeLimit, "quiz answer")
+        assertElapsed(entry.elapsed, session, "quiz answer")
         assert(entry.elapsed >= lastElapsed + floor, "quiz answers are too close together to be human.")
         lastElapsed = entry.elapsed
 
@@ -720,7 +724,7 @@ function validate.wordguess(session, attempt)
         assert(type(g) == "table" and type(g.letter) == "string" and #g.letter == 1 and
             g.letter:match("^[A-Za-z]$") ~= nil,
             "malformed wordguess letter.")
-        assertElapsed(g.elapsed, session.timeLimit, "wordguess letter")
+        assertElapsed(g.elapsed, session, "wordguess letter")
         assert(g.elapsed >= lastElapsed + floor, "wordguess letters are too close together to be human.")
         lastElapsed = g.elapsed
 
@@ -767,7 +771,7 @@ function validate.wordscramble(session, attempt)
     assert(type(attempt) == "table" and type(attempt.guess) == "string",
         "malformed wordscramble attempt.")
     boundedString(attempt.guess, "wordscramble guess", Config.minigames.inputLimits.wordScrambleBytes, true)
-    assertElapsed(attempt.elapsed, session.timeLimit, "wordscramble submit")
+    assertElapsed(attempt.elapsed, session, "wordscramble submit")
     assert(attempt.elapsed >= Config.minigames.wordscramble.minSubmitTime, "wordscramble submitted too fast to be human.")
 
     return attempt.guess:lower() == session.solution.word
@@ -810,7 +814,7 @@ function validate.keys(session, attempt)
             #press.key == 0 or #press.key > 5 or not isFiniteNumber(press.elapsed) then
             faults = faults + 1
         else
-            assertElapsed(press.elapsed, session.timeLimit, "keys press")
+            assertElapsed(press.elapsed, session, "keys press")
             assert(press.elapsed >= lastElapsed + floor, "keys presses are too close together to be human.")
             lastElapsed = press.elapsed
             if press.key ~= key then faults = faults + 1 end
@@ -848,7 +852,7 @@ function validate.hacking(session, attempt)
     assert(type(attempt) == "table" and type(attempt.submitted) == "string",
         "malformed hacking attempt.")
     boundedString(attempt.submitted, "hacking submission", 10, true)
-    assertElapsed(attempt.elapsed, session.timeLimit, "hacking submit")
+    assertElapsed(attempt.elapsed, session, "hacking submit")
     assert(attempt.elapsed >= Config.minigames.hacking.minTimePerFind, "hacking submitted too fast to be human.")
 
     return attempt.submitted == session.solution.code
@@ -983,7 +987,7 @@ QB.callback.register("qblib:minigames:start", function(src, gameType, opts, auth
         maxAttempts = cfg.attempts,
         attemptsUsed = 0,
         timeLimit = cfg.timeLimit,
-        createdAt = now,
+        roundStartedAt = now,
         overallExpiresAt = overallExpiresAt,
         expiresAt = roundExpiry(now, cfg, overallExpiresAt),
         authorization = authorizationToken,
@@ -1033,7 +1037,8 @@ QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
     -- same target.
     local solution, public = generate[session.gameType](session.cfg)
     session.solution = solution
-    session.expiresAt = roundExpiry(GetGameTimer(), session.cfg, session.overallExpiresAt)
+    session.roundStartedAt = GetGameTimer()
+    session.expiresAt = roundExpiry(session.roundStartedAt, session.cfg, session.overallExpiresAt)
 
     return {
         done = false,
