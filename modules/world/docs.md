@@ -10,14 +10,14 @@ Finds every entity of `entityType` within `radius` meters of `coords`.
 
 #### Parameters
 - `entityType: "ped" | "vehicle" | "object" | "player"`
-- `coords: vector3 | {x, y, z}`
-- `radius: number` — meters, must be positive.
+- `coords: vector3 | {x, y, z}` — finite coordinates.
+- `radius: number` — finite positive meters.
 - `options: table | nil`
   - `models: (number | string)[]` — restrict to these models. String entries are `joaat`-hashed. Ignored for `"player"`.
   - `predicate: fun(entity, coords, distance): boolean` — runs last, after every other filter.
   - `includeInvisible: boolean` — include entities `IsEntityVisible` reports as hidden. Defaults to `false`.
   - `includeOwnPed: boolean` — include the local player's own ped. Defaults to `false`.
-  - `excludeEntities: number[]` — entity handles to skip outright.
+  - `excludeEntities: number[]` — positive finite integer entity handles to skip outright.
 
 #### Returns
 - `{entity: number, coords: table, distance: number}[]` — sorted ascending by distance.
@@ -29,7 +29,7 @@ Finds the single nearest entity of `entityType` to `coords`.
 - `entityType: "ped" | "vehicle" | "object" | "player"`
 - `coords: vector3 | {x, y, z}`
 - `options: table | nil` — same fields as `getNearbyEntities`, plus:
-  - `radius: number` — search radius, meters. Defaults to `Config.world.defaultRadius`.
+  - `radius: number` — finite positive search radius in meters. Defaults to `Config.world.defaultRadius`.
 
 #### Returns
 - `number | false` — the closest matching entity, or `false` if nothing matched within range.
@@ -53,8 +53,16 @@ end
 ```
 
 ## Notes
+- Optional `options` values must be tables when supplied. Model and exclusion
+  lists must be dense arrays with documented entry types, predicates must be
+  callable, and boolean filters must be booleans; malformed queries are
+  rejected before qblib scans a pool or calls a native.
 - `"player"` is not a `GetGamePool` pool type — it's enumerated via `GetActivePlayers()`/`GetPlayerPed`, one ped per connected player (including the local one, subject to `includeOwnPed` like `"ped"`).
 - Filters run cheapest-first (self-exclusion, explicit exclude list, model set, visibility) before `predicate`, which may be arbitrarily expensive — same discipline `modules/zones` documents for its own AABB-then-exact-shape containment tests.
+- Closest-entity and spawn-clear scans retain native coordinates while walking
+  candidates. qblib makes a plain `{x, y, z}` table only for a predicate or a
+  returned match, avoiding one short-lived allocation per otherwise irrelevant
+  candidate.
 - Pool queries are available on both realms. Client queries inspect streamed entities; server queries inspect OneSync's server entity pools.
 - This module reads the world; it doesn't own or track anything, unlike `modules/entities` (which only ever reports entities it created itself) or `modules/zones` (which owns registered volumes). There's nothing to clean up on resource stop here.
 
@@ -62,23 +70,28 @@ end
 
 ### `QB.world.getGroundCoords(coords, options?)` (client)
 
-Requests collision and performs a bounded ground search. Options are `height`,
-`attempts`, and `retryDelay`; defaults come from `Config.world`. Returns the
-resolved `{x, y, z}`, or `false, error`.
+Requests collision and performs a bounded ground search. `height` must be
+finite; `attempts` must be a positive finite integer and `retryDelay` a
+non-negative finite integer. Defaults come from `Config.world`. Returns the
+resolved `{x, y, z}`, or `false, error`. A default applies only when its option
+is omitted; explicit invalid values are rejected.
 
 ### `QB.world.getStreetNames(coords?)` (client)
 
-Returns `street, crossing?` using the cached player coordinates when omitted.
+Returns `street, crossing?` using the cached player coordinates when omitted;
+an explicit coordinate value must be valid.
 
 ### `QB.world.getZoneName(coords?)` (client)
 
-Returns `localizedLabel, zoneCode` for the given or cached coordinates.
+Returns `localizedLabel, zoneCode` for the given or cached coordinates. An
+explicit coordinate value must be valid.
 
 ### `QB.world.getCardinalDirection(value?, options?)` (client)
 
 Returns one of `N`, `NW`, `W`, `SW`, `S`, `SE`, `E`, or `NE`. `value` is a
-heading in degrees. With `{ entity = true }`, it is treated as an entity
-handle; when omitted the cached player ped is used.
+finite heading in degrees. With `{ entity = true }`, it is treated as an entity
+handle; when omitted the cached player ped is used. When supplied, `options`
+must be a table and `entity` must be boolean.
 
 ### `QB.world.getWaypointCoords()` (client)
 
@@ -86,13 +99,13 @@ Returns the active waypoint as `{x, y, z}`, or `false, error` when none is set.
 
 ### `QB.world.isSpawnClear(coords, radius, options?)` (client/server)
 
-Returns whether no vehicle is within the radius. It accepts the normal world
+Returns whether no vehicle is within the finite positive radius. It accepts the normal world
 query filters; the client intentionally includes invisible streamed vehicles
 because they still occupy the spawn point.
 
 ### `QB.world.resolveNetworkEntity(source, networkId, options?)` (server)
 
-Resolves a client-supplied network ID and validates the live entity before
+Resolves a client-supplied finite network ID and validates the live entity before
 server code acts on it. Options are `entityType` (`ped`, `vehicle`, or
 `object`), `maxDistance`, `sameBucket` (true by default), and
 `requireDriver`. It returns the entity handle or `nil, reason`, where `reason`
@@ -102,7 +115,8 @@ is a stable code such as `invalid_network_id`, `entity_unavailable`,
 
 ### `QB.world.resolveNearbyPlayer(source, targetSource, options)` (server)
 
-Validates two live player peds using server-authoritative coordinates. The
+Validates two live player peds using server-authoritative coordinates. Source
+and target IDs must be positive finite integers. The
 required `maxDistance` option bounds the interaction; `sameBucket` defaults to
 true and `allowSelf` defaults to false. On success it returns the target ped
 and distance. On failure it returns `nil` with a stable code:

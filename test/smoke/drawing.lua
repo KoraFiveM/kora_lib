@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 local playerCoords = { x = 0, y = 0, z = 0 }
 _G.PlayerPedId = function() return 1 end
@@ -52,6 +53,49 @@ harness.test("text3d skips every native call beyond maxDistance", function()
     harness.assertEqual(#calls, 0, "no drawing native should run beyond maxDistance")
 end)
 
+harness.test("text3d rejects non-finite coordinates and culling ranges", function()
+    calls = {}
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = math.huge, y = 0, z = 0 }, "invalid")
+    end, "infinite draw origins must be rejected")
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { maxDistance = 0 / 0 })
+    end, "NaN culling ranges must be rejected")
+    harness.assertEqual(#calls, 0, "invalid drawing inputs must not run natives")
+end)
+
+harness.test("text3d validates every native option before drawing", function()
+    calls = {}
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { font = 1.5 })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { scale = math.huge })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { color = { r = 0, g = 0, b = 256, a = 0 } })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { outline = 'yes' })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", false)
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { maxDistance = false })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { font = false })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { scale = false })
+    end)
+    harness.assertThrows(function()
+        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { color = false })
+    end)
+    harness.assertEqual(#calls, 0, "invalid options must not run drawing natives")
+end)
+
 harness.test("text3d draws when within maxDistance", function()
     calls = {}
     playerCoords = { x = 0, y = 0, z = 0 }
@@ -67,6 +111,15 @@ harness.test("text3d draws when within maxDistance", function()
     local origin = callNamed("SetDrawOrigin")
     harness.assertTrue(origin ~= nil, "SetDrawOrigin should have been called")
     harness.assertEqual(origin[1], 5, "SetDrawOrigin should use the given coords")
+end)
+
+harness.test("text3d draws exactly at maxDistance", function()
+    calls = {}
+    playerCoords = { x = 0, y = 0, z = 0 }
+
+    QB.drawing.text3d({ x = 3, y = 4, z = 0 }, "at range", { maxDistance = 5.0 })
+
+    harness.assertTrue(#calls > 0, "the culling boundary should remain inclusive")
 end)
 
 harness.test("text3d uses Config.drawing.text3d defaults when options is omitted", function()

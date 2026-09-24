@@ -6,6 +6,8 @@ local SYNC_PUSH = 'qblib:lookup:syncBatch'
 local MAX_BATCH_BYTES = 23 * 1024
 local MAX_SCANNED_FILE_BYTES = 16 * 1024 * 1024
 local MAX_OVERRIDE_BYTES = 1024 * 1024
+local MAX_SCANNED_ENTRIES = 4096
+local MAX_SCANNED_ENTRIES_LABEL = '4,096'
 local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
 
 local pendingClients = {}
@@ -78,12 +80,17 @@ local SKIPPED_DIRECTORIES = {
     build = true,
 }
 
-local function collectFiles(resource, mountPath, relativePath, includeAll, output, depth)
+local function collectFiles(resource, mountPath, relativePath, includeAll, output, depth, budget)
     if depth > 12 then return end
     local entries = readDirectory(mountPath)
     if entries == nil then return end
 
     for nameIndex = 1, #entries do
+        if budget.entries >= MAX_SCANNED_ENTRIES then
+            budget.truncated = true
+            return
+        end
+        budget.entries = budget.entries + 1
         local name = entries[nameIndex]
         local childMount = mountPath:gsub('/$', '') .. '/' .. name
         local childRelative = relativePath == '' and name or (relativePath .. '/' .. name)
@@ -91,7 +98,7 @@ local function collectFiles(resource, mountPath, relativePath, includeAll, outpu
 
         if childEntries ~= nil then
             if includeAll or not SKIPPED_DIRECTORIES[name:lower()] then
-                collectFiles(resource, childMount, childRelative, includeAll, output, depth + 1)
+                collectFiles(resource, childMount, childRelative, includeAll, output, depth + 1, budget)
             end
         else
             local lower = name:lower()
@@ -109,11 +116,14 @@ end
 
 local function resourceFiles(resource)
     local files, seen = {}, {}
+    local budget = { entries = 0, truncated = false }
     local streamMount = ('@%s/stream'):format(resource)
     if readDirectory(streamMount) ~= nil then
-        collectFiles(resource, streamMount, 'stream', true, files, 0)
+        collectFiles(resource, streamMount, 'stream', true, files, 0, budget)
     end
-    collectFiles(resource, ('@%s/'):format(resource), '', false, files, 0)
+    if not budget.truncated then
+        collectFiles(resource, ('@%s/'):format(resource), '', false, files, 0, budget)
+    end
 
     local unique = {}
     for pathIndex = 1, #files do
@@ -124,7 +134,7 @@ local function resourceFiles(resource)
         end
     end
     table.sort(unique)
-    return unique
+    return unique, budget.truncated
 end
 
 local function xmlValue(value)
@@ -357,7 +367,7 @@ end
 local function scanResource(resource)
     local inferred, unresolvedYft, binaryYtyp = {}, 0, 0
 
-    local files = resourceFiles(resource)
+    local files, truncated = resourceFiles(resource)
     for pathIndex = 1, #files do
         local path = files[pathIndex]
         local lower = path:lower()
@@ -428,6 +438,10 @@ local function scanResource(resource)
     if unresolvedYft > 0 or binaryYtyp > 0 then
         warn(('%s left %d .yft and %d binary .ytyp files unclassified; add qblib.lookup.json entries if needed')
             :format(resource, unresolvedYft, binaryYtyp))
+    end
+    if truncated then
+        warn(('%s exceeded the %s-entry lookup scan limit; remaining files were ignored')
+            :format(resource, MAX_SCANNED_ENTRIES_LABEL))
     end
     return records
 end

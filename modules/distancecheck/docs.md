@@ -38,7 +38,20 @@ QB.distance.coords(coords1, coords2, distance?)   -- no src; pure point-to-point
 ```
 
 ## Notes
-- Distance is Euclidean via FiveM's `#(vectorA - vectorB)`.
-- Arguments are asserted: a missing/incomplete coordinate table raises rather
+- Distance uses squared components, avoiding temporary vector allocations and
+  square roots in these frequent checks while preserving Euclidean-radius
+  results.
+- Arguments are asserted: a missing, incomplete, or non-finite coordinate table raises rather
   than silently returning a wrong answer.
-- The default radius is `5.0` when `distance` is omitted.
+- Every source-based server call requires a positive integer player server ID.
+- Source-based server checks also require a live player ped. Server entity
+  checks require a positive integer handle that still exists, so invalid or
+  unavailable handles raise before coordinate lookup.
+- The default radius is `5.0` when `distance` is omitted. An explicit radius
+  must be a finite non-negative number; `false` is invalid rather than a
+  shorthand for the default.
+- Use the server form for any meaningful action. It reads the source player's
+  server-side ped position, but proximity is only one authorization condition:
+  also validate ownership, permissions, the requested action, and current
+  server state. Do not accept a client-supplied radius or target position as
+  proof that an action is allowed.

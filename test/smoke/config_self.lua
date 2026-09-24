@@ -65,11 +65,12 @@ end)
 
 H.test('qblib self registration withholds its server-only configuration from clients', function()
     _G.source = 42
-    netEvents['qblib:server:configRequested']('qblib')
+    netEvents['qblib:server:configRequested']('qblib', 1)
     local snapshot = clientEvents[#clientEvents]
     H.assertEqual(snapshot.name, 'qblib:client:configSnapshot')
     H.assertEqual(snapshot.target, 42)
     H.assertEqual(snapshot.values[2].discord, nil)
+    H.assertEqual(snapshot.values[4], 1)
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

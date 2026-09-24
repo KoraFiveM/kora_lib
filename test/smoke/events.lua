@@ -16,6 +16,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/events/shared.lua")
@@ -37,6 +38,8 @@ end
 local consumeRateLimit = namedUpvalue(net.netHandlers[GATEWAY][1], 'consumeRateLimit')
 local rateBuckets = consumeRateLimit and namedUpvalue(consumeRateLimit, 'rateBuckets')
 assert(rateBuckets, 'could not inspect event rate buckets')
+local serverTokens = namedUpvalue(net.netHandlers[GATEWAY][1], 'tokens')
+assert(serverTokens, 'could not inspect event tokens')
 
 harness.test("the handshake completes on load, so trigger succeeds immediately", function()
     local ok, err = QB.events.trigger("smoke:noop")
@@ -67,6 +70,41 @@ harness.test("push delivers to a registered onPush handler", function()
     harness.assertEqual(received, "pong", "the onPush handler should receive the pushed payload")
 end)
 
+harness.test("push rejects malformed targets before dispatch", function()
+    for _, target in ipairs({ 0, -2, 1.5, 0 / 0, math.huge, -math.huge }) do
+        harness.assertThrows(function()
+            QB.events.push(target, "smoke:ping", "ignored")
+        end, "invalid push targets must not reach the native event")
+    end
+end)
+
+harness.test("client push receiver drops malformed names without faulting", function()
+    local pushHandlers = net.netHandlers["qblib:events:push"]
+    local ok = pcall(function()
+        for _, fn in ipairs(pushHandlers) do fn(0 / 0, "ignored") end
+    end)
+
+    harness.assertTrue(ok, "a malformed push name must be ignored before the registry lookup")
+end)
+
+harness.test("client push handler errors are isolated and logged", function()
+    local logged = {}
+    local realPrint = print
+    _G.print = function(message) logged[#logged + 1] = tostring(message) end
+
+    QB.events.onPush("smoke:broken-push", function()
+        error("push exploded")
+    end)
+    QB.events.push(mocks.SOURCE, "smoke:broken-push")
+
+    _G.print = realPrint
+    harness.assertEqual(#logged, 1, "one failed push should produce one diagnostic")
+    harness.assertTrue(logged[1]:find("smoke:broken-push", 1, true) ~= nil,
+        "the diagnostic should identify the failing push")
+    harness.assertTrue(logged[1]:find("push exploded", 1, true) ~= nil,
+        "the diagnostic should include the handler error")
+end)
+
 harness.test("the gateway drops a request carrying the wrong token", function()
     local ran = false
     QB.events.register("smoke:should-not-run", function() ran = true end)
@@ -78,6 +116,36 @@ harness.test("the gateway drops a request carrying the wrong token", function()
     _G.source = nil
 
     harness.assertFalse(ran, "the handler must not run when the token is wrong")
+end)
+
+harness.test('the gateway drops oversized names before dispatch', function()
+    local ran = false
+    QB.events.register('smoke:short-name', function() ran = true end)
+
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers[GATEWAY]) do
+        fn(serverTokens[mocks.SOURCE], string.rep('x', 129))
+    end
+    _G.source = nil
+
+    harness.assertFalse(ran, 'oversized event names must not reach a handler')
+    harness.assertThrows(function() QB.events.assertName(string.rep('x', 129)) end)
+end)
+
+harness.test("handshake and gateway discard malformed server sources", function()
+    local gatewayHandlers = net.netHandlers[GATEWAY]
+    local handshakeHandlers = net.netHandlers["qblib:events:handshake"]
+    local ok = pcall(function()
+        for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+            _G.source = src
+            for _, fn in ipairs(handshakeHandlers) do fn() end
+            for _, fn in ipairs(gatewayHandlers) do fn("ignored", "smoke:noop") end
+        end
+        _G.source = nil
+    end)
+
+    _G.source = nil
+    harness.assertTrue(ok, "malformed sources must be ignored before token-table access")
 end)
 
 harness.test('server event rate limits use a sliding per-handler window', function()
@@ -94,6 +162,37 @@ harness.test('server event rate limits use a sliding per-handler window', functi
     Wait(1000)
     QB.events.trigger('smoke:limited')
     harness.assertEqual(calls, 3, 'an expired window should admit a new request')
+end)
+
+harness.test('event rate buckets keep only quota-sized timestamp storage', function()
+    QB.events.register('smoke:ring-storage', function() end, {
+        rateLimit = { max = 3, window = 1 },
+    })
+
+    for _ = 1, 20 do
+        QB.events.trigger('smoke:ring-storage')
+        Wait(1)
+    end
+
+    local bucket = rateBuckets['smoke:ring-storage'][mocks.SOURCE]
+    local stored = 0
+    for _ in pairs(bucket.timestamps) do stored = stored + 1 end
+    harness.assertTrue(bucket.count <= 3 and stored <= 3,
+        'a rolling quota must not grow its timestamp storage over time')
+    QB.events.unregister('smoke:ring-storage')
+end)
+
+harness.test('event rate limits reject non-finite values at registration', function()
+    for _, rateLimit in ipairs({
+        { max = math.huge, window = 1000 },
+        { max = 1, window = math.huge },
+        { max = 10001, window = 1000 },
+        { max = 1, window = 86400001 },
+    }) do
+        harness.assertThrows(function()
+            QB.events.register('smoke:invalid-limit', function() end, { rateLimit = rateLimit })
+        end, 'rate-limit values must be finite')
+    end
 end)
 
 harness.test('event rate buckets expire automatically and stale timers cannot clear replacements', function()
@@ -129,13 +228,46 @@ harness.test('event rate buckets expire automatically and stale timers cannot cl
     local replacementPreserved = rateBuckets['smoke:stale-timer']
         and rateBuckets['smoke:stale-timer'][mocks.SOURCE] == replacementBucket
 
+    timers = {}
+    QB.events.register('smoke:coalesced-timer', function() end, {
+        rateLimit = { max = 3, window = 1000 },
+    })
+    QB.events.trigger('smoke:coalesced-timer')
+    QB.events.trigger('smoke:coalesced-timer')
+    QB.events.trigger('smoke:coalesced-timer')
+    local coalescedTimerCount = #timers
+    Wait(1000)
+    timers[1].callback()
+    local coalescedExpired = rateBuckets['smoke:coalesced-timer'] == nil
+
+    timers = {}
+    QB.events.register('smoke:rescheduled-timer', function() end, {
+        rateLimit = { max = 2, window = 1000 },
+    })
+    QB.events.trigger('smoke:rescheduled-timer')
+    local firstCleanup = timers[1]
+    Wait(500)
+    QB.events.trigger('smoke:rescheduled-timer')
+    Wait(500)
+    firstCleanup.callback()
+    local rescheduled = rateBuckets['smoke:rescheduled-timer'] ~= nil and #timers == 2 and timers[2].delay == 500
+    Wait(500)
+    timers[2].callback()
+    local rescheduledExpired = rateBuckets['smoke:rescheduled-timer'] == nil
+
     QB.events.unregister('smoke:timer-cleanup')
     QB.events.unregister('smoke:stale-timer')
+    QB.events.unregister('smoke:coalesced-timer')
+    QB.events.unregister('smoke:rescheduled-timer')
     _G.SetTimeout = realSetTimeout
 
     harness.assertTrue(existed, 'an accepted request should create a bucket')
     harness.assertTrue(expired, 'the expiry timer should clear an idle bucket')
     harness.assertTrue(replacementPreserved, 'an old timer must not clear a replacement handler bucket')
+    harness.assertEqual(coalescedTimerCount, 1, 'one bucket should schedule one cleanup timer per window')
+    harness.assertTrue(coalescedExpired, 'the coalesced cleanup timer should still release an idle bucket')
+    harness.assertTrue(rescheduled, 'a live bucket should schedule one follow-up timer for its next expiry')
+    harness.assertTrue(rescheduledExpired, 'the follow-up cleanup timer should release the final timestamp')
 end)
 
 harness.test('invalid tokens do not consume event rate quota', function()
@@ -262,6 +394,25 @@ harness.test("onPush: offPush removes the handler immediately", function()
 
     QB.events.push(mocks.SOURCE, "smoke:offpush-target", "should not arrive")
     harness.assertEqual(received, nil, "an unregistered push handler must not run")
+end)
+
+harness.test("foreign resources cannot unregister events or push handlers", function()
+    _G.GetInvokingResource = function() return "event_owner" end
+    QB.events.register("smoke:owned-event", function() end)
+    QB.events.onPush("smoke:owned-push", function() end)
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    harness.assertFalse(QB.events.unregister("smoke:owned-event"),
+        "another resource must not unregister an event")
+    harness.assertFalse(QB.events.offPush("smoke:owned-push"),
+        "another resource must not unregister a push handler")
+
+    _G.GetInvokingResource = function() return "event_owner" end
+    harness.assertTrue(QB.events.unregister("smoke:owned-event"),
+        "the event owner should still be able to unregister it")
+    harness.assertTrue(QB.events.offPush("smoke:owned-push"),
+        "the push owner should still be able to unregister it")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 -- The rest of these fire onResourceStop/onClientResourceStop for the mocked

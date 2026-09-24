@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
@@ -79,12 +80,43 @@ harness.test("assert rejects an out-of-range duration", function()
     end, "a duration over 2 minutes should be rejected")
 end)
 
+harness.test("assert rejects non-finite numeric IDs", function()
+    for _, id in ipairs({ math.huge, -math.huge, 0 / 0 }) do
+        harness.assertThrows(function()
+            QB.notify.assert({ message = "hi", id = id })
+        end, "numeric toast IDs must be finite")
+    end
+end)
+
+harness.test("assert rejects fractional and non-finite durations", function()
+    for _, duration in ipairs({ 1.5, math.huge, -math.huge, 0 / 0 }) do
+        harness.assertThrows(function()
+            QB.notify.assert({ message = "hi", duration = duration })
+        end, "duration must be a finite integer")
+    end
+end)
+
+harness.test("assert rejects false defaults instead of silently replacing them", function()
+    for _, payload in ipairs({
+        { message = "hi", duration = false },
+        { message = "hi", type = false },
+        { message = "hi", position = false },
+    }) do
+        harness.assertThrows(function()
+            QB.notify.assert(payload)
+        end)
+    end
+end)
+
 harness.test("assert accepts every documented type and position", function()
     for _, notifyType in ipairs({ "info", "success", "warning", "error" }) do
         QB.notify.assert({ message = "hi", type = notifyType })
     end
 
-    for _, position in ipairs({ "top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right" }) do
+    for _, position in ipairs({
+        "top-left", "top-center", "top-right", "bottom-left", "bottom-center",
+        "bottom-right", "center-left", "center-right", "top", "bottom",
+    }) do
         QB.notify.assert({ message = "hi", position = position })
     end
 end)
@@ -173,6 +205,19 @@ harness.test("server sendToAll also reaches the client", function()
     lastNui = nil
     QB.notify.sendToAll({ message = "everyone" })
     harness.assertTrue(lastNui ~= nil, "sendToAll should still reach the mock client")
+end)
+
+harness.test("server send drops malformed recipients before either dispatch route", function()
+    lastNui = nil
+    thirdPartyClientPayloads = {}
+    Config.third_party_notify = false
+    QB.notify.send(1.5, { message = "invalid recipient" })
+    harness.assertEqual(lastNui, nil, "the qblib push route must not receive an invalid target")
+
+    Config.third_party_notify = true
+    QB.notify.send(1.5, { message = "invalid recipient" })
+    harness.assertEqual(#thirdPartyClientPayloads, 0, "the third-party route must not receive an invalid target")
+    Config.third_party_notify = false
 end)
 
 harness.test("server send uses the third-party client event when configured", function()

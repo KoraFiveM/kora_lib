@@ -12,6 +12,7 @@ _G.GetCurrentResourceName = function() return currentResource end
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 local PED_MODEL = joaat("a_m_y_beach_01")
@@ -231,12 +232,37 @@ harness.test("generateSnippet returns a four-decimal Lua table with named Euler 
     harness.assertTrue(snippet:find("yaw = -90.0000", 1, true) ~= nil, "yaw should be named")
 end)
 
+harness.test("generateSnippet rejects non-finite transform values", function()
+    local valid = {
+        model = OBJECT_MODEL,
+        coords = { x = 1, y = 2, z = 3 },
+        heading = 90,
+        rotation = { pitch = 0, roll = 0, yaw = 0 },
+    }
+    valid.coords.x = math.huge
+    harness.assertThrows(function() QB.placement.generateSnippet(valid) end,
+        "infinite coordinates must not produce a snippet")
+
+    valid.coords.x = 1
+    valid.rotation.yaw = 0 / 0
+    harness.assertThrows(function() QB.placement.generateSnippet(valid) end,
+        "NaN rotations must not produce a snippet")
+end)
+
 harness.test("start rejects invalid models before spawning or taking controls", function()
     local before = #createdKinds
     local p = QB.placement.start(INVALID_MODEL)
     harness.assertEqual(p.state, "rejected", "invalid models should reject immediately")
     harness.assertEqual(#createdKinds, before, "invalid models must not spawn a preview")
     harness.assertFalse(QB.placement.isActive(), "a rejected start must not leak active state")
+end)
+
+harness.test("start rejects non-finite model hashes before spawning or taking controls", function()
+    local before = #createdKinds
+    local p = QB.placement.start(math.huge)
+    harness.assertEqual(p.state, "rejected", "non-finite hashes should reject immediately")
+    harness.assertEqual(#createdKinds, before, "non-finite hashes must not spawn a preview")
+    harness.assertFalse(QB.placement.isActive(), "a rejected hash must not leak active state")
 end)
 
 harness.test("start rejects when placement is disabled", function()
@@ -364,6 +390,24 @@ harness.test("Keep Editing leaves the preview and promise pending", function()
     harness.assertEqual(p.state, "pending", "Keep Editing must not settle placement")
     harness.assertTrue(entities[entity] ~= nil, "Keep Editing must preserve the preview")
     cancelPlacement()
+end)
+
+harness.test("placement hides the radar once for its lifetime", function()
+    radarCalls = {}
+    radarHidden = false
+
+    local p = QB.placement.start(OBJECT_MODEL)
+    net.step()
+    net.step()
+
+    local hides = 0
+    for _, visible in ipairs(radarCalls) do
+        if not visible then hides = hides + 1 end
+    end
+    harness.assertEqual(hides, 1, "placement should not reapply the persistent radar state every frame")
+
+    cancelPlacement()
+    harness.assertEqual(p.state, "resolved", "radar test placement should cancel")
 end)
 
 harness.test("confirmation returns full transform data and deletes the preview", function()

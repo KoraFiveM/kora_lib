@@ -16,7 +16,8 @@ local function formatArgs(...)
         local value = args[i]
 
         if type(value) == "table" then
-            formatted[i] = json.encode(value, jsonOptions)
+            local ok, encoded = pcall(json.encode, value, jsonOptions)
+            formatted[i] = ok and type(encoded) == 'string' and encoded or tostring(value)
         elseif type(value) == "boolean" then
             formatted[i] = tostring(value)
         elseif value == nil then
@@ -31,22 +32,27 @@ local function formatArgs(...)
     return table.concat(formatted, ' ')
 end
 
+---@param ... any
 function QB.print.debug(...)
     print('^6[DEBUG]^0 ' .. formatArgs(...))
 end
 
+---@param ... any
 function QB.print.info(...)
     print('^4[INFO]^0 ' .. formatArgs(...))
 end
 
+---@param ... any
 function QB.print.error(...)
     print('^1[ERROR]^0 ' .. formatArgs(...))
 end
 
+---@param ... any
 function QB.print.warn(...)
     print('^3[WARNING]^0 ' .. formatArgs(...))
 end
 
+---@param ... any
 function QB.print.success(...)
     print('^2[SUCCESS]^0 ' .. formatArgs(...))
 end

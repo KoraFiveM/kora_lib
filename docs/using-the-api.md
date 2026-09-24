@@ -27,9 +27,12 @@ Use the documented `QB` form in Lua. It provides language-server types and keeps
 lazily inside the consuming resource. `QB.stream` is loaded the same way on
 the client, so model and asset streaming natives execute in the resource that
 requested them. These modules are cached for the lifetime of that consumer.
-After qblib restarts, an update notification reloads only the local helper and
-streaming modules that were already used; untouched modules remain lazy.
-Existing module table references are updated in place.
+After qblib restarts, an update notification reloads already-used stateless
+helpers (`QB.util`, `QB.loops`, and client-side `QB.stream`) in place;
+untouched modules remain lazy. `QB.require`, `QB.config`, and `QB.compat`
+deliberately retain their consumer-local caches, registrations, and
+configuration state until that consumer restarts. Existing references to a
+refreshed module table stay valid.
 
 Modules with shared registries, long-lived handles, or central state continue
 to dispatch through qblib exports. Direct exports remain available for every
@@ -63,6 +66,15 @@ end
 
 Do not discard a second return value when the reference documents one; it is intended to make operational failures diagnosable.
 
+## Numeric inputs
+
+Pass real, finite Lua numbers to numeric APIs. `NaN`, positive infinity, and
+negative infinity are invalid even when Lua classifies them as numbers. Values
+documented as IDs, counts, durations, delays, sizes, or limits must also be
+whole numbers. qblib rejects invalid values before they can reach timers,
+loops, native calls, or server-side state; validate consumer-owned input with
+`QB.util.isFiniteNumber(value)` or `QB.util.isInteger(value)` when useful.
+
 ## Promises and coroutine-aware calls
 
 Callbacks and NUI requests use FiveM promises internally. High-level helpers may return an awaited plain result when called across the export boundary and a promise for internal composition. The module reference states which behavior is part of its public contract.
@@ -72,6 +84,20 @@ Use promise-returning APIs from a yieldable coroutine such as a command handler 
 ## Resource ownership
 
 Registrations and long-lived handles are owned by the invoking resource. qblib automatically cleans them up when that resource stops. This covers zones, entities, keybinds, callbacks, events, timers, sounds, NUI requests, and other registered state.
+
+Status-effect definitions follow the same rule: their names are owner-scoped,
+released on resource stop, and stored as immutable snapshots. A second resource
+cannot silently replace a definition, and reading one never returns qblib's
+live configuration table.
+
+Ownership also protects mutation: a handle returned to one resource does not
+give another resource authority to replace, stop, remove, or detach that
+owner's tracked state. This applies to animation handles and attached props,
+particle and screen effects, entities, blips, TextUI entries, controls,
+keybinds, and active UI/minigame/progress sessions. Read-only queries remain
+safe to share. If two resources need to control one long-lived feature, keep
+the handle in the owning resource and expose a small, purpose-specific export
+instead of passing its raw handle around.
 
 Keep the returned handle when you need to remove or update something before resource shutdown:
 
@@ -88,7 +114,14 @@ bind.remove()
 
 ## Security boundary
 
-Client input is never authoritative. Use server callbacks, token-guarded events, permission checks, and the minigame authorization/proof flow where a client result gates money, inventory, progression, or another valuable action. A progress bar or successful client minigame is presentation, not proof that the server should grant a reward.
+Client input is never authoritative. Use server callbacks or events together
+with permission checks and the minigame authorization/proof flow where a
+client result gates money, inventory, progression, or another valuable action.
+Their session tokens only correlate protocol requests; a modified client can
+obtain its own token. Validate identity, permission, ownership, distance,
+cooldowns, and current server state in the handler. A progress bar or
+successful client minigame is presentation, not proof that the server should
+grant a reward.
 
 ## Configuration
 

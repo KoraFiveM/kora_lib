@@ -15,6 +15,9 @@ local registry = {}
 local rateBuckets = {}
 local pendingClientCallbacks = {}
 local requestCounter = 0
+local isInteger = QB.util.isInteger
+local MAX_RATE_LIMIT = 10000
+local MAX_RATE_WINDOW = 86400000
 
 local function normalizeRateLimit(opts)
     if opts == nil then return nil end
@@ -22,15 +25,45 @@ local function normalizeRateLimit(opts)
     local limit = opts.rateLimit
     if limit == nil or limit == false then return nil end
     assert(type(limit) == 'table', 'Callback rateLimit must be a table or false.')
-    assert(type(limit.max) == 'number' and limit.max >= 1 and limit.max % 1 == 0,
-        'Callback rateLimit.max must be a positive integer.')
-    assert(type(limit.window) == 'number' and limit.window > 0 and limit.window % 1 == 0,
-        'Callback rateLimit.window must be a positive integer in milliseconds.')
+    assert(isInteger(limit.max) and limit.max >= 1 and limit.max <= MAX_RATE_LIMIT,
+        ('Callback rateLimit.max must be a positive integer no greater than %d.'):format(MAX_RATE_LIMIT))
+    assert(isInteger(limit.window) and limit.window > 0 and limit.window <= MAX_RATE_WINDOW,
+        ('Callback rateLimit.window must be a positive integer no greater than %d milliseconds.'):format(MAX_RATE_WINDOW))
     return { max = limit.max, window = limit.window }
 end
 
 local function clearRateLimit(name)
     rateBuckets[name] = nil
+end
+
+local function pruneTimestamps(bucket, cutoff)
+    while bucket.count > 0 and bucket.timestamps[bucket.head] <= cutoff do
+        bucket.timestamps[bucket.head] = nil
+        bucket.head = bucket.head % bucket.max + 1
+        bucket.count = bucket.count - 1
+    end
+    return bucket.count
+end
+
+local function scheduleBucketCleanup(name, src, bucket, limit, delay)
+    if bucket.cleanupScheduled then return end
+    bucket.cleanupScheduled = true
+
+    SetTimeout(delay, function()
+        local bySource = rateBuckets[name]
+        if not bySource or bySource[src] ~= bucket then return end
+
+        local count = pruneTimestamps(bucket, GetGameTimer() - limit.window)
+        if count == 0 then
+            bySource[src] = nil
+            if next(bySource) == nil then rateBuckets[name] = nil end
+            return
+        end
+
+        bucket.cleanupScheduled = false
+        scheduleBucketCleanup(name, src, bucket, limit,
+            math.max(1, math.ceil(limit.window - (GetGameTimer() - bucket.timestamps[bucket.head]))))
+    end)
 end
 
 local function consumeRateLimit(name, src, limit)
@@ -40,45 +73,20 @@ local function consumeRateLimit(name, src, limit)
 
     local bucket = bySource[src]
     if not bucket then
-        bucket = { timestamps = {} }
+        bucket = { timestamps = {}, head = 1, tail = 0, count = 0, max = limit.max }
         bySource[src] = bucket
     end
 
-    local timestamps = bucket.timestamps
     local now = GetGameTimer()
-    local cutoff = now - limit.window
-    local retained = {}
-    for i = 1, #timestamps do
-        if timestamps[i] > cutoff then retained[#retained + 1] = timestamps[i] end
+    local count = pruneTimestamps(bucket, now - limit.window)
+
+    if count >= limit.max then
+        return false, math.max(1, math.ceil(limit.window - (now - bucket.timestamps[bucket.head])))
     end
-    timestamps = retained
-    bucket.timestamps = timestamps
-
-    if #timestamps >= limit.max then
-        return false, math.max(1, math.ceil(limit.window - (now - timestamps[1])))
-    end
-    timestamps[#timestamps + 1] = now
-
-    SetTimeout(limit.window, function()
-        local currentBySource = rateBuckets[name]
-        local currentBucket = currentBySource and currentBySource[src]
-        -- A replacement/cleanup/reconnect may have created a new bucket for
-        -- the same name and source. An old timer must never prune that quota.
-        if currentBucket ~= bucket then return end
-
-        local expiryCutoff = GetGameTimer() - limit.window
-        local live = {}
-        for i = 1, #currentBucket.timestamps do
-            if currentBucket.timestamps[i] > expiryCutoff then live[#live + 1] = currentBucket.timestamps[i] end
-        end
-
-        if #live > 0 then
-            currentBucket.timestamps = live
-        else
-            currentBySource[src] = nil
-            if next(currentBySource) == nil then rateBuckets[name] = nil end
-        end
-    end)
+    bucket.tail = bucket.tail % bucket.max + 1
+    bucket.timestamps[bucket.tail] = now
+    bucket.count = count + 1
+    scheduleBucketCleanup(name, src, bucket, limit, limit.window)
     return true
 end
 
@@ -140,7 +148,7 @@ end
 ---most callers don't need to call QB.callback.unregister themselves.
 ---@param name string
 ---@param handler fun(src: integer, ...: any): any
----@param opts? {rateLimit?: {max: integer, window: integer}|false}
+---@param opts? QBRegistrationOptions
 function QB.callback.register(name, handler, opts)
     QB.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")
@@ -163,11 +171,15 @@ end
 
 ---Unregisters a callback handler registered with QB.callback.register.
 ---@param name string
+---@return boolean removed
 function QB.callback.unregister(name)
     QB.callback.assertName(name)
+    local invoker = GetInvokingResource()
+    if invoker and callbackOwnership.owner(name) ~= invoker then return false end
     registry[name] = nil
     clearRateLimit(name)
     callbackOwnership.untrack(name)
+    return true
 end
 
 ---Triggers a callback registered on a specific client via QB.callback.register(name, handler).
@@ -184,7 +196,7 @@ end
 ---settleForExport above).
 function QB.callback.trigger(target, name, ...)
     QB.callback.assertName(name)
-    assert(type(target) == "number", "target must be a player server ID.")
+    assert(isInteger(target) and target >= 1, "target must be a positive finite player server ID.")
 
     local p = promise.new()
 
@@ -208,6 +220,10 @@ end
 
 RegisterNetEvent(events.handshake, function()
     local src = source
+    if type(src) ~= "number" or src < 1 or src % 1 ~= 0 or src ~= src
+        or src == math.huge or src == -math.huge then
+        return
+    end
     local token = generateToken()
 
     tokens[src] = token
@@ -218,7 +234,15 @@ end)
 RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     local src = source
 
-    if type(token) ~= "string" or type(requestId) ~= "number" or type(name) ~= "string" then return end
+    if type(src) ~= "number" or src < 1 or src % 1 ~= 0 or src ~= src
+        or src == math.huge or src == -math.huge then
+        return
+    end
+    if type(token) ~= "string" or type(requestId) ~= "number" or type(name) ~= "string" or #name > 128 then return end
+    if requestId < 1 or requestId % 1 ~= 0 or requestId ~= requestId
+        or requestId == math.huge or requestId == -math.huge then
+        return
+    end
     if tokens[src] == nil or tokens[src] ~= token then return end
 
     local definition = registry[name]
@@ -249,6 +273,11 @@ end)
 
 RegisterNetEvent(events.clientResponse, function(requestId, ok, ...)
     local src = source
+    if type(requestId) ~= 'number' or requestId < 1 or requestId % 1 ~= 0 or requestId ~= requestId
+        or requestId == math.huge or requestId == -math.huge then
+        return
+    end
+
     local pending = pendingClientCallbacks[requestId]
 
     if pending == nil then return end

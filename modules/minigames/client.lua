@@ -191,10 +191,14 @@ function QB.minigames.playAsync(gameType, opts, authorization, owner)
     return beginPlay(gameType, opts, authorization, resource)
 end
 
----Cancels the active minigame through the same result path as player Escape.
+---Cancels the caller's active minigame through the same result path as player Escape.
+---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean cancelled
-function QB.minigames.cancel()
+function QB.minigames.cancel(owner)
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'minigame owner must be a non-empty string.')
     if not activeSession or not activeRoundRequest then return false end
+    local resource = owner or GetInvokingResource() or GetCurrentResourceName()
+    if minigameOwnership.owner(activeSession) ~= resource then return false end
     local request = activeRoundRequest
     activeRoundRequest = nil
     return QB.nui.cancelRequest(request, { cancelled = true })

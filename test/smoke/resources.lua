@@ -18,6 +18,7 @@ harness.test("isStarted reports only the started state", function()
     _G.GetResourceState = function(name) return name == "ready" and "started" or "stopped" end
     harness.assertTrue(QB.resources.isStarted("ready"))
     harness.assertFalse(QB.resources.isStarted("waiting"))
+    harness.assertThrows(function() QB.resources.isStarted(string.rep('x', 257)) end)
 end)
 
 harness.test("awaitStarted distinguishes started, missing, and timeout", function()
@@ -34,6 +35,39 @@ harness.test("awaitStarted distinguishes started, missing, and timeout", functio
     local waiting, waitingReason = QB.resources.awaitStarted("waiting", { timeout = 10, interval = 5 })
     harness.assertFalse(waiting)
     harness.assertEqual(waitingReason, "timeout")
+end)
+
+harness.test('awaitStarted honors explicit zero timeout and interval values', function()
+    local getResourceState, wait = GetResourceState, Wait
+    local calls, waited = 0, nil
+    _G.GetResourceState = function()
+        calls = calls + 1
+        return 'stopped'
+    end
+    _G.Wait = function(ms) waited = ms end
+
+    local ready, reason = QB.resources.awaitStarted('waiting', { timeout = 0, interval = 0 })
+    harness.assertFalse(ready)
+    harness.assertEqual(reason, 'timeout')
+    harness.assertEqual(calls, 1, 'a zero timeout should make exactly one immediate state check')
+    harness.assertEqual(waited, nil, 'a zero timeout must not wait')
+
+    calls, waited = 0, nil
+    _G.GetResourceState = function()
+        calls = calls + 1
+        return calls == 1 and 'stopped' or 'started'
+    end
+    ready = QB.resources.awaitStarted('starting', { timeout = 100, interval = 0 })
+    _G.GetResourceState, _G.Wait = getResourceState, wait
+
+    harness.assertTrue(ready)
+    harness.assertEqual(waited, 0, 'an explicit zero interval should reach Wait unchanged')
+end)
+
+harness.test('awaitStarted rejects an explicit non-table options value', function()
+    harness.assertThrows(function()
+        QB.resources.awaitStarted('waiting', false)
+    end)
 end)
 
 harness.test("track then owner reports the tracking resource", function()
@@ -54,6 +88,23 @@ harness.test("registry accepts a callable-table disposer like a FiveM funcref", 
     registry.track("resource_a", 7)
     net.fire("onClientResourceStop", "resource_a")
     harness.assertEqual(disposed[1], 7)
+end)
+
+harness.test('registry factories reject invalid disposers immediately', function()
+    harness.assertThrows(function() QB.resources.registry(false) end)
+    harness.assertThrows(function() QB.resources.serverRegistry(nil) end)
+end)
+
+harness.test('registry methods reject invalid owners and ids immediately', function()
+    local client = QB.resources.registry(function() end)
+    local server = QB.resources.serverRegistry(function() end)
+    for _, registry in ipairs({ client, server }) do
+        harness.assertThrows(function() registry.track('', 1) end)
+        harness.assertThrows(function() registry.track(string.rep('x', 257), 1) end)
+        harness.assertThrows(function() registry.track('resource_a', nil) end)
+        harness.assertThrows(function() registry.untrack(nil) end)
+        harness.assertThrows(function() registry.owner(nil) end)
+    end
 end)
 
 harness.test("untrack drops tracking and returns the prior owner, without calling onDispose", function()
@@ -130,6 +181,24 @@ harness.test("onDispose does not fire for ids already untracked before their res
     net.fire("onClientResourceStop", "resource_a")
 
     harness.assertEqual(#disposed, 0, "an already-untracked id should not be disposed again")
+end)
+
+harness.test('a disposer cannot recreate ownership for its stopping resource', function()
+    for _, realm in ipairs({
+        { create = QB.resources.registry, event = 'onClientResourceStop' },
+        { create = QB.resources.serverRegistry, event = 'onResourceStop' },
+    }) do
+        local registry
+        registry = realm.create(function()
+            registry.track('resource_a', 'replacement')
+        end)
+        registry.track('resource_a', 'original')
+
+        net.fire(realm.event, 'resource_a')
+
+        harness.assertEqual(registry.owner('original'), nil)
+        harness.assertEqual(registry.owner('replacement'), nil)
+    end
 end)
 
 harness.test("two registries track independent id spaces", function()

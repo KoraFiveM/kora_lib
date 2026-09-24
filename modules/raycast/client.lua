@@ -3,9 +3,18 @@
 -- vector-math operators (subtraction, scalar multiply, etc.), only field
 -- access and construction, so there's nothing glm buys here.
 local function toVec3(v)
-    assert(type(v.x) == "number" and type(v.y) == "number" and type(v.z) == "number",
-        "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
+    assert(v and QB.util.isFiniteNumber(v.x) and QB.util.isFiniteNumber(v.y) and QB.util.isFiniteNumber(v.z),
+        "Coordinates must have finite x, y, and z values.")
     return { x = v.x, y = v.y, z = v.z }
+end
+
+local function assertDistance(maxDistance)
+    assert(QB.util.isFiniteNumber(maxDistance) and maxDistance > 0,
+        "Raycast maxDistance must be a positive finite number.")
+end
+
+local function assertInteger(value, name)
+    assert(QB.util.isInteger(value), name .. " must be a finite integer.")
 end
 
 ---@param rot table Euler angles in degrees, { x = pitch, y = roll, z = yaw } (GetGameplayCamRot's shape).
@@ -84,8 +93,8 @@ end
 function QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)
     startCoords = toVec3(startCoords)
     endCoords = toVec3(endCoords)
-    flags = flags or -1
-    ignoreEntity = ignoreEntity or PlayerPedId()
+    if flags == nil then flags = -1 else assertInteger(flags, "Raycast flags") end
+    if ignoreEntity == nil then ignoreEntity = PlayerPedId() else assertInteger(ignoreEntity, "Ignored entity") end
 
     return StartShapeTestRay(
         startCoords.x, startCoords.y, startCoords.z,
@@ -100,6 +109,7 @@ end
 ---@param ignoreEntity? number
 ---@return number rayHandle
 function QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)
+    assertDistance(maxDistance)
     local camCoord = toVec3(GetGameplayCamCoord())
 
     return QB.raycast.start(camCoord, camDestination(camCoord, GetGameplayCamRot(2), maxDistance), flags, ignoreEntity)
@@ -116,6 +126,7 @@ end
 ---@return number? entityHit
 ---@return table? surfaceNormal
 function QB.raycast.await(rayHandle)
+    assertInteger(rayHandle, "Raycast handle")
     return awaitShapeTest(rayHandle)
 end
 
@@ -131,6 +142,7 @@ end
 ---@return number? entityHit
 ---@return table? surfaceNormal
 function QB.raycast.poll(rayHandle)
+    assertInteger(rayHandle, "Raycast handle")
     local status, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
     if status == 1 then return false, false, nil, nil, nil end
     if status ~= 2 or hit == 0 then return true, false, nil, nil, nil end
@@ -164,6 +176,8 @@ end
 ---@return number? entityHit Entity handle the ray struck, only present when hit is true
 ---@return table? surfaceNormal {x, y, z} table, only present when hit is true
 function QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
+    assertInteger(cam, "Scripted camera handle")
+    assertDistance(maxDistance)
     local camCoord = toVec3(GetCamCoord(cam))
 
     return QB.raycast.fromCoords(camCoord, camDestination(camCoord, GetCamRot(cam, 2), maxDistance), flags, ignoreEntity)
@@ -178,7 +192,7 @@ local function releaseCoordGrabber(state)
     state.released = true
 
     if activeCoordGrabber == state then activeCoordGrabber = nil end
-    if state.controlLease then pcall(QB.controls.release, state.controlLease) end
+    if state.controlLease then pcall(QB.compat.releaseControlLease, state.controlLease, state.owner) end
     if state.textui then pcall(QB.textui.hide, state.textui) end
     if state.entity then pcall(QB.entities.remove, state.entity) end
 end
@@ -206,7 +220,7 @@ local function drawCoordMarker(coords)
 end
 
 local function runCoordGrabber(state)
-    state.controlLease = QB.controls.acquire(COORD_GRABBER_CONTROLS)
+    state.controlLease = QB.compat.acquireControls(COORD_GRABBER_CONTROLS, nil, state.owner)
     state.textui = QB.textui.show(state.model
         and "**Left / Right:** rotate  ·  **E:** confirm  ·  **Backspace:** cancel"
         or "**E:** confirm  ·  **Backspace:** cancel", {
@@ -262,15 +276,16 @@ end
 ---@param data? { type?: 'object', object?: string|number, heading?: number, maxDistance?: number, flags?: number }
 ---@return { coords: { x: number, y: number, z: number, w?: number }, object: string|number|false }? result
 function QB.raycast.getCoords(data)
-    data = data or {}
+    if data == nil then data = {} end
     assert(type(data) == "table", "Coordinate grabber options must be a table.")
     assert(data.type == nil or data.type == "object", "Coordinate grabber type must be 'object' when provided.")
-    assert(data.type ~= "object" or type(data.object) == "string" or type(data.object) == "number",
-        "Coordinate grabber object must be a model name or hash.")
-    assert(data.heading == nil or type(data.heading) == "number", "Coordinate grabber heading must be a number.")
-    assert(data.maxDistance == nil or type(data.maxDistance) == "number" and data.maxDistance > 0,
-        "Coordinate grabber maxDistance must be greater than zero.")
-    assert(data.flags == nil or type(data.flags) == "number", "Coordinate grabber flags must be a number.")
+    assert(data.type ~= "object" or type(data.object) == "string" or QB.util.isInteger(data.object),
+        "Coordinate grabber object must be a model name or finite integer hash.")
+    assert(data.heading == nil or QB.util.isFiniteNumber(data.heading),
+        "Coordinate grabber heading must be a finite number.")
+    assert(data.maxDistance == nil or QB.util.isFiniteNumber(data.maxDistance) and data.maxDistance > 0,
+        "Coordinate grabber maxDistance must be a positive finite number.")
+    assert(data.flags == nil or QB.util.isInteger(data.flags), "Coordinate grabber flags must be a finite integer.")
     assert(not activeCoordGrabber, "A coordinate grabber is already active.")
 
     local state = {

@@ -7,6 +7,7 @@ local harness = require('harness')
 
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/random/shared.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 
 local function withRandom(random, fn)
     local originalRandom = math.random
@@ -58,10 +59,21 @@ end)
 
 harness.test('pick rejects invalid inputs and options', function()
     harness.assertThrows(function() QB.random.pick({}) end, 'an empty array should be rejected')
+    harness.assertThrows(function() QB.random.pick({ 'a', [3] = 'b' }) end,
+        'a sparse array must not silently omit values')
     harness.assertThrows(function() QB.random.pick({ 'a' }, 2) end, 'options must be a table')
     harness.assertThrows(function() QB.random.pick({ 'a' }, { count = 0 }) end, 'count must be positive')
     harness.assertThrows(function() QB.random.pick({ 'a' }, { count = 1.5 }) end, 'count must be an integer')
+    harness.assertThrows(function() QB.random.pick({ 'a' }, { count = false }) end, 'count must be an integer')
+    harness.assertThrows(function() QB.random.pick({ 'a' }, { count = math.huge }) end,
+        'count must be finite')
+    harness.assertThrows(function() QB.random.pick({ 'a' }, { count = 10001 }) end,
+        'count must not allocate an unbounded result table')
     harness.assertThrows(function() QB.random.pick({ 'a' }, { maxIndex = 0 }) end, 'maxIndex must be positive')
+    harness.assertThrows(function() QB.random.pick({ 'a' }, { maxIndex = false }) end,
+        'maxIndex must be an integer')
+    harness.assertThrows(function() QB.random.pick({ 'a' }, { maxIndex = math.huge }) end,
+        'maxIndex must be finite')
     harness.assertThrows(function() QB.random.pick({ 'a' }, { maxIndex = 2 }) end,
         'maxIndex must not exceed the array length')
 end)

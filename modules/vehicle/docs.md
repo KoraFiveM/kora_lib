@@ -10,6 +10,11 @@ Use `whitespace = 'remove'`/`'preserve'`, `characters = 'any'`, or `maxLength`
 only when an existing storage contract requires different behavior. Invalid
 external values return `nil, reason`.
 
+Every optional vehicle options argument must be a table when supplied. Invalid
+options are rejected before qblib requests entity control or calls a vehicle
+native. Vehicle handles must be positive finite integers; inspection helpers
+return `false` for an invalid handle, while `delete` rejects one.
+
 - `QB.vehicle.requestControl(entity, timeout?)` requests network control.
 - `QB.vehicle.delete(vehicle, { timeout? })` obtains control and deletes it.
 - `QB.vehicle.isDriver(vehicle)` checks the local driver seat.
@@ -35,3 +40,15 @@ missing fields.
 RGB colors are returned as JSON-stable `{ r, g, b }` objects. The setter also
 accepts numeric arrays and legacy JSON-decoded objects with `"1"`, `"2"`, and
 `"3"` keys, so existing garage rows remain restorable.
+
+All numeric values supplied to the setter, including RGB channels, interior
+colour, and tyre health, must be finite. `plate`, when supplied, must be a
+string. Invalid values are rejected before control is requested or a vehicle
+native is called.
+
+State fields are strict booleans: extras, tyre-burst state, window/door state,
+neon lights, toggle mods, and custom-tire flags do not use Lua truthiness.
+Malformed state values are rejected before control is requested.
+
+Tyre-health, window-status, and door-status tables accept numeric or JSON
+string indices only: tyres `0–5`, windows `0–7`, and doors `0–5`.

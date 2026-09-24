@@ -85,6 +85,12 @@ H.test('reads sanitize secrets and commits only valid requests', function()
     local value, err = callbacks['qblib:configCommit'](12, { resource = 'sample', path = {}, revision = 1 })
     H.assertEqual(value, nil)
     H.assertEqual(err, 'invalid configuration request')
+    for _, revision in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        value, err = callbacks['qblib:configCommit'](12,
+            { resource = 'sample', path = { 'enabled' }, value = false, revision = revision })
+        H.assertEqual(value, nil)
+        H.assertEqual(err, 'invalid configuration request')
+    end
     callbacks['qblib:configCommit'](12, { resource = 'sample', path = { 'enabled' }, value = false, revision = 1 })
     H.assertEqual(commits, 1)
 end)

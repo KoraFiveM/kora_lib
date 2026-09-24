@@ -4,6 +4,7 @@ local changeListeners = {}
 local nextListenerId = 0
 local movementMultiplier = 1.0
 local movementLoopRunning = false
+local isInteger = QB.util.isInteger
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across qblib modules.
@@ -57,37 +58,45 @@ end
 ---into the shared, registry-wide def for every future application.
 ---@param def QBStatusEffectDef
 ---@return table rendered
+local clearRender
+
 local function renderEffect(def)
     local ped = PlayerPedId()
     local rendered = {}
 
-    if def.fx then
-        if def.fx.screen then
-            rendered.screenHandle = QB.fx.screenEffect(def.fx.screen, nil, true)
+    local ok, err = pcall(function()
+        if def.fx then
+            if def.fx.screen then
+                rendered.screenHandle = QB.fx.screenEffect(def.fx.screen, nil, true)
+            end
+
+            if def.fx.ptfx then
+                local src = def.fx.ptfx
+                local ptfxCall = {
+                    dict = src.dict, name = src.name, bone = src.bone,
+                    entity = src.entity, coords = src.coords,
+                    offset = src.offset, rot = src.rot, scale = src.scale,
+                    looped = true,
+                }
+                if not ptfxCall.entity and not ptfxCall.coords then ptfxCall.entity = ped end
+
+                local handle = QB.fx.playPtfx(ptfxCall)
+                if handle then rendered.ptfxHandle = handle end
+            end
         end
 
-        if def.fx.ptfx then
-            local src = def.fx.ptfx
-            local ptfxCall = {
-                dict = src.dict, name = src.name, bone = src.bone,
-                entity = src.entity, coords = src.coords,
-                offset = src.offset, rot = src.rot, scale = src.scale,
-                looped = true,
-            }
-            if not ptfxCall.entity and not ptfxCall.coords then ptfxCall.entity = ped end
-
-            local handle = QB.fx.playPtfx(ptfxCall)
-            if handle then rendered.ptfxHandle = handle end
+        if def.anim then
+            local handle = QB.anim.play(ped, def.anim.dict, def.anim.clip)
+            if handle then rendered.animHandle = handle end
         end
-    end
 
-    if def.anim then
-        local handle = QB.anim.play(ped, def.anim.dict, def.anim.clip)
-        if handle then rendered.animHandle = handle end
-    end
-
-    if def.movement and def.movement.speedMultiplier then
-        rendered.appliedMovement = true
+        if def.movement and def.movement.speedMultiplier then
+            rendered.appliedMovement = true
+        end
+    end)
+    if not ok then
+        clearRender(rendered, def)
+        error(err, 0)
     end
 
     return rendered
@@ -95,13 +104,19 @@ end
 
 ---@param rendered table
 ---@param def QBStatusEffectDef
-local function clearRender(rendered, def)
+clearRender = function(rendered, def)
     if rendered.screenHandle then QB.fx.stopScreenEffect(rendered.screenHandle) end
     if rendered.ptfxHandle then QB.fx.stop(rendered.ptfxHandle) end
     if rendered.animHandle then
         if QB.anim.stopHandle then QB.anim.stopHandle(rendered.animHandle)
         else QB.anim.stop(rendered.animHandle.entity) end
     end
+end
+
+local function dropActive(name, entry)
+    active[name] = nil
+    statusRegistry.untrack(name)
+    clearRender(entry.rendered, entry.def)
 end
 
 ---Applies a registered status effect locally: renders its fx/anim/movement
@@ -114,18 +129,29 @@ end
 ---@param opts? QBStatusApplyOptions
 ---@return boolean success
 function QB.status.apply(name, opts)
+    QB.status.assertName(name)
+    assert(opts == nil or type(opts) == "table", "QB.status.apply options must be a table.")
+    opts = opts or {}
+    assert(opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
+        "duration must be a non-negative integer.")
+    assert(opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
+        "severity must be a positive integer.")
+
     local def = QB.status.getEffectDef(name)
     assert(def, ("Unknown status effect: %s"):format(name))
 
-    local owner = GetInvokingResource() or GetCurrentResourceName()
-    opts = opts or {}
+    local invokingResource = GetInvokingResource()
+    local owner = invokingResource or GetCurrentResourceName()
 
     local existing = active[name]
     local now = GetGameTimer()
     if existing and existing.expiresAt and existing.expiresAt <= now then
         clearRender(existing.rendered, existing.def)
+        active[name] = nil
+        statusRegistry.untrack(name)
         existing = nil
     end
+    if existing and invokingResource and statusRegistry.owner(name) ~= owner then return false end
     if existing then clearRender(existing.rendered, existing.def) end
 
     local stacking = def.stacking or "replace"
@@ -140,10 +166,10 @@ function QB.status.apply(name, opts)
     end
     local remainingDuration = expiresAt and math.max(0, expiresAt - now) or nil
 
-    local severity = opts.severity
+    local severity = def.severityLevels and opts.severity or nil
     if severity == nil then severity = existing and existing.severity end
-    if opts.severity ~= nil and stacking == "stack" and existing and existing.severity then
-        severity = math.min(def.severityLevels or opts.severity, existing.severity + opts.severity)
+    if severity ~= nil and stacking == "stack" and existing and existing.severity then
+        severity = math.min(def.severityLevels, existing.severity + severity)
     end
 
     active[name] = {
@@ -176,13 +202,12 @@ end
 
 ---@param name string
 ---@return boolean removed False if `name` wasn't active.
-function QB.status.remove(name)
+local function removeStatus(name, owner)
     local entry = active[name]
     if not entry then return false end
+    if owner and statusRegistry.owner(name) ~= owner then return false end
 
-    active[name] = nil
-    statusRegistry.untrack(name)
-    clearRender(entry.rendered, entry.def)
+    dropActive(name, entry)
     reconcileMovement()
     notifyChange(name, false)
 
@@ -190,16 +215,44 @@ function QB.status.remove(name)
 end
 
 ---@param name string
+---@return boolean removed False if `name` wasn't active or is owned by another resource.
+function QB.status.remove(name)
+    QB.status.assertName(name)
+    return removeStatus(name, GetInvokingResource())
+end
+
+---@param name string
 ---@return boolean
 function QB.status.isActive(name)
-    return active[name] ~= nil
+    QB.status.assertName(name)
+    local entry = active[name]
+    if not entry then return false end
+    if entry.expiresAt and entry.expiresAt <= GetGameTimer() then
+        removeStatus(name)
+        return false
+    end
+    return true
 end
 
 ---@return QBStatusActiveEntry[]
 function QB.status.getActive()
     local result = {}
+    local expired = {}
+    local now = GetGameTimer()
     for name, entry in pairs(active) do
-        result[#result + 1] = { name = name, severity = entry.severity, expiresAt = entry.expiresAt }
+        if entry.expiresAt and entry.expiresAt <= now then
+            expired[#expired + 1] = { name = name, entry = entry }
+        else
+            result[#result + 1] = { name = name, severity = entry.severity, expiresAt = entry.expiresAt }
+        end
+    end
+    for index = 1, #expired do
+        local entry = expired[index]
+        dropActive(entry.name, entry.entry)
+    end
+    if #expired > 0 then
+        reconcileMovement()
+        for index = 1, #expired do notifyChange(expired[index].name, false) end
     end
     return result
 end
@@ -219,9 +272,14 @@ function QB.status.onChange(handler)
 end
 
 ---@param listenerId integer
+---@return boolean removed
 function QB.status.offChange(listenerId)
+    local invoker = GetInvokingResource()
+    if invoker and listenerRegistry.owner(listenerId) ~= invoker then return false end
+
     changeListeners[listenerId] = nil
     listenerRegistry.untrack(listenerId)
+    return true
 end
 
 QB.events.onPush("qblib:status:apply", function(name, opts)

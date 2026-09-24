@@ -9,6 +9,7 @@ local mocks = require("mocks")
 local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 local PED_MODEL = 1001
@@ -103,6 +104,27 @@ harness.test("creates an object without freezing it by default", function()
     harness.assertTrue(entityCalls[entity] == nil or entityCalls[entity].freeze == nil, "an object should not be frozen without an explicit option")
 end)
 
+harness.test("entity creation rejects non-finite spatial inputs", function()
+    harness.assertThrows(function()
+        QB.entities.create(OBJECT_MODEL, { x = math.huge, y = 0, z = 0 })
+    end, "infinite coordinates must not reach entity natives")
+    harness.assertThrows(function()
+        QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { heading = 0 / 0 })
+    end, "NaN headings must not reach entity natives")
+    harness.assertThrows(function()
+        QB.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { radius = math.huge })
+    end, "infinite scoped radii must not create zones")
+    harness.assertThrows(function()
+        QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, false)
+    end, "non-table create options must be rejected")
+    harness.assertThrows(function()
+        QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { freeze = "yes" })
+    end, "non-boolean entity options must be rejected")
+    harness.assertThrows(function()
+        QB.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, false)
+    end, "non-table scoped options must be rejected")
+end)
+
 harness.test("an explicit freeze overrides having no preset", function()
     local entity = QB.entities.create(VEHICLE_MODEL, { x = 0, y = 0, z = 0 }, { freeze = true })
     harness.assertEqual(entityCalls[entity].freeze, true, "explicit freeze=true should apply even without a preset")
@@ -118,6 +140,21 @@ harness.test("remove deletes a tracked entity", function()
     local ok = QB.entities.remove(entity)
     harness.assertTrue(ok, "remove should report success")
     harness.assertFalse(_G.DoesEntityExist(entity), "the entity should no longer exist after remove")
+end)
+
+harness.test("only the owner can remove a tracked entity", function()
+    _G.GetInvokingResource = function() return "entity_owner" end
+    local entity = QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    local ok, err = QB.entities.remove(entity)
+    harness.assertFalse(ok, "a different resource should not remove the entity")
+    harness.assertEqual(err, "Entity is not owned by the calling resource.")
+    harness.assertTrue(_G.DoesEntityExist(entity), "a refused removal must leave the entity intact")
+
+    _G.GetInvokingResource = function() return "entity_owner" end
+    harness.assertTrue(QB.entities.remove(entity), "the owner should be able to remove the entity")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("remove reports failure for an already-removed entity", function()
@@ -201,6 +238,19 @@ harness.test("scoped entities and their zones are removed when their owner stops
     harness.assertTrue(zone.removed, "owner cleanup should unregister the backing zone")
 end)
 
+harness.test("only the owner can remove a scoped entity registration", function()
+    _G.GetInvokingResource = function() return "scoped_owner" end
+    local scope = QB.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    _G.GetInvokingResource = function() return "other_resource" end
+
+    harness.assertFalse(scope.remove(), "a different resource must not remove the scope")
+
+    _G.GetInvokingResource = function() return "scoped_owner" end
+    harness.assertTrue(scope.remove(), "the owner should be able to remove the scope")
+    harness.assertFalse(scope.remove(), "removing an already removed scope should fail")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.test("scoped entities require a positive radius", function()
     local ok = pcall(QB.entities.createScoped, OBJECT_MODEL, { x = 0, y = 0, z = 0 }, {})
     harness.assertFalse(ok, "a scoped entity without a radius must be rejected")
@@ -259,6 +309,19 @@ harness.test('delete removes an authorized networked entity', function()
     local ok, err = QB.entities.delete(foreignEntity)
     harness.assertTrue(ok, tostring(err))
     harness.assertFalse(_G.DoesEntityExist(foreignEntity), 'the authorized entity should be deleted')
+end)
+
+harness.test('network control rejects an invalid timeout before requesting control', function()
+    local requests = 0
+    local originalRequestControl = NetworkRequestControlOfEntity
+    _G.NetworkRequestControlOfEntity = function()
+        requests = requests + 1
+    end
+
+    harness.assertThrows(function() QB.entities.requestControl(424243, false) end)
+    harness.assertEqual(requests, 0, 'an invalid timeout should not request network control')
+
+    _G.NetworkRequestControlOfEntity = originalRequestControl
 end)
 
 harness.test('requestControl acquires control for any existing entity type', function()

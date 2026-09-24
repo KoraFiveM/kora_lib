@@ -28,8 +28,15 @@ QB.lookup.pickup(value)
 QB.lookup.preload()                -- every base namespace
 QB.lookup.preload({ 'vehicle', 'weapon' })
 QB.lookup.ready()
-QB.lookup.awaitReady(10000)
+QB.lookup.awaitReady(10000)       -- finite, non-negative timeout in ms
 ```
+
+`awaitReady` defaults to 10 seconds only when its timeout is omitted; an
+explicit timeout must be a non-negative integer.
+
+`preload` accepts one namespace string or a dense array of valid namespace
+strings. Invalid or sparse arrays are rejected instead of being treated as an
+empty preload request.
 
 `value` may be a signed or unsigned integer, a decimal string, a hexadecimal
 string, or a case-insensitive canonical name. Every hash is normalized to its
@@ -130,8 +137,13 @@ below 24 KiB and published atomically after every batch arrives; out-of-order,
 duplicate, and stale batches are harmless. Clients retry the request after the
 secure qblib event handshake until the snapshot is ready.
 
-The scan runs only when qblib starts. Restart qblib after installing, removing,
-or changing a custom resource. The scanner writes no runtime files.
+The scan runs only when qblib starts and yields between resources, so a large
+custom-resource set does not hold one long server tick. Each resource is capped
+at 4,096 directory entries; qblib warns and skips the remainder rather than
+letting a malformed or unusually large resource extend startup indefinitely.
+Use `qblib.lookup.json` for assets beyond that limit. Restart qblib after
+installing, removing, or changing a custom resource. The scanner writes no
+runtime files.
 
 ## Regenerating base data
 

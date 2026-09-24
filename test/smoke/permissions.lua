@@ -29,6 +29,47 @@ harness.test("getLevel falls back to 'user' with no grants", function()
     harness.assertEqual(QB.permissions.getLevel(1, LEVELS, "qbcore"), "user", "no ace grants means the lowest level")
 end)
 
+harness.test('permission APIs reject malformed player sources before ACE checks', function()
+    for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        harness.assertThrows(function() QB.permissions.getLevel(src, LEVELS, 'qbcore') end)
+        harness.assertThrows(function() QB.permissions.hasLevel(src, 'mod', LEVELS, 'qbcore') end)
+        harness.assertThrows(function() QB.permissions.hasPermission(src, 'user', 'qbcore') end)
+        harness.assertThrows(function() QB.permissions.explain(src, LEVELS, 'qbcore') end)
+    end
+end)
+
+harness.test('explain rejects malformed levels before calling ACE', function()
+    local aceCalls = 0
+    _G.IsPlayerAceAllowed = function()
+        aceCalls = aceCalls + 1
+        return false
+    end
+
+    harness.assertThrows(function() QB.permissions.explain(1, { 'admin', '' }, 'qbcore') end)
+    harness.assertEqual(aceCalls, 0, 'malformed levels should not reach the ACE native')
+
+    harness.assertThrows(function() QB.permissions.explain(1, { 'admin', [3] = 'user' }, 'qbcore') end)
+    harness.assertEqual(aceCalls, 0, 'sparse level lists should not reach the ACE native')
+
+    _G.IsPlayerAceAllowed = function(src, principal)
+        return grants[src] ~= nil and grants[src][principal] == true
+    end
+end)
+
+harness.test('permission checks reject oversized level hierarchies before ACE lookup', function()
+    local levels = {}
+    for index = 1, 33 do levels[index] = 'level' .. index end
+    local aceCalls = 0
+    _G.IsPlayerAceAllowed = function() aceCalls = aceCalls + 1; return false end
+
+    harness.assertThrows(function() QB.permissions.getLevel(1, levels, 'qbcore') end)
+    harness.assertEqual(aceCalls, 0)
+
+    _G.IsPlayerAceAllowed = function(src, principal)
+        return grants[src] ~= nil and grants[src][principal] == true
+    end
+end)
+
 harness.test("getLevel returns the highest matching level via the prefix namespace", function()
     grants = {}
     grant(1, "qbcore.mod")
@@ -82,6 +123,18 @@ harness.test("Discord failures fail closed without granting access", function()
 
     harness.assertEqual(QB.permissions.getLevel(10, LEVELS, options), "user", "stale roles must not resolve a level")
     harness.assertFalse(QB.permissions.hasPermission(10, "admin", options), "stale roles must not grant access")
+end)
+
+harness.test('Discord role arrays must be dense strings before lookup', function()
+    grants = {}
+    QB.discord.hasAnyRole = function() error('malformed roles must not reach Discord') end
+
+    harness.assertThrows(function()
+        QB.permissions.getLevel(10, LEVELS, { discordRoles = { admin = { 'Administrator', [3] = 'Owner' } } })
+    end)
+    harness.assertThrows(function()
+        QB.permissions.getLevel(10, LEVELS, { discordRoles = { admin = { false } } })
+    end)
 end)
 
 harness.test("getLevel is scoped by prefix: a grant under a different prefix does not match", function()

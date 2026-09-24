@@ -51,6 +51,19 @@ end
 
 local screenRegistry = QB.resources.registry(disposeScreenHandle)
 
+local function assertDuration(duration, label)
+    if duration == nil then duration = 0 end
+    assert(QB.util.isInteger(duration) and duration >= 0,
+        ("%s must be a finite non-negative integer."):format(label))
+    return duration
+end
+
+local function assertVec3(value, label)
+    assert(value and QB.util.isFiniteNumber(value.x) and QB.util.isFiniteNumber(value.y)
+            and QB.util.isFiniteNumber(value.z),
+        ("%s must have finite x, y, and z values."):format(label))
+end
+
 ---Plays a particle effect, streaming `def.dict` via `QB.stream.loadPtfx`'s
 ---callback form -- the dict is released immediately after the effect starts,
 ---which is safe: once `StartParticleFx*` has been called, the running effect
@@ -68,14 +81,25 @@ local screenRegistry = QB.resources.registry(disposeScreenHandle)
 function QB.fx.playPtfx(def)
     assert(type(def) == "table", "QB.fx.playPtfx requires a def table.")
     assert(type(def.dict) == "string" and type(def.name) == "string", "QB.fx.playPtfx requires string dict/name.")
-    assert(def.entity or def.coords, "QB.fx.playPtfx requires either def.entity or def.coords.")
+    assert(def.entity ~= nil or def.coords ~= nil, "QB.fx.playPtfx requires either def.entity or def.coords.")
+    assert(def.entity == nil or (QB.util.isInteger(def.entity) and def.entity > 0), "Particle effect entity must be a positive finite integer.")
+    assert(def.bone == nil or type(def.bone) == "string", "Particle effect bone must be a string.")
+    assert(def.looped == nil or type(def.looped) == "boolean", "Particle effect looped must be a boolean.")
+    local duration = assertDuration(def.duration, "Particle effect duration")
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
-    local offset = def.offset or { x = 0.0, y = 0.0, z = 0.0 }
-    local rot = def.rot or { x = 0.0, y = 0.0, z = 0.0 }
-    local scale = def.scale or 1.0
-    local looped = def.looped or false
+    local offset = def.offset
+    if offset == nil then offset = { x = 0.0, y = 0.0, z = 0.0 } end
+    local rot = def.rot
+    if rot == nil then rot = { x = 0.0, y = 0.0, z = 0.0 } end
+    local scale = def.scale
+    if scale == nil then scale = 1.0 end
+    local looped = def.looped == true
+    if not def.entity then assertVec3(def.coords, "Particle effect coordinates") end
+    assertVec3(offset, "Particle effect offset")
+    assertVec3(rot, "Particle effect rotation")
+    assert(QB.util.isFiniteNumber(scale), "Particle effect scale must be finite.")
 
     local particleId
     local started = false
@@ -125,12 +149,13 @@ function QB.fx.playPtfx(def)
     if looped and particleId and particleId ~= -1 then
         ptfxRegistry.track(invokingResource, particleId)
 
-        if def.duration and def.duration > 0 then
+        if duration > 0 then
             local myParticleId = particleId
             CreateThread(function()
-                Wait(def.duration)
+                Wait(duration)
                 if ptfxRegistry.owner(myParticleId) then -- still tracked -- not already stopped
-                    QB.fx.stop({ looped = true, particleId = myParticleId })
+                    ptfxRegistry.untrack(myParticleId)
+                    StopParticleFxLooped(myParticleId, false)
                 end
             end)
         end
@@ -147,6 +172,9 @@ end
 function QB.fx.stop(handle)
     if not handle or not handle.looped or not handle.particleId then return false end
 
+    local caller = GetInvokingResource() or GetCurrentResourceName()
+    if ptfxRegistry.owner(handle.particleId) ~= caller then return false end
+
     local owner = ptfxRegistry.untrack(handle.particleId)
     if not owner then return false end
 
@@ -161,10 +189,12 @@ end
 ---@return QBFxScreenHandle handle
 function QB.fx.screenEffect(name, duration, looped)
     assert(type(name) == "string" and #name > 0, "QB.fx.screenEffect requires a string effect name.")
+    assert(looped == nil or type(looped) == "boolean", "QB.fx.screenEffect looped must be a boolean.")
+    duration = assertDuration(duration, "Screen effect duration")
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
-    StartScreenEffect(name, duration or 0, looped or false)
+    StartScreenEffect(name, duration, looped == true)
     nextScreenId = nextScreenId + 1
     local id = nextScreenId
     screenHandles[id] = { name = name }
@@ -191,6 +221,9 @@ function QB.fx.stopScreenEffect(handle)
         end
     end
     if type(id) ~= "number" then return false end
+
+    local caller = GetInvokingResource() or GetCurrentResourceName()
+    if screenRegistry.owner(id) ~= caller then return false end
 
     local owner = screenRegistry.untrack(id)
     if not owner then return false end

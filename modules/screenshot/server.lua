@@ -1,7 +1,9 @@
 local isCallable = QB.compat.isCallable
 local generateToken = QB.compat.generateToken
+local isInteger = QB.util.isInteger
 local pendingUploads = {}
 local playerUploads = {}
+local DEFAULT_MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 
 local function screenshotMilliseconds()
     if type(GetGameTimer) == 'function' then return GetGameTimer() end
@@ -25,6 +27,12 @@ local validEncodings = {
 
 local function screenshotConfig()
     return (Config and Config.screenshot) or {}
+end
+
+local function maxUploadBytes()
+    local maxBytes = screenshotConfig().maxBytes
+    if isInteger(maxBytes) and maxBytes > 0 then return maxBytes end
+    return DEFAULT_MAX_UPLOAD_BYTES
 end
 
 local function imageMatchesEncoding(data, encoding)
@@ -97,11 +105,12 @@ local function finish(session, err, result)
 end
 
 local function normalizeOptions(options)
-    options = options or {}
+    if options == nil then options = {} end
     assert(type(options) == 'table', 'Screenshot options must be a table.')
 
     local config = screenshotConfig()
-    local encoding = options.encoding or config.defaultEncoding or 'jpg'
+    local encoding = options.encoding
+    if encoding == nil then encoding = config.defaultEncoding or 'jpg' end
     assert(type(encoding) == 'string' and validEncodings[encoding], 'Screenshot encoding must be jpg, png, or webp.')
 
     local quality = options.quality
@@ -113,9 +122,9 @@ local function normalizeOptions(options)
     if maxWidth == nil then maxWidth = config.maxWidth end
     local maxHeight = options.maxHeight
     if maxHeight == nil then maxHeight = config.maxHeight end
-    assert(maxWidth == false or (type(maxWidth) == 'number' and maxWidth >= 1 and maxWidth % 1 == 0),
+    assert(maxWidth == false or (isInteger(maxWidth) and maxWidth >= 1),
         'Screenshot maxWidth must be a positive integer or false.')
-    assert(maxHeight == false or (type(maxHeight) == 'number' and maxHeight >= 1 and maxHeight % 1 == 0),
+    assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1),
         'Screenshot maxHeight must be a positive integer or false.')
     assert(options.includeNui == nil or type(options.includeNui) == 'boolean',
         'Screenshot includeNui must be a boolean.')
@@ -139,15 +148,17 @@ end
 ---@param callback? fun(err: string|false, result?: string)
 ---@return string token
 function QB.screenshot.requestClient(player, options, callback)
-    assert(type(player) == 'number' and player >= 1 and player % 1 == 0,
+    assert(isInteger(player) and player >= 1,
         'Screenshot player must be a positive server ID.')
     assert(callback == nil or isCallable(callback), 'Screenshot callback must be callable.')
     assert(GetPlayerName(player) ~= nil, 'Screenshot player is not connected.')
     assert(not playerUploads[player], 'A screenshot is already pending for this player.')
 
+    if options == nil then options = {} end
     local normalized = normalizeOptions(options)
-    local timeout = options and options.timeout or screenshotConfig().requestTimeout or 30000
-    assert(type(timeout) == 'number' and timeout > 1000 and timeout % 1 == 0,
+    local timeout = options.timeout
+    if timeout == nil then timeout = screenshotConfig().requestTimeout or 30000 end
+    assert(isInteger(timeout) and timeout > 1000,
         'Screenshot timeout must be an integer greater than 1000 milliseconds.')
     local token = generateToken(48)
     local session = {
@@ -207,13 +218,14 @@ RegisterNetEvent('qblib:server:screenshotProgressed', function(token, stage, val
     }
     local label = type(stage) == 'string' and stages[stage] or nil
     if not label then return end
-    screenshotDebug(session, label, type(value) == 'number' and ('%d bytes'):format(value) or nil)
+    local detail = isInteger(value) and value >= 0 and ('%d bytes'):format(value) or nil
+    screenshotDebug(session, label, detail)
 end)
 
 local function persistScreenshot(session, data)
     if type(data) ~= 'string' or #data == 0 then return 'The screenshot was empty.', nil, 400 end
 
-    local maxBytes = screenshotConfig().maxBytes or (12 * 1024 * 1024)
+    local maxBytes = maxUploadBytes()
     if #data > maxBytes then return 'The screenshot exceeded qblib\'s upload limit.', nil, 413 end
     if not imageMatchesEncoding(data, session.encoding) then
         return 'The uploaded file did not match the requested image format.', nil, 415
@@ -246,7 +258,7 @@ RegisterNetEvent('qblib:server:screenshotCaptured', function(token, dataUri)
     end
 
     local encoded = dataUri:sub(#prefix + 1)
-    local maxBytes = screenshotConfig().maxBytes or (12 * 1024 * 1024)
+    local maxBytes = maxUploadBytes()
     if #encoded > math.ceil(maxBytes / 3) * 4 then
         finish(session, 'The screenshot exceeded qblib\'s upload limit.')
         return
@@ -309,7 +321,7 @@ local function receiveUpload(request, response)
     end
 
 
-    local maxBytes = screenshotConfig().maxBytes or (12 * 1024 * 1024)
+    local maxBytes = maxUploadBytes()
     for name, value in pairs(request.headers or {}) do
         if tostring(name):lower() == 'content-length' and tonumber(value) and tonumber(value) > maxBytes then
             finish(session, 'The screenshot exceeded qblib\'s upload limit.')

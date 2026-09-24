@@ -20,7 +20,7 @@ first run happens one full interval from now, not immediately.
 
 #### Parameters
 - `fn: fun()` — any callable, including one that crossed an exports boundary.
-- `interval: number` — milliseconds, `>= 0`.
+- `interval: finite integer` — milliseconds, `>= 0`.
 
 #### Returns
 - `integer` — the timer id, for `clearInterval`.
@@ -36,15 +36,24 @@ QB.timers.clearInterval(heartbeat)
 ```
 
 ### `QB.timers.setTimeout(fn, delay)`
-Runs `fn` once after `delay` ms. Unlike bare `SetTimeout` this is cancellable
+Runs `fn` once after a finite, non-negative integer `delay` in ms. Unlike bare `SetTimeout` this is cancellable
 and dies with its owning resource.
+
+#### Parameters
+- `fn: fun()` — any callable, including one that crossed an exports boundary.
+- `delay: finite integer` — milliseconds, `>= 0`.
 
 #### Returns
 - `integer` — the timer id, for `clearTimeout`.
 
 ### `QB.timers.clearInterval(id)` / `QB.timers.clearTimeout(id)`
 Cancels a timer. Both names operate on the same id space; `clearTimeout` exists
-purely so the call site reads correctly.
+purely so the call site reads correctly. Only the resource that created a timer
+can cancel it through its id; internal debounce cleanup retains its captured
+owner across the asynchronous gap.
+
+#### Parameters
+- `id: integer` — a live timer ID returned by either scheduler.
 
 #### Returns
 - `boolean` — `false` for an id that was never live, already cancelled, or
@@ -127,7 +136,9 @@ function from a mocked `throttle` hides this class of bug.
 ### `QB.timers.cooldown(interval)`
 
 Creates independent leading-edge cooldowns within one handle. Use a player
-source, action name, or composite scalar as the key.
+source, action name, or composite scalar as the key. Keys must be finite
+numbers, booleans, or strings up to 256 bytes; tables are rejected so a
+long-lived cooldown cannot retain arbitrary object graphs.
 
 - `.use(key)` → `boolean` accepts the first use after the interval.
 - `.remaining(key)` → `integer` returns milliseconds until ready.
@@ -146,6 +157,11 @@ Live timer count, for diagnostics and tests. Debounce/throttle wrappers are not
 timers themselves; a debouncer with a pending run contributes one.
 
 ## Notes
+- An interval of `0` runs once per game frame. Use it only for engine work that
+  must be reasserted every frame (for example, a transient control disable);
+  ordinary polling should use the slowest interval that still feels responsive.
+- All timer delays are integer milliseconds. Fractional values are rejected
+  rather than rounded down into a potentially accidental per-frame timer.
 - **The ownership registry is created lazily, not at load time.** `fxmanifest.lua`
   loads every `modules/**/shared.lua` *before* any `local/resources/{client,server}.lua`,
   so `QB.resources.registry`/`serverRegistry` do not exist yet while this chunk

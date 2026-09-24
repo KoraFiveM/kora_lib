@@ -11,10 +11,13 @@ local net = mocks.install()
 local registeredCommands = {}
 _G.RegisterCommand = function(name, handler) registeredCommands[name] = handler end
 
+_G.GetPlayers = function() return { '1', '2' } end
+
 local invokingResource = nil
 _G.GetInvokingResource = function() return invokingResource end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 
 local notifyCalls = {}
@@ -32,6 +35,29 @@ harness.test("add() registers a chat suggestion", function()
     local suggestion = mocks.lastEntry(net.triggeredClientEvents, "chat:addSuggestion")
     harness.assertTrue(suggestion ~= nil, "a chat:addSuggestion event should have fired")
     harness.assertEqual(suggestion[1], "/hello", "the suggestion should be for /hello")
+end)
+
+harness.test("add rejects malformed registrations before publishing a command", function()
+    local suggestions = #net.triggeredClientEvents
+    local invalid = {
+        function() QB.commands.add('', '', nil, false, function() end) end,
+        function() QB.commands.add('bad name', '', nil, false, function() end) end,
+        function() QB.commands.add('badhelp', false, nil, false, function() end) end,
+        function() QB.commands.add('badargs', '', false, false, function() end) end,
+        function() QB.commands.add('badargentry', '', { false }, false, function() end) end,
+        function() QB.commands.add('badargname', '', { { name = false } }, false, function() end) end,
+        function() QB.commands.add('badarghelp', '', { { name = 'target', help = false } }, false, function() end) end,
+        function() QB.commands.add('sparseargs', '', { [2] = { name = 'target' } }, false, function() end) end,
+        function() QB.commands.add('badrequired', '', nil, 'yes', function() end) end,
+        function() QB.commands.add('badhandler', '', nil, false, false) end,
+        function() QB.commands.add('badopts', '', nil, false, function() end, false) end,
+        function() QB.commands.add('badpermission', '', nil, false, function() end, { permission = false }) end,
+        function() QB.commands.add('badcheck', '', nil, false, function() end, { checkPermission = false }) end,
+        function() QB.commands.add('badnotify', '', nil, false, function() end, { notify = false }) end,
+    }
+    for index = 1, #invalid do harness.assertThrows(invalid[index]) end
+    harness.assertEqual(#net.triggeredClientEvents, suggestions,
+        'invalid registrations must not publish chat suggestions')
 end)
 
 harness.test("a 'user' permission command runs for anyone, including a real player source", function()
@@ -106,21 +132,42 @@ harness.test("a handler error is caught, not propagated", function()
 end)
 
 harness.test("list() reports every registered command", function()
-    local names = {}
-    for _, entry in ipairs(QB.commands.list()) do names[entry.name] = true end
+    local names, previous = {}, nil
+    for _, entry in ipairs(QB.commands.list()) do
+        harness.assertTrue(previous == nil or previous < entry.name,
+            "command listings should use a stable alphabetical order")
+        names[entry.name] = true
+        previous = entry.name
+    end
 
     harness.assertTrue(names["hello"], "hello should be listed")
     harness.assertTrue(names["ping"], "ping should be listed")
 end)
 
 harness.test("refresh() re-sends suggestions to one target source", function()
+    local firstEvent = #net.triggeredClientEvents + 1
     QB.commands.refresh(42)
 
-    local sawTarget42 = false
-    for _, e in ipairs(net.triggeredClientEvents) do
-        if e.name == "chat:addSuggestion" and e.target == 42 then sawTarget42 = true end
+    local previous, sawTarget42 = nil, false
+    for index = firstEvent, #net.triggeredClientEvents do
+        local event = net.triggeredClientEvents[index]
+        if event.name == "chat:addSuggestion" and event.target == 42 then
+            local name = event[1]:sub(2)
+            harness.assertTrue(previous == nil or previous < name,
+                "refreshed suggestions should use a stable alphabetical order")
+            previous = name
+            sawTarget42 = true
+        end
     end
     harness.assertTrue(sawTarget42, "refresh should re-send suggestions targeted at the given source")
+end)
+
+harness.test('refresh rejects malformed targets before emitting suggestions', function()
+    local before = #net.triggeredClientEvents
+    for _, source in ipairs({ 0, -1, 1.5, math.huge, '1' }) do
+        harness.assertThrows(function() QB.commands.refresh(source) end)
+    end
+    harness.assertEqual(#net.triggeredClientEvents, before)
 end)
 
 harness.test("remove() drops the command and its chat suggestion", function()
@@ -137,6 +184,18 @@ harness.test("remove() drops the command and its chat suggestion", function()
         if entry.name == "removable" then stillListed = true end
     end
     harness.assertFalse(stillListed, "a removed command should no longer be listed")
+end)
+
+harness.test("a resource cannot remove another resource's command", function()
+    invokingResource = "command_owner"
+    QB.commands.add("owned_command", "Owned command", nil, false, function() end)
+
+    invokingResource = "other_resource"
+    harness.assertFalse(QB.commands.remove("owned_command"), "a foreign resource must not remove the command")
+
+    invokingResource = "command_owner"
+    harness.assertTrue(QB.commands.remove("owned_command"), "the owner should remove the command")
+    invokingResource = nil
 end)
 
 harness.test("resource stop disposes exactly the commands still owned by that resource", function()
@@ -209,6 +268,45 @@ harness.test('suggest does not expose values for a denied command', function()
     harness.assertEqual(#QB.commands.suggest(1, 'secretlookup', 1, '', {}), 0)
 end)
 
+harness.test('suggest rejects malformed sources and indexes before provider evaluation', function()
+    local calls = 0
+    QB.commands.add('guardedsuggest', '', {
+        { name = 'value', provider = function() calls = calls + 1; return { 'secret' } end },
+    }, false, function() end, {
+        permission = 'admin', checkPermission = function() return true end,
+    })
+
+    for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        harness.assertEqual(#QB.commands.suggest(src, 'guardedsuggest', 1, '', {}), 0)
+    end
+    for _, index in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        harness.assertEqual(#QB.commands.suggest(1, 'guardedsuggest', index, '', {}), 0)
+    end
+    harness.assertEqual(calls, 0, 'invalid suggestion requests must not invoke their provider')
+end)
+
+harness.test('suggest rejects malformed parsed arguments before provider evaluation', function()
+    local calls = 0
+    QB.commands.add('parsedargs', '', {
+        { name = 'value', provider = function() calls = calls + 1; return { 'safe' } end },
+    }, false, function() end)
+
+    local invalid = {
+        false,
+        { [2] = 'sparse' },
+        { false },
+        { string.rep('x', 129) },
+    }
+    local tooMany = {}
+    for index = 1, 17 do tooMany[index] = 'value' end
+    invalid[#invalid + 1] = tooMany
+
+    for index = 1, #invalid do
+        harness.assertEqual(#QB.commands.suggest(1, 'parsedargs', 1, '', invalid[index]), 0)
+    end
+    harness.assertEqual(calls, 0, 'malformed parsed arguments must not invoke their provider')
+end)
+
 harness.test('suggest contains provider errors and returns static values', function()
     QB.commands.add('providererror', '', {
         { name = 'value', values = { 'safe' }, provider = function() error('boom') end },
@@ -272,14 +370,36 @@ harness.test('a command keybind is published, listed, synchronized, and securely
     harness.assertEqual(synced[1], 'boundcommand')
 end)
 
+harness.test('command keybind events discard malformed sources before dispatch', function()
+    local ran = false
+    QB.commands.add('bound-malformed-source', '', nil, false, function() ran = true end, {
+        keybind = { defaultKey = 'F12' },
+    })
+
+    local syncHandlers = net.netHandlers['qblib:commands:keybind:sync']
+    local executeHandlers = net.netHandlers['qblib:commands:keybind:execute']
+    local ok = pcall(function()
+        for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+            _G.source = src
+            for _, fn in ipairs(syncHandlers) do fn() end
+            for _, fn in ipairs(executeHandlers) do fn('bound-malformed-source') end
+        end
+        _G.source = nil
+    end)
+
+    _G.source = nil
+    harness.assertTrue(ok, 'malformed keybind sources must be ignored without handler errors')
+    harness.assertFalse(ran, 'a malformed source must not dispatch a bound command')
+end)
+
 harness.test('command keybind dispatch uses the same permission and required-argument gates', function()
     local deniedRan, requiredRan = false, false
     QB.commands.add('bounddenied', '', nil, false, function() deniedRan = true end, {
         permission = 'admin', keybind = { defaultKey = 'F9' },
     })
     local deniedMapping = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
-    harness.assertEqual(deniedMapping[2].description, 'bounddenied',
-        'an empty help string should fall back to the command name for the mapping label')
+    harness.assertEqual(deniedMapping[1], 'bound-malformed-source',
+        'a denied permission must not publish a key mapping')
     QB.commands.add('boundrequired', '', { { name = 'value' } }, true, function() requiredRan = true end, {
         keybind = { defaultKey = 'F10' },
     })
@@ -294,6 +414,40 @@ harness.test('command keybind dispatch uses the same permission and required-arg
     local before = #notifyCalls
     TriggerServerEvent('qblib:commands:keybind:execute', 'complete')
     harness.assertEqual(#notifyCalls, before, 'an unbound command must not be reachable through the keybind transport')
+end)
+
+harness.test('privileged keybinds synchronize only to permitted players', function()
+    QB.commands.add('boundadmin', '', nil, false, function() end, {
+        permission = 'admin',
+        checkPermission = function(src) return src == 2 end,
+        keybind = { defaultKey = 'F6' },
+    })
+
+    local published = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    harness.assertEqual(published.target, 2)
+    harness.assertEqual(published[1], 'boundadmin')
+
+    local function mappingCount(target)
+        local count = 0
+        for _, event in ipairs(net.triggeredClientEvents) do
+            if event.name == 'qblib:commands:keybind:add' and event.target == target and event[1] == 'boundadmin' then
+                count = count + 1
+            end
+        end
+        return count
+    end
+
+    local beforeDeniedSync = mappingCount(1)
+    _G.source = 1
+    for _, fn in ipairs(net.netHandlers['qblib:commands:keybind:sync']) do fn() end
+    _G.source = nil
+    harness.assertEqual(mappingCount(1), beforeDeniedSync, 'an unauthorized sync must not receive the mapping')
+
+    local beforeAllowedSync = mappingCount(2)
+    _G.source = 2
+    for _, fn in ipairs(net.netHandlers['qblib:commands:keybind:sync']) do fn() end
+    _G.source = nil
+    harness.assertEqual(mappingCount(2), beforeAllowedSync + 1)
 end)
 
 harness.test('removing or replacing a bound command removes its client mapping', function()

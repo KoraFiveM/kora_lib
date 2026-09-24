@@ -2,7 +2,9 @@
 
 Client-side, resource-owned animation and attached-prop helpers. Animation dictionaries and prop models are streamed automatically. qblib releases loaded dictionaries, stops tracked animations, and deletes attached props when their owning resource stops.
 
-Only one qblib animation is tracked per entity. Starting a new animation replaces the tracked handle; `QB.anim.stopHandle` prevents an older system from stopping that newer animation.
+Only one qblib animation is tracked per entity. The owning resource may replace
+its own tracked handle; another resource cannot replace or stop it.
+`QB.anim.stopHandle` prevents an older system from stopping a newer animation.
 
 ## `QB.anim.play(entity, dict, clip, opts?)`
 
@@ -12,13 +14,19 @@ Options:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `duration` | `-1` | Milliseconds passed to `TaskPlayAnim`. A positive value also schedules qblib cleanup. |
+| `duration` | `-1` | `-1` or a non-negative finite integer in milliseconds passed to `TaskPlayAnim`. `-1` retains the native's indefinite/natural-length behavior; a positive value also schedules qblib cleanup. |
 | `flag` | `1` | FiveM animation flag bitmask. |
 | `blendInSpeed` | `8.0` | Animation blend-in speed. |
 | `blendOutSpeed` | `8.0` | Animation blend-out speed. |
 | `playbackRate` | `0.0` | Playback rate passed to the native. |
 | `lockX`, `lockY`, `lockZ` | `false` | Lock the corresponding movement axis. |
-| `onFinish` | none | Called with `entity` after a positive duration expires. It is not called after explicit cancellation or replacement. |
+| `onFinish` | none | Callable invoked with `entity` after a positive duration expires. It is not called after explicit cancellation or replacement. |
+
+Every supplied numeric option must be finite (`duration` and `flag` are
+integers); axis locks must be booleans. qblib validates these before streaming
+the dictionary or changing the entity's active animation. `onFinish` runs only
+after qblib has stopped and released the animation; an error is logged without
+leaving the animation active.
 
 ```lua
 local handle, reason = QB.anim.play(PlayerPedId(), 'amb@world_human_hang_out_street@male_c@idle_a', 'idle_b', {
@@ -33,7 +41,7 @@ end
 
 ## Stopping and inspecting
 
-- `QB.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active.
+- `QB.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active. `blendOutSpeed`, when supplied, must be finite. A resource can stop only an animation it started; qblib's own delayed cleanup remains internal.
 - `QB.anim.stopHandle(handle, blendOutSpeed?)` stops only when `handle` is still current for its entity. It returns `false` for a stale or invalid handle.
 - `QB.anim.isPlaying(entity)` returns whether the tracked dictionary and clip are currently playing according to the native state.
 - `QB.anim.clear(entity, immediate?)` stops qblib's tracked animation and clears all ped tasks. `immediate = true` uses immediate task clearing.
@@ -53,10 +61,14 @@ end
 - `vertexIndex` is the legacy option name for the native's rotation order and defaults to `0`.
 - `fixedRot` controls rotation synchronization and defaults to `true`.
 
+Offsets and rotations require finite `x`/`y`/`z` components. Attachment flags
+must be booleans and `vertexIndex` is an integer from `0` to `5`; qblib checks
+all of them before streaming a model or creating a local prop.
+
 ```lua
 local prop, reason = QB.anim.attachProp(PlayerPedId(), 'prop_cs_tablet', 'IK_R_Hand',
     vector3(0.03, 0.002, -0.01),
     vector3(10.0, 160.0, 0.0))
 ```
 
-`QB.anim.detachProp(prop)` only accepts a prop created by this module. It detaches, deletes, and untracks the object, returning `true`; an unowned or missing prop returns `false, reason`.
+`QB.anim.detachProp(prop)` only accepts a prop created by this module and owned by its caller. It detaches, deletes, and untracks the object, returning `true`; an unowned, foreign, or missing prop returns `false, reason`.

@@ -15,8 +15,9 @@
 ---@return any | false identifier `key`, or the value returned by `request` when `identifierFromRequest` is set, or false if it never loaded.
 ---@return string? error
 local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifierFromRequest, options)
+    assert(cb == nil or QB.util.isCallable(cb), "QB.stream callback must be callable.")
+    assert(options == nil or type(options) == "table", "QB.stream load options must be a table.")
     options = options or {}
-    assert(type(options) == "table", "QB.stream load options must be a table.")
     assert(options.timeout == nil or QB.util.isInteger(options.timeout) and options.timeout >= 0,
         "QB.stream timeout must be a non-negative integer.")
     assert(options.shouldContinue == nil or QB.util.isCallable(options.shouldContinue),
@@ -55,13 +56,21 @@ local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifie
     return identifier
 end
 
+local function assertName(value, label)
+    assert(type(value) == 'string' and value ~= '', ('Invalid %s: expected a non-empty string.'):format(label))
+end
+
 ---@param model string | number The model to be loaded.
 ---@param cb? fun(model: number) : nil You can pass a callback function. An example would be to create a ped. Then the model will automatically clean up afterwards.
 ---@param options? QBStreamLoadOptions
 ---@return number | false model The loaded model hash, or false if it never loaded.
 ---@return string? error
 function QB.stream.loadModel(model, cb, options)
-    if type(model) == "string" then model = joaat(model) end
+    if type(model) == "string" then
+        assertName(model, 'model')
+        model = joaat(model)
+    end
+    assert(QB.util.isInteger(model), ("Invalid model: %s"):format(model))
     assert(IsModelValid(model), ("Invalid model: %s"):format(model))
 
     return loadStreamingAsset(RequestModel, HasModelLoaded, SetModelAsNoLongerNeeded, model, cb, false, options)
@@ -76,7 +85,7 @@ end
 ---@return string | false fxName The loaded asset name, or false if it never loaded.
 ---@return string? error
 function QB.stream.loadPtfx(fxName, cb, options)
-    assert(type(fxName) == "string", ("Invalid ptfx asset name: %s"):format(fxName))
+    assertName(fxName, 'ptfx asset name')
     return loadStreamingAsset(RequestNamedPtfxAsset, HasNamedPtfxAssetLoaded, RemoveNamedPtfxAsset, fxName, cb, false, options)
 end
 
@@ -89,7 +98,7 @@ end
 ---@return string | false animDict The loaded dictionary name, or false if it never loaded.
 ---@return string? error
 function QB.stream.loadAnimDict(animDict, cb, options)
-    assert(type(animDict) == "string", ("Invalid anim dict: %s"):format(animDict))
+    assertName(animDict, 'anim dict')
     assert(DoesAnimDictExist(animDict), ("Anim dict does not exist: %s"):format(animDict))
     return loadStreamingAsset(RequestAnimDict, HasAnimDictLoaded, RemoveAnimDict, animDict, cb, false, options)
 end
@@ -99,11 +108,12 @@ end
 ---tradeoff this implies.
 ---@param animSet string The animation set to load.
 ---@param cb? fun(animSet: string) : nil Optional callback run once loaded; set is released right after it returns.
+---@param options? QBStreamLoadOptions
 ---@return string | false animSet The loaded set name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadAnimSet(animSet, cb)
-    assert(type(animSet) == "string", ("Invalid anim set: %s"):format(animSet))
-    return loadStreamingAsset(RequestAnimSet, HasAnimSetLoaded, RemoveAnimSet, animSet, cb)
+function QB.stream.loadAnimSet(animSet, cb, options)
+    assertName(animSet, 'anim set')
+    return loadStreamingAsset(RequestAnimSet, HasAnimSetLoaded, RemoveAnimSet, animSet, cb, false, options)
 end
 
 ---Loads a clip set, runs an optional callback, then releases it immediately
@@ -111,11 +121,12 @@ end
 ---implies.
 ---@param clipSet string The clip set to load.
 ---@param cb? fun(clipSet: string) : nil Optional callback run once loaded; set is released right after it returns.
+---@param options? QBStreamLoadOptions
 ---@return string | false clipSet The loaded clip set name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadClipSet(clipSet, cb)
-    assert(type(clipSet) == "string", ("Invalid clip set: %s"):format(clipSet))
-    return loadStreamingAsset(RequestClipSet, HasClipSetLoaded, RemoveClipSet, clipSet, cb)
+function QB.stream.loadClipSet(clipSet, cb, options)
+    assertName(clipSet, 'clip set')
+    return loadStreamingAsset(RequestClipSet, HasClipSetLoaded, RemoveClipSet, clipSet, cb, false, options)
 end
 
 ---Loads (activates) an interior proplist (IPL), runs an optional callback,
@@ -124,11 +135,12 @@ end
 ---should remain visible) should not be loaded this way.
 ---@param iplName string The IPL to load.
 ---@param cb? fun(iplName: string) : nil Optional callback run once active; IPL is removed right after it returns.
+---@param options? QBStreamLoadOptions
 ---@return string | false iplName The loaded IPL name, or false if it never activated.
 ---@return string? error
-function QB.stream.loadIpl(iplName, cb)
-    assert(type(iplName) == "string", ("Invalid IPL: %s"):format(iplName))
-    return loadStreamingAsset(RequestIpl, IsIplActive, RemoveIpl, iplName, cb)
+function QB.stream.loadIpl(iplName, cb, options)
+    assertName(iplName, 'IPL')
+    return loadStreamingAsset(RequestIpl, IsIplActive, RemoveIpl, iplName, cb, false, options)
 end
 
 ---Loads a scaleform movie, runs an optional callback with its handle, then
@@ -136,11 +148,13 @@ end
 ---the callback's synchronous scope should not be requested this way.
 ---@param scaleformName string The scaleform movie to load.
 ---@param cb? fun(handle: number) : nil Optional callback run once loaded, receiving the scaleform handle; movie is released right after it returns.
+---@param options? QBStreamLoadOptions
 ---@return number | false handle The loaded scaleform handle, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadScaleformMovie(scaleformName, cb)
-    assert(type(scaleformName) == "string", ("Invalid scaleform movie: %s"):format(scaleformName))
-    return loadStreamingAsset(RequestScaleformMovie, HasScaleformMovieLoaded, SetScaleformMovieAsNoLongerNeeded, scaleformName, cb, true)
+function QB.stream.loadScaleformMovie(scaleformName, cb, options)
+    assertName(scaleformName, 'scaleform movie')
+    return loadStreamingAsset(RequestScaleformMovie, HasScaleformMovieLoaded, SetScaleformMovieAsNoLongerNeeded,
+        scaleformName, cb, true, options)
 end
 
 ---Loads a streamed texture dictionary, runs an optional callback, then
@@ -152,9 +166,11 @@ end
 ---@return string | false textureDict The loaded dictionary name, or false if it never loaded.
 ---@return string? error
 function QB.stream.loadTextureDict(textureDict, cb, isAdditionalTextures)
-    assert(type(textureDict) == "string", ("Invalid texture dict: %s"):format(textureDict))
+    assertName(textureDict, 'texture dict')
+    assert(isAdditionalTextures == nil or type(isAdditionalTextures) == "boolean",
+        "Texture dictionary additional-textures flag must be a boolean.")
     return loadStreamingAsset(function(dict)
-        RequestStreamedTextureDict(dict, isAdditionalTextures or false)
+        RequestStreamedTextureDict(dict, isAdditionalTextures == true)
     end, HasStreamedTextureDictLoaded, SetStreamedTextureDictAsNoLongerNeeded, textureDict, cb)
 end
 
@@ -171,7 +187,7 @@ end
 ---@return string | false audioBank The loaded bank name, or false if it never loaded.
 ---@return string? error
 function QB.stream.loadAudioBank(audioBank, cb)
-    assert(type(audioBank) == "string", ("Invalid audio bank: %s"):format(audioBank))
+    assertName(audioBank, 'audio bank')
 
     local function requestBank(bank)
         return RequestScriptAudioBank(bank, false)
@@ -195,10 +211,12 @@ end
 ---@return boolean success False if collision never finished loading.
 ---@return string? error
 function QB.stream.loadCollision(coords, cb, entity)
-    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3 or {x, y, z} table.")
+    assert(cb == nil or QB.util.isCallable(cb), "QB.stream callback must be callable.")
+    assert(entity == nil or QB.util.isInteger(entity), "Collision entity must be a finite integer.")
 
-    entity = entity or PlayerPedId()
+    if entity == nil then entity = PlayerPedId() end
 
     local ok, err = QB.loops.controlled(function()
         RequestCollisionAtCoord(coords.x, coords.y, coords.z)
@@ -224,10 +242,19 @@ end
 ---@return number | false weaponHash The loaded weapon hash, or false if it never loaded.
 ---@return string? error
 function QB.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags, extraWeaponComponentFlags)
-    if type(weapon) == "string" then weapon = joaat(weapon) end
+    if type(weapon) == "string" then
+        assertName(weapon, 'weapon')
+        weapon = joaat(weapon)
+    end
+    assert(QB.util.isInteger(weapon), ("Invalid weapon: %s"):format(weapon))
     assert(IsWeaponValid(weapon), ("Invalid weapon: %s"):format(weapon))
+    assert(weaponResourceFlags == nil or QB.util.isInteger(weaponResourceFlags),
+        "Weapon resource flags must be finite integers.")
+    assert(extraWeaponComponentFlags == nil or QB.util.isInteger(extraWeaponComponentFlags),
+        "Weapon component flags must be finite integers.")
 
     return loadStreamingAsset(function(hash)
-        RequestWeaponAsset(hash, weaponResourceFlags or 31, extraWeaponComponentFlags or 0)
+        RequestWeaponAsset(hash, weaponResourceFlags == nil and 31 or weaponResourceFlags,
+            extraWeaponComponentFlags == nil and 0 or extraWeaponComponentFlags)
     end, HasWeaponAssetLoaded, RemoveWeaponAsset, weapon, cb)
 end

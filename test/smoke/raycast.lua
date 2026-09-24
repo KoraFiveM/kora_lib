@@ -10,6 +10,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 _G.PlayerPedId = function() return 1 end
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
@@ -106,6 +107,23 @@ harness.test("fromCoords defaults flags to -1 and ignoreEntity to PlayerPedId()"
 
     harness.assertEqual(lastRayArgs[7], -1, "flags should default to -1 (everything)")
     harness.assertEqual(lastRayArgs[8], 1, "ignoreEntity should default to PlayerPedId()")
+end)
+
+harness.test("raycast rejects non-finite coordinates and camera distances before native calls", function()
+    local started = startedRays
+    harness.assertThrows(function()
+        QB.raycast.start({ x = 0, y = math.huge, z = 0 }, { x = 1, y = 0, z = 0 })
+    end)
+    harness.assertThrows(function() QB.raycast.startFromCamera(math.huge) end)
+    harness.assertThrows(function()
+        QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, false)
+    end)
+    harness.assertThrows(function()
+        QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 1, 2.5)
+    end)
+    harness.assertThrows(function() QB.raycast.await(false) end)
+    harness.assertThrows(function() QB.raycast.poll(1.5) end)
+    harness.assertEqual(startedRays, started, "invalid inputs must not start a shape test")
 end)
 
 harness.test("fromCoords passes explicit flags and ignoreEntity through", function()
@@ -234,6 +252,14 @@ QB.controls.release = function()
     releasedLeases = releasedLeases + 1
     return true
 end
+QB.compat.acquireControls = function()
+    acquiredLeases = acquiredLeases + 1
+    return acquiredLeases
+end
+QB.compat.releaseControlLease = function()
+    releasedLeases = releasedLeases + 1
+    return true
+end
 QB.textui.show = function()
     shownPrompts = shownPrompts + 1
     return shownPrompts
@@ -301,6 +327,26 @@ harness.test("getCoords defaults to an orb and returns rounded coordinates", fun
     harness.assertEqual(markerCalls, 1, "orb mode should draw its marker at the hit")
     harness.assertEqual(releasedLeases, acquiredLeases, "confirm should release its controls")
     harness.assertEqual(hiddenPrompts, shownPrompts, "confirm should hide its prompt")
+end)
+
+harness.test("getCoords rejects an explicit non-table options value before starting", function()
+    resetGrabberMocks()
+    local leases = acquiredLeases
+
+    harness.assertThrows(function()
+        QB.raycast.getCoords(false)
+    end)
+    harness.assertEqual(acquiredLeases, leases, "invalid options must not acquire controls or start the grabber")
+end)
+
+harness.test("getCoords rejects non-finite preview model hashes before starting", function()
+    resetGrabberMocks()
+    local leases = acquiredLeases
+
+    harness.assertThrows(function()
+        QB.raycast.getCoords({ type = "object", object = math.huge })
+    end)
+    harness.assertEqual(acquiredLeases, leases, "invalid model hashes must not acquire controls or create a preview")
 end)
 
 harness.test("getCoords uses a heading-only object preview and ignores it on later rays", function()

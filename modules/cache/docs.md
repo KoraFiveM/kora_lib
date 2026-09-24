@@ -7,9 +7,11 @@ A cheap, continuously-refreshed cache of local-player state — player id, serve
 
 ### `QB.cache.get(key)`
 Returns the cached value for `key`, or `nil` if nothing has set it yet.
+`key` must be a non-empty string up to 256 bytes, matching `set`, `onChange`,
+and `offChange`.
 
 #### Parameters
-- `key: string`
+- `key: string` (1–256 bytes)
 
 ### `QB.cache.set(key, value)`
 Sets a cached value, firing any `QB.cache.onChange` handlers registered for `key` if the value actually changed. Writing one of the built-in keys (`playerId`/`serverId`/`ped`/`vehicle`/`seat`/`enteringVehicle`/`enteringSeat`/`weapon`/`health`/`isDead`/`armour`/`stamina`/`coords`) is rejected outright — logged and ignored — rather than applied and then overwritten on the next refresh tick.
@@ -24,7 +26,7 @@ QB.cache.set('nearestShop', shopId)
 ```
 
 ### `QB.cache.onChange(key, handler)`
-Registers `handler(newValue, oldValue)` to run whenever `key`'s cached value changes — whether from `QB.cache.set` or the module's own per-tick refresh of `ped`/`vehicle`/`seat`/`enteringVehicle`/`weapon`.
+Registers `handler(newValue, oldValue)` to run whenever `key`'s cached value changes — whether from `QB.cache.set` or the module's own per-tick refresh of a built-in value (`ped`, `coords`, `vehicle`, `seat`, `enteringVehicle`, `enteringSeat`, `weapon`, `health`, `isDead`, `armour`, or `stamina`).
 
 #### Parameters
 - `key: string`
@@ -99,9 +101,15 @@ end)
 ```
 
 ## Notes
-- Built-in telemetry refreshes every `Config.cache.tickInterval` ms (200ms by default). It is intentionally a bounded shared poll rather than a frame loop; use direct per-frame natives only for controls that the engine requires to be reasserted every frame.
+- Built-in telemetry refreshes every `Config.cache.tickInterval` ms (200ms by default). It must be a positive finite integer and is captured at startup. The cache is intentionally a bounded shared poll rather than a frame loop; use direct per-frame natives only for controls that the engine requires to be reasserted every frame.
 - `playerId`/`serverId` are session constants and are not re-read by that telemetry tick. A cached vehicle seat is validated directly; the cache only scans every seat when the cached slot no longer contains the player ped.
+- If qblib starts before networking assigns a server ID, its small retry worker
+  checks every 250ms until the `-1` startup sentinel becomes a real ID; it is
+  not a frame loop.
 - `QB.cache.set` rejects writes to any built-in key outright (logged, ignored) — it isn't just that the next refresh tick would overwrite a bogus value back, the write never lands in the first place.
-- `onChange` handlers only fire when a value actually changes, not on every refresh tick — comparing every frame is what makes the refresh cheap to leave running.
+- `onChange` handlers only fire when a value actually changes, not on every refresh tick. Coordinates compare `x`/`y`/`z` components so a fresh native vector at a stationary position does not notify.
+- A handler may safely remove its own listeners while it runs; remaining
+  listeners still receive that update. A listener added during an update begins
+  receiving the next one.
 - `onChange` handlers are removed automatically when the resource that registered them stops.
 - `QB.cache.set`/`get`/`onChange` aren't limited to the built-in keys — use them for your own resource's local state if you want the same change-notification pattern without building it yourself. Namespace your own keys (e.g. `"myresource:something"`) to avoid colliding with another resource's.

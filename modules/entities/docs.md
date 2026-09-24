@@ -10,13 +10,17 @@ Creates a local entity.
 
 #### Parameters
 - `model: string | number` -- The model name or hash to spawn. Its kind (ped/vehicle/object) is detected automatically -- there's no type parameter to set.
-- `coords: vector3 | vector4 | {x, y, z, w?, heading?}` -- World coordinates. `x`/`y`/`z` are always read; a heading on `coords` (`.w` for a real `vector4`, or `.heading` for a plain table using that convention) is used unless `options.heading` overrides it.
+- `coords: vector3 | vector4 | {x, y, z, w?, heading?}` -- Finite world coordinates. `x`/`y`/`z` are always read; a finite heading on `coords` (`.w` for a real `vector4`, or `.heading` for a plain table using that convention) is used unless `options.heading` overrides it.
 - `options: table | nil`
-  - `heading: number` -- Overrides any heading on `coords`. Falls back to `coords.w`, then `coords.heading`, then `0.0`.
+  - `heading: number` -- Finite number that overrides any heading on `coords`. Falls back to `coords.w`, then `coords.heading`, then `0.0`.
   - `preset: "static"` -- Applies `freeze = true`, `blockNonTempEvents = true`, and `invincible = true` before any explicit overrides below.
   - `freeze: boolean` -- Overrides the preset's freeze value, in either direction.
   - `blockNonTempEvents: boolean` -- Overrides the preset's value, in either direction. Peds only; ignored for objects/vehicles.
   - `invincible: boolean` -- Overrides the preset's invincibility value, in either direction.
+
+When supplied, `options` must be a table and every documented boolean option
+must be a boolean; invalid calls are rejected before qblib requests a model or
+registers a scoped zone.
 
 #### Returns
 - `number | false` -- The created entity handle, or `false` if the model never loaded or the entity failed to create.
@@ -62,14 +66,17 @@ local entity = exports.qblib:entities_create('a_m_y_beach_01', coords, { preset 
 ```
 
 ### `QB.entities.remove(entity)`
-Deletes one tracked entity on demand. Only entities this module created are accepted — an untracked handle is refused rather than deleted, so the export can't be used as a generic delete-any-entity primitive against entities owned by other resources or the world.
+Deletes one of the calling resource's tracked entities on demand. A different
+resource's handle is refused, so the export cannot delete arbitrary local
+entities.
 
 #### Parameters
 - `entity: number` -- An entity handle previously returned by `create`.
 
 #### Returns
 - `boolean` -- `true` if deleted.
-- `string | nil` -- Set when the entity isn't tracked by this module, or no longer exists.
+- `string | nil` -- Set when the entity is untracked, owned by another
+  resource, or no longer exists.
 
 #### Example
 ```lua
@@ -99,14 +106,14 @@ retry.
 #### Parameters
 - `model`, `coords` — Same as `create`.
 - `options` — All options accepted by `create`, plus:
-  - `radius: number` — Required. A radius greater than zero, in metres.
+  - `radius: number` — Required. A finite radius greater than zero, in metres.
 
 #### Returns
 - `QBScopedEntityHandle` — A persistent registration handle:
   - `id: number` — The stable scope-registration ID.
   - `resource: string` — The resource that owns it.
   - `entity: number | nil` — The currently spawned local entity, or `nil` while outside its radius. Do not retain this value across an exit/re-entry.
-  - `remove()` — Deletes the active entity, if any, and unregisters the scope.
+  - `remove(): boolean` — Deletes the active entity, if any, and unregisters the scope. Returns `false` for a foreign or already removed scope.
   - `isSpawned(): boolean` — Whether there is a live local entity right now.
 
 #### Example
@@ -126,7 +133,8 @@ local guard = QB.entities.createScoped('a_m_y_beach_01', vector4(100.0, 200.0, 3
 networked entity. `QB.entities.delete(entity, timeout?)` obtains control,
 marks it as mission-owned, then deletes it. These functions intentionally do
 not require qblib ownership; call them only after your resource's server has
-authorized the operation.
+authorized the operation. `timeout` defaults to `1000` only when omitted and
+must otherwise be a non-negative integer in milliseconds.
 
 ## Notes
 - Entities from this module are never networked -- each client that calls `create` spawns its own independent copy, invisible to other players.

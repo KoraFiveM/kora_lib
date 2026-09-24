@@ -139,8 +139,8 @@ local function assertCollectionOptions(block, location)
 end
 
 local function assertPoint(point, location)
-    assert(type(point) == "table" and type(point.x) == "number" and type(point.y) == "number",
-        location .. " requires numeric x and y values.")
+    assert(type(point) == "table" and QB.util.isFiniteNumber(point.x) and QB.util.isFiniteNumber(point.y),
+        location .. " requires finite x and y values.")
 end
 
 local function assertInputFields(fields, location)
@@ -157,19 +157,17 @@ local function assertInputFields(fields, location)
         assert(field.description == nil or type(field.description) == "string", fieldLocation .. " description must be a string.")
         assert(field.required == nil or type(field.required) == "boolean", fieldLocation .. " required must be a boolean.")
         assert(field.disabled == nil or type(field.disabled) == "boolean", fieldLocation .. " disabled must be a boolean.")
-        assert(field.min == nil or type(field.min) == "number", fieldLocation .. " min must be a number.")
-        assert(field.max == nil or type(field.max) == "number", fieldLocation .. " max must be a number.")
+        assert(field.min == nil or QB.util.isFiniteNumber(field.min), fieldLocation .. " min must be a finite number.")
+        assert(field.max == nil or QB.util.isFiniteNumber(field.max), fieldLocation .. " max must be a finite number.")
         assert(field.minLength == nil or (type(field.minLength) == "number" and field.minLength >= 0 and field.minLength % 1 == 0), fieldLocation .. " minLength must be a non-negative integer.")
         assert(field.maxLength == nil or (type(field.maxLength) == "number" and field.maxLength >= 0 and field.maxLength % 1 == 0), fieldLocation .. " maxLength must be a non-negative integer.")
         assert(field.min == nil or field.max == nil or field.min <= field.max, fieldLocation .. " min cannot exceed max.")
         assert(field.minLength == nil or field.maxLength == nil or field.minLength <= field.maxLength,
             fieldLocation .. " minLength cannot exceed maxLength.")
         assert(field.pattern == nil or type(field.pattern) == "string", fieldLocation .. " pattern must be a string.")
-        assert(field.dateMin == nil or type(field.dateMin) == "string" or (type(field.dateMin) == "number"
-            and field.dateMin == field.dateMin and field.dateMin ~= math.huge and field.dateMin ~= -math.huge),
+        assert(field.dateMin == nil or type(field.dateMin) == "string" or QB.util.isFiniteNumber(field.dateMin),
             fieldLocation .. " dateMin must be a string or finite timestamp.")
-        assert(field.dateMax == nil or type(field.dateMax) == "string" or (type(field.dateMax) == "number"
-            and field.dateMax == field.dateMax and field.dateMax ~= math.huge and field.dateMax ~= -math.huge),
+        assert(field.dateMax == nil or type(field.dateMax) == "string" or QB.util.isFiniteNumber(field.dateMax),
             fieldLocation .. " dateMax must be a string or finite timestamp.")
         assert(field.returnString == nil or type(field.returnString) == "boolean", fieldLocation .. " returnString must be a boolean.")
         assert(field.dateFormat == nil or type(field.dateFormat) == "string", fieldLocation .. " dateFormat must be a string.")
@@ -193,7 +191,8 @@ local function assertInputFields(fields, location)
         assert(field.iconColor == nil or type(field.iconColor) == "string", fieldLocation .. " iconColor must be a string.")
         assert(field.rows == nil or (type(field.rows) == "number" and field.rows > 0 and field.rows % 1 == 0),
             fieldLocation .. " rows must be a positive integer.")
-        assert(field.step == nil or (type(field.step) == "number" and field.step > 0), fieldLocation .. " step must be positive.")
+        assert(field.step == nil or (QB.util.isFiniteNumber(field.step) and field.step > 0),
+            fieldLocation .. " step must be a positive finite number.")
         assert(field.dependsOn == nil or type(field.dependsOn) == "string", fieldLocation .. " dependsOn must be a string.")
         assert(field.optionsByValue == nil or type(field.optionsByValue) == "table", fieldLocation .. " optionsByValue must be a table.")
         assert(field.visibleWhen == nil or (type(field.visibleWhen) == "table"
@@ -237,8 +236,8 @@ local function assertInputFields(fields, location)
             assert(type(field.presets) == "table", fieldLocation .. " presets must be a table.")
             for presetIndex = 1, #field.presets do
                 local preset = field.presets[presetIndex]
-                assert(type(preset) == "table" and type(preset.value) == "number",
-                    ("%s preset %d requires a numeric value."):format(fieldLocation, presetIndex))
+                assert(type(preset) == "table" and QB.util.isFiniteNumber(preset.value),
+                    ("%s preset %d requires a finite numeric value."):format(fieldLocation, presetIndex))
                 assert(preset.label == nil or type(preset.label) == "string",
                     ("%s preset %d label must be a string."):format(fieldLocation, presetIndex))
             end
@@ -250,12 +249,12 @@ local function assertInputFields(fields, location)
             if field.type == "checkbox" then
                 assert(type(field.default) == "boolean", fieldLocation .. " checkbox default must be a boolean.")
             elseif field.type == "number" or field.type == "range" then
-                assert(type(field.default) == "number", fieldLocation .. " numeric default must be a number.")
+                assert(QB.util.isFiniteNumber(field.default), fieldLocation .. " numeric default must be a finite number.")
             elseif field.type == "multiselect" or field.type == "date-range" then
                 assert(type(field.default) == "table", fieldLocation .. " multiselect default must be an array.")
                 for defaultIndex = 1, #field.default do
                     local value = field.default[defaultIndex]
-                    assert(type(value) == "string" or type(value) == "number",
+                    assert(type(value) == "string" or QB.util.isFiniteNumber(value),
                         ("%s default item %d must be a string or number."):format(fieldLocation, defaultIndex))
                 end
             elseif field.type == "key-value" then
@@ -269,8 +268,8 @@ local function assertInputFields(fields, location)
                 assert(type(field.default) == "table", fieldLocation .. " vector default must be a component table.")
                 local axes = { "x", "y", "z", "w" }
                 for axisIndex = 1, field.dimensions do
-                    assert(type(field.default[axes[axisIndex]]) == "number",
-                        ("%s vector default %s must be a number."):format(fieldLocation, axes[axisIndex]))
+                    assert(QB.util.isFiniteNumber(field.default[axes[axisIndex]]),
+                        ("%s vector default %s must be a finite number."):format(fieldLocation, axes[axisIndex]))
                 end
             else
                 assert(type(field.default) == "string" or type(field.default) == "number",
@@ -387,8 +386,8 @@ local function assertAppContent(content, location, actionIds)
             for itemIndex = 1, #block.items do
                 local item = block.items[itemIndex]
                 assert(type(item) == "table" and type(item.label) == "string" and item.label ~= ""
-                    and type(item.value) == "number" and type(item.max) == "number" and item.max > 0,
-                    ("%s item %d requires a label, numeric value, and positive max."):format(blockLocation, itemIndex))
+                    and QB.util.isFiniteNumber(item.value) and QB.util.isFiniteNumber(item.max) and item.max > 0,
+                    ("%s item %d requires a label, finite numeric value, and positive max."):format(blockLocation, itemIndex))
                 assert(item.value >= 0 and item.value <= item.max,
                     ("%s item %d value must be between zero and max."):format(blockLocation, itemIndex))
                 assert(item.description == nil or type(item.description) == "string",
@@ -481,16 +480,17 @@ local function assertAppContent(content, location, actionIds)
                 blockLocation .. " requires a tile URL template.")
             assert(type(block.markers) == "table", blockLocation .. " requires a markers table.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
-            assert(block.tiles.tileSize == nil or (type(block.tiles.tileSize) == "number" and block.tiles.tileSize > 0),
-                blockLocation .. " tileSize must be positive.")
+            assert(block.tiles.tileSize == nil or (QB.util.isFiniteNumber(block.tiles.tileSize) and block.tiles.tileSize > 0),
+                blockLocation .. " tileSize must be a positive finite number.")
             assert(block.follow == nil or type(block.follow) == "boolean", blockLocation .. " follow must be a boolean.")
-            assert(block.fadeDuration == nil or (type(block.fadeDuration) == "number" and block.fadeDuration >= 0),
-                blockLocation .. " fadeDuration must be non-negative.")
-            assert(block.minZoom == nil or type(block.minZoom) == "number", blockLocation .. " minZoom must be a number.")
-            assert(block.maxZoom == nil or type(block.maxZoom) == "number", blockLocation .. " maxZoom must be a number.")
+            assert(block.fadeDuration == nil or (QB.util.isFiniteNumber(block.fadeDuration) and block.fadeDuration >= 0),
+                blockLocation .. " fadeDuration must be a non-negative finite number.")
+            assert(block.minZoom == nil or QB.util.isFiniteNumber(block.minZoom), blockLocation .. " minZoom must be a finite number.")
+            assert(block.maxZoom == nil or QB.util.isFiniteNumber(block.maxZoom), blockLocation .. " maxZoom must be a finite number.")
             assert(block.minZoom == nil or block.maxZoom == nil or block.minZoom <= block.maxZoom,
                 blockLocation .. " minZoom cannot exceed maxZoom.")
-            assert(block.initialZoom == nil or type(block.initialZoom) == "number", blockLocation .. " initialZoom must be a number.")
+            assert(block.initialZoom == nil or QB.util.isFiniteNumber(block.initialZoom),
+                blockLocation .. " initialZoom must be a finite number.")
             if block.tiles.grid ~= nil then
                 assertPoint(block.tiles.grid, blockLocation .. " tile grid")
                 assert(block.tiles.grid.x > 0 and block.tiles.grid.y > 0, blockLocation .. " tile grid values must be positive.")
@@ -506,24 +506,24 @@ local function assertAppContent(content, location, actionIds)
             if block.recenter ~= nil then
                 assertPoint(block.recenter, blockLocation .. " recenter")
             end
-            assert(block.now == nil or type(block.now) == "number", blockLocation .. " now must be a number.")
+            assert(block.now == nil or QB.util.isFiniteNumber(block.now), blockLocation .. " now must be a finite number.")
             assert(block.selectedId == nil or type(block.selectedId) == "string", blockLocation .. " selectedId must be a string.")
             if block.action ~= nil then declareAction(actionIds, block.action, false, blockLocation) end
             local markerIds = {}
             for markerIndex = 1, #block.markers do
                 local marker = block.markers[markerIndex]
                 assert(type(marker) == "table" and type(marker.id) == "string" and marker.id ~= ""
-                    and type(marker.x) == "number" and type(marker.y) == "number" and type(marker.label) == "string",
+                    and QB.util.isFiniteNumber(marker.x) and QB.util.isFiniteNumber(marker.y) and type(marker.label) == "string",
                     ("%s marker %d is invalid."):format(blockLocation, markerIndex))
                 assert(not markerIds[marker.id], ("%s marker id '%s' is duplicated."):format(blockLocation, marker.id))
                 assert(marker.description == nil or type(marker.description) == "string",
                     ("%s marker %d description must be a string."):format(blockLocation, markerIndex))
-                assert(marker.heading == nil or type(marker.heading) == "number",
-                    ("%s marker %d heading must be a number."):format(blockLocation, markerIndex))
-                assert(marker.expiresAt == nil or type(marker.expiresAt) == "number",
-                    ("%s marker %d expiresAt must be a number."):format(blockLocation, markerIndex))
-                assert(marker.fadeDuration == nil or (type(marker.fadeDuration) == "number" and marker.fadeDuration >= 0),
-                    ("%s marker %d fadeDuration must be non-negative."):format(blockLocation, markerIndex))
+                assert(marker.heading == nil or QB.util.isFiniteNumber(marker.heading),
+                    ("%s marker %d heading must be a finite number."):format(blockLocation, markerIndex))
+                assert(marker.expiresAt == nil or QB.util.isFiniteNumber(marker.expiresAt),
+                    ("%s marker %d expiresAt must be a finite number."):format(blockLocation, markerIndex))
+                assert(marker.fadeDuration == nil or (QB.util.isFiniteNumber(marker.fadeDuration) and marker.fadeDuration >= 0),
+                    ("%s marker %d fadeDuration must be a non-negative finite number."):format(blockLocation, markerIndex))
                 assert(marker.tone == nil or VALID_TONES[marker.tone], ("%s marker %d has an invalid tone."):format(blockLocation, markerIndex))
                 if marker.action ~= nil then declareAction(actionIds, marker.action, false, blockLocation) end
                 markerIds[marker.id] = true
@@ -704,15 +704,18 @@ end
 ---@param owner? string Internal owner override for qblib modules whose operation continues in a new coroutine.
 ---@return any
 function QB.nui.withFocus(mouse, keyboard, fn, owner)
+    assert(type(mouse) == 'boolean' and type(keyboard) == 'boolean', 'withFocus requires boolean mouse and keyboard values.')
+    assert(isCallable(fn), 'withFocus requires a callable function.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'withFocus owner must be a non-empty string.')
     local release = acquireFocus(mouse, keyboard, owner)
 
-    local ok, result = pcall(fn)
+    local results = table.pack(pcall(fn))
 
     release()
 
-    if not ok then error(result, 0) end
+    if not results[1] then error(results[2], 0) end
 
-    return result
+    return table.unpack(results, 2, results.n)
 end
 
 ---Registers an NUI callback, wrapping RegisterNUICallback's raw `(data, cb)`
@@ -722,6 +725,8 @@ end
 ---@param name string
 ---@param handler fun(data: any): any
 function QB.nui.registerCallback(name, handler)
+    assert(type(name) == 'string' and name ~= '', 'registerCallback requires a non-empty callback name.')
+    assert(isCallable(handler), 'registerCallback requires a callable handler.')
     RegisterNUICallback(name, function(data, cb)
         local ok, result = pcall(handler, data)
 
@@ -741,6 +746,8 @@ end
 ---request was issued with (see generateToken above); a mismatched or missing
 ---token is silently ignored rather than resolving/rejecting anything.
 QB.nui.registerCallback("qblib:nui:response", function(data)
+    if type(data) ~= "table" then return {} end
+
     local pending = pendingRequests[data.requestId]
     if not pending then return {} end
     if type(data.token) ~= "string" or data.token ~= pending.token then return {} end
@@ -760,8 +767,10 @@ end)
 -- Interactive request surfaces can report non-terminal changes (for example,
 -- an ox_lib menu changing its selected row, checkbox, or side-scroll value)
 -- without resolving the request. The same per-request token used by the final
--- response authenticates these messages.
+-- response validates these messages against the live request.
 QB.nui.registerCallback("qblib:nui:event", function(data)
+    if type(data) ~= "table" then return {} end
+
     local pending = pendingRequests[data.requestId]
     if not pending or type(data.token) ~= "string" or data.token ~= pending.token then return {} end
     if not pending.onEvent then return {} end
@@ -809,6 +818,12 @@ end
 ---@param owner? string Internal owner override for qblib operations that continue in a new coroutine.
 ---@return promise promise
 local function requestPromise(action, data, timeout, owner, onEvent)
+    if timeout ~= false then
+        timeout = timeout or 30000
+        assert(QB.util.isInteger(timeout) and timeout >= 0,
+            "NUI request timeout must be a non-negative finite integer or false.")
+    end
+
     local requestId = nextId()
     local token = generateToken()
     local p = promise.new()
@@ -825,8 +840,6 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     QB.nui.send(action, { requestId = requestId, token = token, payload = data })
 
     if timeout ~= false then
-        timeout = timeout or 30000
-
         -- A one-shot native timer rather than a CreateThread+Wait coroutine --
         -- this timeout almost never actually fires (the response callback
         -- above settles it first), so it shouldn't cost a whole thread per
@@ -882,7 +895,7 @@ local focusUntilSettled
 ---@param timeout? integer | false
 ---@param owner? string
 ---@param focused? boolean
----@param onEvent? fun(event: string, data: any) Internal handler for authenticated, non-terminal browser events.
+---@param onEvent? fun(event: string, data: any) Internal handler for token-validated, non-terminal browser events.
 ---@return promise request
 function QB.nui.requestAsync(action, data, timeout, owner, focused, onEvent)
     assert(type(action) == 'string' and action ~= '', 'requestAsync action must be a non-empty string.')
@@ -1225,10 +1238,8 @@ function QB.nui.registerApp(definition)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local previousOwner = appOwnership.owner(definition.id)
-    if previousOwner and previousOwner ~= owner then
-        print(("^3[qblib:nui]^7 app '%s' was registered by '%s' and is being overwritten by '%s' -- namespace app ids.")
-            :format(definition.id, previousOwner, owner))
-    end
+    assert(not previousOwner or previousOwner == owner,
+        ("App '%s' is owned by resource '%s'."):format(definition.id, previousOwner))
 
     registeredApps[definition.id] = {
         browser = publicDefinition,
@@ -1283,6 +1294,8 @@ end
 function QB.nui.openApp(id, opts)
     assertAppId(id)
     assert(opts == nil or type(opts) == "table", "openApp options must be a table.")
+    assert(opts == nil or opts.viewId == nil or type(opts.viewId) == 'string', 'openApp viewId must be a string.')
+    assert(opts == nil or opts.tabId == nil or type(opts.tabId) == 'string', 'openApp tabId must be a string.')
 
     local registration = registeredApps[id]
     assert(registration, ("App '%s' is not registered."):format(id))
@@ -1366,6 +1379,11 @@ function QB.nui.closeApp(id)
     local current = activeApp
     if not current or (id and current.id ~= id) then return false end
 
+    local registration = registeredApps[current.id]
+    local invoker = GetInvokingResource()
+    assert(not invoker or (registration and invoker == registration.owner),
+        ("App '%s' is owned by resource '%s'."):format(current.id, registration and registration.owner or "unknown"))
+
     QB.nui.send("closeApp", {
         appId = current.id,
         token = current.token,
@@ -1421,7 +1439,7 @@ local function validateActionResult(registration, result)
     return result
 end
 
--- One authenticated route for every button/list/table action emitted by the
+-- One token-validated route for every button/list/table action emitted by the
 -- AppShell. The per-open token prevents another NUI page from invoking a
 -- registered application's privileged action handler by guessing its id.
 QB.nui.registerCallback("qblib:app:action", function(data)

@@ -115,6 +115,7 @@ harness.test('normalizePlate applies explicit whitespace and character policies'
         maxLength = 32,
         characters = 'any',
     }), 'CUSTOM-PLATE')
+    harness.assertThrows(function() QB.vehicle.normalizePlate('TEST42', false) end)
 end)
 
 harness.test('vehicle delete acquires control before deleting', function()
@@ -123,6 +124,7 @@ harness.test('vehicle delete acquires control before deleting', function()
     harness.assertTrue(ok, tostring(err))
     harness.assertEqual(#calls.DeleteVehicle, 1)
     harness.assertTrue(state.control, 'network control should be requested')
+    harness.assertThrows(function() QB.vehicle.delete(VEHICLE, false) end)
 end)
 
 harness.test('identity helpers validate, trim, and localize vehicles', function()
@@ -177,7 +179,7 @@ harness.test('setProperties obtains control and preserves explicit false and zer
         tireBurstState = { ['1'] = false },
         windowStatus = { [2] = false, [3] = true },
         doorStatus = { [3] = false, [4] = true },
-        neonEnabled = { false, true, false, true },
+        neonEnabled = { ['1'] = false, ['2'] = true, ['3'] = false, ['4'] = true },
         modSpoilers = 0, modTurbo = false, modSmokeEnabled = false, modXenon = false,
         modFrontWheels = 0, modCustomTiresF = false, modLivery = 0, liveryRoof = 0,
         color2 = { ['1'] = 11, ['2'] = 22, ['3'] = 33 },
@@ -194,6 +196,8 @@ harness.test('setProperties obtains control and preserves explicit false and zer
     harness.assertEqual(calls.ToggleVehicleMod[1][3], false)
     harness.assertEqual(calls.SetVehicleMod[#calls.SetVehicleMod - 1][3], 0)
     harness.assertTrue(calls.SetVehicleTyreFixed ~= nil, 'false burst state should repair the tyre')
+    harness.assertEqual(calls.SetVehicleNeonLightEnabled[2][3], true,
+        'JSON-decoded neon state keys should be applied')
     harness.assertEqual(calls.SetVehicleCustomSecondaryColour[1][2], 11)
     harness.assertEqual(calls.SetVehicleNeonLightsColour[1][3], 55)
     harness.assertEqual(calls.SetVehicleTyreSmokeColor[1][4], 99)
@@ -208,12 +212,78 @@ harness.test('setProperties returns a bounded control failure without mutating',
     harness.assertEqual(calls.SetVehicleFuelLevel, nil)
 end)
 
+harness.test('setProperties rejects non-finite native values before mutation', function()
+    reset()
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { fuelLevel = math.huge })
+    end)
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { neonColor = { r = 1, g = 0 / 0, b = 3 } })
+    end)
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, {}, false)
+    end)
+    harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid properties must not reach vehicle natives')
+end)
+
+harness.test('setProperties rejects malformed plate and interior colour before mutation', function()
+    reset()
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { plate = {} })
+    end)
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { interiorColor = math.huge })
+    end)
+    harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid properties must not reach vehicle natives')
+end)
+
+harness.test('setProperties rejects invalid wheel, window, and door indices before mutation', function()
+    reset()
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { tireHealth = { [math.huge] = 1000 } })
+    end)
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { windowStatus = { [8] = true } })
+    end)
+    harness.assertThrows(function()
+        QB.vehicle.setProperties(VEHICLE, { doorStatus = { ['not-an-index'] = false } })
+    end)
+    harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid indexed properties must not reach vehicle natives')
+end)
+
+harness.test('setProperties rejects non-boolean state fields before mutation', function()
+    reset()
+    for _, props in ipairs({
+        { extras = { [0] = 'enabled' } },
+        { tireBurstState = { [1] = 1 } },
+        { windowStatus = { [2] = 'intact' } },
+        { doorStatus = { [3] = 0 } },
+        { neonEnabled = { [1] = true, [2] = false, [3] = true, [4] = 'on' } },
+        { modTurbo = 1 },
+        { modCustomTiresF = 'yes' },
+    }) do
+        harness.assertThrows(function() QB.vehicle.setProperties(VEHICLE, props) end)
+    end
+    harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid boolean states must not reach vehicle natives')
+end)
+
 harness.test('property helpers reject invalid entities', function()
     reset()
     local props = QB.vehicle.getProperties(99)
     harness.assertFalse(props)
     local ok = QB.vehicle.setProperties(99, {})
     harness.assertFalse(ok)
+end)
+
+harness.test('vehicle helpers reject malformed handles before native work', function()
+    reset()
+    for _, vehicle in ipairs({ 0, -1, 1.5, math.huge, -math.huge, 0 / 0 }) do
+        harness.assertFalse(QB.vehicle.model(vehicle))
+        harness.assertFalse(QB.vehicle.plate(vehicle))
+        harness.assertFalse(QB.vehicle.getProperties(vehicle))
+        harness.assertFalse(QB.vehicle.setProperties(vehicle, {}))
+        harness.assertThrows(function() QB.vehicle.delete(vehicle) end)
+    end
 end)
 
 harness.report('vehicle')

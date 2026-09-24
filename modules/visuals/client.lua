@@ -1,8 +1,17 @@
 QB.visuals = QB.visuals or {}
+local FADE_TIMEOUT_BUFFER = 1000
+
+local function parseDuration(duration, default)
+    duration = tonumber(duration)
+    if duration == nil then return default end
+
+    assert(QB.util.isFiniteNumber(duration) and duration >= 0,
+        'Visual effect duration must be a finite non-negative number.')
+    return duration
+end
 
 local function getDuration(duration)
-    duration = tonumber(duration)
-    if not duration then return 3000 end
+    duration = parseDuration(duration, 3000)
     return math.floor(duration / 2)
 end
 
@@ -137,7 +146,7 @@ end
 ---The legacy `(coords, duration)` form remains supported; new movement code
 ---should use `QB.teleport.entity`/`QB.teleport.player` instead.
 ---@param duration number|vector3|vector4|table|nil Fade duration in milliseconds, or legacy destination coords.
----@param fn function|table|number|nil Work to perform while faded out, a masked callable, or legacy duration.
+---@param fn function|table|number|string|nil Work to perform while faded out, a masked callable, or legacy duration.
 function QB.visuals.fade(duration, fn)
     if isCoords(duration) then
         local coords, legacyDuration = duration, fn
@@ -147,9 +156,10 @@ function QB.visuals.fade(duration, fn)
         end)
     end
 
-    duration = tonumber(duration) or 500
+    duration = parseDuration(duration, 500)
     DoScreenFadeOut(duration)
-    while not IsScreenFadedOut() do
+    local deadline = GetGameTimer() + duration + FADE_TIMEOUT_BUFFER
+    while not IsScreenFadedOut() and GetGameTimer() < deadline do
         Wait(10)
     end
 
@@ -162,12 +172,14 @@ function QB.visuals.fade(duration, fn)
     if not ok then error(err, 0) end
 end
 
+---@param duration? number|string
 function QB.visuals.trevor(duration)
     CreateThread(function()
         playDrugEffect('DrugsTrevorClownsFight', duration)
     end)
 end
 
+---@param duration? number|string
 function QB.visuals.meth(duration)
     CreateThread(function()
         runStaminaDrugEffect({
@@ -180,10 +192,11 @@ function QB.visuals.meth(duration)
     end)
 end
 
+---@param duration? number|string
 function QB.visuals.ecstacy(duration)
     CreateThread(function()
         local playerId = PlayerId()
-        local stamina = math.max(1, math.floor((tonumber(duration) or 30000) / 1000))
+        local stamina = math.max(1, math.floor(parseDuration(duration, 30000) / 1000))
         SetFlash(0, 0, 500, 7000, 500)
         while stamina > 0 do
             Wait(1000)
@@ -200,12 +213,14 @@ function QB.visuals.ecstacy(duration)
     end)
 end
 
+---@param duration? number|string
 function QB.visuals.alien(duration)
     CreateThread(function()
         playDrugEffect('DrugsMichaelAliensFight', duration)
     end)
 end
 
+---@param duration? number|string
 function QB.visuals.crack(duration)
     CreateThread(function()
         runStaminaDrugEffect({
@@ -220,6 +235,7 @@ function QB.visuals.crack(duration)
     end)
 end
 
+---@param duration? number|string
 function QB.visuals.coke(duration)
     CreateThread(function()
         runStaminaDrugEffect({

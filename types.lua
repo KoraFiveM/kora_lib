@@ -23,8 +23,8 @@
 ---@field heading? number
 
 ---@class QBRateLimit
----@field max integer Maximum accepted calls in the sliding window.
----@field window integer Sliding-window length in milliseconds.
+---@field max integer Maximum accepted calls in the sliding window (1–10000).
+---@field window integer Sliding-window length in milliseconds (1–86400000).
 
 ---@class QBRandomPickOptions
 ---@field count? integer Number of independent picks. Defaults to 1.
@@ -39,6 +39,7 @@
 ---@field maxHeight? integer|false Default output height ceiling; false leaves it unbounded.
 ---@field includeNui? boolean Accepted for screenshot-basic compatibility; separate CEF layers cannot be captured.
 ---@field fileName? string Server-only destination path. Never accept this from a client event.
+---@field timeout? integer Server-only request timeout in milliseconds; must be greater than 1000.
 
 ---@class QBRegistrationOptions
 ---@field rateLimit? QBRateLimit|false Client-to-server registrations only; omitted/false is unlimited.
@@ -822,31 +823,55 @@
 ---@field y number
 ---@field z number
 
----@class QBZoneOptions
----@field coords? QBCoords Required for box/sphere/point; omitted for poly.
----@field radius? number
----@field size? QBInteractSize|QBCoords
----@field rotation? number|QBCoords
----@field points? QBCoords[]
----@field thickness? number
----@field minZ? number Poly floor; must be supplied with maxZ.
----@field maxZ? number Poly ceiling; must be supplied with minZ.
+---@class QBZoneCommonOptions
 ---@field debug? boolean
 ---@field data? any Arbitrary caller-owned passthrough.
 ---@field onEnter? fun(zone: QBZoneHandle)
 ---@field onExit? fun(zone: QBZoneHandle)
----@field inside? fun(zone: QBZoneHandle)
+---@field inside? fun(zone: QBZoneHandle, coords: QBCoords)
 ---@field trackPlayer? boolean Set false for predicate-only zones that use contains() but do not need enter/exit tracking.
+
+---@class QBZoneBoxOptions : QBZoneCommonOptions
+---@field coords QBCoords
+---@field size QBInteractSize|QBCoords
+---@field rotation? number Degrees around the Z axis.
+---@field ignoreZ? boolean Ignore the box Z extent. Defaults false.
+
+---@class QBZoneSphereOptions : QBZoneCommonOptions
+---@field coords QBCoords
+---@field radius number
+---@field includeBoundary? boolean Defaults true.
+
+---@class QBZoneCircleOptions : QBZoneSphereOptions
+
+---@class QBZonePointOptions : QBZoneCommonOptions
+---@field coords QBCoords
+---@field radius? number Defaults to Config.zones.defaultPointRadius.
+---@field includeBoundary? boolean Defaults true.
+
+---@class QBZonePolyOptions : QBZoneCommonOptions
+---@field points QBCoords[]
+---@field thickness? number
+---@field minZ? number Poly floor; must be supplied with maxZ.
+---@field maxZ? number Poly ceiling; must be supplied with minZ.
+---@field ignoreZ? boolean Ignore the poly height band. Defaults false.
+
+---@alias QBZoneOptions QBZoneBoxOptions|QBZoneSphereOptions|QBZoneCircleOptions|QBZonePointOptions|QBZonePolyOptions
+---@alias QBZoneCreatorOptions QBZoneBoxOptions|QBZoneSphereOptions|QBZonePolyOptions
 
 ---@class QBZoneHandle
 ---@field id integer
----@field type 'box'|'sphere'|'poly'|'point'
+---@field type 'box'|'sphere'|'circle'|'poly'
 ---@field resource string
 ---@field data any Caller-supplied opts.data value.
 ---@field remove fun(): boolean
 ---@field contains fun(coords: QBCoords): boolean
 ---@field isInside fun(): boolean
 ---@field setDebug fun(enabled: boolean): boolean
+
+---@class QBZoneCreatorResult
+---@field type 'box'|'sphere'|'poly'
+---@field opts QBZoneCreatorOptions
 
 ---@class QBRewardItem
 ---@field chance? number
@@ -977,7 +1002,7 @@
 ---@field minigames QBLibMinigames
 ---@field notify QBLibNotify
 ---@field nui QBLibNui
----@field ox QBLibOx
+---@field ox QBLibOx Private provider for the optional ox_lib bridge; native resources should use QB.nui.
 ---@field permissions QBLibPermissions
 ---@field placement QBLibPlacement
 ---@field print QBLibPrint
@@ -1198,11 +1223,11 @@
 ---@field open fun(options: QBInteractOption[]): boolean [client]
 ---@field close fun() [client]
 ---@field isActive fun(): boolean [client]
----@field addCircleZone fun(name: string, coords: QBCoords, radius: number, targetOptions: QBInteractTargetOptions, debug?: boolean): QBZoneHandle [client]
----@field addBoxZone fun(name: string, coords: QBCoords, size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions, debug?: boolean): QBZoneHandle [client]
+---@field addCircleZone fun(name: string, coords: QBCoords, radius: number, targetOptions: QBInteractTargetOptions|QBInteractOption[], debug?: boolean): QBZoneHandle [client]
+---@field addBoxZone fun(name: string, coords: QBCoords, size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions|QBInteractOption[], debug?: boolean): QBZoneHandle [client]
 ---@field removeZone fun(name: string): boolean [client]
----@field addTargetModel fun(models: string|integer|(string|integer)[], size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions, debug?: boolean): QBZoneHandle[] [client]
----@field addTargetEntity fun(entity: integer, size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions, debug?: boolean): QBZoneHandle [client]
+---@field addTargetModel fun(models: string|integer|(string|integer)[], size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions|QBInteractOption[], debug?: boolean): QBZoneHandle[] [client]
+---@field addTargetEntity fun(entity: integer, size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions|QBInteractOption[], debug?: boolean): QBZoneHandle [client]
 ---@field addEntity fun(entity: integer, options: QBInteractOption[], distance?: number): integer [client]
 ---@field removeEntity fun(entity: integer, id?: integer): boolean [client]
 ---@field addModel fun(model: string|integer, options: QBInteractOption[], distance?: number): integer [client]
@@ -1228,7 +1253,7 @@
 ---@field awaitReady fun(timeout?: integer): boolean, string? [shared]
 
 ---@class QBLibLoops
----@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean): any, string? [shared]
+---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean|integer): any, string? [shared]
 
 ---@class QBLibMinigames
 ---@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): QBMinigameResult [client; waits for the round to finish]
@@ -1374,6 +1399,7 @@
 ---@field success fun(...: any) [shared]
 
 ---@class QBLibProgressbar
+---@field validate fun(payload: QBProgressBarPayload): true [client; validates without starting a bar]
 ---@field start fun(payload: QBProgressBarPayload, owner?: string): boolean, string? [client]
 ---@field cancel fun(): boolean [client]
 ---@field isActive fun(): boolean [client]
@@ -1442,6 +1468,7 @@
 ---@field offChange fun(listenerId: integer): boolean [client/server]
 
 ---@class QBLibStatus
+---@field assertName fun(name: string) [shared]
 ---@field registerEffect fun(name: string, def: QBStatusEffectDef) [shared]
 ---@field getEffectDef fun(name: string): QBStatusEffectDef? [shared]
 ---@field apply fun(targetOrName: integer|string, nameOrOpts?: string|QBStatusApplyOptions, opts?: QBStatusApplyOptions): boolean, string? [client/server]
@@ -1455,10 +1482,10 @@
 ---@field loadModel fun(model: string|integer, cb?: fun(hash: integer), options?: QBStreamLoadOptions): integer|false, string? [client]
 ---@field loadPtfx fun(fxName: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
 ---@field loadAnimDict fun(animDict: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
----@field loadAnimSet fun(animSet: string, cb?: fun(name: string)): string|false, string? [client]
----@field loadClipSet fun(clipSet: string, cb?: fun(name: string)): string|false, string? [client]
----@field loadIpl fun(iplName: string, cb?: fun(name: string)): string|false, string? [client]
----@field loadScaleformMovie fun(scaleformName: string, cb?: fun(handle: integer)): integer|false, string? [client]
+---@field loadAnimSet fun(animSet: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
+---@field loadClipSet fun(clipSet: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
+---@field loadIpl fun(iplName: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
+---@field loadScaleformMovie fun(scaleformName: string, cb?: fun(handle: integer), options?: QBStreamLoadOptions): integer|false, string? [client]
 ---@field loadTextureDict fun(textureDict: string, cb?: fun(name: string), isAdditionalTextures?: boolean): string|false, string? [client]
 ---@field loadAudioBank fun(audioBank: string, cb?: fun(name: string)): string|false, string? [client]
 ---@field loadCollision fun(coords: QBCoords, cb?: fun(), entity?: integer): boolean, string? [client]
@@ -1490,13 +1517,13 @@
 ---@field remaining fun(): integer Milliseconds until the next call is allowed; 0 when ready.
 
 ---@class QBLibTimers
----@field setInterval fun(fn: fun(), interval: number): integer [shared]
----@field setTimeout fun(fn: fun(), delay: number): integer [shared]
+---@field setInterval fun(fn: fun(), interval: integer): integer [shared]
+---@field setTimeout fun(fn: fun(), delay: integer): integer [shared]
 ---@field clearInterval fun(id: integer): boolean [shared]
 ---@field clearTimeout fun(id: integer): boolean [shared]
----@field debounce fun(fn: fun(...), wait: number): QBDebounced [shared]
----@field throttle fun(fn: fun(...), interval: number): QBThrottled [shared]
----@field cooldown fun(interval: number): QBCooldownHandle [shared]
+---@field debounce fun(fn: fun(...), wait: integer): QBDebounced [shared]
+---@field throttle fun(fn: fun(...), interval: integer): QBThrottled [shared]
+---@field cooldown fun(interval: integer): QBCooldownHandle [shared]
 ---@field count fun(): integer [shared]
 
 ---@class QBLibUtil
@@ -1540,13 +1567,13 @@
 ---@field setProperties fun(vehicle: integer, properties: QBVehicleProperties, opts?: QBVehicleSetPropertiesOptions): boolean, string? [client]
 
 ---@class QBLibVisuals
----@field fade fun(duration?: integer|QBCoords, fn?: fun()|integer) [client]
----@field trevor fun(duration?: integer) [client]
----@field meth fun(duration?: integer) [client]
----@field ecstacy fun(duration?: integer) [client]
----@field alien fun(duration?: integer) [client]
----@field crack fun(duration?: integer) [client]
----@field coke fun(duration?: integer) [client]
+---@field fade fun(duration?: number|string|QBCoords, fn?: fun()|table|number|string) [client]
+---@field trevor fun(duration?: number|string) [client]
+---@field meth fun(duration?: number|string) [client]
+---@field ecstacy fun(duration?: number|string) [client]
+---@field alien fun(duration?: number|string) [client]
+---@field crack fun(duration?: number|string) [client]
+---@field coke fun(duration?: number|string) [client]
 
 ---@class QBLibWorld
 ---@field getNearbyEntities fun(entityType: QBWorldEntityType, coords: QBCoords, radius: number, options?: QBWorldQueryOptions): QBWorldMatch[] [client/server]
@@ -1561,13 +1588,14 @@
 ---@field resolveNearbyPlayer fun(src: integer, targetSrc: integer, options: QBWorldNearbyPlayerOptions): integer|nil, number|string [server]
 
 ---@class QBLibZones
----@field box fun(opts: QBZoneOptions): QBZoneHandle [client]
----@field sphere fun(opts: QBZoneOptions): QBZoneHandle [client]
----@field poly fun(opts: QBZoneOptions): QBZoneHandle [client]
----@field point fun(opts: QBZoneOptions): QBZoneHandle [client]
+---@field box fun(opts: QBZoneBoxOptions): QBZoneHandle [client]
+---@field sphere fun(opts: QBZoneSphereOptions): QBZoneHandle [client]
+---@field circle fun(opts: QBZoneCircleOptions): QBZoneHandle [client]
+---@field poly fun(opts: QBZonePolyOptions): QBZoneHandle [client]
+---@field point fun(opts: QBZonePointOptions): QBZoneHandle [client]
 ---@field getInside fun(resource?: string): QBZoneHandle[] [client]
----@field setDebug fun(id: integer, enabled: boolean): boolean [client]
----@field generateSnippet fun(zoneType: 'box'|'sphere'|'poly'|'point', opts: QBZoneOptions): string [client]
----@field startCreator fun(zoneType: 'box'|'sphere'|'poly'|'point', existingOpts?: QBZoneOptions): QBZoneHandle|false, string? [client]
+---@field setDebug fun(id: integer|nil, enabled: boolean): boolean [client]
+---@field generateSnippet fun(zoneType: 'box'|'sphere'|'poly', opts: QBZoneCreatorOptions): string [client]
+---@field startCreator fun(zoneType: 'box'|'sphere'|'poly', existingOpts?: QBZoneCreatorOptions): promise|QBZoneCreatorResult|nil [client]
 ---@field isCreatorActive fun(): boolean [client]
----@field edit fun(handle: QBZoneHandle, opts?: QBZoneOptions): QBZoneHandle|false, string? [client]
+---@field edit fun(handle: QBZoneHandle, opts?: QBZoneOptions): QBZoneHandle|nil, string? [client]

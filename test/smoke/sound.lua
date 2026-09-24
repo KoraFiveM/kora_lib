@@ -14,6 +14,7 @@ function _G.IsDuplicityVersion() return false end
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 -- --- audio natives, mocked --------------------------------------------------
 local nextSoundId = 0
@@ -98,6 +99,29 @@ harness.test("playFromCoords forwards position and the configured default range"
     QB.sound.stop(id)
 end)
 
+harness.test("sound playback rejects unsafe timing and positional values before allocation", function()
+    local plays = #played
+    harness.assertThrows(function()
+        QB.sound.playFrontend("Lose_1st", "SET", { releaseAfter = math.huge })
+    end, "an infinite auto-release duration should be rejected before claiming an id")
+    harness.assertThrows(function()
+        QB.sound.playFromCoords({ x = 0 / 0, y = 2, z = 3 }, "Beep_Red", "SET")
+    end, "NaN coordinates should be rejected")
+    harness.assertThrows(function()
+        QB.sound.playFromCoords({ x = 1, y = 2, z = 3 }, "Beep_Red", "SET", { range = math.huge })
+    end, "an infinite sound range should be rejected")
+    harness.assertThrows(function()
+        QB.sound.playFrontend("Lose_1st", "SET", false)
+    end, "options must not silently default from false")
+    harness.assertThrows(function()
+        QB.sound.playFrontend("Lose_1st", "SET", { network = "yes" })
+    end, "network must be boolean")
+    harness.assertThrows(function()
+        QB.sound.playFrontend("Lose_1st", "SET", { bank = false })
+    end, "bank must be a string")
+    harness.assertEqual(#played, plays, "unsafe sound options must not play audio")
+end)
+
 harness.test("playFromEntity refuses an entity that does not exist", function()
     local id = QB.sound.playFromEntity(55, "Beep_Red", "SET")
     harness.assertEqual(lastPlayed().entity, 55, "a live entity should be accepted")
@@ -105,6 +129,8 @@ harness.test("playFromEntity refuses an entity that does not exist", function()
 
     harness.assertThrows(function() QB.sound.playFromEntity(999, "Beep_Red", "SET") end,
         "a missing entity should be refused")
+    harness.assertThrows(function() QB.sound.playFromEntity(0, "Beep_Red", "SET") end,
+        "a zero entity handle should be refused")
 end)
 
 harness.test("stop releases the id and refuses a second stop", function()
@@ -124,6 +150,26 @@ harness.test("stop refuses an id this module never allocated", function()
     local ok, err = QB.sound.stop(987654)
     harness.assertFalse(ok, "an untracked id must be refused, not stopped")
     harness.assertEqual(err, "Sound id is not tracked by QB.sound.", "should explain the refusal")
+end)
+
+harness.test("sound handle APIs reject malformed numeric ids", function()
+    local stopped, err = QB.sound.stop(0 / 0)
+    harness.assertFalse(stopped)
+    harness.assertEqual(err, "Sound id is not tracked by QB.sound.")
+    harness.assertFalse(QB.sound.isLive(math.huge))
+    harness.assertFalse(QB.sound.isLive(1.5))
+end)
+
+harness.test("foreign resources cannot stop a managed sound", function()
+    _G.GetInvokingResource = function() return "sound_owner" end
+    local id = QB.sound.playFrontend("Lose_1st", "SET", { releaseAfter = 0 })
+    _G.GetInvokingResource = function() return "sound_other" end
+    local stopped, err = QB.sound.stop(id)
+    harness.assertFalse(stopped, "another resource must not stop this sound")
+    harness.assertEqual(err, "Sound id is owned by another resource.")
+    _G.GetInvokingResource = function() return "sound_owner" end
+    harness.assertTrue(QB.sound.stop(id), "the owner should still be able to stop its sound")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("the id is auto-released once its release timer fires", function()

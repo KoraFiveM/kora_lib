@@ -8,14 +8,14 @@
 -- Plain { x, y, z } table, not glm.vec3 -- see the identical note in
 -- modules/raycast/client.lua, modules/world/client.lua, and modules/zones/client.lua.
 local function toVec3(v)
-    assert(type(v.x) == "number" and type(v.y) == "number" and type(v.z) == "number",
+    assert(v and QB.util.isFiniteNumber(v.x) and QB.util.isFiniteNumber(v.y) and QB.util.isFiniteNumber(v.z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
     return { x = v.x, y = v.y, z = v.z }
 end
 
-local function distance(a, b)
+local function withinDistance(a, b, maximum)
     local dx, dy, dz = a.x - b.x, a.y - b.y, a.z - b.z
-    return math.sqrt(dx * dx + dy * dy + dz * dz)
+    return dx * dx + dy * dy + dz * dz <= maximum * maximum
 end
 
 ---Draws one frame of world-space 3D text via the standard SetDrawOrigin
@@ -27,26 +27,43 @@ end
 function QB.drawing.text3d(coords, text, options)
     assert(type(text) == "string" and #text > 0, "text must be a non-empty string.")
 
-    options = options or {}
+    if options == nil then options = {} end
+    assert(type(options) == 'table', 'text3d options must be a table.')
 
     local defaults = Config.drawing.text3d
     local point = toVec3(coords)
-    local maxDistance = options.maxDistance or defaults.maxDistance
+    local maxDistance = options.maxDistance
+    if maxDistance == nil then maxDistance = defaults.maxDistance end
+    assert(QB.util.isFiniteNumber(maxDistance) and maxDistance >= 0,
+        'text3d maxDistance must be a finite non-negative number.')
+    local font = options.font
+    if font == nil then font = defaults.font end
+    local scale = options.scale
+    if scale == nil then scale = defaults.scale end
+    local color = options.color
+    if color == nil then color = defaults.color end
+    local outline = options.outline
+    if outline == nil then outline = defaults.outline end
+
+    assert(QB.util.isInteger(font) and font >= 0, 'text3d font must be a non-negative integer.')
+    assert(QB.util.isFiniteNumber(scale) and scale > 0, 'text3d scale must be a positive finite number.')
+    assert(type(color) == 'table' and QB.util.isInteger(color.r) and color.r >= 0 and color.r <= 255
+        and QB.util.isInteger(color.g) and color.g >= 0 and color.g <= 255
+        and QB.util.isInteger(color.b) and color.b >= 0 and color.b <= 255
+        and QB.util.isInteger(color.a) and color.a >= 0 and color.a <= 255,
+        'text3d color must have integer r, g, b, and a components from 0 to 255.')
+    assert(type(outline) == 'boolean', 'text3d outline must be a boolean.')
 
     -- Distance-culled before any native call, not after -- the whole reason
     -- this belongs in the primitive rather than being re-derived by every
     -- caller is so a caller drawing dozens of prompts a frame doesn't pay for
     -- the ones nowhere near the player.
-    if distance(toVec3(GetEntityCoords(PlayerPedId())), point) > maxDistance then
+    if not withinDistance(toVec3(GetEntityCoords(PlayerPedId())), point, maxDistance) then
         return
     end
 
-    local color = options.color or defaults.color
-    local outline = options.outline
-    if outline == nil then outline = defaults.outline end
-
-    SetTextScale(options.scale or defaults.scale, options.scale or defaults.scale)
-    SetTextFont(options.font or defaults.font)
+    SetTextScale(scale, scale)
+    SetTextFont(font)
     SetTextProportional(true)
     SetTextColour(color.r, color.g, color.b, color.a)
     SetTextCentre(true)

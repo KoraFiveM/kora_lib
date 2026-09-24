@@ -123,7 +123,9 @@ end
 
 local function validRequest(request)
     if type(request) ~= 'table' or type(request.resource) ~= 'string' or type(request.path) ~= 'table'
-        or type(request.revision) ~= 'number' or not validResource(request.resource) then return false end
+        or type(request.revision) ~= 'number' or request.revision < 1 or request.revision % 1 ~= 0
+        or request.revision ~= request.revision or request.revision == math.huge or request.revision == -math.huge
+        or not validResource(request.resource) then return false end
     if #request.path < 1 or #request.path > 32 then return false end
     for _, key in ipairs(request.path) do
         if type(key) ~= 'string' and type(key) ~= 'number' then return false end

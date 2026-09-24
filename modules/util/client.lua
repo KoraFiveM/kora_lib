@@ -20,8 +20,8 @@
 ---@return number y Normalised 0..1, top to bottom.
 ---@return boolean onScreen
 function QB.util.worldToScreen(coords)
-    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
-        "QB.util.worldToScreen expects a vector3 or {x, y, z} table.")
+    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y)
+        and QB.util.isFiniteNumber(coords.z), "QB.util.worldToScreen expects finite vector3 or {x, y, z} values.")
 
     local onScreen, x, y = World3dToScreen2d(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
 

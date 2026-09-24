@@ -38,6 +38,16 @@ client. A supplied `field` sends multipart form data; no field uses the legacy
 JSON data-URI body. `QB.screenshot.requestScreenshotUpload(url, field, options,
 callback)` retains screenshot-basic's callback API.
 
+`maxWidth`, `maxHeight`, and every timeout must be finite integers. Dimensions
+are positive (or `false` to leave one unbounded); server request timeouts must
+be greater than 1000 ms.
+For `QB.screenshot.requestClient`, put the timeout in `options.timeout`.
+Client `capture` and `upload` use their separate positional `timeout` argument.
+When supplied, an options value must be a table; `encoding` must be `jpg`,
+`png`, or `webp`, and a timeout is never silently replaced when explicitly
+invalid. `QB.screenshot.requestClient(source)` is valid and uses the configured
+server defaults.
+
 For server-initiated captures, the browser posts the encoded image bytes
 directly to qblib's one-time HTTP upload endpoint. The multi-megabyte image does
 not become a base64 Lua string or cross a network event; only small progress or
@@ -65,6 +75,11 @@ Server-initiated capture uploads use a one-time 48-character token, expire
 after `Config.screenshot.requestTimeout`, permit one active capture per player,
 and reject empty, oversized, or type-mismatched images before invoking the
 server callback. The HTTP path checks `Content-Length` when supplied and always
-checks the received body size.
+checks the received body size. `Config.screenshot.maxBytes` must be a positive
+integer; an invalid value safely falls back to the 12 MiB default.
 `fileName` is intentionally server-controlled; never pass it from an untrusted
-client event.
+client event. The token associates an upload with the requested player; it is
+not proof that the resulting image is genuine. A modified client can submit an
+arbitrary image for its own live request, so treat a capture as client-supplied
+evidence and make any moderation or gameplay decision from independently
+validated server state.

@@ -29,7 +29,7 @@ Plays one round-based minigame session, opening a full-screen overlay and waitin
   reveal correct letter positions as guesses are entered. It collects unique
   letters and submits them at the deadline for authoritative scoring; it is a
   secure word-attempt check, not full interactive Hangman parity.
-- `authorization?: string` -- opaque value returned by the gameplay resource's server-side `QB.minigames.authorizeProof`. When present and valid, the server uses the trusted options captured at authorization time and ignores this client's `opts` entirely. When absent, the legacy/client-configured session remains playable but proof-less.
+- `authorization?: string` -- 32-character alphanumeric opaque value returned by the gameplay resource's server-side `QB.minigames.authorizeProof`. When present and valid, the server uses the trusted options captured at authorization time and ignores this client's `opts` entirely. When absent, the legacy/client-configured session remains playable but proof-less.
 
 #### Behavior
 Opens NUI focus once and keeps the same overlay mounted for every attempt -- a failed attempt with tries remaining re-renders a **freshly generated** puzzle in place (anti-farming: the target can't be memorized and repeated), it doesn't close and reopen. Each round is individually time-limited (`timeLimit`, per type); the overlay is expected to auto-submit whatever partial input it has once that time is up, which counts as a failed attempt like any other. `keys` and `hacking` always run with `attempts = 1`, matching upstream's single-pass shape (KeyMinigame never retries; Hacking is a single pass/fail against a countdown).
@@ -68,9 +68,10 @@ end
 
 `QB.minigames.playAsync(gameType, opts, authorization, owner)` is the internal,
 owner-aware composition form used by compatibility providers that need to
-retain a cancellable promise. `QB.minigames.cancel()` settles the active round
-through the normal cancelled-result path. Gameplay resources should normally
-use `play`, which waits and returns the result directly.
+retain a cancellable promise. `QB.minigames.cancel()` only settles a round
+owned by its calling resource (or its explicit internal `owner` argument), so
+one resource cannot cancel another resource's active check. Gameplay resources
+should normally use `play`, which waits and returns the result directly.
 
 ## Notes
 - **Proofs require server authorization.** A bare `play` call can still report UX success to its client caller, but it never returns a proof. A gameplay resource must issue an authorization first and later consume the matching proof on the server.
@@ -115,7 +116,7 @@ local result = QB.minigames.playSkillCheck('mining', 'skillbar', nil, authorizat
 
 ```lua
 -- server (inside my-resource)
-QB.callback.register('my-resource:begin', function(src)
+QB.callback.register('my-resource:server:beginAction', function(src)
     -- Perform resource-specific proximity/item/target checks first.
     local actionToken = issueActionToken(src)
     local authorization = QB.minigames.authorizeProof(src, 'mash', {
@@ -126,7 +127,7 @@ QB.callback.register('my-resource:begin', function(src)
     return { actionToken = actionToken, authorization = authorization }
 end)
 
-RegisterNetEvent('my-resource:complete', function(actionToken, authorization, proof)
+RegisterNetEvent('my-resource:server:actionCompleted', function(actionToken, authorization, proof)
     local src = source
     if not validateActionToken(src, actionToken) then return end
     if not QB.minigames.consumeProof(src, proof, 'mash', authorization) then return end
@@ -134,9 +135,9 @@ RegisterNetEvent('my-resource:complete', function(actionToken, authorization, pr
 end)
 
 -- client
-local begun = Citizen.Await(QB.callback.trigger('my-resource:begin'))
+local begun = QB.callback.trigger('my-resource:server:beginAction')
 local result = QB.minigames.play('mash', nil, begun.authorization)
-TriggerServerEvent('my-resource:complete', begun.actionToken,
+TriggerServerEvent('my-resource:server:actionCompleted', begun.actionToken,
     begun.authorization, result.proof)
 ```
 

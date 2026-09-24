@@ -18,9 +18,9 @@ captures the client functions before dofile-ing the server file (the standard
 same-name-across-realms workaround — see the top-level AGENTS.md).
 
 ## Notes
-- `#(vectorA - vectorB)` is FiveM's vector length; the smoke test mocks `vector3`
-  with `__sub`/`__len` metamethods to reproduce it under plain lua5.4.
-- Arguments are asserted early (missing/partial coords raise) — programmer-error
+- Squared component distance avoids temporary vectors and square roots on this
+  hot path while preserving Euclidean-radius results.
+- Arguments are asserted early (missing, partial, or non-finite coords raise) — programmer-error
   contract, not a runtime `(value, err)` return, because a bad coord table is a
   caller bug, not a recoverable condition.
 - No config: the only tunable is the per-call `distance`, defaulting to 5.0.

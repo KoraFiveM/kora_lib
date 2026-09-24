@@ -1,5 +1,6 @@
 local function assertResourceName(resourceName, label)
-    assert(type(resourceName) == 'string' and resourceName ~= '', label .. ' requires a resource name.')
+    assert(type(resourceName) == 'string' and resourceName ~= '' and #resourceName <= 256,
+        label .. ' requires a resource name up to 256 bytes.')
 end
 
 ---Returns whether a resource is currently started.
@@ -17,11 +18,13 @@ end
 ---@return string? reason
 function QB.resources.awaitStarted(resourceName, options)
     assertResourceName(resourceName, 'QB.resources.awaitStarted')
+    assert(options == nil or type(options) == 'table', 'QB.resources.awaitStarted options must be a table.')
     options = options or {}
-    assert(type(options) == 'table', 'QB.resources.awaitStarted options must be a table.')
 
-    local timeout = options.timeout or 10000
-    local interval = options.interval or 100
+    local timeout = options.timeout
+    if timeout == nil then timeout = 10000 end
+    local interval = options.interval
+    if interval == nil then interval = 100 end
     assert(QB.util.isFiniteNumber(timeout) and timeout >= 0,
         'QB.resources.awaitStarted timeout must be a non-negative finite number.')
     assert(QB.util.isFiniteNumber(interval) and interval >= 0,

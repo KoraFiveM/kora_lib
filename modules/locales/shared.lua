@@ -4,8 +4,13 @@ local function validLanguage(language)
     return type(language) == 'string' and language:match('^[%w][%w%-_]*$') ~= nil
 end
 
+local function validResource(resource)
+    return type(resource) == 'string' and resource:match('^[%w_%-]+$') ~= nil
+end
+
 local function defaultLanguage()
-    return GetConvar('qb_locale', 'en')
+    local language = GetConvar('qb_locale', 'en')
+    return validLanguage(language) and language or 'en'
 end
 
 local function currentLanguage()
@@ -82,7 +87,8 @@ local function interpolate(value, ...)
     local substitutions = select(1, ...)
     if type(substitutions) == 'table' then
         for key, replacement in pairs(substitutions) do
-            value = value:gsub('%%{' .. key .. '}', tostring(replacement))
+            local escapedKey = tostring(key):gsub('([^%w])', '%%%1')
+            value = value:gsub('%%{' .. escapedKey .. '}', function() return tostring(replacement) end)
         end
         return value
     end
@@ -122,7 +128,7 @@ end
 ---@param ... any
 ---@return any
 function QB.locale.translate(resource, key, ...)
-    assert(type(resource) == 'string' and resource ~= '', 'locale resource must be a non-empty string.')
+    assert(validResource(resource), 'locale resource must be a valid resource name.')
     assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')
     return translate(resource, key, ...)
 end

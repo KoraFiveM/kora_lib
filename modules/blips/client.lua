@@ -413,19 +413,33 @@ function QB.blips.create(coords, options)
     -- modules/entities.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
-    options = options or {}
+    if options == nil then options = {} end
+    assert(type(options) == "table", "Blip options must be a table.")
 
-    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
 
     local category = resolveCategory(options.category)
     local name, label = resolveNameAndLabel(options, category)
-    local sprite = options.sprite or Config.blips.defaultSprite
-    local color = options.color or Config.blips.defaultColor
+    local sprite = options.sprite
+    if sprite == nil then sprite = Config.blips.defaultSprite end
+    local color = options.color
+    if color == nil then color = Config.blips.defaultColor end
+    local scale = options.scale
+    if scale == nil then scale = Config.blips.defaultScale end
     local display = options.display
     if display == nil then display = Config.blips.defaultDisplay or 4 end
-    assert(type(display) == 'number' and display >= 0 and display % 1 == 0,
+    local shortRange = options.shortRange
+    if shortRange == nil then shortRange = Config.blips.defaultShortRange end
+
+    assert(QB.util.isInteger(sprite) and sprite >= 0, 'Blip sprite must be a non-negative integer.')
+    assert(QB.util.isInteger(color) and color >= 0, 'Blip color must be a non-negative integer.')
+    assert(QB.util.isFiniteNumber(scale) and scale > 0, 'Blip scale must be a positive finite number.')
+    assert(QB.util.isInteger(display) and display >= 0,
         'Blip display must be a non-negative integer.')
+    assert(type(shortRange) == 'boolean', 'Blip shortRange must be a boolean.')
+    assert(options.route == nil or type(options.route) == 'boolean', 'Blip route must be a boolean.')
+    assert(options.info == nil or type(options.info) == 'table', 'Blip info must be a table.')
 
     local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
 
@@ -435,10 +449,7 @@ function QB.blips.create(coords, options)
 
     SetBlipSprite(blip, sprite)
     SetBlipColour(blip, color)
-    SetBlipScale(blip, options.scale or Config.blips.defaultScale)
-
-    local shortRange = options.shortRange
-    if shortRange == nil then shortRange = Config.blips.defaultShortRange end
+    SetBlipScale(blip, scale)
     SetBlipAsShortRange(blip, shortRange)
 
     SetBlipCategory(blip, category.id)
@@ -456,14 +467,14 @@ function QB.blips.create(coords, options)
         color = color,
         display = display,
         route = options.route == true,
-        routeColor = options.route and options.color or nil,
+        routeColor = options.route == true and options.color or nil,
         hidden = false,
         visible = true,
     }
     registeredByBlip[blip] = record
     blipRegistry.track(invokingResource, blip)
     applyVisibility(record)
-    if options.info then storeInfo(blip, options.info) end
+    if options.info ~= nil then storeInfo(blip, options.info) end
 
     return blip
 end
@@ -578,6 +589,9 @@ function QB.blips.hide(blip)
     assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
     local record = registeredByBlip[blip]
     if not record then return false, 'Blip is not tracked by QB.blips.' end
+    if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+        return false, 'Blip is not owned by the calling resource.'
+    end
     if not DoesBlipExist(blip) then return false, 'Blip does not exist.' end
     record.hidden = true
     applyVisibility(record)
@@ -591,6 +605,9 @@ function QB.blips.show(blip)
     assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
     local record = registeredByBlip[blip]
     if not record then return false, 'Blip is not tracked by QB.blips.' end
+    if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+        return false, 'Blip is not owned by the calling resource.'
+    end
     if not DoesBlipExist(blip) then return false, 'Blip does not exist.' end
     record.hidden = false
     applyVisibility(record)
@@ -632,22 +649,22 @@ function QB.blips.clearInfo(blip)
     return true
 end
 
----Removes one tracked blip created with QB.blips.create and drops it from
----tracking, without waiting for its owning resource to stop. Refuses blips
----this module didn't create -- exports.qblib:blips_remove is callable from
----any resource, and an untracked-handle gate is what stops it doubling as a
----remove-anything primitive against blips owned by other resources.
+---Removes one tracked blip created by the calling resource, without waiting
+---for that resource to stop.
 ---@param blip number The blip handle to remove.
 ---@return boolean success
 ---@return string? error
 function QB.blips.remove(blip)
     assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
 
-    local owner = blipRegistry.untrack(blip)
-
-    if not owner then
+    if not blipRegistry.owner(blip) then
         return false, "Blip is not tracked by QB.blips."
     end
+    if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+        return false, "Blip is not owned by the calling resource."
+    end
+
+    blipRegistry.untrack(blip)
 
     registeredByBlip[blip] = nil
     clearStoredInfo(blip)

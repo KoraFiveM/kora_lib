@@ -10,8 +10,9 @@ Every public qblib namespace has a reference page. Each page is generated from t
 ## Core
 
 - [Cache]({{ site.baseurl }}/reference/cache/) — fast local-player state and consumer-owned cached values
+- [Configuration]({{ site.baseurl }}/reference/config/) — typed, owner-editable resource settings
 - [Callbacks]({{ site.baseurl }}/reference/callback/) — promise-based client/server request and response
-- [Events]({{ site.baseurl }}/reference/events/) — token-guarded client/server messages
+- [Events]({{ site.baseurl }}/reference/events/) — client/server messages with session correlation and optional rate limits
 - [Hash lookup]({{ site.baseurl }}/reference/lookup/) — GTA model, weapon, component, object, ped, and pickup names
 - [Locales]({{ site.baseurl }}/reference/locales/) — language selection, lookup, and interpolation
 - [Resources]({{ site.baseurl }}/reference/resources/) — owner tracking and automatic cleanup registries
@@ -24,7 +25,7 @@ Every public qblib namespace has a reference page. Each page is generated from t
 
 ## World and entities
 
-[Animations]({{ site.baseurl }}/reference/anim/), [blips]({{ site.baseurl }}/reference/blips/), [closest-entity helpers]({{ site.baseurl }}/reference/closest/), [distance checks]({{ site.baseurl }}/reference/distancecheck/), [drawing]({{ site.baseurl }}/reference/drawing/), [entities]({{ site.baseurl }}/reference/entities/), [effects]({{ site.baseurl }}/reference/fx/), [placement]({{ site.baseurl }}/reference/placement/), [raycasts]({{ site.baseurl }}/reference/raycast/), [sound]({{ site.baseurl }}/reference/sound/), [teleporting]({{ site.baseurl }}/reference/teleport/), [vehicles]({{ site.baseurl }}/reference/vehicle/), [visual effects]({{ site.baseurl }}/reference/visuals/), [world queries]({{ site.baseurl }}/reference/world/), and [zones]({{ site.baseurl }}/reference/zones/).
+[Animations]({{ site.baseurl }}/reference/anim/), [blips]({{ site.baseurl }}/reference/blips/), [closest-entity helpers]({{ site.baseurl }}/reference/closest/), [distance checks]({{ site.baseurl }}/reference/distancecheck/), [drawing]({{ site.baseurl }}/reference/drawing/), [developer editors]({{ site.baseurl }}/reference/editor/), [entities]({{ site.baseurl }}/reference/entities/), [effects]({{ site.baseurl }}/reference/fx/), [placement]({{ site.baseurl }}/reference/placement/), [raycasts]({{ site.baseurl }}/reference/raycast/), [sound]({{ site.baseurl }}/reference/sound/), [teleporting]({{ site.baseurl }}/reference/teleport/), [vehicles]({{ site.baseurl }}/reference/vehicle/), [visual effects]({{ site.baseurl }}/reference/visuals/), [world queries]({{ site.baseurl }}/reference/world/), and [zones]({{ site.baseurl }}/reference/zones/).
 
 ## Gameplay and server systems
 

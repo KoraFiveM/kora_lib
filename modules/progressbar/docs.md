@@ -5,14 +5,20 @@ Shows a filling progress bar to the local player for a fixed duration, optionall
 
 ## API
 
+### `QB.progressbar.validate(payload)`
+Validates the same payload accepted by `start` without displaying a bar or
+changing active state. It returns `true` or raises for invalid input. Use it
+when a resource must validate a future progress payload before beginning a
+server-authorized flow; `QB.actions.run` uses it for that purpose.
+
 ### `QB.progressbar.start(payload)`
 Runs a progress bar for `payload.duration` ms.
 
 #### Parameters
 - `payload: QBProgressBarPayload`
   - `label: string` — Text shown above the bar. Required.
-  - `duration: integer` — Milliseconds the bar takes to fill. Must be `> 0` and `<= Config.progressbar.maxDuration` (10 minutes by default).
-  - `maxDuration?: integer|false` — Internal compatibility override for a different positive limit; `false` removes the cap. Normal qblib calls should keep the configured default.
+  - `duration: finite integer` — Milliseconds the bar takes to fill. Must be `> 0` and `<= Config.progressbar.maxDuration` (10 minutes by default).
+  - `maxDuration?: finite integer|false` — Internal compatibility override for a different positive limit; `false` removes the cap. Normal qblib calls should keep the configured default.
   - `canCancel?: boolean` — Lets the player abort early with `Config.progressbar.cancelControls` (`73` / X or `322` / Escape by default). Defaults to `false`.
   - `cancelControls?: integer[]|false` — Internal compatibility override for the controls polled by qblib; `false` delegates cancellation to a compatibility resource's remappable command.
   - `presentation?: "bar" | "circle"` and `position?: "middle" | "bottom"` — Select the visual used by ox-compatible progress-circle calls.
@@ -28,14 +34,14 @@ Runs a progress bar for `payload.duration` ms.
     - `dict: string`, `clip: string` — Animation dictionary/clip.
     - `flag?: number` — `TaskPlayAnim` AnimFlags bitmask. Defaults to `1` (loop).
     - `blendIn?: number`, `blendOut?: number` — Default `8.0` each.
-    - `duration?: integer`, `playbackRate?: number`, `lockX?`, `lockY?`, `lockZ?` — Forwarded to `TaskPlayAnim`.
-    - `stopBlendOut?: number` — Internal compatibility override for the cleanup blend-out; normal calls reuse `blendOut`.
+    - `duration?: integer`, `playbackRate?: finite number`, `lockX?`, `lockY?`, `lockZ?` — Forwarded to `TaskPlayAnim`.
+    - `stopBlendOut?: finite number` — Internal compatibility override for the cleanup blend-out; normal calls reuse `blendOut`.
   - `scenario?: table` — Alternative to `anim`; the two cannot be combined.
     - `name: string` — Scenario name, such as `WORLD_HUMAN_HAMMERING`.
     - `playEnter?: boolean` — Whether to play its enter animation. Defaults to `true`.
   - `emote?: string` — Plays `exports.qbemotemenu:playEmote(emote)` for the duration and cancels it during cleanup. Ignored when `anim` or `scenario` is supplied.
   - `prop?: table`, `proptwo?: table` — Legacy singular local cosmetic props. Each requires `model: string|integer`, `coords: vector3`, `bone: integer`, and `rotation: vector3`. Both may be supplied and are attached and deleted with the same lifecycle as `props`.
-  - `props?: table[]` — Up to `Config.progressbar.maxProps` local cosmetic objects (2 by default), created before the timer begins and deleted when it ends.
+  - `props?: table[]` — Up to `Config.progressbar.maxProps` local cosmetic objects (2 by default), with finite transform components, created before the timer begins and deleted when it ends.
     - `model: string | integer` — Model name or hash. Required.
     - `bone?: string | integer` — Ped bone name or ID. Defaults to `60309`.
     - `offset?: vector3 | {x, y, z}` and `rotation?: vector3 | {x, y, z}` — Default to zero.
@@ -74,7 +80,11 @@ end
 ```
 
 ### `QB.progressbar.cancel()`
-Cancels the currently active progress bar, if any. The active `QB.progressbar.start` call notices on its next tick (at most one frame later) and returns `completed = false` — this does not interrupt it synchronously.
+Cancels the caller's currently active progress bar, if any. A resource cannot
+cancel a bar started by another resource; compatibility providers may pass
+their captured internal owner. The active `QB.progressbar.start` call notices
+on its next tick (at most one frame later) and returns `completed = false` —
+this does not interrupt it synchronously.
 
 #### Returns
 - `boolean` — `true` if a bar was actually running and got cancelled; `false` if none was active.

@@ -122,10 +122,13 @@ local function contextMetadata(metadata)
 end
 
 local function copyOptions(options)
-    if type(options) ~= 'table' then return nil end
+    if options == nil then return nil end
+    assert(type(options) == 'table', 'ox input options must be a table.')
+    assert(denseArray(options) or next(options) == nil, 'ox input options must be a dense array.')
     local out = {}
     for index = 1, #options do
         local option = options[index]
+        assert(type(option) == 'table', 'ox input options must contain tables.')
         out[index] = {
             value = option.value,
             label = tostring(option.label or option.value),
@@ -143,6 +146,7 @@ local INPUT_TYPES = {
 
 local function inputFields(rows, owner)
     assert(type(rows) == 'table', 'ox inputDialog rows must be a table.')
+    assert(denseArray(rows) or next(rows) == nil, 'ox inputDialog rows must be a dense array.')
     local fields = {}
     for index = 1, #rows do
         local source = rows[index]
@@ -203,7 +207,7 @@ local function notify(data, owner, legacy)
     QB.nui.send('notify', {
         title = data.title,
         message = data.description,
-        duration = type(data.duration) == 'number' and data.duration > 0 and data.duration or 3000,
+        duration = QB.util.isFiniteNumber(data.duration) and data.duration > 0 and data.duration or 3000,
         position = data.position,
         type = kind,
         icon = iconName(data.icon),
@@ -281,6 +285,11 @@ local function transitionContext(session, id)
     session.id = id
     session.registration = registration
     return QB.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
+end
+
+local function refreshContext(session)
+    if activeContext ~= session or not session.request then return end
+    QB.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
 end
 
 local function contextEvent(session, event, data)
@@ -369,9 +378,9 @@ local function menuArgs(choice, secondary, marker)
     return choice.index, secondary, args
 end
 
-local function menuEvent(session, choices, event, data)
+local function menuEvent(session, event, data)
     if activeMenu ~= session or type(data) ~= 'table' then return end
-    local choice = choices[data.selectedId]
+    local choice = session.choices[data.selectedId]
     if not choice then return end
     local definition = session.registration.data
     if event == 'selected' and isCallable(definition.onSelected) then
@@ -392,29 +401,41 @@ local function menuEvent(session, choices, event, data)
     end
 end
 
+local function menuPayload(session)
+    local definition = session.registration.data
+    local items, choices = menuItems(definition)
+    session.choices = choices
+    return {
+        title = definition.title,
+        items = items,
+        position = menuPosition(definition.position or 'top-left'),
+        canClose = definition.canClose,
+        startIndex = session.startIndex,
+        presentation = 'panel',
+    }
+end
+
+local function refreshMenu(session)
+    if activeMenu ~= session or not session.request then return end
+    QB.nui.updateRequest(session.request, 'updateMenu', menuPayload(session))
+end
+
 local function runMenu(session)
     local definition = session.registration.data
     while activeMenu == session do
-        local items, choices = menuItems(definition)
         session.releaseFocus = QB.nui.acquireFocus(true, false, definition.disableInput ~= true, session.owner)
         if definition.disableInput == nil or definition.disableInput == true then
-            session.controlLease = QB.controls.acquire({ 140 }, {
+            session.controlLease = QB.compat.acquireControls({ 140 }, {
                 disablePlayerFiring = true,
                 ignoreWeaponWheel = true,
-            })
+            }, session.owner)
         end
-        session.request = QB.nui.requestAsync('openMenu', {
-            title = definition.title,
-            items = items,
-            position = menuPosition(definition.position or 'top-left'),
-            canClose = definition.canClose,
-            startIndex = session.startIndex,
-            presentation = 'panel',
-        }, false, session.owner, false, function(event, data) menuEvent(session, choices, event, data) end)
+        session.request = QB.nui.requestAsync('openMenu', menuPayload(session), false, session.owner, false,
+            function(event, data) menuEvent(session, event, data) end)
         local ok, result = pcall(awaitPromise, session.request)
         session.request = nil
         if session.releaseFocus then session.releaseFocus() session.releaseFocus = nil end
-        if session.controlLease then QB.controls.release(session.controlLease) session.controlLease = nil end
+        if session.controlLease then QB.compat.releaseControlLease(session.controlLease, session.owner) session.controlLease = nil end
         if activeMenu ~= session then return end
         if not ok then
             activeMenu = nil
@@ -426,7 +447,7 @@ local function runMenu(session)
             if isCallable(definition.onClose) then definition.onClose(result and result.keyPressed or nil) end
             return
         else
-            local choice = choices[result.selectedId]
+            local choice = session.choices[result.selectedId]
             if not choice then return end
             if choice.option.close ~= false then activeMenu = nil end
             if isCallable(session.registration.callback) then
@@ -530,14 +551,14 @@ end
 
 local function releaseRadialLeases(session)
     if session.releaseFocus then session.releaseFocus() session.releaseFocus = nil end
-    if session.controls then QB.controls.release(session.controls) session.controls = nil end
-    if session.pauseControls then QB.controls.release(session.pauseControls) session.pauseControls = nil end
+    if session.controls then QB.compat.releaseControlLease(session.controls, session.owner) session.controls = nil end
+    if session.pauseControls then QB.compat.releaseControlLease(session.pauseControls, session.owner) session.pauseControls = nil end
 end
 
 local function runRadial(session)
     session.releaseFocus = QB.nui.acquireFocus(true, true, true, session.owner)
-    session.controls = QB.controls.acquire({ 1, 2, 142 }, { disablePlayerFiring = true })
-    session.pauseControls = QB.controls.acquire({ 199, 200 }, { inputGroup = 2 })
+    session.controls = QB.compat.acquireControls({ 1, 2, 142 }, { disablePlayerFiring = true }, session.owner)
+    session.pauseControls = QB.compat.acquireControls({ 199, 200 }, { inputGroup = 2 }, session.owner)
     SetCursorLocation(0.5, 0.5)
 
     local ok, err = pcall(function()
@@ -587,7 +608,8 @@ local function difficultyOptions(difficulty)
     elseif difficulty == 'hard' then areaSize, multiplier = 25, 1.75
     elseif type(difficulty) == 'table' then
         areaSize, multiplier = difficulty.areaSize, difficulty.speedMultiplier
-        assert(type(areaSize) == 'number' and type(multiplier) == 'number', 'custom skillCheck difficulty requires areaSize and speedMultiplier.')
+        assert(QB.util.isFiniteNumber(areaSize) and QB.util.isFiniteNumber(multiplier),
+            'custom skillCheck difficulty requires finite areaSize and speedMultiplier.')
     else
         error(('invalid skillCheck difficulty: %s'):format(tostring(difficulty)), 2)
     end
@@ -688,6 +710,8 @@ end
 function QB.ox.alertDialog(data, timeout, owner)
     assertOwner(owner)
     assert(type(data) == 'table' and type(data.content) == 'string', 'ox alertDialog requires content.')
+    assert(timeout == nil or timeout == false or (QB.util.isInteger(timeout) and timeout >= 0),
+        'ox alertDialog timeout must be a non-negative finite integer or false.')
     if activeAlert then return nil end
     local session = { owner = owner }
     activeAlert = session
@@ -704,7 +728,7 @@ function QB.ox.alertDialog(data, timeout, owner)
         size = data.size,
         overflow = data.overflow,
     }, owner, false)
-    if timeout then
+    if timeout ~= nil and timeout ~= false then
         SetTimeout(timeout, function()
             if activeAlert == session then cancelSession(session, nil, 'timeout') end
         end)
@@ -733,13 +757,22 @@ end
 function QB.ox.registerContext(context, owner)
     assertOwner(owner)
     assert(type(context) == 'table', 'ox registerContext requires a table.')
+    assert(context.id or denseArray(context) or next(context) == nil,
+        'ox context definitions must be a dense array or a single definition.')
     local list = context.id and { context } or context
     for index = 1, #list do
         local definition = list[index]
         assert(type(definition.id) == 'string' and definition.id ~= '', 'No context menu id was provided.')
         assert(type(definition.title) == 'string' and definition.title ~= '', 'No context menu title was provided.')
         assert(type(definition.options) == 'table', 'No context menu options were provided.')
+        for _, option in pairs(definition.options) do
+            assert(type(option) == 'table', 'ox context options must be tables.')
+        end
         contexts[definition.id] = { data = definition, owner = owner }
+        if activeContext and activeContext.id == definition.id then
+            activeContext.registration = contexts[definition.id]
+            refreshContext(activeContext)
+        end
     end
 end
 
@@ -762,8 +795,9 @@ end
 function QB.ox.inputDialog(heading, rows, options, owner)
     assertOwner(owner)
     assert(type(heading) == 'string', 'ox inputDialog heading must be a string.')
+    assert(options == nil or type(options) == 'table', 'ox inputDialog options must be a table.')
     if activeInput then return nil end
-    options = options or {}
+    if options == nil then options = {} end
     local fields = inputFields(rows, owner)
     local session = { owner = owner }
     activeInput = session
@@ -812,9 +846,17 @@ function QB.ox.registerMenu(data, callback, owner)
     assert(type(data) == 'table', 'ox registerMenu requires a table.')
     if not data.id then error('No menu id was provided.', 2) end
     if not data.title then error('No menu title was provided.', 2) end
-    if not data.options then error('No menu options were provided.', 2) end
+    if type(data.options) ~= 'table' then error('No menu options were provided.', 2) end
+    assert(denseArray(data.options) or next(data.options) == nil, 'ox menu options must be a dense array.')
+    for index = 1, #data.options do
+        assert(type(data.options[index]) == 'table', 'ox menu options must be tables.')
+    end
     assert(callback == nil or isCallable(callback), 'ox menu callback must be callable.')
     menus[data.id] = { data = data, callback = callback, owner = owner }
+    if activeMenu and activeMenu.id == data.id then
+        activeMenu.registration = menus[data.id]
+        refreshMenu(activeMenu)
+    end
 end
 
 function QB.ox.showMenu(id, startIndex, owner)
@@ -845,12 +887,20 @@ function QB.ox.setMenuOptions(id, options, index, owner)
     assertOwner(owner)
     local registration = menus[id]
     assert(registration, ('No menu with id %s was found'):format(tostring(id)))
-    if index then
+    if index ~= nil then
+        assert(QB.util.isInteger(index) and index >= 1, 'ox menu option index must be a positive integer.')
+        assert(index <= #registration.data.options, 'ox menu option index must refer to an existing option.')
+        assert(type(options) == 'table', 'ox menu option must be a table.')
         registration.data.options[index] = options
     else
-        if type(options) ~= 'table' or not options[1] then error('Invalid override format used, expected table of options.', 2) end
+        assert(type(options) == 'table' and (denseArray(options) or next(options) == nil),
+            'Invalid override format used, expected a dense table of options.')
+        for optionIndex = 1, #options do
+            assert(type(options[optionIndex]) == 'table', 'ox menu options must be tables.')
+        end
         registration.data.options = options
     end
+    if activeMenu and activeMenu.id == id then refreshMenu(activeMenu) end
 end
 
 function QB.ox.getOpenMenu(owner)
@@ -866,7 +916,7 @@ function QB.ox.progressCircle(data, owner) return startProgress(data, 'circle', 
 function QB.ox.cancelProgress(owner)
     assertOwner(owner)
     if not activeProgressOwner then error('No progress bar is active', 2) end
-    QB.progressbar.cancel()
+    QB.progressbar.cancel(owner)
 end
 
 function QB.ox.progressActive(owner)
@@ -876,7 +926,9 @@ end
 
 function QB.ox.registerRadial(radial, owner)
     assertOwner(owner)
-    assert(type(radial) == 'table' and type(radial.id) == 'string' and type(radial.items) == 'table', 'ox registerRadial requires id and items.')
+    assert(type(radial) == 'table' and type(radial.id) == 'string' and radial.id ~= '' and type(radial.items) == 'table',
+        'ox registerRadial requires a non-empty id and items.')
+    assert(denseArray(radial.items) or next(radial.items) == nil, 'ox radial items must be a dense array.')
     local previous = radialMenus[radial.id]
     if previous then
         for index = 1, #previous.data.items do
@@ -914,7 +966,7 @@ function QB.ox.addRadialItem(items, parentMenuId, owner)
     local list = denseArray(items) and items or { items }
     for index = 1, #list do
         local item = list[index]
-        assert(type(item) == 'table' and type(item.id) == 'string', 'ox radial item requires an id.')
+        assert(type(item) == 'table' and type(item.id) == 'string' and item.id ~= '', 'ox radial item requires a non-empty id.')
         local replacement
         for targetIndex = 1, #target do
             if target[targetIndex].id == item.id then replacement = targetIndex break end
@@ -979,7 +1031,7 @@ function QB.ox.skillCheck(difficulty, inputs, owner)
     assertOwner(owner)
     if activeSkillOwner then return nil end
     if inputs ~= nil then
-        assert(type(inputs) == 'table' and #inputs > 0, 'ox skillCheck inputs must be a non-empty array.')
+        assert(type(inputs) == 'table' and denseArray(inputs), 'ox skillCheck inputs must be a non-empty dense array.')
     end
     local stages = denseArray(difficulty) and difficulty or { difficulty }
     for index = 1, #stages do difficultyOptions(stages[index]) end
@@ -1016,7 +1068,8 @@ end
 function QB.ox.showTextUI(text, options, owner)
     assertOwner(owner)
     assert(type(text) == 'string' and text ~= '', 'ox showTextUI requires text.')
-    options = options or {}
+    assert(options == nil or type(options) == 'table', 'ox TextUI options must be a table.')
+    if options == nil then options = {} end
     assert(options.style == nil or type(options.style) == 'table' or type(options.style) == 'string',
         'ox TextUI style must be a table or CSS declaration string.')
     if activeText and activeText.text == text then return end
@@ -1109,7 +1162,7 @@ function QB.ox.disposeOwner(owner)
     if activeRadial and (activeRadial.owner == owner or radialChanged) then
         QB.ox.hideRadial(owner)
     end
-    if activeProgressOwner == owner and QB.progressbar.isActive() then QB.progressbar.cancel() end
+    if activeProgressOwner == owner and QB.progressbar.isActive() then QB.progressbar.cancel(owner) end
     if activeSkillOwner == owner and activeSkillRequest then pcall(QB.nui.cancelRequest, activeSkillRequest, false) end
     if activeText and activeText.owner == owner then QB.ox.hideTextUI(owner) end
     if focusReleases[owner] then QB.ox.resetNuiFocus(owner) end

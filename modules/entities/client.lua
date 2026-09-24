@@ -15,6 +15,7 @@ local presets = {
         invincible = true,
     },
 }
+local isFiniteNumber = QB.util.isFiniteNumber
 
 -- Per-type creation dispatch. Each entry spawns a non-networked (isNetwork =
 -- false), non-mission entity (netMissionEntity/bScriptHostPed = false) at the
@@ -101,6 +102,16 @@ local function resolveHeading(options, coords)
     return 0.0
 end
 
+local function assertCreateOptions(options)
+    assert(type(options) == "table", "Entity options must be a table.")
+    assert(options.preset == nil or presets[options.preset] ~= nil,
+        ("Unknown entities preset: %s"):format(tostring(options.preset)))
+    assert(options.freeze == nil or type(options.freeze) == "boolean", "Entity freeze must be a boolean.")
+    assert(options.blockNonTempEvents == nil or type(options.blockNonTempEvents) == "boolean",
+        "Entity blockNonTempEvents must be a boolean.")
+    assert(options.invincible == nil or type(options.invincible) == "boolean", "Entity invincible must be a boolean.")
+end
+
 ---Spawns a local, non-networked entity visible only to the calling client,
 ---streaming its model with `QB.stream.loadModel` first. Whether the result
 ---is a ped, vehicle, or object is auto-detected from `model` itself (see
@@ -116,18 +127,20 @@ end
 ---@return number | false entity The created entity handle, or false if the model never loaded or the entity failed to create.
 ---@return string? error
 local function createForResource(model, coords, options, invokingResource)
+    assert(options == nil or type(options) == "table", "Entity options must be a table.")
     options = options or {}
+    assertCreateOptions(options)
 
-    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
 
     local preset = options.preset and presets[options.preset]
-    assert(options.preset == nil or preset ~= nil, ("Unknown entities preset: %s"):format(options.preset))
 
     local freeze = resolveOverride(options.freeze, preset and preset.freeze)
     local blockNonTempEvents = resolveOverride(options.blockNonTempEvents, preset and preset.blockNonTempEvents)
     local invincible = resolveOverride(options.invincible, preset and preset.invincible)
     local heading = resolveHeading(options, coords)
+    assert(isFiniteNumber(heading), "Entity heading must be a finite number.")
 
     local entity
 
@@ -202,15 +215,14 @@ function QB.entities.createScoped(model, coords, options)
     -- Capture ownership at the export boundary. The zone callbacks run later,
     -- when GetInvokingResource() no longer identifies the original caller.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
+    assert(options == nil or type(options) == "table", "Scoped entity options must be a table.")
     options = options or {}
+    assertCreateOptions(options)
 
-    assert(type(options.radius) == "number" and options.radius > 0,
-        "Scoped entity radius must be a number greater than zero.")
-    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assert(isFiniteNumber(options.radius) and options.radius > 0,
+        "Scoped entity radius must be a finite number greater than zero.")
+    assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
-    assert(options.preset == nil or presets[options.preset] ~= nil,
-        ("Unknown entities preset: %s"):format(tostring(options.preset)))
-
     nextScopeId = nextScopeId + 1
 
     local scope = {
@@ -231,7 +243,11 @@ function QB.entities.createScoped(model, coords, options)
     scope.handle = handle
 
     function handle.remove()
-        if scopeRegistry.untrack(scope.id) then destroyScope(scope) end
+        local invoker = GetInvokingResource()
+        if scope.removed or (invoker and invoker ~= scope.resource) then return false end
+        scopeRegistry.untrack(scope.id)
+        destroyScope(scope)
+        return true
     end
 
     function handle.isSpawned()
@@ -293,29 +309,28 @@ end
 ---@field id integer Stable scoped-registration id.
 ---@field resource string Resource that created the scoped entity.
 ---@field entity? number Current local entity handle, or nil while outside the scope.
----@field remove fun() Deletes the active entity and unregisters the scope.
+---@field remove fun(): boolean Deletes the active entity and unregisters the scope. Returns false for a foreign or removed scope.
 ---@field isSpawned fun(): boolean Whether the scope currently owns a live entity.
 
 ---@class QBEntitiesScopedOptions : QBEntitiesCreateOptions
 ---@field radius number Spawn radius in metres; must be greater than zero.
 
----Deletes one tracked entity created with QB.entities.create and drops it
----from whichever resource's tracked set it belongs to, without waiting for
----that resource to stop. Refuses entities this module didn't create --
----exports.qblib:entities_remove is callable from any resource, and an
----untracked-handle gate is what stops it doubling as a delete-anything
----primitive against entities owned by other resources or the world.
+---Deletes one tracked entity created by the calling resource, without waiting
+---for that resource to stop.
 ---@param entity number The entity handle to remove.
 ---@return boolean success
 ---@return string? error
 function QB.entities.remove(entity)
     assert(type(entity) == "number", ("Invalid entity: %s"):format(entity))
 
-    local owner = entityRegistry.untrack(entity)
-
-    if not owner then
+    if not entityRegistry.owner(entity) then
         return false, "Entity is not tracked by QB.entities."
     end
+    if entityRegistry.owner(entity) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+        return false, "Entity is not owned by the calling resource."
+    end
+
+    entityRegistry.untrack(entity)
 
     if not DoesEntityExist(entity) then
         return false, "Entity does not exist."
@@ -335,13 +350,15 @@ end
 ---@return string? error
 function QB.entities.requestControl(entity, timeout)
     assert(type(entity) == 'number' and entity ~= 0, ('Invalid entity: %s'):format(entity))
+    if timeout == nil then timeout = 1000 end
+    assert(QB.util.isInteger(timeout) and timeout >= 0, 'Entity control timeout must be a non-negative integer.')
     if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
     if NetworkHasControlOfEntity(entity) then return true end
 
     local controlled, err = QB.loops.controlled(function()
         NetworkRequestControlOfEntity(entity)
         return NetworkHasControlOfEntity(entity)
-    end, false, timeout or 1000, true)
+    end, false, timeout, true)
     return controlled ~= false, err
 end
 

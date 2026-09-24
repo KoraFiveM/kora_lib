@@ -10,6 +10,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 -- crack/coke's ragdoll fix depends on QB.cache.ped(), so cache's own
 -- prerequisites need mocking too -- currentPed is mutable so a test can
@@ -257,6 +258,15 @@ harness.test("fade executes a masked cross-resource callable", function()
     harness.assertTrue(called, "a callable table from the exports boundary should run while faded out")
 end)
 
+harness.test("visual effect durations reject unsafe numeric values before scheduling work", function()
+    harness.assertThrows(function() QB.visuals.trevor(math.huge) end,
+        "an infinite effect duration should be rejected")
+    harness.assertThrows(function() QB.visuals.ecstacy(0 / 0) end,
+        "a NaN effect duration should be rejected")
+    harness.assertThrows(function() QB.visuals.fade(-1) end,
+        "a negative fade duration should be rejected")
+end)
+
 harness.test("fade restores the screen before re-raising a callback error", function()
     local fadeIns = 0
     local original = _G.DoScreenFadeIn
@@ -272,6 +282,17 @@ harness.test("fade restores the screen before re-raising a callback error", func
     harness.assertTrue(tostring(err):find("expected fade callback failure", 1, true) ~= nil,
         "fade should preserve the original callback error")
     harness.assertEqual(fadeIns, 1, "fade-in must run even when the callback fails")
+end)
+
+harness.test("fade continues after a bounded wait when the native never reports completion", function()
+    local original = _G.IsScreenFadedOut
+    _G.IsScreenFadedOut = function() return false end
+
+    local ran = false
+    QB.visuals.fade(0, function() ran = true end)
+
+    _G.IsScreenFadedOut = original
+    harness.assertTrue(ran, "a stalled fade native must not strand the caller forever")
 end)
 
 harness.test("trevor/alien each play their own screen effect prefix", function()

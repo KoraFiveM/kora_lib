@@ -5,7 +5,7 @@ title: ox_lib compatibility
 
 # ox_lib compatibility
 
-The bundled `ox_lib` resource is a drop-in FiveM compatibility surface for
+The optional `ox_lib` compatibility resource is a drop-in FiveM surface for
 ox_lib 3.39.0, pinned to official Overextended commit
 [`b8f5a043`](https://github.com/overextended/ox_lib/tree/b8f5a04351b1d427e0e112150d36094e9889ec7b)
 (2026-09-04). Existing resources keep their normal manifest import:
@@ -23,6 +23,10 @@ qblib
 ox_lib
 consumer resources
 ```
+
+`ox_lib` is optional: qblib and native qblib resources do not require or start
+it. Enable this compatibility resource only when an installed dependency uses
+`@ox_lib/...` imports or the ox_lib API.
 
 ## Architecture
 
@@ -54,7 +58,7 @@ only removes that script's registrations and active interactions.
   repository test suites.
 
 The exhaustive frozen contract and audit checklist live in
-[the ox_lib 3.39.0 contract inventory](ox_lib-contract-3.39.0.md). When ox_lib
+[the ox_lib 3.39.0 contract inventory]({{ site.baseurl }}/migration/ox-lib-contract/). When ox_lib
 is upgraded, update that inventory, the pinned hash manifest, compatibility
 tests, and this document together.
 

@@ -19,6 +19,7 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/callback/shared.lua")
@@ -47,6 +48,8 @@ end
 local consumeRateLimit = namedUpvalue(net.netHandlers[INVOKE][1], 'consumeRateLimit')
 local rateBuckets = consumeRateLimit and namedUpvalue(consumeRateLimit, 'rateBuckets')
 assert(rateBuckets, 'could not inspect callback rate buckets')
+local serverTokens = namedUpvalue(net.netHandlers[INVOKE][1], 'tokens')
+assert(serverTokens, 'could not inspect callback tokens')
 
 harness.test("client asks server: resolves with the handler's return value", function()
     serverRegister("smoke:double", function(src, n)
@@ -81,6 +84,82 @@ harness.test("client asks server: the gateway drops a request carrying the wrong
     harness.assertFalse(ran, "the handler must not run when the token is wrong")
 end)
 
+harness.test('client asks server: the gateway drops oversized names before dispatch', function()
+    local ran = false
+    serverRegister('smoke:short-name', function() ran = true end)
+
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers[INVOKE]) do
+        fn(serverTokens[mocks.SOURCE], 1000, string.rep('x', 129))
+    end
+    _G.source = nil
+
+    harness.assertFalse(ran, 'oversized callback names must not reach a handler')
+    harness.assertThrows(function() QB.callback.assertName(string.rep('x', 129)) end)
+end)
+
+harness.test("callback handshake and gateway discard malformed server sources", function()
+    local handshakeHandlers = net.netHandlers["qblib:callback:handshake"]
+    local invokeHandlers = net.netHandlers[INVOKE]
+    local ok = pcall(function()
+        for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+            _G.source = src
+            for _, fn in ipairs(handshakeHandlers) do fn() end
+            for _, fn in ipairs(invokeHandlers) do fn("ignored", 1, "smoke:noop") end
+        end
+        _G.source = nil
+    end)
+
+    _G.source = nil
+    harness.assertTrue(ok, "malformed sources must be ignored before callback token-table access")
+end)
+
+harness.test("client asks server: the gateway drops malformed request IDs", function()
+    local calls = 0
+    serverRegister("smoke:valid-id-only", function() calls = calls + 1 end)
+
+    local invokeEntry = mocks.lastEntry(net.triggeredServerEvents, INVOKE)
+    harness.assertTrue(invokeEntry ~= nil, "the client handshake should have issued a real callback token")
+    local token = invokeEntry[1]
+
+    _G.source = mocks.SOURCE
+    for _, requestId in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        for _, fn in ipairs(net.netHandlers[INVOKE]) do
+            fn(token, requestId, "smoke:valid-id-only")
+        end
+    end
+    _G.source = nil
+
+    harness.assertEqual(calls, 0, "invalid request IDs must be discarded before callback dispatch")
+end)
+
+harness.test("client callback receiver drops malformed response IDs without faulting", function()
+    local responseHandlers = net.netHandlers["qblib:callback:response"]
+    local ok = pcall(function()
+        for _, requestId in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+            for _, fn in ipairs(responseHandlers) do fn(requestId, true, "ignored") end
+        end
+    end)
+
+    harness.assertTrue(ok, "malformed response IDs must be ignored before the pending table lookup")
+end)
+
+harness.test("client callback receiver drops malformed invocations without faulting", function()
+    local invokeHandlers = net.netHandlers["qblib:callback:clientInvoke"]
+    local triggeredCount = #net.triggeredServerEvents
+    local ok = pcall(function()
+        for _, fn in ipairs(invokeHandlers) do
+            fn(0 / 0, "smoke:noop")
+            fn(1, 0 / 0)
+            fn(1, string.rep('x', 129))
+        end
+    end)
+
+    harness.assertTrue(ok, "malformed client callback input must be ignored before registry lookup")
+    harness.assertEqual(#net.triggeredServerEvents, triggeredCount,
+        'an oversized callback name must not be echoed back to the server')
+end)
+
 harness.test('client-to-server callbacks reject immediately when rate limited', function()
     local calls = 0
     serverRegister('smoke:limited', function()
@@ -99,6 +178,37 @@ harness.test('client-to-server callbacks reject immediately when rate limited', 
     local third = clientTrigger('smoke:limited')
     harness.assertEqual(third.state, 'resolved')
     harness.assertEqual(calls, 2, 'the sliding window should expire')
+end)
+
+harness.test('callback rate buckets keep only quota-sized timestamp storage', function()
+    serverRegister('smoke:ring-storage', function() return true end, {
+        rateLimit = { max = 3, window = 1 },
+    })
+
+    for _ = 1, 20 do
+        clientTrigger('smoke:ring-storage')
+        Wait(1)
+    end
+
+    local bucket = rateBuckets['smoke:ring-storage'][mocks.SOURCE]
+    local stored = 0
+    for _ in pairs(bucket.timestamps) do stored = stored + 1 end
+    harness.assertTrue(bucket.count <= 3 and stored <= 3,
+        'a rolling quota must not grow its timestamp storage over time')
+    serverUnregister('smoke:ring-storage')
+end)
+
+harness.test('callback rate limits reject non-finite values at registration', function()
+    for _, rateLimit in ipairs({
+        { max = math.huge, window = 1000 },
+        { max = 1, window = math.huge },
+        { max = 10001, window = 1000 },
+        { max = 1, window = 86400001 },
+    }) do
+        harness.assertThrows(function()
+            serverRegister('smoke:invalid-limit', function() return true end, { rateLimit = rateLimit })
+        end, 'rate-limit values must be finite')
+    end
 end)
 
 harness.test('callback rate buckets expire automatically and stale timers cannot clear replacements', function()
@@ -140,13 +250,60 @@ harness.test('callback rate buckets expire automatically and stale timers cannot
     local replacementPreserved = rateBuckets['smoke:stale-timer']
         and rateBuckets['smoke:stale-timer'][mocks.SOURCE] == replacementBucket
 
+    timers = {}
+    serverRegister('smoke:coalesced-timer', function() return true end, {
+        rateLimit = { max = 3, window = 1000 },
+    })
+    clientTrigger('smoke:coalesced-timer')
+    clientTrigger('smoke:coalesced-timer')
+    clientTrigger('smoke:coalesced-timer')
+    local coalescedTimerCount = 0
+    local coalescedTimer
+    for _, timer in ipairs(timers) do
+        if timer.delay == 1000 then
+            coalescedTimerCount = coalescedTimerCount + 1
+            coalescedTimer = timer
+        end
+    end
+    Wait(1000)
+    coalescedTimer.callback()
+    local coalescedExpired = rateBuckets['smoke:coalesced-timer'] == nil
+
+    timers = {}
+    serverRegister('smoke:rescheduled-timer', function() return true end, {
+        rateLimit = { max = 2, window = 1000 },
+    })
+    clientTrigger('smoke:rescheduled-timer')
+    local firstCleanup
+    for _, timer in ipairs(timers) do
+        if timer.delay == 1000 then firstCleanup = timer end
+    end
+    Wait(500)
+    clientTrigger('smoke:rescheduled-timer')
+    Wait(500)
+    firstCleanup.callback()
+    local followUp
+    for _, timer in ipairs(timers) do
+        if timer.delay == 500 then followUp = timer end
+    end
+    local rescheduled = rateBuckets['smoke:rescheduled-timer'] ~= nil and followUp ~= nil
+    Wait(500)
+    followUp.callback()
+    local rescheduledExpired = rateBuckets['smoke:rescheduled-timer'] == nil
+
     serverUnregister('smoke:timer-cleanup')
     serverUnregister('smoke:stale-timer')
+    serverUnregister('smoke:coalesced-timer')
+    serverUnregister('smoke:rescheduled-timer')
     _G.SetTimeout = realSetTimeout
 
     harness.assertTrue(existed, 'an accepted request should create a callback bucket')
     harness.assertTrue(expired, 'the expiry timer should clear an idle callback bucket')
     harness.assertTrue(replacementPreserved, 'an old timer must not clear a replacement callback bucket')
+    harness.assertEqual(coalescedTimerCount, 1, 'one bucket should schedule one cleanup timer per window')
+    harness.assertTrue(coalescedExpired, 'the coalesced cleanup timer should still release an idle bucket')
+    harness.assertTrue(rescheduled, 'a live bucket should schedule one follow-up timer for its next expiry')
+    harness.assertTrue(rescheduledExpired, 'the follow-up cleanup timer should release the final timestamp')
 end)
 
 harness.test('invalid callback tokens do not consume quota', function()
@@ -276,6 +433,14 @@ harness.test("server asks client: resolves with the client handler's return valu
     harness.assertEqual(p.value, true, "the resolved value should be the client handler's return value")
 end)
 
+harness.test("server asks client: rejects malformed target IDs before dispatch", function()
+    for _, target in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        harness.assertThrows(function()
+            serverTrigger(target, "confirm:action")
+        end, "invalid player targets must not create pending callbacks")
+    end
+end)
+
 harness.test("server asks client: rejects when the client handler errors", function()
     clientRegister("smoke:client-boom", function() error("client kaboom") end)
 
@@ -307,6 +472,14 @@ harness.test("server asks client: a response is only accepted from the addressed
 
     local clientResponseHandlers = net.netHandlers["qblib:callback:clientResponse"]
 
+    _G.source = mocks.SOURCE
+    local malformedOk = pcall(function()
+        for _, fn in ipairs(clientResponseHandlers) do fn(0 / 0, true, "malformed") end
+    end)
+    _G.source = nil
+    harness.assertTrue(malformedOk, "a malformed response id must be dropped without a handler error")
+    harness.assertEqual(p.state, "pending", "a malformed response id must not settle another request")
+
     _G.source = mocks.SOURCE + 1
     for _, fn in ipairs(clientResponseHandlers) do fn(requestId, true, "spoofed") end
     _G.source = nil
@@ -325,6 +498,25 @@ harness.test("server asks client: unregister removes the handler immediately", f
 
     local p = serverTrigger(mocks.SOURCE, "smoke:manually-unregistered")
     harness.assertEqual(p.state, "rejected", "an unregistered handler must reject immediately")
+end)
+
+harness.test("foreign resources cannot unregister callbacks in either realm", function()
+    _G.GetInvokingResource = function() return "callback_owner" end
+    serverRegister("smoke:owned-server", function() return true end)
+    clientRegister("smoke:owned-client", function() return true end)
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    harness.assertFalse(serverUnregister("smoke:owned-server"),
+        "another resource must not unregister a server callback")
+    harness.assertFalse(QB.callback.unregister("smoke:owned-client"),
+        "another resource must not unregister a client callback")
+
+    _G.GetInvokingResource = function() return "callback_owner" end
+    harness.assertTrue(serverUnregister("smoke:owned-server"),
+        "the server callback owner should still be able to unregister it")
+    harness.assertTrue(QB.callback.unregister("smoke:owned-client"),
+        "the client callback owner should still be able to unregister it")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 -- The rest of these fire onResourceStop/onClientResourceStop for the mocked

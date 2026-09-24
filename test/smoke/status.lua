@@ -13,8 +13,15 @@ local mocks = require("mocks")
 -- server.lua loads, before client.lua's load overwrites the same QB.status
 -- table slots.
 local net = mocks.install()
+local clock = 0
+_G.GetGameTimer = function() return clock end
+
+local function advanceClock(milliseconds)
+    clock = clock + milliseconds
+end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/events/shared.lua")
@@ -35,6 +42,7 @@ local ptfxStarts, ptfxStops = {}, {}
 local screenStarts, screenStops = {}, {}
 local animStarts, animStops = {}, {}
 local nextHandle = 0
+local moveRateCalls = 0
 
 QB.fx = {
     playPtfx = function(def)
@@ -60,6 +68,7 @@ QB.anim = {
 
 function _G.PlayerPedId() return 1 end
 function _G.SetPedMoveRateOverride(ped, mult)
+    moveRateCalls = moveRateCalls + 1
     _G.__lastMoveRateOverride = { ped = ped, mult = mult }
 end
 
@@ -81,10 +90,73 @@ harness.test("registerEffect rejects an invalid stacking mode", function()
     end, "an unknown stacking mode should be rejected")
 end)
 
+harness.test("registerEffect validates duration and severity definitions", function()
+    harness.assertThrows(function()
+        QB.status.registerEffect("bad_duration", { duration = -1 })
+    end, "a negative definition duration should be rejected")
+    harness.assertThrows(function()
+        QB.status.registerEffect("bad_levels", { severityLevels = 1.5 })
+    end, "fractional severity levels should be rejected")
+    harness.assertThrows(function()
+        QB.status.registerEffect("bad_movement", { movement = { speedMultiplier = math.huge } })
+    end, "an infinite movement multiplier must fail before the per-frame loop")
+    harness.assertThrows(function()
+        QB.status.registerEffect('bad_ptfx', { fx = { ptfx = { dict = 'smoke' } } })
+    end, 'a particle definition without a name must fail before application')
+    harness.assertThrows(function()
+        QB.status.registerEffect('bad_anim', { anim = { dict = 'anim' } })
+    end, 'an animation definition without a clip must fail before application')
+end)
+
+harness.test("status definitions are owner-scoped and cleaned up on resource stop", function()
+    _G.GetInvokingResource = function() return "definition_owner" end
+    harness.assertTrue(QB.status.registerEffect("owned_definition", { duration = 100 }),
+        "the owner should register its definition")
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    local registered, reason = QB.status.registerEffect("owned_definition", { duration = 200 })
+    harness.assertFalse(registered, "another resource must not replace the definition")
+    harness.assertTrue(reason ~= nil, "the ownership refusal should explain why")
+    harness.assertEqual(QB.status.getEffectDef("owned_definition").duration, 100,
+        "the foreign replacement must leave the original definition intact")
+
+    net.fire("onClientResourceStop", "definition_owner")
+    harness.assertEqual(QB.status.getEffectDef("owned_definition"), nil,
+        "stopping the owner should remove its definition")
+    harness.assertTrue(QB.status.registerEffect("owned_definition", { duration = 200 }),
+        "the name should become available after cleanup")
+    _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test("status definitions cannot be mutated through caller tables or reads", function()
+    local definition = { duration = 100, movement = { speedMultiplier = 0.8 } }
+    harness.assertTrue(QB.status.registerEffect("immutable_definition", definition),
+        "the definition should register")
+
+    definition.duration = 200
+    definition.movement.speedMultiplier = 0.5
+    local read = QB.status.getEffectDef("immutable_definition")
+    read.duration = 300
+    read.movement.speedMultiplier = 0.2
+
+    local stored = QB.status.getEffectDef("immutable_definition")
+    harness.assertEqual(stored.duration, 100, "caller mutations must not change the stored duration")
+    harness.assertEqual(stored.movement.speedMultiplier, 0.8,
+        "returned definitions must not expose nested live tables")
+end)
+
 harness.test("server apply rejects an unregistered effect name", function()
     local ok, err = serverApply(mocks.SOURCE, "not_a_real_effect")
     harness.assertFalse(ok, "applying an unknown effect should fail")
     harness.assertTrue(err ~= nil, "should explain the failure")
+end)
+
+harness.test("server status operations reject malformed target IDs", function()
+    for _, operation in ipairs({ serverApply, serverRemove, serverIsActive, serverGetActive }) do
+        harness.assertThrows(function()
+            operation(1.5, "bleeding")
+        end, "server status operations should require an integer target")
+    end
 end)
 
 harness.test("server apply pushes the effect to the client, which renders it", function()
@@ -126,6 +198,22 @@ harness.test("client-local apply/remove renders and tears down fx/anim/movement"
     harness.assertEqual(_G.__lastMoveRateOverride.mult, 1.0, "removing a movement-affecting effect should reset the override")
 end)
 
+harness.test('a failed visual setup rolls back earlier status visuals', function()
+    QB.status.registerEffect('rollback_visual', {
+        fx = { screen = 'DrugsMichaelAliensFightIn', ptfx = { dict = 'broken_fx', name = 'broken' } },
+    })
+    local originalPlayPtfx = QB.fx.playPtfx
+    local stoppedBefore = #screenStops
+    QB.fx.playPtfx = function() error('ptfx setup failed') end
+
+    harness.assertThrows(function() clientApply('rollback_visual') end)
+    QB.fx.playPtfx = originalPlayPtfx
+
+    harness.assertEqual(#screenStops, stoppedBefore + 1,
+        'a later visual failure must stop the screen effect that already started')
+    harness.assertFalse(clientIsActive('rollback_visual'), 'a failed apply must not leave active state behind')
+end)
+
 harness.test("simultaneous movement effects remain composed when one is removed", function()
     clientApply("bleeding", { severity = 1 })
     clientApply("injured_leg")
@@ -154,6 +242,63 @@ harness.test("severity is validated against severityLevels", function()
     harness.assertThrows(function()
         serverApply(mocks.SOURCE, "bleeding", { severity = 99 })
     end, "an out-of-range severity should be rejected")
+end)
+
+harness.test("status application validates public input before state changes", function()
+    harness.assertThrows(function()
+        serverApply(1.5, "bleeding")
+    end, "a fractional server target should be rejected")
+    harness.assertThrows(function()
+        serverApply(mocks.SOURCE, "bleeding", { duration = -1 })
+    end, "a negative server duration should be rejected")
+    harness.assertThrows(function()
+        serverApply(math.huge, "bleeding")
+    end, "an infinite server target should be rejected")
+    harness.assertThrows(function()
+        serverApply(mocks.SOURCE, "bleeding", { duration = math.huge })
+    end, "an infinite server duration should be rejected")
+    harness.assertThrows(function()
+        QB.status.registerEffect("infinite_duration", { duration = math.huge })
+    end, "an infinite definition duration should be rejected")
+    harness.assertThrows(function()
+        clientApply("bleeding", { severity = 1.5 })
+    end, "a fractional client severity should be rejected")
+    harness.assertThrows(function()
+        clientApply("bleeding", { severity = math.huge })
+    end, "an infinite client severity should be rejected")
+    harness.assertThrows(function()
+        clientApply("bleeding", "bad options")
+    end, "non-table client options should be rejected")
+    harness.assertThrows(function()
+        serverRemove(mocks.SOURCE, false)
+    end, "server removal should validate effect names")
+    harness.assertThrows(function()
+        serverIsActive(mocks.SOURCE, string.rep('x', 129))
+    end, "server activity checks should validate effect-name length")
+    harness.assertThrows(function()
+        clientRemove(false)
+    end, "client removal should validate effect names")
+    harness.assertThrows(function()
+        QB.status.getEffectDef(false)
+    end, "definition lookups should validate effect names")
+end)
+
+harness.test("severity is ignored consistently when an effect has no levels", function()
+    serverApply(mocks.SOURCE, "high_weed", { severity = 1 })
+    local serverEntry
+    for _, entry in ipairs(serverGetActive(mocks.SOURCE)) do
+        if entry.name == "high_weed" then serverEntry = entry end
+    end
+    harness.assertEqual(serverEntry.severity, nil, "server state should omit severity without configured levels")
+    serverRemove(mocks.SOURCE, "high_weed")
+
+    clientApply("high_weed", { severity = 1 })
+    local clientEntry
+    for _, entry in ipairs(clientGetActive()) do
+        if entry.name == "high_weed" then clientEntry = entry end
+    end
+    harness.assertEqual(clientEntry.severity, nil, "client state should omit severity without configured levels")
+    clientRemove("high_weed")
 end)
 
 harness.test("stacking = stack adds severity onto the existing value, capped at severityLevels", function()
@@ -210,13 +355,79 @@ end)
 
 harness.test("server isActive reports false and drops the entry once expired", function()
     serverApply(mocks.SOURCE, "extendable", { duration = 10 })
-    _G.__mockAdvance = (_G.__mockAdvance or 0) -- no-op marker; GetGameTimer is advanced via Wait() below
-    _G.Wait(50)
+    advanceClock(50)
     harness.assertFalse(serverIsActive(mocks.SOURCE, "extendable"), "an expired effect should report inactive")
 
     local stillThere = false
     for _, e in ipairs(serverGetActive(mocks.SOURCE)) do if e.name == "extendable" then stillThere = true end end
     harness.assertFalse(stillThere, "an expired effect should not appear in getActive")
+end)
+
+harness.test('server getActive reclaims expired entries immediately', function()
+    serverApply(mocks.SOURCE, 'extendable', { duration = 10 })
+    advanceClock(50)
+
+    harness.assertEqual(#serverGetActive(mocks.SOURCE), 0)
+    harness.assertFalse(serverRemove(mocks.SOURCE, 'extendable'),
+        'a query must remove expired state rather than leave it for the coarse sweep')
+end)
+
+harness.test("client queries drop an expired effect before its cleanup thread runs", function()
+    clientApply("extendable", { duration = 10 })
+    advanceClock(50)
+    harness.assertFalse(clientIsActive("extendable"), "client isActive should not report an overdue effect")
+    harness.assertEqual(#clientGetActive(), 0, "client getActive should exclude overdue effects")
+end)
+
+harness.test("client getActive batches movement reconciliation for expired effects", function()
+    clientApply("bleeding", { duration = 10, severity = 1 })
+    clientApply("injured_leg", { duration = 10 })
+    moveRateCalls = 0
+    advanceClock(50)
+
+    harness.assertEqual(#clientGetActive(), 0, "expired effects should not remain active")
+    harness.assertEqual(moveRateCalls, 1, "one query cleanup should reconcile movement once")
+end)
+
+harness.test("foreign resources cannot remove status change listeners", function()
+    _G.GetInvokingResource = function() return "status_listener_owner" end
+    local calls = 0
+    local listenerId = QB.status.onChange(function() calls = calls + 1 end)
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    harness.assertFalse(QB.status.offChange(listenerId), "a foreign resource must not remove the listener")
+    clientApply("injured_leg")
+    clientRemove("injured_leg")
+    harness.assertEqual(calls, 2, "the foreign removal must leave the listener active")
+
+    _G.GetInvokingResource = function() return "status_listener_owner" end
+    harness.assertTrue(QB.status.offChange(listenerId), "the owner should remove the listener")
+    _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test("foreign resources cannot replace or remove active status effects", function()
+    _G.GetInvokingResource = function() return "status_effect_owner" end
+    harness.assertTrue(clientApply("injured_leg"), "the owner should apply its effect")
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    harness.assertFalse(clientApply("injured_leg"), "a foreign resource must not replace the active effect")
+    harness.assertFalse(clientRemove("injured_leg"), "a foreign resource must not remove the active effect")
+    harness.assertTrue(clientIsActive("injured_leg"), "the foreign mutation must leave the effect active")
+
+    _G.GetInvokingResource = function() return "status_effect_owner" end
+    harness.assertTrue(clientRemove("injured_leg"), "the owner should remove its effect")
+    _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test("internal status updates can replace a locally owned effect", function()
+    _G.GetInvokingResource = function() return "status_effect_owner" end
+    harness.assertTrue(clientApply("injured_leg"), "the resource should apply its cosmetic effect")
+
+    -- Push handlers execute inside qblib rather than the consumer export, so
+    -- their update must retain server authority over local presentation.
+    _G.GetInvokingResource = function() return nil end
+    harness.assertTrue(clientApply("injured_leg"), "an internal update should replace the local effect")
+    harness.assertTrue(clientRemove("injured_leg"), "qblib should still clean up its authoritative effect")
 end)
 
 harness.test("playerDropped clears everything tracked for that player", function()

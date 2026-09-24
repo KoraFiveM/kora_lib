@@ -9,6 +9,7 @@ local mockHandle = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 local disabled = {}
 local firingCalls = 0
@@ -48,6 +49,16 @@ harness.test("acquire validates its inputs", function()
     harness.assertThrows(function() QB.controls.acquire({ 1, [3] = 2 }) end, "sparse arrays should fail")
     harness.assertThrows(function() QB.controls.acquire({ 1 }, { inputGroup = 0.5 }) end,
         "fractional input groups should fail")
+    harness.assertThrows(function() QB.controls.acquire({ 1 }, false) end, "options must be a table")
+    harness.assertThrows(function() QB.controls.acquire({ 1 }, { inputGroup = false }) end,
+        "input groups must be integers")
+    harness.assertThrows(function() QB.controls.acquire({ math.huge }) end,
+        "infinite control IDs should fail")
+    harness.assertThrows(function() QB.controls.acquire({ 1 }, { inputGroup = math.huge }) end,
+        "infinite input groups should fail")
+    for _, leaseId in ipairs({ 0, -1, 1.5, math.huge, '1' }) do
+        harness.assertFalse(QB.controls.release(leaseId), "malformed lease IDs should be ignored")
+    end
 end)
 
 harness.test("acquire applies immediately and the loop reapplies every frame", function()
@@ -114,6 +125,38 @@ harness.test("resource stop releases only that resource's leases", function()
     harness.assertTrue(QB.controls.release(b), "another resource's lease should remain active")
 
     _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test("a resource cannot release another resource's lease", function()
+    local currentOwner = "lease_owner"
+    _G.GetInvokingResource = function() return currentOwner end
+    local lease = QB.controls.acquire({ 42 })
+
+    currentOwner = "other_resource"
+    harness.assertFalse(QB.controls.release(lease), "a foreign resource must not release the lease")
+
+    currentOwner = "lease_owner"
+    harness.assertTrue(QB.controls.release(lease), "the owner should release its lease")
+    _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test('captured-owner cleanup releases an asynchronous consumer lease', function()
+    local lease = QB.compat.acquireControls({ 43 }, nil, 'async_owner')
+
+    _G.GetInvokingResource = function() return nil end
+    harness.assertFalse(QB.controls.release(lease), 'the qblib continuation must not impersonate the consumer publicly')
+    harness.assertTrue(QB.compat.releaseControlLease(lease, 'async_owner'),
+        'the captured owner should release its lease after the export call has ended')
+    harness.assertFalse(QB.compat.releaseControlLease(lease, 'other_owner'),
+        'a mismatched captured owner must not release a lease')
+end)
+
+harness.test('a stopped asynchronous consumer releases its captured-owner lease', function()
+    local lease = QB.compat.acquireControls({ 44 }, nil, 'stopped_async_owner')
+
+    mockHandle.fire('onClientResourceStop', 'stopped_async_owner')
+    harness.assertFalse(QB.compat.releaseControlLease(lease, 'stopped_async_owner'),
+        'the resource-stop sweep should release a captured-owner lease')
 end)
 
 harness.test("the shared loop can restart after becoming idle", function()

@@ -28,6 +28,8 @@ function QB.state.onChange(keyFilter, bagFilter, handler)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local cookie
     cookie = AddStateBagChangeHandler(keyFilter, bagFilter, function(bagName, key, value, reserved, replicated)
+        if not listeners[cookie] then return end
+
         local entity = 0
         if type(bagName) == 'string' and bagName:sub(1, 7) == 'entity:' then
             local okEntity, resolved = pcall(GetEntityFromStateBagName, bagName)
@@ -56,7 +58,10 @@ end
 ---@param listenerId integer
 ---@return boolean removed
 function QB.state.offChange(listenerId)
-    assert(type(listenerId) == 'number', 'State listenerId must be a number.')
+    assert(QB.util.isInteger(listenerId) and listenerId > 0, 'State listenerId must be a positive integer.')
+    local invoker = GetInvokingResource()
+    if invoker and ownership.owner(listenerId) ~= invoker then return false end
+
     ownership.untrack(listenerId)
     return removeListener(listenerId)
 end

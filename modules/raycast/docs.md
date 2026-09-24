@@ -11,10 +11,10 @@ asynchronous shape test is pending and returns only after status `2`
 (complete); a result that remains pending for one second is treated as a miss.
 
 #### Parameters
-- `startCoords: vector3 | {x, y, z}` -- Ray origin.
-- `endCoords: vector3 | {x, y, z}` -- Ray destination.
-- `flags: number | nil` -- `StartShapeTestRay` intersect flags. Defaults to `-1` (test against everything: world, vehicles, peds, objects, water).
-- `ignoreEntity: number | nil` -- Entity handle excluded from the test. Defaults to `PlayerPedId()`.
+- `startCoords: vector3 | {x, y, z}` -- Ray origin; every component must be finite.
+- `endCoords: vector3 | {x, y, z}` -- Ray destination; every component must be finite.
+- `flags: integer | nil` -- `StartShapeTestRay` intersect flags. Defaults to `-1` (test against everything: world, vehicles, peds, objects, water).
+- `ignoreEntity: integer | nil` -- Entity handle excluded from the test. Defaults to `PlayerPedId()`.
 
 #### Returns
 - `boolean` -- `true` if the ray hit something.
@@ -26,9 +26,9 @@ asynchronous shape test is pending and returns only after status `2`
 Convenience wrapper: builds the ray from the gameplay camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Lets a player "look at it" instead of supplying coordinates.
 
 #### Parameters
-- `maxDistance: number` -- Maximum ray length, in meters.
-- `flags: number | nil` -- Same as `fromCoords`.
-- `ignoreEntity: number | nil` -- Same as `fromCoords`.
+- `maxDistance: positive finite number` -- Maximum ray length, in meters.
+- `flags: integer | nil` -- Same as `fromCoords`.
+- `ignoreEntity: integer | nil` -- Same as `fromCoords`.
 
 #### Returns
 Same as `fromCoords`.
@@ -53,8 +53,8 @@ end
 Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this is for a caller that manages its own `CreateCam`/`CreateCamWithParams` camera handle -- for example, `modules/zones`' zone creator's freecam, which raycasts from wherever the freecam is currently pointed rather than the player's gameplay camera.
 
 #### Parameters
-- `cam: number` -- Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
-- `maxDistance: number` -- Maximum ray length, in meters.
+- `cam: integer` -- Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
+- `maxDistance: positive finite number` -- Maximum ray length, in meters.
 - `flags: number | nil` -- Same as `fromCoords`.
 - `ignoreEntity: number | nil` -- Same as `fromCoords`.
 
@@ -130,14 +130,15 @@ local entityHit, entityCoords, entityHandle = QB.raycast.await(entities) -- alre
 
 Runs a small blocking coordinate-capture tool using the gameplay camera. With
 no options it draws a white orb at the current ray hit. Press E to return the
-coordinates or Backspace to cancel.
+coordinates or Backspace to cancel. `data` must be a table when supplied;
+only an omitted (`nil`) value selects the defaults.
 
 ```lua
 local result = QB.raycast.getCoords()
 if result then print(result.coords.x, result.coords.y, result.coords.z) end
 ```
 
-Pass an object model for a temporary prop preview. Left and Right adjust only
+Pass an object model name or finite integer hash for a temporary prop preview. Left and Right adjust only
 its heading; the preview is deleted when the grabber finishes and is never the
 persisted object itself.
 
@@ -155,6 +156,7 @@ end
 The returned values are rounded to two decimal places. `coords.w` is included
 only in object mode. Optional `heading`, `maxDistance`, and shape-test `flags`
 can override the defaults of 180 degrees, 50 metres, and all intersections.
-Only one coordinate grabber may be active at once. UI, disabled controls, and
+Numeric coordinate-grabber options must be finite integers where they are native
+handles or flags, and `maxDistance` must be positive. Only one coordinate grabber may be active at once. UI, disabled controls, and
 the local preview entity are cleaned up on confirmation, cancellation, errors,
 or when either qblib or the calling resource stops.

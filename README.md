@@ -13,6 +13,10 @@ ensure qbtheme
 ensure qblib
 ```
 
+New qblib resources do not need `ox_lib` or `PolyZone`. Do not ensure either
+compatibility resource by default; install and start one only when an unchanged
+legacy manifest imports `@ox_lib/...` or `@PolyZone/...`.
+
 Load the proxy from each consumer resource:
 
 ```lua
@@ -27,6 +31,7 @@ Read the complete documentation at **[qbcore2.github.io/qblib](https://qbcore2.g
 - [Installation](https://qbcore2.github.io/qblib/getting-started/)
 - [Using the API](https://qbcore2.github.io/qblib/using-the-api/)
 - [API reference](https://qbcore2.github.io/qblib/reference/)
+- [Performance and lifecycle](https://qbcore2.github.io/qblib/performance/)
 - [Legacy compatibility](https://qbcore2.github.io/qblib/legacy-compat/)
 - [ox_lib migration](https://qbcore2.github.io/qblib/migration/ox-lib/)
 

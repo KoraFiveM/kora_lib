@@ -152,6 +152,18 @@ harness.test('replacement reuses native wrappers and stale handles cannot remove
     harness.assertEqual(secondCalls, 1, 'the persistent wrapper should be inert after removal')
 end)
 
+harness.test('a resource cannot remove another resource\'s keybind by name', function()
+    invokingResource = 'keybind_owner'
+    QB.keybind.add({ name = 'owned_action', description = 'Owned', defaultKey = 'O', onPressed = function() end })
+
+    invokingResource = 'other_resource'
+    harness.assertFalse(QB.keybind.remove('owned_action'), 'a foreign resource must not remove the binding')
+
+    invokingResource = 'keybind_owner'
+    harness.assertTrue(QB.keybind.remove('owned_action'), 'the owner should remove its binding')
+    invokingResource = nil
+end)
+
 harness.test('resource stop disposes only bindings still owned by that resource', function()
     invokingResource = 'stopping_resource'
     QB.keybind.add({ name = 'stopping_action', description = 'Stop', defaultKey = 'S', onPressed = function() error('inert') end })

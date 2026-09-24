@@ -10,14 +10,16 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
--- The mock player never moves from the origin. ensureTickThread only ever
+-- The mock player starts at the origin. ensureTickThread only ever
 -- starts one CreateThread for the life of the module, and our CreateThread
 -- mock resumes it exactly once -- so only the very first zone created below
 -- (the box at the origin) actually gets ticked; later zones are checked via
 -- their pure `contains` function instead.
 _G.PlayerPedId = function() return 1 end
-_G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
+local playerCoords = { x = 0, y = 0, z = 0 }
+_G.GetEntityCoords = function() return playerCoords end
 _G.GetEntitySpeed = function() return 0.0 end
 local drawLineCalls = 0
 local drawMarkerCalls = 0
@@ -113,13 +115,40 @@ QB.nui = {
 }
 
 harness.test("box zone contains points inside it and is entered by the first tick", function()
-    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+    local insideFromEnter
+    local zone = QB.zones.box({
+        coords = { x = 0, y = 0, z = 0 },
+        size = { x = 10, y = 10, z = 10 },
+        onEnter = function()
+            insideFromEnter = QB.zones.getInside()[1]
+        end,
+    })
 
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "the zone's own center should be inside it")
     harness.assertFalse(zone.contains({ x = 100, y = 100, z = 0 }), "a far point should be outside the box")
     harness.assertTrue(zone.isInside(), "the mock player sits at the zone's center, so the first tick should enter it")
+    harness.assertEqual(insideFromEnter, zone, "onEnter should see its stable public handle immediately")
 
     zone.remove()
+end)
+
+harness.test("box zone can intentionally ignore elevation", function()
+    local entered = 0
+    playerCoords = { x = 100, y = 100, z = 99999 }
+    local zone = QB.zones.box({
+        coords = { x = 100, y = 100, z = 0 },
+        size = { x = 10, y = 10, z = 2 },
+        ignoreZ = true,
+        onEnter = function() entered = entered + 1 end,
+    })
+
+    harness.assertTrue(zone.contains({ x = 100, y = 100, z = 99999 }), "an elevation-free box must ignore Z")
+    harness.assertFalse(zone.contains({ x = 106, y = 100, z = 0 }), "an elevation-free box must keep its XY bounds")
+    net.step()
+    harness.assertTrue(zone.isInside(), "the shared grid must not reject an elevation-free box by Z")
+    harness.assertEqual(entered, 1, "an elevation-free box should enter once at any elevation")
+    zone.remove()
+    playerCoords = { x = 0, y = 0, z = 0 }
 end)
 
 harness.test("sphere zone contains points within its radius", function()
@@ -129,6 +158,38 @@ harness.test("sphere zone contains points within its radius", function()
     harness.assertFalse(zone.contains({ x = 200, y = 200, z = 0 }), "a far point should be outside the sphere")
 
     zone.remove()
+end)
+
+harness.test("circle zone has an exact 2D boundary and ignores elevation", function()
+    local entered = 0
+    playerCoords = { x = 100, y = 100, z = 99999 }
+    local zone = QB.zones.circle({
+        coords = { x = 100, y = 100, z = 0 },
+        radius = 5,
+        onEnter = function() entered = entered + 1 end,
+    })
+
+    harness.assertTrue(zone.contains({ x = 103, y = 104, z = 99999 }), "a flat circle must ignore Z, including far elevations")
+    harness.assertTrue(zone.contains({ x = 105, y = 100, z = -99999 }), "points exactly on the radius must be inside")
+    harness.assertFalse(zone.contains({ x = 105.01, y = 100, z = 0 }), "points beyond the radius must be outside")
+    net.step()
+    harness.assertTrue(zone.isInside(), "the shared grid must not reject a flat circle by elevation")
+    harness.assertEqual(entered, 1, "the exact flat circle should enter once at any elevation")
+
+    zone.remove()
+    playerCoords = { x = 0, y = 0, z = 0 }
+end)
+
+harness.test("circle and sphere zones can exclude their boundary", function()
+    local circle = QB.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 5, includeBoundary = false })
+    local sphere = QB.zones.sphere({ coords = { x = 20, y = 0, z = 0 }, radius = 5, includeBoundary = false })
+
+    harness.assertFalse(circle.contains({ x = 5, y = 0, z = 99999 }), "an exclusive circle must reject its exact radius")
+    harness.assertTrue(circle.contains({ x = 4.99, y = 0, z = 0 }), "an exclusive circle must retain points inside its radius")
+    harness.assertFalse(sphere.contains({ x = 25, y = 0, z = 0 }), "an exclusive sphere must reject its exact radius")
+
+    circle.remove()
+    sphere.remove()
 end)
 
 harness.test("predicate-only zones retain contains without entering the player tracker", function()
@@ -168,6 +229,33 @@ harness.test("poly zone respects both its footprint and its height band", functi
     harness.assertFalse(zone.contains({ x = 2, y = 2, z = 10 }), "a point above the height band should not be contained")
 
     zone.remove()
+end)
+
+harness.test("poly zone can intentionally ignore elevation", function()
+    local zone = QB.zones.poly({
+        points = {
+            { x = 100, y = 100, z = 0 },
+            { x = 110, y = 100, z = 0 },
+            { x = 100, y = 110, z = 0 },
+        },
+        ignoreZ = true,
+    })
+
+    harness.assertTrue(zone.contains({ x = 102, y = 102, z = 99999 }), "an elevation-free poly must ignore Z")
+    harness.assertFalse(zone.contains({ x = 120, y = 120, z = 0 }), "an elevation-free poly must keep its XY footprint")
+    zone.remove()
+end)
+
+harness.test("poly zone rejects sparse point arrays before creation", function()
+    harness.assertThrows(function()
+        QB.zones.poly({
+            points = {
+                { x = 0, y = 0, z = 0 },
+                { x = 1, y = 0, z = 0 },
+                [4] = { x = 0, y = 1, z = 0 },
+            },
+        })
+    end)
 end)
 
 harness.test("poly thickness extends upward from the lowest point, not centred on the average", function()
@@ -215,13 +303,21 @@ harness.test("explicit minZ/maxZ still override thickness anchoring", function()
 end)
 
 harness.test("point zone is a small-radius sphere", function()
-    local zone = QB.zones.point({ coords = { x = 50, y = 50, z = 0 } })
+    local opts = { coords = { x = 50, y = 50, z = 0 } }
+    local zone = QB.zones.point(opts)
 
     harness.assertEqual(zone.type, "sphere", "a point zone should be a sphere under the hood")
     harness.assertTrue(zone.contains({ x = 50.5, y = 50, z = 0 }), "a point just inside the default radius should be contained")
     harness.assertFalse(zone.contains({ x = 52, y = 50, z = 0 }), "a point well outside the default radius should not be contained")
+    harness.assertEqual(opts.radius, nil, "point defaults must not mutate caller options")
 
     zone.remove()
+end)
+
+harness.test("point zone only defaults an omitted radius", function()
+    harness.assertThrows(function()
+        QB.zones.point({ coords = { x = 0, y = 0, z = 0 }, radius = false })
+    end)
 end)
 
 harness.test("zones get unique ids", function()
@@ -238,6 +334,41 @@ harness.test("box zone requires coords and size", function()
     harness.assertThrows(function()
         QB.zones.box({})
     end, "a box zone with no coords/size should raise")
+end)
+
+harness.test("zone geometry rejects non-finite values before entering the spatial grid", function()
+    harness.assertThrows(function()
+        QB.zones.box({ coords = "not coordinates", size = { x = 1, y = 1, z = 1 } })
+    end, "non-vector coordinates should raise qblib's public contract error")
+    harness.assertThrows(function()
+        QB.zones.box({ coords = { x = math.huge, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 } })
+    end)
+    harness.assertThrows(function()
+        QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = math.huge })
+    end)
+    harness.assertThrows(function()
+        QB.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 0 })
+    end)
+    harness.assertThrows(function()
+        QB.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 1, includeBoundary = "no" })
+    end)
+    harness.assertThrows(function()
+        QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 }, ignoreZ = "no" })
+    end)
+    harness.assertThrows(function()
+        QB.zones.poly({ points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } }, ignoreZ = "no" })
+    end)
+    harness.assertThrows(function()
+        QB.zones.poly({
+            points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } },
+            minZ = 0 / 0, maxZ = 2,
+        })
+    end)
+
+    local zone = QB.zones.sphere({ coords = { x = 50, y = 50, z = 0 }, radius = 1 })
+    harness.assertThrows(function() zone.contains(false) end,
+        "contains should reject malformed coordinates with the same contract")
+    zone.remove()
 end)
 
 harness.test("removing a zone twice is a harmless no-op", function()
@@ -270,6 +401,11 @@ end)
 
 harness.test("getInside rejects a non-string resource filter", function()
     harness.assertThrows(function() QB.zones.getInside(42) end, "a numeric resource filter should raise")
+end)
+
+harness.test("setDebug requires a finite integer zone id", function()
+    harness.assertThrows(function() QB.zones.setDebug(1.5, true) end)
+    harness.assertThrows(function() QB.zones.setDebug(math.huge, true) end)
 end)
 
 harness.test("QB.zones.edit moves a box zone's coords, updating containment and the grid", function()
@@ -327,18 +463,32 @@ harness.test("QB.zones.edit can attach onEnter/onExit to a zone, and false detac
     QB.zones.edit(zone, { onExit = false }) -- detach onExit while still inside
 
     -- Move it just outside its own radius, but still within the same grid
-    -- cell as the player -- keeps it a tick-loop candidate so the exit
-    -- transition actually gets evaluated (moving it far outside the
-    -- candidate cell neighborhood entirely, like back to 300/300, would
-    -- leave isInside stale until it happens to become a candidate again --
-    -- the same tick-loop characteristic QB.zones.remove() already has, not
-    -- something this edit-attach/detach test is about).
+    -- cell as the player so this specifically covers detaching the callback.
     QB.zones.edit(zone, { coords = { x = 20, y = 0, z = 0 } })
     net.step()
     harness.assertFalse(zone.isInside(), "the zone should be tracked as exited even with no onExit callback attached")
     harness.assertEqual(exitCount, 0, "onExit was detached, so it must not fire")
     harness.assertEqual(enterCount, 1, "detaching onExit must not affect the already-attached onEnter")
 
+    zone.remove()
+end)
+
+harness.test("leaving a grid neighbourhood still fires onExit and clears isInside", function()
+    local exits = 0
+    local zone = QB.zones.sphere({
+        coords = { x = 0, y = 0, z = 0 }, radius = 5,
+        onExit = function() exits = exits + 1 end,
+    })
+
+    net.step()
+    harness.assertTrue(zone.isInside(), "the player should enter before moving away")
+
+    playerCoords = { x = 500, y = 500, z = 0 }
+    net.step()
+    playerCoords = { x = 0, y = 0, z = 0 }
+
+    harness.assertFalse(zone.isInside(), "a far move must clear stale inside state")
+    harness.assertEqual(exits, 1, "a far move must still deliver exactly one exit callback")
     zone.remove()
 end)
 
@@ -472,6 +622,26 @@ harness.test("QB.zones.edit allows onEnter/onExit edits on a poly zone", functio
     zone.remove()
 end)
 
+harness.test("foreign resources cannot mutate or remove owned zones", function()
+    local invokingResource = "zone_owner"
+    _G.GetInvokingResource = function() return invokingResource end
+    local zone = QB.zones.sphere({ coords = { x = 300, y = 300, z = 0 }, radius = 5 })
+
+    invokingResource = "other_resource"
+    local edited, reason = QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
+    harness.assertEqual(edited, nil, "a foreign resource must not edit the zone")
+    harness.assertEqual(reason, "Zone is owned by another resource.", "the refusal should explain ownership")
+    harness.assertFalse(zone.setDebug(true), "a foreign resource must not enable debug drawing")
+    harness.assertFalse(QB.zones.setDebug(zone.id, true), "a foreign resource must not mutate debug by id")
+    harness.assertFalse(QB.zones.setDebug(nil, true), "a foreign resource must not mutate every zone's debug state")
+    harness.assertFalse(zone.remove(), "a foreign resource must not remove the zone")
+    harness.assertTrue(zone.contains({ x = 300, y = 300, z = 0 }), "the foreign edits must leave geometry intact")
+
+    invokingResource = "zone_owner"
+    harness.assertTrue(zone.remove(), "the owner should remove the zone")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.test("generateSnippet formats a box zone", function()
     local snippet = QB.zones.generateSnippet("box", {
         coords = { x = 100, y = 200, z = 30 },
@@ -504,6 +674,21 @@ harness.test("generateSnippet formats a poly zone with one line per point", func
     harness.assertTrue(snippet:find("QB.zones.poly(", 1, true) ~= nil, "should generate a QB.zones.poly call")
     local _, count = snippet:gsub("vector3%(", "")
     harness.assertEqual(count, 3, "should emit one vector3(...) per point")
+end)
+
+harness.test("generateSnippet preserves a poly's explicit height band and rejects non-finite values", function()
+    local snippet = QB.zones.generateSnippet("poly", {
+        points = {
+            { x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 }, { x = 0, y = 10, z = 0 },
+        },
+        minZ = 20, maxZ = 24,
+    })
+
+    harness.assertTrue(snippet:find("minZ = 20.00", 1, true) ~= nil, "explicit minZ should be retained")
+    harness.assertTrue(snippet:find("maxZ = 24.00", 1, true) ~= nil, "explicit maxZ should be retained")
+    harness.assertThrows(function()
+        QB.zones.generateSnippet("sphere", { coords = { x = 0, y = 0, z = 0 }, radius = math.huge })
+    end)
 end)
 
 harness.test("generateSnippet rejects an unknown zone type", function()
@@ -648,10 +833,27 @@ harness.test("startCreator raises synchronously on malformed seed opts", functio
         QB.zones.startCreator("poly", { points = tooMany })
     end, "seeding past the poly point cap should raise")
 
+    harness.assertThrows(function()
+        QB.zones.startCreator("box", { rotation = math.huge })
+    end, "a non-finite seeded rotation should raise before the creator starts")
+
     -- Neither failed seed may leave a half-started creator behind.
     local p = QB.zones.startCreator("box")
     harness.assertEqual(p.state, "pending", "a fresh creator should start cleanly after failed seeds")
     registeredCommands["qblib_zonecreator_cancel"]()
+end)
+
+harness.test("startCreator preserves a zero-based explicit poly height band", function()
+    local p = QB.zones.startCreator("poly", {
+        points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } },
+        minZ = 0, maxZ = 4,
+    })
+
+    nextNuiResponse = { confirmed = true }
+    registeredCommands["qblib_zonecreator_confirm"]()
+    nextNuiResponse = nil
+
+    harness.assertEqual(p.value.opts.thickness, 4, "the seed height band should retain its full thickness")
 end)
 
 harness.test("startCreator(type, existingOpts) seeds the creator from an existing zone", function()

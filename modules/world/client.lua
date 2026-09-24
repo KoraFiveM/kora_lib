@@ -10,10 +10,23 @@
 
 -- Plain { x, y, z } tables, not glm.vec3 -- see the identical note in
 -- modules/raycast/client.lua and modules/zones/client.lua for why.
+local isFiniteNumber = QB.util.isFiniteNumber
+local isInteger = QB.util.isInteger
+
 local function toVec3(v)
-    assert(type(v.x) == "number" and type(v.y) == "number" and type(v.z) == "number",
+    assert(v and isFiniteNumber(v.x) and isFiniteNumber(v.y) and isFiniteNumber(v.z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
     return { x = v.x, y = v.y, z = v.z }
+end
+
+local function assertRadius(radius)
+    assert(isFiniteNumber(radius) and radius > 0, "radius must be a positive finite number.")
+end
+
+local function finiteOrDefault(value, default, label)
+    if value == nil then return default end
+    assert(isFiniteNumber(value), ("%s must be a finite number."):format(label))
+    return value
 end
 
 local function distSq(a, b)
@@ -69,11 +82,45 @@ local function buildExcludeSet(entities)
     return set
 end
 
+local function assertQueryOptions(options)
+    assert(options == nil or type(options) == 'table', 'World query options must be a table.')
+    if not options then return end
+
+    assert(options.models == nil or type(options.models) == 'table', 'World query models must be an array.')
+    if options.models then
+        local count = 0
+        for index, model in pairs(options.models) do
+            assert(isInteger(index) and index >= 1 and (type(model) == 'string' or isInteger(model)),
+                'World query models must be a dense array of model names or hashes.')
+            count = count + 1
+        end
+        assert(count == #options.models, 'World query models must be a dense array.')
+    end
+    assert(options.excludeEntities == nil or type(options.excludeEntities) == 'table',
+        'World query excludeEntities must be an array.')
+    if options.excludeEntities then
+        local count = 0
+        for index, entity in pairs(options.excludeEntities) do
+            assert(isInteger(index) and index >= 1 and isInteger(entity) and entity > 0,
+                'World query excludeEntities must be a dense array of positive entity handles.')
+            count = count + 1
+        end
+        assert(count == #options.excludeEntities, 'World query excludeEntities must be a dense array.')
+    end
+    assert(options.predicate == nil or QB.compat.isCallable(options.predicate),
+        'World query predicate must be callable.')
+    assert(options.includeOwnPed == nil or type(options.includeOwnPed) == 'boolean',
+        'World query includeOwnPed must be a boolean.')
+    assert(options.includeInvisible == nil or type(options.includeInvisible) == 'boolean',
+        'World query includeInvisible must be a boolean.')
+end
+
 ---Runs every cheap-reject-first filter (self-exclusion, explicit exclude
 ---list, model set, visibility) before the caller-supplied predicate, which
 ---may be arbitrarily expensive -- matching the AABB-then-exact-shape
 ---discipline modules/zones already documents for its own containment tests.
 local function visitCandidates(entityType, coords, radiusSq, options, visit)
+    assertQueryOptions(options)
     options = options or {}
 
     local modelSet = buildModelSet(options.models)
@@ -92,12 +139,15 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
             and not (modelSet and not modelSet[GetEntityModel(entity)])
             and (includeInvisible or IsEntityVisible(entity))
         then
-            local entityCoords = toVec3(GetEntityCoords(entity))
+            local entityCoords = GetEntityCoords(entity)
             local dSq = distSq(origin, entityCoords)
 
             if dSq <= radiusSq then
                 local distance = options.predicate and math.sqrt(dSq) or nil
-                if not options.predicate or options.predicate(entity, entityCoords, distance) then
+                -- Only predicates have a public coordinate-table contract.
+                -- The internal visitors either ignore coordinates (spawn-clear)
+                -- or copy the winning/captured candidate below.
+                if not options.predicate or options.predicate(entity, toVec3(entityCoords), distance) then
                     local result = visit(entity, entityCoords, dSq, distance)
                     if result ~= nil then return result end
                 end
@@ -112,7 +162,7 @@ local function collectCandidates(entityType, coords, radiusSq, options)
     visitCandidates(entityType, coords, radiusSq, options, function(entity, entityCoords, dSq, distance)
         results[#results + 1] = {
             entity = entity,
-            coords = entityCoords,
+            coords = toVec3(entityCoords),
             distance = distance or math.sqrt(dSq),
         }
     end)
@@ -135,7 +185,7 @@ end
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
 function QB.world.getNearbyEntities(entityType, coords, radius, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
-    assert(type(radius) == "number" and radius > 0, "radius must be a positive number.")
+    assertRadius(radius)
 
     local matches = collectCandidates(entityType, coords, radius * radius, options)
     table.sort(matches, byDistance)
@@ -151,12 +201,15 @@ end
 ---@return number? distance Only present when an entity was found.
 function QB.world.getClosestEntity(entityType, coords, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
+    assertQueryOptions(options)
 
-    local radius = (options and options.radius) or Config.world.defaultRadius
+    local radius = options and options.radius
+    if radius == nil then radius = Config.world.defaultRadius end
+    assertRadius(radius)
     local closestEntity, closestCoords, closestDistanceSq
     visitCandidates(entityType, coords, radius * radius, options, function(entity, entityCoords, dSq)
         if not closestDistanceSq or dSq < closestDistanceSq then
-            closestEntity, closestCoords, closestDistanceSq = entity, entityCoords, dSq
+            closestEntity, closestCoords, closestDistanceSq = entity, toVec3(entityCoords), dSq
         end
     end)
 
@@ -176,12 +229,14 @@ end
 ---@return string? error
 function QB.world.getGroundCoords(coords, options)
     local origin = toVec3(coords)
+    assert(options == nil or type(options) == "table", "Ground query options must be a table.")
     options = options or {}
 
-    local height = tonumber(options.height) or math.max(origin.z, Config.world.groundHeight)
-    local attempts = math.floor(tonumber(options.attempts) or Config.world.groundAttempts)
-    local retryDelay = math.max(0, math.floor(tonumber(options.retryDelay) or Config.world.groundRetryDelay))
-    assert(attempts > 0, 'Ground attempts must be a positive integer.')
+    local height = finiteOrDefault(options.height, math.max(origin.z, Config.world.groundHeight), 'Ground height')
+    local attempts = finiteOrDefault(options.attempts, Config.world.groundAttempts, 'Ground attempts')
+    local retryDelay = finiteOrDefault(options.retryDelay, Config.world.groundRetryDelay, 'Ground retry delay')
+    assert(isInteger(attempts) and attempts > 0, 'Ground attempts must be a positive integer.')
+    assert(isInteger(retryDelay) and retryDelay >= 0, 'Ground retry delay must be a non-negative integer.')
 
     for attempt = 1, attempts do
         RequestCollisionAtCoord(origin.x, origin.y, height)
@@ -198,7 +253,8 @@ end
 ---@return string street
 ---@return string? crossing
 function QB.world.getStreetNames(coords)
-    coords = toVec3(coords or QB.cache.coords())
+    if coords == nil then coords = QB.cache.coords() end
+    coords = toVec3(coords)
     local streetHash, crossingHash = GetStreetNameAtCoord(coords.x, coords.y, coords.z)
     local street = streetHash and streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or ''
     local crossing = crossingHash and crossingHash ~= 0 and GetStreetNameFromHashKey(crossingHash) or nil
@@ -210,7 +266,8 @@ end
 ---@return string label
 ---@return string code
 function QB.world.getZoneName(coords)
-    coords = toVec3(coords or QB.cache.coords())
+    if coords == nil then coords = QB.cache.coords() end
+    coords = toVec3(coords)
     local code = GetNameOfZone(coords.x, coords.y, coords.z)
     local label = GetLabelText(code)
     if not label or label == 'NULL' then label = code end
@@ -224,6 +281,9 @@ local CARDINAL_DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 ---@param options? {entity?: boolean}
 ---@return 'N'|'NW'|'W'|'SW'|'S'|'SE'|'E'|'NE'
 function QB.world.getCardinalDirection(value, options)
+    assert(options == nil or type(options) == 'table', 'Cardinal direction options must be a table.')
+    assert(options == nil or options.entity == nil or type(options.entity) == 'boolean',
+        'Cardinal direction options.entity must be a boolean.')
     local heading
     if value == nil then
         heading = GetEntityHeading(QB.cache.ped())
@@ -235,6 +295,7 @@ function QB.world.getCardinalDirection(value, options)
         heading = value
     end
 
+    assert(isFiniteNumber(heading), 'Heading must be a finite number.')
     heading = heading % 360.0
     return CARDINAL_DIRECTIONS[(math.floor((heading + 22.5) / 45.0) % 8) + 1]
 end
@@ -258,7 +319,8 @@ end
 ---@param options? QBWorldQueryOptions
 ---@return boolean clear
 function QB.world.isSpawnClear(coords, radius, options)
-    assert(type(radius) == 'number' and radius > 0, 'radius must be a positive number.')
+    assertRadius(radius)
+    assert(options == nil or type(options) == "table", "World query options must be a table.")
     options = options or {}
 
     -- Hidden streamed vehicles still block a spawn point. Copy the caller's

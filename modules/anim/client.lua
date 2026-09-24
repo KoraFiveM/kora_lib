@@ -28,11 +28,18 @@
 -- replaced the one it was scheduled for.
 local activeByEntity = {}
 local generationByEntity = {}
+local isInteger = QB.util.isInteger
+local isCallable = QB.compat.isCallable
 
 local function bumpGeneration(entity)
     local nextGeneration = (generationByEntity[entity] or 0) + 1
     generationByEntity[entity] = nextGeneration
     return nextGeneration
+end
+
+local function resolveBlendOutSpeed(value)
+    assert(value == nil or QB.util.isFiniteNumber(value), 'Animation blendOutSpeed must be finite.')
+    return value or 8.0
 end
 
 -- Ownership tracking (which resource started a given entity's anim, and bulk
@@ -78,7 +85,28 @@ function QB.anim.play(entity, dict, clip, opts)
     -- themselves.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
+    assert(opts == nil or type(opts) == "table", "Animation options must be a table.")
     opts = opts or {}
+    local duration = opts.duration
+    assert(duration == nil or (isInteger(duration) and duration >= -1),
+        "Animation duration must be -1 or a non-negative finite integer.")
+    assert(opts.flag == nil or isInteger(opts.flag), 'Animation flag must be a finite integer.')
+    assert(opts.blendInSpeed == nil or QB.util.isFiniteNumber(opts.blendInSpeed),
+        'Animation blendInSpeed must be finite.')
+    assert(opts.blendOutSpeed == nil or QB.util.isFiniteNumber(opts.blendOutSpeed),
+        'Animation blendOutSpeed must be finite.')
+    assert(opts.playbackRate == nil or QB.util.isFiniteNumber(opts.playbackRate),
+        'Animation playbackRate must be finite.')
+    for _, field in ipairs({ 'lockX', 'lockY', 'lockZ' }) do
+        assert(opts[field] == nil or type(opts[field]) == 'boolean',
+            ('Animation %s must be a boolean.'):format(field))
+    end
+    assert(opts.onFinish == nil or isCallable(opts.onFinish), "Animation onFinish must be callable.")
+
+    local currentOwner = animRegistry.owner(entity)
+    if currentOwner and currentOwner ~= invokingResource then
+        return false, "Animation is owned by another resource."
+    end
 
     local loadedDict, loadErr = QB.stream.loadAnimDict(dict)
     if not loadedDict then
@@ -100,7 +128,7 @@ function QB.anim.play(entity, dict, clip, opts)
     local myGeneration = bumpGeneration(entity)
 
     TaskPlayAnim(entity, dict, clip,
-        opts.blendInSpeed or 8.0, opts.blendOutSpeed or 8.0, opts.duration or -1,
+        opts.blendInSpeed or 8.0, opts.blendOutSpeed or 8.0, duration or -1,
         opts.flag or 1, opts.playbackRate or 0.0,
         opts.lockX or false, opts.lockY or false, opts.lockZ or false)
 
@@ -108,13 +136,18 @@ function QB.anim.play(entity, dict, clip, opts)
     activeByEntity[entity] = handle
     animRegistry.track(invokingResource, entity)
 
-    if opts.duration and opts.duration > 0 then
+    if duration and duration > 0 then
         CreateThread(function()
-            Wait(opts.duration)
+            Wait(duration)
             if generationByEntity[entity] ~= myGeneration then return end
 
             QB.anim.stop(entity)
-            if opts.onFinish then opts.onFinish(entity) end
+            if opts.onFinish then
+                local ok, err = pcall(opts.onFinish, entity)
+                if not ok then
+                    print(("[qblib] QB.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
+                end
+            end
         end)
     end
 
@@ -127,15 +160,20 @@ end
 ---@param blendOutSpeed? number Defaults to 8.0.
 ---@return boolean stopped False if this module had nothing active on `entity`.
 function QB.anim.stop(entity, blendOutSpeed)
+    blendOutSpeed = resolveBlendOutSpeed(blendOutSpeed)
+
     local handle = activeByEntity[entity]
     if not handle then return false end
+
+    local invoker = GetInvokingResource()
+    if invoker and animRegistry.owner(entity) ~= invoker then return false end
 
     activeByEntity[entity] = nil
     animRegistry.untrack(entity)
     bumpGeneration(entity)
 
     if DoesEntityExist(entity) then
-        StopAnimTask(entity, handle.dict, handle.clip, blendOutSpeed or 8.0)
+        StopAnimTask(entity, handle.dict, handle.clip, blendOutSpeed)
     end
     RemoveAnimDict(handle.dict)
 
@@ -180,9 +218,21 @@ function QB.anim.attachProp(entity, model, bone, offset, rotation, opts)
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
-    offset = offset or { x = 0.0, y = 0.0, z = 0.0 }
-    rotation = rotation or { x = 0.0, y = 0.0, z = 0.0 }
+    if offset == nil then offset = { x = 0.0, y = 0.0, z = 0.0 } end
+    if rotation == nil then rotation = { x = 0.0, y = 0.0, z = 0.0 } end
+    assert((type(offset) == 'table' or type(offset) == 'vector3')
+        and QB.util.isFiniteNumber(offset.x) and QB.util.isFiniteNumber(offset.y) and QB.util.isFiniteNumber(offset.z),
+        'Animation prop offset must contain finite x, y, and z values.')
+    assert((type(rotation) == 'table' or type(rotation) == 'vector3')
+        and QB.util.isFiniteNumber(rotation.x) and QB.util.isFiniteNumber(rotation.y) and QB.util.isFiniteNumber(rotation.z),
+        'Animation prop rotation must contain finite x, y, and z values.')
+    assert(opts == nil or type(opts) == 'table', 'Animation prop options must be a table.')
     opts = opts or {}
+    assert(opts.softPin == nil or type(opts.softPin) == 'boolean', 'Animation prop softPin must be a boolean.')
+    assert(opts.collision == nil or type(opts.collision) == 'boolean', 'Animation prop collision must be a boolean.')
+    assert(opts.fixedRot == nil or type(opts.fixedRot) == 'boolean', 'Animation prop fixedRot must be a boolean.')
+    assert(opts.vertexIndex == nil or (isInteger(opts.vertexIndex) and opts.vertexIndex >= 0 and opts.vertexIndex <= 5),
+        'Animation prop vertexIndex must be an integer from 0 to 5.')
 
     local boneIndex = GetEntityBoneIndexByName(entity, bone)
     if boneIndex == -1 then
@@ -223,10 +273,15 @@ end
 function QB.anim.detachProp(prop)
     assert(type(prop) == "number", ("Invalid prop: %s"):format(prop))
 
-    local owner = propRegistry.untrack(prop)
+    local owner = propRegistry.owner(prop)
     if not owner then
         return false, "Prop is not tracked by QB.anim."
     end
+
+    local invoker = GetInvokingResource()
+    if invoker and owner ~= invoker then return false, "Prop is owned by another resource." end
+
+    propRegistry.untrack(prop)
 
     if not DoesEntityExist(prop) then
         return false, "Prop does not exist."

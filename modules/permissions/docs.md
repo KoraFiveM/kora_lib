@@ -26,7 +26,7 @@ local options = {
 ```
 
 Omit `discordRoles` (or leave it empty) for ACE-only behavior. Mapped values
-may be one role name/ID or an array; matching any mapped role grants that
+may be one role name/ID or a non-empty dense string array; matching any mapped role grants that
 permission. Discord checks use `QB.discord.hasAnyRole`, including its bot,
 identifier, freshness, and fail-closed rules.
 
@@ -36,10 +36,12 @@ identifier, freshness, and fail-closed rules.
 Resolves the highest privilege level a player holds.
 
 #### Parameters
-- `src: integer` -- player server id.
-- `levels: string[]` -- ordered most-privileged first. `'user'`, if present, always matches.
+- `src: positive finite integer` -- player server id.
+- `levels: string[]` -- dense, ordered most-privileged first, with at most 32
+  entries. `'user'`, if present, always matches.
 - `prefixOrOptions: string | table | nil` -- an ACE prefix string, or
-  `{ prefix?: string, discordRoles?: table<string, string|string[]> }`.
+  `{ prefix?: string, discordRoles?: table<string, string|string[]> }`; role
+  arrays must be non-empty and dense.
 
 #### Returns
 - `string` -- the first (most-privileged) level in `levels` the player has via
@@ -68,7 +70,7 @@ end
 Checks whether a player holds one specific permission.
 
 #### Parameters
-- `src: integer`
+- `src: positive finite integer`
 - `permission: string` -- `'user'` always returns `true`.
 - `prefixOrOptions: string | table | nil` -- an ACE prefix string, or the
   options table described above.
@@ -97,7 +99,7 @@ on this -- it exists so a "my ACEs look correct but I have no permissions"
 report can be answered with evidence rather than inference.
 
 #### Parameters
-- `src: integer`
+- `src: positive finite integer`
 - `levels: string[]` -- as `getLevel`.
 - `prefixOrOptions: string | table | nil` -- as `getLevel`. Discord roles are
   ignored here; this reports ACE resolution only.
@@ -109,6 +111,9 @@ report can be answered with evidence rather than inference.
   coerced away.
 - `string` -- the level `getLevel` resolves to for the same inputs.
 
+Each level must be a non-empty string in a dense array; invalid level lists are
+rejected before any ACE lookup.
+
 #### Example
 ```lua
 local checks, resolved = QB.permissions.explain(source, LEVELS, 'qbcore')
@@ -118,6 +123,9 @@ end
 ```
 
 ## Notes
+- All public permission checks reject `0`, fractional, and non-finite sources
+  before calling ACE or Discord helpers. Handle console commands separately;
+  their authorization is not a player permission check.
 - A permission is denied only when NO checked object matched. Note that a
   native returning a number could not cause a denial: `0` is truthy in Lua, so
   a numeric return would make `getLevel` match its FIRST candidate level for

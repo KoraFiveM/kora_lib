@@ -1,7 +1,12 @@
 # events module guide
 
 ## Purpose
-This module provides tokenised networked events for calling server-side logic from the client, without exposing a static, guessable `RegisterNetEvent` name that any resource or exploit menu could trigger directly. It also provides a server→client push gateway so modules don't each need their own dedicated `RegisterNetEvent`/`TriggerClientEvent` pair — that direction is server-authoritative already (a client can't spoof `TriggerClientEvent`), so it's purely organisational, not an additional security control.
+This module provides token-correlated networked events for calling server-side
+logic from the client, plus a server→client push gateway so modules do not each
+need their own dedicated `RegisterNetEvent`/`TriggerClientEvent` pair. The
+token is protocol correlation, not authorization: a modified client can
+complete its own handshake, so every valuable handler must validate
+client-controlled input and server-side state.
 
 Promise-based request/response (callbacks) live in their own module — see `local/callback/`.
 
@@ -14,20 +19,20 @@ Promise-based request/response (callbacks) live in their own module — see `loc
   - Waits up to 10 seconds for the initial handshake token if it hasn't arrived yet.
   - Returns `true`, or `false, error` if the handshake never completed.
 - `QB.events.push(target, name, ...)` (server)
-  - Sends `name` and any extra arguments to `target`'s `QB.events.onPush(name, ...)` handler, or every connected player if `target` is `-1`.
+  - Sends `name` and any extra arguments to a positive finite `target` server ID's `QB.events.onPush(name, ...)` handler, or every connected player if `target` is `-1`.
   - Not token-gated — the server is always the trusted party for its own `TriggerClientEvent` calls, same as any other server→client event.
 - `QB.events.onPush(name, handler)` (client)
   - Registers `handler(...)` to run when the server calls `QB.events.push(target, name, ...)` for this client.
   - `handler` runs under `pcall`, so an error inside it can't break the dispatch of other pushes.
 - `QB.events.unregister(name)` (server) / `QB.events.offPush(name)` (client)
-  - Removes a previously registered handler. Rarely needed directly — see resource-scoped cleanup below.
+  - Removes the caller's previously registered handler and returns whether it was removed. Rarely needed directly — see resource-scoped cleanup below.
 - `QB.events.assertName(name)` (shared)
   - Name validation (non-empty string, raises otherwise). Used internally, but exported like every `QB.*` function.
 
 ## Implementation notes
 - A single fixed gateway event (`qblib:events:invoke`) is used for every registered fire-and-forget action; `name` is dispatched to the right handler server-side via an internal registry, so no per-action `RegisterNetEvent` is created.
 - The push direction mirrors this with its own fixed gateway (`qblib:events:push`); the server dispatches by `name` into a client-side registry populated by `QB.events.onPush`, instead of registering a `RegisterNetEvent` per pushed action.
-- Each connecting client exchanges a private handshake (`qblib:events:handshake` / `qblib:events:handshake:response`) to receive a random per-player token, generated with `math.random` — not cryptographically secure, but sufficient to defeat blind/static exploits and stop one player spoofing another's requests, since tokens are per-session and never shared between players.
+- Each connecting client exchanges a handshake (`qblib:events:handshake` / `qblib:events:handshake:response`) to receive a random per-player token. It filters malformed and out-of-session protocol traffic, but does not authenticate a client because that client can request its own token.
 - The gateway handler drops any request whose token doesn't match the triggering player's stored token, or whose `token`/`name` aren't the expected type — invalid input is discarded silently, never asserted, because the payload comes from an untrusted client and must not be able to crash the resource.
 - Tokens are cleared on `playerDropped`. A `qblib` resource restart clears all tokens; players who stay connected through that restart won't have a valid token again until they re-trigger the handshake (e.g. by reconnecting).
 - `QB.events.trigger` uses an internal `awaitToken()` helper that reuses `QB.loops.controlled` from the loops module (`modules/loops/`) to wait for the handshake instead of hand-rolling a poll loop. `local/callback/` has its own independent handshake/token pair (same technique, separate state) rather than sharing this module's — see that module's `AGENTS.md` for why.

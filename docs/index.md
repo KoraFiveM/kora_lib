@@ -24,6 +24,20 @@ qblib is the shared utility layer for the qbcore2 resource set. It provides a ty
 - **Headless interface components.** Menus, prompts, notifications, progress bars, apps, and minigames use qblib's shared NUI without holding focus while idle.
 - **Migration bridges.** qblib can satisfy legacy `qb-menu`, `qb-input`, `qb-radialmenu`, `qb-minigames`, and `screenshot-basic` consumers, and documents its ox_lib compatibility boundary.
 
+## Start with the job
+
+| If you need to… | Start here |
+| --- | --- |
+| Let a player interact with a location or entity | [Interactions]({{ site.baseurl }}/reference/interact/), [zones]({{ site.baseurl }}/reference/zones/), and [text UI]({{ site.baseurl }}/reference/textui/) |
+| Show feedback or collect input | [Notifications]({{ site.baseurl }}/reference/notify/), [progress bars]({{ site.baseurl }}/reference/progressbar/), [NUI]({{ site.baseurl }}/reference/nui/), and [minigames]({{ site.baseurl }}/reference/minigames/) |
+| Find, spawn, modify, or move something in the world | [World queries]({{ site.baseurl }}/reference/world/), [entities]({{ site.baseurl }}/reference/entities/), [vehicles]({{ site.baseurl }}/reference/vehicle/), and [teleporting]({{ site.baseurl }}/reference/teleport/) |
+| Exchange client and server data safely | [Callbacks]({{ site.baseurl }}/reference/callback/), [events]({{ site.baseurl }}/reference/events/), [state bags]({{ site.baseurl }}/reference/state/), and [permissions]({{ site.baseurl }}/reference/permissions/) |
+| Give resource owners safe editable settings | [Configuration]({{ site.baseurl }}/reference/config/) |
+| Build a server-authoritative gameplay flow | [Actions]({{ site.baseurl }}/reference/actions/), [rewards]({{ site.baseurl }}/reference/rewards/), [skills]({{ site.baseurl }}/reference/skills/), and [status effects]({{ site.baseurl }}/reference/status/) |
+| Replace an existing qb or ox_lib dependency | [Legacy compatibility]({{ site.baseurl }}/legacy-compat/) and the [ox_lib migration guide]({{ site.baseurl }}/migration/ox-lib/) |
+
+The [API index]({{ site.baseurl }}/reference/) remains the complete alphabetical-by-domain reference. Each module page states its available realms, parameters, return values, lifecycle behavior, and examples.
+
 ## Quick example
 
 Add qblib to a consumer resource:
@@ -66,6 +80,7 @@ language cannot load the Lua proxy.
 
 1. Follow [Installation]({{ site.baseurl }}/getting-started/) to add qblib and its required `qbtheme` dependency.
 2. Read [Using the API]({{ site.baseurl }}/using-the-api/) for realms, return values, asynchronous calls, ownership, and direct exports.
-3. Open the [API index]({{ site.baseurl }}/reference/) and choose the module for the task at hand.
+3. Read [Performance and lifecycle]({{ site.baseurl }}/performance/) before building a hot-path feature or adding a compatibility wrapper.
+4. Open the [API index]({{ site.baseurl }}/reference/) and choose the module for the task at hand.
 
 If you are migrating an existing resource, check [legacy compatibility]({{ site.baseurl }}/legacy-compat/) or the [ox_lib migration notes]({{ site.baseurl }}/migration/ox-lib/) before changing calls.

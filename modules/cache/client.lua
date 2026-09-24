@@ -1,5 +1,10 @@
 local cache = {}
 local listeners = {}
+local SERVER_ID_RETRY_INTERVAL = 250
+local refreshInterval = Config.cache.tickInterval
+
+assert(QB.util.isInteger(refreshInterval) and refreshInterval > 0,
+    'Config.cache.tickInterval must be a positive finite integer.')
 
 -- Built-in keys this module owns. QB.cache.set rejects writes to
 -- any of these outright (see below) rather than merely letting refresh()
@@ -37,7 +42,8 @@ local nextListenerId = 0
 local listenerRegistry
 
 local function assertKey(key)
-    assert(type(key) == "string" and #key > 0, "Cache key must be a non-empty string.")
+    assert(type(key) == "string" and #key > 0 and #key <= 256,
+        "Cache key must be a non-empty string up to 256 bytes.")
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
@@ -54,11 +60,22 @@ local function setValue(key, value)
     local handlers = listeners[key]
     if not handlers then return end
 
-    for entryIndex = 1, #handlers do
+    -- A handler may remove itself (or its resource may stop) while it runs.
+    -- Walk the original range by identity so a shifted next entry is neither
+    -- skipped nor called through a stale slot.
+    local entryIndex = 1
+    local lastEntryIndex = #handlers
+    while entryIndex <= lastEntryIndex do
         local entry = handlers[entryIndex]
-        local ok, err = pcall(entry.handler, value, old)
-        if not ok then
-            print(("[qblib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
+        if entry then
+            local ok, err = pcall(entry.handler, value, old)
+            if not ok then
+                print(("[qblib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
+            end
+
+            if handlers[entryIndex] == entry then entryIndex = entryIndex + 1 end
+        else
+            entryIndex = entryIndex + 1
         end
     end
 end
@@ -104,7 +121,9 @@ if serverId == -1 and NetworkIsSessionStarted then
                     return
                 end
             end
-            Wait(0)
+            -- Networking can remain unavailable through a long loading screen;
+            -- polling every frame here buys no useful responsiveness.
+            Wait(SERVER_ID_RETRY_INTERVAL)
         end
     end)
 end
@@ -143,7 +162,11 @@ local function refresh()
     setValue("seat", seat)
     setValue("vehicle", vehicle)
     setValue("weapon", GetSelectedPedWeapon(ped))
-    setValue('coords', GetEntityCoords(ped))
+    local coords = GetEntityCoords(ped)
+    local oldCoords = cache.coords
+    if not oldCoords or oldCoords.x ~= coords.x or oldCoords.y ~= coords.y or oldCoords.z ~= coords.z then
+        setValue('coords', coords)
+    end
     -- Use the engine's death predicate rather than inferring death from a
     -- health threshold. Set it after coords so an isDead observer receives
     -- this refresh's location when the alive -> dead edge occurs.
@@ -157,7 +180,7 @@ refresh()
 CreateThread(function()
     while true do
         refresh()
-        Wait(Config.cache.tickInterval)
+        Wait(refreshInterval)
     end
 end)
 
@@ -165,6 +188,7 @@ end)
 ---@param key string
 ---@return any
 function QB.cache.get(key)
+    assertKey(key)
     return cache[key]
 end
 

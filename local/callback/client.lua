@@ -23,7 +23,7 @@ local callbackOwnership = QB.resources.registry(function(name)
 end)
 
 RegisterNetEvent(events.handshakeResponse, function(newToken)
-    token = newToken
+    if type(newToken) == "string" then token = newToken end
 end)
 
 CreateThread(function()
@@ -121,10 +121,14 @@ end
 
 ---Unregisters a callback handler registered with QB.callback.register.
 ---@param name string
+---@return boolean removed
 function QB.callback.unregister(name)
     QB.callback.assertName(name)
+    local invoker = GetInvokingResource()
+    if invoker and callbackOwnership.owner(name) ~= invoker then return false end
     registry[name] = nil
     callbackOwnership.untrack(name)
+    return true
 end
 
 ---Triggers a callback registered on the server via QB.callback.register(name, handler).
@@ -169,6 +173,11 @@ function QB.callback.trigger(name, ...)
 end
 
 RegisterNetEvent(events.response, function(requestId, ok, ...)
+    if type(requestId) ~= "number" or requestId < 1 or requestId % 1 ~= 0 or requestId ~= requestId
+        or requestId == math.huge or requestId == -math.huge then
+        return
+    end
+
     local p = pending[requestId]
     if p == nil then return end
 
@@ -198,6 +207,11 @@ end)
 -- No token check here: the server is always the trusted party for its own
 -- TriggerClientEvent calls, same reasoning as QB.events.push/onPush.
 RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
+    if type(requestId) ~= "number" or requestId < 1 or requestId % 1 ~= 0 or requestId ~= requestId
+        or requestId == math.huge or requestId == -math.huge or type(name) ~= "string" or #name > 128 then
+        return
+    end
+
     local handler = registry[name]
     if handler == nil then
         TriggerServerEvent(events.clientResponse, requestId, false,

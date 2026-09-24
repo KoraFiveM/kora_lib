@@ -9,6 +9,7 @@ mocks.install()
 
 dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 
 local currentPed, moved, heading, fadeOut, fadeIn = 42, nil, nil, 0, 0
 local moves, freezes, focusCleared = {}, {}, 0
@@ -69,6 +70,42 @@ harness.test('entity can move without a fade', function()
     harness.assertEqual(moved.entity, 99, 'entity teleport should move the requested entity')
     harness.assertEqual(fadeOut, 0, 'fade=false should not fade out')
     harness.assertEqual(fadeIn, 0, 'fade=false should not fade in')
+end)
+
+harness.test('teleport rejects non-finite destinations and waypoint options before movement', function()
+    moves, fadeOut, fadeIn = {}, 0, 0
+    harness.assertThrows(function()
+        QB.teleport.entity(99, { x = math.huge, y = 2, z = 3 }, { fade = false })
+    end, 'infinite teleport coordinates should be rejected')
+    harness.assertThrows(function()
+        QB.teleport.entity(99, { x = 1, y = 2, z = 3, w = 0 / 0 }, { fade = false })
+    end, 'NaN teleport headings should be rejected')
+    harness.assertThrows(function()
+        QB.teleport.entity(99, { x = 1, y = 2, z = 3, heading = 'east' }, { fade = false })
+    end, 'non-numeric teleport headings should be rejected')
+    harness.assertThrows(function()
+        QB.teleport.entity(math.huge, { x = 1, y = 2, z = 3 }, { fade = false })
+    end, 'non-finite entity handles should be rejected')
+    harness.assertThrows(function()
+        QB.teleport.entity(99, { x = 1, y = 2, z = 3 }, false)
+    end, 'explicit non-table options should be rejected')
+    harness.assertThrows(function()
+        QB.teleport.entity(99, { x = 1, y = 2, z = 3 }, { fade = 'fast' })
+    end, 'invalid fades should be rejected')
+
+    waypoint = { x = 100, y = 200, z = 0 }
+    harness.assertThrows(function()
+        QB.teleport.toWaypoint({ collisionTimeout = math.huge })
+    end, 'infinite waypoint timeouts should be rejected')
+    harness.assertThrows(function()
+        QB.teleport.toWaypoint({ groundAttempts = false })
+    end, 'explicit invalid waypoint values must not default')
+    harness.assertThrows(function()
+        QB.teleport.toWaypoint({ launchHeight = '500' })
+    end, 'numeric strings must not silently coerce into waypoint options')
+    waypoint = nil
+    harness.assertEqual(#moves, 0, 'invalid inputs must not move an entity')
+    harness.assertEqual(fadeOut, 0, 'invalid inputs must not start a fade')
 end)
 
 harness.test('toWaypoint reports a missing waypoint without moving or fading', function()

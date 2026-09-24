@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 _G.PlayerPedId = function() return 1 end
 
@@ -79,6 +80,30 @@ harness.test("getNearbyEntities on an empty pool returns an empty list, not nil"
 
     harness.assertTrue(matches ~= nil, "result should never be nil")
     harness.assertEqual(#matches, 0, "an empty pool should produce zero matches")
+end)
+
+harness.test("client world queries reject non-finite coordinates and radii", function()
+    harness.assertThrows(function()
+        QB.world.getNearbyEntities("ped", { x = math.huge, y = 0, z = 0 }, 10)
+    end, "non-finite query coordinates must be rejected")
+    harness.assertThrows(function()
+        QB.world.getClosestEntity("ped", ORIGIN, { radius = 0 / 0 })
+    end, "non-finite closest-query radii must be rejected")
+    harness.assertThrows(function()
+        QB.world.isSpawnClear(ORIGIN, math.huge)
+    end, "infinite spawn radii must be rejected")
+    harness.assertThrows(function()
+        QB.world.getNearbyEntities("ped", ORIGIN, 10, false)
+    end, "explicit non-table query options must be rejected")
+    harness.assertThrows(function()
+        QB.world.getNearbyEntities("ped", ORIGIN, 10, { predicate = false })
+    end, "a non-callable predicate must be rejected")
+    harness.assertThrows(function()
+        QB.world.getNearbyEntities("ped", ORIGIN, 10, { models = { false } })
+    end, "invalid model entries must be rejected")
+    harness.assertThrows(function()
+        QB.world.getNearbyEntities("ped", ORIGIN, 10, { excludeEntities = { -1 } })
+    end, "negative excluded handles must be rejected")
 end)
 
 harness.test("models filter accepts numeric hashes", function()
@@ -239,6 +264,31 @@ harness.test('getGroundCoords reports a bounded failure', function()
     harness.assertTrue(err:find('2 attempts', 1, true) ~= nil, 'failure should explain the attempted bound')
 end)
 
+harness.test('getGroundCoords rejects unsafe probe options before requesting collision', function()
+    local probes = 0
+    _G.RequestCollisionAtCoord = function() probes = probes + 1 end
+
+    harness.assertThrows(function()
+        QB.world.getGroundCoords(ORIGIN, { attempts = math.huge })
+    end, 'infinite probe counts must be rejected')
+    harness.assertThrows(function()
+        QB.world.getGroundCoords(ORIGIN, { height = 0 / 0 })
+    end, 'NaN probe heights must be rejected')
+    harness.assertThrows(function()
+        QB.world.getGroundCoords(ORIGIN, false)
+    end, 'explicit non-table ground options must be rejected')
+    harness.assertThrows(function()
+        QB.world.getGroundCoords(ORIGIN, { attempts = false })
+    end, 'explicit invalid probe values must not default')
+    harness.assertThrows(function()
+        QB.world.getGroundCoords(ORIGIN, { attempts = 1.5 })
+    end, 'fractional probe counts must not be rounded')
+    harness.assertThrows(function()
+        QB.world.getGroundCoords(ORIGIN, { retryDelay = '50' })
+    end, 'numeric strings must not silently coerce into ground options')
+    harness.assertEqual(probes, 0, 'unsafe probe options must not request collision')
+end)
+
 harness.test('street and zone helpers resolve engine labels', function()
     _G.GetStreetNameAtCoord = function() return 101, 202 end
     _G.GetStreetNameFromHashKey = function(hash) return hash == 101 and 'Alta Street' or 'Vespucci Boulevard' end
@@ -253,6 +303,13 @@ harness.test('street and zone helpers resolve engine labels', function()
     harness.assertEqual(code, 'DOWNT', 'zone should also expose the stable engine code')
 end)
 
+harness.test('world location helpers reject explicit invalid optional values', function()
+    harness.assertThrows(function() QB.world.getStreetNames(false) end)
+    harness.assertThrows(function() QB.world.getZoneName(false) end)
+    harness.assertThrows(function() QB.world.getCardinalDirection(0, false) end)
+    harness.assertThrows(function() QB.world.getCardinalDirection(0, { entity = 'yes' }) end)
+end)
+
 harness.test('getCardinalDirection covers all eight GTA heading sectors', function()
     local expected = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
     for i, direction in ipairs(expected) do
@@ -260,6 +317,8 @@ harness.test('getCardinalDirection covers all eight GTA heading sectors', functi
             ('heading sector %d should resolve correctly'):format(i))
     end
     harness.assertEqual(QB.world.getCardinalDirection(359), 'N', 'heading should wrap around north')
+    harness.assertThrows(function() QB.world.getCardinalDirection(0 / 0) end,
+        'a non-finite heading should be rejected before normalization')
 end)
 
 harness.test('getWaypointCoords distinguishes missing and active waypoints', function()
@@ -357,6 +416,30 @@ harness.test("[server] getNearbyEntities excludes matches beyond radius", functi
 
     harness.assertEqual(#matches, 1, "only the in-range ped should match")
     harness.assertEqual(matches[1].entity, 10, "the in-range ped should be entity 10")
+end)
+
+harness.test("[server] world queries reject non-finite coordinates and radii", function()
+    harness.assertThrows(function()
+        serverGetNearbyEntities("ped", { x = 0 / 0, y = 0, z = 0 }, 10)
+    end, "non-finite server query coordinates must be rejected")
+    harness.assertThrows(function()
+        serverGetClosestEntity("ped", ORIGIN, { radius = math.huge })
+    end, "infinite server closest-query radii must be rejected")
+    harness.assertThrows(function()
+        serverIsSpawnClear(ORIGIN, 0 / 0)
+    end, "NaN server spawn radii must be rejected")
+    harness.assertThrows(function()
+        serverGetNearbyEntities("ped", ORIGIN, 10, false)
+    end, "explicit non-table server query options must be rejected")
+    harness.assertThrows(function()
+        serverGetNearbyEntities("ped", ORIGIN, 10, { predicate = false })
+    end, "a non-callable server predicate must be rejected")
+    harness.assertThrows(function()
+        serverGetNearbyEntities("ped", ORIGIN, 10, { excludeEntities = { 0 } })
+    end, "invalid excluded entity handles must be rejected")
+    harness.assertThrows(function()
+        serverGetNearbyEntities("ped", ORIGIN, 10, { excludeEntities = { -1 } })
+    end, "negative excluded entity handles must be rejected")
 end)
 
 harness.test("[server] models filter accepts numeric hashes and joaat-hashed strings", function()
@@ -486,9 +569,14 @@ harness.test('[server] resolveNetworkEntity returns stable input and entity erro
 
     local _, inputReason = resolveNetworkEntity(7, 0)
     harness.assertEqual(inputReason, 'invalid_network_id')
+    local _, infiniteReason = resolveNetworkEntity(7, math.huge)
+    harness.assertEqual(infiniteReason, 'invalid_network_id')
 
     local _, missingReason = resolveNetworkEntity(7, 100)
     harness.assertEqual(missingReason, 'entity_unavailable')
+    harness.assertThrows(function()
+        resolveNetworkEntity(7, 100, false)
+    end, 'explicit non-table network entity options must be rejected')
 end)
 
 harness.test('[server] resolveNearbyPlayer validates peds, buckets, and distance', function()
@@ -519,6 +607,8 @@ harness.test('[server] resolveNearbyPlayer rejects invalid and self targets', fu
 
     local _, invalidReason = resolveNearbyPlayer(7, '8', { maxDistance = 2 })
     harness.assertEqual(invalidReason, 'invalid_player')
+    local _, infiniteReason = resolveNearbyPlayer(7, math.huge, { maxDistance = 2 })
+    harness.assertEqual(infiniteReason, 'invalid_player')
     local _, selfReason = resolveNearbyPlayer(7, 7, { maxDistance = 2 })
     harness.assertEqual(selfReason, 'self_not_allowed')
 end)

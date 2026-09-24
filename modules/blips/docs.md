@@ -13,7 +13,7 @@ calling resources.
 Creates a map blip.
 
 #### Parameters
-- `coords: vector3 | vector4 | {x, y, z}` — World coordinates to place the blip at.
+- `coords: vector3 | vector4 | {x, y, z}` — Finite world coordinates to place the blip at.
 - `options: table | nil`
   - `sprite: number` — Blip sprite id. Defaults to `Config.blips.defaultSprite`.
   - `color: number` — Blip color index. Defaults to `Config.blips.defaultColor`.
@@ -28,6 +28,10 @@ Creates a map blip.
     `Config.blips.defaultDisplay` (`4`) and is restored after the blip is shown.
   - `route: boolean` — Draws a waypoint route line to the blip. If `color` is also set, the route is colored to match.
   - `info: QBBlipInfo` — Optional detail panel shown when the player highlights the blip in the pause map.
+
+All supplied options are validated before qblib creates a native blip: sprite,
+color, and display are non-negative integers; scale is positive and finite;
+and `shortRange` and `route` are booleans. Values default only when omitted.
 
 #### Returns
 - `number | false` — The created blip handle, or `false` if creation failed.
@@ -113,7 +117,8 @@ catalogue.
 - `QB.blips.hideCategory(category)` and `QB.blips.showCategory(category)` persist
   the preference locally and return whether it changed.
 - `QB.blips.hide(blip)` and `QB.blips.show(blip)` change one tracked native blip
-  and return `true`, or `false, error` when the handle is invalid/untracked.
+  owned by the calling resource and return `true`, or `false, error` when the
+  handle is invalid, untracked, or owned by another resource.
 
 A hidden blip uses display mode `0`. Showing it restores its configured display
 mode. Hiding also disables an active route line; showing restores the route and
@@ -142,7 +147,8 @@ metadata. Sprites used by first-party resources use the official FiveM
 a generic map pin instead of guessing a broken asset URL, while retaining a
 link to the [FiveM blip reference](https://docs.fivem.net/docs/game-references/blips/).
 The creating resource is operational information and appears only when the
-server confirms the viewer has the `admin` ACE permission.
+server confirms the viewer has the `admin` ACE permission. The check accepts
+only a positive finite player source and fails closed for malformed requests.
 
 ### Pause-map blip details
 
@@ -182,14 +188,16 @@ Removes the calling resource's detail panel from one of its tracked blips.
 Returns the same success/error shape as `setInfo`.
 
 ### `QB.blips.remove(blip)`
-Removes one tracked blip immediately.
+Removes one of the calling resource's tracked blips immediately. It cannot
+remove blips created by another resource.
 
 #### Parameters
 - `blip: number` — The blip handle returned by `QB.blips.create`.
 
 #### Returns
 - `boolean` — `true` on success.
-- `string | nil` — The reason for failure, when the first value is `false` (not tracked by this module, or already gone).
+- `string | nil` — The reason for failure, when the first value is `false` (not
+  tracked by this module, owned by another resource, or already gone).
 
 #### Example
 ```lua

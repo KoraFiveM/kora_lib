@@ -60,6 +60,8 @@
 
 local busy = false
 local activeSession = nil
+local isInteger = QB.util.isInteger
+local isFiniteNumber = QB.util.isFiniteNumber
 
 local COMBAT_CONTROLS = { 24, 25, 47, 58, 140, 141, 142, 143 }
 local CAR_CONTROLS = { 63, 64, 71, 72 }
@@ -86,15 +88,11 @@ local propRegistry = QB.resources.registry(function(entity)
     end
 end)
 
-local function isInteger(value)
-    return type(value) == "number" and value % 1 == 0
-end
-
 local function assertVector(value, field, index)
     local valueType = type(value)
     assert((valueType == "table" or valueType == "vector3")
-            and type(value.x) == "number" and type(value.y) == "number" and type(value.z) == "number",
-        ("Progress bar prop %d %s must be vector-like with numeric x/y/z fields."):format(index, field))
+            and isFiniteNumber(value.x) and isFiniteNumber(value.y) and isFiniteNumber(value.z),
+        ("Progress bar prop %d %s must be vector-like with finite x/y/z fields."):format(index, field))
 end
 
 local function modelHash(model)
@@ -181,8 +179,10 @@ local function assertPayload(payload)
         assert(type(payload.anim) == "table" and type(payload.anim.dict) == "string" and type(payload.anim.clip) == "string",
             "Progress bar anim requires string dict/clip fields.")
         assert(payload.anim.duration == nil or isInteger(payload.anim.duration), 'Progress bar anim duration must be an integer.')
-        assert(payload.anim.playbackRate == nil or type(payload.anim.playbackRate) == 'number', 'Progress bar anim playbackRate must be a number.')
-        assert(payload.anim.stopBlendOut == nil or type(payload.anim.stopBlendOut) == 'number', 'Progress bar anim stopBlendOut must be a number.')
+        assert(payload.anim.playbackRate == nil or isFiniteNumber(payload.anim.playbackRate),
+            'Progress bar anim playbackRate must be a finite number.')
+        assert(payload.anim.stopBlendOut == nil or isFiniteNumber(payload.anim.stopBlendOut),
+            'Progress bar anim stopBlendOut must be a finite number.')
         for i = 1, #ANIM_LOCK_FIELDS do
             local field = ANIM_LOCK_FIELDS[i]
             assert(payload.anim[field] == nil or type(payload.anim[field]) == 'boolean',
@@ -222,6 +222,14 @@ local function assertPayload(payload)
     if payload.proptwo then assertProp(payload.proptwo, 2, true) end
 end
 
+---Validates a progress-bar payload without starting a bar.
+---@param payload QBProgressBarPayload
+---@return true
+function QB.progressbar.validate(payload)
+    assertPayload(payload)
+    return true
+end
+
 ---@param dict string
 ---@return boolean loaded
 local function ensureAnimDict(dict)
@@ -244,23 +252,23 @@ local function cleanupSession(session, cancelled)
     busy = false
 
     if session.carLease then
-        QB.controls.release(session.carLease)
+        QB.compat.releaseControlLease(session.carLease, session.owner)
         session.carLease = nil
     end
     if session.combatLease then
-        QB.controls.release(session.combatLease)
+        QB.compat.releaseControlLease(session.combatLease, session.owner)
         session.combatLease = nil
     end
     if session.sprintLease then
-        QB.controls.release(session.sprintLease)
+        QB.compat.releaseControlLease(session.sprintLease, session.owner)
         session.sprintLease = nil
     end
     if session.mouseLease then
-        QB.controls.release(session.mouseLease)
+        QB.compat.releaseControlLease(session.mouseLease, session.owner)
         session.mouseLease = nil
     end
     if session.movementLease then
-        QB.controls.release(session.movementLease)
+        QB.compat.releaseControlLease(session.movementLease, session.owner)
         session.movementLease = nil
     end
 
@@ -363,9 +371,9 @@ local function updateVehicleControls(session, enabled, profile)
     local shouldHold = enabled and IsPedInAnyVehicle(session.ped, false)
 
     if shouldHold and not session.carLease then
-        session.carLease = QB.controls.acquire(profile == 'ox' and OX_CAR_CONTROLS or CAR_CONTROLS)
+        session.carLease = QB.compat.acquireControls(profile == 'ox' and OX_CAR_CONTROLS or CAR_CONTROLS, nil, session.owner)
     elseif not shouldHold and session.carLease then
-        QB.controls.release(session.carLease)
+        QB.compat.releaseControlLease(session.carLease, session.owner)
         session.carLease = nil
     end
 end
@@ -376,7 +384,7 @@ end
 ---@return boolean completed
 ---@return string? error
 function QB.progressbar.start(payload, owner)
-    assertPayload(payload)
+    QB.progressbar.validate(payload)
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
     local cancelControls = payload.cancelControls == nil and Config.progressbar.cancelControls or payload.cancelControls
 
@@ -437,7 +445,7 @@ function QB.progressbar.start(payload, owner)
 
         if payload.disable and payload.disable.move then
             if payload.disable.moveMode == 'controls' then
-                session.movementLease = QB.controls.acquire(MOVEMENT_CONTROLS)
+                session.movementLease = QB.compat.acquireControls(MOVEMENT_CONTROLS, nil, session.owner)
             else
                 FreezeEntityPosition(session.ped, true)
                 session.frozen = true
@@ -445,14 +453,14 @@ function QB.progressbar.start(payload, owner)
         end
 
         if payload.disable and payload.disable.combat then
-            session.combatLease = QB.controls.acquire(payload.disable.controlProfile == 'ox' and OX_COMBAT_CONTROLS or COMBAT_CONTROLS,
-                { disablePlayerFiring = true })
+            session.combatLease = QB.compat.acquireControls(payload.disable.controlProfile == 'ox' and OX_COMBAT_CONTROLS or COMBAT_CONTROLS,
+                { disablePlayerFiring = true }, session.owner)
         end
         if payload.disable and payload.disable.sprint then
-            session.sprintLease = QB.controls.acquire(SPRINT_CONTROLS)
+            session.sprintLease = QB.compat.acquireControls(SPRINT_CONTROLS, nil, session.owner)
         end
         if payload.disable and payload.disable.mouse then
-            session.mouseLease = QB.controls.acquire(MOUSE_CONTROLS)
+            session.mouseLease = QB.compat.acquireControls(MOUSE_CONTROLS, nil, session.owner)
         end
         updateVehicleControls(session, payload.disable and payload.disable.car == true,
             payload.disable and payload.disable.controlProfile)
@@ -502,11 +510,15 @@ function QB.progressbar.start(payload, owner)
     return result
 end
 
----Requests cancellation of the active progress bar.
+---Requests cancellation of the caller's active progress bar.
+---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean cancelled
-function QB.progressbar.cancel()
+function QB.progressbar.cancel(owner)
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
     local session = activeSession
     if not session or session.cleaned then return false end
+    local resource = owner or GetInvokingResource() or GetCurrentResourceName()
+    if session.owner ~= resource then return false end
     session.cancelRequested = true
     return true
 end

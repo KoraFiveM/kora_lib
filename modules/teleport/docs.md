@@ -5,15 +5,17 @@ module owns movement; `QB.visuals.fade` is only the visual transition.
 
 ## `QB.teleport.player(coords, opts?)`
 
-Moves `QB.cache.ped()` to `coords`. A vector4's `.w` (or a table's `.heading`)
-is applied after the move.
+Moves `QB.cache.ped()` to finite `coords`. A vector4's finite `.w` (or a
+table's finite `.heading`) is applied after the move.
 
 ## `QB.teleport.entity(entity, coords, opts?)`
 
-Moves any existing local entity with the same coordinate and heading behavior.
+Moves any existing local entity with the same finite-coordinate and heading behavior.
+`entity` must be a positive finite integer handle.
 
 `opts.fade` defaults to a 500ms fade. Pass a millisecond value to customise it,
-or `false` to move immediately without fading.
+or `false` to move immediately without fading. Options must be a table; fade
+must be `false`, `true`, or a finite number.
 
 ```lua
 QB.teleport.player(vector4(1073.0, -3102.49, -39.0, 266.61))
@@ -30,11 +32,14 @@ places it on the resolved ground.
 Options:
 
 - `entity`: override the entity to move.
-- `fade`: `false` disables fading; a number sets its duration.
-- `launchHeight`: initial Z used while loading the destination.
-- `collisionTimeout`: maximum collision wait in milliseconds.
-- `groundAttempts`: maximum ground probes.
-- `groundRetryDelay`: milliseconds between ground probes.
+- `fade`: `false` disables fading; a finite number sets its duration.
+- `launchHeight`: finite initial Z used while loading the destination.
+- `collisionTimeout`: finite maximum collision wait in milliseconds.
+- `groundAttempts`: finite maximum ground probes.
+- `groundRetryDelay`: finite milliseconds between ground probes.
+
+Waypoint numeric defaults apply only when omitted; explicit non-numeric or
+non-finite values are rejected before movement or fading begins.
 
 It returns `true` on success. A failure returns `false, error`, restores the
 original position and heading, unfreezes the entity, clears streaming focus,

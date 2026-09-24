@@ -10,6 +10,7 @@ local mockHandle = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 
 local nuiCallbacks = {}
@@ -130,6 +131,49 @@ harness.test("open sends compact labels without taking NUI focus", function()
     end
 end)
 
+harness.test('opening options with the same item checks inventory once', function()
+    reset()
+    local hasItem = exports['qb-inventory'].HasItem
+    local calls = 0
+    exports['qb-inventory'].HasItem = function(_, item)
+        calls = calls + 1
+        return hasItem(_, item)
+    end
+
+    QB.interact.open({
+        { label = 'First key action', item = 'key' },
+        { label = 'Second key action', item = 'key' },
+    })
+    exports['qb-inventory'].HasItem = hasItem
+
+    harness.assertEqual(calls, 1, 'a selector opening should cache repeated item availability checks')
+end)
+
+harness.test('keyed restriction maps honor grades and citizen IDs', function()
+    reset()
+    player.job.grade = { level = 2 }
+    player.gang.grade = { level = 0 }
+
+    QB.interact.open({
+        { label = 'Police', job = { police = 2 } },
+        { label = 'Ballas', gang = { ballas = 0 } },
+        { label = 'Personal', citizenid = { ['CID-1'] = true } },
+        { label = 'Too senior', job = { police = 3 } },
+        { label = 'Other player', citizenid = { ['CID-2'] = true } },
+    })
+
+    harness.assertEqual(#lastMessage().data, 3, 'keyed restriction maps must include only matching grade and citizen ID entries')
+end)
+
+harness.test('keyed restrictions fail closed when player data omits the group', function()
+    reset()
+    player.job = nil
+
+    local ok = pcall(QB.interact.open, { { label = 'Police', job = { police = 0 } } })
+    harness.assertTrue(ok, 'missing group data must not raise while filtering an option')
+    harness.assertFalse(QB.interact.isActive(), 'missing group data must not satisfy a keyed restriction')
+end)
+
 harness.test('aim-target facade translates qblib actions and restrictions', function()
     reset()
     local selected = 0
@@ -144,17 +188,49 @@ harness.test('aim-target facade translates qblib actions and restrictions', func
     harness.assertEqual(selected, 1, 'target selection should dispatch the qblib action')
 end)
 
+harness.test('aim-target facade rejects unsafe distances before registration', function()
+    reset()
+    harness.assertThrows(function()
+        QB.interact.addEntity(202, { { label = 'Use' } }, math.huge)
+    end)
+    harness.assertThrows(function()
+        QB.interact.addModel('prop_locker', { { label = 'Use' } }, 0)
+    end)
+    harness.assertThrows(function()
+        QB.interact.addEntity(202, { { label = 'Use', distance = 0 / 0 } })
+    end)
+    harness.assertEqual(next(targetRegistrations), nil, 'an invalid distance must not reach qbtarget')
+end)
+
 harness.test('manual aim-target removal clears resource-stop ownership', function()
     reset()
     _G.GetInvokingResource = function() return 'manual_target_owner' end
     local id = QB.interact.addEntity(202, { { label = 'Use' } }, 2.0)
-    _G.GetInvokingResource = function() return nil end
 
     harness.assertTrue(QB.interact.removeEntity(202, id), 'manual removal should succeed')
+    _G.GetInvokingResource = function() return nil end
     mockHandle.fire('onClientResourceStop', 'manual_target_owner')
 
     harness.assertEqual(#targetRemovals, 1,
         'resource cleanup must not remove an aim target a second time after manual teardown')
+end)
+
+harness.test('foreign resources cannot replace or remove owned interaction registrations', function()
+    reset()
+    _G.GetInvokingResource = function() return 'interact_owner' end
+    QB.interact.addCircleZone('owned-zone', { x = 0, y = 0, z = 0 }, 1, { options = { { label = 'Use' } } })
+    local entityId = QB.interact.addEntity(202, { { label = 'Use' } })
+
+    _G.GetInvokingResource = function() return 'other_resource' end
+    harness.assertEqual(QB.interact.addCircleZone('owned-zone', { x = 1, y = 1, z = 1 }, 1,
+        { options = { { label = 'Replace' } } }), nil, 'a foreign duplicate must not replace the zone')
+    harness.assertFalse(QB.interact.removeZone('owned-zone'), 'a foreign resource must not remove the zone')
+    harness.assertFalse(QB.interact.removeEntity(202, entityId), 'a foreign resource must not remove the aim target')
+
+    _G.GetInvokingResource = function() return 'interact_owner' end
+    harness.assertTrue(QB.interact.removeZone('owned-zone'), 'the owner should remove the zone')
+    harness.assertTrue(QB.interact.removeEntity(202, entityId), 'the owner should remove the aim target')
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("selectOption dispatches the selected client event once and hides", function()
@@ -277,9 +353,11 @@ end)
 harness.test("circle zones filter unavailable options and close only their own session", function()
     reset()
     local zone = QB.interact.addCircleZone("locker", { x = 0, y = 0, z = 0 }, 2, {
-        { label = "Police locker", job = "police", item = "key" },
-        { label = "Ballas locker", gang = "lostmc" },
-        { label = "Unavailable", canInteract = function() return false end },
+        options = {
+            { label = "Police locker", job = "police", item = "key" },
+            { label = "Ballas locker", gang = "lostmc" },
+            { label = "Unavailable", canInteract = function() return false end },
+        },
     }, false)
 
     harness.assertTrue(zone ~= nil, "circle zone should be created through QB.zones")
@@ -309,13 +387,39 @@ end)
 
 harness.test("named zones replace and remove cleanly", function()
     reset()
-    QB.interact.addCircleZone("replace-me", { x = 0, y = 0, z = 0 }, 1, {}, { options = { { label = "One" } } })
-    QB.interact.addCircleZone("replace-me", { x = 1, y = 1, z = 1 }, 1, {}, { options = { { label = "Two" } } })
+    QB.interact.addCircleZone("replace-me", { x = 0, y = 0, z = 0 }, 1, { options = { { label = "One" } } })
+    QB.interact.addCircleZone("replace-me", { x = 1, y = 1, z = 1 }, 1, { options = { { label = "Two" } } })
 
     harness.assertEqual(removedZones, 1, "replacing a name should remove its prior zone")
     harness.assertTrue(QB.interact.removeZone("replace-me"), "removing an existing name should succeed")
     harness.assertEqual(removedZones, 2, "removeZone should call the underlying handle")
     harness.assertFalse(QB.interact.removeZone("replace-me"), "removed names should not be removed twice")
+end)
+
+harness.test("invalid replacement geometry preserves the existing named zone", function()
+    reset()
+    QB.interact.addCircleZone("stable", { x = 0, y = 0, z = 0 }, 1, { options = { { label = "Use" } } })
+
+    harness.assertThrows(function()
+        QB.interact.addCircleZone("stable", { x = math.huge, y = 0, z = 0 }, 1, { options = { { label = "Broken" } } })
+    end, "non-finite replacement coordinates should be rejected")
+    harness.assertThrows(function()
+        QB.interact.addCircleZone("stable", { x = 0, y = 0, z = 0 }, false, { options = { { label = "Broken" } } })
+    end, "an explicit invalid radius must not default")
+    harness.assertEqual(removedZones, 0, "an invalid replacement must not remove the active zone")
+    harness.assertTrue(QB.interact.removeZone("stable"), "the original zone should still be registered")
+end)
+
+harness.test('invalid option wrappers preserve the existing named zone', function()
+    reset()
+    QB.interact.addCircleZone('stable-options', { x = 0, y = 0, z = 0 }, 1,
+        { options = { { label = 'Use' } } })
+
+    harness.assertThrows(function()
+        QB.interact.addCircleZone('stable-options', { x = 1, y = 1, z = 1 }, 1, { options = {} })
+    end, 'an empty wrapped option list must be rejected before replacement')
+    harness.assertEqual(removedZones, 0, 'an invalid replacement must not remove the active zone')
+    harness.assertTrue(QB.interact.removeZone('stable-options'), 'the original zone should still be registered')
 end)
 
 harness.test("named zones are removed when their invoking resource stops", function()

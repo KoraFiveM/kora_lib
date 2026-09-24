@@ -7,6 +7,7 @@
 local commands = {}
 
 local MAX_SUGGESTIONS = 20
+local MAX_PARSED_ARGS = 16
 local keybindEvents = {
     add = 'qblib:commands:keybind:add',
     remove = 'qblib:commands:keybind:remove',
@@ -15,6 +16,30 @@ local keybindEvents = {
 }
 
 local isCallable = QB.compat.isCallable
+local isInteger = QB.util.isInteger
+
+local function isPlayerSource(src)
+    return isInteger(src) and src >= 1
+end
+
+local function normalizeParsedArgs(parsedArgs)
+    if parsedArgs == nil then return {} end
+    if type(parsedArgs) ~= 'table' or #parsedArgs > MAX_PARSED_ARGS then return nil end
+
+    local normalized, count = {}, 0
+    for key in pairs(parsedArgs) do
+        if not isInteger(key) or key < 1 or key > #parsedArgs then return nil end
+        count = count + 1
+    end
+    if count ~= #parsedArgs then return nil end
+
+    for index = 1, #parsedArgs do
+        local value = parsedArgs[index]
+        if type(value) ~= 'string' or #value > 128 then return nil end
+        normalized[index] = value
+    end
+    return normalized
+end
 
 local function isAllowed(source, definition)
     if source == 0 or definition.permission == 'user' then return true end
@@ -94,6 +119,24 @@ local function dispatch(name, definition, source, rawArgs, raw)
     if not ok then print(("^3[qblib:commands]^7 /%s errored: %s"):format(name, tostring(err))) end
 end
 
+local function sendKeybind(src, name, definition)
+    if definition.keybind and isAllowed(src, definition) then
+        TriggerClientEvent(keybindEvents.add, src, name, definition.keybind)
+    end
+end
+
+local function publishKeybind(name, definition)
+    if not definition.keybind then return end
+    if definition.permission == 'user' then
+        TriggerClientEvent(keybindEvents.add, -1, name, definition.keybind)
+        return
+    end
+
+    for _, playerId in ipairs(GetPlayers()) do
+        sendKeybind(tonumber(playerId), name, definition)
+    end
+end
+
 local function removeCommand(name)
     local definition = commands[name]
     if not definition then return end
@@ -123,10 +166,38 @@ end
 ---  - notify: fun(source:integer, message:string, type:string)|nil -- defaults to QB.notify.send
 ---  - resource: string|nil -- owning resource; defaults to the invoking resource
 function QB.commands.add(name, help, args, argsRequired, handler, opts)
-    opts = opts or {}
-    local permission = opts.permission or 'user'
-    local owner = opts.resource or GetInvokingResource() or GetCurrentResourceName()
-    local notify = opts.notify or defaultNotify
+    assert(type(name) == 'string' and name:match('^[%w_:%.%-]+$'),
+        'Command name must be a non-empty command name without whitespace.')
+    assert(help == nil or type(help) == 'string', 'Command help must be a string or nil.')
+    assert(args == nil or type(args) == 'table', 'Command args must be a table or nil.')
+    if args then
+        local argumentCount = 0
+        for index, argument in pairs(args) do
+            assert(isInteger(index) and index >= 1 and type(argument) == 'table',
+                'Command args must be a dense array of tables.')
+            assert(type(argument.name) == 'string' and argument.name ~= '',
+                'Command argument names must be non-empty strings.')
+            assert(argument.help == nil or type(argument.help) == 'string',
+                'Command argument help must be a string or nil.')
+            argumentCount = argumentCount + 1
+        end
+        assert(argumentCount == #args, 'Command args must be a dense array of tables.')
+    end
+    assert(argsRequired == nil or type(argsRequired) == 'boolean', 'Command argsRequired must be a boolean or nil.')
+    assert(isCallable(handler), 'Command handler must be callable.')
+    if opts == nil then opts = {} end
+    assert(type(opts) == 'table', 'Command options must be a table.')
+
+    local permission = opts.permission
+    if permission == nil then permission = 'user' end
+    local owner = opts.resource
+    if owner == nil then owner = GetInvokingResource() or GetCurrentResourceName() end
+    local notify = opts.notify
+    if notify == nil then notify = defaultNotify end
+    assert(type(permission) == 'string' and permission ~= '', 'Command permission must be a non-empty string.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Command resource must be a non-empty string.')
+    assert(opts.checkPermission == nil or isCallable(opts.checkPermission), 'Command checkPermission must be callable.')
+    assert(isCallable(notify), 'Command notify must be callable.')
     local keybindDescription = type(help) == 'string' and help ~= '' and help or name
     local keybind = normalizeKeybind(opts.keybind, keybindDescription, owner)
     local previous = commands[name]
@@ -147,19 +218,31 @@ function QB.commands.add(name, help, args, argsRequired, handler, opts)
     -- Chat suggestion.
     TriggerClientEvent('chat:addSuggestion', -1, '/' .. name, help or '', publicArgs(args) or {})
     if previous and previous.keybind and not keybind then TriggerClientEvent(keybindEvents.remove, -1, name) end
-    if keybind then TriggerClientEvent(keybindEvents.add, -1, name, keybind) end
+    publishKeybind(name, commands[name])
 end
 
 ---@param name string
+---@return boolean removed
 function QB.commands.remove(name)
+    if cmdRegistry.owner(name) ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     cmdRegistry.untrack(name)
     removeCommand(name)
+    return true
+end
+
+local function sortedCommandNames()
+    local names = {}
+    for name in pairs(commands) do names[#names + 1] = name end
+    table.sort(names)
+    return names
 end
 
 ---Re-send all chat suggestions to one source (on (re)connect).
 ---@param src integer
 function QB.commands.refresh(src)
-    for name, def in pairs(commands) do
+    assert(isPlayerSource(src), 'Command refresh source must be a positive integer player ID.')
+    for _, name in ipairs(sortedCommandNames()) do
+        local def = commands[name]
         TriggerClientEvent('chat:addSuggestion', src, '/' .. name, def.help or '', publicArgs(def.args) or {})
     end
 end
@@ -167,7 +250,8 @@ end
 ---@return table[]  -- {name, help, permission, keybind?} for each command
 function QB.commands.list()
     local out = {}
-    for name, def in pairs(commands) do
+    for _, name in ipairs(sortedCommandNames()) do
+        local def = commands[name]
         local keybind
         if def.keybind then
             keybind = {
@@ -185,15 +269,15 @@ end
 
 RegisterNetEvent(keybindEvents.sync, function()
     local src = source
-    if type(src) ~= 'number' or src <= 0 then return end
+    if not isPlayerSource(src) then return end
     for name, definition in pairs(commands) do
-        if definition.keybind then TriggerClientEvent(keybindEvents.add, src, name, definition.keybind) end
+        sendKeybind(src, name, definition)
     end
 end)
 
 RegisterNetEvent(keybindEvents.execute, function(name)
     local src = source
-    if type(src) ~= 'number' or src <= 0 or type(name) ~= 'string' then return end
+    if not isPlayerSource(src) or type(name) ~= 'string' then return end
     local definition = commands[name]
     if not definition or not definition.keybind then return end
     dispatch(name, definition, src, {}, name)
@@ -207,7 +291,10 @@ end)
 ---@param parsedArgs string[]|nil Current parsed argument values.
 ---@return table[] suggestions Normalized {value,label?,help?} entries.
 function QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)
-    if type(src) ~= 'number' or type(name) ~= 'string' or type(argumentIndex) ~= 'number' then return {} end
+    if not isPlayerSource(src) or type(name) ~= 'string'
+        or not isInteger(argumentIndex) or argumentIndex < 1 then
+        return {}
+    end
     local definition = commands[name:gsub('^/', '')]
     if not definition or not isAllowed(src, definition) then return {} end
 
@@ -216,7 +303,8 @@ function QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)
     if type(argument) ~= 'table' then return {} end
 
     query = type(query) == 'string' and query:sub(1, 128) or ''
-    parsedArgs = type(parsedArgs) == 'table' and parsedArgs or {}
+    parsedArgs = normalizeParsedArgs(parsedArgs)
+    if parsedArgs == nil then return {} end
 
     local candidates = {}
     if type(argument.values) == 'table' then

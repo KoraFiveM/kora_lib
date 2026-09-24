@@ -9,6 +9,7 @@ non-networked preview and always deletes it when the session finishes.
 Starts at the solid surface currently under the gameplay-camera crosshair. The
 model is validated and streamed through qblib's existing entity helpers. A
 scripted free camera then lets the player inspect the placement from any angle.
+`model` is a non-empty model name or a finite integer model hash.
 
 ```lua
 local result = QB.placement.start('prop_bin_08')
@@ -41,6 +42,13 @@ Euler values use rotation order `2`; heading may therefore be `270` while yaw
 is `-90`. Cancelling resolves `nil`. Invalid/unloadable models, a missing
 initial raycast hit, disabled placement, or another active creator reject.
 
+The calling resource owns its session. If it stops, qblib cancels the session,
+closes any open summary, releases controls and camera state, restores the
+radar/player state, and deletes the local preview. Stopping qblib performs the
+same cleanup immediately and rejects the interrupted promise. A confirmed or
+cancelled session always deletes its preview; placement never creates a
+networked entity.
+
 ## Controls
 
 - Mouse + WASD: fly the scripted camera.
@@ -60,7 +68,8 @@ settings. The HUD reads the current binding labels at session start.
 - `QB.placement.isActive()` reports startup, active editing, and camera
   transition teardown. It is exported as `placement_isActive` automatically.
 - `QB.placement.generateSnippet(result)` formats a ready-to-paste Lua table at
-  four decimal places without rounding the returned result itself.
+  four decimal places without rounding the returned result itself. Every
+  coordinate, heading, and rotation component must be finite.
 - `/qb_place <model>` starts the same flow without writing Lua. A numeric
   argument is treated as a model hash. The server command requires the
   `qblib.editor` ACE by default; configure it through `Config.editor`.

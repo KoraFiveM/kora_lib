@@ -10,6 +10,7 @@ local net = mocks.install()
 _G.GlobalState = {}
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/state/shared.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 
 harness.test('awaitGlobal returns false as a resolved value and times out safely', function()
     GlobalState.ready = false
@@ -17,6 +18,21 @@ harness.test('awaitGlobal returns false as a resolved value and times out safely
     local value, reason = QB.state.awaitGlobal('missing', 10, 5)
     harness.assertEqual(value, nil)
     harness.assertEqual(reason, 'timeout')
+end)
+
+harness.test('awaitGlobal rejects non-finite limits before waiting', function()
+    harness.assertThrows(function()
+        QB.state.awaitGlobal('missing', math.huge)
+    end, 'an infinite timeout must not create an unbounded wait')
+    harness.assertThrows(function()
+        QB.state.awaitGlobal('missing', 10, math.huge)
+    end, 'an infinite poll interval must not schedule an invalid wait')
+    harness.assertThrows(function()
+        QB.state.awaitGlobal('missing', false)
+    end, 'an explicit false timeout must not default')
+    harness.assertThrows(function()
+        QB.state.awaitGlobal('missing', 10, false)
+    end, 'an explicit false poll interval must not default')
 end)
 
 local nextCookie = 0
@@ -73,6 +89,22 @@ harness.test('wildcards, resolver failure, handler errors, and explicit removal 
     harness.assertFalse(clientOffChange(id))
 end)
 
+harness.test('removed client listeners ignore callbacks that were already queued', function()
+    local calls = 0
+    local id = clientOnChange(nil, nil, function() calls = calls + 1 end)
+    local queuedCallback = nativeHandlers[id].handler
+    clientOffChange(id)
+    queuedCallback('global', 'x', 1, 0, true)
+    harness.assertEqual(calls, 0)
+end)
+
+harness.test('listener removal requires a positive finite integer ID', function()
+    for _, id in ipairs({ 0, -1, 1.5, math.huge, '1' }) do
+        harness.assertThrows(function() clientOffChange(id) end,
+            'client listener removal must reject malformed IDs')
+    end
+end)
+
 harness.test('player and global bags expose entity zero without native resolution', function()
     local seen = {}
     local id = clientOnChange(nil, nil, function(context) seen[#seen + 1] = context.entity end)
@@ -94,6 +126,19 @@ harness.test('client resource stop removes only that owners listeners', function
     harness.assertTrue(nativeHandlers[stayed] ~= nil)
 end)
 
+harness.test('foreign resources cannot remove client state listeners', function()
+    invokingResource = 'client_listener_owner'
+    local id = clientOnChange(nil, nil, function() end)
+
+    invokingResource = 'other_resource'
+    harness.assertFalse(clientOffChange(id), 'a foreign resource must not remove the listener')
+    harness.assertTrue(nativeHandlers[id] ~= nil, 'the listener must remain active after refusal')
+
+    invokingResource = 'client_listener_owner'
+    harness.assertTrue(clientOffChange(id), 'the owner should remove its listener')
+    invokingResource = nil
+end)
+
 dofile(repoRoot .. 'modules/state/server.lua')
 local serverOnChange, serverOffChange = QB.state.onChange, QB.state.offChange
 
@@ -104,6 +149,17 @@ harness.test('server subscriptions expose the same context and explicit teardown
     harness.assertEqual(entity, 420)
     harness.assertTrue(serverOffChange(id))
     harness.assertTrue(removed[id])
+    harness.assertThrows(function() serverOffChange(math.huge) end,
+        'server listener removal must reject non-finite IDs')
+end)
+
+harness.test('removed server listeners ignore callbacks that were already queued', function()
+    local calls = 0
+    local id = serverOnChange(nil, nil, function() calls = calls + 1 end)
+    local queuedCallback = nativeHandlers[id].handler
+    serverOffChange(id)
+    queuedCallback('global', 'x', 1, 0, true)
+    harness.assertEqual(calls, 0)
 end)
 
 harness.test('server resource stop removes its native handlers', function()
@@ -112,6 +168,19 @@ harness.test('server resource stop removes its native handlers', function()
     invokingResource = nil
     net.fire('onResourceStop', 'stop_server')
     harness.assertTrue(removed[id])
+end)
+
+harness.test('foreign resources cannot remove server state listeners', function()
+    invokingResource = 'server_listener_owner'
+    local id = serverOnChange(nil, nil, function() end)
+
+    invokingResource = 'other_resource'
+    harness.assertFalse(serverOffChange(id), 'a foreign resource must not remove the listener')
+    harness.assertTrue(nativeHandlers[id] ~= nil, 'the listener must remain active after refusal')
+
+    invokingResource = 'server_listener_owner'
+    harness.assertTrue(serverOffChange(id), 'the owner should remove its listener')
+    invokingResource = nil
 end)
 
 harness.report('state')

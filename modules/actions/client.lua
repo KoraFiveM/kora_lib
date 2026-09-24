@@ -12,6 +12,10 @@ local active = false
 
 local isCallable = QB.compat.isCallable
 
+local function isPositiveInteger(value)
+    return type(value) == 'number' and value == value and value < math.huge and value > 0 and value % 1 == 0
+end
+
 ---Runs one server-authorized player action. `begin` and `complete` are kept
 ---resource-owned so the library never defines a resource's security contract;
 ---it only owns the exclusive progressbar/minigame UX in between them.
@@ -24,6 +28,25 @@ function QB.actions.run(options, ...)
     assert(isCallable(options.begin), 'QB.actions.run requires a begin function.')
     assert(isCallable(options.complete), 'QB.actions.run requires a complete function.')
     assert(type(options.label) == 'string' and #options.label > 0, 'QB.actions.run requires a label.')
+    assert(options.duration == nil or isPositiveInteger(options.duration),
+        'QB.actions.run duration must be a positive integer.')
+    assert(options.minigame == nil or type(options.minigame) == 'string'
+        and QB.minigames.GAME_TYPES[options.minigame],
+        'QB.actions.run minigame must be a supported game type.')
+    assert(options.canCancel == nil or type(options.canCancel) == 'boolean',
+        'QB.actions.run canCancel must be a boolean.')
+
+    local progressPayload
+    if not options.minigame then
+        progressPayload = {
+            label = options.label,
+            duration = options.duration == nil and 5000 or options.duration,
+            canCancel = options.canCancel ~= false,
+            disable = options.disable,
+            anim = options.anim,
+        }
+        QB.progressbar.validate(progressPayload)
+    end
 
     if active then return false, 'Another action is already active.' end
     active = true
@@ -44,13 +67,7 @@ function QB.actions.run(options, ...)
             uxCompleted = minigame and minigame.success == true
             proof = uxCompleted and minigame.proof or nil
         else
-            uxCompleted = QB.progressbar.start({
-                label = options.label,
-                duration = options.duration or 5000,
-                canCancel = options.canCancel ~= false,
-                disable = options.disable,
-                anim = options.anim,
-            })
+            uxCompleted = QB.progressbar.start(progressPayload)
         end
 
         completionAttempted = true

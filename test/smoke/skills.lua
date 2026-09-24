@@ -30,6 +30,7 @@ _G.exports = {
 }
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 dofile(repoRoot .. 'modules/skills/server.lua')
 
 harness.test('skills bridge is a no-op when qbskills is unavailable', function()
@@ -50,6 +51,48 @@ harness.test('skills bridge forwards only after qbskills has started', function(
     harness.assertTrue(math.abs(adjusted.zoneSize - 0.3) < 0.000001,
         'minigame options should use the backend modifier')
     harness.assertEqual(skill.name, 'mining', 'the backend skill snapshot should be returned')
+end)
+
+harness.test('server skills calls reject invalid sources and awards before forwarding', function()
+    state = 'started'
+    harness.assertThrows(function() QB.skills.get(math.huge, 'mining') end)
+    harness.assertThrows(function() QB.skills.adjustMinigame(math.huge, 'mining', 'skillbar', {}) end)
+    harness.assertThrows(function() QB.skills.add(1, 'mining', 0 / 0) end)
+    harness.assertThrows(function() QB.skills.add(1, 'mining', 0) end)
+    harness.assertThrows(function() QB.skills.add(1, 'mining', 1.5) end)
+    harness.assertThrows(function() QB.skills.get(1, false) end)
+    harness.assertThrows(function() QB.skills.hasLevel(1, '', 1) end)
+    harness.assertThrows(function() QB.skills.hasLevel(1, 'mining', 0) end)
+    harness.assertThrows(function() QB.skills.add(1, '', 1) end)
+    harness.assertThrows(function() QB.skills.add(1, 'mining', 1, { x = 1, y = 2, z = math.huge }) end)
+    harness.assertThrows(function() QB.skills.add(1, 'mining', 1, nil, false) end)
+    harness.assertThrows(function() QB.skills.adjustMinigame(1, '', 'skillbar', {}) end)
+    harness.assertThrows(function() QB.skills.adjustMinigame(1, 'mining', '', {}) end)
+end)
+
+_G.exports.qbskills = {
+    getRep = function(_, skill) return { name = skill, level = 20 } end,
+    getAllRep = function() return { mining = { level = 20 } } end,
+    isLevel = function(_, skill, level) return skill == 'mining' and level <= 20 end,
+    getSkillCheckOptions = function(_, skill, gameType, options)
+        local copy = {}
+        for key, value in pairs(options or {}) do copy[key] = value end
+        copy.skill, copy.gameType = skill, gameType
+        return copy
+    end,
+}
+dofile(repoRoot .. 'modules/skills/client.lua')
+
+harness.test('client skills bridge validates inputs before forwarding', function()
+    state = 'started'
+    harness.assertEqual(QB.skills.get('mining').level, 20)
+    harness.assertTrue(QB.skills.hasLevel('mining', 20))
+    harness.assertEqual(QB.skills.adjustMinigame('mining', 'skillbar', { zoneSize = 0.2 }).skill, 'mining')
+    harness.assertThrows(function() QB.skills.get(false) end)
+    harness.assertThrows(function() QB.skills.hasLevel('', 1) end)
+    harness.assertThrows(function() QB.skills.hasLevel('mining', 0) end)
+    harness.assertThrows(function() QB.skills.adjustMinigame('mining', '', {}) end)
+    harness.assertThrows(function() QB.skills.adjustMinigame('mining', 'skillbar', false) end)
 end)
 
 harness.report('skills')

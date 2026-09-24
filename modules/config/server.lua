@@ -19,6 +19,11 @@ local function validResource(resource)
     return type(resource) == 'string' and resource:match('^[%w_%-]+$') ~= nil
 end
 
+local function validRevision(revision)
+    return type(revision) == 'number' and revision >= 1 and revision % 1 == 0
+        and revision == revision and revision ~= math.huge and revision ~= -math.huge
+end
+
 local function assertRegistered(resource)
     assert(validResource(resource), 'Configuration resource must be a resource name.')
     local entry = registry[resource]
@@ -37,7 +42,7 @@ local function isRegistrationFrom(resource, definition)
         and type(definition.schema) == 'table'
         and type(definition.configured) == 'table'
         and type(definition.client) == 'table'
-        and type(definition.revision) == 'number'
+        and validRevision(definition.revision)
 end
 
 -- A resource normally announces its schema while starting. Catalog discovery
@@ -81,7 +86,8 @@ function QB.config.register(definition)
     assert(type(definition.schema) == 'table', 'Configuration registration needs a schema.')
     assert(type(definition.configured) == 'table', 'Configuration registration needs configured values.')
     assert(type(definition.client) == 'table', 'Configuration registration needs client values.')
-    assert(type(definition.revision) == 'number', 'Configuration registration needs a revision.')
+    assert(validRevision(definition.revision),
+        'Configuration registration needs a positive integer revision.')
 
     local caller = GetInvokingResource()
     local selfRegistration = caller == nil and definition.resource == GetCurrentResourceName()
@@ -113,7 +119,7 @@ function QB.config.read(resource)
         entry.configured = copy(fresh.configured or entry.configured)
         entry.values = copy(fresh.values or entry.values)
         entry.client = copy(fresh.client or entry.client)
-        entry.revision = fresh.revision or entry.revision
+        if validRevision(fresh.revision) then entry.revision = fresh.revision end
     end
     return copy({ resource = resource, schema = entry.schema, configured = entry.configured,
         values = entry.values, revision = entry.revision })
@@ -127,9 +133,12 @@ function QB.config.commit(resource, request)
     assert(type(request) == 'table', 'Configuration commit must be a table.')
     local result = callResource(resource, 'qblib_configCommit', request)
     if type(result) ~= 'table' then return { ok = false, error = 'The resource returned an invalid configuration response.' } end
+    if result.ok and not validRevision(result.revision) then
+        return { ok = false, error = 'The resource returned an invalid configuration revision.' }
+    end
 
     if result.ok then
-        entry.revision = result.revision or entry.revision
+        entry.revision = result.revision
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
         -- This is a local server event, so every subscribing resource can
@@ -149,9 +158,12 @@ function QB.config.reset(resource, request)
     assert(type(request) == 'table', 'Configuration reset must be a table.')
     local result = callResource(resource, 'qblib_configReset', request)
     if type(result) ~= 'table' then return { ok = false, error = 'The resource returned an invalid configuration response.' } end
+    if result.ok and not validRevision(result.revision) then
+        return { ok = false, error = 'The resource returned an invalid configuration revision.' }
+    end
 
     if result.ok then
-        entry.revision = result.revision or entry.revision
+        entry.revision = result.revision
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
         TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
@@ -159,11 +171,15 @@ function QB.config.reset(resource, request)
     return copy(result)
 end
 
-RegisterNetEvent('qblib:server:configRequested', function(resource)
+RegisterNetEvent('qblib:server:configRequested', function(resource, requestId)
+    local src = source
+    if type(src) ~= 'number' or src < 1 or src % 1 ~= 0 or src ~= src
+        or src == math.huge or src == -math.huge then return end
+    if not validRevision(requestId) then return end
     if not validResource(resource) then return end
     local entry = registry[resource]
     if not entry then return end
-    TriggerClientEvent('qblib:client:configSnapshot', source, resource, copy(entry.client), entry.revision)
+    TriggerClientEvent('qblib:client:configSnapshot', src, resource, copy(entry.client), entry.revision, requestId)
 end)
 
 AddEventHandler('onResourceStop', function(resource)

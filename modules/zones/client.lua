@@ -2,6 +2,7 @@ local nearProximitySq = Config.zones.nearProximity ^ 2
 
 local zoneRegistry = {}
 local grid = {}
+local insideZones = {}
 
 -- Forward-declared: destroyZone and zoneOwnership each need to reference the
 -- other (destroyZone untracks on removal; zoneOwnership's onDispose destroys
@@ -30,9 +31,14 @@ local debugThreadStarted = false
 -- to exist on every FiveM client build. distSq/containsBox below do their own
 -- component-wise subtraction instead of relying on glm's operator overloads.
 local function toVec3(v)
-    assert(type(v.x) == "number" and type(v.y) == "number" and type(v.z) == "number",
+    -- Coordinate coercion happens only at public API boundaries (creation,
+    -- editing, and explicit handle.contains calls), never in the tick loop.
+    -- Read through pcall so malformed non-table values produce the documented
+    -- contract error instead of Lua's unhelpful "attempt to index" failure.
+    local ok, x, y, z = pcall(function() return v.x, v.y, v.z end)
+    assert(ok and QB.util.isFiniteNumber(x) and QB.util.isFiniteNumber(y) and QB.util.isFiniteNumber(z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
-    return { x = v.x, y = v.y, z = v.z }
+    return { x = x, y = y, z = z }
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
@@ -76,12 +82,16 @@ end
 -- standing in a zone with an `inside` callback -- so the intermediate
 -- {x,y,z} table it used to build was pure per-frame garbage, on a path whose
 -- entire job is to be cheap enough to run every frame.
-local function aabbDistSq(p, aabb)
-    local px, py, pz = p.x, p.y, p.z
+local function aabbDistSq(p, aabb, ignoreZ)
+    local px, py = p.x, p.y
     local cx = px < aabb.minX and aabb.minX or (px > aabb.maxX and aabb.maxX or px)
     local cy = py < aabb.minY and aabb.minY or (py > aabb.maxY and aabb.maxY or py)
+    local dx, dy = px - cx, py - cy
+    if ignoreZ then return dx * dx + dy * dy end
+
+    local pz = p.z
     local cz = pz < aabb.minZ and aabb.minZ or (pz > aabb.maxZ and aabb.maxZ or pz)
-    local dx, dy, dz = px - cx, py - cy, pz - cz
+    local dz = pz - cz
     return dx * dx + dy * dy + dz * dz
 end
 
@@ -97,21 +107,33 @@ local function rotatedHalfExtents(halfX, halfY, cosR, sinR)
 end
 
 local function containsBox(zone, p)
-    local dx, dy, dz = p.x - zone.coords.x, p.y - zone.coords.y, p.z - zone.coords.z
+    local dx, dy = p.x - zone.coords.x, p.y - zone.coords.y
     local localX = dx * zone.cosR - dy * zone.sinR
     local localY = dx * zone.sinR + dy * zone.cosR
 
-    return math.abs(localX) <= zone.halfX and math.abs(localY) <= zone.halfY and math.abs(dz) <= zone.halfZ
+    if math.abs(localX) > zone.halfX or math.abs(localY) > zone.halfY then return false end
+    if zone.ignoreZ then return true end
+
+    return math.abs(p.z - zone.coords.z) <= zone.halfZ
 end
 
 local function containsSphere(zone, p)
-    return distSq(p, zone.coords) <= zone.radiusSq
+    local distanceSq = distSq(p, zone.coords)
+    return zone.includeBoundary and distanceSq <= zone.radiusSq or distanceSq < zone.radiusSq
 end
 
--- Even-odd ray-casting test (PNPOLY) over the XY footprint, gated by a height-band check.
--- Poly zones are a 2D footprint extruded across [minZ, maxZ], not an arbitrary 3D volume.
+-- A flat circle is deliberately a 2D radial test: its center Z is retained
+-- for debugging/editing, but never participates in containment.
+local function containsCircle(zone, p)
+    local dx, dy = p.x - zone.coords.x, p.y - zone.coords.y
+    local distanceSq = dx * dx + dy * dy
+    return zone.includeBoundary and distanceSq <= zone.radiusSq or distanceSq < zone.radiusSq
+end
+
+-- Even-odd ray-casting test (PNPOLY) over the XY footprint, normally gated by
+-- a height band. ignoreZ is for legacy 2D areas that intentionally have none.
 local function containsPoly(zone, p)
-    if p.z < zone.minZ or p.z > zone.maxZ then return false end
+    if not zone.ignoreZ and (p.z < zone.minZ or p.z > zone.maxZ) then return false end
 
     local points = zone.points
     local inside = false
@@ -134,6 +156,7 @@ end
 local containsFn = {
     box = containsBox,
     sphere = containsSphere,
+    circle = containsCircle,
     poly = containsPoly,
 }
 
@@ -195,6 +218,7 @@ end
 destroyZone = function(zone)
     if zone.removed then return end
     zone.removed = true
+    insideZones[zone.id] = nil
 
     if zone.trackPlayer then
         removeFromGrid(zone)
@@ -216,16 +240,30 @@ zoneOwnership = QB.resources.registry(function(zoneId)
     if zone then destroyZone(zone) end
 end)
 
+local function canManageZone(zone)
+    local invoker = GetInvokingResource()
+    return not invoker or zoneOwnership.owner(zone.id) == invoker
+end
+
 local function buildHandle(zone)
     return {
         id = zone.id,
         type = zone.type,
         resource = zone.resource,
         data = zone.data,
-        remove = function() destroyZone(zone) end,
+        remove = function()
+            if zone.removed or not canManageZone(zone) then return false end
+            destroyZone(zone)
+            return true
+        end,
         contains = function(coords) return containsFn[zone.type](zone, toVec3(coords)) end,
         isInside = function() return zone.isInside end,
-        setDebug = function(enabled) setZoneDebug(zone, enabled) end,
+        setDebug = function(enabled)
+            assert(type(enabled) == "boolean", "enabled must be a boolean.")
+            if not canManageZone(zone) then return false end
+            setZoneDebug(zone, enabled)
+            return true
+        end,
     }
 end
 
@@ -236,6 +274,7 @@ local function editZone(handle, opts)
     local zone = zoneRegistry[handle.id]
 
     assert(zone and not zone.removed, "Zone handle is invalid or the zone has been removed.")
+    if not canManageZone(zone) then return nil, "Zone is owned by another resource." end
 
     -- Only these fields are allowed to be edited.
     for key in pairs(opts) do
@@ -296,6 +335,12 @@ local function editZone(handle, opts)
                 coords.y - zone.radius, coords.y + zone.radius,
                 coords.z - zone.radius, coords.z + zone.radius
             )
+        elseif zone.type == "circle" then
+            zone.aabb = makeAabb(
+                coords.x - zone.radius, coords.x + zone.radius,
+                coords.y - zone.radius, coords.y + zone.radius,
+                coords.z, coords.z
+            )
         end
 
         if zone.trackPlayer then insertIntoGrid(zone) end
@@ -333,7 +378,8 @@ end
 local function initBox(zone, opts)
     assert(opts.coords, "Box zone requires coords.")
     assert(opts.size, "Box zone requires size.")
-    assert(opts.rotation == nil or type(opts.rotation) == "number", "rotation must be a number.")
+    assert(opts.rotation == nil or QB.util.isFiniteNumber(opts.rotation), "rotation must be a finite number.")
+    assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", "ignoreZ must be a boolean.")
 
     local coords = toVec3(opts.coords)
     local size = toVec3(opts.size)
@@ -350,6 +396,7 @@ local function initBox(zone, opts)
     zone.halfZ = size.z / 2
     zone.cosR = math.cos(radians)
     zone.sinR = math.sin(radians)
+    zone.ignoreZ = opts.ignoreZ == true
 
     local worldHalfX, worldHalfY = rotatedHalfExtents(zone.halfX, zone.halfY, zone.cosR, zone.sinR)
 
@@ -362,13 +409,15 @@ end
 
 local function initSphere(zone, opts)
     assert(opts.coords, "Sphere zone requires coords.")
-    assert(type(opts.radius) == "number" and opts.radius > 0, "Sphere zone requires a positive radius.")
+    assert(QB.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Sphere zone requires a positive finite radius.")
+    assert(opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean", "includeBoundary must be a boolean.")
 
     local coords = toVec3(opts.coords)
 
     zone.coords = coords
     zone.radius = opts.radius
     zone.radiusSq = opts.radius * opts.radius
+    zone.includeBoundary = opts.includeBoundary ~= false
 
     zone.aabb = makeAabb(
         coords.x - opts.radius, coords.x + opts.radius,
@@ -377,10 +426,36 @@ local function initSphere(zone, opts)
     )
 end
 
+local function initCircle(zone, opts)
+    assert(opts.coords, "Circle zone requires coords.")
+    assert(QB.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Circle zone requires a positive finite radius.")
+    assert(opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean", "includeBoundary must be a boolean.")
+
+    local coords = toVec3(opts.coords)
+
+    zone.coords = coords
+    zone.radius = opts.radius
+    zone.radiusSq = opts.radius * opts.radius
+    zone.includeBoundary = opts.includeBoundary ~= false
+    zone.ignoreZ = true
+    zone.aabb = makeAabb(
+        coords.x - opts.radius, coords.x + opts.radius,
+        coords.y - opts.radius, coords.y + opts.radius,
+        coords.z, coords.z
+    )
+end
+
 local function initPoly(zone, opts)
-    assert(type(opts.points) == "table" and #opts.points >= 3, "Poly zone requires at least 3 points.")
-    assert(opts.thickness == nil or type(opts.thickness) == "number", "thickness must be a number.")
+    assert(type(opts.points) == "table", "Poly zone points must be a dense array.")
+    local pointCount = 0
+    for index in pairs(opts.points) do
+        assert(QB.util.isInteger(index) and index >= 1, "Poly zone points must be a dense array.")
+        pointCount = pointCount + 1
+    end
+    assert(pointCount >= 3 and pointCount == #opts.points, "Poly zone requires at least 3 dense points.")
+    assert(opts.thickness == nil or QB.util.isFiniteNumber(opts.thickness), "thickness must be a finite number.")
     assert((opts.minZ == nil) == (opts.maxZ == nil), "minZ and maxZ must both be given, or neither.")
+    assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", "ignoreZ must be a boolean.")
 
     local points = {}
     local minX, maxX = math.huge, -math.huge
@@ -397,6 +472,9 @@ local function initPoly(zone, opts)
     end
 
     local minZ, maxZ = opts.minZ, opts.maxZ
+
+    assert(minZ == nil or QB.util.isFiniteNumber(minZ), "minZ must be a finite number.")
+    assert(maxZ == nil or QB.util.isFiniteNumber(maxZ), "maxZ must be a finite number.")
 
     if minZ == nil then
         -- `thickness` is measured UPWARD FROM THE LOWEST POINT, not centred on
@@ -417,6 +495,7 @@ local function initPoly(zone, opts)
     zone.points = points
     zone.minZ = minZ
     zone.maxZ = maxZ
+    zone.ignoreZ = opts.ignoreZ == true
 
     zone.aabb = makeAabb(minX, maxX, minY, maxY, minZ, maxZ)
 end
@@ -520,6 +599,12 @@ local function drawDebugSphere(zone, color)
         false, false, 2, false, nil, nil, false)
 end
 
+local function drawDebugCircle(zone, color)
+    DrawMarker(1, zone.coords.x, zone.coords.y, zone.coords.z - 500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        zone.radius * 2, zone.radius * 2, 1000.0, color.r, color.g, color.b, color.a,
+        false, false, 2, false, nil, nil, false)
+end
+
 local function drawDebugPoly(zone, color)
     local points = zone.points
     local n = #points
@@ -549,6 +634,7 @@ end
 local drawDebugFn = {
     box = drawDebugBox,
     sphere = drawDebugSphere,
+    circle = drawDebugCircle,
     poly = drawDebugPoly,
 }
 
@@ -612,6 +698,11 @@ local function createZone(zoneType, opts, initShape)
 
     initShape(zone, opts)
 
+    -- The tracker can run its first tick as soon as it is started below. Build
+    -- the public handle before then, so an onEnter callback can safely call
+    -- QB.zones.getInside() during that first tick.
+    zone.handle = buildHandle(zone)
+
     zoneRegistry[zone.id] = zone
     if zone.trackPlayer then
         insertIntoGrid(zone)
@@ -630,28 +721,24 @@ local function createZone(zoneType, opts, initShape)
 
     if zone.trackPlayer then ensureTickThread() end
 
-    -- Built once and cached on the zone rather than per call, so the handle
-    -- QB.zones.getInside() hands back is the same table the constructor
-    -- returned (identity-comparable, and its `data` field stays in sync).
-    zone.handle = buildHandle(zone)
-
     return zone.handle
 end
 
 ---@class QBZoneHandle
 ---@field id integer
----@field type "box" | "sphere" | "poly"
+---@field type "box" | "sphere" | "circle" | "poly"
 ---@field resource string The resource that created this zone.
 ---@field data any Whatever was passed as opts.data at creation, unchanged.
----@field remove fun() Tears the zone down. Same teardown path a resource stop uses.
+---@field remove fun(): boolean Tears the zone down. Returns false for a foreign or removed zone.
 ---@field contains fun(coords: any): boolean Exact containment test against an arbitrary point.
 ---@field isInside fun(): boolean Whether the local player is currently inside, read live.
----@field setDebug fun(enabled: boolean) Toggles this zone's debug wireframe at runtime. Equivalent to `QB.zones.setDebug(zone.id, enabled)`.
+---@field setDebug fun(enabled: boolean): boolean Toggles this zone's debug wireframe at runtime. Returns false for a foreign zone.
 
 ---@class QBZoneCommonOptions
 ---@field onEnter? fun(zone: table)
 ---@field onExit? fun(zone: table)
 ---@field inside? fun(zone: table, coords: any) Runs every frame while inside; keep it cheap.
+---@field trackPlayer? boolean Set false for a predicate-only zone; it remains available through `contains()` but is not polled.
 ---@field debug? boolean Draw the zone's bounds while it exists.
 ---@field data? any Arbitrary passthrough, readable back via the handle's `data` field.
 
@@ -659,16 +746,24 @@ end
 ---@field coords any Box center (vector3/glm.vec3/{x=,y=,z=}).
 ---@field size any Full extents (x, y, z), all greater than 0.
 ---@field rotation? number Degrees around the Z axis. Defaults to 0.
+---@field ignoreZ? boolean Ignore the Z extent during containment. Defaults to false.
 
 ---@class QBZoneSphereOptions : QBZoneCommonOptions
 ---@field coords any Sphere center.
 ---@field radius number Must be greater than 0.
+---@field includeBoundary? boolean Whether a point exactly on radius is inside. Defaults to true.
+
+---@class QBZoneCircleOptions : QBZoneCommonOptions
+---@field coords any Circle center; its Z is retained for debug rendering but ignored by containment.
+---@field radius number Must be greater than 0.
+---@field includeBoundary? boolean Whether a point exactly on radius is inside. Defaults to true.
 
 ---@class QBZonePolyOptions : QBZoneCommonOptions
 ---@field points any[] At least 3 points; only their XY defines the footprint.
 ---@field thickness? number Height band measured upward from the lowest point's Z.
 ---@field minZ? number Explicit height band floor. Must be given with maxZ, or neither.
 ---@field maxZ? number Explicit height band ceiling.
+---@field ignoreZ? boolean Ignore the height band during containment. Defaults to false.
 
 ---Creates a rotatable box zone.
 ---@param opts QBZoneBoxOptions
@@ -682,6 +777,13 @@ end
 ---@return QBZoneHandle zone
 function QB.zones.sphere(opts)
     return createZone("sphere", opts, initSphere)
+end
+
+---Creates a flat 2D circle zone. Its containment test ignores the point's Z coordinate.
+---@param opts QBZoneCircleOptions
+---@return QBZoneHandle zone
+function QB.zones.circle(opts)
+    return createZone("circle", opts, initCircle)
 end
 
 ---Creates a polygon zone: a 2D footprint (opts.points) extruded across a vertical height
@@ -698,7 +800,12 @@ end
 ---@return QBZoneHandle zone
 function QB.zones.point(opts)
     assert(type(opts) == "table", "Point zone options must be a table.")
-    opts.radius = opts.radius or Config.zones.defaultPointRadius
+    if opts.radius == nil then
+        local pointOpts = {}
+        for key, value in pairs(opts) do pointOpts[key] = value end
+        pointOpts.radius = Config.zones.defaultPointRadius
+        opts = pointOpts
+    end
 
     return createZone("sphere", opts, initSphere)
 end
@@ -733,19 +840,23 @@ end
 ---`qb_zonedebug` command below.
 ---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
 ---@param enabled boolean
+---@return boolean changed
 function QB.zones.setDebug(id, enabled)
-    assert(id == nil or type(id) == "number", "id must be a zone id or nil.")
+    assert(id == nil or QB.util.isInteger(id), "id must be a zone id or nil.")
     assert(type(enabled) == "boolean", "enabled must be a boolean.")
 
     if id ~= nil then
         local zone = zoneRegistry[id]
-        if zone then setZoneDebug(zone, enabled) end
-        return
+        if not zone or not canManageZone(zone) then return false end
+        setZoneDebug(zone, enabled)
+        return true
     end
 
+    if GetInvokingResource() then return false end
     for _, zone in pairs(zoneRegistry) do
         setZoneDebug(zone, enabled)
     end
+    return true
 end
 
 -- The 3x3 cell scan is memoised: its result only changes when the player
@@ -797,6 +908,20 @@ tickLoop = function()
         local list = candidatesFor(worldToCell(p.x, p.y))
         local locked = interactionsLocked()
 
+        -- The spatial grid deliberately only examines nearby zones. Zones that
+        -- were inside on the prior tick need one cheap independent check so a
+        -- teleport or fast vehicle move cannot strand their isInside/onExit
+        -- state after they fall outside that neighbourhood.
+        for zoneId, zone in pairs(insideZones) do
+            if zone.removed then
+                insideZones[zoneId] = nil
+            elseif locked or aabbDistSq(p, zone.aabb, zone.ignoreZ) ~= 0 or not containsFn[zone.type](zone, p) then
+                zone.isInside = false
+                insideZones[zoneId] = nil
+                if zone.onExit then safeCall(zone, "onExit", zone.onExit, zone) end
+            end
+        end
+
         local minDistSq = math.huge
         local needsPerFrame = false
 
@@ -819,7 +944,7 @@ tickLoop = function()
                     end
                     goto continue
                 end
-                local dSq = aabbDistSq(p, zone.aabb)
+                local dSq = aabbDistSq(p, zone.aabb, zone.ignoreZ)
                 if dSq < minDistSq then minDistSq = dSq end
 
                 -- Exact containment only runs once the player is inside the zone's cheap
@@ -828,9 +953,11 @@ tickLoop = function()
 
                 if isInside and not zone.isInside then
                     zone.isInside = true
+                    insideZones[zone.id] = zone
                     if zone.onEnter then safeCall(zone, "onEnter", zone.onEnter, zone) end
                 elseif not isInside and zone.isInside then
                     zone.isInside = false
+                    insideZones[zone.id] = nil
                     if zone.onExit then safeCall(zone, "onExit", zone.onExit, zone) end
                 end
 
@@ -933,6 +1060,7 @@ local function creatorLog(msg)
 end
 
 local function formatNumber(n)
+    assert(QB.util.isFiniteNumber(n), "Zone snippets require finite numeric values.")
     return ("%.2f"):format(n)
 end
 
@@ -949,6 +1077,7 @@ end
 ---@return string
 function QB.zones.generateSnippet(zoneType, opts)
     assert(ZONE_TYPES[zoneType], "generateSnippet type must be 'box', 'sphere', or 'poly'.")
+    assert(type(opts) == "table", "generateSnippet options must be a table.")
 
     if zoneType == "box" then
         return ("QB.zones.box({\n    coords = %s,\n    size = %s,\n    rotation = %s,\n})")
@@ -964,6 +1093,12 @@ function QB.zones.generateSnippet(zoneType, opts)
     for i = 1, #opts.points do
         local point = opts.points[i]
         pointLines[i] = "        " .. formatCoords(point) .. ","
+    end
+
+    if opts.minZ ~= nil or opts.maxZ ~= nil then
+        assert(opts.minZ ~= nil and opts.maxZ ~= nil, "Poly snippets require both minZ and maxZ.")
+        return ("QB.zones.poly({\n    points = {\n%s\n    },\n    minZ = %s,\n    maxZ = %s,\n})")
+            :format(table.concat(pointLines, "\n"), formatNumber(opts.minZ), formatNumber(opts.maxZ))
     end
 
     return ("QB.zones.poly({\n    points = {\n%s\n    },\n    thickness = %s,\n})")
@@ -1047,14 +1182,14 @@ local function seedCreatorState(state, opts)
             state.size = size.x
             state.height = size.z
         end
-        if opts.rotation then
-            assert(type(opts.rotation) == "number", "Seeded rotation must be a number.")
+        if opts.rotation ~= nil then
+            assert(QB.util.isFiniteNumber(opts.rotation), "Seeded rotation must be a finite number.")
             state.rotation = opts.rotation % 360
         end
     elseif state.type == "sphere" then
         if opts.coords then state.center = toVec3(opts.coords) end
-        if opts.radius then
-            assert(type(opts.radius) == "number" and opts.radius > 0, "Seeded radius must be a positive number.")
+        if opts.radius ~= nil then
+            assert(QB.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Seeded radius must be a positive finite number.")
             state.radius = opts.radius
         end
     elseif state.type == "poly" then
@@ -1070,11 +1205,15 @@ local function seedCreatorState(state, opts)
             state.points = points
         end
 
-        if opts.minZ and opts.maxZ then
+        assert((opts.minZ == nil) == (opts.maxZ == nil), "Seeded minZ and maxZ must both be given, or neither.")
+        if opts.minZ ~= nil then
+            assert(QB.util.isFiniteNumber(opts.minZ) and QB.util.isFiniteNumber(opts.maxZ),
+                "Seeded minZ and maxZ must be finite numbers.")
             assert(opts.maxZ > opts.minZ, "Seeded maxZ must be greater than minZ.")
             state.thickness = opts.maxZ - opts.minZ
-        elseif opts.thickness then
-            assert(type(opts.thickness) == "number" and opts.thickness > 0, "Seeded thickness must be a positive number.")
+        elseif opts.thickness ~= nil then
+            assert(QB.util.isFiniteNumber(opts.thickness) and opts.thickness > 0,
+                "Seeded thickness must be a positive finite number.")
             state.thickness = opts.thickness
         end
     end
@@ -1138,7 +1277,7 @@ end
 ---@param value any
 local function releaseCreatorControls(state)
     if not state or not state.controlLease then return end
-    QB.controls.release(state.controlLease)
+    QB.compat.releaseControlLease(state.controlLease, state.resource)
     state.controlLease = nil
 end
 
@@ -1656,7 +1795,7 @@ local function beginCreator(zoneType, resource, existingOpts)
     -- guaranteed to exist before any keybind handler (creatorPlace, in
     -- particular) could possibly run -- rather than racing the thread's own
     -- startup.
-    state.controlLease = QB.controls.acquire({ 1, 2, 30, 31 })
+    state.controlLease = QB.compat.acquireControls({ 1, 2, 30, 31 }, nil, state.resource)
 
     local started, cam, camCoords, camPitch, camYaw = pcall(startCreatorCamera)
     if not started then
@@ -1767,7 +1906,8 @@ end, false)
 ---Pass `false` for `onEnter` or `onExit` to remove the existing callback.
 ---@param handle QBZoneHandle
 ---@param opts QBZoneEditOptions
----@return QBZoneHandle handle The same handle passed to the function.
+---@return QBZoneHandle? handle The same handle passed to the function, or nil for a foreign zone.
+---@return string? error
 function QB.zones.edit(handle, opts)
     return editZone(handle, opts)
 end

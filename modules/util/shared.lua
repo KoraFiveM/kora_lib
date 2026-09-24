@@ -1,18 +1,24 @@
 ---Recursively copies a plain table (nested tables included). Non-table
----values are returned as-is. Does not special-case metatables, function
----values, or cyclic references -- callers with data shaped like that need
----their own copy logic.
+---values are returned as-is. Shared and circular table references are
+---preserved; metatables and function values are not copied specially.
 ---@param value any
 ---@return any
 function QB.util.deepClone(value)
-    if type(value) ~= "table" then return value end
+    local seen = {}
 
-    local copy = {}
-    for k, v in pairs(value) do
-        copy[QB.util.deepClone(k)] = QB.util.deepClone(v)
+    local function clone(item)
+        if type(item) ~= "table" then return item end
+        if seen[item] then return seen[item] end
+
+        local copy = {}
+        seen[item] = copy
+        for key, nested in pairs(item) do
+            copy[clone(key)] = clone(nested)
+        end
+        return copy
     end
 
-    return copy
+    return clone(value)
 end
 
 ---Returns the lowercase, eight-character hexadecimal FNV-1a checksum of a
@@ -58,7 +64,7 @@ end
 ---@return string|nil text
 ---@return string|nil reason
 function QB.util.cleanText(value, options)
-    options = options or {}
+    if options == nil then options = {} end
 
     assert(type(options) == "table", "QB.util.cleanText options must be a table.")
     assert(options.maxLength == nil or QB.util.isInteger(options.maxLength) and options.maxLength >= 0,
@@ -141,6 +147,8 @@ end
 ---@param max number
 ---@return number
 function QB.util.clamp(value, min, max)
+    assert(QB.util.isFiniteNumber(value) and QB.util.isFiniteNumber(min) and QB.util.isFiniteNumber(max) and min <= max,
+        "QB.util.clamp requires finite bounds where min is at most max.")
     if value < min then return min end
     if value > max then return max end
     return value
@@ -150,15 +158,25 @@ end
 ---@param decimals? integer Defaults to 0.
 ---@return number
 function QB.util.round(value, decimals)
-    local mult = 10 ^ (decimals or 0)
-    return math.floor(value * mult + 0.5) / mult
+    if decimals == nil then decimals = 0 end
+    assert(QB.util.isFiniteNumber(value) and QB.util.isInteger(decimals),
+        "QB.util.round requires a finite value and integer decimal places.")
+    local mult = 10 ^ decimals
+    assert(QB.util.isFiniteNumber(mult) and mult > 0,
+        "QB.util.round decimal places must produce finite precision.")
+    local scaled = value * mult
+    assert(QB.util.isFiniteNumber(scaled), "QB.util.round value and decimal places must stay finite.")
+    return math.floor(scaled + 0.5) / mult
 end
 
 ---@param min number
 ---@param max number
 ---@return number
 function QB.util.randomFloat(min, max)
-    return min + math.random() * (max - min)
+    assert(QB.util.isFiniteNumber(min) and QB.util.isFiniteNumber(max) and min <= max,
+        "QB.util.randomFloat requires finite bounds where min is at most max.")
+    local ratio = math.random()
+    return min * (1 - ratio) + max * ratio
 end
 
 ---Picks one entry from a weighted list. Weights don't need to sum to any
@@ -166,14 +184,24 @@ end
 ---@param list {[1]: any, [2]: number}[] Array of `{value, weight}` pairs. Every weight must be > 0.
 ---@return any value
 function QB.util.weightedChoice(list)
-    assert(type(list) == "table" and #list > 0, "QB.util.weightedChoice requires a non-empty list.")
+    assert(type(list) == "table", "QB.util.weightedChoice requires a non-empty dense array.")
+    local entryCount = 0
+    for index, entry in pairs(list) do
+        assert(QB.util.isInteger(index) and index >= 1 and type(entry) == 'table',
+            'QB.util.weightedChoice requires a dense array of pairs.')
+        entryCount = entryCount + 1
+    end
+    assert(entryCount > 0 and entryCount == #list,
+        'QB.util.weightedChoice requires a non-empty dense array of pairs.')
 
     local total = 0
     for entryIndex = 1, #list do
         local entry = list[entryIndex]
-        assert(type(entry[2]) == "number" and entry[2] > 0, "Every weightedChoice entry needs a positive weight.")
+        assert(QB.util.isFiniteNumber(entry[2]) and entry[2] > 0,
+            "Every weightedChoice entry needs a positive finite weight.")
         total = total + entry[2]
     end
+    assert(QB.util.isFiniteNumber(total), "weightedChoice total must be finite.")
 
     local roll = math.random() * total
     local cumulative = 0
@@ -214,11 +242,20 @@ end
 ---@param label? string
 ---@return number x, number y, number z
 local function xyz(v, label)
-    assert(v and type(v.x) == "number" and type(v.y) == "number",
-        ("%s expects a vector2/vector3/vector4 or coordinate table."):format(label or "QB.util"))
+    local z = v and (type(v) == "vector2" and 0.0 or v.z or 0.0)
+    assert(v and QB.util.isFiniteNumber(v.x) and QB.util.isFiniteNumber(v.y) and QB.util.isFiniteNumber(z),
+        ("%s expects finite vector2/vector3/vector4 or coordinate-table values."):format(label or "QB.util"))
 
-    local z = type(v) == "vector2" and 0.0 or v.z or 0.0
     return v.x, v.y, z
+end
+
+local function magnitude(x, y, z, label)
+    local scale = math.max(math.abs(x), math.abs(y), math.abs(z))
+    if scale == 0 then return 0 end
+
+    local value = scale * math.sqrt((x / scale) ^ 2 + (y / scale) ^ 2 + (z / scale) ^ 2)
+    assert(QB.util.isFiniteNumber(value), ("%s result must be finite."):format(label))
+    return value
 end
 
 ---@param v any
@@ -235,7 +272,13 @@ end
 ---@param t number
 ---@return number
 function QB.util.lerp(a, b, t)
-    return a + (b - a) * t
+    assert(QB.util.isFiniteNumber(a) and QB.util.isFiniteNumber(b) and QB.util.isFiniteNumber(t),
+        "QB.util.lerp requires finite numbers.")
+    if t >= 0 and t <= 1 then return a * (1 - t) + b * t end
+
+    local value = a + (b - a) * t
+    assert(QB.util.isFiniteNumber(value), "QB.util.lerp result must be finite.")
+    return value
 end
 
 ---@param a vector3 | {x: number, y: number, z: number}
@@ -261,7 +304,7 @@ end
 ---@return {x: number, y: number, z: number}
 function QB.util.vecScale(v, scalar)
     local x, y, z = xyz(v, "QB.util.vecScale")
-    assert(type(scalar) == "number", "QB.util.vecScale requires a numeric scalar.")
+    assert(QB.util.isFiniteNumber(scalar), "QB.util.vecScale requires a finite scalar.")
     return { x = x * scalar, y = y * scalar, z = z * scalar }
 end
 
@@ -269,7 +312,7 @@ end
 ---@return number
 function QB.util.vecLength(v)
     local x, y, z = xyz(v, "QB.util.vecLength")
-    return math.sqrt(x * x + y * y + z * z)
+    return magnitude(x, y, z, "QB.util.vecLength")
 end
 
 ---Distance between two points using the dimensions available on both. This is
@@ -284,11 +327,11 @@ function QB.util.vecDistance(a, b)
     local dx, dy = ax - bx, ay - by
 
     if not hasZ(a) or not hasZ(b) then
-        return math.sqrt(dx * dx + dy * dy)
+        return magnitude(dx, dy, 0, "QB.util.vecDistance")
     end
 
     local dz = az - bz
-    return math.sqrt(dx * dx + dy * dy + dz * dz)
+    return magnitude(dx, dy, dz, "QB.util.vecDistance")
 end
 
 ---2D (ground-plane) distance, ignoring z. This is the right measure for
@@ -301,7 +344,7 @@ function QB.util.vecDistance2d(a, b)
     local ax, ay = xyz(a, "QB.util.vecDistance2d")
     local bx, by = xyz(b, "QB.util.vecDistance2d")
     local dx, dy = ax - bx, ay - by
-    return math.sqrt(dx * dx + dy * dy)
+    return magnitude(dx, dy, 0, "QB.util.vecDistance2d")
 end
 
 ---Unit vector in the same direction. A zero-length vector is returned as
@@ -319,7 +362,7 @@ end
 ---@param heading number
 ---@return {x: number, y: number, z: number}
 function QB.util.headingToDirection(heading)
-    assert(type(heading) == "number", "QB.util.headingToDirection requires a numeric heading.")
+    assert(QB.util.isFiniteNumber(heading), "QB.util.headingToDirection requires a finite heading.")
     local radians = math.rad(heading)
     return { x = -math.sin(radians), y = math.cos(radians), z = 0.0 }
 end

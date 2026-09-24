@@ -45,7 +45,8 @@ remain inert until qblib stops or the stable name is re-added.
 
 ## `QB.keybind.remove(name)` — client
 
-Removes the current live definition and returns whether it existed.
+Removes the calling resource's current live definition and returns whether it
+existed. Another resource's binding returns `false` unchanged.
 
 ## `QB.keybind.list()` — client
 

@@ -9,9 +9,8 @@
 ---@return string|nil plate
 ---@return string|nil reason
 function QB.vehicle.normalizePlate(value, options)
+    assert(options == nil or type(options) == "table", "QB.vehicle.normalizePlate options must be a table.")
     options = options or {}
-
-    assert(type(options) == "table", "QB.vehicle.normalizePlate options must be a table.")
     assert(options.maxLength == nil or QB.util.isInteger(options.maxLength) and options.maxLength > 0,
         "QB.vehicle.normalizePlate maxLength must be a positive integer.")
     assert(options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "remove"

@@ -37,8 +37,8 @@ end
 
 local function assertVec3(value, label)
     assert(type(value) == "table" or type(value) == "vector3", ("%s must be vector-like."):format(label))
-    assert(type(value.x) == "number" and type(value.y) == "number" and type(value.z) == "number",
-        ("%s must contain numeric x, y, and z values."):format(label))
+    assert(QB.util.isFiniteNumber(value.x) and QB.util.isFiniteNumber(value.y) and QB.util.isFiniteNumber(value.z),
+        ("%s must contain finite x, y, and z values."):format(label))
 end
 
 local function normalizeSignedAngle(value)
@@ -72,11 +72,11 @@ function QB.placement.generateSnippet(result)
     assert(type(result.model) == "string" or type(result.model) == "number",
         "Placement result model must be a string or number.")
     assertVec3(result.coords, "Placement result coords")
-    assert(type(result.heading) == "number", "Placement result heading must be a number.")
+    assert(QB.util.isFiniteNumber(result.heading), "Placement result heading must be a finite number.")
     assert(type(result.rotation) == "table", "Placement result rotation must be a table.")
-    assert(type(result.rotation.pitch) == "number" and type(result.rotation.roll) == "number"
-        and type(result.rotation.yaw) == "number",
-        "Placement result rotation must contain numeric pitch, roll, and yaw values.")
+    assert(QB.util.isFiniteNumber(result.rotation.pitch) and QB.util.isFiniteNumber(result.rotation.roll)
+        and QB.util.isFiniteNumber(result.rotation.yaw),
+        "Placement result rotation must contain finite pitch, roll, and yaw values.")
 
     return ("{\n    model = %s,\n    coords = vector3(%s, %s, %s),\n    heading = %s,\n    rotation = {\n        pitch = %s,\n        roll = %s,\n        yaw = %s,\n    },\n}")
         :format(
@@ -137,7 +137,7 @@ local function releaseStateResources(state, immediateCamera)
     clearHeld()
 
     if state.controlLease then
-        pcall(QB.controls.release, state.controlLease)
+        pcall(QB.compat.releaseControlLease, state.controlLease, state.resource)
         state.controlLease = nil
     end
 
@@ -380,10 +380,6 @@ local function ensurePlacementThread(state)
                     QB.nui.send("placement:hud", hudSnapshot(state))
                 end
 
-                if Config.placement.hideRadar then
-                    state.radarManaged = true
-                    DisplayRadar(false)
-                end
                 Wait(0)
             end
         end)
@@ -421,6 +417,7 @@ end
 local function validateModel(model)
     assert(type(model) == "string" or type(model) == "number", "Placement model must be a string or number.")
     assert(type(model) ~= "string" or model ~= "", "Placement model name cannot be empty.")
+    assert(type(model) ~= "number" or QB.util.isInteger(model), "Placement model hash must be a finite integer.")
     local hash = type(model) == "string" and joaat(model) or model
     assert(IsModelValid(hash), ("Invalid placement model: %s"):format(tostring(model)))
 end
@@ -493,7 +490,7 @@ function QB.placement.start(model)
         SetEntityAlpha(entity, Config.placement.previewAlpha, false)
         SetEntityRotation(entity, 0.0, 0.0, state.rotation.yaw, ROTATION_ORDER, true)
 
-        state.controlLease = QB.controls.acquire(PLACEMENT_CONTROLS)
+        state.controlLease = QB.compat.acquireControls(PLACEMENT_CONTROLS, nil, state.resource)
         startCamera(state, gameplayCamCoord, gameplayCamRot)
     end)
 

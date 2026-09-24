@@ -62,8 +62,9 @@ function(ok, response)
 end
 ```
 
-Discord 429 responses are retried once after Discord's `retry_after` delay.
-A second 429 is returned to the callback normally.
+Discord 429 responses are retried once after Discord's finite `retry_after`
+delay. A missing or invalid delay, and a second 429, are returned to the
+callback normally.
 
 ## Webhook API
 
@@ -75,7 +76,7 @@ Supported fields are `title`, `description`, `url`, `color`, `timestamp`,
 
 - `color` accepts an integer, `"DC143C"`, or `"#DC143C"`.
 - `timestamp = true` creates the current UTC timestamp.
-- `timestamp` may alternatively be a Unix timestamp or ISO8601 string.
+- `timestamp` may alternatively be a finite Unix timestamp or ISO8601 string.
 - `footer` and `author` accept either a string or the corresponding Discord
   object; `image` and `thumbnail` accept a URL string or `{ url = ... }`.
 
@@ -242,6 +243,9 @@ QB.discord.sendMessage(channelId, {
     allowed_mentions = { parse = {} },
 })
 ```
+
+Embed `fields`, when supplied, must be a dense array of at most 25 entries;
+malformed lists are rejected before qblib encodes or sends a webhook.
 
 Discord's current endpoint payload fields and permission requirements are
 documented in its official [Guild](https://docs.discord.com/developers/resources/guild),

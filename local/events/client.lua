@@ -19,7 +19,7 @@ local pushOwnership = QB.resources.registry(function(name)
 end)
 
 RegisterNetEvent(events.handshakeResponse, function(newToken)
-    token = newToken
+    if type(newToken) == "string" then token = newToken end
 end)
 
 CreateThread(function()
@@ -27,10 +27,14 @@ CreateThread(function()
 end)
 
 RegisterNetEvent(events.push, function(name, ...)
+    if type(name) ~= "string" then return end
     local handler = pushRegistry[name]
     if handler == nil then return end
 
-    pcall(handler, ...)
+    local ok, err = pcall(handler, ...)
+    if not ok then
+        print(("[qblib:events] push handler for '%s' errored: %s"):format(name, tostring(err)))
+    end
 end)
 
 local function awaitToken()
@@ -45,7 +49,7 @@ end
 -- cross-resource funcref proxy shape consistently across qblib modules.
 local isCallable = QB.compat.isCallable
 
----Triggers a secure event registered on the server with QB.events.register.
+---Triggers a registered server event through qblib's session-correlated gateway.
 ---Waits for the initial handshake token if it hasn't arrived yet.
 ---@param name string
 ---@param ... any
@@ -89,8 +93,12 @@ end
 
 ---Unregisters a push handler registered with QB.events.onPush.
 ---@param name string
+---@return boolean removed
 function QB.events.offPush(name)
     QB.events.assertName(name)
+    local invoker = GetInvokingResource()
+    if invoker and pushOwnership.owner(name) ~= invoker then return false end
     pushRegistry[name] = nil
     pushOwnership.untrack(name)
+    return true
 end

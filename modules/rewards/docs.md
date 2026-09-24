@@ -9,17 +9,24 @@ The rewards module rolls one or more items out of a reward pool — loot tables,
 Generates rewards from a pool of possible items.
 
 #### Parameters
-- `items: QBRewardItem[]` — Reward pool. Must be a non-empty array. Each entry may carry:
-  - `chance?: number` — Weighted mode: a relative weight (must be `> 0`). Percent mode: a `0`-`100` probability. Omitted entirely, an item shares an equal chance with every other item that also omitted it (see [Default chance](#default-chance) below).
-  - `amount?: number | { min: number, max: number }` — A flat amount, or a range to roll a random integer from. Defaults to `1`.
+- `items: QBRewardItem[]` — Reward pool. Must be a non-empty dense array. Each entry may carry:
+  - `chance?: number` — A finite positive number. Weighted mode: a relative weight. Percent mode: a probability in `(0, 100]`. Omitted entirely, an item shares an equal chance with every other item that also omitted it (see [Default chance](#default-chance) below).
+  - `amount?: number | { min: integer, max: integer }` — A finite flat amount, or integer range to roll. Defaults to `1`.
   - Any other fields (`name`, `label`, ...) are your own data and pass straight through to the result untouched.
 - `opts?: table`
-  - `mode?: "weighted" | "percent"` — Defaults to `"weighted"`.
-  - `rolls?: integer` — How many times to roll. Defaults to `1`.
+  - `mode?: "weighted" | "percent"` — Defaults to `"weighted"` when omitted.
+  - `rolls?: finite integer` — How many times to roll, from `1` to `10,000`.
+    Defaults to `1` when omitted. In percent mode, `rolls × item count` must
+    also be at most `10,000`.
   - `allowNone?: boolean` — Defaults to `false`. When `false`, an all-miss result is topped up with one extra pick so `generate` never hands back an empty table. Pass `true` to allow a genuinely empty result.
 
+Every item must be a table at a consecutive integer index; `opts` must be a table when supplied. Invalid
+amount ranges, options, and chance values fail before any random roll occurs.
+The result ceiling keeps one generated loot table from allocating an unbounded
+number of reward entries; batch larger jobs deliberately.
+
 #### Returns
-- `table[]` — A copy of each winning item, with `amount` resolved to a concrete number. Guaranteed non-empty unless `opts.allowNone` is `true`.
+- `table[]` — A shallow copy of each winning item, with `amount` resolved to a concrete number. Nested custom tables remain shared with the source item. Guaranteed non-empty unless `opts.allowNone` is `true`.
 
 #### Modes
 | Mode | Behavior per roll |

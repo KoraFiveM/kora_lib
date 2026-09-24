@@ -20,6 +20,9 @@ qbcore's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its ace 
 - **`hasLevel` owns cascading.** The supplied level array is ordered highest
   to lowest; a resolved `admin` therefore satisfies a `mod` requirement without
   manual ACE principal chaining.
+- **Public checks require a real player source.** `0`, fractional, and
+  non-finite IDs are rejected before ACE or Discord calls; console authorization
+  belongs to the caller's command path.
 - **Server-only** -- `IsPlayerAceAllowed` only exists server-side; there's nothing for a client realm to do here.
 
 ## Testing

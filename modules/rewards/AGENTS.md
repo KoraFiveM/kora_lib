@@ -10,7 +10,7 @@ This module rolls one or more items out of a reward pool (loot tables, job/quest
 
 ## Implementation notes
 - Weighted-mode picks are delegated to `QB.util.weightedChoice` rather than reimplementing cumulative-weight selection — don't duplicate that logic here if it grows.
-- `chance` is deliberately mode-overloaded (relative weight vs. 0-100 percent) rather than split into two fields, to keep one `items` table reusable if a caller ever needs to build both a weighted and a percent variant from the same source data.
+- `chance` is deliberately mode-overloaded (relative weight vs. a percent in `(0, 100]`) rather than split into two fields, to keep one `items` table reusable if a caller ever needs to build both a weighted and a percent variant from the same source data.
 - Items missing `chance` default to an equal share *among themselves* (weight `1` each, or an even split of `100`), independent of what other items explicitly specified — this matches "equal chance" rather than "whatever's left over."
 - The empty-result guarantee re-rolls via the same weighted pool used for normal picks (even in percent mode), so it stays consistent with each item's relative likelihood instead of falling back to a uniform pick or always `items[1]`.
 - `toReward` strips `chance` from the output (it's selection-time-only) but passes every other field through untouched, so callers can pass arbitrary item data (name, label, custom flags) without this module needing to know its shape.

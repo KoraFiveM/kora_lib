@@ -11,8 +11,14 @@
 local function assertCoords(coords)
     assert(type(coords) == 'table' or type(coords) == 'vector3' or type(coords) == 'vector4',
         'Teleport coordinates must be vector-like.')
-    assert(type(coords.x) == 'number' and type(coords.y) == 'number' and type(coords.z) == 'number',
-        'Teleport coordinates require numeric x, y, and z.')
+    assert(QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+        'Teleport coordinates require finite x, y, and z.')
+end
+
+local function finiteOrDefault(value, default, label)
+    if value == nil then return default end
+    assert(QB.util.isFiniteNumber(value), ('%s must be a finite number.'):format(label))
+    return value
 end
 
 ---Moves an existing local entity to coordinates, optionally fading around the move.
@@ -21,13 +27,20 @@ end
 ---@param opts? QBTeleportOptions
 ---@return boolean success
 function QB.teleport.entity(entity, coords, opts)
-    assert(type(entity) == 'number' and entity ~= 0 and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
+    assert(QB.util.isInteger(entity) and entity > 0 and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
     assertCoords(coords)
+    assert(opts == nil or type(opts) == 'table', 'Teleport options must be a table.')
     opts = opts or {}
+    assert(opts.fade == nil or opts.fade == false or opts.fade == true or QB.util.isFiniteNumber(opts.fade),
+        'Teleport fade must be false, true, or a finite number.')
+    local heading = coords.w
+    if heading == nil then heading = coords.heading end
+    if heading ~= nil then
+        assert(QB.util.isFiniteNumber(heading), 'Teleport heading must be a finite number.')
+    end
 
     local function move()
         SetEntityCoords(entity, coords.x, coords.y, coords.z)
-        local heading = type(coords.w) == 'number' and coords.w or coords.heading
         if type(heading) == 'number' then SetEntityHeading(entity, heading) end
     end
 
@@ -62,22 +75,26 @@ end
 ---@return boolean success
 ---@return string? error
 function QB.teleport.toWaypoint(opts)
+    assert(opts == nil or type(opts) == 'table', 'Waypoint teleport options must be a table.')
     opts = opts or {}
+    assert(opts.fade == nil or opts.fade == false or opts.fade == true or QB.util.isFiniteNumber(opts.fade),
+        'Waypoint teleport fade must be false, true, or a finite number.')
 
     local waypoint, waypointError = QB.world.getWaypointCoords()
     if not waypoint then return false, waypointError end
 
     local entity = waypointEntity(opts)
-    if type(entity) ~= 'number' or entity == 0 or not DoesEntityExist(entity) then
+    if not QB.util.isInteger(entity) or entity <= 0 or not DoesEntityExist(entity) then
         return false, ('Invalid teleport entity: %s'):format(tostring(entity))
     end
 
-    local launchHeight = tonumber(opts.launchHeight) or Config.teleport.waypointLaunchHeight
-    local collisionTimeout = math.max(0, math.floor(tonumber(opts.collisionTimeout)
-        or Config.teleport.waypointCollisionTimeout))
-    local groundAttempts = math.floor(tonumber(opts.groundAttempts) or Config.teleport.waypointGroundAttempts)
-    local groundRetryDelay = math.max(0, math.floor(tonumber(opts.groundRetryDelay)
-        or Config.teleport.waypointGroundRetryDelay))
+    local launchHeight = finiteOrDefault(opts.launchHeight, Config.teleport.waypointLaunchHeight, 'launchHeight')
+    local collisionTimeout = math.max(0, math.floor(finiteOrDefault(opts.collisionTimeout,
+        Config.teleport.waypointCollisionTimeout, 'collisionTimeout')))
+    local groundAttempts = math.floor(finiteOrDefault(opts.groundAttempts,
+        Config.teleport.waypointGroundAttempts, 'groundAttempts'))
+    local groundRetryDelay = math.max(0, math.floor(finiteOrDefault(opts.groundRetryDelay,
+        Config.teleport.waypointGroundRetryDelay, 'groundRetryDelay')))
     if groundAttempts < 1 then return false, 'groundAttempts must be a positive integer.' end
 
     local original = GetEntityCoords(entity)
@@ -88,7 +105,8 @@ function QB.teleport.toWaypoint(opts)
     local focused = false
     local faded = false
     local fade = opts.fade
-    local fadeTime = type(fade) == 'number' and math.max(0, math.floor(fade)) or Config.teleport.fadeTime
+    local fadeTime = type(fade) == 'number' and math.max(0, math.floor(finiteOrDefault(fade, 0, 'fade')))
+        or Config.teleport.fadeTime
 
     local success, failure
     local ok, runtimeError = pcall(function()

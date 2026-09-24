@@ -37,7 +37,8 @@ local function normalize(text, options)
     assert(options == nil or type(options) == 'table', 'Text UI options must be a table.')
     options = options or {}
 
-    local position = options.position or 'right-center'
+    local position = options.position
+    if position == nil then position = 'right-center' end
     assert(POSITIONS[position], 'Text UI position must be left-center, right-center, top-center, or bottom-center.')
     assert(options.key == nil or (type(options.key) == 'string' and #options.key > 0),
         'Text UI key must be a non-empty string.')
@@ -135,6 +136,8 @@ end
 function QB.textui.update(id, text, opts)
     assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')
     if not entries[id] then return false end
+    local caller = GetInvokingResource()
+    if caller and registry.owner(id) ~= caller then return false end
 
     entries[id] = normalize(text, opts)
     if visibleId() == id then render() end
@@ -146,6 +149,8 @@ end
 ---@return boolean removed
 function QB.textui.hide(id)
     assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')
+    local caller = GetInvokingResource()
+    if caller and registry.owner(id) ~= caller then return false end
     return remove(id, true)
 end
 

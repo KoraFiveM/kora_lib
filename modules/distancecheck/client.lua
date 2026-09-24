@@ -1,51 +1,81 @@
 ---@diagnostic disable: duplicate-doc-field
+local isFiniteNumber = QB.util.isFiniteNumber
+
+local function assertRadius(distance)
+    if distance == nil then distance = 5.0 end
+    assert(QB.util.isFiniteNumber(distance) and distance >= 0,
+        'Distance must be a finite non-negative number.')
+    return distance
+end
+
+local function assertCoords(coords, label)
+    assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
+        label .. ' must include finite x, y, and z values.')
+end
+
+local function assertEntity(entity)
+    assert(QB.util.isInteger(entity) and entity > 0, 'Entity must be a positive integer handle.')
+end
+
+local function withinRadius(dx, dy, dz, distance)
+    distance = assertRadius(distance)
+    return dx * dx + dy * dy + dz * dz <= distance * distance
+end
+
+---@param coords QBCoords
+---@param distance? number
+---@return boolean
 function QB.distance.player(coords, distance)
-    assert(coords, "Coordinates are required")
-    assert(coords.x and coords.y and coords.z, "Coordinates must include x, y, and z")
+    assertCoords(coords, 'Coordinates')
     local playerCoords = QB.cache.get('coords')
-    local dist = #(playerCoords - vector3(coords.x, coords.y, coords.z))
-    return dist <= (distance or 5.0)
+    return withinRadius(playerCoords.x - coords.x, playerCoords.y - coords.y, playerCoords.z - coords.z, distance)
 end
 
+---@param coords1 QBCoords
+---@param coords2 QBCoords
+---@param distance? number
+---@return boolean
 function QB.distance.coords(coords1, coords2, distance)
-    assert(coords1, "First set of coordinates is required")
-    assert(coords2, "Second set of coordinates is required")
-    assert(coords1.x and coords1.y and coords1.z, "First set of coordinates must include x, y, and z")
-    assert(coords2.x and coords2.y and coords2.z, "Second set of coordinates must include x, y, and z")
-    local dist = #(vector3(coords1.x, coords1.y, coords1.z) - vector3(coords2.x, coords2.y, coords2.z))
-    return dist <= (distance or 5.0)
+    assertCoords(coords1, 'First set of coordinates')
+    assertCoords(coords2, 'Second set of coordinates')
+    return withinRadius(coords1.x - coords2.x, coords1.y - coords2.y, coords1.z - coords2.z, distance)
 end
 
+---@param entity integer
+---@param distance? number
+---@return boolean
 function QB.distance.entity(entity, distance)
-    assert(entity, "Entity is required")
+    assertEntity(entity)
     local playerCoords = QB.cache.get('coords')
     local entityCoords = GetEntityCoords(entity)
-    local dist = #(playerCoords - entityCoords)
-    return dist <= (distance or 5.0)
+    return withinRadius(playerCoords.x - entityCoords.x, playerCoords.y - entityCoords.y,
+        playerCoords.z - entityCoords.z, distance)
 end
 
+---@param point {x: number}
+---@param distance? number
+---@return boolean
 function QB.distance.x(point, distance)
-    assert(point, "Point is required")
-    assert(point.x, "Point must include x")
+    assert(point and isFiniteNumber(point.x), 'Point must include a finite x value.')
     local playerCoords = QB.cache.get('coords')
-    local dist = #(vector3(playerCoords.x, 0, 0) - vector3(point.x, 0, 0))
-    return dist <= (distance or 5.0)
+    return withinRadius(playerCoords.x - point.x, 0, 0, distance)
 end
 
+---@param point {y: number}
+---@param distance? number
+---@return boolean
 function QB.distance.y(point, distance)
-    assert(point, "Point is required")
-    assert(point.y, "Point must include y")
+    assert(point and isFiniteNumber(point.y), 'Point must include a finite y value.')
     local playerCoords = QB.cache.get('coords')
-    local dist = #(vector3(0, playerCoords.y, 0) - vector3(0, point.y, 0))
-    return dist <= (distance or 5.0)
+    return withinRadius(0, playerCoords.y - point.y, 0, distance)
 end
 
+---@param point QBCoords
+---@param distance? number
+---@return boolean
 function QB.distance.xy(point, distance)
-    assert(point, "Point is required")
-    assert(point.x and point.y and point.z, "Point must include x, y, and z")
+    assertCoords(point, 'Point')
 
     local playerCoords = QB.cache.get('coords')
-    local dist = #(vector3(playerCoords.x, playerCoords.y, 0) - vector3(point.x, point.y, 0))
-
-    return dist <= (distance or 5.0)
+    return withinRadius(playerCoords.x - point.x, playerCoords.y - point.y, 0, distance)
 end

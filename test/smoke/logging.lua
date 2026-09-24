@@ -35,6 +35,7 @@ _G.json = {
 }
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/logging/server.lua")
 
 harness.test("event() records into getStats' counts and ringSize", function()
@@ -48,6 +49,14 @@ harness.test("event() records into getStats' counts and ringSize", function()
     harness.assertTrue(stats.ringSize >= 3, "ring size should reflect the events recorded so far")
 end)
 
+harness.test("getStats returns counters that cannot mutate logger state", function()
+    local stats = QB.logging.getStats()
+    local expected = stats.counts.money
+    stats.counts.money = 0
+    harness.assertEqual(QB.logging.getStats().counts.money, expected,
+        "mutating a stats snapshot must not alter the live counter")
+end)
+
 harness.test("event() does not call the webhook when no webhook convar is set", function()
     convars = {}
     httpRequests = {}
@@ -55,6 +64,33 @@ harness.test("event() does not call the webhook when no webhook convar is set", 
     QB.logging.event("admin", 0, {})
 
     harness.assertEqual(#httpRequests, 0, "no webhook URL configured means no HTTP request")
+end)
+
+harness.test("event() rejects malformed data before recording or encoding", function()
+    local before = QB.logging.getStats().ringSize
+    harness.assertThrows(function() QB.logging.event("", 0, {}) end)
+    harness.assertThrows(function() QB.logging.event("admin", -1, {}) end)
+    harness.assertThrows(function() QB.logging.event("admin", 0, false) end)
+    harness.assertEqual(QB.logging.getStats().ringSize, before,
+        "invalid events must not enter the ring buffer")
+end)
+
+harness.test("event() keeps the local record when webhook encoding fails", function()
+    convars = { qblib_log_webhook = "https://example.invalid/webhook" }
+    httpRequests = {}
+    local before = QB.logging.getStats().ringSize
+    local encode = json.encode
+    json.encode = function(value)
+        if value.fail then error("cannot encode") end
+        return encode(value)
+    end
+
+    QB.logging.event("encode_failure", 0, { fail = true })
+    json.encode = encode
+
+    harness.assertEqual(QB.logging.getStats().ringSize, before + 1,
+        "a webhook failure must not discard the local event")
+    harness.assertEqual(#httpRequests, 0, "an unencodable payload must not start an HTTP request")
 end)
 
 harness.test("event() calls the webhook when qblib_log_webhook is set", function()
@@ -89,6 +125,21 @@ harness.test("event() attributes the webhook username to the invoking resource",
         "the webhook body should attribute the event to the invoking resource")
 
     invokingResource = nil
+end)
+
+harness.test('event caps only oversized webhook content', function()
+    convars = { qblib_log_webhook = 'https://example.invalid/webhook' }
+    local encode, mirroredContent = json.encode, nil
+    json.encode = function(value)
+        if value.content then mirroredContent = value.content end
+        return encode(value)
+    end
+
+    QB.logging.event('large', 0, { payload = string.rep('x', 3000) })
+    json.encode = encode
+
+    harness.assertEqual(#mirroredContent, 2000)
+    harness.assertEqual(mirroredContent:sub(-3), '...')
 end)
 
 harness.report("logging")

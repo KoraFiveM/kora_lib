@@ -160,6 +160,8 @@ harness.test('invalid inputs assert instead of becoming accidental names', funct
     harness.assertThrows(function() QB.lookup.get('vehicle', 4294967296) end)
     harness.assertThrows(function() QB.lookup.model('x', 'weapon') end)
     harness.assertThrows(function() QB.lookup.preload('unknown') end)
+    harness.assertThrows(function() QB.lookup.preload({ [2] = 'vehicle' }) end)
+    harness.assertThrows(function() QB.lookup.preload({ vehicle = true }) end)
 end)
 
 harness.test('overlay publication changes pending misses to not_found and enriches base records', function()
@@ -193,6 +195,12 @@ harness.test('awaitReady succeeds immediately when ready and reports bounded tim
     local ready, reason = QB.lookup.awaitReady(0)
     harness.assertFalse(ready)
     harness.assertTrue(reason:find('timed out', 1, true) ~= nil)
+    harness.assertThrows(function()
+        QB.lookup.awaitReady(math.huge)
+    end, 'an infinite readiness timeout should be rejected')
+    harness.assertThrows(function()
+        QB.lookup.awaitReady(false)
+    end, 'an explicit non-integer timeout should not become the default')
     coreState.setOverlay({}, 2)
 end)
 
@@ -322,6 +330,29 @@ harness.test('scanner warns clearly for ambiguous, binary, and unreadable assets
     harness.assertTrue(warningContains('binary .ytyp'), 'binary ytyp files should be reported')
     harness.assertTrue(warningContains('unreadable.meta'), 'unreadable files should be reported')
     harness.assertTrue(warningContains('does not match its name'), 'bad explicit hashes should be reported')
+end)
+
+harness.test('scanner caps directory traversal for an oversized resource', function()
+    local originalEntries = directories['@fixture_b/stream']
+    local oversizedEntries = {}
+    for index = 1, 4097 do oversizedEntries[index] = ('large_%d.ydr'):format(index) end
+    directories['@fixture_b/stream'] = oversizedEntries
+
+    local scanWarnings, currentPrint = {}, print
+    _G.print = function(message) scanWarnings[#scanWarnings + 1] = tostring(message) end
+    local records = scannerState.scanResource('fixture_b')
+    _G.print = currentPrint
+    directories['@fixture_b/stream'] = originalEntries
+
+    harness.assertEqual(#records, 4096)
+    local foundLimitWarning = false
+    for index = 1, #scanWarnings do
+        if scanWarnings[index]:find('4,096-entry lookup scan limit', 1, true) then
+            foundLimitWarning = true
+            break
+        end
+    end
+    harness.assertTrue(foundLimitWarning)
 end)
 
 harness.test('server batches remain below 24 KiB with payload headroom', function()

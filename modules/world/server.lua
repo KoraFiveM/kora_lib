@@ -8,10 +8,16 @@
 
 -- Plain { x, y, z } tables, not glm.vec3 -- see the identical note in
 -- modules/world/client.lua.
+local isFiniteNumber = QB.util.isFiniteNumber
+
 local function toVec3(v)
-    assert(type(v.x) == "number" and type(v.y) == "number" and type(v.z) == "number",
+    assert(v and isFiniteNumber(v.x) and isFiniteNumber(v.y) and isFiniteNumber(v.z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
     return { x = v.x, y = v.y, z = v.z }
+end
+
+local function assertRadius(radius)
+    assert(isFiniteNumber(radius) and radius > 0, "radius must be a positive finite number.")
 end
 
 local function distSq(a, b)
@@ -21,6 +27,7 @@ end
 
 local ENTITY_TYPES = { ped = true, vehicle = true, object = true, player = true }
 local ENTITY_TYPE_IDS = { ped = 1, vehicle = 2, object = 3 }
+local isInteger = QB.util.isInteger
 
 -- GetGamePool is client-only -- the server-side equivalents are one native
 -- per entity kind rather than a single pool-name-keyed native.
@@ -70,7 +77,37 @@ local function buildExcludeSet(entities)
     return set
 end
 
+local function assertQueryOptions(options)
+    assert(options == nil or type(options) == 'table', 'World query options must be a table.')
+    if not options then return end
+
+    assert(options.models == nil or type(options.models) == 'table', 'World query models must be an array.')
+    if options.models then
+        local count = 0
+        for index, model in pairs(options.models) do
+            assert(isInteger(index) and index >= 1 and (type(model) == 'string' or isInteger(model)),
+                'World query models must be a dense array of model names or hashes.')
+            count = count + 1
+        end
+        assert(count == #options.models, 'World query models must be a dense array.')
+    end
+    assert(options.excludeEntities == nil or type(options.excludeEntities) == 'table',
+        'World query excludeEntities must be an array.')
+    if options.excludeEntities then
+        local count = 0
+        for index, entity in pairs(options.excludeEntities) do
+            assert(isInteger(index) and index >= 1 and isInteger(entity) and entity > 0,
+                'World query excludeEntities must be a dense array of positive entity handles.')
+            count = count + 1
+        end
+        assert(count == #options.excludeEntities, 'World query excludeEntities must be a dense array.')
+    end
+    assert(options.predicate == nil or QB.compat.isCallable(options.predicate),
+        'World query predicate must be callable.')
+end
+
 local function visitCandidates(entityType, coords, radiusSq, options, visit)
+    assertQueryOptions(options)
     options = options or {}
 
     local modelSet = buildModelSet(options.models)
@@ -84,12 +121,14 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
             and not (excludeSet and excludeSet[entity])
             and not (modelSet and not modelSet[GetEntityModel(entity)])
         then
-            local entityCoords = toVec3(GetEntityCoords(entity))
+            local entityCoords = GetEntityCoords(entity)
             local dSq = distSq(origin, entityCoords)
 
             if dSq <= radiusSq then
                 local distance = options.predicate and math.sqrt(dSq) or nil
-                if not options.predicate or options.predicate(entity, entityCoords, distance) then
+                -- Predicates receive the documented plain coordinate table;
+                -- internal visitors copy only a returned candidate.
+                if not options.predicate or options.predicate(entity, toVec3(entityCoords), distance) then
                     local result = visit(entity, entityCoords, dSq, distance)
                     if result ~= nil then return result end
                 end
@@ -104,7 +143,7 @@ local function collectCandidates(entityType, coords, radiusSq, options)
     visitCandidates(entityType, coords, radiusSq, options, function(entity, entityCoords, dSq, distance)
         results[#results + 1] = {
             entity = entity,
-            coords = entityCoords,
+            coords = toVec3(entityCoords),
             distance = distance or math.sqrt(dSq),
         }
     end)
@@ -126,7 +165,7 @@ end
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
 function QB.world.getNearbyEntities(entityType, coords, radius, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
-    assert(type(radius) == "number" and radius > 0, "radius must be a positive number.")
+    assertRadius(radius)
 
     local matches = collectCandidates(entityType, coords, radius * radius, options)
     table.sort(matches, byDistance)
@@ -142,12 +181,15 @@ end
 ---@return number? distance Only present when an entity was found.
 function QB.world.getClosestEntity(entityType, coords, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
+    assertQueryOptions(options)
 
-    local radius = (options and options.radius) or Config.world.defaultRadius
+    local radius = options and options.radius
+    if radius == nil then radius = Config.world.defaultRadius end
+    assertRadius(radius)
     local closestEntity, closestCoords, closestDistanceSq
     visitCandidates(entityType, coords, radius * radius, options, function(entity, entityCoords, dSq)
         if not closestDistanceSq or dSq < closestDistanceSq then
-            closestEntity, closestCoords, closestDistanceSq = entity, entityCoords, dSq
+            closestEntity, closestCoords, closestDistanceSq = entity, toVec3(entityCoords), dSq
         end
     end)
 
@@ -161,7 +203,7 @@ end
 ---@param options? QBWorldQueryOptions
 ---@return boolean clear
 function QB.world.isSpawnClear(coords, radius, options)
-    assert(type(radius) == 'number' and radius > 0, 'radius must be a positive number.')
+    assertRadius(radius)
     local occupied = visitCandidates('vehicle', coords, radius * radius, options, function() return true end)
     return occupied ~= true
 end
@@ -181,9 +223,10 @@ end
 ---@return integer|nil entity
 ---@return string|nil reason
 function QB.world.resolveNetworkEntity(src, networkId, options)
+    assert(options == nil or type(options) == "table", "Network entity options must be a table.")
     options = options or {}
 
-    assert(type(src) == "number" and src > 0 and src % 1 == 0,
+    assert(isInteger(src) and src > 0,
         "QB.world.resolveNetworkEntity requires a player source.")
     assert(options.entityType == nil or ENTITY_TYPE_IDS[options.entityType],
         "entityType must be 'ped', 'vehicle', or 'object'.")
@@ -197,7 +240,7 @@ function QB.world.resolveNetworkEntity(src, networkId, options)
     assert(not options.requireDriver or options.entityType == "vehicle",
         "requireDriver requires entityType = 'vehicle'.")
 
-    if type(networkId) ~= "number" or networkId < 1 or networkId % 1 ~= 0 then
+    if not isInteger(networkId) or networkId < 1 then
         return nil, "invalid_network_id"
     end
 
@@ -240,7 +283,7 @@ end
 ---@return integer|nil targetPed
 ---@return number|string reasonOrDistance Distance on success; stable reason code on failure.
 function QB.world.resolveNearbyPlayer(src, targetSrc, options)
-    assert(type(src) == "number" and src > 0 and src % 1 == 0,
+    assert(isInteger(src) and src > 0,
         "QB.world.resolveNearbyPlayer requires a player source.")
     assert(type(options) == "table", "QB.world.resolveNearbyPlayer requires an options table.")
     assert(type(options.maxDistance) == "number" and options.maxDistance >= 0
@@ -251,7 +294,7 @@ function QB.world.resolveNearbyPlayer(src, targetSrc, options)
     assert(options.allowSelf == nil or type(options.allowSelf) == "boolean",
         "allowSelf must be a boolean.")
 
-    if type(targetSrc) ~= "number" or targetSrc < 1 or targetSrc % 1 ~= 0 then
+    if not isInteger(targetSrc) or targetSrc < 1 then
         return nil, "invalid_player"
     end
     if targetSrc == src and options.allowSelf ~= true then return nil, "self_not_allowed" end

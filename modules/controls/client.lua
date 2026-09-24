@@ -15,6 +15,7 @@ local controlCounts = {}
 local firingCount = 0
 local weaponWheelCount = 0
 local threadRunning = false
+local isInteger = QB.util.isInteger
 
 local releaseLease
 local leaseRegistry = QB.resources.registry(function(leaseId)
@@ -55,7 +56,7 @@ local function ensureThread()
 end
 
 local function assertInteger(value, message)
-    assert(type(value) == "number" and value % 1 == 0 and value >= 0, message)
+    assert(isInteger(value) and value >= 0, message)
 end
 
 ---@param leaseId integer
@@ -86,18 +87,12 @@ releaseLease = function(leaseId, alreadyUntracked)
     return true
 end
 
----Acquires a reference-counted lease that disables the supplied controls every
----frame until released. Overlapping leases are independent: releasing one does
----not re-enable a control that another active lease still owns.
----@param controlIds integer[]
----@param options? QBControlsOptions
----@return integer leaseId
-function QB.controls.acquire(controlIds, options)
-    options = options or {}
+local function acquire(controlIds, options, owner)
+    options = options == nil and {} or options
     assert(type(options) == "table", "Control lease options must be a table.")
     assert(type(controlIds) == "table", "Control lease IDs must be an array.")
 
-    local inputGroup = options.inputGroup or 0
+    local inputGroup = options.inputGroup == nil and 0 or options.inputGroup
     assertInteger(inputGroup, "Control lease inputGroup must be a non-negative integer.")
     assert(options.disablePlayerFiring == nil or type(options.disablePlayerFiring) == "boolean",
         "Control lease disablePlayerFiring must be a boolean.")
@@ -151,7 +146,7 @@ function QB.controls.acquire(controlIds, options)
     if disablePlayerFiring then firingCount = firingCount + 1 end
     if ignoreWeaponWheel then weaponWheelCount = weaponWheelCount + 1 end
 
-    leaseRegistry.track(GetInvokingResource() or GetCurrentResourceName(), leaseId)
+    leaseRegistry.track(owner or GetInvokingResource() or GetCurrentResourceName(), leaseId)
 
     -- Apply once before returning so callers can immediately use
     -- IsDisabledControlJustPressed/GetDisabledControlNormal in the same tick.
@@ -165,10 +160,44 @@ function QB.controls.acquire(controlIds, options)
     return leaseId
 end
 
----Releases a control lease. Safe to call repeatedly during idempotent cleanup.
+---Acquires a reference-counted lease that disables the supplied controls every
+---frame until released. Overlapping leases are independent: releasing one does
+---not re-enable a control that another active lease still owns.
+---@param controlIds integer[]
+---@param options? QBControlsOptions
+---@return integer leaseId
+function QB.controls.acquire(controlIds, options)
+    return acquire(controlIds, options)
+end
+
+---Internal captured-owner bridge for qblib's asynchronous UI flows. Kept in
+---QB.compat so it is never published as a consumer-facing export.
+---@param controlIds integer[]
+---@param options QBControlsOptions?
+---@param owner string
+---@return integer leaseId
+function QB.compat.acquireControls(controlIds, options, owner)
+    assert(type(owner) == 'string' and owner ~= '', 'Control lease owner must be a non-empty string.')
+    return acquire(controlIds, options, owner)
+end
+
+---Releases a control lease owned by the calling resource. Safe to call
+---repeatedly during idempotent cleanup.
 ---@param leaseId integer
 ---@return boolean released False when the lease was unknown or already released.
 function QB.controls.release(leaseId)
-    if type(leaseId) ~= "number" or leaseId % 1 ~= 0 then return false end
+    if not isInteger(leaseId) or leaseId < 1 then return false end
+    if leaseRegistry.owner(leaseId) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+        return false
+    end
+    return releaseLease(leaseId)
+end
+
+---@param leaseId integer
+---@param owner string
+---@return boolean released
+function QB.compat.releaseControlLease(leaseId, owner)
+    assert(type(owner) == 'string' and owner ~= '', 'Control lease owner must be a non-empty string.')
+    if not isInteger(leaseId) or leaseId < 1 or leaseRegistry.owner(leaseId) ~= owner then return false end
     return releaseLease(leaseId)
 end

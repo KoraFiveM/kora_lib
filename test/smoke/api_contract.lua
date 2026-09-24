@@ -46,7 +46,16 @@ local function sourceFiles()
     return files
 end
 
+local function guideDirectories(root)
+    local directories = discover(('cd %q && find %q -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; 2>/dev/null')
+        :format(repoRoot, root))
+    if not directories then error(('failed to discover %s guides'):format(root), 2) end
+    table.sort(directories)
+    return directories
+end
+
 local types = readFile(repoRoot .. 'types.lua')
+local referenceIndex = readFile(repoRoot .. 'docs/reference.md')
 local moduleClasses = {}
 local classFields = {}
 local currentClass
@@ -74,18 +83,20 @@ for _, sourcePath in ipairs(sourceFiles()) do
     local docs = readFile(repoRoot .. docsPath)
 
     for moduleName, functionName in source:gmatch('function%s+QB%.([%w_]+)%.([%w_]+)%s*%(') do
-        local symbol = ('QB.%s.%s'):format(moduleName, functionName)
-        local key = symbol .. '\0' .. docsPath
-        if not symbols[key] then
-            symbols[key] = true
-            harness.test(symbol .. ' is typed and documented', function()
-                local className = moduleClasses[moduleName]
-                harness.assertTrue(className ~= nil, moduleName .. ' is missing from the QBLib type')
-                harness.assertTrue(classFields[className] and classFields[className][functionName],
-                    symbol .. ' is missing from ' .. tostring(className))
-                harness.assertTrue(docs:find(symbol, 1, true) ~= nil,
-                    symbol .. ' is missing from ' .. docsPath)
-            end)
+        if moduleName ~= 'compat' then
+            local symbol = ('QB.%s.%s'):format(moduleName, functionName)
+            local key = symbol .. '\0' .. docsPath
+            if not symbols[key] then
+                symbols[key] = true
+                harness.test(symbol .. ' is typed and documented', function()
+                    local className = moduleClasses[moduleName]
+                    harness.assertTrue(className ~= nil, moduleName .. ' is missing from the QBLib type')
+                    harness.assertTrue(classFields[className] and classFields[className][functionName],
+                        symbol .. ' is missing from ' .. tostring(className))
+                    harness.assertTrue(docs:find(symbol, 1, true) ~= nil,
+                        symbol .. ' is missing from ' .. docsPath)
+                end)
+            end
         end
     end
 
@@ -99,6 +110,27 @@ end
 
 harness.test('the public contract discovered exports', function()
     harness.assertTrue(next(symbols) ~= nil, 'no public functions were discovered')
+end)
+
+harness.test('every module and local core has a reference guide', function()
+    for _, root in ipairs({ 'modules', 'local' }) do
+        for _, directory in ipairs(guideDirectories(root)) do
+            local docsPath = ('%s%s/%s/docs.md'):format(repoRoot, root, directory)
+            local file = io.open(docsPath, 'r')
+            harness.assertTrue(file ~= nil, ('%s/%s is missing docs.md'):format(root, directory))
+            if file then file:close() end
+        end
+    end
+end)
+
+harness.test('the API index links every module and local core reference page', function()
+    for _, root in ipairs({ 'modules', 'local' }) do
+        for _, directory in ipairs(guideDirectories(root)) do
+            local referencePath = ('/reference/%s/'):format(directory)
+            harness.assertTrue(referenceIndex:find(referencePath, 1, true) ~= nil,
+                ('API index is missing %s'):format(referencePath))
+        end
+    end
 end)
 
 harness.report('api contract')

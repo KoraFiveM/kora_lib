@@ -10,6 +10,16 @@
 ---@return any | false result The truthy value from `call`, or false on failure.
 ---@return string? error Reason the loop gave up.
 function QB.loops.controlled(call, tries, timeout, backoff)
+    assert(QB.compat.isCallable(call), 'Loop predicate must be callable.')
+    assert(tries == nil or tries == false or (type(tries) == 'number' and tries >= 1 and tries % 1 == 0
+        and tries == tries and tries ~= math.huge and tries ~= -math.huge),
+        'Loop tries must be a positive integer or false.')
+    assert(timeout == nil or timeout == false or (type(timeout) == 'number' and timeout >= 0 and timeout % 1 == 0
+        and timeout == timeout and timeout ~= math.huge and timeout ~= -math.huge),
+        'Loop timeout must be a non-negative integer or false.')
+    assert(backoff == nil or type(backoff) == 'boolean' or (type(backoff) == 'number' and backoff >= 0
+        and backoff % 1 == 0 and backoff == backoff and backoff ~= math.huge and backoff ~= -math.huge),
+        'Loop backoff must be a non-negative integer, boolean, or nil.')
 
     if timeout ~= false then
         timeout = timeout or 10000
@@ -21,8 +31,6 @@ function QB.loops.controlled(call, tries, timeout, backoff)
 
     local isExponential = backoff == true
     local fixedInterval = type(backoff) == "number" and backoff or nil
-
-    assert(fixedInterval == nil or fixedInterval >= 0, "A fixed backoff interval must not be negative.")
 
     local timer = GetGameTimer()
 
@@ -39,7 +47,7 @@ function QB.loops.controlled(call, tries, timeout, backoff)
 
         if timeout then
             local currentTime = GetGameTimer()
-            if (currentTime - timer) > timeout then
+            if (currentTime - timer) >= timeout then
                 return false, "Loop timed out."
             end
         end

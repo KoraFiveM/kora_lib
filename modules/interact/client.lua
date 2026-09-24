@@ -5,9 +5,10 @@
 ---@field args? any[]
 ---@field type? "client"|"server"
 ---@field canInteract? fun(): boolean
----@field job? string|string[]
----@field gang? string|string[]
----@field item? string
+---@field job? string|string[]|table<string, integer>
+---@field gang? string|string[]|table<string, integer>
+---@field citizenid? string|string[]|table<string, boolean>
+---@field item? string|string[]
 ---@field icon? string UI consumers may use this; qblib's compact selector currently renders labels only.
 
 local active
@@ -35,7 +36,7 @@ local function isEnabled()
     return Config.ui and Config.ui.interact == true
 end
 
-local function matchesRestriction(actual, required)
+local function matchesRestriction(actual, grade, required)
     if required == nil then return true end
     if type(required) == "string" then return actual == required end
     if type(required) ~= "table" then return false end
@@ -45,7 +46,16 @@ local function matchesRestriction(actual, required)
         if actual == value then return true end
     end
 
-    return false
+    if actual == nil then return false end
+    local minimum = required[actual]
+    if type(minimum) == 'boolean' then return minimum end
+    return type(minimum) == 'number' and type(grade) == 'number' and grade >= minimum
+end
+
+local function groupGrade(group)
+    local grade = type(group) == 'table' and group.grade or nil
+    if type(grade) == 'table' then grade = grade.level end
+    return QB.util.isFiniteNumber(grade) and grade or nil
 end
 
 local function playerData()
@@ -64,7 +74,7 @@ local function hasItem(item)
     return ok and result == true
 end
 
-local function isAvailable(option, data, ...)
+local function isAvailable(option, data, itemAvailability, ...)
     if type(option) ~= "table" or type(option.label) ~= "string" or #option.label == 0 then return false end
 
     if option.canInteract then
@@ -73,10 +83,17 @@ local function isAvailable(option, data, ...)
         if not ok or allowed ~= true then return false end
     end
 
-    if option.job and (not data or not matchesRestriction(data.job and data.job.name, option.job)) then return false end
-    if option.gang and (not data or not matchesRestriction(data.gang and data.gang.name, option.gang)) then return false end
-    if option.citizenid and (not data or not matchesRestriction(data.citizenid, option.citizenid)) then return false end
-    if option.item and not hasItem(option.item) then return false end
+    if option.job and (not data or not matchesRestriction(data.job and data.job.name, groupGrade(data.job), option.job)) then return false end
+    if option.gang and (not data or not matchesRestriction(data.gang and data.gang.name, groupGrade(data.gang), option.gang)) then return false end
+    if option.citizenid and (not data or not matchesRestriction(data.citizenid, nil, option.citizenid)) then return false end
+    if option.item then
+        local allowed = itemAvailability and itemAvailability[option.item]
+        if allowed == nil then
+            allowed = hasItem(option.item)
+            if itemAvailability then itemAvailability[option.item] = allowed end
+        end
+        if not allowed then return false end
+    end
 
     return true
 end
@@ -94,11 +111,12 @@ local function visibleOptions(options)
     end
 
     local data = needsPlayerData and playerData() or nil
+    local itemAvailability = {}
     local visible = {}
 
     for optionIndex = 1, #options do
         local option = options[optionIndex]
-        if isAvailable(option, data) then
+        if isAvailable(option, data, itemAvailability) then
             -- Keep the original option for selection, but construct a compact
             -- NUI payload so no action/event data leaks into the browser.
             visible[#visible + 1] = option
@@ -112,9 +130,9 @@ local function hide(session)
     if session and active ~= session then return false end
     if not active then return false end
 
-    local controlLease = active.controlLease
+    local controlLease, owner = active.controlLease, active.owner
     active = nil
-    if controlLease then QB.controls.release(controlLease) end
+    if controlLease then QB.compat.releaseControlLease(controlLease, owner) end
     QB.nui.send("hideInteract")
     return true
 end
@@ -255,7 +273,7 @@ local function open(options, source, owner)
         options = available,
         source = source,
         owner = owner or GetCurrentResourceName(),
-        controlLease = QB.controls.acquire(interactionControls()),
+        controlLease = QB.compat.acquireControls(interactionControls(), nil, owner or GetCurrentResourceName()),
     }
     active = session
 
@@ -306,26 +324,52 @@ function QB.interact.isActive()
     return active ~= nil
 end
 
+local function assertCoords(coords, label)
+    assert((type(coords) == 'table' or type(coords) == 'vector3')
+        and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+        ('%s must have finite x, y, and z coordinates.'):format(label))
+end
+
+local function assertBoxSize(size, label)
+    assert(type(size) == 'table' and QB.util.isFiniteNumber(size.x) and QB.util.isFiniteNumber(size.y)
+        and QB.util.isFiniteNumber(size.z) and size.x > 0 and size.y > 0 and size.z > 0,
+        ('%s must have positive finite x, y, and z dimensions.'):format(label))
+    assert(size.w == nil or QB.util.isFiniteNumber(size.w), ('%s rotation must be finite.'):format(label))
+end
+
+local function zoneOptionList(targetOptions)
+    assert(type(targetOptions) == "table", "interact target options require an options array.")
+    local options = targetOptions.options
+    if options == nil then options = targetOptions end
+    assert(type(options) == "table" and #options > 0,
+        "interact target options require a non-empty options array.")
+    return options
+end
+
 ---Adds a qblib sphere zone using qb-target-compatible option arguments.
 ---@param name string
 ---@param coords any
 ---@param radius number
 ---@param debug boolean
----@param targetOptions table `{ options: QBInteractOption[] }`
+---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@return QBZoneHandle? zone
 function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
-    assert(type(targetOptions) == "table",
-        "interact target options require an options array.")
-
-    if zonesByName[name] then removeNamedZone(name) end
+    local options = zoneOptionList(targetOptions)
+    assertCoords(coords, 'interact circle coordinates')
+    if radius == nil then radius = 5.0 end
+    assert(QB.util.isFiniteNumber(radius) and radius > 0, 'interact circle radius must be positive and finite.')
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
-    local function enter() open(targetOptions, name, owner) end
+    if zonesByName[name] then
+        if zoneOwners[name] ~= owner then return nil end
+        removeNamedZone(name)
+    end
+    local function enter() open(options, name, owner) end
     local zone = QB.zones.sphere({
         coords = coords,
-        radius = radius or 5.0,
+        radius = radius,
         debug = debug,
         onEnter = enter,
         onExit = function()
@@ -343,22 +387,22 @@ end
 ---@param name string
 ---@param coords any
 ---@param size vector4
----@param targetOptions table `{ options: QBInteractOption[] }`
+---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle? zone
 function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
-    assert(type(coords) == "table" or type(coords) == "vector3", "interact box coordinates must be vector-like.")
-    assert(type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
-        "interact box coordinates must be vector-like.")
-    assert(type(targetOptions) == "table",
-        "interact target options require an options array.")
-
-    if zonesByName[name] then removeNamedZone(name) end
+    local options = zoneOptionList(targetOptions)
+    assertCoords(coords, 'interact box coordinates')
+    assertBoxSize(size, 'interact box size')
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
-    local function enter() open(targetOptions, name, owner) end
+    if zonesByName[name] then
+        if zoneOwners[name] ~= owner then return nil end
+        removeNamedZone(name)
+    end
+    local function enter() open(options, name, owner) end
     local zone = QB.zones.box({
         coords = { x = coords.x, y = coords.y, z = coords.z },
         size = { x = size.x, y = size.y, z = size.z },
@@ -380,6 +424,7 @@ end
 ---@param name string
 ---@return boolean removed
 function QB.interact.removeZone(name)
+    if zoneOwners[name] ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     return removeNamedZone(name)
 end
 
@@ -388,7 +433,7 @@ end
 ---the entity exists for a one-off target.
 ---@param models string|number|(string|number)[]
 ---@param size table `{ x: number, y: number, z: number, w: number }`
----@param targetOptions table 
+---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle[] zones
 function QB.interact.addTargetModel(models, size, targetOptions, debug)
@@ -423,7 +468,7 @@ end
 ---Adds a static box zone at an entity's current position.
 ---@param entity number
 ---@param size table `{ x: number, y: number, z: number, w: number }`
----@param targetOptions table `{ options: QBInteractOption[], size?: any, debugPoly?: boolean }`
+---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle? zone
 function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
@@ -441,16 +486,23 @@ end
 -- Registers an aim-targeted entity through qbtarget, while keeping qblib's
 -- option vocabulary (`action`/`event`) and resource-stop ownership at this
 -- public boundary. Unlike addTargetEntity this follows a moving entity.
+local function assertTargetDistance(distance)
+    assert(distance == nil or (QB.util.isFiniteNumber(distance) and distance > 0),
+        'interact target distance must be a positive finite number.')
+end
+
 ---@param entity number|number[]
 ---@param options QBInteractOption[]
 ---@param distance? number
 ---@return integer id
 function QB.interact.addEntity(entity, options, distance)
     assert(type(options) == 'table' and #options > 0, 'interact entity options must be a non-empty array.')
+    assertTargetDistance(distance)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local translated = {}
     for i = 1, #options do
         local option = options[i]
+        assertTargetDistance(option.distance)
         translated[i] = {
             label = option.label,
             icon = option.icon,
@@ -458,7 +510,7 @@ function QB.interact.addEntity(entity, options, distance)
             bones = option.bones,
             data = option.data,
             canInteract = function(target, targetDistance, data)
-                return isAvailable(option, playerData(), target, targetDistance, data)
+                return isAvailable(option, playerData(), nil, target, targetDistance, data)
             end,
             onSelect = function() dispatch(option) end,
         }
@@ -476,25 +528,27 @@ end
 ---@param id? integer
 ---@return boolean
 function QB.interact.removeEntity(entity, id)
-    local removed = exports.qbtarget:removeEntity(entity, id)
-    if removed ~= true then return false end
-
     if id then
         local handle = targetHandles.entity[id]
-        if handle then
-            targetHandles.entity[id] = nil
-            targetRegistry.untrack(handle)
+        if not handle or targetRegistry.owner(handle) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+            return false
         end
-    else
-        for targetId, handle in pairs(targetHandles.entity) do
-            if handle.value == entity then
-                targetHandles.entity[targetId] = nil
-                targetRegistry.untrack(handle)
-            end
-        end
+        if exports.qbtarget:removeEntity(handle.value, id) ~= true then return false end
+        targetHandles.entity[id] = nil
+        targetRegistry.untrack(handle)
+        return true
     end
 
-    return true
+    local removed = false
+    for targetId, handle in pairs(targetHandles.entity) do
+        if handle.value == entity and targetRegistry.owner(handle) == (GetInvokingResource() or GetCurrentResourceName())
+            and exports.qbtarget:removeEntity(handle.value, targetId) == true then
+            targetHandles.entity[targetId] = nil
+            targetRegistry.untrack(handle)
+            removed = true
+        end
+    end
+    return removed
 end
 
 ---@param model string|number|(string|number)[]
@@ -503,17 +557,19 @@ end
 ---@return integer id
 function QB.interact.addModel(model, options, distance)
     assert(type(options) == 'table' and #options > 0, 'interact model options must be a non-empty array.')
+    assertTargetDistance(distance)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local translated = {}
     for i = 1, #options do
         local option = options[i]
+        assertTargetDistance(option.distance)
         translated[i] = {
             label = option.label,
             icon = option.icon,
             distance = option.distance,
             bones = option.bones,
             canInteract = function(target, targetDistance, data)
-                return isAvailable(option, playerData(), target, targetDistance, data)
+                return isAvailable(option, playerData(), nil, target, targetDistance, data)
             end,
             onSelect = function() dispatch(option) end,
         }
@@ -529,25 +585,27 @@ end
 ---@param id? integer
 ---@return boolean
 function QB.interact.removeModel(model, id)
-    local removed = exports.qbtarget:removeModel(model, id)
-    if removed ~= true then return false end
-
     if id then
         local handle = targetHandles.model[id]
-        if handle then
-            targetHandles.model[id] = nil
-            targetRegistry.untrack(handle)
+        if not handle or targetRegistry.owner(handle) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+            return false
         end
-    else
-        for targetId, handle in pairs(targetHandles.model) do
-            if handle.value == model then
-                targetHandles.model[targetId] = nil
-                targetRegistry.untrack(handle)
-            end
-        end
+        if exports.qbtarget:removeModel(handle.value, id) ~= true then return false end
+        targetHandles.model[id] = nil
+        targetRegistry.untrack(handle)
+        return true
     end
 
-    return true
+    local removed = false
+    for targetId, handle in pairs(targetHandles.model) do
+        if handle.value == model and targetRegistry.owner(handle) == (GetInvokingResource() or GetCurrentResourceName())
+            and exports.qbtarget:removeModel(handle.value, targetId) == true then
+            targetHandles.model[targetId] = nil
+            targetRegistry.untrack(handle)
+            removed = true
+        end
+    end
+    return removed
 end
 
 AddEventHandler("onClientResourceStop", function(resourceName)

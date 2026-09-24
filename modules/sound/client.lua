@@ -60,6 +60,14 @@ local function assertSound(name, set)
     assert(type(set) == "string" and set ~= "", "QB.sound requires a non-empty sound set/ref.")
 end
 
+---@param options any
+local function assertOptions(options)
+    assert(type(options) == "table", "Sound options must be a table.")
+    assert(options.network == nil or type(options.network) == "boolean", "Sound network must be a boolean.")
+    assert(options.bank == nil or (type(options.bank) == "string" and options.bank ~= ""),
+        "Sound bank must be a non-empty string.")
+end
+
 ---Claims a sound id, registers it against the caller, and arms its
 ---auto-release. Returns the id so each play* function only has to fire its
 ---own native.
@@ -68,6 +76,11 @@ end
 ---@return number|false soundId
 ---@return string? error
 local function claim(owner, options)
+    local releaseAfter = options.releaseAfter
+    if releaseAfter == nil then releaseAfter = Config.sound.defaultReleaseAfter end
+    assert(QB.util.isFiniteNumber(releaseAfter) and releaseAfter >= 0,
+        'Sound releaseAfter must be a finite non-negative number.')
+
     if options.bank then
         -- QB.stream.loadAudioBank yields until the bank is resident. Playing
         -- before it loads is a silent no-op, not an error, which is the other
@@ -92,8 +105,7 @@ local function claim(owner, options)
     live[soundId] = { generation = generation, bank = options.bank }
     soundRegistry.track(owner, soundId)
 
-    local releaseAfter = options.releaseAfter or Config.sound.defaultReleaseAfter
-    if releaseAfter and releaseAfter > 0 then
+    if releaseAfter > 0 then
         QB.timers.setTimeout(function()
             local current = live[soundId]
             if current and current.generation == generation then QB.sound.stop(soundId) end
@@ -112,13 +124,14 @@ end
 ---@return string? error
 function QB.sound.playFrontend(name, set, options)
     local owner = GetInvokingResource() or GetCurrentResourceName()
-    options = options or {}
+    if options == nil then options = {} end
     assertSound(name, set)
+    assertOptions(options)
 
     local soundId, err = claim(owner, options)
     if not soundId then return false, err end
 
-    PlaySoundFrontend(soundId, name, set, options.network or false)
+    PlaySoundFrontend(soundId, name, set, options.network == true)
 
     return soundId
 end
@@ -132,16 +145,21 @@ end
 ---@return string? error
 function QB.sound.playFromCoords(coords, name, set, options)
     local owner = GetInvokingResource() or GetCurrentResourceName()
-    options = options or {}
+    if options == nil then options = {} end
     assertSound(name, set)
-    assert(coords and type(coords.x) == "number" and type(coords.y) == "number" and type(coords.z) == "number",
+    assertOptions(options)
+    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3 or {x, y, z} table.")
+    local range = options.range
+    if range == nil then range = Config.sound.defaultRange end
+    assert(QB.util.isFiniteNumber(range) and range >= 0,
+        'Sound range must be a finite non-negative number.')
 
     local soundId, err = claim(owner, options)
     if not soundId then return false, err end
 
     PlaySoundFromCoord(soundId, name, coords.x + 0.0, coords.y + 0.0, coords.z + 0.0, set,
-        options.network or false, math.floor(options.range or Config.sound.defaultRange), false)
+        options.network == true, math.floor(range), false)
 
     return soundId
 end
@@ -155,14 +173,15 @@ end
 ---@return string? error
 function QB.sound.playFromEntity(entity, name, set, options)
     local owner = GetInvokingResource() or GetCurrentResourceName()
-    options = options or {}
+    if options == nil then options = {} end
     assertSound(name, set)
-    assert(type(entity) == "number" and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
+    assertOptions(options)
+    assert(QB.util.isInteger(entity) and entity ~= 0 and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
 
     local soundId, err = claim(owner, options)
     if not soundId then return false, err end
 
-    PlaySoundFromEntity(soundId, name, entity, set, options.network or false, 0)
+    PlaySoundFromEntity(soundId, name, entity, set, options.network == true, 0)
 
     return soundId
 end
@@ -175,8 +194,13 @@ end
 ---@return boolean success
 ---@return string? error
 function QB.sound.stop(soundId)
-    if type(soundId) ~= "number" or not live[soundId] then
+    if not QB.util.isInteger(soundId) or not live[soundId] then
         return false, "Sound id is not tracked by QB.sound."
+    end
+
+    local caller = GetInvokingResource()
+    if caller and soundRegistry.owner(soundId) ~= caller then
+        return false, "Sound id is owned by another resource."
     end
 
     soundRegistry.untrack(soundId)
@@ -189,5 +213,5 @@ end
 ---@param soundId number
 ---@return boolean
 function QB.sound.isLive(soundId)
-    return live[soundId] ~= nil
+    return QB.util.isInteger(soundId) and live[soundId] ~= nil
 end

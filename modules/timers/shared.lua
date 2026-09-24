@@ -65,9 +65,21 @@ local isCallable = QB.compat.isCallable
 ---@param label string
 ---@return integer
 local function assertInterval(interval, label)
-    assert(type(interval) == "number" and interval >= 0 and interval == interval,
-        ("%s requires a non-negative millisecond interval."):format(label))
-    return math.floor(interval)
+    assert(QB.util.isInteger(interval) and interval >= 0,
+        ("%s requires a non-negative integer millisecond interval."):format(label))
+    return interval
+end
+
+local function assertCooldownKey(key)
+    local keyType = type(key)
+    if keyType == 'number' then
+        assert(QB.util.isFiniteNumber(key), 'QB.timers cooldown keys must be finite scalars.')
+    elseif keyType == 'string' then
+        assert(#key <= 256, 'QB.timers cooldown string keys must be at most 256 bytes.')
+    else
+        assert(keyType == 'boolean', 'QB.timers cooldown keys must be finite scalars.')
+    end
+    return key
 end
 
 ---@return integer
@@ -162,19 +174,26 @@ function QB.timers.setTimeout(fn, delay)
     return scheduleTimeout(owner, fn, assertInterval(delay, "QB.timers.setTimeout"))
 end
 
+local function clearTimer(id, owner)
+    if not QB.util.isInteger(id) then return false end
+    local record = QB.timers._records[id]
+    if not record then return false end
+
+    local caller = owner or GetInvokingResource()
+    if caller and registry().owner(id) ~= caller then return false end
+
+    record.cancelled = true
+    QB.timers._records[id] = nil
+    registry().untrack(id)
+    return true
+end
+
 ---Cancels a timer created by setInterval or setTimeout. Returns false for an
 ---id that was never live, already cancelled, or already fired.
 ---@param id integer
 ---@return boolean cancelled
 function QB.timers.clearInterval(id)
-    local record = QB.timers._records[id]
-    if not record then return false end
-
-    record.cancelled = true
-    QB.timers._records[id] = nil
-    registry().untrack(id)
-
-    return true
+    return clearTimer(id)
 end
 
 ---Alias of clearInterval -- both timer kinds share one id space, but calling
@@ -212,7 +231,7 @@ function QB.timers.debounce(fn, wait)
     ---@return boolean cancelled
     function debounced.cancel()
         if not pendingId then return false end
-        QB.timers.clearInterval(pendingId)
+        clearTimer(pendingId, owner)
         pendingId = nil
         pendingArgs = nil
         return true
@@ -235,7 +254,7 @@ function QB.timers.debounce(fn, wait)
     function debounced.run(...)
         pendingArgs = table.pack(...)
 
-        if pendingId then QB.timers.clearInterval(pendingId) end
+        if pendingId then clearTimer(pendingId, owner) end
 
         pendingId = scheduleTimeout(owner, function()
             pendingId = nil
@@ -321,7 +340,7 @@ function QB.timers.cooldown(interval)
     local cooldown = {}
 
     function cooldown.use(key)
-        assert(key ~= nil, 'QB.timers cooldown use requires a key.')
+        key = assertCooldownKey(key)
         local now = GetGameTimer()
         local previous = usedAt[key]
         if previous and now - previous < interval then return false end
@@ -330,7 +349,7 @@ function QB.timers.cooldown(interval)
     end
 
     function cooldown.remaining(key)
-        assert(key ~= nil, 'QB.timers cooldown remaining requires a key.')
+        key = assertCooldownKey(key)
         local previous = usedAt[key]
         if not previous then return 0 end
         return math.max(0, interval - (GetGameTimer() - previous))
@@ -341,6 +360,7 @@ function QB.timers.cooldown(interval)
             usedAt = {}
             return
         end
+        key = assertCooldownKey(key)
         usedAt[key] = nil
     end
 

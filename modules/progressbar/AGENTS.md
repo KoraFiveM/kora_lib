@@ -5,7 +5,7 @@ Runs a timed, cancellable "the player is busy doing X" bar: shows a fill bar in 
 
 ## Public API
 - `QB.progressbar.start(payload)` — see `docs.md` for the full payload shape. Returns `completed, error` (`error` set only for the reject-immediately "already active" case, never for a normal cancellation).
-- `QB.progressbar.cancel()` — flags the active bar to stop on its next tick. Returns whether anything was actually running.
+- `QB.progressbar.cancel()` — flags the caller's active bar to stop on its next tick. Returns whether that caller owns a running bar.
 - `QB.progressbar.isActive()` — whether a bar started by this module is currently running.
 
 ## Implementation notes

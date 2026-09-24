@@ -13,7 +13,7 @@ return function(currentResource)
             error(('resource must be a non-empty string (received %s)'):format(type(resource)), 3)
         end
 
-        if resource:sub(1, 1) == '@' or resource:find('[%c/\\]') then
+        if resource == '.' or resource == '..' or resource:find('[@%c/\\]') then
             error(("invalid resource name '%s'"):format(resource), 3)
         end
     end

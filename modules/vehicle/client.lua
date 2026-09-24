@@ -19,8 +19,18 @@ local MOD_FIELDS = {
     modKit49 = 49,
 }
 
+local SCALAR_NUMBER_FIELDS = {
+    'plateIndex', 'bodyHealth', 'engineHealth', 'tankHealth', 'fuelLevel', 'dirtLevel', 'oilLevel',
+    'pearlescentColor', 'dashboardColor', 'wheelColor', 'interiorColor', 'wheels', 'wheelSize', 'wheelWidth', 'windowTint',
+    'modFrontWheels', 'modBackWheels', 'modLivery', 'liveryRoof',
+}
+for field in pairs(MOD_FIELDS) do SCALAR_NUMBER_FIELDS[#SCALAR_NUMBER_FIELDS + 1] = field end
+
+local isFiniteNumber = QB.util.isFiniteNumber
+local isInteger = QB.util.isInteger
+
 local function validVehicle(vehicle)
-    return type(vehicle) == 'number' and vehicle ~= 0
+    return isInteger(vehicle) and vehicle > 0
         and DoesEntityExist(vehicle) and IsEntityAVehicle(vehicle)
 end
 
@@ -51,6 +61,73 @@ local function boolResult(value)
     return value == true or value == 1
 end
 
+local function assertFiniteColor(color, label)
+    local red, green, blue = colorComponents(color)
+    assert(isFiniteNumber(red) and isFiniteNumber(green) and isFiniteNumber(blue),
+        ('Vehicle %s must have finite red, green, and blue values.'):format(label))
+end
+
+local function assertIndexedProperties(values, label, maximum)
+    assert(type(values) == 'table', ('Vehicle %s must be a table.'):format(label))
+    for key in pairs(values) do
+        local index = tonumber(key)
+        assert(isInteger(index) and index >= 0 and index <= maximum,
+            ('Vehicle %s keys must be integer indices from 0 to %d.'):format(label, maximum))
+    end
+end
+
+local function assertBooleanIndexedProperties(values, label, maximum)
+    assertIndexedProperties(values, label, maximum)
+    for _, value in pairs(values) do
+        assert(type(value) == 'boolean', ('Vehicle %s values must be booleans.'):format(label))
+    end
+end
+
+local function assertProperties(props)
+    for index = 1, #SCALAR_NUMBER_FIELDS do
+        local field = SCALAR_NUMBER_FIELDS[index]
+        assert(props[field] == nil or isFiniteNumber(props[field]),
+            ('Vehicle %s must be a finite number.'):format(field))
+    end
+    assert(props.plate == nil or type(props.plate) == 'string', 'Vehicle plate must be a string.')
+
+    for _, field in ipairs({ 'color1', 'color2', 'xenonColor' }) do
+        local value = props[field]
+        if type(value) == 'table' then
+            assertFiniteColor(value, field)
+        elseif value ~= nil then
+            assert(isFiniteNumber(value), ('Vehicle %s must be a finite number or RGB table.'):format(field))
+        end
+    end
+    for _, field in ipairs({ 'neonColor', 'tyreSmokeColor' }) do
+        if props[field] ~= nil then
+            assert(type(props[field]) == 'table', ('Vehicle %s must be an RGB table.'):format(field))
+            assertFiniteColor(props[field], field)
+        end
+    end
+    if props.tireHealth ~= nil then
+        assertIndexedProperties(props.tireHealth, 'tire health', 5)
+        for _, health in pairs(props.tireHealth) do
+            assert(isFiniteNumber(health), 'Vehicle tire health values must be finite numbers.')
+        end
+    end
+    if props.extras ~= nil then assertBooleanIndexedProperties(props.extras, 'extras', 20) end
+    if props.tireBurstState ~= nil then assertBooleanIndexedProperties(props.tireBurstState, 'tire burst state', 5) end
+    if props.tireBurstCompletely ~= nil then assertBooleanIndexedProperties(props.tireBurstCompletely, 'complete tire burst state', 5) end
+    if props.windowStatus ~= nil then assertBooleanIndexedProperties(props.windowStatus, 'window status', 7) end
+    if props.doorStatus ~= nil then assertBooleanIndexedProperties(props.doorStatus, 'door status', 5) end
+    if props.neonEnabled ~= nil then
+        assertBooleanIndexedProperties(props.neonEnabled, 'neon enabled', 4)
+        for key in pairs(props.neonEnabled) do
+            assert(tonumber(key) >= 1, 'Vehicle neon enabled indices must be from 1 to 4.')
+        end
+    end
+    for _, field in ipairs({ 'modTurbo', 'modSmokeEnabled', 'modXenon', 'modCustomTiresF', 'modCustomTiresR' }) do
+        assert(props[field] == nil or type(props[field]) == 'boolean',
+            ('Vehicle %s must be a boolean.'):format(field))
+    end
+end
+
 ---Requests control of a networked entity before mutating it.
 ---@param entity number
 ---@param timeout? integer
@@ -67,7 +144,8 @@ end
 ---@return boolean deleted
 ---@return string? error
 function QB.vehicle.delete(vehicle, options)
-    assert(type(vehicle) == 'number' and vehicle ~= 0, 'QB.vehicle.delete requires a vehicle.')
+    assert(isInteger(vehicle) and vehicle > 0, 'QB.vehicle.delete requires a positive integer vehicle handle.')
+    assert(options == nil or type(options) == 'table', 'QB.vehicle.delete options must be a table.')
     options = options or {}
     if not DoesEntityExist(vehicle) then return false, 'Vehicle does not exist.' end
     if not IsEntityAVehicle(vehicle) then return false, 'Entity is not a vehicle.' end
@@ -212,8 +290,9 @@ end
 function QB.vehicle.setProperties(vehicle, props, opts)
     if not validVehicle(vehicle) then return false, 'Entity is not a vehicle.' end
     assert(type(props) == 'table', 'Vehicle properties must be a table.')
+    assert(opts == nil or type(opts) == 'table', 'Vehicle property options must be a table.')
     opts = opts or {}
-    assert(type(opts) == 'table', 'Vehicle property options must be a table.')
+    assertProperties(props)
 
     local controlled, err = QB.vehicle.requestControl(vehicle, opts.timeout)
     if not controlled then return false, err or 'Could not acquire vehicle control.' end
@@ -296,7 +375,7 @@ function QB.vehicle.setProperties(vehicle, props, opts)
     end
     if props.neonEnabled ~= nil then
         for id = 0, 3 do
-            local enabled = props.neonEnabled[id + 1]
+            local enabled = indexed(props.neonEnabled, id + 1)
             if enabled ~= nil then SetVehicleNeonLightEnabled(vehicle, id, enabled) end
         end
     end

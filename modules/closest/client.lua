@@ -14,7 +14,17 @@ local function pedToPlayerId(ped)
 end
 
 local function resolveCoords(coords)
-    return coords or QB.cache.get('coords')
+    if coords == nil then coords = QB.cache.get('coords') end
+    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y)
+        and QB.util.isFiniteNumber(coords.z), 'Closest-search coordinates must be a finite vector3.')
+    return coords
+end
+
+local function resolveDistance(distance)
+    if distance == nil then return 15.0 end
+    assert(QB.util.isFiniteNumber(distance) and distance > 0,
+        'Closest-search distance must be a positive finite number.')
+    return distance
 end
 
 ---@param coords vector3
@@ -22,11 +32,12 @@ end
 ---@return {id: number?, distance: number?}
 function QB.closest.player(coords, distance)
     local ped, _, dist = QB.world.getClosestEntity('player', resolveCoords(coords), {
-        radius = distance or 15.0,
-        excludeEntities = { PlayerPedId() },
+        radius = resolveDistance(distance),
     })
     if not ped then return { id = nil, distance = nil } end
-    return { id = pedToPlayerId(ped), distance = dist }
+    local playerId = pedToPlayerId(ped)
+    if not playerId then return { id = nil, distance = nil } end
+    return { id = playerId, distance = dist }
 end
 
 ---@param coords vector3
@@ -34,7 +45,7 @@ end
 ---@return {id: number?, distance: number?}
 function QB.closest.vehicle(coords, distance)
     local entity, _, dist = QB.world.getClosestEntity('vehicle', resolveCoords(coords), {
-        radius = distance or 15.0,
+        radius = resolveDistance(distance),
     })
     return { id = entity or nil, distance = dist }
 end
@@ -44,8 +55,7 @@ end
 ---@return {id: number?, distance: number?}
 function QB.closest.ped(coords, distance)
     local entity, _, dist = QB.world.getClosestEntity('ped', resolveCoords(coords), {
-        radius = distance or 15.0,
-        excludeEntities = { PlayerPedId() },
+        radius = resolveDistance(distance),
     })
     return { id = entity or nil, distance = dist }
 end
@@ -55,7 +65,7 @@ end
 ---@return {id: number?, distance: number?}
 function QB.closest.object(coords, distance)
     local entity, _, dist = QB.world.getClosestEntity('object', resolveCoords(coords), {
-        radius = distance or 15.0,
+        radius = resolveDistance(distance),
     })
     return { id = entity or nil, distance = dist }
 end

@@ -7,6 +7,24 @@ local function isStarted()
     return type(GetResourceState) == 'function' and GetResourceState(RESOURCE) == 'started'
 end
 
+local function assertSource(src)
+    assert(QB.util.isInteger(src) and src > 0, 'src must be a positive integer player ID.')
+end
+
+local function assertSkill(skill)
+    assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
+end
+
+local function assertLocation(location, distance)
+    if location ~= nil then
+        assert(location and QB.util.isFiniteNumber(location.x)
+            and QB.util.isFiniteNumber(location.y) and QB.util.isFiniteNumber(location.z),
+            'location must have finite x, y, and z values.')
+    end
+    assert(distance == nil or (QB.util.isFiniteNumber(distance) and distance > 0),
+        'distance must be a positive finite number.')
+end
+
 ---@return boolean
 function QB.skills.isAvailable()
     return isStarted()
@@ -16,6 +34,8 @@ end
 ---@param skill? string
 ---@return table|nil
 function QB.skills.get(src, skill)
+    assertSource(src)
+    if skill ~= nil then assertSkill(skill) end
     if not isStarted() then return nil end
     return exports[RESOURCE]:getRep(src, skill)
 end
@@ -23,6 +43,7 @@ end
 ---@param src integer
 ---@return table|nil
 function QB.skills.getAll(src)
+    assertSource(src)
     if not isStarted() then return nil end
     return exports[RESOURCE]:getAllRep(src)
 end
@@ -32,6 +53,9 @@ end
 ---@param level integer
 ---@return boolean
 function QB.skills.hasLevel(src, skill, level)
+    assertSource(src)
+    assertSkill(skill)
+    assert(QB.util.isInteger(level) and level > 0, 'level must be a positive integer.')
     if not isStarted() then return false end
     return exports[RESOURCE]:isLevel(src, skill, level) == true
 end
@@ -43,6 +67,10 @@ end
 ---@param distance? number
 ---@return boolean, string|nil
 function QB.skills.add(src, skill, amount, location, distance)
+    assertSource(src)
+    assertSkill(skill)
+    assert(QB.util.isInteger(amount) and amount > 0, 'amount must be a positive integer.')
+    assertLocation(location, distance)
     if not isStarted() then return false, 'qbskills is not started' end
     return exports[RESOURCE]:addRep(src, skill, amount, location, distance)
 end
@@ -53,6 +81,9 @@ end
 ---@param resolvedOptions table
 ---@return table, table|nil
 function QB.skills.adjustMinigame(src, skill, gameType, resolvedOptions)
+    assertSource(src)
+    assertSkill(skill)
+    assert(type(gameType) == 'string' and gameType ~= '', 'gameType must be a non-empty string.')
     assert(type(resolvedOptions) == 'table', 'resolvedOptions must be a table.')
     if not isStarted() then return resolvedOptions, nil end
 

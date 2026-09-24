@@ -19,20 +19,38 @@ string is parsed only as declarations for the prompt's inline style; it cannot
 install selectors or global stylesheet rules, and pointer events remain
 disabled. Calling `hideTextUI` with no active ox-owned prompt is a no-op, so it
 cannot disturb a native qblib TextUI entry beneath the compatibility layer.
+Input-dialog and TextUI option tables default only when omitted; explicit
+non-table values fail at the call site.
+
+Input-dialog rows and their `options` lists must be tables. Empty lists remain
+valid, while sparse or keyed lists and non-table option entries fail before a
+field can disappear during translation. The same rule applies when registering multiple context
+definitions; a single context remains a keyed definition table. Context option
+maps may use either numeric or string keys, but every option value must be a
+table.
+Radial registration likewise requires a non-empty ID and dense `items` array
+(or an empty one); dynamically added radial items also require non-empty IDs.
+
+List-menu options follow the same rule: registration and whole-list
+`setMenuOptions` updates require a dense array (or an empty list) of option
+tables. A single indexed update requires an existing positive integer index and
+an option table. Updating an open list menu patches that same panel immediately;
+subsequent callbacks use the replacement option data.
 
 List-menu values, checkboxes, live callbacks, start positions, close keys, and
-`close=false` selections use authenticated non-terminal NUI events. Radial
+`close=false` selections use token-validated non-terminal NUI events. Radial
 submenu transitions, keep-open selections, and live registry changes use the
 same request token, so neither surface closes and reopens merely to deliver a
-callback or update.
+callback or update. Re-registering the currently open context refreshes that
+same panel immediately.
 
 Ox context and list menus send `presentation = "panel"` in the internal
 `openMenu` payload. This selects qblib's compact non-modal surface: there is no
 backdrop or search filter, while keyboard selection and Escape/Backspace close
 behavior remain available. A context with a parent also sends `back = true`.
-The header Back control then emits the authenticated, non-terminal NUI event
+The header Back control then emits the token-validated, non-terminal NUI event
 `back` with an empty data object. Submenu confirmation is non-terminal too.
-The provider changes the active definition and sends a token-authenticated
+The provider changes the active definition and sends a token-matched
 `updateMenu` envelope containing the complete next `OpenMenuPayload`; the
 browser resets the current root/title/rows/start selection in place. A stale or
 wrong-token update is ignored. This keeps one mounted panel/request throughout
@@ -72,3 +90,14 @@ has mounted.
 All functions fail fast on a missing origin owner. Registrations and active
 UI leases are removed by `disposeOwner`, so restarting one consumer cannot
 leave its entries or focus attached to another resource.
+
+`alertDialog` accepts a non-negative finite integer timeout in milliseconds;
+pass `nil` or `false` to leave the dialog open until it is answered or closed.
+
+Custom `skillCheck` difficulties require finite numeric `areaSize` and
+`speedMultiplier` values. Its optional input-key list must be a non-empty dense
+array, so every requested key reaches the browser. The existing speed clamp
+still handles zero or negative multipliers compatibly.
+
+`notify` retains ox's lenient default: a missing, invalid, or non-finite
+duration uses `3000` milliseconds.

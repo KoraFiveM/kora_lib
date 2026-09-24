@@ -9,6 +9,7 @@ local mocks = require("mocks")
 local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 local ANIM_DICT = "test@anim"
@@ -89,12 +90,50 @@ harness.test("play applies option defaults", function()
     harness.assertEqual(playCalls[1].flag, 1, "default flag")
 end)
 
+harness.test("play rejects non-finite animation durations before starting", function()
+    local previous = playCalls[1]
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { duration = math.huge })
+    end, "an infinite duration should be rejected")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { duration = 1.5 })
+    end, "a fractional duration should be rejected")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { duration = -2 })
+    end, "only -1 may use the native indefinite-duration sentinel")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { onFinish = true })
+    end, "an invalid finish callback should fail before scheduling a cleanup thread")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { flag = false })
+    end, "a false animation flag must not default")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { blendInSpeed = math.huge })
+    end, "non-finite blend speeds must fail before streaming")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", { lockX = 'yes' })
+    end, "axis locks must be booleans")
+    harness.assertThrows(function()
+        QB.anim.play(1, ANIM_DICT, "clip_a", true)
+    end, "options must be a table")
+    harness.assertEqual(playCalls[1], previous, "invalid durations must not start an animation")
+end)
+
 harness.test("stop ends the anim and releases the dict", function()
     QB.anim.play(1, ANIM_DICT, "clip_a")
     local stopped = QB.anim.stop(1)
     harness.assertTrue(stopped, "stop should report true when something was active")
     harness.assertFalse(QB.anim.isPlaying(1), "isPlaying should be false after stop")
     harness.assertFalse(loadedDicts[ANIM_DICT] == true, "the dict should be released on stop")
+end)
+
+harness.test('stop rejects an invalid blend-out speed without releasing the animation', function()
+    QB.anim.play(1, ANIM_DICT, 'clip_a')
+
+    harness.assertThrows(function() QB.anim.stop(1, math.huge) end)
+    harness.assertTrue(QB.anim.isPlaying(1), 'invalid native input must not clear tracked animation state')
+
+    QB.anim.stop(1)
 end)
 
 harness.test("stop on an entity with nothing active reports false", function()
@@ -117,6 +156,17 @@ harness.test("anims are auto-stopped when their owning resource stops", function
     net.fire("onClientResourceStop", "some_other_resource")
 
     harness.assertFalse(QB.anim.isPlaying(1), "the anim should be stopped once its owning resource stops")
+end)
+
+harness.test('an onFinish error does not prevent delayed animation cleanup', function()
+    local handle = QB.anim.play(1, ANIM_DICT, 'clip_a', {
+        duration = 100,
+        onFinish = function() error('onFinish failed') end,
+    })
+
+    harness.assertTrue(handle ~= false)
+    net.step()
+    harness.assertFalse(QB.anim.isPlaying(1), 'the animation must stop before an onFinish callback runs')
 end)
 
 harness.test("attachProp creates and attaches a prop at the resolved bone", function()
@@ -151,6 +201,21 @@ harness.test("attachProp refuses an unknown bone", function()
     harness.assertTrue(err ~= nil, "should explain the failure")
 end)
 
+harness.test('attachProp rejects malformed transforms and options before streaming', function()
+    harness.assertThrows(function()
+        QB.anim.attachProp(1, 'test_prop', 'test_bone', false)
+    end)
+    harness.assertThrows(function()
+        QB.anim.attachProp(1, 'test_prop', 'test_bone', nil, { x = 0, y = math.huge, z = 0 })
+    end)
+    harness.assertThrows(function()
+        QB.anim.attachProp(1, 'test_prop', 'test_bone', nil, nil, { collision = 'yes' })
+    end)
+    harness.assertThrows(function()
+        QB.anim.attachProp(1, 'test_prop', 'test_bone', nil, nil, { vertexIndex = 6 })
+    end)
+end)
+
 harness.test("detachProp removes a tracked prop", function()
     local prop = QB.anim.attachProp(1, "test_prop", "test_bone")
     local ok = QB.anim.detachProp(prop)
@@ -168,6 +233,28 @@ harness.test("detachProp refuses a prop this module never created", function()
     harness.assertTrue(_G.DoesEntityExist(foreignProp), "the foreign prop must still exist")
 
     existingProps[foreignProp] = nil
+end)
+
+harness.test("foreign resources cannot stop or detach tracked animation state", function()
+    _G.GetInvokingResource = function() return "anim_owner" end
+    QB.anim.play(1, ANIM_DICT, "clip_a")
+    local prop = QB.anim.attachProp(1, "test_prop", "test_bone")
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    local replacement, replacementReason = QB.anim.play(1, ANIM_DICT, "clip_b")
+    harness.assertFalse(replacement, "another resource must not replace a tracked animation")
+    harness.assertTrue(replacementReason ~= nil, "foreign replacement should explain why it was refused")
+    harness.assertFalse(QB.anim.stop(1), "another resource must not stop a tracked animation")
+    local detached, reason = QB.anim.detachProp(prop)
+    harness.assertFalse(detached, "another resource must not detach a tracked prop")
+    harness.assertTrue(reason ~= nil, "foreign prop removal should explain why it was refused")
+    harness.assertTrue(QB.anim.isPlaying(1), "the foreign stop must leave the animation active")
+    harness.assertTrue(_G.DoesEntityExist(prop), "the foreign detach must leave the prop intact")
+
+    _G.GetInvokingResource = function() return "anim_owner" end
+    harness.assertTrue(QB.anim.stop(1), "the owner should still stop its animation")
+    harness.assertTrue(QB.anim.detachProp(prop), "the owner should still detach its prop")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test('playScenario and clear use the task helpers', function()

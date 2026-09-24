@@ -10,6 +10,7 @@ dofile(repoRoot .. 'build/initiate.lua')
 
 local progressPayload
 QB.progressbar = {
+    validate = function() return true end,
     start = function(payload)
         progressPayload = payload
         return true
@@ -18,6 +19,7 @@ QB.progressbar = {
 
 local minigameAuthorization
 QB.minigames = {
+    GAME_TYPES = { mash = true },
     play = function(_, _, authorization)
         minigameAuthorization = authorization
         return { success = true, proof = 'proof:value' }
@@ -74,6 +76,37 @@ harness.test('actions do not run progress or complete when begin declines', func
     harness.assertEqual(reason, 'too far away', 'the rejection reason should pass through')
     harness.assertTrue(progressPayload == nil, 'no progress should start after rejection')
     harness.assertFalse(completeCalled, 'complete should not run after rejection')
+end)
+
+harness.test('invalid action configuration fails before server authorization begins', function()
+    local beginCalls = 0
+    local options = {
+        label = 'Invalid action',
+        begin = function() beginCalls = beginCalls + 1 end,
+        complete = function() end,
+    }
+
+    options.duration = 0
+    harness.assertThrows(function() QB.actions.run(options) end,
+        'a non-positive duration must fail before begin')
+    options.duration = nil
+    options.minigame = ''
+    harness.assertThrows(function() QB.actions.run(options) end,
+        'an empty minigame name must fail before begin')
+    options.minigame = 'unknown'
+    harness.assertThrows(function() QB.actions.run(options) end,
+        'an unsupported minigame name must fail before begin')
+    options.minigame = nil
+    options.canCancel = 'yes'
+    harness.assertThrows(function() QB.actions.run(options) end,
+        'a non-boolean canCancel flag must fail before begin')
+    options.canCancel = nil
+    local validate = QB.progressbar.validate
+    QB.progressbar.validate = function() error('invalid progress payload') end
+    harness.assertThrows(function() QB.actions.run(options) end,
+        'an invalid progress payload must fail before begin')
+    QB.progressbar.validate = validate
+    harness.assertEqual(beginCalls, 0, 'invalid UI configuration must not issue a server token')
 end)
 
 harness.test('actions forward begin proof authorization into the minigame', function()

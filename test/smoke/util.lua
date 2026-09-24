@@ -40,6 +40,19 @@ harness.test("deepClone passes non-table values through unchanged", function()
     harness.assertEqual(QB.util.deepClone("x"), "x", "strings pass through")
 end)
 
+harness.test("deepClone preserves shared and circular table references", function()
+    local child = { value = 1 }
+    local original = { first = child, second = child }
+    original.self = original
+
+    local copy = QB.util.deepClone(original)
+
+    harness.assertTrue(copy ~= original, "the outer table must still be copied")
+    harness.assertTrue(copy.first == copy.second, "shared children must remain shared in the copy")
+    harness.assertTrue(copy.first ~= child, "the shared child must be cloned")
+    harness.assertTrue(copy.self == copy, "a circular reference must point to the copied table")
+end)
+
 harness.test("fnv1a returns a stable lowercase checksum", function()
     harness.assertEqual(QB.util.fnv1a("hello"), "4f9f2cab")
     harness.assertEqual(QB.util.fnv1a(""), "811c9dc5")
@@ -63,6 +76,10 @@ harness.test("cleanText applies the shared external-text policy", function()
     harness.assertEqual(QB.util.cleanText("éclair", { maxLength = 2 }), "éc")
     harness.assertEqual(QB.util.cleanText("   "), nil)
     harness.assertEqual(QB.util.cleanText(7), nil)
+end)
+
+harness.test("cleanText rejects an explicit non-table options value", function()
+    harness.assertThrows(function() QB.util.cleanText("text", false) end)
 end)
 
 harness.test("truncateUtf8 counts characters and rejects malformed text", function()
@@ -104,16 +121,44 @@ harness.test("clamp bounds a value within min/max", function()
     harness.assertEqual(QB.util.clamp(15, 0, 10), 10, "above-max clamps to max")
 end)
 
+harness.test("clamp rejects non-finite or reversed bounds", function()
+    harness.assertThrows(function() QB.util.clamp(math.huge, 0, 1) end)
+    harness.assertThrows(function() QB.util.clamp(0, 1, 0) end)
+end)
+
 harness.test("round rounds to the given decimal places", function()
     harness.assertEqual(QB.util.round(1.2345, 2), 1.23, "rounds down correctly")
     harness.assertEqual(QB.util.round(1.25, 1), 1.3, "rounds half up")
     harness.assertEqual(QB.util.round(1.6), 2, "defaults to zero decimals")
 end)
 
+harness.test("round rejects non-finite values and fractional decimal places", function()
+    harness.assertThrows(function() QB.util.round(math.huge) end)
+    harness.assertThrows(function() QB.util.round(1.25, 0.5) end)
+    harness.assertThrows(function() QB.util.round(1.25, false) end)
+    harness.assertThrows(function() QB.util.round(1.25, 1000) end)
+    harness.assertThrows(function() QB.util.round(1.25, -1000) end)
+    harness.assertThrows(function() QB.util.round(1e308, 1) end)
+end)
+
 harness.test("randomFloat stays within its bounds", function()
     for _ = 1, 50 do
         local v = QB.util.randomFloat(2.0, 4.0)
         harness.assertTrue(v >= 2.0 and v <= 4.0, "randomFloat result must stay within [min, max]")
+    end
+end)
+
+harness.test("randomFloat remains finite across the full finite range", function()
+    local value = QB.util.randomFloat(-1e308, 1e308)
+    harness.assertTrue(QB.util.isFiniteNumber(value), "a finite range must return a finite value")
+    harness.assertTrue(value >= -1e308 and value <= 1e308, "result must stay within the wide finite range")
+end)
+
+harness.test("randomFloat rejects non-finite or reversed bounds", function()
+    for _, bounds in ipairs({ { math.huge, 1 }, { 1, -math.huge }, { 4, 2 } }) do
+        harness.assertThrows(function()
+            QB.util.randomFloat(bounds[1], bounds[2])
+        end, "bounds must be finite and ordered")
     end
 end)
 
@@ -129,6 +174,29 @@ harness.test("weightedChoice rejects a non-positive weight", function()
     harness.assertThrows(function()
         QB.util.weightedChoice({ { "a", 0 } })
     end, "a zero weight should be rejected")
+end)
+
+harness.test('weightedChoice rejects sparse and malformed pair lists', function()
+    harness.assertThrows(function()
+        QB.util.weightedChoice({ { 'first', 1 }, [3] = { 'third', 1 } })
+    end, 'a sparse list must not silently ignore a pair')
+    harness.assertThrows(function()
+        QB.util.weightedChoice({ 'not-a-pair' })
+    end, 'every entry must be a pair table')
+end)
+
+harness.test("weightedChoice rejects non-finite weights", function()
+    for _, weight in ipairs({ math.huge, -math.huge, 0 / 0 }) do
+        harness.assertThrows(function()
+            QB.util.weightedChoice({ { "a", weight } })
+        end, "non-finite weights must be rejected")
+    end
+end)
+
+harness.test("weightedChoice rejects finite weights whose total overflows", function()
+    harness.assertThrows(function()
+        QB.util.weightedChoice({ { "a", 1e308 }, { "b", 1e308 } })
+    end, "the accumulated weight must remain finite")
 end)
 
 harness.test("tableContains finds a present value and rejects an absent one", function()
@@ -149,6 +217,12 @@ harness.test("lerp interpolates and does not clamp", function()
     harness.assertEqual(QB.util.lerp(0, 10, 0), 0, "t=0 returns a")
     harness.assertEqual(QB.util.lerp(0, 10, 1), 10, "t=1 returns b")
     harness.assertEqual(QB.util.lerp(0, 10, 2), 20, "t is deliberately unclamped")
+    harness.assertEqual(QB.util.lerp(-1e308, 1e308, 0.5), 0, "wide finite midpoint remains finite")
+end)
+
+harness.test("lerp rejects non-finite inputs", function()
+    harness.assertThrows(function() QB.util.lerp(0, math.huge, 0.5) end)
+    harness.assertThrows(function() QB.util.lerp(-1e308, 1e308, 2) end)
 end)
 
 harness.test("vector arithmetic returns plain tables, never a vector3", function()
@@ -174,6 +248,20 @@ harness.test("a missing z is treated as zero", function()
     -- arithmetic-on-nil crash deep inside the maths.
     local length = QB.util.vecLength({ x = 3, y = 4 })
     harness.assertEqual(length, 5, "a 3-4-5 triangle with an implicit z=0")
+end)
+
+harness.test("vector magnitudes remain finite for large finite coordinates", function()
+    local value = QB.util.vecLength({ x = 1e308, y = 1e308, z = 0 })
+    harness.assertTrue(QB.util.isFiniteNumber(value), "large finite length must remain finite")
+
+    local distance = QB.util.vecDistance2d({ x = 0, y = 0 }, { x = 1e308, y = 1e308 })
+    harness.assertTrue(QB.util.isFiniteNumber(distance), "large finite distance must remain finite")
+end)
+
+harness.test("vector helpers reject non-finite coordinates and scalar inputs", function()
+    harness.assertThrows(function() QB.util.vecLength({ x = math.huge, y = 0 }) end)
+    harness.assertThrows(function() QB.util.vecScale({ x = 1, y = 2, z = 3 }, 0 / 0) end)
+    harness.assertThrows(function() QB.util.headingToDirection(-math.huge) end)
 end)
 
 harness.test("vecDistance2d ignores height, vecDistance does not", function()
@@ -244,6 +332,12 @@ harness.test("worldToScreen reports normalised coordinates and on-screen state",
     harness.assertFalse(offScreen, "off-screen must be reported so callers can gate on it")
 
     projection.onScreen = true
+end)
+
+harness.test("worldToScreen rejects non-finite coordinates", function()
+    harness.assertThrows(function()
+        QB.util.worldToScreen({ x = 0, y = math.huge, z = 0 })
+    end)
 end)
 
 harness.test("worldToScreenPixels scales by the active resolution", function()

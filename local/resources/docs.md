@@ -13,6 +13,10 @@ Returns `true` only when `GetResourceState(resourceName)` is `started`.
 
 Waits for a dependency without creating an unbounded startup loop. Options are
 `timeout` (default `10000`) and `interval` (default `100`), both milliseconds.
+Both must be finite non-negative numbers; `interval = 0` is valid but means a
+deliberate per-frame retry until the finite timeout expires. `timeout = 0`
+performs one immediate state check without waiting.
+The optional `options` argument must be a table when supplied.
 Returns `true` when ready, `false, "missing"` for an unknown resource, or
 `false, "timeout"` when the deadline expires.
 
@@ -29,17 +33,20 @@ if not ready then print(('qbinventory unavailable: %s'):format(reason)) end
 Creates a new, isolated ownership registry. Identical shape on both realms — swept on `onClientResourceStop` (client) or `onResourceStop` (server).
 
 #### Parameters
-- `onDispose: fun(id: any)` — Called once for every id still tracked under a resource when that resource stops.
+- `onDispose: fun(id: any)` — A callable (including a FiveM callable proxy), called once for every id still tracked under a resource when that resource stops. Invalid disposers fail when the registry is created.
 
 #### Returns
 - A table with three functions:
-  - `track(resource: string, id: any)` — Marks `id` as owned by `resource`. If `id` was already tracked under a *different* resource, ownership moves — it's removed from the previous owner's set first.
-  - `untrack(id: any): string?` — Drops `id`'s tracking and returns the resource it was owned by, or `nil` if it wasn't tracked. Does not call `onDispose`.
-  - `owner(id: any): string?` — Returns the resource currently tracking `id`, without changing anything.
+  - `track(resource: string, id: any)` — Marks a non-`nil` `id` as owned by a non-empty resource name up to 256 bytes. If `id` was already tracked under a *different* resource, ownership moves — it's removed from the previous owner's set first.
+  - `untrack(id: any): string?` — Drops a non-`nil` id's tracking and returns the resource it was owned by, or `nil` if it wasn't tracked. Does not call `onDispose`.
+  - `owner(id: any): string?` — Returns the resource currently tracking a non-`nil` id, without changing anything.
 
 #### Behavior
 1. Each call creates a fresh, independent registry — its own forward index and reverse lookup, and its own sweep handler.
 2. When a resource stops, `onDispose(id)` runs for every id it still owned, and all tracking for those ids is dropped.
+   A disposer cannot re-track an id for that same resource while its sweep is
+   active; this prevents stop-time cleanup from recreating state that no later
+   stop event can release.
 3. Calling `untrack(id)` directly (e.g. from a manual "remove" function) only removes bookkeeping — it's the caller's responsibility to release the underlying thing first.
 4. Calling `track(resource, id)` again for an id already owned by a different resource transfers ownership rather than adding a second, stale entry — useful for name-keyed registries (e.g. `local/events`' push handlers) where re-registering an existing name is expected to take it over.
 

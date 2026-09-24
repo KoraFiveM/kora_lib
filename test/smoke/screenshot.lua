@@ -16,6 +16,7 @@ _G.exports = function(name, callback) registeredExports[name] = callback end
 
 dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/util/shared.lua')
 
 -- Client module fixtures: NUI requests resolve immediately so this plain Lua
 -- test can verify the capture wrapper without a browser or native texture.
@@ -70,6 +71,27 @@ harness.test('client capture rejects an unsupported image format', function()
     end, 'invalid encodings must not reach the NUI')
 end)
 
+harness.test('client capture and upload reject non-finite dimensions and timeouts', function()
+    harness.assertThrows(function()
+        QB.screenshot.capture({ maxWidth = math.huge })
+    end, 'infinite dimensions must not reach the NUI')
+    harness.assertThrows(function()
+        QB.screenshot.capture({}, math.huge)
+    end, 'infinite capture timeouts must not reach the NUI')
+    harness.assertThrows(function()
+        QB.screenshot.upload('https://example.invalid', nil, {}, math.huge)
+    end, 'infinite upload timeouts must not reach the NUI')
+    harness.assertThrows(function()
+        QB.screenshot.capture(false)
+    end, 'false capture options must not silently default')
+    harness.assertThrows(function()
+        QB.screenshot.capture({ encoding = false })
+    end, 'false encoding must not silently default')
+    harness.assertThrows(function()
+        QB.screenshot.capture({}, false)
+    end, 'false capture timeout must not silently default')
+end)
+
 harness.test('legacy requestScreenshot keeps callback semantics', function()
     local export
     net.fire('__cfx_export_screenshot-basic_requestScreenshot', function(callback) export = callback end)
@@ -98,18 +120,40 @@ harness.test('qblib registers requestClientScreenshot directly', function()
         'qblib should expose requestClientScreenshot for server callers')
 end)
 
-harness.test('invalid timeout does not reserve the player capture slot', function()
-    for _, timeout in ipairs({ 0, 1000, 1500.5, 'invalid' }) do
+harness.test('invalid request values do not reserve the player capture slot', function()
+    for _, timeout in ipairs({ 0, 1000, 1500.5, math.huge, 'invalid' }) do
         harness.assertThrows(function()
             QB.screenshot.requestClient(mocks.SOURCE, { timeout = timeout })
         end)
     end
+    harness.assertThrows(function()
+        QB.screenshot.requestClient(math.huge, { timeout = 30000 })
+    end, 'infinite player IDs should fail before session allocation')
+    harness.assertThrows(function()
+        QB.screenshot.requestClient(mocks.SOURCE, { maxHeight = math.huge, timeout = 30000 })
+    end, 'infinite dimensions should fail before session allocation')
+    harness.assertThrows(function()
+        QB.screenshot.requestClient(mocks.SOURCE, false)
+    end, 'false server options should fail before session allocation')
+    harness.assertThrows(function()
+        QB.screenshot.requestClient(mocks.SOURCE, { encoding = false, timeout = 30000 })
+    end, 'false server encoding should fail before session allocation')
     local completed = false
     QB.screenshot.requestClient(mocks.SOURCE, { timeout = 30000 }, function(err)
         harness.assertEqual(err, false)
         completed = true
     end)
     harness.assertTrue(completed, 'a valid request must complete after rejected timeout options')
+end)
+
+harness.test('server capture accepts omitted options and uses its defaults', function()
+    local callbackErr
+    local token = QB.screenshot.requestClient(mocks.SOURCE, nil, function(err)
+        callbackErr = err
+    end)
+
+    harness.assertTrue(type(token) == 'string' and #token == 48)
+    harness.assertEqual(callbackErr, false)
 end)
 
 harness.test('server capture uses one tokenized raw browser upload', function()
@@ -195,6 +239,24 @@ harness.test('server capture fails promptly when the client NUI rejects capture'
     harness.assertTrue(type(nextToken) == 'string', 'a rejected capture must release the player capture slot')
 end)
 
+harness.test('server progress ignores malformed byte counts even when debug logging is enabled', function()
+    local request, triggerClientEvent, getConvarInt = QB.nui.request, TriggerClientEvent, GetConvarInt
+    QB.nui.request = function() return promise.new() end
+    _G.TriggerClientEvent = function() end
+    local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
+    QB.nui.request, _G.TriggerClientEvent = request, triggerClientEvent
+
+    _G.GetConvarInt = function() return 1 end
+    _G.source = mocks.SOURCE
+    local ok = pcall(net.fire, 'qblib:server:screenshotProgressed', token, 'received', math.huge)
+    _G.GetConvarInt, _G.source = getConvarInt, nil
+    harness.assertTrue(ok, 'untrusted progress values must not make debug logging throw')
+
+    _G.source = mocks.SOURCE
+    net.fire('qblib:server:screenshotFailed', token)
+    _G.source = nil
+end)
+
 harness.test('server capture rejects a mismatched image type and releases the player slot', function()
     local callbackErr
     local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'png' }, function(err)
@@ -206,6 +268,16 @@ harness.test('server capture rejects a mismatched image type and releases the pl
 
     local nextToken = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
     harness.assertTrue(type(nextToken) == 'string', 'a rejected upload must release the per-player capture slot')
+end)
+
+harness.test('server capture retains its safe upload limit when maxBytes is malformed', function()
+    local maxBytes = Config.screenshot.maxBytes
+    Config.screenshot.maxBytes = false
+
+    local ok = pcall(QB.screenshot.requestClient, mocks.SOURCE, { encoding = 'jpg' }, function() end)
+    Config.screenshot.maxBytes = maxBytes
+
+    harness.assertTrue(ok, 'an invalid server cap must not turn an upload into a request-time error')
 end)
 
 harness.test('server capture writes a caller-controlled server path when requested', function()

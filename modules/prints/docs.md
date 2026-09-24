@@ -11,6 +11,9 @@ QB.print.success(...)
 ```
 
 Tables are encoded as indented JSON with sorted keys. Numbers, booleans, strings, `nil`, and functions are converted to readable text without changing the values passed by the caller.
+If a table cannot be JSON-encoded (for example, it contains a cycle), the
+helper falls back to its Lua string representation rather than throwing from a
+diagnostic call.
 
 ```lua
 QB.print.info('player loaded', {

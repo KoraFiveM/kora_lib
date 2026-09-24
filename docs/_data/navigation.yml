@@ -4,6 +4,7 @@
     - { title: Installation, url: /getting-started/ }
     - { title: Using the API, url: /using-the-api/ }
     - { title: Configuration, url: /reference/config/ }
+    - { title: Performance and lifecycle, url: /performance/ }
     - { title: API index, url: /reference/ }
 
 - title: Core
@@ -36,6 +37,7 @@
     - { title: Closest entity, url: /reference/closest/ }
     - { title: Distance checks, url: /reference/distancecheck/ }
     - { title: Drawing, url: /reference/drawing/ }
+    - { title: Developer editors, url: /reference/editor/ }
     - { title: Entities, url: /reference/entities/ }
     - { title: Effects, url: /reference/fx/ }
     - { title: Placement, url: /reference/placement/ }
@@ -72,6 +74,7 @@
   items:
     - { title: ox_lib migration, url: /migration/ox-lib/ }
     - { title: ox_lib provider, url: /reference/ox/ }
+    - { title: PolyZone provider, url: /legacy-compat/#polyzone-bridge-coverage }
     - { title: Legacy resources, url: /legacy-compat/ }
     - { title: Contract details, url: /migration/ox-lib-contract/ }
 

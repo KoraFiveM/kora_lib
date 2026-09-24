@@ -153,6 +153,13 @@ Each resource writes only its own files through `SaveResourceFile`. qblib’s
 central catalog coordinates requests but never receives cross-resource
 filesystem access. Add both generated files to the resource’s `.gitignore`.
 
+Client snapshot requests are accepted only from a valid connected player and
+only for a registered resource. The server returns the already-sanitized
+client configuration to that same player; server-scoped and sensitive values
+never cross this boundary. Each request carries a monotonic local request ID;
+only its latest reply is applied, and a live update invalidates an older pending
+snapshot. A delayed network reply therefore cannot roll back current settings.
+
 qblib’s ACE-gated `/config` workspace reads the catalog, shows saved
 and running values, and labels a field **Applies now** or **Restart required**.
 Lists and maps use key/value rows: list keys are consecutive positions, while
@@ -178,6 +185,9 @@ also refreshes the optimistic revision before editing. For a restart-required
 setting, an authorised owner can use **Restart resource now** after saving; the
 editor asks for confirmation, restarts only that registered resource, reads it
 back, and reports whether its persisted configuration loaded successfully.
+Editor requests with a missing, fractional, or non-finite revision are rejected
+before they reach the owning resource; a valid but stale revision is refused by
+the owner.
 qblib cannot restart itself from its own editor, so its restart-required values
 must be applied from the server console or during a normal server restart.
 
@@ -195,7 +205,13 @@ as qbadmin; ordinary resources use the consumer API above:
   bridge.
 
 `QB.config.register(definition)` is qblib’s internal bridge registration API.
-It only accepts a registration from the resource it names.
+It only accepts a registration from the resource it names. Its `revision` is a
+positive integer: the consumer begins at `1` and increments it after every
+accepted edit, allowing stale editor saves to be refused deterministically.
+Catalog discovery and bridge refreshes enforce the same invariant, so a
+malformed bridge response cannot poison the stored revision. Successful commit
+and reset responses must carry the same valid revision before qblib publishes
+the resulting local change event.
 
 ## Live consumer API
 

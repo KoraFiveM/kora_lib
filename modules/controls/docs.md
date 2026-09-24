@@ -12,8 +12,8 @@ local lease = QB.controls.acquire({ 24, 25 }, {
 })
 ```
 
-- `controlIds` is a dense array of non-negative integer control IDs. Duplicate IDs are ignored.
-- `options.inputGroup` defaults to `0` and is passed to `DisableControlAction`.
+- `controlIds` is a dense array of finite, non-negative integer control IDs. Duplicate IDs are ignored.
+- `options.inputGroup` defaults to `0` only when omitted; it must be a finite, non-negative integer and is passed to `DisableControlAction`.
 - `options.disablePlayerFiring` defaults to `false`. When enabled, `DisablePlayerFiring(PlayerId(), true)` is also applied every frame.
 - `options.ignoreWeaponWheel` defaults to `false`. When enabled, `HudWeaponWheelIgnoreSelection()` is applied every frame.
 - At least one control ID or active suppression option is required.
@@ -21,6 +21,14 @@ local lease = QB.controls.acquire({ 24, 25 }, {
 
 The controls are applied immediately before `acquire` returns and then once per frame. That makes disabled-input reads such as `IsDisabledControlJustPressed` and `GetDisabledControlNormal` safe in the same tick.
 
+The lease remains owned by the resource that acquired it even when qblib later
+finishes an asynchronous progress bar, menu, placement tool, raycast tool, or
+zone creator on that resource's behalf. qblib uses that captured ownership only
+for its own cleanup; it does not make a lease transferable between resources.
+
 ## `QB.controls.release(leaseId)`
 
-Releases one lease and returns `true`. Unknown or already-released IDs return `false`, making cleanup safe to repeat. A control remains disabled until every lease containing it has been released.
+Releases one of the calling resource's leases and returns `true`. Unknown,
+already-released, or another resource's IDs return `false`, making cleanup safe
+to repeat. A control remains disabled until every lease containing it has been
+released.

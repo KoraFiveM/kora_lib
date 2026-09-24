@@ -6,6 +6,12 @@
 local active = {}
 local expirySweepRunning = false
 local ensureExpirySweep
+local isInteger = QB.util.isInteger
+
+local function assertPlayerTarget(target, operation)
+    assert(isInteger(target) and target >= 1,
+        ("QB.status.%s requires a positive integer target server id."):format(operation))
+end
 
 local function bucketFor(target)
     local bucket = active[target]
@@ -22,17 +28,22 @@ end
 ---@return boolean success
 ---@return string? error
 function QB.status.apply(target, name, opts)
-    assert(type(target) == "number", "QB.status.apply requires a numeric target server id.")
+    assertPlayerTarget(target, "apply")
+    QB.status.assertName(name)
+    assert(opts == nil or type(opts) == "table", "QB.status.apply options must be a table.")
+    opts = opts or {}
+    assert(opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
+        "duration must be a non-negative integer.")
+    assert(opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
+        "severity must be a positive integer.")
 
     local def = QB.status.getEffectDef(name)
     if not def then
         return false, ("Unknown status effect: %s"):format(name)
     end
 
-    opts = opts or {}
-
-    if opts.severity ~= nil then
-        assert(def.severityLevels and opts.severity >= 1 and opts.severity <= def.severityLevels,
+    if def.severityLevels and opts.severity ~= nil then
+        assert(opts.severity <= def.severityLevels,
             ("severity must be between 1 and %s for '%s'."):format(tostring(def.severityLevels), name))
     end
 
@@ -56,7 +67,7 @@ function QB.status.apply(target, name, opts)
         end
     end
 
-    local severity = opts.severity
+    local severity = def.severityLevels and opts.severity or nil
     if severity == nil then
         severity = (existing and existing.severity)
     elseif stacking == "stack" and existing and existing.severity then
@@ -75,6 +86,9 @@ end
 ---@param name string
 ---@return boolean removed False if `name` wasn't active for `target`.
 function QB.status.remove(target, name)
+    assertPlayerTarget(target, "remove")
+    QB.status.assertName(name)
+
     local bucket = active[target]
     if not bucket or not bucket[name] then return false end
 
@@ -88,6 +102,9 @@ end
 ---@param name string
 ---@return boolean
 function QB.status.isActive(target, name)
+    assertPlayerTarget(target, "isActive")
+    QB.status.assertName(name)
+
     local bucket = active[target]
     local entry = bucket and bucket[name]
     if not entry then return false end
@@ -108,6 +125,8 @@ end
 ---@param target integer
 ---@return QBStatusActiveEntry[]
 function QB.status.getActive(target)
+    assertPlayerTarget(target, "getActive")
+
     local bucket = active[target]
     if not bucket then return {} end
 
@@ -117,8 +136,12 @@ function QB.status.getActive(target)
     for name, entry in pairs(bucket) do
         if not entry.expiresAt or entry.expiresAt > now then
             result[#result + 1] = { name = name, severity = entry.severity, expiresAt = entry.expiresAt }
+        else
+            bucket[name] = nil
         end
     end
+
+    if next(bucket) == nil then active[target] = nil end
 
     return result
 end

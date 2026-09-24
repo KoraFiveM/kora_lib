@@ -10,6 +10,7 @@ local mockHandle = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 
@@ -219,6 +220,30 @@ harness.test("start can opt out of the duration cap for compatibility providers"
     })
 
     harness.assertTrue(completed, "the compatibility override should allow a duration above qblib's default cap")
+end)
+
+harness.test("start rejects non-finite duration values before creating a session", function()
+    reset()
+    harness.assertThrows(function()
+        QB.progressbar.start({ label = "invalid", duration = math.huge, maxDuration = false })
+    end, "an uncapped infinite duration should be rejected")
+    harness.assertThrows(function()
+        QB.progressbar.start({ label = "invalid", duration = 100, maxDuration = math.huge })
+    end, "an infinite duration cap should be rejected")
+end)
+
+harness.test("start rejects non-finite animation and prop transform values", function()
+    reset()
+    harness.assertThrows(function()
+        QB.progressbar.start({ label = "invalid", duration = 100, anim = {
+            dict = "anim@test", clip = "loop", playbackRate = math.huge,
+        } })
+    end)
+    harness.assertThrows(function()
+        QB.progressbar.start({ label = "invalid", duration = 100, props = {
+            { model = "valid", offset = { x = 0 / 0, y = 0, z = 0 } },
+        } })
+    end)
 end)
 
 harness.test("start rejects a malformed anim table", function()
@@ -626,6 +651,22 @@ harness.test("start refuses to run a second bar while one is active, then recove
 
     local recovered = QB.progressbar.start({ label = "Third", duration = 500 })
     harness.assertTrue(recovered, "a fresh bar should be able to run once the previous one finished")
+end)
+
+harness.test("only the initiating resource can cancel an active bar", function()
+    reset()
+
+    local result
+    CreateThread(function()
+        result = QB.progressbar.start({ label = "Owned", duration = 5000 }, "progress_owner")
+    end)
+
+    harness.assertFalse(QB.progressbar.cancel("other_resource"),
+        "another resource must not be able to cancel the active bar")
+    harness.assertTrue(QB.progressbar.cancel("progress_owner"),
+        "the initiating resource should be able to cancel its bar")
+    mockHandle.step()
+    harness.assertFalse(result, "the owner's cancellation should settle the bar as incomplete")
 end)
 
 harness.report("progressbar")

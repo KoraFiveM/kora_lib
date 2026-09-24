@@ -103,13 +103,27 @@ harness.test('resource stop removes only owned entries and restores the next own
     harness.assertFalse(QB.textui.isOpen(beta), 'stopped owner handle should be removed')
     harness.assertTrue(QB.textui.isVisible(alpha), 'previous owner should be restored')
     harness.assertEqual(messages[#messages].data.text, 'Alpha', 'restored owner should render')
+    owner = 'alpha'
     QB.textui.hide(alpha)
+end)
+
+harness.test('foreign resources cannot update or hide an owned prompt', function()
+    owner = 'alpha'
+    local id = QB.textui.show('Alpha only')
+    owner = 'beta'
+    harness.assertFalse(QB.textui.update(id, 'Hijacked'), 'another resource must not update this prompt')
+    harness.assertFalse(QB.textui.hide(id), 'another resource must not hide this prompt')
+    harness.assertTrue(QB.textui.isOpen(id), 'the original prompt should remain live')
+    owner = 'alpha'
+    harness.assertTrue(QB.textui.hide(id), 'the owner should still be able to hide its prompt')
 end)
 
 harness.test('invalid text and positions are rejected', function()
     harness.assertThrows(function() QB.textui.show('') end, 'empty text should fail')
     harness.assertThrows(function() QB.textui.show('Nope', { position = 'middle' }) end,
         'unsupported position should fail')
+    harness.assertThrows(function() QB.textui.show('Nope', { position = false }) end,
+        'false position should not silently default')
     harness.assertThrows(function() QB.textui.show('Nope', { iconAnimation = 'flash' }) end,
         'unsupported icon animation should fail')
     harness.assertThrows(function() QB.textui.show('Nope', { alignIcon = 'bottom' }) end,

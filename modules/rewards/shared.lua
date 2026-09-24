@@ -1,8 +1,9 @@
 ---@class QBRewardItem : table
----@field chance? number Weighted mode: a relative weight (> 0). Percent mode: a 0-100 probability. Items that omit this share an equal chance with every other item that also omits it.
+---@field chance? number Weighted mode: a relative weight (> 0). Percent mode: a probability in (0, 100]. Items that omit this share an equal chance with every other item that also omits it.
 ---@field amount? number | { min: number, max: number } Flat amount, or a `{ min, max }` range to roll. Defaults to `1`. Any other fields (name, label, ...) are passed through untouched.
 
 local DEFAULT_MODE = "weighted"
+local MAX_REWARD_RESULTS = 10000
 
 ---Resolves an item's `amount` field into a concrete number.
 ---@param item QBRewardItem
@@ -14,12 +15,12 @@ local function resolveAmount(item)
         return 1
     end
 
-    if type(amount) == "number" then
+    if QB.util.isFiniteNumber(amount) then
         return amount
     end
 
-    assert(type(amount) == "table" and type(amount.min) == "number" and type(amount.max) == "number",
-        "item.amount must be a number or a { min, max } table")
+    assert(type(amount) == "table" and QB.util.isInteger(amount.min) and QB.util.isInteger(amount.max),
+        "item.amount must be a number or a { min, max } table with integer bounds")
     assert(amount.min <= amount.max, "item.amount.min must not be greater than item.amount.max")
 
     return math.random(amount.min, amount.max)
@@ -54,7 +55,7 @@ local function resolveChances(items, mode)
     for i = 1, #items do
         local item = items[i]
         if item.chance ~= nil then
-            assert(type(item.chance) == "number" and item.chance > 0, "item.chance must be a positive number")
+            assert(QB.util.isFiniteNumber(item.chance) and item.chance > 0, "item.chance must be a positive number")
             if mode == "percent" then
                 assert(item.chance <= 100, "item.chance must not exceed 100 in percent mode")
             end
@@ -119,21 +120,33 @@ end
 ---In `"weighted"` mode (the default) each roll picks exactly one item, with
 ---`chance` acting as a relative weight against the others. In `"percent"`
 ---mode every item is rolled independently against its own `chance` as a
----0-100 probability, so a single roll can yield any number of items,
+---probability in (0, 100], so a single roll can yield any number of items,
 ---including all of them or none.
 ---@param items QBRewardItem[] Reward pool. Must be non-empty.
 ---@param opts? { mode?: "weighted" | "percent", rolls?: integer, allowNone?: boolean }
 ---@return table[] rewards Copies of the winning items, each with `amount` resolved to a number. Guaranteed non-empty unless `opts.allowNone` is `true`.
 function QB.rewards.generate(items, opts)
-    assert(type(items) == "table" and #items > 0, "items must be a non-empty array")
+    assert(type(items) == "table", "items must be a non-empty array")
+    local itemCount = 0
+    for index, item in pairs(items) do
+        assert(QB.util.isInteger(index) and index >= 1 and type(item) == 'table',
+            'items must be a dense array of tables')
+        itemCount = itemCount + 1
+    end
+    assert(itemCount > 0 and itemCount == #items, 'items must be a non-empty dense array')
+    assert(opts == nil or type(opts) == "table", "opts must be a table")
 
     opts = opts or {}
 
-    local mode = opts.mode or DEFAULT_MODE
+    local mode = opts.mode == nil and DEFAULT_MODE or opts.mode
     assert(mode == "weighted" or mode == "percent", "opts.mode must be \"weighted\" or \"percent\"")
 
-    local rolls = opts.rolls or 1
-    assert(type(rolls) == "number" and rolls >= 1 and rolls % 1 == 0, "opts.rolls must be a positive integer")
+    local rolls = opts.rolls == nil and 1 or opts.rolls
+    assert(QB.util.isInteger(rolls) and rolls >= 1 and rolls <= MAX_REWARD_RESULTS,
+        ("opts.rolls must be an integer between 1 and %d"):format(MAX_REWARD_RESULTS))
+    assert(opts.allowNone == nil or type(opts.allowNone) == "boolean", "opts.allowNone must be a boolean")
+    assert(mode ~= 'percent' or itemCount * rolls <= MAX_REWARD_RESULTS,
+        ("percent reward generation cannot exceed %d potential results"):format(MAX_REWARD_RESULTS))
 
     local chances = resolveChances(items, mode)
     local weightedPairs = toWeightedPairs(items, chances)

@@ -48,7 +48,7 @@ local function performJsonRequest(url, method, payload, headers, callback)
             -- second 429 normally so callers retain control of persistent load.
             local retryAfter = response.status == 429 and type(response.data) == 'table'
                 and tonumber(response.data.retry_after) or nil
-            if retryAfter and retryAfter >= 0 and attempt < MAX_RATE_LIMIT_RETRIES then
+            if QB.util.isFiniteNumber(retryAfter) and retryAfter >= 0 and attempt < MAX_RATE_LIMIT_RETRIES then
                 SetTimeout(math.ceil(retryAfter * 1000), function()
                     perform(attempt + 1)
                 end)
@@ -111,8 +111,8 @@ function QB.discord.createEmbed(options)
     if options.color ~= nil then embed.color = normaliseColor(options.color) end
 
     if options.timestamp ~= nil then
-        assert(options.timestamp == true or type(options.timestamp) == 'string' or type(options.timestamp) == 'number',
-            'Discord embed timestamp must be true, a Unix timestamp, or an ISO8601 string.')
+        assert(options.timestamp == true or type(options.timestamp) == 'string' or QB.util.isFiniteNumber(options.timestamp),
+            'Discord embed timestamp must be true, a finite Unix timestamp, or an ISO8601 string.')
         if options.timestamp == true then
             embed.timestamp = os.date('!%Y-%m-%dT%H:%M:%SZ')
         elseif type(options.timestamp) == 'number' then
@@ -142,6 +142,14 @@ function QB.discord.createEmbed(options)
     if options.fields ~= nil then
         assert(type(options.fields) == 'table', 'Discord embed fields must be an array.')
         assert(#options.fields <= 25, 'Discord embeds support at most 25 fields.')
+        local fieldCount = 0
+        for index in pairs(options.fields) do
+            assert(type(index) == 'number' and index >= 1 and index % 1 == 0
+                and index == index and index < math.huge,
+                'Discord embed fields must be a dense array.')
+            fieldCount = fieldCount + 1
+        end
+        assert(fieldCount == #options.fields, 'Discord embed fields must be a dense array.')
         embed.fields = {}
 
         for index = 1, #options.fields do

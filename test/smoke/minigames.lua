@@ -410,6 +410,16 @@ harness.test("submit rejects a request from a player who doesn't own the session
     Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, { pressTimestamps = {} }))
 end)
 
+harness.test("submit and cancel reject malformed session IDs before lookup", function()
+    for _, sessionId in ipairs({ 0, -1, math.huge, "1" }) do
+        harness.assertFalse(pcall(function()
+            serverCall("qblib:minigames:submit", mocks.SOURCE, sessionId, {})
+        end), "submit must reject malformed session IDs")
+        harness.assertFalse(serverCall("qblib:minigames:cancel", mocks.SOURCE, sessionId),
+            "cancel must ignore malformed session IDs")
+    end
+end)
+
 harness.test("server rejects a second concurrent session for the same player, independent of the client-side guard", function()
     -- attempts = 1 so the cleanup submit below unconditionally ends the
     -- session (pass or fail) rather than leaking it into later tests.
@@ -440,6 +450,29 @@ harness.test("play rejects a concurrent call while one is already in flight", fu
     harness.assertTrue(innerP ~= nil, "the responder should have attempted a concurrent call")
     harness.assertEqual(innerP.state, "rejected", "a concurrent call must be rejected, not queued")
     harness.assertEqual(outerP.state, "resolved", "the original call should still complete normally")
+end)
+
+harness.test("only the initiating resource can cancel an active minigame", function()
+    local originalAwait = Citizen.Await
+    local foreignCancelled
+    local ownerCancelled
+    Citizen.Await = function(request)
+        if request.state == "pending" then
+            foreignCancelled = asResource("other_resource", function() return QB.minigames.cancel() end)
+            ownerCancelled = QB.minigames.cancel("minigame_owner")
+        end
+        return originalAwait(request)
+    end
+
+    local result = QB.minigames.playAsync("mash", { attempts = 1 }, nil, "minigame_owner")
+    Citizen.Await = originalAwait
+
+    harness.assertFalse(foreignCancelled,
+        "another resource must not be able to cancel the active minigame")
+    harness.assertTrue(ownerCancelled,
+        "the initiating resource should be able to cancel its minigame")
+    harness.assertEqual(result.state, "resolved", "the owner's cancellation should settle the minigame")
+    harness.assertTrue(result.value.cancelled, "the owner cancellation should use the normal cancelled result")
 end)
 
 harness.test("resource-stop cleanup clears the client-side guard and closes the overlay with result = cancelled", function()
@@ -699,6 +732,9 @@ harness.test("authorization mismatches do not burn a valid single-start capabili
     harness.assertFalse(pcall(function()
         serverCall("qblib:minigames:start", mocks.SOURCE, "lockpick", nil, authorization)
     end), "the wrong game type must not start an authorized round")
+    harness.assertFalse(pcall(function()
+        serverCall("qblib:minigames:start", mocks.SOURCE, "mash", nil, string.rep('x', 256))
+    end), "a malformed authorization token must be rejected before lookup")
 
     local round = serverCall("qblib:minigames:start", mocks.SOURCE, "mash", { requiredPresses = 100 }, authorization)
     harness.assertEqual(round.public.requiredPresses, 3, "the original trusted config should remain available")

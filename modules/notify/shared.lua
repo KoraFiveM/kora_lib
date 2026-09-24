@@ -56,7 +56,8 @@ function QB.notify.assert(payload)
 
     local title = payload.title
     local message = payload.message
-    local duration = payload.duration or Config.notify.defaultDuration
+    local duration = payload.duration
+    if duration == nil then duration = Config.notify.defaultDuration end
 
     -- Type-checked, not just truthy-checked: these render as text in the NUI,
     -- and a table/number sneaking through as a React child would crash the
@@ -64,7 +65,7 @@ function QB.notify.assert(payload)
     assert(title == nil or type(title) == "string", "Notification title must be a string.")
     assert(message == nil or type(message) == "string", "Notification message must be a string.")
     assert(title or message, "Notifications require a title or message.")
-    assert(type(duration) == "number", "Duration must be a number.")
+    assert(QB.util.isInteger(duration), "Duration must be a finite integer.")
     assert(duration > 0, "Duration must be greater than 0.")
     assert(duration <= Config.notify.maxDuration,
         ("Duration must be at most %d ms (Config.notify.maxDuration)."):format(Config.notify.maxDuration))
@@ -74,8 +75,8 @@ function QB.notify.assert(payload)
     assert(payload.position == nil or NOTIFY_POSITIONS[payload.position],
         ("Notification position must be one of top/bottom + left/center/right, got: %s"):format(tostring(payload.position)))
     assert(payload.icon == nil or type(payload.icon) == "string", "Notification icon must be a string.")
-    assert(payload.id == nil or type(payload.id) == "number" or (type(payload.id) == "string" and payload.id ~= ""),
-        "Notification id must be a number or non-empty string.")
+    assert(payload.id == nil or QB.util.isFiniteNumber(payload.id) or (type(payload.id) == "string" and payload.id ~= ""),
+        "Notification id must be a finite number or non-empty string.")
     assert(payload.iconColor == nil or type(payload.iconColor) == "string", "Notification iconColor must be a string.")
     assert(payload.iconAnimation == nil or ICON_ANIMATIONS[payload.iconAnimation], "Notification iconAnimation is unsupported.")
     assert(payload.alignIcon == nil or payload.alignIcon == "top" or payload.alignIcon == "center",
@@ -90,12 +91,19 @@ end
 ---@param payload QBNotifyPayload
 ---@return QBNotifyPayload resolved A copy; the caller's table is never mutated.
 function QB.notify.withDefaults(payload)
+    local duration = payload.duration
+    if duration == nil then duration = Config.notify.defaultDuration end
+    local notifyType = payload.type
+    if notifyType == nil then notifyType = Config.notify.defaultType end
+    local position = payload.position
+    if position == nil then position = Config.notify.defaultPosition end
+
     return {
         title = payload.title,
         message = payload.message,
-        duration = payload.duration or Config.notify.defaultDuration,
-        type = payload.type or Config.notify.defaultType,
-        position = payload.position or Config.notify.defaultPosition,
+        duration = duration,
+        type = notifyType,
+        position = position,
         icon = payload.icon,
         id = payload.id,
         iconColor = payload.iconColor,

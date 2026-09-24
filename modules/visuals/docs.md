@@ -5,6 +5,8 @@ Client-side screen and drug-effect conveniences. Drug effects start asynchronous
 ## Screen fade
 
 `QB.visuals.fade(duration?, fn?)` fades to black over `duration` milliseconds (default `500`), runs `fn` while the screen is fully black, and always fades back in. If the callback raises, the screen is restored before the error is re-raised.
+If the game does not report a completed fade, qblib waits at most one extra
+second before continuing, so a stalled native cannot strand the caller.
 
 ```lua
 QB.visuals.fade(500, function()
@@ -16,7 +18,7 @@ The legacy `QB.visuals.fade(coords, duration?)` form still moves the local ped, 
 
 ## Drug and camera effects
 
-All functions take an optional duration in milliseconds:
+All functions take an optional finite, non-negative duration in milliseconds. Numeric strings remain accepted for legacy callers; omitted or non-numeric values use the helper's default:
 
 - `QB.visuals.trevor(duration?)` plays the Trevor clown screen-effect sequence.
 - `QB.visuals.alien(duration?)` plays the Michael alien screen-effect sequence.

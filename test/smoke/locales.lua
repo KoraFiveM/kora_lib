@@ -11,7 +11,7 @@ local convars = { qb_locale = 'en', qb_locales = 'en,de' }
 local kvps = {}
 local events = {}
 local files = {
-    ['example/locales/en.lua'] = "return { greeting = 'Hello %{name}', positional = 'Hello %s', fallback = 'English' }",
+    ['example/locales/en.lua'] = "return { greeting = 'Hello %{name}', positional = 'Hello %s', fallback = 'English', literal = 'Value: %{a.b}' }",
     ['example/locales/de.lua'] = "return { greeting = 'Hallo %{name}', positional = 'Hallo %s' }",
     -- This is the shape used by legacy qb-core locale files after the
     -- compatibility migration: runtime registration plus a returned table.
@@ -31,6 +31,25 @@ dofile(repoRoot .. 'modules/locales/client.lua')
 
 harness.test('uses the configured fallback before a player preference exists', function()
     harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hello Ada')
+end)
+
+harness.test('treats named placeholders and replacements as literal text', function()
+    harness.assertEqual(QB.lang('literal', { ['a.b'] = '50% complete' }), 'Value: 50% complete')
+end)
+
+harness.test('falls back to English when the configured language is invalid', function()
+    local configured = convars.qb_locale
+    convars.qb_locale = '../outside'
+    QB.locale._language = nil
+
+    harness.assertEqual(QB.locale.getLanguage(), 'en')
+    harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hello Ada')
+
+    convars.qb_locale = configured
+end)
+
+harness.test('rejects malformed explicit resource names before locale file lookup', function()
+    harness.assertThrows(function() QB.locale.translate('../legacy', 'greeting') end)
 end)
 
 harness.test('stores a player language in client KVP and switches lookup immediately', function()

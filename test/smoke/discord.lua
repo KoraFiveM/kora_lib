@@ -49,6 +49,7 @@ _G.GetNumPlayerIdentifiers = function(src) return #(playerIdentifiers[tonumber(s
 _G.GetPlayerIdentifier = function(src, index) return (playerIdentifiers[tonumber(src)] or {})[index + 1] end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/discord/server.lua")
 
 local GUILD_ID = "123456789012345678"
@@ -87,11 +88,16 @@ end)
 harness.test("createEmbed rejects malformed colors and more than 25 fields", function()
     harness.assertThrows(function() QB.discord.createEmbed({ color = "red" }) end,
         "named colors are not valid Discord integer colors")
+    harness.assertThrows(function() QB.discord.createEmbed({ timestamp = math.huge }) end,
+        "an infinite Unix timestamp must be rejected before formatting")
 
     local fields = {}
     for index = 1, 26 do fields[index] = { name = tostring(index), value = "value" } end
     harness.assertThrows(function() QB.discord.createEmbed({ fields = fields }) end,
         "Discord only allows 25 fields")
+    harness.assertThrows(function()
+        QB.discord.createEmbed({ fields = { { name = 'first', value = 'one' }, [3] = { name = 'third', value = 'three' } } })
+    end, 'sparse field lists must not silently drop entries')
 end)
 
 harness.test("webhooks work without the bot convar and accept a single embed", function()
@@ -361,6 +367,22 @@ harness.test("a Discord 429 is retried once after retry_after", function()
     harness.assertEqual(#httpRequests, 2, "the timer should repeat the request once")
     harness.assertEqual(callbackCount, 1, "only the final result should call back")
     harness.assertTrue(callbackOk, "a successful retry should report success")
+end)
+
+harness.test("a Discord 429 with a non-finite retry delay returns normally", function()
+    convars = { qblib_discord_bot_token = "secret-token" }
+    resetHttp()
+    decodedValues.invalid_rate_limit = { message = "rate limited", retry_after = math.huge }
+    responses = { { status = 429, body = "invalid_rate_limit" } }
+    local callbackOk, callbackResponse
+
+    QB.discord.getChannel(CHANNEL_ID, function(ok, response)
+        callbackOk, callbackResponse = ok, response
+    end)
+
+    harness.assertEqual(#timers, 0, "a non-finite retry delay must not schedule a timer")
+    harness.assertFalse(callbackOk, "the original rate limit should be returned")
+    harness.assertEqual(callbackResponse.status, 429, "the rate-limit status should be preserved")
 end)
 
 harness.test("exported callback references work for webhook and bot APIs", function()

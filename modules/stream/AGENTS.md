@@ -9,7 +9,7 @@ This module provides model-streaming helpers for loading and validating game mod
   - Validates the model before loading.
   - Calls the optional callback after the model has loaded.
   - Returns the model hash, or `false, error` if the load timed out.
-- `QB.stream.loadPtfx(fxName, cb)` / `loadAnimDict(animDict, cb)` / `loadAnimSet(animSet, cb)` / `loadClipSet(clipSet, cb)` / `loadIpl(iplName, cb)` / `loadScaleformMovie(scaleformName, cb)` / `loadTextureDict(textureDict, cb, isAdditionalTextures)` / `loadWeaponAsset(weapon, cb, weaponResourceFlags, extraWeaponComponentFlags)` / `loadAudioBank(audioBank, cb)`
+- `QB.stream.loadPtfx(fxName, cb, options?)` / `loadAnimDict(animDict, cb, options?)` / `loadAnimSet(animSet, cb, options?)` / `loadClipSet(clipSet, cb, options?)` / `loadIpl(iplName, cb, options?)` / `loadScaleformMovie(scaleformName, cb, options?)` / `loadTextureDict(textureDict, cb, isAdditionalTextures)` / `loadWeaponAsset(weapon, cb, weaponResourceFlags, extraWeaponComponentFlags)` / `loadAudioBank(audioBank, cb)`
   - Same request → poll-until-loaded → run callback → release lifecycle as `loadModel`, one per FiveM streaming asset type.
   - Each returns its loaded identifier (the input name/hash, except `loadScaleformMovie` which returns the scaleform handle), or `false, error`.
 - `QB.stream.loadCollision(coords, cb, entity)`

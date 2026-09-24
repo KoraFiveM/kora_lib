@@ -9,6 +9,7 @@ local mocks = require("mocks")
 local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 local DICT = "test_ptfx"
@@ -98,6 +99,16 @@ harness.test("stop ends a looped effect", function()
     harness.assertEqual(stopCalls[#stopCalls], handle.particleId, "should call StopParticleFxLooped with the right id")
 end)
 
+harness.test("foreign resources cannot stop a looped effect through its handle", function()
+    _G.GetInvokingResource = function() return "ptfx_owner" end
+    local handle = QB.fx.playPtfx({ dict = DICT, name = "fx_owned", entity = 1, looped = true })
+    _G.GetInvokingResource = function() return "ptfx_other" end
+    harness.assertFalse(QB.fx.stop(handle), "a handle must not let another resource stop its effect")
+    _G.GetInvokingResource = function() return "ptfx_owner" end
+    harness.assertTrue(QB.fx.stop(handle), "the owner should still be able to stop its effect")
+    _G.GetInvokingResource = function() return nil end
+end)
+
 harness.test("stop is a no-op for a non-looped handle", function()
     local handle = QB.fx.playPtfx({ dict = DICT, name = "fx_e", coords = { x = 0, y = 0, z = 0 } })
     harness.assertFalse(QB.fx.stop(handle), "stopping a non-looped handle should report false")
@@ -107,6 +118,44 @@ harness.test("playPtfx propagates a streaming failure for a dict that never load
     local handle, err = QB.fx.playPtfx({ dict = STUCK_DICT, name = "fx_f", coords = { x = 0, y = 0, z = 0 } })
     harness.assertFalse(handle, "playPtfx should fail when the dict never streams in")
     harness.assertTrue(err ~= nil, "a streaming failure should come with an error message")
+end)
+
+harness.test("effects reject non-finite durations before starting", function()
+    local starts = #startCalls
+    local screens = #screenStarts
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_invalid_duration", entity = 1, looped = true, duration = math.huge })
+    end)
+    harness.assertThrows(function() QB.fx.screenEffect("InvalidDuration", 0 / 0) end)
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_false_duration", entity = 1, duration = false })
+    end)
+    harness.assertThrows(function() QB.fx.screenEffect("FalseDuration", false) end)
+    harness.assertEqual(#startCalls, starts, "invalid particle durations must not start an effect")
+    harness.assertEqual(#screenStarts, screens, "invalid screen durations must not start an effect")
+end)
+
+harness.test("playPtfx rejects non-finite transform values before native calls", function()
+    local starts = #startCalls
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_invalid_scale", coords = { x = 0, y = 0, z = 0 }, scale = math.huge })
+    end)
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_invalid_offset", entity = 1, offset = { x = 0 / 0, y = 0, z = 0 } })
+    end)
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_false_scale", entity = 1, scale = false })
+    end)
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_zero_entity", entity = 0 })
+    end)
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_negative_entity", entity = -1 })
+    end)
+    harness.assertThrows(function()
+        QB.fx.playPtfx({ dict = DICT, name = "fx_invalid_looped", entity = 1, looped = "yes" })
+    end)
+    harness.assertEqual(#startCalls, starts, "invalid transforms must not start an effect")
 end)
 
 harness.test("looped effects are auto-stopped when their owning resource stops", function()
@@ -139,13 +188,25 @@ harness.test("same-name screen effects keep independent caller lifetimes", funct
     local first = QB.fx.screenEffect("SharedEffect", 0, true)
     _G.GetInvokingResource = function() return "effect_owner_b" end
     local second = QB.fx.screenEffect("SharedEffect", 0, true)
-    _G.GetInvokingResource = function() return nil end
 
+    _G.GetInvokingResource = function() return "effect_owner_a" end
     harness.assertTrue(QB.fx.stopScreenEffect(first), "the first handle should be released")
     harness.assertEqual(#screenStops, stopsBefore,
         "releasing one caller must not stop another caller's same-name effect")
+    _G.GetInvokingResource = function() return "effect_owner_b" end
     harness.assertTrue(QB.fx.stopScreenEffect(second), "the final handle should be released")
     harness.assertEqual(screenStops[#screenStops], "SharedEffect", "the final release should stop the native effect")
+    _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test("foreign resources cannot stop a screen effect through its handle", function()
+    _G.GetInvokingResource = function() return "screen_owner" end
+    local handle = QB.fx.screenEffect("OwnedScreenEffect", 0, true)
+    _G.GetInvokingResource = function() return "screen_other" end
+    harness.assertFalse(QB.fx.stopScreenEffect(handle), "a handle must not let another resource stop its effect")
+    _G.GetInvokingResource = function() return "screen_owner" end
+    harness.assertTrue(QB.fx.stopScreenEffect(handle), "the owner should still be able to stop its effect")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("resource cleanup releases only that owner's same-name screen effect", function()
@@ -159,7 +220,9 @@ harness.test("resource cleanup releases only that owner's same-name screen effec
     net.fire("onClientResourceStop", "stopping_effect_owner")
     harness.assertEqual(#screenStops, stopsBefore,
         "stopping one owner must leave the surviving same-name effect running")
+    _G.GetInvokingResource = function() return "surviving_effect_owner" end
     harness.assertTrue(QB.fx.stopScreenEffect(survivor), "the surviving owner should retain a usable handle")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("legacy name-only handles release one effect owned by their caller", function()

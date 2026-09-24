@@ -188,6 +188,7 @@ end
 ---@return boolean removed
 function QB.keybind.remove(name)
     assert(type(name) == 'string' and name ~= '', 'Keybind name must be a non-empty string.')
+    if ownership.owner(name) ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     return removeDefinition(name)
 end
 

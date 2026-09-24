@@ -10,7 +10,7 @@ Loads a model and optionally executes a callback once it is ready.
 
 #### Parameters
 - `model: string | number` — The model name or hash to load.
-- `cb: function | nil` — Optional callback invoked after the model loads.
+- `cb: function | callable table | nil` — Optional callback invoked after the model loads.
 - `options.timeout: integer | nil` — Override the default 10-second timeout.
 - `options.shouldContinue: function | nil` — Cancel the wait when it returns false.
 
@@ -56,21 +56,21 @@ All follow the same request → poll-until-loaded → run callback → release l
 |---|---|---|
 | `QB.stream.loadPtfx(fxName, cb, options?)` | A named particle effect (ptfx) asset. | `fxName \| false`, `error?` |
 | `QB.stream.loadAnimDict(animDict, cb, options?)` | An animation dictionary (validated with `DoesAnimDictExist`). | `animDict \| false`, `error?` |
-| `QB.stream.loadAnimSet(animSet, cb)` | An animation set. | `animSet \| false`, `error?` |
-| `QB.stream.loadClipSet(clipSet, cb)` | A clip set. | `clipSet \| false`, `error?` |
-| `QB.stream.loadIpl(iplName, cb)` | An interior proplist (checked via `IsIplActive`, not `Has...Loaded`). | `iplName \| false`, `error?` |
-| `QB.stream.loadScaleformMovie(scaleformName, cb)` | A scaleform movie. `cb` and the return value receive the **scaleform handle**, not the name — `HasScaleformMovieLoaded`/`SetScaleformMovieAsNoLongerNeeded` are keyed by that handle. | `handle \| false`, `error?` |
-| `QB.stream.loadTextureDict(textureDict, cb, isAdditionalTextures?)` | A streamed texture dictionary. `isAdditionalTextures` is forwarded as `RequestStreamedTextureDict`'s undocumented second argument (defaults `false`). | `textureDict \| false`, `error?` |
-| `QB.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags?, extraWeaponComponentFlags?)` | A weapon's streaming asset (model/anims/etc). `weapon` accepts a name or hash (joaat-converted like `loadModel`), validated with `IsWeaponValid`. Flags default to `31`/`0`, the common values seen in practice (undocumented upstream). | `weaponHash \| false`, `error?` |
+| `QB.stream.loadAnimSet(animSet, cb, options?)` | An animation set. | `animSet \| false`, `error?` |
+| `QB.stream.loadClipSet(clipSet, cb, options?)` | A clip set. | `clipSet \| false`, `error?` |
+| `QB.stream.loadIpl(iplName, cb, options?)` | An interior proplist (checked via `IsIplActive`, not `Has...Loaded`). | `iplName \| false`, `error?` |
+| `QB.stream.loadScaleformMovie(scaleformName, cb, options?)` | A scaleform movie. `cb` and the return value receive the **scaleform handle**, not the name — `HasScaleformMovieLoaded`/`SetScaleformMovieAsNoLongerNeeded` are keyed by that handle. | `handle \| false`, `error?` |
+| `QB.stream.loadTextureDict(textureDict, cb, isAdditionalTextures?)` | A streamed texture dictionary. `isAdditionalTextures` must be boolean and is forwarded as `RequestStreamedTextureDict`'s undocumented second argument (defaults `false`). | `textureDict \| false`, `error?` |
+| `QB.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags?, extraWeaponComponentFlags?)` | A weapon's streaming asset (model/anims/etc). `weapon` accepts a name or finite integer hash (joaat-converted like `loadModel`), validated with `IsWeaponValid`. Flags are finite integers and default to `31`/`0`, the common values seen in practice (undocumented upstream). | `weaponHash \| false`, `error?` |
 | `QB.stream.loadAudioBank(audioBank, cb)` | A script audio bank. Unlike every other type there's no separate `Has...Loaded` native — `RequestScriptAudioBank` itself reports readiness, so it serves as both request and poll. Released with `ReleaseNamedScriptAudioBank`. | `audioBank \| false`, `error?` |
 
 ### `QB.stream.loadCollision(coords, cb, entity)`
 Waits for world collision to stream in around `coords`, so a freshly teleported or spawned entity doesn't fall through unloaded map geometry.
 
 #### Parameters
-- `coords: vector3 | {x, y, z}` — The point to stream collision around.
-- `cb: function | nil` — Optional callback run once collision is ready.
-- `entity: number | nil` — Entity whose surroundings are checked (`HasCollisionLoadedAroundEntity`). Defaults to the local player's ped — the usual case, where the ped has just been moved to `coords`.
+- `coords: vector3 | {x, y, z}` — Finite point to stream collision around.
+- `cb: function | callable table | nil` — Optional callback run once collision is ready.
+- `entity: integer | nil` — Entity whose surroundings are checked (`HasCollisionLoadedAroundEntity`). Defaults to the local player's ped — the usual case, where the ped has just been moved to `coords`.
 
 #### Returns
 - `boolean` — `false` if collision never finished loading.
@@ -101,6 +101,8 @@ if not handle then return print('scaleform failed:', err) end
 
 ## Notes
 - This module expects the FiveM/RedM scripting runtime functions to be available.
-- Model strings should be passed exactly as they are used in the game assets.
+- Asset names must be non-empty strings. Model and weapon names should be passed
+  exactly as they are used in the game assets.
 - When using callbacks, keep the callback logic lightweight so the load cycle stays predictable.
 - Every loader (not just `loadModel`) releases its asset immediately after its callback returns — anims, clip sets, ptfx, etc. that need to keep playing beyond the callback's synchronous scope should not be requested this way.
+- All callbacks, option tables, native flags, and numeric model/weapon/entity handles are validated before qblib calls a streaming native.

@@ -24,7 +24,7 @@ Sets NUI focus directly.
 - `keyboard: boolean`
 
 ### `QB.nui.withFocus(mouse, keyboard, fn)`
-Sets focus, runs `fn`, and always clears focus afterward — including when `fn` raises an error or the calling resource stops (the error is re-raised once cleanup runs). Prefer this over `setFocus` whenever the interaction is scoped to one call. Note the built-in `openMenu`/`openContextMenu`/`openInputDialog` wrappers below already manage focus themselves — `withFocus` is for custom interactive requests of your own.
+Requires boolean `mouse`/`keyboard` values and a callable `fn`, then sets focus, runs `fn`, and always clears focus afterward — including when `fn` raises an error or the calling resource stops (the error is re-raised once cleanup runs). Invalid inputs fail before focus is acquired. It returns every value `fn` returns, preserving interior `nil` values. Prefer this over `setFocus` whenever the interaction is scoped to one call. Note the built-in `openMenu`/`openContextMenu`/`openInputDialog` wrappers below already manage focus themselves — `withFocus` is for custom interactive requests of your own.
 
 #### Example
 ```lua
@@ -34,6 +34,10 @@ end)
 ```
 
 ### `QB.nui.registerCallback(name, handler)`
+
+`name` must be a non-empty string and `handler` must be callable. Registration
+fails immediately for invalid values rather than leaving a browser request to
+fail later at dispatch time.
 Registers an NUI callback. `handler(data)` returns a plain value (or nil); the raw `RegisterNUICallback` `(data, cb)` plumbing is handled for you, including catching and logging errors so a broken handler can't leave the NUI's fetch hanging.
 
 ### `QB.nui.request(action, data, timeout)`
@@ -54,7 +58,7 @@ calls. They are internal building blocks; normal callers should prefer
 #### Parameters
 - `action: string`
 - `data: any`
-- `timeout: integer | false | nil` — milliseconds before the request times out. Defaults to `30000`. Pass `false` to disable.
+- `timeout: non-negative finite integer | false | nil` — milliseconds before the request times out. Defaults to `30000`. Pass `false` to disable.
 
 #### Returns
 - The NUI's result value, or (from your own resource, calling this like any other `QB.*` export) `nil` on timeout/error — check qblib's own console for why. Must run inside a coroutine (`CreateThread`, a command handler, an NUI callback — anywhere `Citizen.Await` is legal), since it suspends until the NUI responds.
@@ -243,6 +247,8 @@ end
 
 `registerApp` defines a full application once; `openApp` opens it later by id,
 with the same automatic focus and dismissal lifecycle as menus and inputs.
+When supplied, `openApp`'s `viewId` and `tabId` are string identifiers;
+invalid values fail before the browser request or focus lease is created.
 qblib renders the shared application frame, navigation, tables, lists, forms,
 records, timelines, maps, summary cards, empty states, and buttons. The
 registering resource remains the owner of its data, permissions, validation,
@@ -304,8 +310,9 @@ local result = QB.nui.openApp('qbmdt:police', {
 
 #### Lifecycle API
 
-- `QB.nui.registerApp(definition)` registers or replaces an owner-tracked app.
-  The id should be namespaced (`resource:app`). A registration is removed
+- `QB.nui.registerApp(definition)` registers or replaces its own owner-tracked
+  app. A different resource cannot replace that id. The id should be namespaced
+  (`resource:app`). A registration is removed
   automatically if its resource stops. An optional `accent = '#RRGGBB'`
   applies that primary colour only for the app's open lifetime; closing or
   superseding the app restores the player's `/theme` colour (or qbtheme's
@@ -326,11 +333,14 @@ local result = QB.nui.openApp('qbmdt:police', {
   `{ closed = true, reason, viewId?, tabId? }`.
 - `QB.nui.updateApp(id, update)` shallow-merges definition fields. Supplying
   `navigation` replaces the navigation tree as a whole. An open instance
-  refreshes immediately and keeps its view/tab if they still exist.
-- `QB.nui.closeApp(id?)` closes the matching app, or the currently open app
-  when id is omitted. `QB.nui.isAppOpen(id?)` reports its state.
+  refreshes immediately and keeps its view/tab if they still exist. Only the
+  registering resource can update it.
+- `QB.nui.closeApp(id?)` closes the registered owner's matching app, or its
+  currently open app when id is omitted. `QB.nui.isAppOpen(id?)` reports its
+  state.
 - `QB.nui.unregisterApp(id)` closes an open instance and removes its
-  registration.
+  registration. Only the registering resource can unregister or close it;
+  other resources cannot replace, update, close, or remove its app id.
 
 App actions can appear in `content.actions`, an `actions` or `form` block,
 list/timeline items, table rows, and map markers. They all call

@@ -14,6 +14,12 @@ Scope is FiveM. RedM branches are recorded only where they affect a shared
 contract. This inventory describes runtime Lua contracts, not the separate
 experimental TypeScript package under `package/`.
 
+The `qblib gap` notes below compare qblib by itself with ox_lib. They explain
+why a real optional resource named `ox_lib` is necessary for manifest imports;
+they are not current limitations of the installed compatibility resource. The
+wrapper supplies the pinned upstream runtime and is verified separately for
+its files, imports, and exports; see [ox_lib compatibility]({{ site.baseurl }}/migration/ox-lib/).
+
 ## 0. Architectural requirement (P0, blocking)
 
 An actual resource named **`ox_lib`** is required. FiveM resolves
@@ -247,9 +253,9 @@ then invokes `onSelect(args)`, `TriggerEvent(event,args)`, and/or
 `TriggerServerEvent(serverEvent,args)`. Back calls `onBack`; explicit close can
 call `onExit`. The bridge renders this as `openMenu` with
 `presentation='panel'`; when `menu` identifies a parent it also sends
-`back=true`. Clicking the panel header control emits the authenticated live
+`back=true`. Clicking the panel header control emits the token-validated live
 event `back` instead of inserting a synthetic selectable row. Parent/child
-navigation sends an authenticated `updateMenu` envelope with the complete next
+navigation sends a token-matched `updateMenu` envelope with the complete next
 panel payload, retaining the same mounted request and avoiding transition
 flicker.
 
@@ -685,7 +691,7 @@ Cross-cutting release gates:
 5. Preserve upstream LGPL-3.0 `LICENSE`, `NOTICE.md`, source headers, and make
    modified source available.
 
-## 15. Live workspace delta observed during audit
+## 15. Historical workspace delta observed during the initial audit
 
 At audit time a concurrently-created `resources/[test]/ox_lib` tree existed.
 Every file it contained compared byte-for-byte with the pinned upstream
@@ -700,4 +706,5 @@ resource scripts, but initially lacked:
 - `resource/zoneCreator/client.lua`, `resource/zoneCreator/server.lua`.
 
 Re-run the file-list diff after concurrent agents finish; this observation is a
-point-in-time snapshot, not ownership of those edits.
+point-in-time snapshot, not ownership of those edits. It is retained as audit
+history, not a statement of the current compatibility resource state.

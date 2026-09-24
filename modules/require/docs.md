@@ -44,3 +44,8 @@ On the client, the target files must be included in the target resource's
 `files` manifest entry so FiveM makes them available to `LoadResourceFile`.
 Required chunks execute in the consumer's Lua environment, matching ordinary
 `require` behavior; avoid modules whose only purpose is to mutate globals.
+
+Resource names and paths are validated before any file read. Resource names
+cannot be `.` or `..`, or contain `@`, slashes, or control characters; module
+paths are relative, cannot contain empty, `.` or `..` segments, and cannot use
+backslashes. This keeps `LoadResourceFile` scoped to the intended resource.

@@ -35,6 +35,23 @@ function _G.RequestNamedPtfxAsset() end
 function _G.HasNamedPtfxAssetLoaded() return true end
 function _G.RemoveNamedPtfxAsset() end
 
+local removedAnimSets = {}
+function _G.RequestAnimSet() end
+function _G.HasAnimSetLoaded() return false end
+function _G.RemoveAnimSet(animSet) removedAnimSets[animSet] = true end
+
+function _G.RequestClipSet() end
+function _G.HasClipSetLoaded() return true end
+function _G.RemoveClipSet() end
+
+function _G.RequestIpl() end
+function _G.IsIplActive() return true end
+function _G.RemoveIpl() end
+
+function _G.RequestScaleformMovie() return 1 end
+function _G.HasScaleformMovieLoaded() return true end
+function _G.SetScaleformMovieAsNoLongerNeeded() end
+
 function _G.IsWeaponValid() return true end
 function _G.RequestWeaponAsset() end
 function _G.HasWeaponAssetLoaded() return true end
@@ -79,6 +96,48 @@ harness.test("loadModel rejects a model IsModelValid refuses", function()
     harness.assertThrows(function()
         QB.stream.loadModel("totally-invalid")
     end, "an invalid model should raise instead of silently failing")
+end)
+
+harness.test("streaming loaders reject malformed callbacks, options, and native inputs", function()
+    harness.assertThrows(function() QB.stream.loadModel(false) end)
+    harness.assertThrows(function() QB.stream.loadModel("prop_test", false) end)
+    harness.assertThrows(function() QB.stream.loadModel("prop_test", nil, false) end)
+    harness.assertThrows(function() QB.stream.loadAnimSet("move", nil, false) end)
+    harness.assertThrows(function() QB.stream.loadClipSet("move", nil, false) end)
+    harness.assertThrows(function() QB.stream.loadIpl("move", nil, false) end)
+    harness.assertThrows(function() QB.stream.loadScaleformMovie("move", nil, false) end)
+    harness.assertThrows(function() QB.stream.loadTextureDict("commonmenu", nil, "yes") end)
+    harness.assertThrows(function() QB.stream.loadWeaponAsset(false) end)
+    harness.assertThrows(function() QB.stream.loadWeaponAsset("weapon_pistol", nil, false) end)
+    harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2, z = 3 }, false) end)
+    harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2, z = 3 }, nil, false) end)
+end)
+
+harness.test("loadAnimSet supports caller cancellation while waiting", function()
+    local polls = 0
+    local result, err = QB.stream.loadAnimSet("move", nil, {
+        shouldContinue = function()
+            polls = polls + 1
+            return polls < 2
+        end,
+    })
+
+    harness.assertFalse(result)
+    harness.assertEqual(err, "cancelled")
+    harness.assertTrue(removedAnimSets.move)
+end)
+
+harness.test("streaming loaders reject empty asset names before native requests", function()
+    harness.assertThrows(function() QB.stream.loadModel("") end)
+    harness.assertThrows(function() QB.stream.loadPtfx("") end)
+    harness.assertThrows(function() QB.stream.loadAnimDict("") end)
+    harness.assertThrows(function() QB.stream.loadAnimSet("") end)
+    harness.assertThrows(function() QB.stream.loadClipSet("") end)
+    harness.assertThrows(function() QB.stream.loadIpl("") end)
+    harness.assertThrows(function() QB.stream.loadScaleformMovie("") end)
+    harness.assertThrows(function() QB.stream.loadTextureDict("") end)
+    harness.assertThrows(function() QB.stream.loadAudioBank("") end)
+    harness.assertThrows(function() QB.stream.loadWeaponAsset("") end)
 end)
 
 harness.test("loadModel gives up and still cleans up when a model never streams in", function()
@@ -171,6 +230,8 @@ end)
 
 harness.test("loadCollision rejects malformed coords", function()
     harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2 }) end, "coords missing z should raise")
+    harness.assertThrows(function() QB.stream.loadCollision({ x = math.huge, y = 2, z = 3 }) end,
+        "non-finite collision coordinates should raise")
 end)
 
 harness.report("stream")

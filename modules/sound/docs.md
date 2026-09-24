@@ -18,12 +18,16 @@ All three `play*` functions share the same options table:
 | Field | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `network` | `boolean` | `false` | Play for nearby players too, not just locally |
-| `range` | `number` | `Config.sound.defaultRange` (30.0) | Audible range in metres — world sounds only |
+| `range` | `number` | `Config.sound.defaultRange` (30.0) | Finite non-negative audible range in metres — world sounds only |
 | `bank` | `string` | — | Audio bank to request and wait for before playing |
-| `releaseAfter` | `number` | `Config.sound.defaultReleaseAfter` (10000) | ms before the sound id is auto-released; `0` opts out |
+| `releaseAfter` | `number` | `Config.sound.defaultReleaseAfter` (10000) | Finite non-negative ms before auto-release; `0` opts out |
 
-Each returns `number | false` (the sound id, for `QB.sound.stop`) plus an error
+Each returns `integer | false` (the sound id, for `QB.sound.stop`) plus an error
 string on failure.
+
+`options` must be a table when supplied. `network` must be boolean and `bank`
+must be a non-empty string; explicit invalid values are rejected before qblib
+claims a sound id or requests an audio bank.
 
 ### `QB.sound.playFrontend(name, set, options?)`
 A 2D UI/frontend sound — notification beeps, dispatch tones, menu clicks.
@@ -33,7 +37,7 @@ QB.sound.playFrontend('Lose_1st', 'GTAO_FM_Events_Soundset')
 ```
 
 ### `QB.sound.playFromCoords(coords, name, set, options?)`
-A positional sound at world coordinates.
+A positional sound at finite world coordinates.
 
 ```lua
 QB.sound.playFromCoords(coords, 'Beep_Red', 'DLC_HEIST_HACKING_SNAKE_SOUNDS', { range = 20.0 })
@@ -43,20 +47,23 @@ QB.sound.playFromCoords(coords, 'Beep_Red', 'DLC_HEIST_HACKING_SNAKE_SOUNDS', { 
 A sound that follows an entity.
 
 ### `QB.sound.stop(soundId)`
-Stops a sound and releases its id.
+Stops a sound created by the calling resource and releases its id.
 
 #### Returns
 - `boolean`, `string?` — `false, "Sound id is not tracked by QB.sound."` for an
-  id this module didn't allocate.
+  id this module didn't allocate, or `false, "Sound id is owned by another resource."`
+  for a handle belonging to another resource.
+
+`soundId` must be a finite integer. `QB.sound.isLive(soundId)` returns `false`
+for any other value.
 
 ### `QB.sound.isLive(soundId)`
 Whether an id allocated by this module is still held.
 
 ## Notes
-- **Untracked ids are refused.** `exports.qblib:sound_stop` is callable from any
-  resource; the tracked-id gate is what stops it doubling as a stop-anything
-  primitive against another resource's audio — the same rule `QB.blips.remove`
-  enforces.
+- **Foreign ids are refused.** `exports.qblib:sound_stop` is callable from any
+  resource, but it can only stop a sound the caller created. This prevents it
+  becoming a stop-anything primitive against another resource's audio.
 - **Every call gets a stoppable handle.** The usual fire-and-forget idiom
   (passing `-1` as the sound id) needs no bookkeeping but produces a handle you
   can never stop. Managing the id uniformly means no call site can leak and

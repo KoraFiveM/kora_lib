@@ -10,6 +10,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 local existingBlips = {}
 local blipCalls = {}
@@ -137,6 +138,33 @@ harness.test("creates a blip with config defaults when no options are given", fu
     harness.assertEqual(blipCalls[blip].display, Config.blips.defaultDisplay, "visible blips should use the default display")
     harness.assertEqual(blipCalls[blip].label, "",
         "the default blip name should not repeat GTA's category heading")
+end)
+
+harness.test("create rejects non-finite coordinates before registering a blip", function()
+    local before = nextBlip
+    harness.assertThrows(function()
+        QB.blips.create({ x = math.huge, y = 2, z = 3 })
+    end, "infinite blip coordinates must be rejected")
+    harness.assertEqual(nextBlip, before, "invalid coordinates must not allocate a native blip")
+end)
+
+harness.test("create rejects malformed native options before registering a blip", function()
+    local before = nextBlip
+    for _, options in ipairs({
+        false,
+        { sprite = false },
+        { color = -1 },
+        { scale = false },
+        { display = 1.5 },
+        { shortRange = 'yes' },
+        { route = 'yes' },
+        { info = false },
+    }) do
+        harness.assertThrows(function()
+            QB.blips.create({ x = 1, y = 2, z = 3 }, options)
+        end)
+    end
+    harness.assertEqual(nextBlip, before, "invalid blip options must not allocate a native blip")
 end)
 
 harness.test("creates a blip honoring every explicit option", function()
@@ -397,6 +425,27 @@ harness.test("remove deletes a tracked blip", function()
     harness.assertTrue(ok, "remove should report success")
     harness.assertFalse(_G.DoesBlipExist(blip), "the blip should no longer exist after remove")
     harness.assertEqual(missionCreatorBlips[blip], nil, "remove should discard the detail panel state")
+end)
+
+harness.test("only the owner can change or remove a blip", function()
+    _G.GetInvokingResource = function() return "blip_owner" end
+    local blip = QB.blips.create({ x = 0, y = 0, z = 0 })
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    local ok, err = QB.blips.hide(blip)
+    harness.assertFalse(ok, "a different resource should not hide the blip")
+    harness.assertEqual(err, "Blip is not owned by the calling resource.")
+    ok, err = QB.blips.show(blip)
+    harness.assertFalse(ok, "a different resource should not show the blip")
+    harness.assertEqual(err, "Blip is not owned by the calling resource.")
+    ok, err = QB.blips.remove(blip)
+    harness.assertFalse(ok, "a different resource should not remove the blip")
+    harness.assertEqual(err, "Blip is not owned by the calling resource.")
+    harness.assertTrue(_G.DoesBlipExist(blip), "a refused removal must leave the blip intact")
+
+    _G.GetInvokingResource = function() return "blip_owner" end
+    harness.assertTrue(QB.blips.remove(blip), "the owner should be able to remove the blip")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("remove reports failure for an already-removed blip", function()

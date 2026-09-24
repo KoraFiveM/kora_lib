@@ -17,7 +17,11 @@ Repeatedly invokes `call` until it returns a truthy value, or until the try coun
   |---|---|
   | omitted / `false` | A single frame (`Wait(0)`) |
   | `true` | Exponential, 25ms → 1s |
-  | a number | That many ms, every attempt |
+  | a non-negative integer | That many ms, every attempt |
+
+`call` must be callable. `tries` must be a positive finite integer when set;
+`timeout` and numeric `backoff` must be finite non-negative integers. Invalid
+options fail before the first predicate call, rather than during a later retry.
 
 #### Returns
 - `any | false` — The truthy value from `call`, or `false` on failure.
@@ -25,7 +29,8 @@ Repeatedly invokes `call` until it returns a truthy value, or until the try coun
 
 #### Behavior
 1. `call()` is invoked; if it returns a truthy value, that value is returned immediately.
-2. If a `timeout` is set and elapsed, the loop returns `false, "Loop timed out."`.
+2. If a `timeout` is set and the deadline is reached, the loop returns
+   `false, "Loop timed out."` after that attempt.
 3. If `tries` is set and exhausted, the loop returns `false, "Loop failed due to exceeding try count."`.
 4. Between attempts the loop waits per `backoff` above. Any wait is clamped to the remaining timeout, so a long interval can't overshoot the deadline.
 
@@ -38,7 +43,7 @@ end, 20, 5000)
 if not ped then return print('player ped never became available') end
 ```
 
-Polling with exponential backoff (as used by `modules/stream/client.lua` to wait on `HasModelLoaded`):
+Polling with exponential backoff:
 
 ```lua
 local loaded, err = QB.loops.controlled(function()

@@ -2,8 +2,16 @@ local harness = dofile('test/harness.lua')
 
 QB = {
     ox = {}, nui = {}, notify = {}, progressbar = {}, minigames = {}, textui = {},
-    locale = {}, stream = {}, controls = {}, compat = {},
+    locale = {}, stream = {}, controls = {}, compat = {}, util = {},
 }
+
+function QB.util.isInteger(value)
+    return type(value) == 'number' and value == value and value > -math.huge and value < math.huge and value % 1 == 0
+end
+
+function QB.util.isFiniteNumber(value)
+    return type(value) == 'number' and value == value and value > -math.huge and value < math.huge
+end
 
 function QB.compat.isCallable(value)
     if type(value) == 'function' then return true end
@@ -112,6 +120,14 @@ function QB.controls.release(lease)
     requests[#requests + 1] = { action = 'controlsRelease', lease = lease }
     return true
 end
+QB.compat.acquireControls = function(ids, options, owner)
+    requests[#requests + 1] = { action = 'controls', ids = ids, options = options, owner = owner }
+    return #requests
+end
+QB.compat.releaseControlLease = function(lease, owner)
+    requests[#requests + 1] = { action = 'controlsRelease', lease = lease, owner = owner }
+    return true
+end
 function QB.locale.getLanguage() return locale end
 function QB.locale.setLanguage(value) locale = value return true end
 function QB.stream.loadAudioBank(_, callback) callback() return true end
@@ -124,6 +140,7 @@ Citizen = { Await = function(value)
             value.onEvent(event.name, event.data)
         end
     end
+    if type(scripted) == 'table' and type(scripted.beforeTerminal) == 'function' then scripted.beforeTerminal() end
     if type(scripted) == 'table' and scripted.terminal ~= nil then return scripted.terminal end
     return scripted
 end }
@@ -195,6 +212,17 @@ harness.test('alert translates fields and returns ox confirmation vocabulary', f
     harness.assertTrue(call.payload.overflow)
 end)
 
+harness.test('alert rejects unsafe timeouts before opening a browser request', function()
+    local requestCount = #requests
+    local alert = { content = 'This cannot be undone.' }
+
+    harness.assertThrows(function() QB.ox.alertDialog(alert, math.huge, 'shop') end)
+    harness.assertThrows(function() QB.ox.alertDialog(alert, -1, 'shop') end)
+    harness.assertThrows(function() QB.ox.alertDialog(alert, 1.5, 'shop') end)
+
+    harness.assertEqual(#requests, requestCount, 'an invalid timeout must not open an alert')
+end)
+
 harness.test('clipboard keeps the consumer owner and avoids focus', function()
     queue('copyToClipboard', true)
     QB.ox.setClipboard('hello', 'notes')
@@ -225,6 +253,20 @@ harness.test('context selection dispatches callbacks, local events, and server e
     QB.ox.showContext('events', 'context_owner')
     harness.assertEqual(triggered[#triggered].name, 'local:event')
     harness.assertEqual(triggeredServer[#triggeredServer].name, 'server:event')
+end)
+
+harness.test('context registration rejects sparse definition lists before dropping entries', function()
+    harness.assertThrows(function()
+        QB.ox.registerContext({
+            { id = 'first_context', title = 'First', options = {} },
+            [3] = { id = 'third_context', title = 'Third', options = {} },
+        }, 'context_owner')
+    end)
+
+    harness.assertThrows(function()
+        QB.ox.registerContext({ id = 'invalid_context', title = 'Invalid', options = { bad = true } }, 'context_owner')
+    end)
+    harness.assertThrows(function() QB.ox.showContext('invalid_context', 'context_owner') end)
 end)
 
 harness.test('input maps the complete ox row set and returns a positional array', function()
@@ -267,6 +309,27 @@ harness.test('input maps the complete ox row set and returns a positional array'
     harness.assertEqual(call.payload.fields[11].colorFormat, 'rgba')
     harness.assertEqual(call.payload.size, 'xl')
     harness.assertFalse(call.payload.dismissOnBackdrop)
+end)
+
+harness.test('input rejects sparse row and option lists before opening the UI', function()
+    local requestCount = #requests
+
+    harness.assertThrows(function()
+        QB.ox.inputDialog('Sparse rows', { { label = 'First' }, [3] = { label = 'Third' } }, nil, 'forms')
+    end)
+    harness.assertThrows(function()
+        QB.ox.inputDialog('Sparse options', {
+            { type = 'select', label = 'Choice', options = { { value = 'one' }, [3] = { value = 'three' } } },
+        }, nil, 'forms')
+    end)
+    harness.assertThrows(function()
+        QB.ox.inputDialog('Invalid option list', { { type = 'select', label = 'Choice', options = false } }, nil, 'forms')
+    end)
+    harness.assertThrows(function()
+        QB.ox.inputDialog('Invalid option', { { type = 'select', label = 'Choice', options = { false } } }, nil, 'forms')
+    end)
+
+    harness.assertEqual(#requests, requestCount, 'invalid input lists must not open a browser request')
 end)
 
 harness.test('actionless context rows stay open instead of dismissing the surface', function()
@@ -328,6 +391,24 @@ harness.test('context submenu and back navigation update one mounted panel in pl
     harness.assertEqual(#parent.payload.items, 1)
     harness.assertEqual(parent.payload.items[1].label, 'Open child')
     harness.assertFalse(parent.payload.items[1].close)
+end)
+
+harness.test('re-registering an open context refreshes that mounted panel', function()
+    QB.ox.registerContext({ id = 'live_context', title = 'Live', options = {
+        { title = 'Original' },
+    } }, 'context_owner')
+    queue('openMenu', {
+        beforeTerminal = function()
+            QB.ox.registerContext({ id = 'live_context', title = 'Live', options = {
+                { title = 'Replacement' },
+            } }, 'context_owner')
+        end,
+        terminal = { cancelled = true },
+    })
+    QB.ox.showContext('live_context', 'context_owner')
+
+    local update = lastRequest('updateMenu')
+    harness.assertEqual(update.payload.items[1].label, 'Replacement')
 end)
 
 harness.test('explicit focus uses an owner lease with composed keep-input state', function()
@@ -397,6 +478,57 @@ harness.test('registered menu invokes the exact positional callback contract', f
     harness.assertEqual(uncheckedSelection[3].isCheck, nil)
 end)
 
+harness.test('menu registration and bulk updates reject sparse option lists', function()
+    harness.assertThrows(function()
+        QB.ox.registerMenu({ id = 'sparse_menu', title = 'Sparse', options = {
+            { label = 'First' }, [3] = { label = 'Third' },
+        } }, nil, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.registerMenu({ id = 'invalid_menu', title = 'Invalid', options = { false } }, nil, 'menu_owner')
+    end)
+
+    QB.ox.registerMenu({ id = 'mutable_menu', title = 'Mutable', options = { { label = 'First' } } }, nil, 'menu_owner')
+    harness.assertThrows(function()
+        QB.ox.setMenuOptions('mutable_menu', { { label = 'First' }, [3] = { label = 'Third' } }, nil, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.setMenuOptions('mutable_menu', false, 1, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.setMenuOptions('mutable_menu', { false }, nil, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.setMenuOptions('mutable_menu', { label = 'Past end' }, 2, 'menu_owner')
+    end)
+end)
+
+harness.test('live menu updates refresh the mounted panel and its callbacks', function()
+    local selections = {}
+    QB.ox.registerMenu({
+        id = 'live_menu', title = 'Live', options = { { label = 'Original', args = { state = 'old' } } },
+        onSelected = function(_, _, args)
+            selections[#selections + 1] = args.state
+            if #selections == 1 then
+                QB.ox.setMenuOptions('live_menu', { { label = 'Replacement', args = { state = 'new' } } }, nil, 'menu_owner')
+            end
+        end,
+    }, nil, 'menu_owner')
+    queue('openMenu', {
+        events = {
+            { name = 'selected', data = { selectedId = '__ox_menu_1' } },
+            { name = 'selected', data = { selectedId = '__ox_menu_1' } },
+        },
+        terminal = { cancelled = true },
+    })
+    QB.ox.showMenu('live_menu', nil, 'menu_owner')
+
+    harness.assertEqual(selections[1], 'old')
+    harness.assertEqual(selections[2], 'new')
+    local update = lastRequest('updateMenu')
+    harness.assertEqual(update.payload.items[1].label, 'Replacement')
+end)
+
 harness.test('notifications normalize ox fields without mutating the source', function()
     local source = {
         id = 42,
@@ -421,6 +553,10 @@ harness.test('notifications normalize ox fields without mutating the source', fu
     harness.assertEqual(payload.alignIcon, 'top')
     harness.assertEqual(payload.style['& .description'].color, 'blue')
     harness.assertEqual(source.type, 'inform')
+
+    QB.ox.notify({ description = 'Fallback', duration = math.huge }, 'notify_owner')
+    harness.assertEqual(notifications[#notifications].duration, 3000,
+        'a non-finite duration should use the normal compatibility default')
 end)
 
 harness.test('progress translates props, scenarios, controls, and owner', function()
@@ -528,6 +664,21 @@ harness.test('keep-open radial choices stay mounted and live registry changes re
     harness.assertFalse(refresh.payload.items[1].close)
 end)
 
+harness.test('radial registration rejects sparse item lists before dropping entries', function()
+    harness.assertThrows(function()
+        QB.ox.registerRadial({ id = 'sparse_radial', items = {
+            { label = 'First' },
+            [3] = { label = 'Third' },
+        } }, 'radial_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.registerRadial({ id = '', items = {} }, 'radial_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.addRadialItem({ id = '', label = 'No identity' }, nil, 'radial_owner')
+    end)
+end)
+
 harness.test('owner disposal removes radial items nested under another consumer without mutating inputs', function()
     local transient = { id = 'transient', label = 'Transient' }
     QB.ox.registerRadial({ id = 'shared_radial', items = {
@@ -566,6 +717,29 @@ harness.test('skillCheck sends the complete stage sequence to one local NUI sess
     harness.assertEqual(call.payload.difficulty[2].areaSize, 36)
     harness.assertEqual(call.payload.inputs[2], 'q')
     harness.assertFalse(call.focused)
+end)
+
+harness.test('skillCheck rejects non-finite custom difficulty values before opening', function()
+    local requestCount = #requests
+
+    harness.assertThrows(function()
+        QB.ox.skillCheck({ areaSize = math.huge, speedMultiplier = 1 }, nil, 'skill_owner')
+    end)
+    harness.assertThrows(function()
+        QB.ox.skillCheck({ areaSize = 36, speedMultiplier = 0 / 0 }, nil, 'skill_owner')
+    end)
+
+    harness.assertEqual(#requests, requestCount, 'invalid difficulty values must not open a skill check')
+end)
+
+harness.test('skillCheck rejects sparse input lists before opening', function()
+    local requestCount = #requests
+
+    harness.assertThrows(function()
+        QB.ox.skillCheck('easy', { 'e', [3] = 'q' }, 'skill_owner')
+    end)
+
+    harness.assertEqual(#requests, requestCount, 'sparse inputs must not open a skill check')
 end)
 
 harness.test('TextUI preserves the original ox text and extracts a qblib key chip', function()
@@ -633,9 +807,11 @@ end)
 
 harness.test('invalid owners and unsupported input types fail fast', function()
     harness.assertThrows(function() QB.ox.notify({}, '') end)
+    harness.assertThrows(function() QB.ox.inputDialog('Bad options', {}, false, 'forms') end)
     harness.assertThrows(function()
         QB.ox.inputDialog('Bad', { { type = 'file', label = 'Upload' } }, {}, 'forms')
     end)
+    harness.assertThrows(function() QB.ox.showTextUI('Bad options', false, 'forms') end)
 end)
 
 harness.test('an unknown radial root is an upstream-compatible no-op', function()

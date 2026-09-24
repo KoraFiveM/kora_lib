@@ -41,4 +41,12 @@ harness.test('returns only the server-resolved admin permission', function()
     harness.assertFalse(callbackHandler(0), 'invalid source should fail closed')
 end)
 
+harness.test('rejects malformed sources before resolving permissions', function()
+    adminSource = nil
+    for _, source in ipairs({ -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        harness.assertFalse(callbackHandler(source))
+    end
+    harness.assertEqual(adminSource, nil, 'invalid sources must not reach the permission helper')
+end)
+
 harness.report('blips settings server smoke')

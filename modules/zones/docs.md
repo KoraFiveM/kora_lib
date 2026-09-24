@@ -1,7 +1,7 @@
 # Zones module
 
 ## Overview
-The zones module gives you box, sphere, and poly trigger zones for the local player, with `onEnter`/`onExit`/`inside` callbacks — similar to ox_lib's zones. Points aren't a separate feature: `QB.zones.point()` is just a sphere with a small default radius, returning the same handle every other shape returns.
+The zones module gives you box, sphere, circle, and poly trigger zones for the local player, with `onEnter`/`onExit`/`inside` callbacks — similar to ox_lib's zones. Points aren't a separate feature: `QB.zones.point()` is just a sphere with a small default radius, returning the same handle every other shape returns.
 
 ## API
 
@@ -9,9 +9,10 @@ The zones module gives you box, sphere, and poly trigger zones for the local pla
 Creates a rotatable box zone.
 
 #### Parameters
-- `coords: vector3` — Box center.
-- `size: vector3` — Full extents (x, y, z), all greater than 0.
-- `rotation: number | nil` — Degrees around the Z axis. Defaults to `0`.
+- `coords: vector3` — Finite Box center coordinates.
+- `size: vector3` — Finite full extents (x, y, z), all greater than 0.
+- `rotation: finite number | nil` — Degrees around the Z axis. Defaults to `0`.
+- `ignoreZ: boolean | nil` — Ignore the Z extent and test the rotated XY rectangle only. Defaults to `false`.
 - `onEnter: fun(zone) | nil`, `onExit: fun(zone) | nil`, `inside: fun(zone, coords) | nil` — Callbacks.
 - `trackPlayer: boolean | nil` — Set `false` for a predicate-only zone that only uses `contains()`. It is then omitted from the player-position grid and `isInside()` remains false. Defaults to `true`.
 - `debug: boolean | nil` — Draw the zone's bounds while it exists. Defaults to `false`.
@@ -35,8 +36,9 @@ local zone = QB.zones.box({
 Creates a sphere zone.
 
 #### Parameters
-- `coords: vector3` — Sphere center.
-- `radius: number` — Must be greater than 0.
+- `coords: vector3` — Finite sphere center coordinates.
+- `radius: finite number` — Must be greater than 0.
+- `includeBoundary: boolean | nil` — Whether a point exactly on `radius` counts as inside. Defaults to `true`.
 - `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
 
 #### Example
@@ -48,17 +50,38 @@ QB.zones.sphere({
 })
 ```
 
+### `QB.zones.circle(opts)`
+Creates an exact flat 2D circle zone. It tests the XY radius only, so the
+point's Z coordinate is always ignored. This is useful for map areas that span
+several elevations and for migrating a legacy `CircleZone` with `useZ = false`.
+
+#### Parameters
+- `coords: vector3` — Finite circle center coordinates. Z is retained for debugging and editing, but does not affect containment.
+- `radius: finite number` — Must be greater than 0.
+- `includeBoundary: boolean | nil` — Whether a point exactly on `radius` counts as inside. Defaults to `true`.
+- `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
+
+#### Example
+```lua
+QB.zones.circle({
+    coords = vector3(100.0, 200.0, 30.0),
+    radius = 12.0,
+    onEnter = function() print('entered the map area') end,
+})
+```
+
 ### `QB.zones.poly(opts)`
 Creates a polygon zone: a 2D footprint extruded across a vertical height band.
 
 #### Parameters
-- `points: vector3[]` — At least 3 points. Only their XY defines the footprint.
-- `thickness: number | nil` — Height of the band, measured **upward from the lowest point's Z** (so the zone sits on the surface the points were drawn on, and `thickness` is simply how tall it is). Defaults to `Config.zones.defaultPolyThickness`. Ignored if `minZ`/`maxZ` are given — pass those explicitly for a band that floats above the points.
-- `minZ: number | nil`, `maxZ: number | nil` — Explicit height band. Must both be given, or neither.
+- `points: vector3[]` — A dense array of at least 3 points with finite coordinates. Only their XY defines the footprint.
+- `thickness: finite number | nil` — Height of the band, measured **upward from the lowest point's Z** (so the zone sits on the surface the points were drawn on, and `thickness` is simply how tall it is). Defaults to `Config.zones.defaultPolyThickness`. Ignored if `minZ`/`maxZ` are given — pass those explicitly for a band that floats above the points.
+- `minZ: finite number | nil`, `maxZ: finite number | nil` — Explicit height band. Must both be given, or neither.
+- `ignoreZ: boolean | nil` — Ignore the height band and test the XY footprint only. Defaults to `false`; useful for legacy map areas that deliberately span every elevation.
 - `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
 
 #### Behavior
-This is a **2D footprint plus a height range**, not an arbitrary 3D-oriented volume — matching ox_lib's own poly zones. It covers building floors, parking lots, and interiors well; it does not support a tilted/rotated polygon plane.
+This is a **2D footprint plus a height range**, not an arbitrary 3D-oriented volume — matching ox_lib's own poly zones. It covers building floors, parking lots, and interiors well; it does not support a tilted/rotated polygon plane. Set `ignoreZ = true` only when the footprint intentionally spans every elevation.
 
 #### Example
 ```lua
@@ -75,10 +98,11 @@ QB.zones.poly({
 
 ### `QB.zones.point(opts)`
 Creates a point zone. Not a separate shape — a sphere with a small default radius, returning the exact same kind of handle `QB.zones.sphere` does.
+When its radius is omitted, the default is applied without mutating your `opts` table.
 
 #### Parameters
 - `coords: vector3` — Point location.
-- `radius: number | nil` — Defaults to `Config.zones.defaultPointRadius` (1.0m).
+- `radius: number | nil` — Defaults to `Config.zones.defaultPointRadius` (1.0m) only when omitted; supplied values must be positive and finite.
 - `onEnter`, `onExit`, `inside`, `trackPlayer`, `debug`, `data` — Same as `box`.
 
 #### Example
@@ -95,7 +119,7 @@ The creator spins up its own free-flying camera rather than using your normal vi
 
 #### Parameters
 - `zoneType: "box" | "sphere" | "poly"`
-- `existingOpts?: table` — Seeds the creator from an existing zone's opts (same shape `QB.zones.<type>()` takes), so you can reposition/resize an already-built zone instead of starting empty: `QB.zones.startCreator("box", myZoneOpts)`. Any field it doesn't provide falls back to the usual default. Seed values are validated like the real constructors (positive sizes/radius, point cap) and raise synchronously when malformed.
+- `existingOpts?: table` — Seeds the creator from an existing zone's opts (same shape `QB.zones.<type>()` takes), so you can reposition/resize an already-built zone instead of starting empty: `QB.zones.startCreator("box", myZoneOpts)`. Any field it doesn't provide falls back to the usual default. Seed values are validated like the real constructors (finite coordinates/numbers, positive sizes/radius, paired poly height bounds, point cap) and raise synchronously when malformed.
 
 #### Default controls
 | Key | Action |
@@ -138,7 +162,7 @@ Formats zone options into the `QB.zones.<type>({...})` Lua snippet the creator's
 
 #### Parameters
 - `zoneType: "box" | "sphere" | "poly"`
-- `opts: table` — same shape as that type's own constructor options.
+- `opts: table` — same shape as that type's own constructor options. Numeric values must be finite; a poly snippet preserves either `thickness` or an explicit `minZ`/`maxZ` band.
 
 #### Returns
 - `string`
@@ -171,25 +195,45 @@ for _, zone in ipairs(QB.zones.getInside()) do
 end
 ```
 
-### Creator and debug state
+### `QB.zones.setDebug(id, enabled)`
+Changes debug rendering without recreating a zone.
 
-- `QB.zones.isCreatorActive()` reports whether the in-world creator is active.
-- `QB.zones.edit(handle, opts?)` reopens the creator using a live handle's
-  current options, replacing that handle only after confirmation.
-- `QB.zones.setDebug(id, enabled)` changes debug rendering for a live zone.
+#### Parameters
+- `id: integer | nil` — A zone handle's `id`. Omit it to update every currently registered zone.
+- `enabled: boolean`
+
+`zone.setDebug(enabled)` is the equivalent single-zone convenience method. Both
+return `false` when a foreign resource attempts to change a zone. Debug drawing
+is intended for development: it runs every frame while enabled.
+
+### `QB.zones.edit(handle, opts)`
+Updates a live box, sphere, or circle zone in place and returns the **same** handle. This is deliberately narrow: it supports `coords`, `onEnter`, and `onExit` only. Pass `false` for either callback to detach it. A polygon cannot move this way because its location is its points; shape dimensions, rotation, points, and height ranges require replacing the zone.
+
+All requested fields are validated before any mutation, so an invalid mixed edit leaves the zone unchanged. It returns `nil, "Zone is owned by another resource."` rather than mutating a foreign zone.
+
+```lua
+QB.zones.edit(zone, {
+    coords = vector3(120.0, 200.0, 30.0),
+    onExit = false,
+})
+```
+
+### `QB.zones.isCreatorActive()`
+Returns `true` while the in-world creator owns player input. Use it when a consumer has a conflicting keybind and should temporarily yield to the creator. It does not indicate whether any ordinary runtime zones exist.
 
 ### Zone handle
 Every constructor above returns the same shape:
 - `id: integer`
-- `type: "box" | "sphere" | "poly"`
+- `type: "box" | "sphere" | "circle" | "poly"`
 - `resource: string` — The resource that created this zone.
 - `data: any` — Whatever was passed as `opts.data` at creation, unchanged.
-- `remove(): nil` — Tears the zone down. Same teardown path a resource stop uses.
+- `remove(): boolean` — Tears the zone down. Returns `false` for a foreign or already removed zone.
 - `contains(coords): boolean` — Runs the zone's exact containment test against an arbitrary point.
 - `isInside(): boolean` — Whether the local player is currently inside, read live (not a snapshot from creation time).
+- `setDebug(enabled): boolean` — Enables or disables this zone's debug rendering. Returns `false` for a foreign zone. Equivalent to `QB.zones.setDebug(zone.id, enabled)`.
 
 ## Performance
-Zones aren't checked one-by-one against every player position every tick. A shared spatial grid (cell size `Config.zones.gridSize`, 50m by default) buckets zones by horizontal location; each tick only looks at the 3×3 neighborhood of cells around the player, and only runs a zone's real containment test after a cheap bounding-box check confirms the player could plausibly be inside it.
+Zones aren't checked one-by-one against every player position every tick. A shared spatial grid (cell size `Config.zones.gridSize`, 50m by default) buckets zones by horizontal location; each tick only looks at the 3×3 neighborhood of cells around the player, and only runs a zone's real containment test after a cheap bounding-box check confirms the player could plausibly be inside it. Flat circles and any box/poly with `ignoreZ = true` skip the vertical AABB term before their exact XY test, so elevation-free containment is exact rather than a very tall approximation. The small set of zones already entered is also checked for exit, so a teleport or fast vehicle move cannot leave `isInside()` stale after it moves outside that neighborhood.
 
 The check rate itself adapts: `Config.zones.tickFar` (1000ms) when nothing is nearby, `Config.zones.tickNear` (200ms) when something is close or you're inside a zone with no `inside` callback, and `Config.zones.tickInside` (0ms — every frame) only while you're inside a zone that registered an `inside` callback. The near threshold widens automatically for fast-moving vehicles/aircraft so a small zone can't be skipped between two slow-tier checks.
 

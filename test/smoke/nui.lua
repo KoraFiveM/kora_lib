@@ -11,6 +11,7 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "local/resources/client.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 -- RegisterNUICallback/SendNUIMessage/SetNuiFocus are specific to this module,
 -- so (per the root AGENTS.md testing convention) they're mocked here rather
@@ -125,6 +126,16 @@ harness.test("request sends the action and payload via SendNuiMessage", function
     harness.assertEqual(sent.data.payload.foo, "bar", "the payload should be forwarded as-is")
 end)
 
+harness.test("request rejects unsafe timeouts before sending a message", function()
+    local sentCount = #sentMessages
+
+    harness.assertThrows(function() QB.nui.request("someAction", {}, math.huge) end)
+    harness.assertThrows(function() QB.nui.request("someAction", {}, -1) end)
+    harness.assertThrows(function() QB.nui.request("someAction", {}, 1.5) end)
+
+    harness.assertEqual(#sentMessages, sentCount, "an invalid timeout must not create or send a request")
+end)
+
 harness.test("request resolves once the NUI responds with ok = true and the right token", function()
     local p = QB.nui.request("someAction", {})
     respondOk(lastRequestId(), { value = 42 })
@@ -172,6 +183,21 @@ harness.test("registerCallback preserves a false handler result", function()
     harness.assertFalse(response, "only nil should be normalized to an empty response table")
 end)
 
+harness.test('registerCallback rejects invalid registrations before reaching the native', function()
+    local registrations = 0
+    local registerNuiCallback = RegisterNUICallback
+    _G.RegisterNUICallback = function(...)
+        registrations = registrations + 1
+        return registerNuiCallback(...)
+    end
+
+    harness.assertThrows(function() QB.nui.registerCallback('', function() end) end)
+    harness.assertThrows(function() QB.nui.registerCallback('bad-handler', false) end)
+    _G.RegisterNUICallback = registerNuiCallback
+
+    harness.assertEqual(registrations, 0, 'invalid registrations must not reach the native callback registry')
+end)
+
 harness.test("every request gets a fresh, non-empty token", function()
     QB.nui.request("someAction", {})
     local tokenA = lastToken()
@@ -201,6 +227,26 @@ harness.test("a response with no token at all is ignored", function()
 
     nuiCallbacks["qblib:nui:response"]({ requestId = requestId, ok = true, result = "spoofed" }, function() end)
     harness.assertEqual(p.state, "pending", "a response missing its token must not settle the promise")
+end)
+
+harness.test("malformed browser callback payloads are ignored", function()
+    local p = QB.nui.request("someAction", {})
+    local requestId, token = lastRequestId(), lastToken()
+    local events = 0
+    local eventRequest = QB.nui.requestAsync("someAction", {}, false, nil, nil, function() events = events + 1 end)
+    local eventRequestId, eventToken = lastRequestId(), lastToken()
+
+    nuiCallbacks["qblib:nui:response"]("not a table", function() end)
+    nuiCallbacks["qblib:nui:event"]("not a table", function() end)
+
+    harness.assertEqual(p.state, "pending", "a malformed response must not settle a request")
+    harness.assertEqual(events, 0, "a malformed event must not reach its handler")
+
+    respond(requestId, token, true, "answered")
+    nuiCallbacks["qblib:nui:event"]({ requestId = eventRequestId, token = eventToken, event = "change" }, function() end)
+    harness.assertEqual(p.value, "answered", "a valid response should still settle normally")
+    harness.assertEqual(events, 1, "a valid event should still reach its handler")
+    QB.nui.cancelRequest(eventRequest)
 end)
 
 harness.test("a response for an unknown requestId is a no-op", function()
@@ -479,15 +525,25 @@ end)
 
 harness.test("withFocus sets focus, runs fn, and always releases focus afterward", function()
     local ran = false
-    local result = QB.nui.withFocus(true, true, function()
+    local result, middle, tail = QB.nui.withFocus(true, true, function()
         ran = true
-        return "done"
+        return "done", nil, "tail"
     end)
 
     harness.assertTrue(ran, "fn should have run")
     harness.assertEqual(result, "done", "withFocus should return fn's result")
+    harness.assertEqual(middle, nil, "withFocus should preserve an interior nil return")
+    harness.assertEqual(tail, "tail", "withFocus should preserve every return value")
     harness.assertEqual(focusCalls[#focusCalls - 1].mouse, true, "focus should have been set before fn ran")
     harness.assertEqual(focusCalls[#focusCalls].mouse, false, "focus should be released after fn returns")
+end)
+
+harness.test('withFocus rejects invalid arguments before acquiring focus', function()
+    local focusCount = #focusCalls
+    harness.assertThrows(function() QB.nui.withFocus('yes', true, function() end) end)
+    harness.assertThrows(function() QB.nui.withFocus(true, true, false) end)
+    harness.assertThrows(function() QB.nui.withFocus(true, true, function() end, '') end)
+    harness.assertEqual(#focusCalls, focusCount, 'invalid calls must not alter NUI focus')
 end)
 
 harness.test("explicit focus leases compose and release independently", function()
@@ -563,6 +619,18 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
 end)
 
+harness.test("openApp validates navigation identifiers before creating a request", function()
+    QB.nui.registerApp({ id = "smoke:app-options", title = "Options", navigation = { { id = "home", label = "Home" } } })
+    local messageCount, focusCount = #sentMessages, #focusCalls
+
+    harness.assertThrows(function() QB.nui.openApp("smoke:app-options", { viewId = 1 }) end,
+        'a non-string viewId must fail before opening the app')
+    harness.assertThrows(function() QB.nui.openApp("smoke:app-options", { tabId = false }) end,
+        'a non-string tabId must fail before opening the app')
+    harness.assertEqual(#sentMessages, messageCount, 'invalid navigation identifiers must not send an NUI request')
+    harness.assertEqual(#focusCalls, focusCount, 'invalid navigation identifiers must not acquire focus')
+end)
+
 harness.test("registerApp accepts bounded progress graph blocks", function()
     local definition = {
         id = "smoke:progress", title = "Progress", navigation = {
@@ -585,6 +653,16 @@ harness.test("registerApp accepts bounded progress graph blocks", function()
             },
         })
     end, "progress values above max must be rejected before they reach the browser")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:bad-progress-infinity", title = "Bad progress", navigation = {
+                { id = "skills", label = "Skills", content = { blocks = {
+                    { type = "progress", items = { { label = "Mining", value = 1, max = math.huge } }, },
+                } } },
+            },
+        })
+    end, "non-finite progress values must be rejected before they reach the browser")
 end)
 
 harness.test("an app without its own accent keeps the player's /theme colour", function()
@@ -713,6 +791,31 @@ harness.test("registered apps are removed and closed automatically when their ow
     respond(requestId, token, true, { closed = true, reason = "resourceStop" })
     harness.assertThrows(function() QB.nui.openApp("smoke:owned") end,
         "an app should no longer be registered after its owner stops")
+end)
+
+harness.test("only an app owner can mutate or close its app", function()
+    _G.GetInvokingResource = function() return "app_owner" end
+    QB.nui.registerApp({ id = "smoke:owned-boundary", title = "Owned", navigation = { { id = "home", label = "Home" } } })
+    _G.GetInvokingResource = function() return nil end
+    local opened = QB.nui.openApp("smoke:owned-boundary")
+    local requestId, token = lastRequestId(), lastToken()
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    harness.assertThrows(function()
+        QB.nui.registerApp({ id = "smoke:owned-boundary", title = "Foreign", navigation = { { id = "home", label = "Home" } } })
+    end, "a foreign resource must not replace the app")
+    harness.assertThrows(function() QB.nui.closeApp("smoke:owned-boundary") end,
+        "a foreign resource must not close the app")
+    harness.assertThrows(function() QB.nui.updateApp("smoke:owned-boundary", { footer = "Foreign" }) end,
+        "a foreign resource must not update the app")
+    harness.assertThrows(function() QB.nui.unregisterApp("smoke:owned-boundary") end,
+        "a foreign resource must not unregister the app")
+
+    _G.GetInvokingResource = function() return "app_owner" end
+    harness.assertTrue(QB.nui.closeApp("smoke:owned-boundary"), "the owner should close its app")
+    respond(requestId, token, true, { closed = true, reason = "api" })
+    harness.assertEqual(opened.value.reason, "api")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("opening a second app releases old focus before granting focus to the new app", function()
@@ -982,6 +1085,11 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
         { id = "length", label = "Length", type = "text", minLength = 5, maxLength = 1 },
         { id = "options", label = "Options", type = "select", options = { { value = "one" } } },
         { id = "presets", label = "Presets", type = "number", presets = { { value = "ten" } } },
+        { id = "infinite-min", label = "Infinite min", type = "number", min = math.huge },
+        { id = "infinite-step", label = "Infinite step", type = "number", step = math.huge },
+        { id = "infinite-default", label = "Infinite default", type = "number", default = math.huge },
+        { id = "infinite-vector", label = "Infinite vector", type = "vector", dimensions = 3,
+            default = { x = 0, y = 0 / 0, z = 0 } },
         { id = "default", label = "Default", type = "multiselect", options = {}, default = "one" },
         { id = "visible", label = "Visible", type = "text", visibleWhen = { fieldId = "visible", equals = {} } },
     }
@@ -1026,6 +1134,28 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
             } } } } },
         })
     end, "table empty states must be strings so React never receives a table child")
+end)
+
+harness.test("AppShell rejects non-finite map points before registering", function()
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:invalid-map", title = "Invalid map",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "map", tiles = { url = "https://tiles.example/{z}/{x}/{y}.png", grid = { x = math.huge, y = 1 } },
+                markers = {},
+            } } } } },
+        })
+    end, "non-finite map calibration values must be rejected")
+
+    harness.assertThrows(function()
+        QB.nui.registerApp({
+            id = "smoke:invalid-marker", title = "Invalid marker",
+            navigation = { { id = "home", label = "Home", content = { blocks = { {
+                type = "map", tiles = { url = "https://tiles.example/{z}/{x}/{y}.png", tileSize = 256 },
+                markers = { { id = "marker", x = 0 / 0, y = 1, label = "Broken" } },
+            } } } } },
+        })
+    end, "non-finite marker geometry must be rejected")
 end)
 
 harness.report("nui")

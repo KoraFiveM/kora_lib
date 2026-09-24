@@ -24,6 +24,9 @@ a compact read-only status view. Options:
 - `position`: `left-center`, `right-center` (default), `top-center`, or
   `bottom-center`.
 
+Options default only when omitted; an explicit invalid value (including
+`position = false`) is rejected instead of being silently replaced.
+
 Text is rendered as safe GitHub-flavoured Markdown. Raw HTML is ignored and
 unsafe link protocols are rejected by the renderer.
 
@@ -31,11 +34,12 @@ unsafe link protocols are rejected by the renderer.
 
 Replaces a live entry without changing its stack position. Updating a hidden
 entry takes effect if it later becomes visible. Returns `false` for an expired
-handle.
+handle or one owned by another resource.
 
 ## `QB.textui.hide(id) -> boolean`
 
-Removes one entry. If it was visible, the previous live entry is rendered.
+Removes one entry owned by the calling resource. If it was visible, the
+previous live entry is rendered; another resource's handle returns `false`.
 
 ## `QB.textui.isOpen(id?) -> boolean`
 

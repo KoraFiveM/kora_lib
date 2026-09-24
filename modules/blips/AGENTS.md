@@ -34,7 +34,8 @@ This module creates map blips visible only to the calling client, with automatic
 - `/blips` opens the built-in compact AppShell category settings. Its adapter
   is `settings.lua`, explicitly loaded after `modules/**/client.lua` so both
   the registry and `QB.nui` exist. Resource-owner metadata must remain hidden
-  unless `qblib:blips:isAdmin` confirms the viewer server-side.
+  unless `qblib:blips:isAdmin` confirms the viewer server-side; malformed
+  callback sources fail closed before permission resolution.
 
 ## Implementation notes
 - Ownership tracking is delegated entirely to `QB.resources.registry` (`local/resources`) rather than hand-rolled here — see that module's `AGENTS.md` for why. `blips` is the first consumer.

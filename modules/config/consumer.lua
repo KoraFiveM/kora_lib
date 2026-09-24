@@ -18,17 +18,26 @@ return function(library)
     local bindings = {}
     local remoteValues = {}
     local readyResources = {}
+    local snapshotRequests = {}
+    local remoteRevisions = {}
+    local nextSnapshotRequestId = 0
 
-    local function requestSnapshot()
+    local function validSequence(value)
+        return type(value) == 'number' and value >= 1 and value % 1 == 0
+            and value == value and value ~= math.huge and value ~= -math.huge
+    end
+
+    local function requestSnapshot(resource)
         if not isServer and type(TriggerServerEvent) == 'function' then
-            TriggerServerEvent('qblib:server:configRequested', RESOURCE)
+            resource = resource or RESOURCE
+            nextSnapshotRequestId = nextSnapshotRequestId + 1
+            snapshotRequests[resource] = nextSnapshotRequestId
+            TriggerServerEvent('qblib:server:configRequested', resource, nextSnapshotRequestId)
         end
     end
 
     local function requestResourceSnapshot(resource)
-        if not isServer and type(TriggerServerEvent) == 'function' then
-            TriggerServerEvent('qblib:server:configRequested', resource)
-        end
+        requestSnapshot(resource)
     end
 
     local function pathKey(path)
@@ -1284,10 +1293,13 @@ return function(library)
 
     if not isServer and type(RegisterNetEvent) == 'function' then
         RegisterNetEvent('qblib:client:configUpdated', function(resource, path, encoded, revision)
+            if not validSequence(revision) then return end
             if resource ~= RESOURCE then
                 local normalizedRemote = normalizedPath(path)
                 if not normalizedRemote or not bindings[resource] then return end
+                if revision <= (remoteRevisions[resource] or 0) then return end
                 local previous = readPlainPath(remoteValues[resource], normalizedRemote)
+                local needsSnapshot = remoteValues[resource] == nil
                 remoteValues[resource] = remoteValues[resource] or {}
                 local current = remoteValues[resource]
                 for index = 1, #normalizedRemote - 1 do
@@ -1295,12 +1307,16 @@ return function(library)
                     current = current[normalizedRemote[index]]
                 end
                 current[normalizedRemote[#normalizedRemote]] = decodeStorage(encoded)
+                remoteRevisions[resource] = revision
+                snapshotRequests[resource] = nil
                 markReady(resource)
                 notifyBindings(resource, normalizedRemote, previous,
                     { resource = resource, path = copy(normalizedRemote), revision = revision })
+                if needsSnapshot then requestResourceSnapshot(resource) end
                 return
             end
             if not state then return end
+            if revision <= state.revision then return end
             local normalized = normalizedPath(path)
             local schema = normalized and findSchema(state.schema, normalized, 1) or nil
             if not schema or schema.scope == 'server' then return end
@@ -1308,7 +1324,7 @@ return function(library)
             local oldValue = readPath(state.values, normalized, state.schema)
             writePath(state.configured, normalized, value, state.schema)
             writePath(state.values, normalized, value, state.schema)
-            state.revision = revision or state.revision
+            state.revision = revision
             local handler = changeHandlers[pathKey({ displayPath(normalized) })]
             if handler then
                 local ok, err = pcall(handler, value, oldValue)
@@ -1318,11 +1334,13 @@ return function(library)
                 { resource = RESOURCE, path = copy(normalized), revision = state.revision })
         end)
 
-        RegisterNetEvent('qblib:client:configSnapshot', function(resource, encoded, revision)
-            if type(encoded) ~= 'table' then return end
+        RegisterNetEvent('qblib:client:configSnapshot', function(resource, encoded, revision, requestId)
+            if type(encoded) ~= 'table' or not validSequence(revision) or requestId ~= snapshotRequests[resource] then return end
+            snapshotRequests[resource] = nil
             if resource ~= RESOURCE then
                 if not bindings[resource] then return end
                 remoteValues[resource] = decodeStorage(encoded)
+                remoteRevisions[resource] = revision
                 markReady(resource)
                 notifyBindings(resource, {}, nil, { initial = true, resource = resource, revision = revision })
                 return
@@ -1353,7 +1371,7 @@ return function(library)
                 end
             end
             apply(state.schema, state.values, encoded, {})
-            state.revision = revision or state.revision
+            state.revision = revision
             markReady(RESOURCE)
         end)
     end

@@ -18,6 +18,7 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/timers/shared.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 
 harness.test("setInterval fires once per tick and keeps going", function()
     local runs = 0
@@ -53,6 +54,8 @@ end)
 
 harness.test("clearInterval reports false for an unknown or already-cancelled id", function()
     harness.assertFalse(QB.timers.clearInterval(999999), "an id that was never live should report false")
+    harness.assertFalse(QB.timers.clearInterval(0 / 0), "NaN must not reach the timer record table")
+    harness.assertFalse(QB.timers.clearTimeout(math.huge), "infinite ids are not timer handles")
 
     local id = QB.timers.setInterval(function() end, 100)
     QB.timers.clearInterval(id)
@@ -89,6 +92,20 @@ harness.test("clearTimeout prevents a pending timeout from firing", function()
 
     net.step()
     harness.assertEqual(runs, 0, "a cancelled timeout must never run")
+end)
+
+harness.test("foreign resources cannot cancel an owned timer", function()
+    _G.GetInvokingResource = function() return "timer_owner" end
+    local id = QB.timers.setInterval(function() end, 100)
+
+    _G.GetInvokingResource = function() return "other_resource" end
+    harness.assertFalse(QB.timers.clearInterval(id),
+        "another resource must not cancel an owned timer")
+
+    _G.GetInvokingResource = function() return "timer_owner" end
+    harness.assertTrue(QB.timers.clearTimeout(id),
+        "the timer owner should still be able to cancel it through either alias")
+    _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("timers are cancelled when their owning resource stops", function()
@@ -135,11 +152,22 @@ harness.test("setInterval accepts a cross-resource callable table", function()
     QB.timers.clearInterval(id)
 end)
 
-harness.test("setInterval rejects a non-callable and a negative interval", function()
+harness.test("timer APIs reject a non-callable, negative, and non-finite interval", function()
     harness.assertThrows(function() QB.timers.setInterval("not a function", 100) end,
         "a string handler should be refused")
     harness.assertThrows(function() QB.timers.setInterval(function() end, -1) end,
         "a negative interval should be refused")
+    harness.assertThrows(function() QB.timers.setInterval(function() end, 0.5) end,
+        "fractional intervals must not silently become per-frame timers")
+    for _, create in ipairs({
+        function() QB.timers.setInterval(function() end, math.huge) end,
+        function() QB.timers.setTimeout(function() end, math.huge) end,
+        function() QB.timers.debounce(function() end, math.huge) end,
+        function() QB.timers.throttle(function() end, math.huge) end,
+        function() QB.timers.cooldown(math.huge) end,
+    }) do
+        harness.assertThrows(create, "timer delays must be finite")
+    end
 end)
 
 harness.test("debounce fires once, with the last call's arguments", function()
@@ -226,6 +254,13 @@ harness.test("keyed cooldowns keep identities independent", function()
     cooldown.reset()
     harness.assertEqual(cooldown.remaining('a'), 0)
     harness.assertEqual(cooldown.remaining('b'), 0)
+end)
+
+harness.test('keyed cooldowns reject retaining non-scalar or unbounded keys', function()
+    local cooldown = QB.timers.cooldown(1000)
+    harness.assertThrows(function() cooldown.use({ player = 1 }) end)
+    harness.assertThrows(function() cooldown.remaining(math.huge) end)
+    harness.assertThrows(function() cooldown.reset(string.rep('x', 257)) end)
 end)
 
 -- The `__call` metamethod does not cross the export boundary, so every handle

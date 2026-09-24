@@ -18,6 +18,44 @@ ensure qblib
 
 qblib's manifest also declares `qbtheme` as a dependency, so FiveM will reject an invalid start order instead of leaving the interface partially configured.
 
+## Optional legacy manifest imports
+
+New qblib resources need neither `ox_lib` nor `PolyZone`; use the public
+`QB.nui` and `QB.zones` APIs directly. `QB.ox` is the private bridge behind
+the optional `ox_lib` resource. Do not ensure either compatibility resource by
+default.
+
+| Consumer situation | Start |
+| --- | --- |
+| New resource using `QB.*` | `qbtheme`, then `qblib` |
+| Legacy resource with a normal `dependency 'qb-menu'`-style dependency | `qbtheme`, then `qblib`; its `provide` identity is enough |
+| Legacy manifest imports `@ox_lib/...` | `qbtheme`, `qblib`, then the optional resource named `ox_lib` |
+| Legacy manifest imports `@PolyZone/...` | `qbtheme`, `qblib`, then the optional resource named `PolyZone` |
+
+An older resource can hard-code a file import such as
+`@ox_lib/init.lua` or `@PolyZone/BoxZone.lua` in its manifest. `provide` cannot
+satisfy that kind of import: FiveM needs a real, started resource with the exact
+name. Only then install the matching qblib-backed wrapper and start it after
+`qblib`, before that legacy consumer:
+
+```cfg
+ensure qbtheme
+ensure qblib
+ensure ox_lib   # only for @ox_lib/... imports
+
+# Or, for @PolyZone/... imports:
+# ensure PolyZone
+```
+
+Keep the wrapper folder name exactly `ox_lib` or `PolyZone`, matching the
+consumer's manifest. Remove it again after the final legacy import is migrated.
+The [legacy compatibility guide]({{ site.baseurl }}/legacy-compat/) lists the
+provided surfaces and PolyZone import order. qblib's default-config check also
+follows recursively included configuration files, so an optional wrapper cannot
+be enabled indirectly by the shipped setup. Do not substitute broad
+`ensure [test]` or `ensure [compat]` group starts for these explicit lines:
+either group can start optional wrappers alongside unrelated resources.
+
 ## Add qblib to a resource
 
 Declare the dependency and load the proxy from the consuming resource's `fxmanifest.lua`:
@@ -35,6 +73,22 @@ server_script 'server.lua'
 
 Loading the proxy as a shared script makes `QB` available to the consumer's shared, client, and server scripts. Individual functions are still limited to the realms stated on their reference pages.
 
+## Choose the native API
+
+New code should call qblib directly; the optional wrappers exist only for an
+unchanged legacy contract.
+
+| Need | Native API |
+| --- | --- |
+| Menus, forms, alerts, or radial selections | [`QB.nui`]({{ site.baseurl }}/reference/nui/) — `openMenu`, `openContextMenu`, `openInputDialog`, `openAlert`, or `openRadialMenu` |
+| Prompts, notifications, or progress | [`QB.textui`]({{ site.baseurl }}/reference/textui/), [`QB.notify`]({{ site.baseurl }}/reference/notify/), and [`QB.progressbar`]({{ site.baseurl }}/reference/progressbar/) |
+| A static area trigger | [`QB.zones`]({{ site.baseurl }}/reference/zones/) — `box`, `sphere`, `circle`, or `poly` |
+| Client/server request-response | [`QB.callback`]({{ site.baseurl }}/reference/callback/) |
+| A valuable server-side action | [`QB.actions`]({{ site.baseurl }}/reference/actions/) or a server-validated callback |
+
+`QB.ox` is not a native UI API: it is the owner-aware internal provider used
+only by the optional `ox_lib` compatibility resource.
+
 ## Verify the installation
 
 Add a temporary client command to a consumer resource:
@@ -50,6 +104,33 @@ end, false)
 ```
 
 Restart the consumer and run `/qblib_check`. A notification with your server ID confirms that the proxy, client exports, cache, theme, and NUI are available.
+
+## Keep valuable actions server-authoritative
+
+Use the client for presentation and the server for anything that changes
+money, inventory, progression, or permissions. A progress bar, zone hit, or
+client minigame result is never authorization by itself:
+
+```lua
+-- server.lua
+QB.callback.register('my-resource:server:claimReward', function(src, rewardId)
+    if not isValidReward(rewardId) or not isPlayerAtReward(src, rewardId) then
+        return false, 'Not available.'
+    end
+
+    giveReward(src, rewardId)
+    return true
+end, { rateLimit = { max = 3, window = 10000 } })
+
+-- client.lua
+local claimed, reason = QB.callback.trigger('my-resource:server:claimReward', rewardId)
+if not claimed then QB.notify.send({ message = reason, type = 'error' }) end
+```
+
+Validate the player's identity, permission, distance, cooldown, and live
+server state in that server handler. The [security boundary]({{ site.baseurl }}/using-the-api/#security-boundary)
+and [actions reference]({{ site.baseurl }}/reference/actions/) cover longer
+flows with progress bars and proof-producing minigames.
 
 ## Editor types
 

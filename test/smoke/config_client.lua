@@ -28,6 +28,7 @@ end
 _G.exports = nil
 
 local openedResource
+local sampleRequestId
 local config = makeConfig({
     config_open = function(_, resource)
         openedResource = resource
@@ -47,10 +48,12 @@ end)
 H.test('client consumers request their resource snapshot', function()
     H.assertEqual(serverEvents[#serverEvents].name, 'qblib:server:configRequested')
     H.assertEqual(serverEvents[#serverEvents].values[1], 'sample')
+    sampleRequestId = serverEvents[#serverEvents].values[2]
+    H.assertEqual(sampleRequestId, 1)
 end)
 
 H.test('client snapshots apply shared and client-only fields only', function()
-    netEvents['qblib:client:configSnapshot']('sample', { shared = 15, clientOnly = 'red' }, 2)
+    netEvents['qblib:client:configSnapshot']('sample', { shared = 15, clientOnly = 'red' }, 2, sampleRequestId)
     H.assertEqual(values.shared, 15)
     H.assertEqual(values.clientOnly, 'red')
     H.assertEqual(values.serverOnly, true)
@@ -63,6 +66,11 @@ H.test('live client updates apply a new revision', function()
     H.assertEqual(values.shared, 20)
     H.assertEqual(observed[1], 20)
     H.assertEqual(observed[2], 15)
+end)
+
+H.test('a delayed snapshot cannot overwrite a newer live update', function()
+    netEvents['qblib:client:configSnapshot']('sample', { shared = 15 }, 2, sampleRequestId)
+    H.assertEqual(values.shared, 20)
 end)
 
 H.test('consumer-local QB.config forwards editor opens to qblib', function()
@@ -84,11 +92,13 @@ H.test('snapshots clear optional scalar and object defaults and notify bindings'
     end)
     local bound = 'not updated'
     config.bind('remote', 'note', function(value) bound = value end)
-    netEvents['qblib:client:configSnapshot']('remote', { note = 'enabled' }, 1)
+    local remoteRequestId = serverEvents[#serverEvents].values[2]
+    netEvents['qblib:client:configSnapshot']('remote', { note = 'enabled' }, 1, remoteRequestId)
     H.assertEqual(bound, 'enabled')
     local cleared = { __qblibConfigType = 'nil' }
-    netEvents['qblib:client:configSnapshot']('sample', { note = cleared, details = cleared }, 2)
-    netEvents['qblib:client:configSnapshot']('remote', { note = cleared }, 2)
+    local localRequestId = serverEvents[#serverEvents - 1].values[2]
+    netEvents['qblib:client:configSnapshot']('sample', { note = cleared, details = cleared }, 2, localRequestId)
+    netEvents['qblib:client:configUpdated']('remote', { 'note' }, cleared, 2)
     H.assertEqual(values.note, nil)
     H.assertEqual(values.details, nil)
     H.assertEqual(changes, 1)

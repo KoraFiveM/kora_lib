@@ -39,6 +39,34 @@ H.test('catalog records a resource only from its own bridge', function()
     H.assertEqual(catalog[1].resource, 'sample')
 end)
 
+H.test('catalog rejects malformed registration revisions', function()
+    for _, revision in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        H.assertThrows(function()
+            QB.config.register({
+                resource = 'sample', schema = {}, configured = {}, client = {}, revision = revision,
+            })
+        end)
+    end
+end)
+
+H.test('config snapshots reject malformed client sources and request IDs', function()
+    local request = net.netHandlers['qblib:server:configRequested'][1]
+    local sent = #net.triggeredClientEvents
+    _G.source = nil
+    request('sample')
+    for _, invalidSource in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        _G.source = invalidSource
+        request('sample')
+    end
+    _G.source = 1
+    request('sample')
+    for _, invalidRequestId in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
+        request('sample', invalidRequestId)
+    end
+    _G.source = nil
+    H.assertEqual(#net.triggeredClientEvents, sent)
+end)
+
 H.test('commit and reset are delegated to the target resource bridge', function()
     local changes = {}
     AddEventHandler('qblib:server:configChanged', function(resource, values, revision)
@@ -92,6 +120,49 @@ H.test('catalog discovers a started qblib consumer that missed its startup annou
     H.assertEqual(discovered.schema.kind, 'object')
     QB.config.catalog()
     H.assertEqual(reads, 1, 'registered resources should not be probed again on every catalog read')
+end)
+
+H.test('catalog discovery and refresh preserve the revision invariant', function()
+    _G.exports.invalid_revision = {
+        qblib_configRead = function()
+            return {
+                resource = 'invalid_revision', schema = {}, configured = {}, client = {}, revision = 1.5,
+            }
+        end,
+    }
+    _G.GetNumResources = function() return 1 end
+    _G.GetResourceByFindIndex = function(index) return index == 0 and 'invalid_revision' or nil end
+    _G.GetResourceState = function() return 'started' end
+    for _, entry in ipairs(QB.config.catalog()) do
+        H.assertFalse(entry.resource == 'invalid_revision')
+    end
+
+    local revision
+    for _, entry in ipairs(QB.config.catalog()) do
+        if entry.resource == 'sample' then revision = entry.revision break end
+    end
+    local read = bridge.qblib_configRead
+    bridge.qblib_configRead = function()
+        return { configured = {}, values = {}, client = {}, revision = math.huge }
+    end
+    H.assertEqual(QB.config.read('sample').revision, revision)
+    bridge.qblib_configRead = read
+end)
+
+H.test('invalid successful bridge revisions do not update the catalog', function()
+    local revision
+    for _, entry in ipairs(QB.config.catalog()) do
+        if entry.resource == 'sample' then revision = entry.revision break end
+    end
+    local commit, reset = bridge.qblib_configCommit, bridge.qblib_configReset
+    bridge.qblib_configCommit = function() return { ok = true, revision = math.huge } end
+    bridge.qblib_configReset = function() return { ok = true, revision = 1.5 } end
+    H.assertFalse(QB.config.commit('sample', {}).ok)
+    H.assertFalse(QB.config.reset('sample', {}).ok)
+    bridge.qblib_configCommit, bridge.qblib_configReset = commit, reset
+    for _, entry in ipairs(QB.config.catalog()) do
+        if entry.resource == 'sample' then H.assertEqual(entry.revision, revision) end
+    end
 end)
 
 H.test('an on-demand read discovers a resource whose announcement raced startup', function()

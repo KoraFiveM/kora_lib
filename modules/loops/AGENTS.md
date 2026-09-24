@@ -12,6 +12,7 @@ This module provides a generic polling/retry loop for waiting on a condition to 
 - `tries` defaults to 10, `timeout` defaults to 10000ms; either can be disabled by passing `false`.
 - `backoff` is deliberately overloaded on type rather than split into separate parameters: `false`/omitted waits a single frame (`Wait(0)`), `true` backs off 25ms -> 1s (`min(1000, 2^(attempt-1) * 25)`), and a number waits that many ms flat. The boolean cases predate the numeric one and keep working unchanged, so this stayed backwards-compatible with every existing call site.
 - Every wait (exponential or fixed) is clamped to the remaining timeout budget — without that, a long fixed interval could sleep well past the deadline before the check at the top of the next iteration ran.
+- The timeout comparison is inclusive after an unsuccessful predicate call, so a zero timeout makes exactly one attempt and no extra frame poll occurs at the deadline.
 - `math.pow` was removed in Lua 5.3, so backoff uses the `^` operator, which is version-agnostic.
 - `min()` runs before `floor()` so an overflowed `2^n` (`inf`) clamps to `1000` rather than blowing up on the float-to-integer conversion.
 

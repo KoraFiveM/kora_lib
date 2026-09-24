@@ -3,6 +3,7 @@ local sessionCountBySrc = {}
 local nextSessionId = 0
 local authorizations = {}
 local proofs = {}
+local TOKEN_LENGTH = 32
 local endSession
 local expirySweepRunning = false
 local ensureExpirySweep
@@ -35,6 +36,10 @@ local function generateOpaqueToken()
         local token = QB.compat.generateToken()
         if authorizations[token] == nil and proofs[token] == nil then return token end
     end
+end
+
+local function isOpaqueToken(value)
+    return type(value) == 'string' and #value == TOKEN_LENGTH and value:match('^[%w]+$') ~= nil
 end
 
 local function removeAuthorization(token)
@@ -371,8 +376,8 @@ end
 ---@param authorization string
 ---@return boolean
 function QB.minigames.consumeProof(src, token, gameType, authorization)
-    if not isInteger(src) or src < 1 or type(token) ~= "string" or
-        type(gameType) ~= "string" or type(authorization) ~= "string" then
+    if not isInteger(src) or src < 1 or not isOpaqueToken(token) or
+        type(gameType) ~= "string" or not isOpaqueToken(authorization) then
         return false
     end
 
@@ -946,7 +951,7 @@ QB.callback.register("qblib:minigames:start", function(src, gameType, opts, auth
     local authorization
     local cfg
     if authorizationToken ~= nil then
-        assert(type(authorizationToken) == "string", "minigame authorization must be a string.")
+        assert(isOpaqueToken(authorizationToken), "minigame authorization is malformed.")
         authorization = authorizations[authorizationToken]
         assert(authorization ~= nil, "Invalid or already-used minigame authorization.")
         if authorization.expiresAt < GetGameTimer() then
@@ -1001,6 +1006,10 @@ QB.callback.register("qblib:minigames:start", function(src, gameType, opts, auth
 end, { rateLimit = Config.minigames.callbackRateLimits.start })
 
 QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
+    if not isInteger(sessionId) or sessionId < 1 then
+        error("No active minigame session.")
+    end
+
     local session = sessions[sessionId]
     if session == nil or session.src ~= src then
         error("No active minigame session.")
@@ -1058,6 +1067,8 @@ end, { rateLimit = Config.minigames.callbackRateLimits.submit })
 -- retries would spuriously hit "already in progress" for up to sessionTTL.
 -- Does NOT consume an attempt -- a cancel isn't a failed guess at the puzzle.
 QB.callback.register("qblib:minigames:cancel", function(src, sessionId)
+    if not isInteger(sessionId) or sessionId < 1 then return false end
+
     local session = sessions[sessionId]
     if session == nil or session.src ~= src then return false end
     endSession(session)

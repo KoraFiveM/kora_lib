@@ -1,4 +1,5 @@
 local isCallable = QB.compat.isCallable
+local isInteger = QB.util.isInteger
 
 local validEncodings = {
     jpg = true,
@@ -24,11 +25,12 @@ local function copyHeaders(headers)
 end
 
 local function normalizeOptions(options)
-    options = options or {}
+    if options == nil then options = {} end
     assert(type(options) == 'table', 'Screenshot options must be a table.')
 
     local config = screenshotConfig()
-    local encoding = options.encoding or config.defaultEncoding or 'jpg'
+    local encoding = options.encoding
+    if encoding == nil then encoding = config.defaultEncoding or 'jpg' end
     assert(type(encoding) == 'string' and validEncodings[encoding], 'Screenshot encoding must be jpg, png, or webp.')
 
     local quality = options.quality
@@ -40,9 +42,9 @@ local function normalizeOptions(options)
     if maxWidth == nil then maxWidth = config.maxWidth end
     local maxHeight = options.maxHeight
     if maxHeight == nil then maxHeight = config.maxHeight end
-    assert(maxWidth == false or (type(maxWidth) == 'number' and maxWidth >= 1 and maxWidth % 1 == 0),
+    assert(maxWidth == false or (isInteger(maxWidth) and maxWidth >= 1),
         'Screenshot maxWidth must be a positive integer or false.')
-    assert(maxHeight == false or (type(maxHeight) == 'number' and maxHeight >= 1 and maxHeight % 1 == 0),
+    assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1),
         'Screenshot maxHeight must be a positive integer or false.')
 
     -- screenshot-basic accepted this option but its CfxTexture capture never
@@ -63,8 +65,8 @@ end
 local function beginCapture(options, timeout)
     local p = promise.new()
     local normalized = normalizeOptions(options)
-    timeout = timeout or screenshotConfig().requestTimeout or 30000
-    assert(type(timeout) == 'number' and timeout > 0 and timeout % 1 == 0,
+    if timeout == nil then timeout = screenshotConfig().requestTimeout or 30000 end
+    assert(isInteger(timeout) and timeout > 0,
         'Screenshot timeout must be a positive integer.')
 
     CreateThread(function()
@@ -99,7 +101,7 @@ function QB.screenshot.capture(options, timeout)
 end
 
 local function normalizeUploadOptions(options)
-    options = options or {}
+    if options == nil then options = {} end
     assert(type(options) == 'table', 'Screenshot upload options must be a table.')
 
     local capture = normalizeOptions(options)
@@ -113,7 +115,9 @@ local function beginUpload(url, field, options, timeout)
 
     local p = promise.new()
     local normalized = normalizeUploadOptions(options)
-    timeout = timeout or screenshotConfig().requestTimeout or 30000
+    if timeout == nil then timeout = screenshotConfig().requestTimeout or 30000 end
+    assert(isInteger(timeout) and timeout > 0,
+        'Screenshot timeout must be a positive integer.')
 
     CreateThread(function()
         local ok, result = pcall(function()

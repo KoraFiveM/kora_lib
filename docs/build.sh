@@ -60,6 +60,5 @@ done
 
 mv "$stage_dir/ox_lib-parity.md" "$stage_dir/migration/ox-lib.md"
 mv "$stage_dir/ox_lib-contract-3.39.0.md" "$stage_dir/migration/ox-lib-contract.md"
-sed -i 's#](ox_lib-contract-3\.39\.0\.md)#]({{ site.baseurl }}/migration/ox-lib-contract/)#g' "$stage_dir/migration/ox-lib.md"
 
 echo "Prepared GitHub Pages source in $stage_dir"

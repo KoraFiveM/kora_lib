@@ -5,7 +5,8 @@
 ## Zone API
 
 The zone helpers return normal `QB.zones` handles. Zone names are unique within
-this module; adding a duplicate replaces the old zone.
+this module; the creating resource can replace its own duplicate, while another
+resource's duplicate is refused.
 
 ```lua
 QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
@@ -29,8 +30,15 @@ The current signatures are:
 `size` is a vector-like `{x, y, z}` table. The target helpers create static
 zones around the current entity/model positions. They do not follow moving
 entities; use the aim-target facade below when movement tracking is required.
-`QB.interact.removeZone(name)` returns `true` only when a named zone existed.
-Named zones are also removed automatically when their invoking resource stops.
+Zone `targetOptions` use qb-target's `{ options = { ... } }` shape; a direct
+option array remains accepted for existing qblib callers.
+Zone coordinates must be finite; circle radii and box dimensions must be
+positive finite numbers. Invalid replacement geometry is rejected before an
+existing zone of the same name is removed. `addCircleZone` defaults its radius
+to `5.0` only when the argument is omitted; explicit invalid values reject.
+`QB.interact.removeZone(name)` returns `true` only when the calling resource
+owns a named zone with that name. Named zones are also removed automatically
+when their invoking resource stops.
 
 `QB.interact.open(options)` opens the selector without a zone.
 `QB.interact.close()` closes it, and `QB.interact.isActive()` reports whether a
@@ -41,8 +49,17 @@ selector is currently open.
 Each option needs a non-empty `label`. On selection it calls `action()`, or triggers `event` locally by default / on the server when `type = "server"`. `args` is forwarded to the action event.
 
 `canInteract()`, `job`, `gang`, `citizenid`, and `item` are evaluated before the selector opens. Restricted options remain hidden if their optional qb-core or qb-inventory dependency is unavailable.
+`job` and `gang` accept a name, name array, or keyed minimum-grade map such as
+`{ police = 2 }`; `citizenid` also accepts a keyed boolean map such as
+`{ ['CID-1'] = true }`. Unknown grades fail closed.
+Within one selector opening, repeated `item` requirements share one inventory
+check; live aim targets still check availability each time qbtarget evaluates
+them.
 
-`QB.interact.open(options)` opens the same selector without a zone and returns `true` only if at least one option is currently available. `QB.interact.close()` hides it without selection.
+An option with `type = "server"` only sends a client request. Treat its
+arguments, the displayed option, and the player's apparent zone position as
+untrusted on the server: validate permission, distance, cooldown, and current
+state again in the event handler before making a persistent change.
 
 ## Aim targets
 
@@ -51,8 +68,12 @@ Each option needs a non-empty `label`. On selection it calls `action()`, or trig
 qbtarget. They use the same `label`, `action`, `event`, `args`, and restriction
 fields as zones, follow moving entities, and clean up automatically when the
 invoking resource stops. Use `QB.interact.removeEntity(entity, id?)` or
-`QB.interact.removeModel(model, id?)` for early teardown; manual teardown also
-clears the ownership record so resource-stop cleanup never removes it twice.
+`QB.interact.removeModel(model, id?)` for early teardown; they remove only
+registrations owned by the calling resource. Manual teardown also clears the
+ownership record so resource-stop cleanup never removes it twice.
+When supplied, `distance` must be a positive finite number.
+An individual aim-target option may also set `distance`; it follows the same
+positive finite constraint.
 
 While the selector is visible, E or left-click confirms the highlighted option. Space and Enter do not confirm it. Up/Down or the mouse wheel changes the highlighted option, and Escape/Backspace/Pause closes the selector.
 

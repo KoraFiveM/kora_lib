@@ -29,6 +29,8 @@ function M.install()
 
     local netHandlers = {}
     local eventHandlers = {}
+    local eventHandlerIds = {}
+    local nextEventHandlerId = 0
     local triggeredServerEvents = {}
     local triggeredClientEvents = {}
     local threads = {}
@@ -44,6 +46,22 @@ function M.install()
     function _G.AddEventHandler(name, cb)
         eventHandlers[name] = eventHandlers[name] or {}
         table.insert(eventHandlers[name], cb)
+        nextEventHandlerId = nextEventHandlerId + 1
+        eventHandlerIds[nextEventHandlerId] = { name = name, callback = cb }
+        return nextEventHandlerId
+    end
+
+    function _G.RemoveEventHandler(id)
+        local handler = eventHandlerIds[id]
+        if not handler then return end
+        eventHandlerIds[id] = nil
+        local handlers = eventHandlers[handler.name]
+        for index = 1, #handlers do
+            if handlers[index] == handler.callback then
+                table.remove(handlers, index)
+                return
+            end
+        end
     end
 
     -- Real RegisterCommand(name, handler, restricted) takes the invoking

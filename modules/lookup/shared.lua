@@ -344,6 +344,13 @@ function QB.lookup.preload(selected)
         selected = { selected }
     else
         assert(type(selected) == 'table', 'Lookup preload expects a namespace or array of namespaces.')
+        local count = 0
+        for index, namespace in pairs(selected) do
+            assert(QB.util.isInteger(index) and index >= 1 and NAMESPACES[namespace],
+                ('Unknown lookup namespace: %s'):format(tostring(namespace)))
+            count = count + 1
+        end
+        assert(count == #selected, 'Lookup preload expects a dense array of namespaces.')
     end
 
     for namespaceIndex = 1, #selected do
@@ -363,8 +370,8 @@ end
 ---@return boolean ready
 ---@return string? error
 function QB.lookup.awaitReady(timeout)
-    timeout = timeout or 10000
-    assert(type(timeout) == 'number' and timeout >= 0 and timeout % 1 == 0,
+    if timeout == nil then timeout = 10000 end
+    assert(QB.util.isInteger(timeout) and timeout >= 0,
         'Lookup readiness timeout must be a non-negative integer.')
     if state.overlayReady then return true end
 

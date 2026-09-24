@@ -3,6 +3,8 @@
 -- always evaluated and win immediately; Discord roles can add a grant but can
 -- never disable an ACE grant such as group.admin.
 
+local MAX_LEVELS = 32
+
 local function resolveOptions(prefixOrOptions)
     if prefixOrOptions == nil or type(prefixOrOptions) == 'string' then
         return prefixOrOptions, nil
@@ -16,6 +18,27 @@ local function resolveOptions(prefixOrOptions)
     assert(discordRoles == nil or type(discordRoles) == 'table',
         'Permission options.discordRoles must be a table or nil.')
     return prefix, discordRoles
+end
+
+local function assertPlayerSource(src)
+    assert(type(src) == 'number' and src >= 1 and src % 1 == 0 and src == src
+        and src ~= math.huge and src ~= -math.huge,
+        'Permission source must be a positive finite player server ID.')
+end
+
+local function assertLevels(levels)
+    assert(type(levels) == 'table' and #levels > 0, 'Permission levels must be a non-empty array.')
+    local count = 0
+    for index, level in pairs(levels) do
+        assert(type(index) == 'number' and index >= 1 and index % 1 == 0
+            and index == index and index < math.huge,
+            'Permission levels must be a dense array.')
+        assert(type(level) == 'string' and level ~= '',
+            'Each permission level must be a non-empty string.')
+        count = count + 1
+        assert(count <= MAX_LEVELS, ('Permission levels cannot exceed %d entries.'):format(MAX_LEVELS))
+    end
+    assert(count == #levels, 'Permission levels must be a dense array.')
 end
 
 -- Normalizes whatever IsPlayerAceAllowed hands back into a real boolean.
@@ -52,7 +75,15 @@ local function discordAllows(src, permission, discordRoles)
     if type(roles) == 'string' then
         assert(roles ~= '', ('Discord role for permission %q cannot be empty.'):format(permission))
     else
-        assert(#roles > 0, ('Discord roles for permission %q cannot be empty.'):format(permission))
+        local count = 0
+        for index, role in pairs(roles) do
+            assert(type(index) == 'number' and index >= 1 and index % 1 == 0
+                and index == index and index < math.huge and type(role) == 'string' and role ~= '',
+                ('Discord roles for permission %q must be a dense string array.'):format(permission))
+            count = count + 1
+        end
+        assert(count > 0 and count == #roles,
+            ('Discord roles for permission %q must be a non-empty dense string array.'):format(permission))
     end
 
     -- hasAnyRole rejects disabled bots and missing/stale member snapshots. A
@@ -69,12 +100,12 @@ end
 ---@param prefixOrOptions string|table|nil -- prefix, or { prefix?, discordRoles? }
 ---@return string
 function QB.permissions.getLevel(src, levels, prefixOrOptions)
-    assert(type(levels) == 'table' and #levels > 0, 'Permission levels must be a non-empty array.')
+    assertPlayerSource(src)
+    assertLevels(levels)
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
 
     for levelIndex = 1, #levels do
         local level = levels[levelIndex]
-        assert(type(level) == 'string' and level ~= '', 'Each permission level must be a non-empty string.')
         if level == 'user' or aceAllows(src, level, prefix, false) or discordAllows(src, level, discordRoles) then
             return level
         end
@@ -90,8 +121,9 @@ end
 ---@param prefixOrOptions string|table|nil -- prefix, or { prefix?, discordRoles? }
 ---@return boolean
 function QB.permissions.hasLevel(src, required, levels, prefixOrOptions)
+    assertPlayerSource(src)
     assert(type(required) == 'string' and required ~= '', 'Required permission level must be a non-empty string.')
-    assert(type(levels) == 'table' and #levels > 0, 'Permission levels must be a non-empty array.')
+    assertLevels(levels)
 
     local held = QB.permissions.getLevel(src, levels, prefixOrOptions)
     local heldIndex, requiredIndex
@@ -108,6 +140,7 @@ end
 ---@param prefixOrOptions string|table|nil -- prefix, or { prefix?, discordRoles? }
 ---@return boolean
 function QB.permissions.hasPermission(src, permission, prefixOrOptions)
+    assertPlayerSource(src)
     assert(type(permission) == 'string' and permission ~= '', 'Permission must be a non-empty string.')
     if permission == 'user' then return true end
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
@@ -128,7 +161,8 @@ end
 ---@return table checks array of { level, object, raw, type, allowed }
 ---@return string resolved
 function QB.permissions.explain(src, levels, prefixOrOptions)
-    assert(type(levels) == 'table' and #levels > 0, 'Permission levels must be a non-empty array.')
+    assertPlayerSource(src)
+    assertLevels(levels)
     local prefix = resolveOptions(prefixOrOptions)
     local checks = {}
 

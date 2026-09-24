@@ -5,10 +5,15 @@ folder. Clients use their own saved language, fall back to English, interpolate
 both legacy `%{name}` and positional `%s` placeholders, and return the key when
 no translation exists.
 
+Named placeholder keys and replacement values are treated literally, so values
+such as `50%` and keys such as `%{item.id}` are safe to use.
+
 Set the client-readable defaults with `setr qb_locale "en"` and the languages
 a server offers with `setr qb_locales "en,de"`. Players choose with qbcore's `/language`
 command; the preference is stored in qblib's client KVP, never in character or
-database data.
+database data. Invalid `qb_locale` values fall back to English. Explicit
+resource names passed to `QB.locale.translate` must use the normal FiveM
+resource-name characters: letters, numbers, `_`, and `-`.
 
 - `QB.locale.getLanguage()` returns the current client language (or server
   fallback when called server-side).
