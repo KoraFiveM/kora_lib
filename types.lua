@@ -1199,6 +1199,7 @@
 
 ---@class QBLibEntities
 ---@field create fun(model: string|integer, coords: QBCoords, options?: QBEntitiesCreateOptions): integer|false, string? [client]
+---@field createVehicle fun(model: string|integer, coords: QBCoords, vehicleType?: QBServerVehicleType): integer|false, string? [server]
 ---@field createScoped fun(model: string|integer, coords: QBCoords, options: QBEntitiesScopedOptions): QBScopedEntityHandle [client]
 ---@field remove fun(entity: integer): boolean, string? [client]
 ---@field requestControl fun(entity: integer, timeout?: integer): boolean, string? [client]

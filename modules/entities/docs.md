@@ -5,6 +5,19 @@ The entities module spawns local (non-networked) peds, objects, and vehicles for
 
 ## API
 
+### `QB.entities.createVehicle(model, coords, vehicleType)` (server)
+
+Creates a networked vehicle with `CreateVehicleServerSetter`, making it
+compatible with OneSync strict entity lockdown. Returns its network ID for
+clients or garage state. `vehicleType` defaults to `automobile`; use `bike`,
+`boat`, `heli`, `plane`, `submarine`, `trailer`, or `train` when appropriate.
+
+```lua
+local netId, err = QB.entities.createVehicle('sultan', {
+    x = 100.0, y = 200.0, z = 30.0, w = 90.0,
+})
+```
+
 ### `QB.entities.create(model, coords, options)`
 Creates a local entity.
 
