@@ -20,6 +20,7 @@ import { TargetHud } from "@/components/target/TargetHud"
 import { TextUi } from "@/components/textui/TextUi"
 import { AppShell } from "@/components/app/AppShell"
 import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
+import { CameraHud } from "@/components/camera/CameraHud"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { OxLocaleProvider } from "@/lib/oxLocale"
 
@@ -47,6 +48,7 @@ export default function App() {
             <ErrorBoundary surface="alert dialog"><AlertDialogContainer /></ErrorBoundary>
             <ErrorBoundary surface="clipboard"><ClipboardHandler /></ErrorBoundary>
             <ErrorBoundary surface="screenshot capture"><ScreenshotCapture /></ErrorBoundary>
+            <ErrorBoundary surface="camera HUD"><CameraHud /></ErrorBoundary>
             <ErrorBoundary surface="notifications"><Toast /></ErrorBoundary>
             <ErrorBoundary surface="progress bar"><ProgressBar /></ErrorBoundary>
             <ErrorBoundary surface="zone creator HUD"><ZoneCreatorHud /></ErrorBoundary>

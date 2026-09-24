@@ -60,6 +60,23 @@ export interface TargetHudPayload {
     optionCount?: number
 }
 
+// action: "camera:open" / "camera:update" (fire-and-forget). The game owns
+// the camera and controls; this payload only paints the display overlay.
+export interface CameraHudPayload {
+    active: boolean
+    mode: "cctv" | "recording" | "helicam" | "operator"
+    title: string
+    subtitle: string
+    cameraLabel: string
+    cameraIndex: number
+    totalCameras: number
+    location?: string
+    recording: boolean
+    controls: boolean
+    timestamp: boolean
+    elapsed: number
+}
+
 // action: "textui:set" (fire-and-forget). `false` hides the display.
 export interface TextUiPayload {
     id: number

@@ -981,6 +981,7 @@
 ---@field actions QBLibActions
 ---@field anim QBLibAnim
 ---@field blips QBLibBlips
+---@field camera QBLibCamera
 ---@field cache QBLibCache
 ---@field callback QBLibCallback
 ---@field compat QBLibCompat
@@ -1064,6 +1065,34 @@
 ---@field showCategory fun(category: string|integer): boolean [client; returns whether preference changed]
 ---@field hide fun(blip: integer): boolean, string? [client]
 ---@field show fun(blip: integer): boolean, string? [client]
+
+---@class QBCameraDefinition
+---@field label? string
+---@field location? string
+---@field coords QBCoords Camera position.
+---@field target? QBCoords Point the lens at this world position.
+---@field rotation? QBCoords Camera rotation in degrees.
+---@field fov? number
+
+---@class QBCameraOptions
+---@field mode? 'cctv'|'recording'|'helicam'|'operator'
+---@field title? string
+---@field subtitle? string
+---@field cameraLabel? string
+---@field cameras? QBCameraDefinition[]
+---@field camera? QBCameraDefinition
+---@field recording? boolean
+---@field controls? boolean
+---@field timestamp? boolean
+---@field viewMode? integer GTA follow-camera mode to restore on close.
+
+---@class QBLibCamera
+---@field open fun(options: QBCameraOptions): boolean [client]
+---@field close fun(reason?: string): boolean [client]
+---@field isOpen fun(): boolean [client]
+---@field next fun(): boolean [client]
+---@field previous fun(): boolean [client]
+---@field setRecording fun(recording: boolean): boolean [client]
 
 ---@class QBConfigFieldOptions
 ---@field label? string
