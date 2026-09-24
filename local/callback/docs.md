@@ -14,6 +14,7 @@ Registers `handler` to run when a client calls `QB.callback.trigger(name, ...)`.
 - `name: string` — Logical callback name (1–128 bytes).
 - `handler: fun(src: integer, ...: any): any` — Called with the triggering player's server ID, followed by whatever arguments the client sent. Every value it returns resolves the client's promise — a handler can `return false, 'reason'` and the caller gets both values back.
 - `opts.rateLimit: { max: 1–10000 integer, window: 1–86400000 integer } | false | nil`
+- `opts.replace: boolean` explicitly allows replacing another resource's callback without a collision warning.
   — optional per-player, per-callback sliding window in milliseconds.
   Omitted/`false` remains unlimited. This option only applies to server
   registrations that receive client requests.

@@ -153,13 +153,16 @@ function QB.callback.register(name, handler, opts)
     QB.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")
     local rateLimit = normalizeRateLimit(opts)
+    -- Some compatibility resources intentionally replace a placeholder owned
+    -- by another resource; make that handoff explicit without hiding accidents.
+    local replace = opts and opts.replace == true
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
     -- See local/events/server.lua's register for why a cross-resource
     -- overwrite is worth warning about rather than silently accepting.
     local previousOwner = callbackOwnership.owner(name)
-    if previousOwner and previousOwner ~= owner then
+    if previousOwner and previousOwner ~= owner and not replace then
         print(("[qblib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
             :format(name, previousOwner, owner))
     end
