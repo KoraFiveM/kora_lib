@@ -306,6 +306,9 @@ local function removeNamedZone(name)
     return true
 end
 
+local function compatVector(vec)
+    return vector3(vec.x, vec.y, vec.z)
+end
 ---Opens the compact, game-input-driven selector. No NUI focus is granted.
 ---@param options QBInteractOption[]
 ---@return boolean opened False when disabled or no option passes its restrictions.
@@ -331,7 +334,8 @@ local function assertCoords(coords, label)
 end
 
 local function assertBoxSize(size, label)
-    assert(type(size) == 'table' and QB.util.isFiniteNumber(size.x) and QB.util.isFiniteNumber(size.y)
+    assert((type(size) == 'table' or type(size) == 'vector3' or type(size) == 'vector4')
+        and QB.util.isFiniteNumber(size.x) and QB.util.isFiniteNumber(size.y)
         and QB.util.isFiniteNumber(size.z) and size.x > 0 and size.y > 0 and size.z > 0,
         ('%s must have positive finite x, y, and z dimensions.'):format(label))
     assert(size.w == nil or QB.util.isFiniteNumber(size.w), ('%s rotation must be finite.'):format(label))
@@ -368,7 +372,7 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     end
     local function enter() open(options, name, owner) end
     local zone = QB.zones.sphere({
-        coords = coords,
+        coords = compatVector(coords),
         radius = radius,
         debug = debug,
         onEnter = enter,
@@ -404,8 +408,8 @@ function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
     end
     local function enter() open(options, name, owner) end
     local zone = QB.zones.box({
-        coords = { x = coords.x, y = coords.y, z = coords.z },
-        size = { x = size.x, y = size.y, z = size.z },
+        coords = compatVector(coords),
+        size = compatVector(size),
         rotation = size.w or 0.0,
         debug = debug,
         onEnter = enter,
@@ -432,7 +436,7 @@ end
 ---Dynamic entities are intentionally not followed; call addTargetEntity after
 ---the entity exists for a one-off target.
 ---@param models string|number|(string|number)[]
----@param size table `{ x: number, y: number, z: number, w: number }`
+---@param size vector4
 ---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle[] zones
