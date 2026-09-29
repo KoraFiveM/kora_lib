@@ -153,4 +153,27 @@ H.test('the command uses the same exact ACE check', function()
     H.assertEqual(event[1], 'sample')
 end)
 
+H.test('Discord-only qbadmin access is authoritative while compatible mode retains ACE access', function()
+    _G.GetResourceState = function() return 'started' end
+    _G.exports = { qbadmin = { canEditConfig = function() return false end } }
+    allowed = true
+    local value, err = callbacks['qblib:configCatalog'](12)
+    H.assertEqual(value, nil)
+    H.assertEqual(err, 'permission denied')
+
+    exports.qbadmin.canEditConfig = function() return true end
+    allowed = false
+    H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
+
+    exports.qbadmin.canEditConfig = function() return nil end
+    allowed = true
+    H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
+
+    exports.qbadmin.canEditConfig = function() error('permission bridge unavailable') end
+    H.assertEqual(callbacks['qblib:configCatalog'](12), nil)
+
+    exports.qbadmin.canEditConfig = function() error('No such export canEditConfig in resource qbadmin') end
+    H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
+end)
+
 H.report('config_editor_server')

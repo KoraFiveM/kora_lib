@@ -35,6 +35,12 @@ end
 
 local function allowed(source)
     if source == 0 then return true end
+    if type(GetResourceState) == 'function' and GetResourceState('qbadmin') == 'started' then
+        local ok, permitted = pcall(function() return exports.qbadmin:canEditConfig(source) end)
+        if ok and type(permitted) == 'boolean' then return permitted end
+        -- Older qbadmin releases have no bridge; retain their standalone ACE path.
+        if not ok and not tostring(permitted):find('No such export canEditConfig', 1, true) then return false end
+    end
     if type(IsPlayerAceAllowed) == 'function' and IsPlayerAceAllowed(source, ACE) == true then return true end
     return QB.permissions and QB.permissions.hasPermission
         and QB.permissions.hasPermission(source, 'admin') == true
