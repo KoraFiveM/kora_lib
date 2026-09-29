@@ -198,6 +198,13 @@ Config.placement = {
     hideRadar = true,
 }
 
+Config.freecam = {
+    cameraMoveSpeed = 6.0,
+    cameraLookSensitivity = 5.0,
+    shiftMultiplier = 2.5,
+    cameraTransitionMs = 800,
+}
+
 Config.zones = {
     gridSize = 50,               -- meters per grid cell (horizontal XY)
     nearProximity = 25,          -- meters; base "near" threshold before speed correction

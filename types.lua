@@ -993,9 +993,11 @@
 ---@field distance QBLibDistance
 ---@field drawing QBLibDrawing
 ---@field entities QBLibEntities
+---@field freecam QBLibFreecam
 ---@field events QBLibEvents
 ---@field fx QBLibFx
 ---@field interact QBLibInteract
+---@field instructional QBLibInstructional
 ---@field keybind QBLibKeybind
 ---@field logging QBLibLogging
 ---@field lookup QBLibLookup
@@ -1420,6 +1422,42 @@
 ---@field start fun(model: string|integer): QBPlacementResult|promise|nil [client]
 ---@field isActive fun(): boolean [client]
 ---@field generateSnippet fun(result: QBPlacementResult): string [client]
+
+---@class QBFreecamOptions
+---@field coords? QBCoords
+---@field rotation? QBCoords
+---@field fov? number
+---@field maxDistance? number Radius centred on the initial freecam position.
+---@field zone? QBZoneHandle
+---@field focusCoords? QBCoords
+---@field movementMode? 'camera'|'grid'
+
+---@class QBFreecamHandle
+---@field stop fun(reason?: string): boolean
+---@field isActive fun(): boolean
+---@field getCoords fun(): QBCoords|nil
+---@field getRotation fun(): {pitch: number, roll: number, yaw: number}|nil
+---@field getMovementMode fun(): 'camera'|'grid'|nil
+---@field setMovementMode fun(mode: 'camera'|'grid'): boolean
+---@field setFocus fun(coords: QBCoords|nil): boolean
+
+---@class QBLibFreecam
+---@field start fun(options?: QBFreecamOptions): QBFreecamHandle|false, string? [client]
+---@field isActive fun(): boolean [client]
+
+---@class QBInstructionalButton
+---@field label string
+---@field control? integer
+---@field command? string
+---@field keybind? QBKeybindHandle
+
+---@class QBInstructionalHandle
+---@field setButtons fun(buttons: QBInstructionalButton[]): boolean
+---@field hide fun(): boolean
+---@field isVisible fun(): boolean
+
+---@class QBLibInstructional
+---@field show fun(buttons: QBInstructionalButton[]): QBInstructionalHandle [client]
 
 ---@class QBLibPrint
 ---@field debug fun(...: any) [shared]

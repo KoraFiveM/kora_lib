@@ -21,6 +21,7 @@
 - title: Interface & input
   items:
     - { title: Controls, url: /reference/controls/ }
+    - { title: Instructional buttons, url: /reference/instructional/ }
     - { title: Interactions, url: /reference/interact/ }
     - { title: Keybinds, url: /reference/keybind/ }
     - { title: Minigames, url: /reference/minigames/ }
@@ -34,12 +35,14 @@
   items:
     - { title: Animations, url: /reference/anim/ }
     - { title: Blips, url: /reference/blips/ }
+    - { title: Camera overlays, url: /reference/camera/ }
     - { title: Closest entity, url: /reference/closest/ }
     - { title: Distance checks, url: /reference/distancecheck/ }
     - { title: Drawing, url: /reference/drawing/ }
     - { title: Developer editors, url: /reference/editor/ }
     - { title: Entities, url: /reference/entities/ }
     - { title: Effects, url: /reference/fx/ }
+    - { title: Freecam, url: /reference/freecam/ }
     - { title: Placement, url: /reference/placement/ }
     - { title: Raycasts, url: /reference/raycast/ }
     - { title: Sound, url: /reference/sound/ }
