@@ -156,19 +156,6 @@ const SAMPLE_HUD_SNAPSHOT: ZoneCreatorHudSnapshot = {
 
 const SAMPLE_PLACEMENT_START: PlacementStartPayload = {
     model: "prop_tool_bench02",
-    bindings: {
-        forward: "UP",
-        backward: "DOWN",
-        left: "LEFT",
-        right: "RIGHT",
-        up: "PAGEUP",
-        down: "PAGEDOWN",
-        rotateLeft: "LBRACKET",
-        rotateRight: "RBRACKET",
-        cycle: "TAB",
-        confirm: "RETURN",
-        cancel: "X",
-    },
 }
 
 const SAMPLE_PLACEMENT_HUD: PlacementHudSnapshot = {

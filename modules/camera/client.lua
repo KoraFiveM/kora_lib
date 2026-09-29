@@ -6,6 +6,7 @@ local state = {
     options = nil,
     scriptCameraActive = false,
     previousViewMode = nil,
+    instructions = nil,
     startedAt = 0,
     lastTick = 0,
 }
@@ -98,10 +99,20 @@ local function hudPayload()
         totalCameras = #state.cameras,
         location = camera and camera.location or nil,
         recording = options.recording,
-        controls = options.controls,
         timestamp = options.timestamp,
         elapsed = math.max(0, GetGameTimer() - state.startedAt),
     }
+end
+
+local function showInstructions()
+    if not state.options.controls then return end
+    local buttons = {}
+    if #state.cameras > 1 then
+        buttons[#buttons + 1] = { control = 10, label = 'Next camera' }
+        buttons[#buttons + 1] = { control = 11, label = 'Previous camera' }
+    end
+    buttons[#buttons + 1] = { control = 177, label = 'Exit camera' }
+    state.instructions = QB.instructional.show(buttons)
 end
 
 local function sendUpdate()
@@ -160,6 +171,7 @@ function QB.camera.open(options)
     end
 
     if #cameras > 0 then activateCamera(1) end
+    showInstructions()
     QB.nui.send('camera:open', hudPayload())
     return true
 end
@@ -171,6 +183,10 @@ function QB.camera.close(reason)
     if not state.active then return false end
 
     restorePlayerCamera()
+    if state.instructions then
+        state.instructions.hide()
+        state.instructions = nil
+    end
     state.active, state.options, state.cameras, state.index = false, nil, {}, 0
     QB.nui.send('camera:close', { reason = reason or 'closed' })
     return true

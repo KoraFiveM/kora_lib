@@ -29,7 +29,15 @@ function _G.IsControlJustPressed() return false end
 
 dofile(repoRoot .. "build/initiate.lua")
 local messages = {}
+local instructionButtons
+local instructionsHidden = false
 QB.nui = { send = function(action, data) messages[#messages + 1] = { action = action, data = data } end }
+QB.instructional = {
+    show = function(buttons)
+        instructionButtons = buttons
+        return { hide = function() instructionsHidden = true end }
+    end,
+}
 dofile(repoRoot .. "modules/camera/client.lua")
 
 local cameras = {
@@ -42,6 +50,7 @@ harness.test("camera opens a fixed network and switches cameras", function()
     harness.assertTrue(QB.camera.isOpen(), "camera should be open")
     harness.assertEqual(rendered, true, "fixed cameras should render through script cams")
     harness.assertEqual(cameraHandles, 1, "the first camera should be created")
+    harness.assertEqual(#instructionButtons, 3, "a camera network should show switch and exit instructions")
     QB.camera.next()
     harness.assertEqual(cameraHandles, 2, "next should create the second camera")
     harness.assertEqual(messages[#messages].data.cameraLabel, "CAM 02", "next should update the HUD label")
@@ -52,6 +61,7 @@ harness.test("camera close restores the player's view and rejects malformed came
     harness.assertFalse(QB.camera.isOpen(), "camera should be closed")
     harness.assertEqual(rendered, false, "script cameras should be disabled")
     harness.assertEqual(restoredView, 1, "the previous follow-camera mode should be restored")
+    harness.assertTrue(instructionsHidden, "closing should hide camera instructions")
     harness.assertThrows(function()
         QB.camera.open({ mode = "cctv", cameras = { { coords = { x = 1, y = 2 } } } })
     end, "malformed camera coordinates should fail early")

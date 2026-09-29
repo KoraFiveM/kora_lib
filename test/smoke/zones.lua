@@ -43,7 +43,7 @@ _G.RegisterKeyMapping = function() end
 QB.keybind = {
     add = function(options)
         registeredCommands[options.name] = options.onPressed
-        return { remove = function() return true end }
+        return { name = options.name, remove = function() return true end }
     end,
 }
 local placementActive = false
@@ -57,6 +57,7 @@ _G.GetShapeTestResult = function() return 2, 0, { x = 0, y = 0, z = 0 }, { x = 0
 _G.IsControlJustPressed = function() return false end
 _G.IsControlPressed = function() return false end
 _G.CreateCamWithParams = function() return 1 end
+_G.DoesCamExist = function() return true end
 _G.SetCamActive = function() end
 _G.RenderScriptCams = function() end
 _G.DestroyCam = function() end
@@ -68,12 +69,24 @@ end
 _G.PlayerId = function() return 1 end
 _G.DisablePlayerFiring = function() end
 _G.GetDisabledControlNormal = function() return 0.0 end
+_G.IsDisabledControlPressed = function() return false end
 _G.GetFrameTime = function() return 0.0 end
 _G.GetGameplayCamFov = function() return 50.0 end
 _G.SetCamCoord = function() end
 _G.SetCamRot = function() end
 _G.GetCamCoord = function() return { x = 0, y = 0, z = 0 } end
 _G.GetCamRot = function() return { x = 0, y = 0, z = 0 } end
+_G.RequestScaleformMovie = function() return 1 end
+_G.HasScaleformMovieLoaded = function() return true end
+_G.SetScaleformMovieAsNoLongerNeeded = function() end
+_G.BeginScaleformMovieMethod = function() end
+_G.EndScaleformMovieMethod = function() end
+_G.ScaleformMovieMethodAddParamInt = function() end
+_G.BeginTextCommandScaleformString = function() end
+_G.AddTextComponentSubstringPlayerName = function() end
+_G.EndTextCommandScaleformString = function() end
+_G.DrawScaleformMovieFullscreen = function() end
+_G.GetControlInstructionalButton = function() return 't_mock' end
 -- Recorded rather than ignored: hiding the minimap during placement is only
 -- correct if it's also restored on teardown, and a creator that leaves a
 -- player with no map is exactly the kind of thing that goes unnoticed in a
@@ -89,6 +102,8 @@ end
 dofile(repoRoot .. "modules/raycast/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")
+dofile(repoRoot .. "modules/freecam/client.lua")
+dofile(repoRoot .. "modules/instructional/client.lua")
 -- QB.theme isn't otherwise loaded by this test file -- the debug/creator-preview
 -- draw path now reads QB.theme.accentColor() (see zoneDebugColor in
 -- modules/zones/client.lua), and without this the QB proxy in build/initiate.lua

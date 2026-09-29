@@ -12,7 +12,6 @@
 local ROTATION_ORDER = 2
 local ROTATION_AXES = { "yaw", "pitch", "roll" }
 local PLACEMENT_CONTROLS = {
-    1, 2, 30, 31,       -- mouse look + WASD, read back through GetDisabledControlNormal
     172, 173, 174, 175, -- cellphone arrows
     187, 188, 189, 190, -- frontend arrows
     207, 208,           -- frontend Page Down / Page Up
@@ -23,7 +22,6 @@ local PLACEMENT_CONTROLS = {
 
 local activeState = nil
 local startingState = nil
-local teardownState = nil
 local held = {}
 local bindingHandles = {}
 
@@ -98,42 +96,7 @@ local function shiftHeld()
     return IsControlPressed(0, 21)
 end
 
-local function restorePlayer(state)
-    if not state or not state.playerFrozen then return end
-    state.playerFrozen = false
-
-    local currentPed = PlayerPedId()
-    pcall(FreezeEntityPosition, state.playerPed, false)
-    if currentPed ~= state.playerPed then pcall(FreezeEntityPosition, currentPed, false) end
-end
-
-local function destroyCameraImmediately(cam, state)
-    pcall(RenderScriptCams, false, false, 0, true, true)
-    if cam then pcall(DestroyCam, cam, false) end
-    restorePlayer(state)
-end
-
-local function finishCameraEase(cam, state)
-    if not cam then
-        restorePlayer(state)
-        return
-    end
-
-    local token = { cam = cam, state = state }
-    teardownState = token
-
-    CreateThread(function()
-        pcall(RenderScriptCams, false, true, Config.placement.cameraTransitionMs, true, true)
-        Wait(Config.placement.cameraTransitionMs)
-
-        if teardownState ~= token then return end
-        pcall(DestroyCam, cam, false)
-        restorePlayer(state)
-        teardownState = nil
-    end)
-end
-
-local function releaseStateResources(state, immediateCamera)
+local function releaseStateResources(state)
     clearHeld()
 
     if state.controlLease then
@@ -148,6 +111,11 @@ local function releaseStateResources(state, immediateCamera)
         state.entity = nil
     end
 
+    if state.instructions then
+        pcall(state.instructions.hide)
+        state.instructions = nil
+    end
+
     pcall(QB.nui.send, "placement:hud", nil)
     -- If an owning resource stops while the summary owns NUI focus, settling
     -- the placement promise alone cannot answer that still-pending browser
@@ -156,21 +124,18 @@ local function releaseStateResources(state, immediateCamera)
     pcall(QB.nui.send, "placement:closeConfirm", nil)
     if state.radarManaged and not state.radarWasHidden then pcall(DisplayRadar, true) end
 
-    local cam = state.cam
-    state.cam = nil
-    if immediateCamera then
-        destroyCameraImmediately(cam, state)
-    else
-        finishCameraEase(cam, state)
+    if state.freecam then
+        pcall(state.freecam.stop)
+        state.freecam = nil
     end
 end
 
 
-local function settleState(state, value, rejection, immediateCamera)
+local function settleState(state, value, rejection)
     if activeState == state then activeState = nil end
     if startingState == state then startingState = nil end
     state.aborted = true
-    releaseStateResources(state, immediateCamera == true)
+    releaseStateResources(state)
 
     if rejection then
         state.promise:reject(value)
@@ -180,13 +145,13 @@ local function settleState(state, value, rejection, immediateCamera)
 end
 
 
-local function resolveState(state, value, immediateCamera)
-    settleState(state, value, false, immediateCamera)
+local function resolveState(state, value)
+    settleState(state, value, false)
 end
 
 
-local function rejectState(state, message, immediateCamera)
-    settleState(state, tostring(message), true, immediateCamera)
+local function rejectState(state, message)
+    settleState(state, tostring(message), true)
 end
 
 
@@ -200,32 +165,6 @@ local function rejectedForCaller(message, externalCaller)
     local p = promise.new()
     p:reject(message)
     return settleForCaller(p, externalCaller)
-end
-
-
-local function currentBinding(name, fallback)
-    local handle = bindingHandles[name]
-    if not handle then return fallback end
-    local ok, binding = pcall(handle.getCurrentBinding)
-    if ok and type(binding) == "string" and binding ~= "" then return binding end
-    return fallback
-end
-
-
-local function bindingsPayload()
-    return {
-        forward = currentBinding("forward", "UP"),
-        backward = currentBinding("backward", "DOWN"),
-        left = currentBinding("left", "LEFT"),
-        right = currentBinding("right", "RIGHT"),
-        up = currentBinding("up", "PAGEUP"),
-        down = currentBinding("down", "PAGEDOWN"),
-        rotateLeft = currentBinding("rotateLeft", "LBRACKET"),
-        rotateRight = currentBinding("rotateRight", "RBRACKET"),
-        cycle = currentBinding("cycle", "TAB"),
-        confirm = currentBinding("confirm", "RETURN"),
-        cancel = currentBinding("cancel", "X"),
-    }
 end
 
 
@@ -298,36 +237,6 @@ local function movementInput(positive, negative)
 end
 
 
-local function updateFreeCamera(state, multiplier)
-    local lookX = GetDisabledControlNormal(0, 1)
-    local lookY = GetDisabledControlNormal(0, 2)
-    local strafe = GetDisabledControlNormal(0, 30)
-    local forwardBack = GetDisabledControlNormal(0, 31)
-
-    state.camYaw = (state.camYaw - lookX * Config.placement.cameraLookSensitivity) % 360.0
-    state.camPitch = math.max(-89.0,
-        math.min(89.0, state.camPitch - lookY * Config.placement.cameraLookSensitivity))
-
-    local yawRad, pitchRad = math.rad(state.camYaw), math.rad(state.camPitch)
-    local flat = math.cos(pitchRad)
-    local forward = {
-        x = -math.sin(yawRad) * flat,
-        y = math.cos(yawRad) * flat,
-        z = math.sin(pitchRad),
-    }
-    local right = { x = math.cos(yawRad), y = math.sin(yawRad), z = 0.0 }
-    local distance = Config.placement.cameraMoveSpeed * multiplier * GetFrameTime()
-    local moveForward, moveRight = -forwardBack * distance, strafe * distance
-
-    state.camCoords.x = state.camCoords.x + forward.x * moveForward + right.x * moveRight
-    state.camCoords.y = state.camCoords.y + forward.y * moveForward + right.y * moveRight
-    state.camCoords.z = state.camCoords.z + forward.z * moveForward
-
-    SetCamCoord(state.cam, state.camCoords.x, state.camCoords.y, state.camCoords.z)
-    SetCamRot(state.cam, state.camPitch, 0.0, state.camYaw, ROTATION_ORDER)
-end
-
-
 local function updateEntityPlacement(state, multiplier)
     local forwardInput = movementInput("forward", "backward")
     local rightInput = movementInput("right", "left")
@@ -369,7 +278,8 @@ local function ensurePlacementThread(state)
 
                 local multiplier = shiftHeld() and Config.placement.shiftMultiplier or 1.0
                 if not state.dialogOpen then
-                    updateFreeCamera(state, multiplier)
+                    local rotation = state.freecam.getRotation()
+                    if rotation then state.camYaw = rotation.yaw end
                     updateEntityPlacement(state, multiplier)
                 end
 
@@ -393,23 +303,20 @@ end
 
 
 local function startCamera(state, camCoord, camRot)
-    local cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA",
-        camCoord.x, camCoord.y, camCoord.z,
-        camRot.x, camRot.y, camRot.z,
-        GetGameplayCamFov(), false, 0)
-
-    state.cam = cam
-    SetCamActive(cam, true)
-    RenderScriptCams(true, true, Config.placement.cameraTransitionMs, true, true)
-    state.visualsStarted = true
+    local freecam, err = QB.freecam.start({
+        coords = camCoord,
+        rotation = camRot,
+        moveSpeed = Config.placement.cameraMoveSpeed,
+        lookSensitivity = Config.placement.cameraLookSensitivity,
+        fastMultiplier = Config.placement.shiftMultiplier,
+        transitionMs = Config.placement.cameraTransitionMs,
+    })
+    assert(freecam, err)
+    state.freecam = freecam
     if Config.placement.hideRadar then
         state.radarManaged = true
         DisplayRadar(false)
     end
-    FreezeEntityPosition(state.playerPed, true)
-    state.playerFrozen = true
-    state.camCoords = plainVec3(camCoord)
-    state.camPitch = camRot.x
     state.camYaw = camRot.z
 end
 
@@ -420,6 +327,27 @@ local function validateModel(model)
     assert(type(model) ~= "number" or QB.util.isInteger(model), "Placement model hash must be a finite integer.")
     local hash = type(model) == "string" and joaat(model) or model
     assert(IsModelValid(hash), ("Invalid placement model: %s"):format(tostring(model)))
+end
+
+local function updatePlacementInstructions(state)
+    if not state.instructions then return end
+    local movementLabel = state.movementMode == "camera" and "Camera" or "Grid"
+    state.instructions.setButtons({
+        { control = 32, label = "Move camera forward" },
+        { control = 33, label = "Move camera backward" },
+        { control = 34, label = "Move camera left" },
+        { control = 35, label = "Move camera right" },
+        { keybind = bindingHandles.movement, label = "Camera movement: " .. movementLabel },
+        { keybind = bindingHandles.forward, label = "Move entity forward" },
+        { keybind = bindingHandles.backward, label = "Move entity backward" },
+        { keybind = bindingHandles.up, label = "Move entity up" },
+        { keybind = bindingHandles.down, label = "Move entity down" },
+        { keybind = bindingHandles.rotateLeft, label = "Rotate " .. ROTATION_AXES[state.axisIndex] .. " left" },
+        { keybind = bindingHandles.rotateRight, label = "Rotate " .. ROTATION_AXES[state.axisIndex] .. " right" },
+        { keybind = bindingHandles.cycle, label = "Rotation axis: " .. ROTATION_AXES[state.axisIndex] },
+        { keybind = bindingHandles.confirm, label = "Confirm" },
+        { keybind = bindingHandles.cancel, label = "Cancel" },
+    })
 end
 
 
@@ -437,8 +365,8 @@ function QB.placement.start(model)
             externalCaller)
     end
 
-    if activeState or startingState or teardownState then
-        return rejectedForCaller("An entity placement session is already active or finishing.", externalCaller)
+    if activeState or startingState then
+        return rejectedForCaller("An entity placement session is already active.", externalCaller)
     end
 
     local zones = rawget(QB, "zones")
@@ -451,19 +379,18 @@ function QB.placement.start(model)
         promise = p,
         model = model,
         resource = invokingResource or GetCurrentResourceName(),
-        playerPed = PlayerPedId(),
         entity = nil,
-        cam = nil,
+        freecam = nil,
         controlLease = nil,
         dialogOpen = false,
         aborted = false,
         axisIndex = 1,
         nextHudAt = 0,
         forceHud = true,
-        visualsStarted = false,
         radarManaged = false,
         radarWasHidden = type(IsRadarHidden) == "function" and IsRadarHidden() or false,
-        playerFrozen = false,
+        movementMode = "camera",
+        instructions = nil,
     }
     startingState = state
 
@@ -496,7 +423,7 @@ function QB.placement.start(model)
 
     startingState = nil
     if not ok then
-        releaseStateResources(state, true)
+        releaseStateResources(state)
         -- A caller-resource stop can settle this promise while model streaming
         -- is yielding. In that case the resumed start path still cleans up the
         -- just-created entity, but must not reject an already-resolved cancel.
@@ -506,9 +433,10 @@ function QB.placement.start(model)
 
     activeState = state
     clearHeld()
+    state.instructions = QB.instructional.show({ { control = 32, label = "Move camera forward" } })
+    updatePlacementInstructions(state)
     QB.nui.send("placement:start", {
         model = tostring(model),
-        bindings = bindingsPayload(),
     })
     ensurePlacementThread(state)
 
@@ -518,7 +446,7 @@ end
 
 ---@return boolean
 function QB.placement.isActive()
-    return activeState ~= nil or startingState ~= nil or teardownState ~= nil
+    return activeState ~= nil or startingState ~= nil
 end
 
 
@@ -554,6 +482,7 @@ bindingHandles.cycle = QB.keybind.add({
         if not activeState or activeState.dialogOpen then return end
         activeState.axisIndex = activeState.axisIndex % #ROTATION_AXES + 1
         activeState.forceHud = true
+        updatePlacementInstructions(activeState)
     end,
 })
 
@@ -577,6 +506,19 @@ bindingHandles.cancel = QB.keybind.add({
     end,
 })
 
+bindingHandles.movement = QB.keybind.add({
+    name = "qblib_placement_movement",
+    description = "Entity Placement: Toggle Camera / Grid Movement",
+    defaultMapper = "keyboard",
+    defaultKey = "G",
+    onPressed = function()
+        if not activeState or activeState.dialogOpen then return end
+        activeState.movementMode = activeState.movementMode == "camera" and "grid" or "camera"
+        activeState.freecam.setMovementMode(activeState.movementMode)
+        updatePlacementInstructions(activeState)
+    end,
+})
+
 AddEventHandler("onClientResourceStop", function(resourceName)
     local currentResource = GetCurrentResourceName()
 
@@ -585,14 +527,8 @@ AddEventHandler("onClientResourceStop", function(resourceName)
         activeState, startingState = nil, nil
         if state then
             state.aborted = true
-            releaseStateResources(state, true)
+            releaseStateResources(state)
             state.promise:reject("qblib stopped during entity placement.")
-        end
-
-        if teardownState then
-            local teardown = teardownState
-            teardownState = nil
-            destroyCameraImmediately(teardown.cam, teardown.state)
         end
 
         pcall(QB.nui.send, "placement:hud", nil)

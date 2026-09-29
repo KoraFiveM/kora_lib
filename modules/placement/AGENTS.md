@@ -15,7 +15,9 @@ freecam, returns/copies its transform, and deletes the preview on every exit.
 - Capture `GetInvokingResource()` before raycasting or streaming yields.
 - Keep heading separate from Euler yaw: capture both from their native getters
   with entity rotation order `2`.
-- HUD messages are capped by `Config.placement.hudUpdateInterval`; native
+- Camera movement/lifecycle belongs to `QB.freecam`; placement retains only
+  entity transform movement. Instruction prompts belong to `QB.instructional`.
+- HUD messages are capped by `Config.placement.hudUpdateInterval`; entity
   movement remains per-frame and frame-time-scaled.
 - The placement and zone creators are mutually exclusive. Keep both guards and
   `QB.placement.isActive()` in sync if lifecycle states change.

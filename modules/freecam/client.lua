@@ -16,6 +16,13 @@ local function shiftHeld()
     return IsControlPressed(0, 21)
 end
 
+local function optionNumber(value, fallback, label, allowZero)
+    value = value == nil and fallback or value
+    assert(isFinite(value) and (allowZero and value >= 0 or value > 0),
+        ('Freecam %s must be a %sfinite number.'):format(label, allowZero and 'non-negative ' or 'positive '))
+    return value
+end
+
 local function inBounds(state, coords)
     if state.maxDistance then
         local dx, dy, dz = coords.x - state.origin.x, coords.y - state.origin.y, coords.z - state.origin.z
@@ -29,14 +36,18 @@ local function stop(state, immediate)
     active = nil
     ownership.untrack(state)
     QB.compat.releaseControlLease(state.lease, state.owner)
-    FreezeEntityPosition(state.ped, false)
+    if state.freezePlayer then
+        FreezeEntityPosition(state.ped, false)
+        local currentPed = PlayerPedId()
+        if currentPed ~= state.ped then FreezeEntityPosition(currentPed, false) end
+    end
     if immediate then
         RenderScriptCams(false, false, 0, true, true)
         DestroyCam(state.cam, false)
     else
+        RenderScriptCams(false, true, state.transitionMs, true, true)
         CreateThread(function()
-            RenderScriptCams(false, true, Config.freecam.cameraTransitionMs, true, true)
-            Wait(Config.freecam.cameraTransitionMs)
+            Wait(state.transitionMs)
             DestroyCam(state.cam, false)
         end)
     end
@@ -53,6 +64,7 @@ local function makeHandle(state)
         isActive = function() return active == state end,
         getCoords = function() return active == state and { x = state.coords.x, y = state.coords.y, z = state.coords.z } or nil end,
         getRotation = function() return active == state and { pitch = state.pitch, roll = 0.0, yaw = state.yaw } or nil end,
+        getCamera = function() return active == state and state.cam or nil end,
         getMovementMode = function() return active == state and state.movementMode or nil end,
         setMovementMode = function(mode)
             assert(mode == 'camera' or mode == 'grid', 'Freecam movementMode must be camera or grid.')
@@ -77,20 +89,23 @@ local function run(state)
                 state.yaw = math.deg(math.atan(-dx, dy)) % 360.0
                 state.pitch = -math.deg(math.atan(dz, math.sqrt(dx * dx + dy * dy)))
             else
-                state.yaw = (state.yaw - lookX * Config.freecam.cameraLookSensitivity) % 360.0
-                state.pitch = math.max(-89.0, math.min(89.0, state.pitch - lookY * Config.freecam.cameraLookSensitivity))
+                state.yaw = (state.yaw - lookX * state.lookSensitivity) % 360.0
+                state.pitch = math.max(-89.0, math.min(89.0, state.pitch - lookY * state.lookSensitivity))
             end
             local yaw, pitch = math.rad(state.yaw), math.rad(state.pitch)
             local flat = math.cos(pitch)
             local forward = { x = -math.sin(yaw) * flat, y = math.cos(yaw) * flat, z = math.sin(pitch) }
             local right = { x = math.cos(yaw), y = math.sin(yaw), z = 0.0 }
             local forwardBack, strafe = -GetDisabledControlNormal(0, 31), GetDisabledControlNormal(0, 30)
-            local speed = Config.freecam.cameraMoveSpeed * (shiftHeld() and Config.freecam.shiftMultiplier or 1) * GetFrameTime()
+            local speed = state.moveSpeed * (shiftHeld() and state.fastMultiplier or 1) * GetFrameTime()
             local moveForward, moveRight = forwardBack * speed, strafe * speed
+            local moveUp = 0.0
+            if state.upControl and IsDisabledControlPressed(0, state.upControl) then moveUp = moveUp + speed end
+            if state.downControl and IsDisabledControlPressed(0, state.downControl) then moveUp = moveUp - speed end
             local candidate = {
                 x = state.coords.x + forward.x * moveForward + right.x * moveRight,
                 y = state.coords.y + forward.y * moveForward + right.y * moveRight,
-                z = state.coords.z + (state.movementMode == 'camera' and forward.z * moveForward or 0.0),
+                z = state.coords.z + (state.movementMode == 'camera' and forward.z * moveForward or 0.0) + moveUp,
             }
             if state.movementMode == 'grid' then
                 candidate.x = state.coords.x + moveRight
@@ -117,6 +132,9 @@ function QB.freecam.start(options)
     assert(options.maxDistance == nil or (isFinite(options.maxDistance) and options.maxDistance > 0), 'Freecam maxDistance must be a positive finite number.')
     assert(options.movementMode == nil or options.movementMode == 'camera' or options.movementMode == 'grid', 'Freecam movementMode must be camera or grid.')
     assert(options.zone == nil or (type(options.zone) == 'table' and QB.compat.isCallable(options.zone.contains)), 'Freecam zone must be a QB.zones handle.')
+    assert(options.freezePlayer == nil or type(options.freezePlayer) == 'boolean', 'Freecam freezePlayer must be a boolean.')
+    assert(options.upControl == nil or QB.util.isInteger(options.upControl) and options.upControl >= 0, 'Freecam upControl must be a non-negative integer.')
+    assert(options.downControl == nil or QB.util.isInteger(options.downControl) and options.downControl >= 0, 'Freecam downControl must be a non-negative integer.')
     local gameplayCoords, gameplayRot = GetGameplayCamCoord(), GetGameplayCamRot(2)
     local coords = options.coords and copyCoords(options.coords, 'coords') or copyCoords(gameplayCoords, 'gameplay coords')
     local rotation = options.rotation and copyCoords(options.rotation, 'rotation') or copyCoords(gameplayRot, 'gameplay rotation')
@@ -127,13 +145,23 @@ function QB.freecam.start(options)
         maxDistance = options.maxDistance, zone = options.zone, focus = options.focusCoords and copyCoords(options.focusCoords, 'focusCoords') or nil,
         movementMode = options.movementMode or 'camera', ped = PlayerPedId(),
         owner = GetInvokingResource() or GetCurrentResourceName(),
+        moveSpeed = optionNumber(options.moveSpeed, Config.freecam.cameraMoveSpeed, 'moveSpeed'),
+        lookSensitivity = optionNumber(options.lookSensitivity, Config.freecam.cameraLookSensitivity, 'lookSensitivity'),
+        fastMultiplier = optionNumber(options.fastMultiplier, Config.freecam.shiftMultiplier, 'fastMultiplier'),
+        transitionMs = optionNumber(options.transitionMs, Config.freecam.cameraTransitionMs, 'transitionMs', true),
+        upControl = options.upControl,
+        downControl = options.downControl,
+        freezePlayer = options.freezePlayer ~= false,
     }
     state.cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', coords.x, coords.y, coords.z, state.pitch, 0.0, state.yaw, fov, false, 0)
     assert(state.cam and state.cam ~= 0 and DoesCamExist(state.cam), 'Freecam could not be created.')
-    state.lease = QB.compat.acquireControls({ 1, 2, 30, 31 }, nil, state.owner)
-    FreezeEntityPosition(state.ped, true)
+    local controls = { 1, 2, 30, 31 }
+    if state.upControl then controls[#controls + 1] = state.upControl end
+    if state.downControl then controls[#controls + 1] = state.downControl end
+    state.lease = QB.compat.acquireControls(controls, nil, state.owner)
+    if state.freezePlayer then FreezeEntityPosition(state.ped, true) end
     SetCamActive(state.cam, true)
-    RenderScriptCams(true, true, Config.freecam.cameraTransitionMs, true, true)
+    RenderScriptCams(true, true, state.transitionMs, true, true)
     active = state
     ownership.track(state.owner, state)
     CreateThread(function() run(state) end)

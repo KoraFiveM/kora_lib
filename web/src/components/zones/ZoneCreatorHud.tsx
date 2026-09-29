@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { EditorControlsHud, EditorKey } from "@/components/editor/EditorControlsHud"
+import { EditorControlsHud } from "@/components/editor/EditorControlsHud"
 import type { ZoneCreatorHudSnapshot, ZoneCreatorStartPayload, ZoneType } from "@/lib/types"
 import { cn } from "@/lib/cn"
 import { useNuiEvent } from "@/lib/useNuiEvent"
@@ -70,13 +70,6 @@ export function ZoneCreatorHud() {
                     <AimIndicator aiming={snapshot?.aiming ?? false} />
                     {snapshot ? <ShapeStatus type={type} snapshot={snapshot} /> : "Starting…"}
                 </span>
-            }
-            controls={
-                <p>
-                    <EditorKey>E</EditorKey> place/move &middot; <EditorKey>Backspace</EditorKey> undo &middot;{" "}
-                    <EditorKey>Tab</EditorKey> cycle &middot; <EditorKey>Scroll</EditorKey> adjust &middot;{" "}
-                    <EditorKey>X</EditorKey> cancel
-                </p>
             }
         >
 

@@ -1,29 +1,12 @@
 import { useState } from "react"
 
-import { EditorControlsHud, EditorKey } from "@/components/editor/EditorControlsHud"
+import { EditorControlsHud } from "@/components/editor/EditorControlsHud"
 import type { PlacementHudSnapshot, PlacementStartPayload } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 
 interface PlacementHudState {
     session: PlacementStartPayload
     snapshot: PlacementHudSnapshot | null
-}
-
-const KEY_LABELS: Record<string, string> = {
-    UP: "↑",
-    DOWN: "↓",
-    LEFT: "←",
-    RIGHT: "→",
-    PAGEUP: "PgUp",
-    PAGEDOWN: "PgDn",
-    LBRACKET: "[",
-    RBRACKET: "]",
-    RETURN: "Enter",
-    TAB: "Tab",
-}
-
-function keyLabel(value: string): string {
-    return KEY_LABELS[value.toUpperCase()] ?? value
 }
 
 function NumberValue({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -50,8 +33,6 @@ export function PlacementHud() {
     if (!state) return null
 
     const { session, snapshot } = state
-    const bindings = session.bindings
-
     return (
         <EditorControlsHud
             width="md"
@@ -61,24 +42,6 @@ export function PlacementHud() {
                         Fast
                     </span>
             ) : undefined}
-            controls={
-                <>
-                    <p><EditorKey>WASD + mouse</EditorKey> fly camera</p>
-                    <p>
-                        <EditorKey>
-                            {keyLabel(bindings.forward)} {keyLabel(bindings.backward)} {keyLabel(bindings.left)} {keyLabel(bindings.right)}
-                        </EditorKey>{" "}move &middot; <EditorKey>{keyLabel(bindings.up)}/{keyLabel(bindings.down)}</EditorKey> height
-                    </p>
-                    <p>
-                        <EditorKey>{keyLabel(bindings.rotateLeft)} {keyLabel(bindings.rotateRight)}</EditorKey> rotate &middot;{" "}
-                        <EditorKey>{keyLabel(bindings.cycle)}</EditorKey> axis &middot; <EditorKey>Shift</EditorKey> fast
-                    </p>
-                    <p>
-                        <EditorKey>{keyLabel(bindings.confirm)}</EditorKey> finish &middot;{" "}
-                        <EditorKey>{keyLabel(bindings.cancel)}</EditorKey> cancel
-                    </p>
-                </>
-            }
         >
 
             {snapshot ? (

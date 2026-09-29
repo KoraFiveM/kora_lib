@@ -50,7 +50,7 @@ end
 ```
 
 ### `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
-Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this is for a caller that manages its own `CreateCam`/`CreateCamWithParams` camera handle -- for example, `modules/zones`' zone creator's freecam, which raycasts from wherever the freecam is currently pointed rather than the player's gameplay camera.
+Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this accepts any scripted-camera handle -- for example, the native handle returned by `QB.freecam.getCamera()` for the zone creator's aim raycast.
 
 #### Parameters
 - `cam: integer` -- Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.

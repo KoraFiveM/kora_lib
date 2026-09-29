@@ -87,6 +87,7 @@ _G.GetHashKey = function(model) return model == "prop_locker" and 12345 or 0 end
 _G.joaat = function(model) return model == "prop_locker" and 12345 or 0 end
 _G.GetEntityCoords = function(entity) return { x = entity, y = 20, z = 30 } end
 _G.GetEntityHeading = function() return 45 end
+_G.vector3 = function(x, y, z) return { x = x, y = y, z = z } end
 
 dofile(repoRoot .. "modules/nui/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")

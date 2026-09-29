@@ -1431,12 +1431,20 @@
 ---@field zone? QBZoneHandle
 ---@field focusCoords? QBCoords
 ---@field movementMode? 'camera'|'grid'
+---@field moveSpeed? number Metres per second before the fast multiplier.
+---@field lookSensitivity? number Degrees per raw mouse-look unit.
+---@field fastMultiplier? number Movement multiplier while sprint is held.
+---@field transitionMs? number Script-camera blend duration.
+---@field upControl? integer Optional GTA control ID for direct vertical movement.
+---@field downControl? integer Optional GTA control ID for direct vertical movement.
+---@field freezePlayer? boolean Defaults to true.
 
 ---@class QBFreecamHandle
 ---@field stop fun(reason?: string): boolean
 ---@field isActive fun(): boolean
 ---@field getCoords fun(): QBCoords|nil
 ---@field getRotation fun(): {pitch: number, roll: number, yaw: number}|nil
+---@field getCamera fun(): integer|nil Native scripted-camera handle for raycasts and other camera natives.
 ---@field getMovementMode fun(): 'camera'|'grid'|nil
 ---@field setMovementMode fun(mode: 'camera'|'grid'): boolean
 ---@field setFocus fun(coords: QBCoords|nil): boolean

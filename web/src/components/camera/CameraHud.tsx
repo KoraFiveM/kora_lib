@@ -12,7 +12,6 @@ const EMPTY_STATE: CameraHudPayload = {
     cameraIndex: 0,
     totalCameras: 0,
     recording: false,
-    controls: true,
     timestamp: true,
     elapsed: 0,
 }
@@ -103,12 +102,6 @@ export function CameraHud() {
                     <strong>{String(Math.max(1, state.cameraIndex)).padStart(2, "0")}</strong>
                     {state.totalCameras > 1 && <small>/ {String(state.totalCameras).padStart(2, "0")}</small>}
                 </div>
-                {state.controls && (
-                    <div className="camera-controls">
-                        {state.totalCameras > 1 && <span><b>↑</b><b>↓</b> CHANGE VIEW</span>}
-                        <span><b>ESC</b> EXIT</span>
-                    </div>
-                )}
                 <div className="camera-footer-mark"><span>QBCORE</span><i /></div>
             </footer>
         </div>

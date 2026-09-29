@@ -52,6 +52,7 @@ networked entity.
 ## Controls
 
 - Mouse + WASD: fly the scripted camera.
+- G: toggle camera-relative and world-grid camera movement.
 - Arrow keys: move the preview horizontally relative to camera yaw.
 - Page Up / Page Down: move the preview vertically.
 - Tab: cycle yaw, pitch, and roll.
@@ -61,7 +62,8 @@ networked entity.
 - X: cancel.
 
 All actions use `QB.keybind`, so players may rebind them in FiveM's key
-settings. The HUD reads the current binding labels at session start.
+settings. `QB.instructional` renders the live bindings and updates the movement
+mode and active rotation axis; the NUI HUD is reserved for transform state.
 
 ## Other API
 

@@ -6,7 +6,7 @@ interface EditorControlsHudProps {
     title: ReactNode
     status?: ReactNode
     children?: ReactNode
-    controls: ReactNode
+    controls?: ReactNode
     width?: "sm" | "md"
 }
 
@@ -33,12 +33,14 @@ export function EditorControlsHud({
 
             {children}
 
-            <div className="mt-3 border-t pt-2">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Editor controls
-                </p>
-                <div className="space-y-1 text-xs leading-5 text-card-foreground/80">{controls}</div>
-            </div>
+            {controls && (
+                <div className="mt-3 border-t pt-2">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Editor controls
+                    </p>
+                    <div className="space-y-1 text-xs leading-5 text-card-foreground/80">{controls}</div>
+                </div>
+            )}
         </section>
     )
 }

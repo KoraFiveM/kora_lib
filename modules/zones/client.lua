@@ -1113,15 +1113,11 @@ local function newCreatorState(zoneType, resource)
         resource = resource,
         center = nil,
         points = {},
-        -- The creator's own scripted freecam -- set by startCreatorCamera in
-        -- beginCreator, immediately after this table is built. Listed here
-        -- purely for documentation/consistency with every other field this
-        -- state table tracks.
+        freecam = nil,
         cam = nil,
-        camCoords = nil,
-        camPitch = 0.0,
-        camYaw = 0.0,
-        controlLease = nil,
+        movementMode = "camera",
+        instructions = nil,
+        lastInstructionKey = nil,
         radarManaged = false,
         radarWasHidden = radarIsHidden(),
         size = creator.defaultBoxSize,
@@ -1275,17 +1271,26 @@ end
 ---both a successful confirm (`{ type, opts }`) and a cancel (`nil`), which
 ---otherwise differed only in which value they resolved with.
 ---@param value any
-local function releaseCreatorControls(state)
-    if not state or not state.controlLease then return end
-    QB.compat.releaseControlLease(state.controlLease, state.resource)
-    state.controlLease = nil
+local function releaseCreatorUi(state)
+    if state and state.instructions then
+        state.instructions.hide()
+        state.instructions = nil
+    end
+end
+
+local function releaseCreatorCamera(state)
+    if state and state.freecam then
+        state.freecam.stop()
+        state.freecam = nil
+    end
 end
 
 local function resolveCreator(value)
     local state = creatorState
     creatorState = nil
     if state then
-        releaseCreatorControls(state)
+        releaseCreatorUi(state)
+        releaseCreatorCamera(state)
         state.promise:resolve(value)
     end
 end
@@ -1553,8 +1558,10 @@ end
 ---@param label string
 ---@param key string
 ---@param handler fun(state: table)
+local creatorBindings = {}
+
 local function registerCreatorKeybind(command, label, key, handler)
-    QB.keybind.add({
+    local handle = QB.keybind.add({
         name = command,
         description = label,
         defaultMapper = 'keyboard',
@@ -1563,6 +1570,8 @@ local function registerCreatorKeybind(command, label, key, handler)
             if creatorState then handler(creatorState) end
         end,
     })
+    creatorBindings[command] = handle
+    return handle
 end
 
 registerCreatorKeybind("qblib_zonecreator_place", "Zone Creator: Place Point", "E", creatorPlace)
@@ -1575,6 +1584,37 @@ end)
 
 registerCreatorKeybind("qblib_zonecreator_cancel", "Zone Creator: Cancel", "X", function() resolveCreator(nil) end)
 
+local function updateCreatorInstructions(state)
+    if not state.instructions then return end
+    local param = activeParamName(state)
+    local paramLabel = ({ zOffset = "height offset", editPoint = "point editing" })[param] or param
+    local movementLabel = state.movementMode == "camera" and "Camera" or "Grid"
+    local placeLabel = "Place point"
+    if param == "editPoint" then placeLabel = state.grabbing and "Drop point" or "Grab point" end
+    local key = table.concat({ state.movementMode, param, placeLabel, tostring(creatorCanConfirm(state)) }, ":")
+    if state.lastInstructionKey == key then return end
+    state.lastInstructionKey = key
+    state.instructions.setButtons({
+        { control = 32, label = "Move forward" },
+        { control = 33, label = "Move backward" },
+        { control = 34, label = "Move left" },
+        { control = 35, label = "Move right" },
+        { keybind = creatorBindings.qblib_zonecreator_movement, label = "Movement: " .. movementLabel },
+        { keybind = creatorBindings.qblib_zonecreator_place, label = placeLabel },
+        { keybind = creatorBindings.qblib_zonecreator_undo, label = "Undo" },
+        { keybind = creatorBindings.qblib_zonecreator_cycle, label = "Adjust: " .. paramLabel },
+        { keybind = creatorBindings.qblib_zonecreator_confirm, label = "Confirm" },
+        { keybind = creatorBindings.qblib_zonecreator_cancel, label = "Cancel" },
+    })
+end
+
+registerCreatorKeybind("qblib_zonecreator_movement", "Zone Creator: Toggle Camera / Grid Movement", "G", function(state)
+    state.movementMode = state.movementMode == "camera" and "grid" or "camera"
+    state.freecam.setMovementMode(state.movementMode)
+    state.lastInstructionKey = nil
+    updateCreatorInstructions(state)
+end)
+
 -- Lazily started per creator session (mirrors ensureTickThread/ensureDebugThread
 -- above) and self-stops the moment creatorState no longer points at it, whether
 -- that's a confirm, a cancel, or the resource stopping entirely.
@@ -1582,39 +1622,11 @@ local function ensureCreatorThread(state)
     CreateThread(function()
         -- pcall-wrapped: this loop calls a lot of natives every frame, and
         -- any one of them erroring would otherwise silently kill this
-        -- coroutine right there, skipping every cleanup step below
-        -- (unfreezing the ped, destroying the scripted camera, restoring the
-        -- radar) -- leaving the player stuck frozen with no way out.
+        -- coroutine right there, skipping the shared-camera cleanup and radar
+        -- restoration below.
         local ok, err = pcall(function()
         while creatorState == state do
-            local lookX = GetDisabledControlNormal(0, 1)
-            local lookY = GetDisabledControlNormal(0, 2)
-            local strafe = GetDisabledControlNormal(0, 30)
-            local forwardBack = GetDisabledControlNormal(0, 31)
-
-            state.camYaw = (state.camYaw - lookX * Config.zones.creator.cameraLookSensitivity) % 360.0
-            state.camPitch = math.max(-89.0, math.min(89.0, state.camPitch - lookY * Config.zones.creator.cameraLookSensitivity))
-
-            local yawRad, pitchRad = math.rad(state.camYaw), math.rad(state.camPitch)
-            local flat = math.cos(pitchRad)
-            local forward = { x = -math.sin(yawRad) * flat, y = math.cos(yawRad) * flat, z = math.sin(pitchRad) }
-            local right = { x = math.cos(yawRad), y = math.sin(yawRad), z = 0.0 }
-
-            -- Shift reuses the exact same 2.5x multiplier the size/rotation scroll-step already
-            -- uses (Config.zones.creator.shiftMultiplier) -- one speed-boost knob, not two.
-            local speed = Config.zones.creator.cameraMoveSpeed * (shiftHeld() and Config.zones.creator.shiftMultiplier or 1)
-            local distance = speed * GetFrameTime()
-            local moveForward, moveRight = -forwardBack * distance, strafe * distance
-
-            state.camCoords = {
-                x = state.camCoords.x + forward.x * moveForward + right.x * moveRight,
-                y = state.camCoords.y + forward.y * moveForward + right.y * moveRight,
-                z = state.camCoords.z + forward.z * moveForward,
-            }
-
-            SetCamCoord(state.cam, state.camCoords.x, state.camCoords.y, state.camCoords.z)
-            SetCamRot(state.cam, state.camPitch, 0.0, state.camYaw, 2)
-
+            assert(state.freecam and state.freecam.isActive(), "The zone creator freecam stopped unexpectedly.")
             local hit, aimCoords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
 
             if IsControlJustPressed(0, 14) then adjustActiveParam(state, 1) end
@@ -1691,6 +1703,7 @@ local function ensureCreatorThread(state)
             if not hudSnapshotsEqual(snapshot, state.lastHud) then
                 state.lastHud = snapshot
                 QB.nui.send("zoneCreator:hud", snapshot)
+                updateCreatorInstructions(state)
             end
 
             -- Re-asserted every frame rather than once at startup: the game
@@ -1720,7 +1733,8 @@ local function ensureCreatorThread(state)
             end
         end
 
-        releaseCreatorControls(state)
+        releaseCreatorUi(state)
+        releaseCreatorCamera(state)
 
         -- Restore only the state this creator changed. Forcing the radar on
         -- here overrides a HUD resource (or the player's existing hidden
@@ -1729,16 +1743,6 @@ local function ensureCreatorThread(state)
 
         QB.nui.send("zoneCreator:hud", nil)
 
-        -- A separate thread, not inline here: DestroyCam must wait out the ease so the
-        -- transition back to the gameplay camera isn't cut short, but everything above
-        -- (radar, hud) must restore in this same tick, not delayed by that wait.
-        local cam = state.cam
-        CreateThread(function()
-            RenderScriptCams(false, true, Config.zones.creator.cameraTransitionMs, true, true)
-            Wait(Config.zones.creator.cameraTransitionMs)
-            DestroyCam(cam, false)
-            FreezeEntityPosition(PlayerPedId(), false)
-        end)
     end)
 end
 
@@ -1759,31 +1763,21 @@ AddEventHandler('onClientResourceStop', function(resourceName)
 
     if resourceName ~= GetCurrentResourceName() then return end
 
-    releaseCreatorControls(creatorState)
-    FreezeEntityPosition(PlayerPedId(), false)
-    DestroyCam(creatorState.cam, false)
-    RenderScriptCams(false, false, 0, true, true)
+    releaseCreatorUi(creatorState)
     restoreCreatorRadar(creatorState)
 end)
 
--- The creator flies its own scripted camera rather than relying on the
--- player's own view -- started from wherever the gameplay camera already is
--- (RenderScriptCams' own ease handles the visual handoff) so entering the
--- creator is a smooth blend, not a cut.
+-- The shared freecam starts from the gameplay view and owns camera/control/
+-- player restoration. The creator only retains its native handle for raycasts.
 local function startCreatorCamera()
-    local camCoord = GetGameplayCamCoord()
-    local camRot = GetGameplayCamRot(2)
-
-    local cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA",
-        camCoord.x, camCoord.y, camCoord.z,
-        camRot.x, camRot.y, camRot.z,
-        GetGameplayCamFov(), false, 0)
-
-    SetCamActive(cam, true)
-    RenderScriptCams(true, true, Config.zones.creator.cameraTransitionMs, true, true)
-    FreezeEntityPosition(PlayerPedId(), true)
-
-    return cam, { x = camCoord.x, y = camCoord.y, z = camCoord.z }, camRot.x, camRot.z
+    local freecam, err = QB.freecam.start({
+        moveSpeed = Config.zones.creator.cameraMoveSpeed,
+        lookSensitivity = Config.zones.creator.cameraLookSensitivity,
+        fastMultiplier = Config.zones.creator.shiftMultiplier,
+        transitionMs = Config.zones.creator.cameraTransitionMs,
+    })
+    assert(freecam, err)
+    return freecam, freecam.getCamera()
 end
 
 local function beginCreator(zoneType, resource, existingOpts)
@@ -1791,19 +1785,16 @@ local function beginCreator(zoneType, resource, existingOpts)
     if existingOpts then seedCreatorState(state, existingOpts) end
     creatorState = state
 
-    -- Created here, before the per-frame thread starts, so state.cam is
-    -- guaranteed to exist before any keybind handler (creatorPlace, in
-    -- particular) could possibly run -- rather than racing the thread's own
-    -- startup.
-    state.controlLease = QB.compat.acquireControls({ 1, 2, 30, 31 }, nil, state.resource)
-
-    local started, cam, camCoords, camPitch, camYaw = pcall(startCreatorCamera)
+    local started, freecam, cam = pcall(startCreatorCamera)
     if not started then
         creatorState = nil
-        releaseCreatorControls(state)
-        error(cam, 0)
+        error(freecam, 0)
     end
-    state.cam, state.camCoords, state.camPitch, state.camYaw = cam, camCoords, camPitch, camYaw
+    state.freecam, state.cam = freecam, cam
+    state.instructions = QB.instructional.show({
+        { control = 32, label = "Move forward" },
+    })
+    updateCreatorInstructions(state)
 
     if Config.zones.creator.hideRadar then
         state.radarManaged = true

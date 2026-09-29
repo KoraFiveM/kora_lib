@@ -120,6 +120,7 @@ _G.CreateCamWithParams = function(_, x, y, z, pitch, roll, yaw)
     }
     return nextCamera
 end
+_G.DoesCamExist = function(cam) return cameras[cam] ~= nil end
 _G.SetCamActive = function() end
 _G.RenderScriptCams = function() end
 _G.DestroyCam = function(cam)
@@ -143,6 +144,19 @@ _G.GetFrameTime = function() return 0.1 end
 local shiftDown = false
 _G.IsRawKeyDown = function() return shiftDown end
 _G.IsControlPressed = function() return false end
+_G.IsDisabledControlPressed = function() return false end
+
+_G.RequestScaleformMovie = function() return 1 end
+_G.HasScaleformMovieLoaded = function() return true end
+_G.SetScaleformMovieAsNoLongerNeeded = function() end
+_G.BeginScaleformMovieMethod = function() end
+_G.EndScaleformMovieMethod = function() end
+_G.ScaleformMovieMethodAddParamInt = function() end
+_G.BeginTextCommandScaleformString = function() end
+_G.AddTextComponentSubstringPlayerName = function() end
+_G.EndTextCommandScaleformString = function() end
+_G.DrawScaleformMovieFullscreen = function() end
+_G.GetControlInstructionalButton = function() return 't_mock' end
 
 local radarCalls = {}
 local radarHidden = false
@@ -156,6 +170,8 @@ dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/keybind/client.lua")
+dofile(repoRoot .. "modules/freecam/client.lua")
+dofile(repoRoot .. "modules/instructional/client.lua")
 dofile(repoRoot .. "modules/entities/client.lua")
 dofile(repoRoot .. "modules/raycast/client.lua")
 

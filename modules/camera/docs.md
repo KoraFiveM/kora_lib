@@ -24,4 +24,6 @@ QB.camera.close('finished')
 
 `QB.camera.isOpen()` reports whether the overlay is active. `QB.camera.setRecording(true)` updates the REC indicator while leaving the current view in place.
 
+Unless `controls = false`, `QB.instructional` shows the live exit and camera-switch controls. The NUI overlay is reserved for camera status and telemetry.
+
 For a player-operated view, omit `cameras` and use `mode = 'recording'`, `mode = 'helicam'`, or `mode = 'operator'`. `viewMode` can temporarily set the GTA follow-camera mode and is restored when the overlay closes.

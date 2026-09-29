@@ -115,7 +115,7 @@ Starts the in-world zone creator: fly its own scripted camera to survey the buil
 
 The creator is a coordinate/configuration builder only. Confirming removes its preview and returns the generated options; it does **not** register a live zone. Create one explicitly with `QB.zones[result.type](result.opts)` if the calling resource needs it at runtime.
 
-The creator spins up its own free-flying camera rather than using your normal view, so you can survey a build site from angles walking wouldn't reach. It blends in smoothly from wherever the gameplay camera already was, and blends back out the same way when the creator ends (cancel or confirm) — both eased over `Config.zones.creator.cameraTransitionMs`.
+The creator starts `QB.freecam` without a distance limit rather than using your normal view, so you can survey a build site from angles walking wouldn't reach. It blends in smoothly from wherever the gameplay camera already was, and blends back out the same way when the creator ends (cancel or confirm) — both eased over `Config.zones.creator.cameraTransitionMs`.
 
 #### Parameters
 - `zoneType: "box" | "sphere" | "poly"`
@@ -124,8 +124,9 @@ The creator spins up its own free-flying camera rather than using your normal vi
 #### Default controls
 | Key | Action |
 |---|---|
-| Mouse | Look around (drives the creator's own scripted camera) |
+| Mouse | Look around through the shared freecam |
 | `W`/`A`/`S`/`D` | Fly the creator's camera |
+| `G` | Toggle camera-relative and world-grid movement |
 | `E` | Place a point at whatever you're aiming at |
 | `Backspace` | Undo the last placed point |
 | `Tab` (poly, cycled to "edit point") + `E` | Pick up the hovered point, fly anywhere, then `E` again to drop it at the new aim — `Backspace` cancels the pick-up instead of deleting a point while one is held |
@@ -138,7 +139,8 @@ The creator spins up its own free-flying camera rather than using your normal vi
 All discrete actions above are registered through `QB.keybind`, so they're
 rebindable through FiveM's own keybind settings. Mouse-look/WASD, Shift, and
 the scroll wheel still drive the freecam directly and aren't independent
-key mappings.
+key mappings. The live bindings and current movement/placement mode are shown
+through `QB.instructional`; the NUI editor card is reserved for shape state.
 
 Mouse-look and movement are suppressed through a `QB.controls` lease while the creator is active. Confirm, cancel, an internal error, or either owning resource stopping releases the lease.
 

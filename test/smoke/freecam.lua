@@ -21,7 +21,8 @@ function _G.RenderScriptCams(value) rendered = value end
 function _G.FreezeEntityPosition(_, value) frozen = value end
 function _G.GetDisabledControlNormal(_, control) return input[control] or 0.0 end
 function _G.IsControlPressed() return false end
-function _G.GetFrameTime() return 1.0 end
+function _G.GetFrameTime() return 0.1 end
+function _G.IsDisabledControlPressed(_, control) return input[control] == true end
 function _G.DisableControlAction() end
 
 dofile(repoRoot .. 'config.lua')
@@ -32,17 +33,22 @@ dofile(repoRoot .. 'local/resources/client.lua')
 dofile(repoRoot .. 'modules/controls/client.lua')
 dofile(repoRoot .. 'modules/freecam/client.lua')
 
-harness.test('freecam starts, changes mode/focus, and restores state', function()
+harness.test('freecam moves, rejects boundary steps, changes mode/focus, and restores state', function()
+    input[31] = -1.0
     local cam = assert(QB.freecam.start({ maxDistance = 1.0 }))
     harness.assertTrue(frozen)
     harness.assertTrue(rendered)
-    harness.assertEqual(cam.getCoords().y, 0)
+    harness.assertTrue(math.abs(cam.getCoords().y - 0.6) < 0.0001)
+    net.step()
+    harness.assertTrue(math.abs(cam.getCoords().y - 0.6) < 0.0001, 'a step outside maxDistance must be rejected')
+    harness.assertEqual(cam.getCamera(), 1)
     harness.assertTrue(cam.setMovementMode('grid'))
     harness.assertEqual(cam.getMovementMode(), 'grid')
     harness.assertTrue(cam.setFocus({ x = 1, y = 1, z = 0 }))
     harness.assertTrue(cam.stop())
     harness.assertFalse(QB.freecam.isActive())
     harness.assertFalse(frozen)
+    input[31] = nil
 end)
 
 harness.test('freecam validates zones and cleans up when its owner stops', function()

@@ -72,7 +72,6 @@ export interface CameraHudPayload {
     totalCameras: number
     location?: string
     recording: boolean
-    controls: boolean
     timestamp: boolean
     elapsed: number
 }
@@ -664,24 +663,9 @@ export interface AppActionResponse {
 
 export type PlacementRotationAxis = "yaw" | "pitch" | "roll"
 
-export interface PlacementBindings {
-    forward: string
-    backward: string
-    left: string
-    right: string
-    up: string
-    down: string
-    rotateLeft: string
-    rotateRight: string
-    cycle: string
-    confirm: string
-    cancel: string
-}
-
 // action: "placement:start" (fire-and-forget) -- mount PlacementHud.
 export interface PlacementStartPayload {
     model: string
-    bindings: PlacementBindings
 }
 
 // action: "placement:hud" (fire-and-forget) -- update PlacementHud, or
