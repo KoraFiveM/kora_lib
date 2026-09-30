@@ -574,6 +574,46 @@ H.test('numeric-looking map keys remain strings when edited', function()
     H.assertEqual(result.configured.flags[1], nil)
 end)
 
+H.test('a numeric server flag preserves validation, live hooks, and commit authorization', function()
+    files = {}
+    registered = {}
+    local previousIsDuplicityVersion = _G.IsDuplicityVersion
+    _G.IsDuplicityVersion = function() return 1 end
+    local config = makeConfig(library)
+    _G.IsDuplicityVersion = previousIsDuplicityVersion
+    local values = config.define({ count = config.integer(1, { live = true, scope = 'server' }) })
+    config.onValidate(function(proposed) return proposed.count > 0, 'count must be positive' end)
+    local applied
+    config.onApply(function(proposed) applied = proposed.count end)
+
+    local refused = registered.qblib_configCommit({ path = { 'count' }, value = 0, revision = 1 })
+    H.assertFalse(refused.ok)
+    H.assertEqual(values.count, 1)
+    H.assertEqual(applied, nil)
+    local accepted = registered.qblib_configCommit({ path = { 'count' }, value = 2, revision = 1 })
+    H.assertTrue(accepted.ok, accepted.error)
+    H.assertEqual(values.count, 2)
+    H.assertEqual(applied, 2)
+
+    local previousGetInvokingResource = _G.GetInvokingResource
+    _G.GetInvokingResource = function() return 'other' end
+    local unauthorized = registered.qblib_configCommit({ path = { 'count' }, value = 3, revision = 2 })
+    _G.GetInvokingResource = previousGetInvokingResource
+    H.assertFalse(unauthorized.ok)
+    H.assertEqual(values.count, 2)
+end)
+
+H.test('client flags cannot register server validation or application hooks', function()
+    local previousIsDuplicityVersion = _G.IsDuplicityVersion
+    for _, flag in ipairs({ false, 0 }) do
+        _G.IsDuplicityVersion = function() return flag end
+        local config = makeConfig(library)
+        H.assertThrows(function() config.onValidate(function() return true end) end)
+        H.assertThrows(function() config.onApply(function() end) end)
+    end
+    _G.IsDuplicityVersion = previousIsDuplicityVersion
+end)
+
 H.test('owner validation, application, and bindings use the active snapshot', function()
     files = {}
     registered = {}

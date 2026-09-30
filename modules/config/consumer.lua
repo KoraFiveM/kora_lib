@@ -7,7 +7,9 @@
 
 return function(library)
     local RESOURCE = GetCurrentResourceName()
-    local isServer = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion() == true
+    -- Some FXServer builds return numeric 1 for this native instead of true.
+    local serverFlag = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
+    local isServer = serverFlag == true or serverFlag == 1
     local MARKER = '__qblibConfigDescriptor'
     local STORAGE_MARKER = '__qblibConfigType'
     local config = {}
