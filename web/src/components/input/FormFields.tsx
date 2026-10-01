@@ -116,22 +116,35 @@ function formatDate(value: string, pattern = "DD/MM/YYYY") {
     return pattern.replace(/\[[^\]]*]|YYYY|MMMM|MMM|YY|MM|DD|dddd|ddd|dd|Do|Q|M|D|d/g, (token) => token.startsWith("[") ? token.slice(1, -1) : replacements[token])
 }
 
+function colorRgba(value: string): [number, number, number, number] {
+    const hex = value.match(/^#([\da-f]{6})([\da-f]{2})?$/i)
+    if (hex) return [Number.parseInt(hex[1].slice(0, 2), 16), Number.parseInt(hex[1].slice(2, 4), 16), Number.parseInt(hex[1].slice(4, 6), 16), hex[2] ? Number.parseInt(hex[2], 16) / 255 : 1]
+    const rgb = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(\d*\.?\d+))?/i)
+    if (rgb) return [Math.min(255, Number(rgb[1])), Math.min(255, Number(rgb[2])), Math.min(255, Number(rgb[3])), rgb[4] === undefined ? 1 : Math.min(1, Number(rgb[4]))]
+    const hsl = value.match(/^hsla?\(\s*(-?\d*\.?\d+)\s*,\s*(\d*\.?\d+)%\s*,\s*(\d*\.?\d+)%(?:\s*,\s*(\d*\.?\d+))?\s*\)$/i)
+    if (!hsl || !validColorDraft(value)) return [255, 255, 255, 1]
+    const hue = ((Number(hsl[1]) % 360 + 360) % 360) / 60
+    const saturation = Number(hsl[2]) / 100
+    const lightness = Number(hsl[3]) / 100
+    const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation
+    const secondary = chroma * (1 - Math.abs(hue % 2 - 1))
+    const offset = lightness - chroma / 2
+    const channels = hue < 1 ? [chroma, secondary, 0] : hue < 2 ? [secondary, chroma, 0]
+        : hue < 3 ? [0, chroma, secondary] : hue < 4 ? [0, secondary, chroma]
+            : hue < 5 ? [secondary, 0, chroma] : [chroma, 0, secondary]
+    return [Math.round((channels[0] + offset) * 255), Math.round((channels[1] + offset) * 255), Math.round((channels[2] + offset) * 255), hsl[4] === undefined ? 1 : Number(hsl[4])]
+}
+
 function colorHex(value: string) {
-    const hex = value.match(/^#([\da-f]{6})(?:[\da-f]{2})?$/i)
-    if (hex) return `#${hex[1].toLowerCase()}`
-    const rgb = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
-    if (!rgb) return "#ffffff"
-    return `#${rgb.slice(1, 4).map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0")).join("")}`
+    return formatColor(value)
 }
 
 function formatColor(value: string, format: InputField["colorFormat"] = "hex") {
-    const hex = colorHex(value)
-    const red = Number.parseInt(hex.slice(1, 3), 16)
-    const green = Number.parseInt(hex.slice(3, 5), 16)
-    const blue = Number.parseInt(hex.slice(5, 7), 16)
-    if (format === "hexa") return `${hex}ff`
+    const [red, green, blue, alpha] = colorRgba(value)
+    const hex = `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`
+    if (format === "hexa") return `${hex}${Math.round(alpha * 255).toString(16).padStart(2, "0")}`
     if (format === "rgb") return `rgb(${red}, ${green}, ${blue})`
-    if (format === "rgba") return `rgba(${red}, ${green}, ${blue}, 1)`
+    if (format === "rgba") return `rgba(${red}, ${green}, ${blue}, ${alpha})`
     if (format === "hsl" || format === "hsla") {
         const r = red / 255; const g = green / 255; const b = blue / 255
         const max = Math.max(r, g, b); const min = Math.min(r, g, b)
@@ -147,7 +160,7 @@ function formatColor(value: string, format: InputField["colorFormat"] = "hex") {
         }
         const saturation = delta ? delta / (1 - Math.abs(2 * lightness - 1)) : 0
         const hsl = `${hue}, ${Math.round(saturation * 100)}%, ${Math.round(lightness * 100)}%`
-        return format === "hsla" ? `hsla(${hsl}, 1)` : `hsl(${hsl})`
+        return format === "hsla" ? `hsla(${hsl}, ${alpha})` : `hsl(${hsl})`
     }
     return hex
 }

@@ -266,3 +266,58 @@ describe("FormFields configuration types", () => {
         expect(screen.getByTestId("vector-values")).toHaveTextContent('"x":4.5')
     })
 })
+
+
+describe("FormFields accepted color formats", () => {
+    const formats: NonNullable<InputField["colorFormat"]>[] = ["hex", "hexa", "rgb", "rgba", "hsl", "hsla"]
+    const colorFields: InputField[] = formats.map((colorFormat) => ({ id: colorFormat, type: "color", label: colorFormat, colorFormat }))
+    const convert = (value: string) => submissionValues(colorFields, Object.fromEntries(formats.map((format) => [format, value])))
+
+    it("converts all accepted RGB and HSL forms without turning HSL into white", () => {
+        const red = { hex: "#ff0000", hexa: "#ff0000ff", rgb: "rgb(255, 0, 0)", rgba: "rgba(255, 0, 0, 1)", hsl: "hsl(0, 100%, 50%)", hsla: "hsla(0, 100%, 50%, 1)" }
+        for (const input of ["#FF0000", "#ff0000ff", "rgb(255, 0, 0)", "rgba(255, 0, 0)", "rgb(255, 0, 0, 1)", "hsl(0, 100%, 50%)", "hsla(360, 100%, 50%)", "hsl(720, 100%, 50%, 1)"]) {
+            expect(validateFields(colorFields, Object.fromEntries(formats.map((format) => [format, input])))).toEqual({})
+            expect(convert(input)).toEqual(red)
+        }
+        expect(convert("hsl(-120, 100%, 50%)").hex).toBe("#0000ff")
+        const fractional = "HSLA( 30.5 , 50.5% , 40.5% , .25 )"
+        expect(validateFields(colorFields, Object.fromEntries(formats.map((format) => [format, fractional])))).toEqual({})
+        expect(convert(fractional).hex).toBe("#9b6833")
+        expect(convert(fractional).rgba).toBe("rgba(155, 104, 51, 0.25)")
+        for (const [hue, expected] of [[60, "#ffff00"], [120, "#00ff00"], [180, "#00ffff"], [300, "#ff00ff"]]) {
+            expect(convert(`hsl(${hue}, 100%, 50%)`).hex).toBe(expected)
+        }
+        expect(convert("hsl(240, 0%, 50%)")).toEqual({ hex: "#808080", hexa: "#808080ff", rgb: "rgb(128, 128, 128)", rgba: "rgba(128, 128, 128, 1)", hsl: "hsl(0, 0%, 50%)", hsla: "hsla(0, 0%, 50%, 1)" })
+    })
+
+    it("preserves zero, fractional and eight-digit-hex alpha in alpha-bearing outputs", () => {
+        for (const input of ["rgba(255, 0, 0, .5)", "hsla(0, 100%, 50%, .5)", "hsl(0, 100%, 50%, .5)"]) {
+            expect(convert(input)).toEqual({ hex: "#ff0000", hexa: "#ff000080", rgb: "rgb(255, 0, 0)", rgba: "rgba(255, 0, 0, 0.5)", hsl: "hsl(0, 100%, 50%)", hsla: "hsla(0, 100%, 50%, 0.5)" })
+        }
+        expect(convert("#11223380")).toEqual({ hex: "#112233", hexa: "#11223380", rgb: "rgb(17, 34, 51)", rgba: `rgba(17, 34, 51, ${128 / 255})`, hsl: "hsl(210, 50%, 13%)", hsla: `hsla(210, 50%, 13%, ${128 / 255})` })
+        expect(convert("#00000000")).toEqual({ hex: "#000000", hexa: "#00000000", rgb: "rgb(0, 0, 0)", rgba: "rgba(0, 0, 0, 0)", hsl: "hsl(0, 0%, 0%)", hsla: "hsla(0, 0%, 0%, 0)" })
+        expect(convert("rgb(1, 2, 3, .25)").hexa).toBe("#01020340")
+    })
+
+    it("keeps the existing supported draft syntax and invalid-color rejection", () => {
+        const field: InputField[] = [{ id: "color", type: "color", label: "Color", required: true }]
+        for (const input of ["#fff", "red", "rgb(256, 0, 0)", "rgba(0, 0, 0, 1.1)", "hsl(0, 101%, 50%)", "hsl(0, 0%, -1%)", "hsl(Infinity, 0%, 0%)", "rgb(255 0 0 / .5)"]) {
+            expect(validateFields(field, { color: input }).color).toBe("Invalid format.")
+        }
+    })
+
+    it("shows the accepted HSL draft in the native color input and submits its typed alpha", async () => {
+        function ColorHarness() {
+            const fields: InputField[] = [{ id: "color", type: "color", label: "Color", colorFormat: "hsla", default: "hsl(0, 100%, 50%)" }]
+            const [values, setValues] = useState(createFieldValues(fields))
+            return <><FormFields fields={fields} values={values} errors={validateFields(fields, values)} onChange={setValues} /><output data-testid="color-result">{JSON.stringify(submissionValues(fields, values))}</output></>
+        }
+        render(<ColorHarness />)
+        expect(screen.getByLabelText("Color")).toHaveValue("#ff0000")
+        const user = userEvent.setup()
+        await user.tripleClick(screen.getByRole("textbox", { name: "Color value" }))
+        await user.keyboard("hsla(240, 100%, 50%, .25)")
+        expect(screen.getByLabelText("Color")).toHaveValue("#0000ff")
+        expect(screen.getByTestId("color-result")).toHaveTextContent('"color":"hsla(240, 100%, 50%, 0.25)"')
+    })
+})
