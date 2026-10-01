@@ -171,7 +171,7 @@ exports = setmetatable({}, {
 })
 
 dofile('modules/ox/shared.lua')
-dofile('modules/ox/client.lua')
+dofile(arg[1] or 'modules/ox/client.lua')
 
 harness.test('provider exposes every function forwarded by the ox_lib shim', function()
     local names = {
@@ -253,6 +253,62 @@ harness.test('context selection dispatches callbacks, local events, and server e
     QB.ox.showContext('events', 'context_owner')
     harness.assertEqual(triggered[#triggered].name, 'local:event')
     harness.assertEqual(triggeredServer[#triggeredServer].name, 'server:event')
+end)
+
+harness.test('context arrays preserve authored order while maps keep sorted keys', function()
+    local options, selected = {}, nil
+    for index = 1, 12 do
+        options[index] = { title = 'Row ' .. index, args = index, onSelect = function(value) selected = value end }
+    end
+    QB.ox.registerContext({ id = 'ordered_context', title = 'Ordered', options = options }, 'context_owner')
+    queue('openMenu', { selectedId = '__ox_context_10' })
+    harness.assertEqual(select('#', QB.ox.showContext('ordered_context', 'context_owner')), 0)
+    local opened = lastRequest('openMenu')
+    harness.assertEqual(#opened.payload.items, 12)
+    for index = 1, 12 do
+        harness.assertEqual(opened.payload.items[index].label, 'Row ' .. index)
+        harness.assertEqual(opened.payload.items[index].id, '__ox_context_' .. index)
+    end
+    harness.assertEqual(selected, 10)
+    harness.assertEqual(options[10].title, 'Row 10')
+
+    local replacement = {}
+    for index = 1, 12 do
+        replacement[index] = { title = 'Updated ' .. index, args = index + 100, onSelect = function(value) selected = value end }
+    end
+    queue('openMenu', {
+        beforeTerminal = function()
+            QB.ox.registerContext({ id = 'ordered_context', title = 'Updated', options = replacement }, 'context_owner')
+        end,
+        terminal = { selectedId = '__ox_context_10' },
+    })
+    QB.ox.showContext('ordered_context', 'context_owner')
+    local updated = lastRequest('updateMenu')
+    harness.assertEqual(updated.request, lastRequest('openMenu'))
+    for index = 1, 12 do harness.assertEqual(updated.payload.items[index].label, 'Updated ' .. index) end
+    harness.assertEqual(selected, 110)
+
+    QB.ox.registerContext({ id = 'keyed_context', title = 'Keyed', options = {
+        z = { title = 'Alpha' }, a = { title = 'Zulu' },
+    } }, 'context_owner')
+    QB.ox.showContext('keyed_context', 'context_owner')
+    local keyed = lastRequest('openMenu').payload.items
+    harness.assertEqual(keyed[1].label, 'Zulu')
+    harness.assertEqual(keyed[2].label, 'Alpha')
+
+    QB.ox.registerContext({ id = 'sparse_context', title = 'Sparse', options = {
+        [1] = { title = 'First' }, [2] = { title = 'Second' }, [10] = { title = 'Tenth' },
+    } }, 'context_owner')
+    QB.ox.showContext('sparse_context', 'context_owner')
+    local sparse = lastRequest('openMenu').payload.items
+    harness.assertEqual(#sparse, 3)
+    harness.assertEqual(sparse[1].label, 'First')
+    harness.assertEqual(sparse[2].label, 'Tenth')
+    harness.assertEqual(sparse[3].label, 'Second')
+
+    QB.ox.registerContext({ id = 'empty_context', title = 'Empty', options = {} }, 'context_owner')
+    QB.ox.showContext('empty_context', 'context_owner')
+    harness.assertEqual(#lastRequest('openMenu').payload.items, 0)
 end)
 
 harness.test('context registration rejects sparse definition lists before dropping entries', function()

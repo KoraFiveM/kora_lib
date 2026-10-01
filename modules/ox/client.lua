@@ -232,7 +232,8 @@ end
 
 local function contextItems(context)
     local items, choices = {}, {}
-    local keys = denseArray(context.options) and nil or sortedKeys(context.options)
+    local keys
+    if not denseArray(context.options) then keys = sortedKeys(context.options) end
     local count = keys and #keys or #context.options
     for index = 1, count do
         local key = keys and keys[index] or index
