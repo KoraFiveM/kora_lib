@@ -1,5 +1,6 @@
 local displays, nextId, movie, running = {}, 0, nil, false
 local ownership
+local activeIds = {}
 
 local function token(button)
     if button.control ~= nil then
@@ -32,8 +33,8 @@ local function draw()
     if not movie or not HasScaleformMovieLoaded(movie) then return end
     BeginScaleformMovieMethod(movie, 'CLEAR_ALL') EndScaleformMovieMethod()
     local slot = 0
-    for id = 1, nextId do
-        local display = displays[id]
+    for index = 1, #activeIds do
+        local display = displays[activeIds[index]]
         if display then
             for index = 1, #display.buttons do
                 local button = display.buttons[index]
@@ -53,7 +54,7 @@ local function ensureThread()
     if running then return end
     running = true
     CreateThread(function()
-        while next(displays) do draw() Wait(0) end
+        while #activeIds > 0 do draw() Wait(0) end
         if movie then SetScaleformMovieAsNoLongerNeeded(movie) movie = nil end
         running = false
     end)
@@ -62,6 +63,9 @@ end
 local function hide(id)
     if not displays[id] then return false end
     displays[id] = nil
+    for index = 1, #activeIds do
+        if activeIds[index] == id then table.remove(activeIds, index) break end
+    end
     ownership.untrack(id)
     return true
 end
@@ -75,6 +79,7 @@ function QB.instructional.show(buttons)
     nextId = nextId + 1
     local id, display = nextId, { buttons = buttons }
     displays[id] = display
+    activeIds[#activeIds + 1] = id
     ownership.track(GetInvokingResource() or GetCurrentResourceName(), id)
     ensureThread()
     return {
