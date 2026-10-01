@@ -307,18 +307,21 @@ describe("AppShell", () => {
         expect(screen.getByRole("heading", { name: "Home" })).toBeInTheDocument()
     })
 
-    it("runs a view's lazy-load action when sidebar navigation opens it", async () => {
+    it.each([true, false])("sends the destination context for a lazy-load view with tabs=%s", async (withTabs) => {
         const user = userEvent.setup()
         render(<AppShell />)
         openApp({ id: "test:app", title: "Test App", navigation: [
-            { id: "home", label: "Home" },
-            { id: "resource:sample", label: "Sample", onOpen: "load-resource", content: { title: "Loading" } },
+            { id: "home", label: "Home", tabs: [{ id: "old", label: "Old tab" }] },
+            { id: "resource:sample", label: "Sample", onOpen: "load-resource", content: { title: "Loading" }, defaultTab: withTabs ? "selected" : undefined,
+                tabs: withTabs ? [{ id: "first", label: "First" }, { id: "selected", label: "Selected" }] : undefined },
         ] })
 
         await user.click(screen.getAllByRole("button", { name: "Sample" })[0])
         expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:action", expect.objectContaining({
             actionId: "load-resource",
             itemId: "resource:sample",
+            viewId: "resource:sample",
+            tabId: withTabs ? "selected" : undefined,
         }))
     })
 

@@ -238,12 +238,12 @@ export function AppShell() {
     useEffect(() => { if (!app) return; const next = enabledView(app, viewId); if (!next) return; if (next.id !== viewId) setViewId(next.id); const nextTab = selectedTabId(next, tabId); if (nextTab !== tabId) setTabId(nextTab) }, [app, tabId, viewId])
     useEffect(() => { if (!isOpen) return; const keydown = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); close("escape") } }; window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown) }, [close, isOpen])
 
-    const runAction = useCallback(async (action: AppAction, context?: ActionContext) => {
+    const runAction = useCallback(async (action: AppAction, context?: ActionContext, destination?: NavigationPoint) => {
         if (!app || !token || busy !== undefined || action.disabled) return
         const version = ++changeVersion.current
         setBusy(action.id); setError(undefined); setNotice(undefined)
         try {
-            const response = await fetchNui<AppActionResponse>("qblib:app:action", { appId: app.id, token, actionId: action.id, viewId, tabId, itemId: context?.itemId, value: context?.value ?? action.data })
+            const response = await fetchNui<AppActionResponse>("qblib:app:action", { appId: app.id, token, actionId: action.id, viewId: destination?.viewId ?? viewId, tabId: destination ? destination.tabId : tabId, itemId: context?.itemId, value: context?.value ?? action.data })
             if (version !== changeVersion.current) return
             if (response.ok === false) throw new Error(response.error ?? "The action failed.")
             const resultApp = response.result?.app
@@ -289,8 +289,9 @@ export function AppShell() {
     const switchView = (id: string) => {
         const next = app.navigation.find((entry) => entry.id === id && !entry.disabled)
         if (!next) return
-        setViewId(next.id); setTabId(selectedTabId(next)); setActiveForm(undefined); setError(undefined)
-        if (next.onOpen) void runAction({ id: next.onOpen, label: next.label }, { itemId: next.id })
+        const nextTabId = selectedTabId(next)
+        setViewId(next.id); setTabId(nextTabId); setActiveForm(undefined); setError(undefined)
+        if (next.onOpen) void runAction({ id: next.onOpen, label: next.label }, { itemId: next.id }, { viewId: next.id, tabId: nextTabId })
     }
 
     const rightPlaced = app.placement === "right"
