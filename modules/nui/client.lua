@@ -82,8 +82,9 @@ end
 local function browserApp(definition)
     local result = {}
     for key, value in pairs(definition) do
-        if key ~= "onAction" and key ~= "labels" then result[key] = value end
+        if key ~= "onAction" and key ~= "onChange" and key ~= "labels" then result[key] = value end
     end
+    result.onChange = definition.onChange ~= nil or nil
     result.labels = appLabels()
     return result
 end
@@ -306,6 +307,7 @@ local function assertAppAction(action, location, actionIds)
     assert(action.confirm == nil or type(action.confirm) == "string", ("%s action confirm must be a string."):format(location))
     assert(action.closeBeforeAction == nil or type(action.closeBeforeAction) == "boolean", ("%s action closeBeforeAction must be a boolean."):format(location))
     declareAction(actionIds, action.id, action.closeBeforeAction, location)
+    if action.fields then actionIds[action.id].form = true end
 end
 
 local function assertListItems(items, location, actionIds)
@@ -451,6 +453,7 @@ local function assertAppContent(content, location, actionIds)
             assert(block.submitLabel == nil or type(block.submitLabel) == "string", blockLocation .. " submitLabel must be a string.")
             assertInputFields(block.fields, blockLocation)
             assertAppAction(block.action, blockLocation, actionIds)
+            actionIds[block.action.id].form = true
         elseif block.type == "timeline" then
             assert(type(block.items) == "table", blockLocation .. " requires an items table.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
@@ -602,6 +605,7 @@ local function mergeAppUpdate(registration, update)
     for key, value in pairs(update) do
         assert(key ~= "id", "App id cannot be changed by updateApp.")
         assert(key ~= "onAction", "Use registerApp to replace an app action handler.")
+        assert(key ~= "onChange", "Use registerApp to replace an app change handler.")
         assert(key ~= "labels", "App labels are owned by qblib's locale system.")
         candidate[key] = value
     end
@@ -1271,6 +1275,7 @@ end)
 function QB.nui.registerApp(definition)
     assert(type(definition) == "table", "registerApp requires a definition table.")
     assert(definition.onAction == nil or isCallable(definition.onAction), "App onAction must be callable.")
+    assert(definition.onChange == nil or isCallable(definition.onChange), "App onChange must be callable.")
 
     local publicDefinition = browserApp(definition)
     local actionIds = assertBrowserApp(publicDefinition)
@@ -1284,6 +1289,7 @@ function QB.nui.registerApp(definition)
         browser = publicDefinition,
         actionIds = actionIds,
         onAction = definition.onAction,
+        onChange = definition.onChange,
         owner = owner,
     }
     appOwnership.track(owner, definition.id)
@@ -1383,7 +1389,7 @@ end
 ---a whole when supplied; active instances receive the updated definition
 ---immediately without losing their selected view/tab when those still exist.
 ---@param id string
----@param update table Partial QBAppDefinition (id/onAction excluded).
+---@param update table Partial QBAppDefinition (id/onAction/onChange excluded).
 ---@return boolean updated
 function QB.nui.updateApp(id, update)
     assertAppId(id)
@@ -1437,6 +1443,49 @@ function QB.nui.isAppOpen(id)
     if id ~= nil then assertAppId(id) end
     return activeApp ~= nil and (id == nil or activeApp.id == id)
 end
+
+-- Form edits update the visible definition without submitting, closing, or
+-- taking another focus lease. Yielding handlers must not overwrite newer edits.
+QB.nui.registerCallback("qblib:app:change", function(data)
+    local current = activeApp
+    if not current or type(data) ~= "table" then
+        return { ok = false, error = "No app is open." }
+    end
+    if data.appId ~= current.id or type(data.token) ~= "string" or data.token ~= current.token then
+        return { ok = false, error = "Invalid app session." }
+    end
+    local registration = registeredApps[current.id]
+    local declared = type(data.actionId) == "string" and registration and registration.actionIds[data.actionId]
+    if not declared or not declared.form or type(data.value) ~= "table" then
+        return { ok = false, error = "Invalid app form change." }
+    end
+    if not registration.onChange then
+        return { ok = false, error = "This app has no change handler." }
+    end
+
+    current.changeVersion = (current.changeVersion or 0) + 1
+    local version = current.changeVersion
+    local ok, update = pcall(registration.onChange, data.actionId, {
+        appId = current.id, viewId = data.viewId, tabId = data.tabId,
+        itemId = data.itemId, value = data.value, data = current.data,
+    })
+    if not ok then
+        print(("[qblib:nui] app '%s' change '%s' errored: %s"):format(current.id, data.actionId, tostring(update)))
+        return { ok = false, error = "The app change failed." }
+    end
+    if activeApp ~= current or registeredApps[current.id] ~= registration or current.changeVersion ~= version then
+        return { ok = true }
+    end
+    if update == nil then return { ok = true } end
+
+    local updated, err = pcall(mergeAppUpdate, registration, update)
+    if not updated then
+        print(("[qblib:nui] app '%s' change '%s' returned an invalid update: %s"):format(current.id, data.actionId, tostring(err)))
+        return { ok = false, error = "The app returned an invalid update." }
+    end
+    applyAppAccent(registration)
+    return { ok = true, result = { app = registration.browser } }
+end)
 
 local function notifyClosedAppError(message)
     if QB.notify and QB.notify.send then QB.notify.send({ type = "error", message = message }) end
@@ -1501,6 +1550,7 @@ QB.nui.registerCallback("qblib:app:action", function(data)
     if not declared then
         return { ok = false, error = "This action is not declared by the active app." }
     end
+    current.changeVersion = (current.changeVersion or 0) + 1
 
     -- World editors and other focused UIs cannot safely open beneath the
     -- shell. Settle its request first so its focus lease is gone before the

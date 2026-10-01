@@ -726,6 +726,81 @@ harness.test("AppShell actions require the active token and route context to the
     respond(requestId, token, true, { closed = true, reason = "close" })
 end)
 
+harness.test("AppShell changes validate sessions and forms, update content, and keep focus", function()
+    local received, update = nil, { footer = "Total: $30" }
+    QB.nui.registerApp({
+        id = "smoke:changes", title = "Changes",
+        navigation = { { id = "home", label = "Home", content = {
+            actions = { { id = "refresh", label = "Refresh" } },
+            blocks = { { type = "form", id = "fuel", fields = {
+                { id = "quantity", label = "Amount", type = "range", min = 1, max = 50 },
+            }, action = { id = "fill", label = "Fill", closeBeforeAction = true } } },
+        } } },
+        onChange = function(actionId, context)
+            received = { actionId, context }
+            return update
+        end,
+    })
+    local pending = QB.nui.openApp("smoke:changes", { data = { vehicle = 12 } })
+    local requestId, token = lastRequestId(), lastToken()
+    harness.assertEqual(sentMessages[#sentMessages].data.payload.app.onChange, true,
+        "only the presence of the handler should enter the browser payload")
+    local function change(sessionToken, actionId, value)
+        local response
+        nuiCallbacks["qblib:app:change"]({ appId = "smoke:changes", token = sessionToken,
+            actionId = actionId, viewId = "home", itemId = "pump", value = value },
+            function(result) response = result end)
+        return response
+    end
+    harness.assertFalse(change("wrong", "fill", { quantity = 10 }).ok)
+    harness.assertFalse(change(token, "missing", { quantity = 10 }).ok)
+    harness.assertFalse(change(token, "refresh", { quantity = 10 }).ok)
+    harness.assertFalse(change(token, "fill", 10).ok)
+    harness.assertEqual(received, nil, "invalid changes must not invoke the handler")
+    local response = change(token, "fill", { quantity = 10 })
+    harness.assertTrue(response.ok)
+    harness.assertEqual(received[1], "fill")
+    harness.assertEqual(received[2].value.quantity, 10)
+    harness.assertEqual(received[2].data.vehicle, 12)
+    harness.assertEqual(received[2].itemId, "pump")
+    harness.assertEqual(response.result.app.footer, "Total: $30")
+    harness.assertTrue(QB.nui.isAppOpen("smoke:changes"), "closeBeforeAction must not close on edits")
+    harness.assertEqual(pending.state, "pending", "changes must not settle the open request")
+    update = { navigation = {} }
+    harness.assertFalse(change(token, "fill", { quantity = 20 }).ok, "invalid updates must be rejected")
+    update = nil
+    harness.assertTrue(change(token, "fill", { quantity = "" }).ok, "incomplete drafts can be ignored")
+    harness.assertThrows(function() QB.nui.updateApp("smoke:changes", { onChange = true }) end)
+    respond(requestId, token, true, { closed = true, reason = "close" })
+    harness.assertFalse(change(token, "fill", { quantity = 10 }).ok, "closed sessions must be rejected")
+end)
+
+harness.test("AppShell discards yielding change handlers after newer edits", function()
+    QB.nui.registerApp({
+        id = "smoke:change-order", title = "Changes", navigation = { { id = "home", label = "Home",
+            content = { actions = { { id = "edit", label = "Edit", fields = {
+                { id = "quantity", label = "Amount", type = "number" },
+            } } } } } },
+        onChange = function(_, context)
+            if context.value.quantity == 1 then coroutine.yield() end
+            return { footer = tostring(context.value.quantity) }
+        end,
+    })
+    QB.nui.openApp("smoke:change-order")
+    local token, oldResult, newResult = lastToken()
+    local function change(quantity, cb)
+        nuiCallbacks["qblib:app:change"]({ appId = "smoke:change-order", token = token,
+            actionId = "edit", value = { quantity = quantity } }, cb)
+    end
+    local older = coroutine.create(function() change(1, function(result) oldResult = result end) end)
+    harness.assertTrue(coroutine.resume(older))
+    change(2, function(result) newResult = result end)
+    harness.assertEqual(newResult.result.app.footer, "2")
+    harness.assertTrue(coroutine.resume(older))
+    harness.assertEqual(oldResult.result, nil, "an old handler must not return stale content")
+    respond(lastRequestId(), token, true, { closed = true, reason = "close" })
+end)
+
 harness.test("AppShell accepts inline action field schemas and forwards submitted values", function()
     local received
     QB.nui.registerApp({

@@ -321,7 +321,7 @@ QB.nui.registerApp({
 
 local result = QB.nui.openApp('qbmdt:police', {
     viewId = 'dashboard',
-    data = { characterId = citizenid }, -- private; returned only to onAction
+    data = { characterId = citizenid }, -- private; returned to onAction/onChange
 })
 ```
 
@@ -383,6 +383,28 @@ take their own focus lease, so closing the child restores the still-open app.
 For dependent selects or multiselects, set `dependsOn` to the controlling field
 id and provide `optionsByValue`, keyed by that field's values. Changing the
 controller updates it and all dependent choices in one state transition.
+
+Register an optional `onChange(actionId, context)` alongside `onAction` to
+refresh content while a form is edited. This fires for user edits in both
+always-visible form blocks and action forms, using the form's submit action
+id. `context.value` contains all current field drafts (including incomplete
+or invalid values); `appId`, `viewId`, `tabId`, `itemId`, and private
+`openApp` data are supplied as for `onAction`. Validate values before using
+them. Return a partial definition update, as accepted by `updateApp`, or nil:
+
+```lua
+onChange = function(actionId, context)
+    if actionId ~= 'fuel-submit' then return end
+    -- Recalculate summary content using context.value.quantity.
+    return { navigation = updatedNavigation }
+end,
+```
+
+Edits do not submit or close the form, reset its drafts, or release focus.
+Opening a form and applying an update do not trigger the handler. Apps without
+`onChange` send no change callbacks. Keep handlers quick and use them for
+display updates; purchases still belong in the validated submit handler.
+Late responses from an older edit or closed session are ignored.
 
 ```lua
 { id = 'warn', label = 'Warn player', fields = {

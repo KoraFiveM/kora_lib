@@ -591,6 +591,8 @@ export interface AppNavigationItem {
 
 export interface AppDefinition {
     id: string
+    /** Lua has registered an onChange handler for form edits. */
+    onChange?: boolean
     title: string
     description?: string
     icon?: string

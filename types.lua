@@ -774,9 +774,10 @@
 ---@field footer? string
 ---@field accent? string #RRGGBB primary colour applied while this app is open; omitted apps retain the player's /theme colour.
 ---@field onAction? fun(actionId: string, context: QBAppActionContext): QBAppActionResult?
+---@field onChange? fun(actionId: string, context: QBAppActionContext): table? Receives form drafts; returns a partial definition update without submitting.
 
 ---@class QBAppOpenOptions
----@field data? any Private session data supplied back to onAction; not rendered.
+---@field data? any Private session data supplied back to onAction/onChange; not rendered.
 ---@field viewId? string
 ---@field tabId? string
 

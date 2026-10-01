@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -100,6 +100,65 @@ describe("shared fields", () => {
 })
 
 describe("AppShell", () => {
+    it("updates a price from range edits without submitting or resetting drafts", async () => {
+        const makeApp = (price: string) => baseApp({ blocks: [
+            { type: "stats", items: [{ label: "Total Price", value: price }] },
+            { type: "form", id: "fuel", action: { id: "fill", label: "Fill up", closeBeforeAction: true }, fields: [
+                { id: "quantity", label: "Amount", type: "range", min: 1, max: 50, default: 50 },
+                { id: "account", label: "Account", type: "text", default: "bank" },
+            ] },
+        ] }, { onChange: true })
+        fetchNuiMock.mockResolvedValue({ ok: true, result: { app: makeApp("$30") } })
+        render(<AppShell />)
+        const token = openApp(makeApp("$150"))
+        expect(fetchNuiMock).not.toHaveBeenCalled()
+        fireEvent.change(screen.getByRole("slider"), { target: { value: "10" } })
+        expect(await screen.findByText("$30")).toBeInTheDocument()
+        expect(screen.getByRole("slider")).toHaveValue("10")
+        expect(screen.getByLabelText("Account")).toHaveValue("bank")
+        expect(screen.getByRole("button", { name: "Fill up" })).toBeEnabled()
+        expect(fetchNuiMock).toHaveBeenCalledTimes(1)
+        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:change", {
+            appId: "test:app", token, actionId: "fill", viewId: "home", tabId: undefined, itemId: undefined,
+            value: { quantity: 10, account: "bank" },
+        })
+        expect(respondToNuiMock).not.toHaveBeenCalled()
+    })
+
+    it("reports action-form edits with their item context and keeps the form open", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "list", items: [{ id: "alpha", label: "Alpha", actions: [
+            { id: "rename", label: "Rename", fields: [{ id: "name", label: "Name", type: "text" }] },
+        ] }] }] }, { onChange: true }))
+        await user.click(screen.getByRole("button", { name: "Rename" }))
+        expect(fetchNuiMock).not.toHaveBeenCalled()
+        await user.type(screen.getByLabelText("Name"), "A")
+        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:change", expect.objectContaining({ actionId: "rename", itemId: "alpha", value: { name: "A" } }))
+        expect(screen.getByLabelText("Name")).toHaveValue("A")
+    })
+
+    it("ignores older change responses and changes from a superseded session", async () => {
+        const pending: ((response: unknown) => void)[] = []
+        fetchNuiMock.mockImplementation(() => new Promise((resolve) => pending.push(resolve)))
+        const app = baseApp({ blocks: [{ type: "form", id: "fuel", action: { id: "fill", label: "Fill" }, fields: [
+            { id: "quantity", label: "Amount", type: "range", min: 1, max: 50, default: 50 },
+        ] }] }, { onChange: true })
+        render(<AppShell />)
+        openApp(app)
+        fireEvent.change(screen.getByRole("slider"), { target: { value: "10" } })
+        fireEvent.change(screen.getByRole("slider"), { target: { value: "20" } })
+        await act(async () => pending[1]({ ok: true, result: { app: { ...app, footer: "Latest price" } } }))
+        await act(async () => pending[0]({ ok: true, result: { app: { ...app, footer: "Old price" } } }))
+        expect(screen.getByText("Latest price")).toBeInTheDocument()
+        expect(screen.queryByText("Old price")).not.toBeInTheDocument()
+        fireEvent.change(screen.getByRole("slider"), { target: { value: "30" } })
+        openApp({ ...app, title: "Reopened" })
+        await act(async () => pending[2]({ ok: true, result: { app: { ...app, footer: "Closed price" } } }))
+        expect(screen.getByRole("main")).toHaveAccessibleName("Reopened")
+        expect(screen.queryByText("Closed price")).not.toBeInTheDocument()
+    })
+
     it("omits an optional blank number from an action payload", async () => {
         const user = userEvent.setup()
         render(<AppShell />)
@@ -192,6 +251,7 @@ describe("AppShell", () => {
         dispatch("updateApp", { appId: "test:app", token, app: makeApp("Updated") })
         expect(screen.getByLabelText("Note")).toHaveValue("keep me")
         expect(screen.getByLabelText("Query")).toHaveValue("also keep")
+        expect(fetchNuiMock).not.toHaveBeenCalled()
     })
 
     it("applies navigation and notices returned by actions", async () => {
