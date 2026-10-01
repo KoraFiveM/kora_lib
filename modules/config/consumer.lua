@@ -1187,6 +1187,7 @@ return function(library)
     end
 
     local function commit(request)
+        if not isServer then return { ok = false, error = 'Configuration changes are server-only.' } end
         if not state then return { ok = false, error = 'This resource has not registered a configuration.' } end
         if type(request) ~= 'table' then return { ok = false, error = 'Invalid configuration request.' } end
         if request.revision ~= state.revision then return { ok = false, error = 'This configuration changed; refresh and try again.', revision = state.revision } end

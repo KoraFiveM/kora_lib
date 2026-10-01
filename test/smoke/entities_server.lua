@@ -10,8 +10,8 @@ dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
 
 local calls = {}
-function _G.IsModelInCdimage() return true end
-function _G.IsModelAVehicle() return true end
+_G.IsModelInCdimage, _G.IsModelAVehicle = nil, nil
+QB.lookup.vehicle = function(hash) return hash == joaat('sultan') and {} or nil end
 function _G.CreateVehicleServerSetter(model, vehicleType, x, y, z, heading)
     calls = { model, vehicleType, x, y, z, heading }
     return 42
@@ -33,6 +33,14 @@ harness.test('rejects an invalid vehicle type', function()
     harness.assertThrows(function()
         QB.entities.createVehicle('sultan', { x = 1, y = 2, z = 3 }, 'spaceship')
     end)
+end)
+
+harness.test('rejects models absent from the server lookup before creation', function()
+    calls = {}
+    local netId, err = QB.entities.createVehicle(0, { x = 1, y = 2, z = 3 })
+    harness.assertEqual(netId, false)
+    harness.assertEqual(err, 'Vehicle model is invalid.')
+    harness.assertEqual(next(calls), nil)
 end)
 
 harness.report('entities server smoke')

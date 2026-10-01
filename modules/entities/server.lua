@@ -44,7 +44,7 @@ function QB.entities.createVehicle(model, coords, vehicleType)
     assert(vehicleTypes[typeName], ('Invalid server vehicle type: %s'):format(tostring(typeName)))
 
     local x, y, z, heading = resolveCoords(coords)
-    if not IsModelInCdimage(modelHash) or not IsModelAVehicle(modelHash) then
+    if not QB.lookup.vehicle(modelHash) then
         return false, 'Vehicle model is invalid.'
     end
 

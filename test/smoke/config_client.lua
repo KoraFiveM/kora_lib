@@ -105,6 +105,21 @@ H.test('snapshots clear optional scalar and object defaults and notify bindings'
     H.assertEqual(bound, nil, 'remote bindings must receive the cleared value')
 end)
 
+H.test('client bridge exports refuse commits and resets without persistence natives', function()
+    local bridges = {}
+    _G.exports = function(name, handler) bridges[name] = handler end
+    _G.GetInvokingResource = function() return 'sample' end
+    _G.SaveResourceFile = nil
+    local consumer = makeConfig({})
+    local settings = consumer.define({ enabled = consumer.boolean(true, { live = true }) })
+    local snapshot = bridges.qblib_configRead()
+    local request = { path = { 'enabled' }, value = false, revision = snapshot.revision }
+    H.assertEqual(bridges.qblib_configCommit(request).ok, false)
+    H.assertEqual(bridges.qblib_configReset(request).ok, false)
+    H.assertEqual(settings.enabled, true)
+    H.assertEqual(bridges.qblib_configRead().revision, snapshot.revision)
+end)
+
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
 H.report('config_client')
