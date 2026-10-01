@@ -635,7 +635,7 @@ H.test('owner validation, application, and bindings use the active snapshot', fu
     H.assertTrue(result.ok, result.error)
     H.assertFalse(applied[1])
     H.assertTrue(applied[2])
-    H.assertFalse(observed[1])
+    H.assertEqual(observed[1], false)
     H.assertTrue(observed[2])
     H.assertFalse(config.get('sample', { 'enabled' }))
 end)

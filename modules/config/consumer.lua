@@ -699,8 +699,12 @@ return function(library)
         local resourceBindings = bindings[resource]
         if not resourceBindings then return end
         for _, binding in ipairs(resourceBindings) do
-            local value = resource == RESOURCE and state and readPath(state.values, binding.path, state.schema)
-                or readPlainPath(remoteValues[resource], binding.path)
+            local value
+            if resource == RESOURCE and state then
+                value = readPath(state.values, binding.path, state.schema)
+            else
+                value = readPlainPath(remoteValues[resource], binding.path)
+            end
             local wasAffected = #changedPath == 0
             if not wasAffected then
                 wasAffected = true
