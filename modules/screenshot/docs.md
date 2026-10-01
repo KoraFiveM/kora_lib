@@ -1,9 +1,9 @@
 # Screenshot
 
-`QB.screenshot` keeps the game-view texture current while the NUI is mounted,
-serialises NUI captures, and caps output at 1920×1080 by default
-(`Config.screenshot`) to keep diagnostic captures cheap on high-DPI or
-ultrawide clients.
+`QB.screenshot` keeps the game-view texture current while captures are pending,
+serialises NUI captures, and releases their resources when the queue drains.
+Output is capped at 1920×1080 by default (`Config.screenshot`) to keep diagnostic
+captures cheap on high-DPI or ultrawide clients.
 
 ## API
 

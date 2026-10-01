@@ -179,19 +179,35 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 }
 
 /**
- * A permanently mounted but invisible capture service. CfxTexture needs a
- * render on every browser frame to receive the current game view.
+ * A permanently mounted but invisible capture service. Keep CfxTexture
+ * rendering while captures are pending, then release the capture resources.
  */
 export function ScreenshotCapture() {
     const resourcesRef = useRef<CaptureResources | null>(null)
     const queueRef = useRef<Promise<unknown>>(Promise.resolve())
+    const pendingRef = useRef(0)
+    const frameRef = useRef<number | null>(null)
+    const mountedRef = useRef(true)
+
+    const releaseCapture = useCallback(() => {
+        if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
+        frameRef.current = null
+        if (resourcesRef.current) destroyResources(resourcesRef.current)
+        resourcesRef.current = null
+    }, [])
 
     const capture = useCallback(async (payload: CapturePayload, includeDataUrl = true): Promise<{ blob: Blob; data?: string }> => {
+        if (!mountedRef.current) throw new Error("Screenshot capture is no longer mounted.")
         const { width, height } = outputDimensions(payload)
         let resources = resourcesRef.current
         if (!resources || resources.width !== width || resources.height !== height) {
             if (resources) destroyResources(resources)
+            resourcesRef.current = null
             resources = await createResources(width, height)
+            if (!mountedRef.current) {
+                destroyResources(resources)
+                throw new Error("Screenshot capture is no longer mounted.")
+            }
             resourcesRef.current = resources
         }
 
@@ -199,6 +215,7 @@ export function ScreenshotCapture() {
         // lets the requested game frame reach the texture without keeping a
         // permanent render loop alive between captures.
         await waitForFrame()
+        if (!mountedRef.current) throw new Error("Screenshot capture is no longer mounted.")
         resources.renderer.clear()
         resources.renderer.render(resources.scene, resources.camera, resources.renderTarget, true)
 
@@ -221,11 +238,32 @@ export function ScreenshotCapture() {
     }, [])
 
     const enqueue = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
-        const next = queueRef.current.then(task, task)
+        pendingRef.current += 1
+        if (pendingRef.current === 1) {
+            const renderGameView = () => {
+                if (!mountedRef.current || pendingRef.current === 0) return
+                const resources = resourcesRef.current
+                if (resources) {
+                    resources.renderer.clear()
+                    resources.renderer.render(resources.scene, resources.camera, resources.renderTarget, true)
+                }
+                frameRef.current = requestAnimationFrame(renderGameView)
+            }
+            frameRef.current = requestAnimationFrame(renderGameView)
+        }
+        const run = async () => {
+            try {
+                return await task()
+            } finally {
+                pendingRef.current -= 1
+                if (pendingRef.current === 0) releaseCapture()
+            }
+        }
+        const next = queueRef.current.then(run, run)
         // A failed capture must not poison the next request in the queue.
         queueRef.current = next.catch(() => undefined)
         return next
-    }, [])
+    }, [releaseCapture])
 
     useNuiEvent<NuiRequestEnvelope<CapturePayload>>("screenshot:capture", (message) => {
         void enqueue(() => capture(message.payload))
@@ -279,23 +317,12 @@ export function ScreenshotCapture() {
     })
 
     useEffect(() => {
-        let frameId: number
-        const renderGameView = () => {
-            const resources = resourcesRef.current
-            if (resources) {
-                resources.renderer.clear()
-                resources.renderer.render(resources.scene, resources.camera, resources.renderTarget, true)
-            }
-            frameId = requestAnimationFrame(renderGameView)
-        }
-
-        frameId = requestAnimationFrame(renderGameView)
+        mountedRef.current = true
         return () => {
-            cancelAnimationFrame(frameId)
-            if (resourcesRef.current) destroyResources(resourcesRef.current)
-            resourcesRef.current = null
+            mountedRef.current = false
+            releaseCapture()
         }
-    }, [])
+    }, [releaseCapture])
 
     return null
 }
