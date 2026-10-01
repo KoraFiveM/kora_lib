@@ -740,6 +740,45 @@ function QB.nui.registerCallback(name, handler)
     end)
 end
 
+local feedPayload = false
+local feedUpdatedAt = 0
+local feedOwnership = QB.resources.registry(function()
+    feedPayload = false
+    QB.nui.send('qbdispatch:feed', false)
+end)
+
+---Updates qbdispatch's display-only feed without taking focus.
+---@param payload table|false false clears the caller-owned surface.
+---@return boolean accepted
+function QB.nui.setDispatchFeed(payload)
+    assert(payload == false or (type(payload) == 'table' and QB.util.isFiniteNumber(payload.now)),
+        'Dispatch feed requires a payload with a finite now timestamp or false.')
+    local caller = GetInvokingResource() or GetCurrentResourceName()
+    local owner = feedOwnership.owner('feed')
+    if owner and owner ~= caller then return false end
+    if payload == false then feedOwnership.untrack('feed')
+    else
+        feedOwnership.track(caller, 'feed')
+        feedUpdatedAt = GetGameTimer()
+    end
+    feedPayload = payload
+    QB.nui.send('qbdispatch:feed', payload)
+    return true
+end
+
+-- Persistent state may arrive before the shared browser subscribes. Re-emit
+-- into this frame instead of returning dispatch data to callback fetchers.
+QB.nui.registerCallback('qblib:dispatchfeed:ready', function()
+    local payload = feedPayload
+    if payload then
+        payload = {}
+        for key, value in pairs(feedPayload) do payload[key] = value end
+        payload.now = feedPayload.now + (GetGameTimer() - feedUpdatedAt)
+    end
+    QB.nui.send('qbdispatch:feed', payload)
+    return true
+end)
+
 ---The single shared response channel every `QB.nui.request` call resolves
 ---through, keyed by requestId -- one registered callback rather than a
 ---dynamically-named one per request. `data.token` must match the token this

@@ -18,6 +18,7 @@ import { RadialMenuContainer } from "@/components/menu/RadialMenu"
 import { OxSkillCheck } from "@/components/minigames/OxSkillCheck"
 import { TargetHud } from "@/components/target/TargetHud"
 import { TextUi } from "@/components/textui/TextUi"
+import { DispatchFeed } from "@/components/dispatch/DispatchFeed"
 import { AppShell } from "@/components/app/AppShell"
 import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
 import { CameraHud } from "@/components/camera/CameraHud"
@@ -38,6 +39,7 @@ export default function App() {
             <ErrorBoundary surface="interaction selector"><InteractSelect /></ErrorBoundary>
             <ErrorBoundary surface="target HUD"><TargetHud /></ErrorBoundary>
             <ErrorBoundary surface="text UI"><TextUi /></ErrorBoundary>
+            <ErrorBoundary surface="dispatch feed"><DispatchFeed /></ErrorBoundary>
             <ErrorBoundary surface="app shell"><AppShell /></ErrorBoundary>
             <ErrorBoundary surface="menu"><MenuContainer /></ErrorBoundary>
             <ErrorBoundary surface="menu header"><MenuHeader /></ErrorBoundary>

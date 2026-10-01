@@ -16,6 +16,23 @@ for older Lua consumers. See [modules/theme/docs.md](../theme/docs.md).
 ### `QB.nui.send(action, data)`
 Sends `{ action, data }` to the NUI. Fire-and-forget — use `QB.nui.request` when you need a response back.
 
+### `QB.nui.setDispatchFeed(payload)`
+
+Updates the persistent, pointer-transparent dispatch feed without acquiring
+focus or replacing Text UI prompts. Pass `false` to clear it. A payload contains
+a finite millisecond `now`, newest-first `calls`, `selected`, `hidden`, `me`, `config.feed`,
+`config.priorities`, `keybinds`, and optional scoped `theme` brand tokens.
+The shared renderer shows the configured live window plus a selected history
+call, response state, and keyboard hints. The browser advances elapsed time and
+expiry between state pushes; no Lua polling is required.
+
+Returns `true` on publication, or `false` if another resource owns the surface.
+Only the current owner can update or clear it, and stopping that owner clears
+the feed. The latest payload is replayed when the shared browser becomes ready,
+with `now` advanced by the time since publication;
+the ready callback acknowledges with `true` rather than returning call data.
+`nil` and other non-table values are invalid; clearing requires explicit `false`.
+
 ### `QB.nui.setFocus(mouse, keyboard)`
 Sets NUI focus directly.
 

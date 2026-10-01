@@ -1055,3 +1055,30 @@ export interface MinigamesRoundPayload {
 export interface MinigamesClosePayload {
     result?: "success" | "exhausted" | "cancelled"
 }
+
+// Persistent, display-only qbdispatch:feed payload from QB.nui.setDispatchFeed.
+export interface DispatchFeedCall {
+    id: number
+    code?: string
+    title: string
+    priority: number
+    icon?: string
+    createdAt: number
+    expiresAt: number
+    closedAt?: number
+    data?: { street?: unknown }
+    units: { src: number; state: "en_route" | "on_scene" | "clear" }[]
+}
+export interface DispatchFeedPayload {
+    now: number
+    calls: DispatchFeedCall[]
+    selected?: number
+    hidden: boolean
+    me?: { src: number }
+    config?: {
+        feed?: { maxVisible?: number; position?: string }
+        priorities?: Record<string, { label: string; color: string }> | { label: string; color: string }[]
+    }
+    keybinds: { previous: string; next: string; respond: string; toggle: string; tablet: string }
+    theme?: Record<string, string>
+}

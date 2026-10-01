@@ -1158,4 +1158,67 @@ harness.test("AppShell rejects non-finite map points before registering", functi
     end, "non-finite marker geometry must be rejected")
 end)
 
+harness.test("dispatch feed replays its latest state and cleans up only its owner without taking focus", function()
+    local previousCaller = GetInvokingResource
+    local previousClock = GetGameTimer
+    local clock = 1000
+    GetGameTimer = function() return clock end
+    local caller = 'qbdispatch'
+    GetInvokingResource = function() return caller end
+    local beforeFocus = #focusCalls
+    local function ready()
+        local result
+        nuiCallbacks['qblib:dispatchfeed:ready']({}, function(value) result = value end)
+        harness.assertEqual(result, true, 'ready acknowledges without returning incident data')
+        harness.assertEqual(sentMessages[#sentMessages].action, 'qbdispatch:feed')
+        return sentMessages[#sentMessages].data
+    end
+    harness.assertEqual(ready(), false)
+    harness.assertTrue(type(registeredExports.nui_setDispatchFeed) == 'function')
+    local first = { now = 100, calls = {} }
+    local latest = { now = 200, calls = {}, hidden = true }
+    harness.assertTrue(registeredExports.nui_setDispatchFeed(first))
+    harness.assertTrue(QB.nui.setDispatchFeed(latest))
+    clock = 3500
+    local replay = ready()
+    harness.assertEqual(replay.now, 2700, 'late readiness includes time since publication')
+    harness.assertEqual(replay.calls, latest.calls, 'replay retains the newest call data')
+    harness.assertTrue(replay.hidden)
+    harness.assertEqual(latest.now, 200, 'replay does not mutate the caller snapshot')
+
+    caller = 'other'
+    local beforeMessages = #sentMessages
+    harness.assertFalse(QB.nui.setDispatchFeed(first))
+    harness.assertFalse(QB.nui.setDispatchFeed(false))
+    net.fire('onClientResourceStop', 'other')
+    harness.assertEqual(#sentMessages, beforeMessages, 'foreign operations never alter the feed')
+    harness.assertEqual(ready().now, 2700)
+
+    caller = 'qbdispatch'
+    harness.assertTrue(QB.nui.setDispatchFeed(false))
+    caller = 'other'
+    harness.assertTrue(QB.nui.setDispatchFeed(first))
+    net.fire('onClientResourceStop', 'qbdispatch')
+    harness.assertEqual(ready().now, first.now, 'an old owner cannot clear its successor')
+    net.fire('onClientResourceStop', 'other')
+    harness.assertEqual(ready(), false)
+    harness.assertThrows(function() QB.nui.setDispatchFeed(nil) end)
+    harness.assertThrows(function() QB.nui.setDispatchFeed(true) end)
+    harness.assertThrows(function() QB.nui.setDispatchFeed({}) end)
+    harness.assertThrows(function() QB.nui.setDispatchFeed({ now = math.huge }) end)
+
+    caller = 'shop'
+    local release = QB.nui.acquireFocus(true, true)
+    local focusedCalls = #focusCalls
+    caller = 'qbdispatch'
+    QB.nui.setDispatchFeed(first)
+    ready()
+    QB.nui.setDispatchFeed(false)
+    harness.assertEqual(#focusCalls, focusedCalls, 'feed publication leaves a focused interaction alone')
+    release()
+    harness.assertEqual(#focusCalls, beforeFocus + 2, 'only the unrelated lease acquires and releases focus')
+    GetInvokingResource = previousCaller
+    GetGameTimer = previousClock
+end)
+
 harness.report("nui")

@@ -1319,6 +1319,7 @@
 
 ---@class QBLibNui
 ---@field send fun(action: string, data?: any) [client]
+---@field setDispatchFeed fun(payload: table|false): boolean [client]
 ---@field setFocus fun(mouse: boolean, keyboard: boolean) [client]
 ---@field acquireFocus fun(mouse: boolean, keyboard: boolean, keepInput?: boolean, owner?: string): function [client; internal composition primitive]
 ---@field releaseFocus fun(release: function) [client; internal composition primitive]
