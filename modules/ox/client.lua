@@ -482,8 +482,8 @@ local function radialTree(items, menuId, mapped, seen, menuOwner)
             iconWidth = item.iconWidth,
             iconHeight = item.iconHeight,
             disabled = item.disabled == true,
-            close = item.keepOpen and false or nil,
         }
+        if item.keepOpen then node.close = false end
         mapped[#mapped + 1] = {
             id = id,
             item = item,

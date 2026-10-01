@@ -703,6 +703,8 @@ harness.test('keep-open radial choices stay mounted and live registry changes re
             selected = selected + 1
             QB.ox.addRadialItem({ id = 'added', label = 'Added' }, 'live_radial', 'radial_owner')
         end },
+        { label = 'Close', keepOpen = false },
+        { label = 'Default' },
     } }, 'radial_owner')
     queue('openRadialMenu', function(request)
         local id = request.payload.items[1].id
@@ -715,9 +717,18 @@ harness.test('keep-open radial choices stay mounted and live registry changes re
     end)
     QB.ox.showRadialMenu('live_radial', 'radial_owner')
     harness.assertEqual(selected, 1)
+    local opened = lastRequest('openRadialMenu')
+    harness.assertEqual(opened.payload.items[1].close, false)
+    harness.assertEqual(opened.payload.items[2].close, nil)
+    harness.assertEqual(opened.payload.items[3].close, nil)
     local refresh = lastRequest('updateRadialMenu')
-    harness.assertEqual(#refresh.payload.items, 2)
-    harness.assertFalse(refresh.payload.items[1].close)
+    harness.assertEqual(refresh.request, opened)
+    harness.assertEqual(#refresh.payload.items, 4)
+    harness.assertEqual(refresh.payload.items[1].close, false)
+    harness.assertEqual(refresh.payload.items[2].close, nil)
+    harness.assertEqual(refresh.payload.items[3].close, nil)
+    harness.assertEqual(refresh.payload.items[4].close, nil)
+    harness.assertEqual(QB.ox.getCurrentRadialId('radial_owner'), nil)
 end)
 
 harness.test('radial registration rejects sparse item lists before dropping entries', function()
