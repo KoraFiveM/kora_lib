@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { describe, expect, it } from "vitest"
@@ -319,5 +319,51 @@ describe("FormFields accepted color formats", () => {
         await user.keyboard("hsla(240, 100%, 50%, .25)")
         expect(screen.getByLabelText("Color")).toHaveValue("#0000ff")
         expect(screen.getByTestId("color-result")).toHaveTextContent('"color":"hsla(240, 100%, 50%, 0.25)"')
+    })
+})
+
+
+describe("FormFields required and optional date ranges", () => {
+    const required: InputField[] = [{ id: "window", type: "date-range", label: "Window", required: true, returnString: false }]
+
+    it("requires both endpoints while preserving labels and hidden-field handling", () => {
+        for (const window of [[], ["2026-09-30"], ["", ""], ["", "2026-09-30"], ["2026-09-28", ""]]) {
+            expect(validateFields(required, { window }).window).toBe("Required.")
+        }
+        expect(validateFields(required, { window: ["", "2026-09-30"] }, { required: "Choose both dates." }).window).toBe("Choose both dates.")
+        expect(validateFields([{ ...required[0], visibleWhen: { fieldId: "shown", equals: true } }], { shown: false, window: ["", "2026-09-30"] })).toEqual({})
+        expect(validateFields(required, { window: ["2026-09-28", "2026-09-30"] })).toEqual({})
+    })
+
+    it("rejects present invalid dates, calendar rollover and reversed ranges", () => {
+        for (const window of [["not-a-date", "2026-09-30"], ["2026-02-30", "2026-09-30"], ["2026-13-01", "2026-09-30"], ["2026-09-30", "2026-09-28"]]) {
+            expect(validateFields(required, { window }).window).toBe("Invalid format.")
+        }
+        expect(validateFields(required, { window: ["2028-02-29", "2028-03-01"] })).toEqual({})
+    })
+
+    it("preserves optional blank positions like scalar dates without NaN or JSON null", () => {
+        const optional: InputField[] = [{ ...required[0], required: false }, { id: "day", type: "date", label: "Day", returnString: false }]
+        const timestamp = new Date("2026-09-30T00:00:00").getTime()
+        for (const [window, expected] of [[[], []], [["", ""], ["", ""]], [["", "2026-09-30"], ["", timestamp]], [["2026-09-30", ""], [timestamp, ""]], [["2026-09-30"], [timestamp]]] as [string[], (string | number)[]][]) {
+            expect(validateFields(optional, { window, day: "" })).toEqual({})
+            const submitted = submissionValues(optional, { window, day: "" })
+            expect(submitted).toEqual({ window: expected, day: "" })
+            expect(JSON.stringify(submitted)).not.toContain("null")
+        }
+        expect(submissionValues([{ ...optional[0], returnString: true, dateFormat: "DD/MM/YYYY" }], { window: ["", "2026-09-30"] }).window).toEqual(["", "30/09/2026"])
+    })
+
+    it("reports the real end-only input change until its start date is selected", () => {
+        function DateHarness() {
+            const [values, setValues] = useState(createFieldValues(required))
+            return <><FormFields fields={required} values={values} errors={validateFields(required, values)} onChange={setValues} /><output data-testid="date-values">{JSON.stringify(values)}</output></>
+        }
+        render(<DateHarness />)
+        fireEvent.change(screen.getByLabelText("Window end"), { target: { value: "2026-09-30" } })
+        expect(screen.getByTestId("date-values")).toHaveTextContent('"window":["","2026-09-30"]')
+        expect(screen.getByText("Required.")).toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText("Window start"), { target: { value: "2026-09-28" } })
+        expect(screen.queryByText("Required.")).not.toBeInTheDocument()
     })
 })

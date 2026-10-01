@@ -202,7 +202,7 @@ export function submissionValues(fields: InputField[], values: Record<string, Fi
             if (value) submitted[field.id] = new Date(`${value}T00:00:00`).getTime()
         }
         if (field.returnString === false && field.type === "date-range" && Array.isArray(submitted[field.id])) {
-            submitted[field.id] = (submitted[field.id] as string[]).map((value) => new Date(`${value}T00:00:00`).getTime())
+            submitted[field.id] = (submitted[field.id] as string[]).map((value) => value ? new Date(`${value}T00:00:00`).getTime() : value)
         }
         if (field.returnString === true && field.type === "date" && typeof submitted[field.id] === "string") {
             submitted[field.id] = formatDate(submitted[field.id] as string, field.dateFormat)
@@ -245,7 +245,8 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
         const empty = value === "" || value === undefined || value === null
             || (field.type === "checkbox" && value !== true)
             || ((field.type === "multiselect" || field.type === "date-range") && (!Array.isArray(value) || value.length === 0))
-        if (field.required && empty) {
+        if (field.required && (empty || (field.type === "date-range" && Array.isArray(value)
+            && (value.length !== 2 || value.some((date) => date === ""))))) {
             errors[field.id] = labels.required
             continue
         }
@@ -276,7 +277,9 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
                 }
             }
         }
-        if (field.type === "date-range" && Array.isArray(value) && value.length === 2 && String(value[0]) > String(value[1])) {
+        if (field.type === "date-range" && Array.isArray(value)
+            && (value.some((date) => typeof date !== "string" || (date !== "" && localDateInputValue(new Date(`${date}T00:00:00`).getTime()) !== date))
+                || (value.length === 2 && value[0] !== "" && value[1] !== "" && String(value[0]) > String(value[1])))) {
             errors[field.id] = labels.invalidFormat
         }
         if (field.type === "key-value") {
