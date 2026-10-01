@@ -61,7 +61,7 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
 
             const elapsed = performance.now() - startRef.current
             const position = triangleWave(elapsed, puzzle.speed)
-            const zoneStart = 0.5 - puzzle.zoneSize / 2
+            const zoneStart = puzzle.targets[biteIndex] - puzzle.zoneSize / 2
             const hit = position >= zoneStart && position <= zoneStart + puzzle.zoneSize
             const reel = { index: biteIndex + 1, elapsed }
             reelsRef.current = [...reelsRef.current, reel]
