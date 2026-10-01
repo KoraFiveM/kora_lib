@@ -240,10 +240,11 @@ export function AppShell() {
 
     const runAction = useCallback(async (action: AppAction, context?: ActionContext) => {
         if (!app || !token || busy !== undefined || action.disabled) return
-        changeVersion.current += 1
+        const version = ++changeVersion.current
         setBusy(action.id); setError(undefined); setNotice(undefined)
         try {
             const response = await fetchNui<AppActionResponse>("qblib:app:action", { appId: app.id, token, actionId: action.id, viewId, tabId, itemId: context?.itemId, value: context?.value ?? action.data })
+            if (version !== changeVersion.current) return
             if (response.ok === false) throw new Error(response.error ?? "The action failed.")
             const resultApp = response.result?.app
             if (resultApp) setApp(resultApp)
@@ -251,8 +252,11 @@ export function AppShell() {
             if (response.result?.notice) setNotice(response.result.notice)
             if (response.result?.close) close("action")
             setActiveForm(undefined)
-        } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "The action failed.") }
-        finally { setBusy(undefined) }
+        } catch (actionError) {
+            if (version === changeVersion.current) setError(actionError instanceof Error ? actionError.message : "The action failed.")
+        } finally {
+            if (version === changeVersion.current) setBusy(undefined)
+        }
     }, [app, busy, close, navigate, tabId, token, viewId])
 
     const runChange = useCallback(async (action: AppAction, values: Record<string, FieldValue>, context?: ActionContext) => {

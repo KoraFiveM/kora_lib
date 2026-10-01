@@ -100,6 +100,44 @@ describe("shared fields", () => {
 })
 
 describe("AppShell", () => {
+    it.each(["replace", "close", "cancel"])("ignores a successful action after %s while the next app is busy", async (retire) => {
+        const user = userEvent.setup()
+        const pending: ((response: unknown) => void)[] = []
+        fetchNuiMock.mockImplementation(() => new Promise((resolve) => pending.push(resolve)))
+        render(<AppShell />)
+        const old = baseApp({ actions: [{ id: "old", label: "Old action" }] })
+        const token = openApp(old)
+        await user.click(screen.getByRole("button", { name: "Old action" }))
+        if (retire === "close") await user.click(screen.getByRole("button", { name: "Close Test App" }))
+        if (retire === "cancel") dispatch("cancelNuiRequest", { requestId, token })
+        const next = baseApp({ actions: [{ id: "next", label: "Next action" }] }, { id: "next:app", title: "Next App" })
+        const nextToken = openApp(next)
+        await user.click(screen.getByRole("button", { name: "Next action" }))
+        const settled = respondToNuiMock.mock.calls.length
+        await act(async () => pending[0]({ ok: true, result: { app: { ...old, title: "Retired result" }, navigate: { viewId: "home" }, notice: { tone: "success", message: "Retired notice" }, close: true } }))
+        expect(screen.getByRole("main")).toHaveAccessibleName("Next App")
+        expect(screen.queryByText("Retired notice")).not.toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled()
+        expect(respondToNuiMock).toHaveBeenCalledTimes(settled)
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ appId: "next:app", token: nextToken }))
+        await act(async () => pending[1]({ ok: true, result: { notice: { tone: "success", message: "Current result" } } }))
+        expect(screen.getByRole("status")).toHaveTextContent("Current result")
+        expect(screen.getByRole("button", { name: "Next action" })).toBeEnabled()
+    })
+
+    it("ignores a rejected action from the replaced app", async () => {
+        const user = userEvent.setup()
+        let reject!: (error: Error) => void
+        fetchNuiMock.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail }))
+        render(<AppShell />)
+        openApp(baseApp({ actions: [{ id: "old", label: "Old action" }] }))
+        await user.click(screen.getByRole("button", { name: "Old action" }))
+        openApp(baseApp({ title: "Current content" }, { title: "Next App" }))
+        await act(async () => reject(new Error("Retired failure")))
+        expect(screen.getByRole("main")).toHaveAccessibleName("Next App")
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    })
+
     it("updates a price from range edits without submitting or resetting drafts", async () => {
         const makeApp = (price: string) => baseApp({ blocks: [
             { type: "stats", items: [{ label: "Total Price", value: price }] },
