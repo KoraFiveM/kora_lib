@@ -74,7 +74,11 @@ local function makeHandle(state)
         end,
         setFocus = function(coords)
             if active ~= state then return false end
-            state.focus = coords == nil and nil or copyCoords(coords, 'focusCoords')
+            if coords == nil then
+                state.focus = nil
+            else
+                state.focus = copyCoords(coords, 'focusCoords')
+            end
             return true
         end,
     }
