@@ -187,6 +187,19 @@ local function roundToTwoPlaces(value)
     return tonumber(("%.2f"):format(value))
 end
 
+local function removeEntity(ent)
+    if not ent then return end
+
+    local ok, result, err = pcall(QB.entities.remove, ent)
+    if not ok or result == false then
+    end
+
+    if DoesEntityExist(ent) then
+        SetEntityAsMissionEntity(ent, true, true)
+        DeleteEntity(ent)
+    end
+end
+
 local function releaseCoordGrabber(state)
     if state.released then return end
     state.released = true
@@ -194,7 +207,9 @@ local function releaseCoordGrabber(state)
     if activeCoordGrabber == state then activeCoordGrabber = nil end
     if state.controlLease then pcall(QB.compat.releaseControlLease, state.controlLease, state.owner) end
     if state.textui then pcall(QB.textui.hide, state.textui) end
-    if state.entity then pcall(QB.entities.remove, state.entity) end
+
+    removeEntity(state.entity)
+    state.entity = nil
 end
 
 local function coordGrabberResult(coords, heading, model)
@@ -219,6 +234,7 @@ local function drawCoordMarker(coords)
         false, true, 2, false, false, false, false)
 end
 
+
 local function runCoordGrabber(state)
     state.controlLease = QB.compat.acquireControls(COORD_GRABBER_CONTROLS, nil, state.owner)
     state.textui = QB.textui.show(state.model
@@ -226,7 +242,6 @@ local function runCoordGrabber(state)
         or "**E:** confirm  ·  **Backspace:** cancel", {
         icon = state.model and "Box" or "Crosshair",
     }, state.owner)
-
     while activeCoordGrabber == state do
         local hit, coords = QB.raycast.fromCamera(state.maxDistance, state.flags,
             state.entity or state.playerPed)
@@ -234,15 +249,15 @@ local function runCoordGrabber(state)
         if hit and coords then
             if state.model then
                 if not state.entity then
-                    local entity, createErr = QB.entities.create(state.model, coords, {
+                    local ent, createErr = QB.entities.create(state.model, coords, {
                         preset = "static",
                         heading = state.heading,
                     })
-                    assert(entity, createErr or "Failed to create coordinate preview.")
+                    assert(ent, createErr or "Failed to create coordinate preview.")
 
-                    state.entity = entity
-                    SetEntityCollision(entity, false, false)
-                    SetEntityAlpha(entity, COORD_GRABBER_PREVIEW_ALPHA, false)
+                    state.entity = ent
+                    SetEntityCollision(ent, false, false)
+                    SetEntityAlpha(ent, COORD_GRABBER_PREVIEW_ALPHA, false)
                 else
                     SetEntityCoordsNoOffset(state.entity, coords.x, coords.y, coords.z, false, false, false)
                 end
@@ -262,10 +277,11 @@ local function runCoordGrabber(state)
             end
         end
 
-        if IsDisabledControlJustReleased(0, 177) then return nil end
+        if IsDisabledControlJustReleased(0, 177) then
+            return nil
+        end
         Wait(0)
     end
-
     return nil
 end
 
