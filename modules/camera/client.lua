@@ -11,6 +11,8 @@ local state = {
     lastTick = 0,
 }
 
+local loopId = 0
+
 local CAMERA_MODES = {
     cctv = true,
     recording = true,
@@ -155,6 +157,32 @@ local function restorePlayerCamera()
     end
 end
 
+---Starts the control/timer loop. It only lives while the camera is open and
+---exits on its own when the camera closes or a newer session replaces it.
+local function startLoop()
+    loopId = loopId + 1
+    local id = loopId
+
+    CreateThread(function()
+        while state.active and loopId == id do
+            if IsControlJustPressed(0, 177) or IsControlJustPressed(0, 322) then
+                QB.camera.close('escape')
+            elseif IsControlJustPressed(0, 10) then
+                QB.camera.next()
+            elseif IsControlJustPressed(0, 11) then
+                QB.camera.previous()
+            end
+
+            local now = GetGameTimer()
+            if now - state.lastTick >= 1000 then
+                state.lastTick = now
+                QB.nui.send('camera:tick', { elapsed = math.max(0, now - state.startedAt) })
+            end
+            Wait(0)
+        end
+    end)
+end
+
 ---Opens the reusable camera overlay. Fixed cameras use `cameras`; recording,
 ---helicam, and operator modes can omit it to keep the player's native view.
 ---@param options QBCameraOptions
@@ -173,6 +201,7 @@ function QB.camera.open(options)
     if #cameras > 0 then activateCamera(1) end
     showInstructions()
     QB.nui.send('camera:open', hudPayload())
+    startLoop()
     return true
 end
 
@@ -223,29 +252,6 @@ function QB.camera.setRecording(recording)
     sendUpdate()
     return true
 end
-
-CreateThread(function()
-    while true do
-        if not state.active then
-            Wait(250)
-        else
-            if IsControlJustPressed(0, 177) or IsControlJustPressed(0, 322) then
-                QB.camera.close('escape')
-            elseif IsControlJustPressed(0, 10) then
-                QB.camera.next()
-            elseif IsControlJustPressed(0, 11) then
-                QB.camera.previous()
-            end
-
-            local now = GetGameTimer()
-            if now - state.lastTick >= 1000 then
-                state.lastTick = now
-                QB.nui.send('camera:tick', { elapsed = math.max(0, now - state.startedAt) })
-            end
-            Wait(0)
-        end
-    end
-end)
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() and state.active then restorePlayerCamera() end
