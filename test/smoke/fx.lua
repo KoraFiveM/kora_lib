@@ -99,6 +99,21 @@ harness.test("stop ends a looped effect", function()
     harness.assertEqual(stopCalls[#stopCalls], handle.particleId, "should call StopParticleFxLooped with the right id")
 end)
 
+harness.test("entity precedence and coordinate looped dispatch keep their native paths", function()
+    local coords = { x = 1, y = 2, z = 3 }
+    local entityHandle = QB.fx.playPtfx({ dict = DICT, name = 'entity', entity = 1, coords = coords, bone = 'spine' })
+    harness.assertFalse(entityHandle.looped)
+    harness.assertEqual(startCalls[#startCalls].kind, 'nonLoopedOnEntity')
+    local coordHandle = QB.fx.playPtfx({ dict = DICT, name = 'coords', coords = coords, looped = true,
+        offset = { x = 2, y = 3, z = 4 } })
+    harness.assertTrue(coordHandle.looped)
+    harness.assertEqual(startCalls[#startCalls].kind, 'loopedAtCoord')
+    harness.assertEqual(startCalls[#startCalls].x, 3)
+    harness.assertEqual(startCalls[#startCalls].y, 5)
+    harness.assertEqual(startCalls[#startCalls].z, 7)
+    harness.assertTrue(QB.fx.stop(coordHandle))
+end)
+
 harness.test("foreign resources cannot stop a looped effect through its handle", function()
     _G.GetInvokingResource = function() return "ptfx_owner" end
     local handle = QB.fx.playPtfx({ dict = DICT, name = "fx_owned", entity = 1, looped = true })

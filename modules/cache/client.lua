@@ -179,8 +179,8 @@ refresh()
 
 CreateThread(function()
     while true do
-        refresh()
         Wait(refreshInterval)
+        refresh()
     end
 end)
 

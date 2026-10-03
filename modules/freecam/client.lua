@@ -1,9 +1,7 @@
 local active
 local ownership
 
-local function isFinite(value)
-    return type(value) == 'number' and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFinite = QB.util.isFiniteNumber
 
 local function copyCoords(value, label)
     assert((type(value) == 'table' or type(value) == 'vector3' or type(value) == 'vector4')

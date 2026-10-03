@@ -107,32 +107,26 @@ function QB.fx.playPtfx(def)
     local loadedDict, loadErr = QB.stream.loadPtfx(def.dict, function()
         UseParticleFxAssetNextCall(def.dict)
 
-        if def.entity then
-            if looped then
-                if def.bone then
-                    local boneIndex = GetEntityBoneIndexByName(def.entity, def.bone)
-                    particleId = StartParticleFxLoopedOnEntityBone(def.name, def.entity,
-                        offset.x, offset.y, offset.z, rot.x, rot.y, rot.z,
-                        boneIndex, scale, false, false, false)
-                else
-                    particleId = StartParticleFxLoopedOnEntity(def.name, def.entity,
-                        offset.x, offset.y, offset.z, rot.x, rot.y, rot.z,
-                        scale, false, false, false)
-                end
-            else
-                StartParticleFxNonLoopedOnEntity(def.name, def.entity,
-                    offset.x, offset.y, offset.z, rot.x, rot.y, rot.z, scale, false, false, false)
-            end
+        if def.entity and looped and def.bone then
+            local boneIndex = GetEntityBoneIndexByName(def.entity, def.bone)
+            particleId = StartParticleFxLoopedOnEntityBone(def.name, def.entity,
+                offset.x, offset.y, offset.z, rot.x, rot.y, rot.z,
+                boneIndex, scale, false, false, false)
+        elseif def.entity and looped then
+            particleId = StartParticleFxLoopedOnEntity(def.name, def.entity,
+                offset.x, offset.y, offset.z, rot.x, rot.y, rot.z,
+                scale, false, false, false)
+        elseif def.entity then
+            StartParticleFxNonLoopedOnEntity(def.name, def.entity,
+                offset.x, offset.y, offset.z, rot.x, rot.y, rot.z, scale, false, false, false)
+        elseif looped then
+            particleId = StartParticleFxLoopedAtCoord(def.name,
+                def.coords.x + offset.x, def.coords.y + offset.y, def.coords.z + offset.z,
+                rot.x, rot.y, rot.z, scale, false, false, false, false)
         else
-            if looped then
-                particleId = StartParticleFxLoopedAtCoord(def.name,
-                    def.coords.x + offset.x, def.coords.y + offset.y, def.coords.z + offset.z,
-                    rot.x, rot.y, rot.z, scale, false, false, false, false)
-            else
-                StartParticleFxNonLoopedAtCoord(def.name,
-                    def.coords.x + offset.x, def.coords.y + offset.y, def.coords.z + offset.z,
-                    rot.x, rot.y, rot.z, scale, false, false, false)
-            end
+            StartParticleFxNonLoopedAtCoord(def.name,
+                def.coords.x + offset.x, def.coords.y + offset.y, def.coords.z + offset.z,
+                rot.x, rot.y, rot.z, scale, false, false, false)
         end
 
         started = true

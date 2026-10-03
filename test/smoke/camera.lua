@@ -28,6 +28,7 @@ function _G.SetFollowPedCamViewMode(viewMode) restoredView = viewMode end
 function _G.IsControlJustPressed() return false end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/util/shared.lua")
 local messages = {}
 local instructionButtons
 local instructionsHidden = false

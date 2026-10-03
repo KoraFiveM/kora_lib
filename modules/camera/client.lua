@@ -20,9 +20,7 @@ local CAMERA_MODES = {
     operator = true,
 }
 
-local function isFiniteNumber(value)
-    return type(value) == 'number' and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFiniteNumber = QB.util.isFiniteNumber
 
 local function isCoords(value)
     return type(value) == 'table' or type(value) == 'vector3' or type(value) == 'vector4'

@@ -24,7 +24,7 @@ dofile(repoRoot .. "modules/util/shared.lua")
 -- computeSeat's scan doesn't just check the first candidate), armed with
 -- weapon hash 999. All specific to this module, so mocked here rather than
 -- in test/mocks.lua per the root AGENTS.md testing convention.
-local playerIdReads, serverIdReads, seatReads = 0, 0, 0
+local playerIdReads, serverIdReads, seatReads, pedReads = 0, 0, 0, 0
 local networkReady = false
 local occupiedSeat = 1
 local coords = { x = 1.0, y = 2.0, z = 3.0 }
@@ -34,7 +34,7 @@ _G.GetPlayerServerId = function(playerId)
     return playerId == 5 and networkReady and 42 or -1
 end
 _G.NetworkIsSessionStarted = function() return networkReady end
-_G.PlayerPedId = function() return 100 end
+_G.PlayerPedId = function() pedReads = pedReads + 1 return 100 end
 _G.IsPedInAnyVehicle = function() return true end
 _G.GetVehiclePedIsIn = function() return 200 end
 _G.GetVehiclePedIsTryingToEnter = function() return 0 end
@@ -54,6 +54,10 @@ _G.GetEntityCoords = function() return { x = coords.x, y = coords.y, z = coords.
 
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/cache/client.lua")
+
+harness.test("initial telemetry is sampled once before the first interval", function()
+    harness.assertEqual(pedReads, 1, "starting the worker must not repeat the initial native reads")
+end)
 
 harness.test("playerId/serverId are read from the natives", function()
     harness.assertEqual(QB.cache.playerId(), 5, "playerId should come from PlayerId()")

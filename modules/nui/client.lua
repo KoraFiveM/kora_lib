@@ -1013,9 +1013,7 @@ function QB.nui.copyToClipboard(text)
     return settleForExport(requestPromise("copyToClipboard", { text = text }))
 end
 
-local function isFiniteNumber(value)
-    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFiniteNumber = QB.util.isFiniteNumber
 
 local function assertMenuItems(items, context, visited)
     assert(type(items) == "table", ("%s requires an items table."):format(context))
