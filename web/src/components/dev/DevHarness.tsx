@@ -179,7 +179,7 @@ const actions: { label: string; run: () => void }[] = [
             navigation: [{ id: "events", label: "Giveaway dashboard", content: {
                 title: "Giveaway events", description: "Manage giveaways and review community events.",
                 actions: [{ id: "create", label: "Create event", icon: "Plus", variant: "primary" }],
-                blocks: [{ type: "list", layout: "cards", cardStyle: "media", columns: 2, searchable: true, items: [
+                blocks: [{ type: "list", layout: "cards", cardStyle: "media", imageFit: "contain", columns: 2, searchable: true, items: [
                     { id: "halloween", label: "QBCore Halloween Giveaway", image: SAMPLE_EVENT_IMAGE, badge: "Scheduled", description: "14 prizes · 0 entrants · submissions open", actions: [{ id: "manage", label: "Manage event", variant: "outline" }] },
                     { id: "community", label: "Community event with a longer title that wraps across lines", icon: "Gift", badge: "Draft", description: "A card without artwork, with a disabled action.", actions: [{ id: "publish", label: "Publish event", disabled: true }] },
                 ] }],

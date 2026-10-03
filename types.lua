@@ -645,6 +645,8 @@
 ---@field value string|number|boolean
 ---@field tone? QBAppTone
 
+---@alias QBAppImageFit 'cover'|'contain'|'fill'|'none'|'scale-down'
+
 ---@class QBAppListItem
 ---@field id string
 ---@field label string
@@ -655,6 +657,7 @@
 ---@field action? string|QBAppAction Action routed to the registered onAction handler.
 ---@field data? any
 ---@field image? string
+---@field imageFit? QBAppImageFit Overrides the list block image fit.
 ---@field metadata? QBAppMetadataItem[]
 ---@field actions? QBAppAction[]
 ---@field children? QBAppListItem[]
@@ -720,6 +723,7 @@
 ---@field id? string Stable block identity used for drafts and local collection state.
 ---@field layout? 'list'|'grid'|'cards' List presentation.
 ---@field cardStyle? 'compact'|'media' Grid/card presentation; compact is the default, media uses a full-width image above the content.
+---@field imageFit? QBAppImageFit List image fit; defaults to cover, individual items may override it.
 ---@field searchable? boolean Enable client-side filtering.
 ---@field searchPlaceholder? string
 ---@field pageSize? integer Enable client-side paging when positive.

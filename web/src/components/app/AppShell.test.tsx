@@ -418,7 +418,30 @@ describe("AppShell", () => {
         ] }))
         expect(container.querySelector('article[data-card-style="compact"] img')?.parentElement).toHaveClass("h-14", "w-14")
         expect(container.querySelector('img[src="row.png"]')?.parentElement).toHaveClass("h-9", "w-9")
+        expect(container.querySelector('img[src="compact.png"]')).toHaveStyle({ objectFit: "cover" })
+        expect(container.querySelector('img[src="row.png"]')).toHaveStyle({ objectFit: "cover" })
         expect(container.querySelector('article[data-card-style="media"]')).not.toBeInTheDocument()
+    })
+
+    it.each([
+        { layout: "cards", cardStyle: "media" },
+        { layout: "grid", cardStyle: "compact" },
+        { layout: "list", cardStyle: "compact" },
+    ] as const)("inherits and overrides image fit in $layout/$cardStyle", async ({ layout, cardStyle }) => {
+        const user = userEvent.setup()
+        const { container } = render(<AppShell />)
+        const fits = ["cover", "contain", "fill", "none", "scale-down"] as const
+        openApp(baseApp({ blocks: [{ type: "list", layout, cardStyle, imageFit: "contain", items: [
+            { id: "inherited", label: "Inherited", image: "inherited.png" },
+            ...fits.map((imageFit) => ({ id: imageFit, label: imageFit, image: `${imageFit}.png`, imageFit })),
+            { id: "parent", label: "Nested images", children: [{ id: "child", label: "Nested child", image: "child.png" }] },
+        ] }] }))
+        expect(container.querySelector('img[src="inherited.png"]')).toHaveStyle({ objectFit: "contain" })
+        for (const objectFit of fits) {
+            expect(container.querySelector(`img[src="${objectFit}.png"]`)).toHaveStyle({ objectFit })
+        }
+        await user.click(screen.getByRole("button", { name: /Nested images/ }))
+        expect(container.querySelector('img[src="child.png"]')).toHaveStyle({ objectFit: "contain" })
     })
 
     it("supports fixed table widths and hover details on rich values", () => {

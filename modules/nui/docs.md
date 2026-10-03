@@ -440,7 +440,7 @@ labels, and content remain the consumer's responsibility.
   `searchPlaceholder?`, and `pageSize?`. A cell may be a scalar or
   `{ value?, label?, description?, icon?, tone?, badge? }`.
 - `list`: `id?`, `title?`, `layout = 'list'|'grid'|'cards'`, `searchable?`,
-  `searchPlaceholder?`, `pageSize?`, `scrollable?`, `cardStyle?`, `columns?`,
+  `searchPlaceholder?`, `pageSize?`, `scrollable?`, `cardStyle?`, `columns?`, `imageFit?`,
   and recursive items. For `grid`/`cards`, `cardStyle = 'compact'` keeps the
   existing thumbnail card (the default); `'media'` puts a full-width 16:9 image
   above the badge, title, description, metadata, and action buttons. Without
@@ -452,8 +452,14 @@ labels, and content remain the consumer's responsibility.
   content-level `scrollable = false` with a list-level `scrollable = true` when
   the surrounding header and blocks should remain fixed while only the list
   owns vertical overflow. Items support
-  `description`, `image`, `icon`, `badge`, `tone`, `metadata`, `children`, a
+  `description`, `image`, `imageFit`, `icon`, `badge`, `tone`, `metadata`, `children`, a
   primary `action`, and multiple `actions`.
+  Set `imageFit` on the block for all images, or on an item to override it.
+  It applies to media cards, compact cards, and list thumbnails, including
+  nested items. The default is `'cover'` (fills the frame, cropping when
+  needed). `'contain'` shows the entire image with space around it;
+  `'fill'` stretches it to the frame; `'none'` keeps its natural size;
+  `'scale-down'` fits it without enlarging it. The frame size stays unchanged.
 - `actions`: `title?`, `actions`
 - `form`: `id`, `title?`, `description?`, `fields`, `action`, `submitLabel?` —
   an always-visible shared form.
@@ -474,7 +480,7 @@ For a main-page collection with larger artwork:
 ```lua
 {
     type = 'list', id = 'events', title = 'Giveaway events',
-    layout = 'cards', cardStyle = 'media', columns = 3,
+    layout = 'cards', cardStyle = 'media', columns = 3, imageFit = 'contain',
     items = {
         {
             id = 'halloween', label = 'QBCore Halloween Giveaway',

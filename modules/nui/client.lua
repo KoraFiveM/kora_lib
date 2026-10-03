@@ -98,6 +98,7 @@ local VALID_FIELD_TYPES = {
 
 local VALID_TONES = { neutral = true, primary = true, success = true, warning = true, destructive = true }
 local VALID_ACTION_VARIANTS = { primary = true, secondary = true, outline = true, ghost = true, destructive = true }
+local VALID_IMAGE_FITS = { cover = true, contain = true, fill = true, none = true, ["scale-down"] = true }
 
 local function assertPositiveInteger(value, message)
     assert(type(value) == "number" and value > 0 and value % 1 == 0, message)
@@ -321,6 +322,7 @@ local function assertListItems(items, location, actionIds)
         assert(type(item.label) == "string" and item.label ~= "", itemLocation .. " requires a label.")
         assert(item.description == nil or type(item.description) == "string", itemLocation .. " description must be a string.")
         assert(item.image == nil or type(item.image) == "string", itemLocation .. " image must be a string.")
+        assert(item.imageFit == nil or VALID_IMAGE_FITS[item.imageFit], itemLocation .. " imageFit is invalid.")
         assert(item.tone == nil or VALID_TONES[item.tone], itemLocation .. " has an invalid tone.")
         if item.metadata ~= nil then assertMetadata(item.metadata, itemLocation) end
         if item.action ~= nil then
@@ -417,6 +419,7 @@ local function assertAppContent(content, location, actionIds)
                 blockLocation .. " layout must be 'list', 'grid', or 'cards'.")
             assert(block.cardStyle == nil or block.cardStyle == "compact" or block.cardStyle == "media",
                 blockLocation .. " cardStyle must be 'compact' or 'media'.")
+            assert(block.imageFit == nil or VALID_IMAGE_FITS[block.imageFit], blockLocation .. " imageFit is invalid.")
             assert(block.columns == nil or (type(block.columns) == "number" and block.columns >= 1 and block.columns <= 4 and block.columns % 1 == 0),
                 blockLocation .. " columns must be an integer from 1 to 4.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")

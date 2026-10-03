@@ -657,6 +657,33 @@ harness.test("AppShell validates and forwards optional media card grids", functi
     harness.assertTrue(QB.nui.updateApp(definition.id, { navigation = definition.navigation }), "updates should accept media grids")
 end)
 
+harness.test("AppShell validates image fit on collections and nested items", function()
+    local child = { id = "child", label = "Child", image = "child.png", imageFit = "cover" }
+    local block = { type = "list", layout = "cards", imageFit = "contain", items = {
+        { id = "parent", label = "Parent", children = { child } },
+    } }
+    local definition = { id = "smoke:image-fit", title = "Images", navigation = {
+        { id = "home", label = "Home", content = { blocks = { block } } },
+    } }
+    QB.nui.registerApp(definition)
+    QB.nui.openApp(definition.id)
+    local sent = sentMessages[#sentMessages].data.payload.app.navigation[1].content.blocks[1]
+    harness.assertEqual(sent.imageFit, "contain", "the browser should receive the collection image fit")
+    harness.assertEqual(sent.items[1].children[1].imageFit, "cover", "nested item overrides should reach the browser")
+    respond(lastRequestId(), lastToken(), true, { closed = true })
+
+    for _, imageFit in ipairs({ "cover", "contain", "fill", "none", "scale-down" }) do
+        block.imageFit, child.imageFit = imageFit, imageFit
+        harness.assertEqual(QB.nui.registerApp(definition), definition.id, "native image fit values should be supported")
+    end
+    for _, invalid in ipairs({ "stretch", "", false, 42, {} }) do
+        block.imageFit, child.imageFit = invalid, "cover"
+        harness.assertThrows(function() QB.nui.registerApp(definition) end, "invalid collection image fit must be rejected")
+        block.imageFit, child.imageFit = "contain", invalid
+        harness.assertThrows(function() QB.nui.registerApp(definition) end, "invalid nested image fit must be rejected")
+    end
+end)
+
 harness.test("registerApp accepts bounded progress graph blocks", function()
     local definition = {
         id = "smoke:progress", title = "Progress", navigation = {
