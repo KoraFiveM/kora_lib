@@ -712,13 +712,14 @@
 ---@field icon? string Empty-state icon.
 ---@field items? QBAppStat[]|QBAppProgressItem[]|QBAppListItem[]|QBAppDetailItem[]|QBAppTimelineItem[] Block items.
 ---@field actions? QBAppAction[] Action-block buttons.
----@field columns? QBAppTableColumn[]|integer Table columns, or the 1-3 column count for details.
+---@field columns? QBAppTableColumn[]|integer Table columns, 1-3 details columns, or 1-4 maximum list grid columns.
 ---@field rows? table<string, QBAppTableValue>[] Table rows.
 ---@field empty? string Empty list/table label.
 ---@field action? string|QBAppAction Table/map action id, or the always-visible form action.
 ---@field idKey? string Table row key copied into action context.itemId.
 ---@field id? string Stable block identity used for drafts and local collection state.
 ---@field layout? 'list'|'grid'|'cards' List presentation.
+---@field cardStyle? 'compact'|'media' Grid/card presentation; compact is the default, media uses a full-width image above the content.
 ---@field searchable? boolean Enable client-side filtering.
 ---@field searchPlaceholder? string
 ---@field pageSize? integer Enable client-side paging when positive.

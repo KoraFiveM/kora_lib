@@ -377,6 +377,50 @@ describe("AppShell", () => {
         expect(screen.getByText("Weather")).toBeInTheDocument()
     })
 
+    it.each(["cards", "grid"] as const)("renders media %s with working actions, forms, paging and search", async (layout) => {
+        const user = userEvent.setup()
+        const { container } = render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "list", id: "events", layout, cardStyle: "media", columns: 2, searchable: true, pageSize: 1, items: [
+            { id: "halloween", label: "Halloween Giveaway", image: "halloween.png", badge: "Scheduled", description: "14 prizes", data: { event: 42 }, action: "open-event", actions: [
+                { id: "manage", label: "Manage event" },
+                { id: "edit", label: "Edit event", fields: [{ id: "name", label: "Event name", type: "text" }] },
+                { id: "publish", label: "Publish", disabled: true },
+            ] },
+            { id: "community", label: "Community Giveaway", icon: "Gift" },
+        ] }] }))
+        const card = container.querySelector('article[data-card-style="media"]')!
+        expect(card.querySelector("img")?.parentElement).toHaveClass("aspect-video", "w-full")
+        expect(card.parentElement?.style.gridTemplateColumns).toContain("repeat(auto-fill")
+        expect(within(card as HTMLElement).getByText("Scheduled")).toBeInTheDocument()
+        expect(within(card as HTMLElement).getByRole("button", { name: "Publish" })).toBeDisabled()
+        const open = within(card as HTMLElement).getByRole("button", { name: /Halloween Giveaway/ })
+        open.focus()
+        await user.keyboard("{Enter}")
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ actionId: "open-event", itemId: "halloween", value: { event: 42 } }))
+        await user.click(screen.getByRole("button", { name: "Manage event" }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ actionId: "manage", itemId: "halloween", value: { event: 42 } }))
+        await user.click(screen.getByRole("button", { name: "Edit event" }))
+        await user.type(screen.getByLabelText("Event name"), "Updated")
+        await user.click(screen.getByRole("button", { name: "Run action" }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ actionId: "edit", itemId: "halloween", value: { name: "Updated" } }))
+        await user.click(screen.getByRole("button", { name: "Next" }))
+        expect(screen.getByText("Community Giveaway")).toBeInTheDocument()
+        expect(container.querySelector('article[data-card-style="media"] svg')).toBeInTheDocument()
+        await user.type(screen.getByRole("textbox"), "Halloween")
+        expect(screen.getByText("Halloween Giveaway")).toBeInTheDocument()
+    })
+
+    it("keeps thumbnail cards as the default and ignores card styling in list rows", () => {
+        const { container } = render(<AppShell />)
+        openApp(baseApp({ blocks: [
+            { type: "list", layout: "cards", items: [{ id: "compact", label: "Compact", image: "compact.png" }] },
+            { type: "list", layout: "list", cardStyle: "media", columns: 4, items: [{ id: "row", label: "Row", image: "row.png" }] },
+        ] }))
+        expect(container.querySelector('article[data-card-style="compact"] img')?.parentElement).toHaveClass("h-14", "w-14")
+        expect(container.querySelector('img[src="row.png"]')?.parentElement).toHaveClass("h-9", "w-9")
+        expect(container.querySelector('article[data-card-style="media"]')).not.toBeInTheDocument()
+    })
+
     it("supports fixed table widths and hover details on rich values", () => {
         const { container } = render(<AppShell />)
         openApp(baseApp({ blocks: [{

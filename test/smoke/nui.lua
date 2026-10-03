@@ -631,6 +631,32 @@ harness.test("openApp validates navigation identifiers before creating a request
     harness.assertEqual(#focusCalls, focusCount, 'invalid navigation identifiers must not acquire focus')
 end)
 
+harness.test("AppShell validates and forwards optional media card grids", function()
+    local block = { type = "list", layout = "cards", cardStyle = "media", columns = 3,
+        items = { { id = "event", label = "Giveaway", image = "event.png" } } }
+    local definition = { id = "smoke:media-cards", title = "Events", navigation = {
+        { id = "home", label = "Home", content = { blocks = { block } } },
+    } }
+    QB.nui.registerApp(definition)
+    QB.nui.openApp(definition.id)
+    local sent = sentMessages[#sentMessages].data.payload.app.navigation[1].content.blocks[1]
+    harness.assertEqual(sent.cardStyle, "media", "the browser should receive the selected card style")
+    harness.assertEqual(sent.columns, 3, "the browser should receive the maximum grid columns")
+    respond(lastRequestId(), lastToken(), true, { closed = true })
+
+    block.cardStyle = "compact"
+    harness.assertEqual(QB.nui.registerApp(definition), definition.id, "explicit compact style remains supported")
+    block.cardStyle = "poster"
+    harness.assertThrows(function() QB.nui.registerApp(definition) end, "unknown card styles must be rejected")
+    block.cardStyle = "media"
+    for _, columns in ipairs({ 0, 5, 1.5, "2", false, math.huge, 0 / 0 }) do
+        block.columns = columns
+        harness.assertThrows(function() QB.nui.registerApp(definition) end, "invalid grid columns must be rejected")
+    end
+    block.columns = 2
+    harness.assertTrue(QB.nui.updateApp(definition.id, { navigation = definition.navigation }), "updates should accept media grids")
+end)
+
 harness.test("registerApp accepts bounded progress graph blocks", function()
     local definition = {
         id = "smoke:progress", title = "Progress", navigation = {

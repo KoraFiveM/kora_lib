@@ -440,7 +440,15 @@ labels, and content remain the consumer's responsibility.
   `searchPlaceholder?`, and `pageSize?`. A cell may be a scalar or
   `{ value?, label?, description?, icon?, tone?, badge? }`.
 - `list`: `id?`, `title?`, `layout = 'list'|'grid'|'cards'`, `searchable?`,
-  `searchPlaceholder?`, `pageSize?`, `scrollable?`, and recursive items. Set
+  `searchPlaceholder?`, `pageSize?`, `scrollable?`, `cardStyle?`, `columns?`,
+  and recursive items. For `grid`/`cards`, `cardStyle = 'compact'` keeps the
+  existing thumbnail card (the default); `'media'` puts a full-width 16:9 image
+  above the badge, title, description, metadata, and action buttons. Without
+  an image, media cards show the icon or first label character instead.
+  `columns` (1-4) sets the maximum grid column count, keeping empty slots when
+  there are fewer items and reducing columns when cards would be narrower
+  than 260px. Omit it for automatic sizing. Both options are ignored in
+  `layout = 'list'`. Set
   content-level `scrollable = false` with a list-level `scrollable = true` when
   the surrounding header and blocks should remain fixed while only the list
   owns vertical overflow. Items support
@@ -460,6 +468,27 @@ labels, and content remain the consumer's responsibility.
 - `empty`: `title`, `description?`, `icon?`
 
 Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.
+
+For a main-page collection with larger artwork:
+
+```lua
+{
+    type = 'list', id = 'events', title = 'Giveaway events',
+    layout = 'cards', cardStyle = 'media', columns = 3,
+    items = {
+        {
+            id = 'halloween', label = 'QBCore Halloween Giveaway',
+            image = 'https://cfx-nui-my-resource/images/halloween.png',
+            badge = 'Scheduled', description = '14 prizes · submissions open',
+            actions = { { id = 'manage-event', label = 'Manage event' } },
+        },
+    },
+}
+```
+
+The owning resource must expose its artwork in its `fxmanifest.lua` files.
+Actions and nested items use the same handlers and context as compact cards.
+
 Button variants are `primary`, `secondary`, `outline`, `ghost`, and
 `destructive`. Set an action's boolean `state` for a toggle: AppShell exposes
 an accessible pressed state and an explicit `On` or `Off` indicator beside the

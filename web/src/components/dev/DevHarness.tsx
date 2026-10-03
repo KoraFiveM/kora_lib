@@ -56,6 +56,8 @@ const SAMPLE_ITEMS: MenuItem[] = [
     { id: "service", label: "Request service" },
 ]
 
+const SAMPLE_EVENT_IMAGE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><rect width="640" height="360" fill="#1b1b1b"/><rect x="48" y="48" width="64" height="8" fill="#dc143c"/><text x="48" y="116" fill="#b8b8b8" font-family="sans-serif" font-size="18">QBCORE COMMUNITY</text><text x="48" y="174" fill="#fafafa" font-family="sans-serif" font-weight="bold" font-size="42">HALLOWEEN</text><text x="48" y="228" fill="#fafafa" font-family="sans-serif" font-weight="bold" font-size="42">GIVEAWAY</text><rect x="48" y="274" width="544" height="2" fill="#3a3a3a"/></svg>')}`
+
 const SAMPLE_APP: AppDefinition = {
     id: "qbmdt:police",
     title: "Mobile Data Terminal",
@@ -169,6 +171,20 @@ const actions: { label: string; run: () => void }[] = [
     {
         label: "App shell",
         run: () => postRequest("openApp", { app: SAMPLE_APP, viewId: "dashboard", data: { unit: "312" } }),
+    },
+    {
+        label: "App shell (media cards)",
+        run: () => postRequest("openApp", { app: {
+            id: "dev:media-cards", title: "Community administration", icon: "Gift",
+            navigation: [{ id: "events", label: "Giveaway dashboard", content: {
+                title: "Giveaway events", description: "Manage giveaways and review community events.",
+                actions: [{ id: "create", label: "Create event", icon: "Plus", variant: "primary" }],
+                blocks: [{ type: "list", layout: "cards", cardStyle: "media", columns: 2, searchable: true, items: [
+                    { id: "halloween", label: "QBCore Halloween Giveaway", image: SAMPLE_EVENT_IMAGE, badge: "Scheduled", description: "14 prizes · 0 entrants · submissions open", actions: [{ id: "manage", label: "Manage event", variant: "outline" }] },
+                    { id: "community", label: "Community event with a longer title that wraps across lines", icon: "Gift", badge: "Draft", description: "A card without artwork, with a disabled action.", actions: [{ id: "publish", label: "Publish event", disabled: true }] },
+                ] }],
+            } }],
+        } satisfies AppDefinition }),
     },
     {
         label: "Notify (every variant)",

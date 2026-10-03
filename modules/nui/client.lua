@@ -415,6 +415,10 @@ local function assertAppContent(content, location, actionIds)
         elseif block.type == "list" then
             assert(block.layout == nil or block.layout == "list" or block.layout == "grid" or block.layout == "cards",
                 blockLocation .. " layout must be 'list', 'grid', or 'cards'.")
+            assert(block.cardStyle == nil or block.cardStyle == "compact" or block.cardStyle == "media",
+                blockLocation .. " cardStyle must be 'compact' or 'media'.")
+            assert(block.columns == nil or (type(block.columns) == "number" and block.columns >= 1 and block.columns <= 4 and block.columns % 1 == 0),
+                blockLocation .. " columns must be an integer from 1 to 4.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
             assert(block.scrollable == nil or type(block.scrollable) == "boolean",
                 blockLocation .. " scrollable must be a boolean.")
