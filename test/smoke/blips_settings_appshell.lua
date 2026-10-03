@@ -12,9 +12,14 @@ dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'local/resources/client.lua')
 
 local sentMessages = {}
-_G.RegisterNUICallback = function() end
+local nuiCallbacks = {}
+local focused = false
+local keepInput = false
+_G.RegisterNUICallback = function(name, handler) nuiCallbacks[name] = handler end
 _G.SendNUIMessage = function(payload) sentMessages[#sentMessages + 1] = payload end
-_G.SetNuiFocus = function() end
+_G.SetNuiFocus = function(mouse, keyboard) focused = mouse or keyboard end
+_G.SetNuiFocusKeepInput = function(value) keepInput = value end
+_G.IsNuiFocusKeepingInput = function() return keepInput end
 _G.QBTheme = { apply = function() end }
 
 dofile(repoRoot .. 'modules/nui/client.lua')
@@ -58,6 +63,16 @@ harness.test('settings definition passes the production AppShell validator', fun
     end
     harness.assertTrue(openMessage ~= nil, 'validated settings app should open through the real NUI module')
     harness.assertEqual(openMessage.data.payload.app.id, 'qblib:blips', 'browser should receive the settings app')
+    harness.assertTrue(focused, 'the opened settings app should acquire input focus')
+    harness.assertTrue(QB.nui.isAppOpen('qblib:blips'), 'the settings app should remain active until the browser closes it')
+
+    nuiCallbacks['qblib:nui:response']({
+        requestId = openMessage.data.requestId, token = openMessage.data.token,
+        ok = true, result = { closed = true, reason = 'close' },
+    }, function() end)
+    harness.assertFalse(focused, 'closing the settings app should release input focus')
+    harness.assertFalse(keepInput, 'closing the settings app should restore game input state')
+    harness.assertFalse(QB.nui.isAppOpen('qblib:blips'), 'closing should clear the settings app session')
 end)
 
 harness.report('blips settings AppShell smoke')

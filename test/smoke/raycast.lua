@@ -239,6 +239,8 @@ local hiddenPrompts = 0
 local markerCalls = 0
 local createdPreview
 local removedPreview
+local previewExists = false
+local nativeRemovedPreview
 local confirmAfterPolls = 1
 local confirmPolls = 0
 local cancelPressed = false
@@ -275,13 +277,21 @@ QB.entities.create = function(model, coords, options)
         coords = coords,
         heading = options.heading,
     }
+    previewExists = true
     return 99
 end
 QB.entities.remove = function(entity)
     removedPreview = entity
+    previewExists = false
     return true
 end
 
+_G.DoesEntityExist = function(entity) return entity == 99 and previewExists end
+_G.SetEntityAsMissionEntity = function() end
+_G.DeleteEntity = function(entity)
+    nativeRemovedPreview = entity
+    previewExists = false
+end
 _G.DrawMarker = function() markerCalls = markerCalls + 1 end
 _G.SetEntityCollision = function() end
 _G.SetEntityAlpha = function() end
@@ -303,6 +313,8 @@ local function resetGrabberMocks()
     markerCalls = 0
     createdPreview = nil
     removedPreview = nil
+    previewExists = false
+    nativeRemovedPreview = nil
     confirmAfterPolls = 1
     confirmPolls = 0
     cancelPressed = false
@@ -367,6 +379,29 @@ harness.test("getCoords uses a heading-only object preview and ignores it on lat
     harness.assertEqual(result.coords.w, 168, "only heading should change while rotate-left is held")
     harness.assertEqual(result.object, "prop_bin_08", "the result should identify the preview model")
     harness.assertEqual(removedPreview, 99, "confirm should remove the temporary preview")
+    harness.assertFalse(previewExists, "confirm must not leave a preview entity alive")
+    harness.assertEqual(nativeRemovedPreview, nil, "an already-removed preview must not be deleted again")
+end)
+
+harness.test("getCoords deletes its preview if the entity helper fails or leaves it alive", function()
+    local remove = QB.entities.remove
+    for _, outcome in ipairs({ "false", "error", "still-alive" }) do
+        resetGrabberMocks()
+        nextResult = { hit = 1, coords = { x = 10, y = 20, z = 30 }, surfaceNormal = { x = 0, y = 0, z = 1 }, entityHit = 0 }
+        QB.entities.remove = function()
+            if outcome == "error" then error("simulated removal failure") end
+            return outcome == "still-alive"
+        end
+        local ok, result = pcall(QB.raycast.getCoords, { type = "object", object = "prop_bin_08" })
+        QB.entities.remove = remove
+
+        harness.assertTrue(ok, "preview fallback cleanup should preserve the coordinate result")
+        harness.assertEqual(result.object, "prop_bin_08", "cleanup should preserve the selected model")
+        harness.assertEqual(nativeRemovedPreview, 99, "the fallback must delete the resource-owned preview")
+        harness.assertFalse(previewExists, "the preview must not survive fallback cleanup")
+        harness.assertEqual(releasedLeases, acquiredLeases, "fallback cleanup must release controls")
+        harness.assertEqual(hiddenPrompts, shownPrompts, "fallback cleanup must hide the prompt")
+    end
 end)
 
 harness.test("getCoords cancels without coordinates when Backspace is released", function()
