@@ -60,7 +60,7 @@ end
 
 local function playerData()
     local ok, data = pcall(function()
-        return exports["qb-core"]:GetPlayerData()
+        return exports.qbcore:getPlayerData()
     end)
 
     return ok and type(data) == "table" and data or nil

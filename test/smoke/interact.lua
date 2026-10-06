@@ -35,8 +35,8 @@ _G.DisablePlayerFiring = function() end
 _G.IsDisabledControlJustPressed = function(_, control) return pressedControls[control] == true end
 
 _G.exports = {
-    ["qb-core"] = {
-        GetPlayerData = function() return player end,
+    qbcore = {
+        getPlayerData = function() return player end,
     },
     ["qb-inventory"] = {
         HasItem = function(_, item) return inventory[item] == true end,
