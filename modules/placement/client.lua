@@ -98,6 +98,10 @@ end
 
 local function releaseStateResources(state)
     clearHeld()
+    if state.dialogRequest then
+        pcall(QB.nui.cancelRequest, state.dialogRequest, { cancelled = true })
+        state.dialogRequest = nil
+    end
 
     if state.controlLease then
         pcall(QB.compat.releaseControlLease, state.controlLease, state.resource)
@@ -127,6 +131,10 @@ local function releaseStateResources(state)
     if state.freecam then
         pcall(state.freecam.stop)
         state.freecam = nil
+    end
+    if state.bounds then
+        pcall(state.bounds.remove)
+        state.bounds = nil
     end
 end
 
@@ -212,6 +220,10 @@ local function openConfirmDialog(state)
     clearHeld()
 
     local ok, response = pcall(function()
+        if state.options.copy == false then
+            state.dialogRequest = QB.nui.requestAsync('openAlert', { title = 'Confirm placement', message = 'Save this object at its current position and rotation?' }, false, state.resource, true)
+            return Citizen.Await(state.dialogRequest)
+        end
         return QB.nui.withFocus(true, true, function()
             return Citizen.Await(QB.nui.request("placement:confirm", {
                 model = tostring(state.model),
@@ -222,6 +234,7 @@ local function openConfirmDialog(state)
 
     if activeState ~= state then return end
     state.dialogOpen = false
+    state.dialogRequest = nil
 
     if not ok then
         rejectState(state, ("Placement summary failed: %s"):format(tostring(response)))
@@ -229,6 +242,47 @@ local function openConfirmDialog(state)
     end
 
     if response and response.confirmed then resolveState(state, result) end
+end
+
+local function inBounds(state, coords)
+    return not state.bounds or state.bounds.contains(coords)
+end
+
+local function setPosition(state, coords)
+    if not inBounds(state, coords) then return false end
+    state.coords = plainVec3(coords)
+    SetEntityCoordsNoOffset(state.entity, coords.x, coords.y, coords.z, false, false, false)
+    state.forceHud = true
+    return true
+end
+
+local function numericInput(state)
+    if activeState ~= state or state.dialogOpen then return end
+    state.dialogOpen = true
+    clearHeld()
+    local ok, response = pcall(function()
+        state.dialogRequest = QB.nui.requestAsync('openInputDialog', { title = 'Adjust object placement', fields = {
+            { id = 'coords', label = 'Position', type = 'vector', dimensions = 3, required = true, default = plainVec3(state.coords) },
+            { id = 'rotation', label = 'Rotation (pitch, roll, yaw)', type = 'vector', dimensions = 3, required = true,
+                default = { x = state.rotation.pitch, y = state.rotation.roll, z = state.rotation.yaw } },
+        } }, false, state.resource, true)
+        return Citizen.Await(state.dialogRequest)
+    end)
+    if activeState ~= state then return end
+    state.dialogOpen = false
+    state.dialogRequest = nil
+    if not ok then rejectState(state, response); return end
+    if not response or response.cancelled then return end
+    local values = response.values
+    if type(values) ~= 'table' then return end
+    local valid = pcall(function() assertVec3(values.coords, 'Position'); assertVec3(values.rotation, 'Rotation') end)
+    if not valid or not setPosition(state, values.coords) then
+        QB.notify.send({ message = 'Placement must stay inside the allowed property boundary.', type = 'error' })
+        return
+    end
+    state.raycast = false
+    state.rotation = { pitch = values.rotation.x, roll = values.rotation.y, yaw = values.rotation.z }
+    SetEntityRotation(state.entity, state.rotation.pitch, state.rotation.roll, state.rotation.yaw, ROTATION_ORDER, true)
 end
 
 
@@ -243,6 +297,7 @@ local function updateEntityPlacement(state, multiplier)
     local upInput = movementInput("up", "down")
 
     if forwardInput ~= 0 or rightInput ~= 0 or upInput ~= 0 then
+        state.raycast = false
         local yaw = math.rad(state.camYaw)
         local forwardX, forwardY = -math.sin(yaw), math.cos(yaw)
         local rightX, rightY = math.cos(yaw), math.sin(yaw)
@@ -253,10 +308,7 @@ local function updateEntityPlacement(state, multiplier)
         if length > 1.0 then dx, dy, dz = dx / length, dy / length, dz / length end
 
         local distance = Config.placement.moveSpeed * multiplier * GetFrameTime()
-        state.coords.x = state.coords.x + dx * distance
-        state.coords.y = state.coords.y + dy * distance
-        state.coords.z = state.coords.z + dz * distance
-        SetEntityCoordsNoOffset(state.entity, state.coords.x, state.coords.y, state.coords.z, false, false, false)
+        setPosition(state, { x = state.coords.x + dx * distance, y = state.coords.y + dy * distance, z = state.coords.z + dz * distance })
     end
 
     local rotationInput = movementInput("rotateRight", "rotateLeft")
@@ -281,6 +333,10 @@ local function ensurePlacementThread(state)
                     local rotation = state.freecam.getRotation()
                     if rotation then state.camYaw = rotation.yaw end
                     updateEntityPlacement(state, multiplier)
+                    if state.raycast then
+                        local hit, coords = QB.raycast.fromCam(state.freecam.getCamera(), Config.placement.raycastDistance, nil, state.entity)
+                        if activeState == state and hit then setPosition(state, coords) end
+                    end
                 end
 
                 local now = GetGameTimer()
@@ -332,7 +388,7 @@ end
 local function updatePlacementInstructions(state)
     if not state.instructions then return end
     local movementLabel = state.movementMode == "camera" and "Camera" or "Grid"
-    state.instructions.setButtons({
+    local buttons = {
         { control = 32, label = "Move camera forward" },
         { control = 33, label = "Move camera backward" },
         { control = 34, label = "Move camera left" },
@@ -347,7 +403,10 @@ local function updatePlacementInstructions(state)
         { keybind = bindingHandles.cycle, label = "Rotation axis: " .. ROTATION_AXES[state.axisIndex] },
         { keybind = bindingHandles.confirm, label = "Confirm" },
         { keybind = bindingHandles.cancel, label = "Cancel" },
-    })
+    }
+    if state.options.numericInput then buttons[#buttons + 1] = { keybind = bindingHandles.numeric, label = 'Numeric position / rotation' } end
+    if state.options.raycast ~= nil then buttons[#buttons + 1] = { keybind = bindingHandles.raycast, label = 'Toggle surface placement' } end
+    state.instructions.setButtons(buttons)
 end
 
 
@@ -356,9 +415,19 @@ end
 ---and returns its settled result because Cfx cannot marshal a promise table.
 ---@param model string | number
 ---@return QBPlacementResult | promise | nil
-function QB.placement.start(model)
+function QB.placement.start(model, options)
     local invokingResource = GetInvokingResource()
     local externalCaller = invokingResource ~= nil
+    options = options or {}
+    assert(type(options) == 'table', 'Placement options must be a table.')
+    for _, name in ipairs({ 'raycast', 'numericInput', 'copy' }) do
+        assert(options[name] == nil or type(options[name]) == 'boolean', 'Placement ' .. name .. ' must be a boolean.')
+    end
+    if options.coords then assertVec3(options.coords, 'Placement initial coordinates') end
+    if options.rotation then
+        assert(type(options.rotation) == 'table' and QB.util.isFiniteNumber(options.rotation.pitch)
+            and QB.util.isFiniteNumber(options.rotation.roll) and QB.util.isFiniteNumber(options.rotation.yaw), 'Placement rotation requires finite pitch, roll and yaw.')
+    end
 
     if Config.placement.enabled == false then
         return rejectedForCaller("Entity placement is disabled on this server (Config.placement.enabled).",
@@ -391,6 +460,8 @@ function QB.placement.start(model)
         radarWasHidden = type(IsRadarHidden) == "function" and IsRadarHidden() or false,
         movementMode = "camera",
         instructions = nil,
+        options = options,
+        raycast = options.raycast == true,
     }
     startingState = state
 
@@ -399,8 +470,14 @@ function QB.placement.start(model)
 
         local gameplayCamCoord = GetGameplayCamCoord()
         local gameplayCamRot = GetGameplayCamRot(ROTATION_ORDER)
-        local hit, coords = QB.raycast.fromCamera(Config.placement.raycastDistance)
+        local hit, coords
+        if options.coords then hit, coords = true, options.coords else hit, coords = QB.raycast.fromCamera(Config.placement.raycastDistance) end
         assert(hit and coords, "Aim at a solid surface before starting entity placement.")
+        if options.bounds then
+            assert(type(options.bounds) == 'table', 'Placement bounds must be a polygon definition.')
+            state.bounds = QB.zones.poly({ points = options.bounds.points, minZ = options.bounds.minZ, maxZ = options.bounds.maxZ, trackPlayer = false })
+            assert(state.bounds.contains(coords), 'Initial placement is outside the property boundary.')
+        end
         assert(not state.aborted, "The placement owner stopped while placement was starting.")
 
         local entity, createErr = QB.entities.create(model, coords, {
@@ -412,10 +489,11 @@ function QB.placement.start(model)
         assert(not state.aborted, "The placement owner stopped while the preview was loading.")
 
         state.coords = plainVec3(coords)
-        state.rotation = { pitch = 0.0, roll = 0.0, yaw = normalizeSignedAngle(gameplayCamRot.z) }
+        local rotation = options.rotation or { pitch = 0.0, roll = 0.0, yaw = normalizeSignedAngle(gameplayCamRot.z) }
+        state.rotation = { pitch = rotation.pitch, roll = rotation.roll, yaw = rotation.yaw }
         SetEntityCollision(entity, false, false)
         SetEntityAlpha(entity, Config.placement.previewAlpha, false)
-        SetEntityRotation(entity, 0.0, 0.0, state.rotation.yaw, ROTATION_ORDER, true)
+        SetEntityRotation(entity, state.rotation.pitch, state.rotation.roll, state.rotation.yaw, ROTATION_ORDER, true)
 
         state.controlLease = QB.compat.acquireControls(PLACEMENT_CONTROLS, nil, state.resource)
         startCamera(state, gameplayCamCoord, gameplayCamRot)
@@ -447,6 +525,17 @@ end
 ---@return boolean
 function QB.placement.isActive()
     return activeState ~= nil or startingState ~= nil
+end
+
+---Cancels only the invoking resource's placement and settles its result as nil.
+---@return boolean, string?
+function QB.placement.cancel()
+    local state = activeState or startingState
+    if not state then return true end
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    if state.resource ~= owner then return false, 'Another resource owns the active placement.' end
+    resolveState(state, nil)
+    return true
 end
 
 
@@ -516,6 +605,23 @@ bindingHandles.movement = QB.keybind.add({
         activeState.movementMode = activeState.movementMode == "camera" and "grid" or "camera"
         activeState.freecam.setMovementMode(activeState.movementMode)
         updatePlacementInstructions(activeState)
+    end,
+})
+
+bindingHandles.numeric = QB.keybind.add({
+    name = 'qblib_placement_numeric', description = 'Entity Placement: Numeric Position and Rotation', defaultMapper = 'keyboard', defaultKey = 'N',
+    onPressed = function()
+        if activeState and activeState.options.numericInput then numericInput(activeState) end
+    end,
+})
+
+bindingHandles.raycast = QB.keybind.add({
+    name = 'qblib_placement_raycast', description = 'Entity Placement: Toggle Surface Placement', defaultMapper = 'keyboard', defaultKey = 'R',
+    onPressed = function()
+        if activeState and activeState.options.raycast ~= nil and not activeState.dialogOpen then
+            activeState.raycast = not activeState.raycast
+            activeState.forceHud = true
+        end
     end,
 })
 

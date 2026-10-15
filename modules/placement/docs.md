@@ -4,7 +4,26 @@
 vehicle, or object model and copying its transform. It creates one temporary,
 non-networked preview and always deletes it when the session finishes.
 
-## `QB.placement.start(model)`
+## `QB.placement.start(model, options?)`
+
+Optional gameplay settings preserve the default developer tool:
+
+```lua
+local result = QB.placement.start(model, {
+    coords = saved.coords,
+    rotation = saved.rotation,
+    bounds = { points = boundary, minZ = floor, maxZ = ceiling },
+    raycast = true, numericInput = true, copy = false,
+})
+```
+
+The bounds constrain initial, keyboard, raycast and numeric positioning. R
+toggles surface placement; keyboard or numeric movement disables snapping for
+fine adjustments. N opens the existing shared numeric vector form. `copy =
+false` uses a shared confirmation dialog and returns the same transform without
+writing the clipboard. Server-side consumers must still authorize the model,
+boundary, transform and placement count. Owning-resource stop also cancels any
+numeric/confirmation request and releases its focus.
 
 Starts at the solid surface currently under the gameplay-camera crosshair. The
 model is validated and streamed through qblib's existing entity helpers. A
@@ -69,6 +88,9 @@ mode and active rotation axis; the NUI HUD is reserved for transform state.
 
 - `QB.placement.isActive()` reports startup, active editing, and camera
   transition teardown. It is exported as `placement_isActive` automatically.
+- `QB.placement.cancel()` releases the invoking resource's active preview,
+  camera, controls and dialogs, and returns its pending placement result as
+  `nil`. It returns `false, reason` when another resource owns the placement.
 - `QB.placement.generateSnippet(result)` formats a ready-to-paste Lua table at
   four decimal places without rounding the returned result itself. Every
   coordinate, heading, and rotation component must be finite.

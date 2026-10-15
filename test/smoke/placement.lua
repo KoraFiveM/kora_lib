@@ -188,6 +188,8 @@ QB.nui = {
     end,
     withFocus = function(_, _, fn) return fn() end,
 }
+QB.nui.requestAsync = function(action, data) return QB.nui.request(action, data) end
+QB.nui.cancelRequest = function(request, response) request:resolve(response); return true end
 
 local notifications = {}
 QB.notify = {
@@ -486,6 +488,64 @@ harness.test("stopping the owning resource cancels and deletes its preview", fun
     end
     harness.assertTrue(sentClose, "owner stop should close any focus-owning placement summary")
     finishCameraTransition()
+end)
+
+harness.test("gameplay placement uses an initial transform, shared numeric fields, bounds and confirmation without clipboard", function()
+    local removedBounds = false
+    QB.zones.poly = function()
+        return { contains = function(coords) return coords.x >= 0 and coords.x <= 20 end, remove = function() removedBounds = true end }
+    end
+    local p = QB.placement.start(OBJECT_MODEL, { coords = { x = 2, y = 3, z = 4 }, rotation = { pitch = 1, roll = 2, yaw = 3 },
+        bounds = { points = {}, minZ = 0, maxZ = 100 }, numericInput = true, copy = false })
+    local entity = lastEntity
+    harness.assertEqual(entities[entity].coords.x, 2, "existing furniture starts at its saved position")
+    harness.assertEqual(entities[entity].rotation.x, 1, "existing furniture keeps its full rotation")
+    nextNuiResponse = { values = { coords = { x = 8, y = 9, z = 10 }, rotation = { x = 11, y = 12, z = 13 } } }
+    tap('numeric')
+    harness.assertEqual(entities[entity].coords.x, 8, "numeric position applies through the shared form")
+    harness.assertEqual(entities[entity].rotation.y, 12, "numeric rotation keeps roll")
+    nextNuiResponse = { values = { coords = { x = 99, y = 9, z = 10 }, rotation = { x = 0, y = 0, z = 0 } } }
+    tap('numeric')
+    harness.assertEqual(entities[entity].coords.x, 8, "numeric entry cannot leave the configured bounds")
+    nextNuiResponse = { confirmed = true }
+    tap('confirm')
+    nextNuiResponse = nil
+    harness.assertEqual(nuiRequests[#nuiRequests].action, 'openAlert', "gameplay uses the shared confirmation without a clipboard operation")
+    harness.assertEqual(p.state, 'resolved')
+    harness.assertEqual(p.value.rotation.roll, 12)
+    harness.assertTrue(removedBounds, "placement releases its temporary boundary")
+    finishCameraTransition()
+end)
+
+harness.test('only the placement owner may cancel a delegated workflow', function()
+    currentResource = 'housing_consumer'
+    local p = QB.placement.start(OBJECT_MODEL)
+    local entity = lastEntity
+    currentResource = 'unrelated_consumer'
+    harness.assertFalse(QB.placement.cancel(), 'another resource cannot cancel the active placement')
+    harness.assertEqual(p.state, 'pending')
+    currentResource = 'housing_consumer'
+    harness.assertTrue(QB.placement.cancel())
+    harness.assertEqual(p.state, 'resolved')
+    harness.assertEqual(p.value, nil)
+    harness.assertEqual(entities[entity], nil, 'owner cancellation removes the preview immediately')
+    finishCameraTransition()
+    currentResource = 'qblib_test'
+end)
+
+harness.test("surface placement follows the scripted camera and stays bounded", function()
+    local p = QB.placement.start(OBJECT_MODEL, { coords = { x = 2, y = 3, z = 4 }, raycast = true,
+        bounds = { points = {}, minZ = 0, maxZ = 100 } })
+    local entity = lastEntity
+    harness.assertEqual(entities[entity].coords.x, rayCoords.x, "surface placement uses the scripted camera hit")
+    tap('raycast')
+    local before = entities[entity].coords.x
+    rayCoords.x = 12
+    net.step()
+    harness.assertEqual(entities[entity].coords.x, before, "surface placement can be disabled for fine adjustment")
+    rayCoords.x = 10
+    cancelPlacement()
+    harness.assertEqual(p.state, 'resolved')
 end)
 
 harness.test("qblib stop performs immediate camera, entity, HUD, radar, and freeze cleanup", function()

@@ -1426,9 +1426,18 @@
 ---@field rotation QBPlacementRotation
 
 ---@class QBLibPlacement
----@field start fun(model: string|integer): QBPlacementResult|promise|nil [client]
+---@field cancel fun(): boolean, string? [client] Cancels only the invoking resource's placement; settles its pending result as nil.
+---@field start fun(model: string|integer, options?: QBPlacementOptions): QBPlacementResult|promise|nil [client]
 ---@field isActive fun(): boolean [client]
 ---@field generateSnippet fun(result: QBPlacementResult): string [client]
+
+---@class QBPlacementOptions
+---@field coords? QBCoords Initial transform for moving an existing placement.
+---@field rotation? QBPlacementRotation
+---@field bounds? {points: QBCoords[], minZ: number, maxZ: number} Allowed polygon; local placement is constrained but the server must validate again.
+---@field raycast? boolean Enables surface snapping from the scripted camera; R toggles it and manual movement disables it.
+---@field numericInput? boolean N opens shared numeric position/rotation fields.
+---@field copy? boolean Defaults to true; false uses a gameplay confirmation without copying a Lua snippet.
 
 ---@class QBFreecamOptions
 ---@field coords? QBCoords
