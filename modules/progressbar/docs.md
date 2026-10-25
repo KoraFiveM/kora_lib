@@ -100,3 +100,35 @@ Returns `true` while a progress bar started by this module is currently running.
 - Props are non-networked local entities, so they work under strict entity lockdown and cannot become shared world state. They are detached and deleted on completion, cancellation, internal errors, or resource shutdown. If nearby players must see a gameplay prop, its owning server resource must create and lifecycle-manage it separately.
 - Combat and vehicle suppression use reference-counted `QB.controls` leases, so they can overlap other qblib input owners without releasing those owners' controls.
 - The NUI side (`web/src/components/progressbar/ProgressBar.tsx`) is fire-and-forget: `QB.nui.send("progressStart", { label, duration })` starts its own CSS fill animation timed to `duration` and hides itself when that finishes; `QB.nui.send("progressCancel")` (no payload) hides it immediately for every early-exit path. Lua's own timing is authoritative either way — the NUI never reports back.
+
+
+## Legacy `progressbar` resource
+
+qblib provides the five exports and six events from
+`qbcore-framework/progressbar` commit `6e9381de6637bd443a8eaf1a6da0d339d8cebb15`:
+`Progress`, `ProgressWithStartEvent`, `ProgressWithTickEvent`,
+`ProgressWithStartAndTick`, and `isDoingSomething`. The four start variants also
+accept their `progressbar:client:*` events (`progress` is lowercase).
+`progressbar:client:cancel` cancels the current legacy bar;
+`progressbar:client:ToggleBusyness` gates starts and can end a running bar.
+Finish callbacks receive `cancelled`, and can start the next bar. Busy/dead
+starts do not call callbacks. No sequence export exists at this pinned version.
+
+Animation/task, both props, all four control-disable groups, Escape cancellation,
+and `inv_busy` are translated. Resource shutdown releases owned state and does
+not call callbacks into the stopped resource. Existing `inv_busy=true` is restored.
+Native timing owns completion; the old `FinishAction` NUI callback is not exposed.
+Legacy props opt into upstream's networked creation/visibility flags and disable
+owner migration; the same session owns deletion on completion, cancellation,
+failure and resource stop. Native calls still create local props by default.
+Do not run the original progressbar resource alongside qblib's provider.
+
+`QB.progressbar.start(payload, owner?, hooks?)` accepts internal compatibility
+hooks `onStart`, `onTick`, and `isFinished`, plus `networkedProps`; hooks run in the existing native
+session and all cleanup/error handling remains in that session.
+
+For core forwarding only, `Progress(action, finish, owner?)` accepts the captured
+original resource name as its third argument, honoured only when the actual
+invoking resource is `qbcore`. A core adapter must capture that
+name before crossing the qblib export boundary so stop/cancel cleanup belongs to
+the actual caller. Ordinary legacy callers omit it.

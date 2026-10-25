@@ -14,6 +14,9 @@ local rateBuckets = {}
 local isInteger = QB.util.isInteger
 local MAX_RATE_LIMIT = 10000
 local MAX_RATE_WINDOW = 86400000
+-- A client handshakes once per session; anything faster is abuse of the
+-- token issuer (each reply is a network event back to the sender).
+local HANDSHAKE_LIMIT = { max = 5, window = 60000 }
 
 local function normalizeRateLimit(opts)
     if opts == nil then return nil end
@@ -149,6 +152,7 @@ RegisterNetEvent(events.handshake, function()
         or src == math.huge or src == -math.huge then
         return
     end
+    if not consumeRateLimit(events.handshake, src, HANDSHAKE_LIMIT) then return end
     local token = generateToken()
 
     tokens[src] = token

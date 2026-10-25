@@ -117,6 +117,7 @@ function _G.CreateObjectNoOffset(hash, x, y, z, networked, mission, door)
     createdObjects[index].entity = nextEntity
     return nextEntity
 end
+_G.CreateObject = _G.CreateObjectNoOffset
 function _G.DoesEntityExist(entity) return entityExists[entity] == true end
 function _G.SetEntityAsMissionEntity(entity, scriptHost, grab)
     networkCalls[#networkCalls + 1] = { native = "mission", entity = entity, scriptHost = scriptHost, grab = grab }
@@ -667,6 +668,156 @@ harness.test("only the initiating resource can cancel an active bar", function()
         "the initiating resource should be able to cancel its bar")
     mockHandle.step()
     harness.assertFalse(result, "the owner's cancellation should settle the bar as incomplete")
+end)
+
+local legacyExports = {}
+QB.compat.provideExport = function(identity, name, callback)
+    harness.assertEqual(identity, 'progressbar')
+    legacyExports[name] = callback
+end
+LocalPlayer = { state = { inv_busy = false } }
+function LocalPlayer.state:set(key, value) self[key] = value end
+dofile(repoRoot .. 'compat/client/progressbar.lua')
+
+harness.test('legacy progress exports preserve callbacks, busy rejection and sequential bars', function()
+    reset()
+    local started, ticks, finished, rejected = 0, 0, {}, false
+    legacyExports.ProgressWithStartAndTick({ label = 'First', duration = 5000,
+        controlDisables = { disableMovement = true, disableCombat = true } },
+        function() started = started + 1 end, function() ticks = ticks + 1 end,
+        function(cancelled)
+            finished[#finished + 1] = cancelled
+            legacyExports.Progress({ label = 'Second', duration = 5000 }, function(value) finished[#finished + 1] = value end)
+        end)
+    harness.assertTrue(legacyExports.isDoingSomething())
+    harness.assertTrue(LocalPlayer.state.inv_busy)
+    harness.assertEqual(started, 1)
+    legacyExports.Progress({ label = 'Rejected', duration = 10 }, function() rejected = true end)
+    harness.assertFalse(rejected)
+    mockHandle.fire('progressbar:client:ToggleBusyness', false)
+    mockHandle.step()
+    harness.assertEqual(finished[1], false)
+    harness.assertTrue(legacyExports.isDoingSomething(), 'a finish callback can start the next bar')
+    mockHandle.fire('progressbar:client:cancel')
+    mockHandle.step()
+    harness.assertEqual(finished[2], true)
+    harness.assertFalse(legacyExports.isDoingSomething())
+    harness.assertFalse(LocalPlayer.state.inv_busy)
+    harness.assertTrue(ticks > 0)
+end)
+
+harness.test('legacy events preserve dead guard, custom props and scenario, mouse and busy toggle', function()
+    reset()
+    dead = true
+    local called = false
+    legacyExports.Progress({ label = 'Dead', duration = 50 }, function() called = true end)
+    harness.assertFalse(called)
+    harness.assertFalse(legacyExports.isDoingSomething())
+    dead = false
+    mockHandle.fire('progressbar:client:ToggleBusyness', true)
+    harness.assertTrue(legacyExports.isDoingSomething())
+    mockHandle.fire('progressbar:client:ToggleBusyness', false)
+    mockHandle.fire('progressbar:client:ProgressWithStartEvent', { label = 'Scenario', duration = 5000,
+        animation = { task = 'WORLD_HUMAN_HAMMERING' },
+        controlDisables = { disableMouse = true }, prop = { model = 'prop_one' }, propTwo = { model = 'prop_two' } },
+        function() called = true end, function() end)
+    harness.assertTrue(called)
+    harness.assertEqual(#createdObjects, 2)
+    harness.assertEqual(scenarioCalls[#scenarioCalls].name, 'WORLD_HUMAN_HAMMERING')
+    harness.assertTrue(createdObjects[1].networked)
+    harness.assertTrue(attachCalls[1][10], 'legacy props preserve the upstream attachment flag')
+    harness.assertEqual(#networkCalls, 6, 'both legacy props configure network visibility and ownership')
+    mockHandle.fire('progressbar:client:cancel')
+    mockHandle.step()
+    harness.assertFalse(legacyExports.isDoingSomething())
+    harness.assertEqual(#deletedEntities, 2, 'cancel deletes both owned networked props')
+end)
+
+harness.test('legacy owner shutdown restores inventory state and suppresses stale callbacks', function()
+    reset()
+    LocalPlayer.state.inv_busy = true
+    _G.GetInvokingResource = function() return 'legacy_owner' end
+    local called = false
+    legacyExports.ProgressWithTickEvent({ label = 'Owned', duration = 5000 }, function() end, function() called = true end)
+    _G.GetInvokingResource = function() return nil end
+    mockHandle.fire('onClientResourceStop', 'legacy_owner')
+    mockHandle.step()
+    harness.assertFalse(called)
+    harness.assertFalse(legacyExports.isDoingSomething())
+    harness.assertTrue(LocalPlayer.state.inv_busy)
+    LocalPlayer.state.inv_busy = false
+end)
+
+harness.test('core forwarding preserves the original resource owner', function()
+    reset()
+    local finished = false
+    _G.GetInvokingResource = function() return 'qbcore' end
+    legacyExports.Progress({ label = 'Core forwarded', duration = 5000, prop = { model = 'prop_one' } }, function() finished = true end, 'original_job')
+    _G.GetInvokingResource = function() return nil end
+    mockHandle.fire('onClientResourceStop', 'original_job')
+    mockHandle.step()
+    harness.assertFalse(legacyExports.isDoingSomething())
+    harness.assertFalse(finished)
+    harness.assertEqual(#deletedEntities, 1, 'owner stop deletes its networked prop')
+end)
+
+harness.test('ordinary callers cannot spoof a progress owner', function()
+    reset()
+    _G.GetInvokingResource = function() return 'real_consumer' end
+    legacyExports.Progress({ label = 'Owned', duration = 5000 }, nil, 'spoofed_owner')
+    _G.GetInvokingResource = function() return nil end
+    mockHandle.fire('onClientResourceStop', 'spoofed_owner')
+    harness.assertTrue(legacyExports.isDoingSomething())
+    mockHandle.fire('onClientResourceStop', 'real_consumer')
+    mockHandle.step()
+    harness.assertFalse(legacyExports.isDoingSomething())
+end)
+
+harness.test('a queued legacy bar cannot start after its owner stops', function()
+    reset()
+    local createThread, invoking = CreateThread, GetInvokingResource
+    local queued, callbacks = {}, 0
+    _G.CreateThread = function(callback) queued[#queued + 1] = callback end
+    _G.GetInvokingResource = function() return 'queued_owner' end
+    legacyExports.Progress({ label = 'Queued', duration = 5000,
+        controlDisables = { disableMovement = true, disableCombat = true },
+        prop = { model = 'prop_one' } }, function() callbacks = callbacks + 1 end)
+    _G.CreateThread, _G.GetInvokingResource = createThread, invoking
+    harness.assertTrue(LocalPlayer.state.inv_busy)
+    mockHandle.fire('onClientResourceStop', 'queued_owner')
+    harness.assertFalse(LocalPlayer.state.inv_busy)
+    harness.assertFalse(legacyExports.isDoingSomething())
+    for _, callback in ipairs(queued) do createThread(callback) end
+    mockHandle.step()
+    harness.assertFalse(QB.progressbar.isActive(), 'a stopped owner cannot acquire a new native bar')
+    harness.assertFalse(legacyExports.isDoingSomething())
+    harness.assertFalse(LocalPlayer.state.inv_busy)
+    harness.assertEqual(#createdObjects, 0, 'a stopped owner cannot spawn props')
+    harness.assertEqual(callbacks, 0, 'a stopped owner cannot receive stale callbacks')
+    harness.assertTrue(next(disabledControls) == nil, 'no orphaned control lease is acquired')
+end)
+
+harness.test('cancelling a queued legacy bar settles without starting it', function()
+    reset()
+    local createThread = CreateThread
+    local queued, finishes, cancelled = {}, 0, nil
+    _G.CreateThread = function(callback) queued[#queued + 1] = callback end
+    legacyExports.Progress({ label = 'Queued cancellation', duration = 5000,
+        controlDisables = { disableMovement = true, disableCombat = true },
+        prop = { model = 'prop_one' } }, function(value)
+            finishes, cancelled = finishes + 1, value
+        end)
+    _G.CreateThread = createThread
+    mockHandle.fire('progressbar:client:cancel')
+    for _, callback in ipairs(queued) do createThread(callback) end
+    mockHandle.step()
+    harness.assertEqual(finishes, 1)
+    harness.assertTrue(cancelled)
+    harness.assertFalse(QB.progressbar.isActive())
+    harness.assertFalse(legacyExports.isDoingSomething())
+    harness.assertFalse(LocalPlayer.state.inv_busy)
+    harness.assertEqual(#createdObjects, 0)
+    harness.assertTrue(next(disabledControls) == nil, 'cancelled queued actions never acquire controls')
 end)
 
 harness.report("progressbar")

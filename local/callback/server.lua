@@ -18,6 +18,9 @@ local requestCounter = 0
 local isInteger = QB.util.isInteger
 local MAX_RATE_LIMIT = 10000
 local MAX_RATE_WINDOW = 86400000
+-- A client handshakes once per session; anything faster is abuse of the
+-- token issuer (each reply is a network event back to the sender).
+local HANDSHAKE_LIMIT = { max = 5, window = 60000 }
 
 local function normalizeRateLimit(opts)
     if opts == nil then return nil end
@@ -227,6 +230,7 @@ RegisterNetEvent(events.handshake, function()
         or src == math.huge or src == -math.huge then
         return
     end
+    if not consumeRateLimit(events.handshake, src, HANDSHAKE_LIMIT) then return end
     local token = generateToken()
 
     tokens[src] = token
@@ -270,6 +274,17 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     -- return as its first value.
     local results = table.pack(pcall(definition.handler, src, ...))
     local ok = results[1]
+
+    if not ok then
+        -- Handlers run on untrusted client input, so a raised error is logged
+        -- for the server owner rather than vanishing. Only the message goes
+        -- back to the client: the leading "path/file.lua:123: " position is
+        -- dropped so internal paths and line numbers are not disclosed.
+        print(("[qblib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
+        if type(results[2]) == 'string' then
+            results[2] = (results[2]:gsub('^[^%s:]+%.lua:%d+: ', '', 1))
+        end
+    end
 
     TriggerClientEvent(events.response, src, requestId, ok, table.unpack(results, 2, results.n))
 end)

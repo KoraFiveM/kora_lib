@@ -185,4 +185,36 @@ H.test('an on-demand read discovers a resource whose announcement raced startup'
     H.assertTrue(entry.values.enabled)
 end)
 
+H.test('own bootstrap survives a resource-driven restart without granting callers ownership', function()
+    invoker = 'qbcompat-control'
+    _G.GetCurrentResourceName = function() return 'qblib' end
+    _G.IsDuplicityVersion = function() return true end
+    _G.GetNumResources = function() return 0 end
+    _G.LoadResourceFile = function(resource, path)
+        H.assertEqual(resource, 'qblib')
+        if path ~= 'modules/config/consumer.lua' then return nil end
+        local file = assert(io.open(repoRoot .. path, 'r'))
+        local contents = file:read('*a')
+        file:close()
+        return contents
+    end
+    local owned = {}
+    _G.exports = setmetatable({}, { __call = function(_, name, fn) owned[name] = fn end })
+    _G.Config = { enabled = true, discord = { secret = 'server-only' } }
+    dofile(repoRoot .. 'modules/config/server.lua')
+    local catalog = QB.config.catalog()
+    H.assertEqual(#catalog, 1)
+    H.assertEqual(catalog[1].resource, 'qblib')
+    H.assertTrue(Config.enabled)
+    local snapshot = owned.qblib_configRead()
+    H.assertEqual(snapshot.client.discord, nil)
+    H.assertEqual(snapshot.configured.discord.secret, 'server-only')
+    H.assertThrows(function()
+        QB.config.register({ resource = 'qblib', schema = {}, configured = {}, client = {}, revision = 1 })
+    end)
+    H.assertTrue(QB.config.register({
+        resource = 'qbcompat-control', schema = {}, configured = {}, client = {}, revision = 1,
+    }))
+end)
+
 H.report('config_registry')

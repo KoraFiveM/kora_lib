@@ -36,4 +36,23 @@ harness.test('internal token generation stays opaque and validates length', func
     harness.assertThrows(function() QB.compat.generateToken(0) end)
 end)
 
+harness.test('internal token generation does not repeat and works without os', function()
+    local seen = {}
+    for _ = 1, 200 do
+        local token = QB.compat.generateToken(24)
+        harness.assertEqual(#token, 24)
+        harness.assertFalse(seen[token], 'tokens must not repeat')
+        seen[token] = true
+    end
+
+    -- The client realm has no os library; stirring must still work there.
+    local realOs = os
+    os = nil
+    local ok, token = pcall(QB.compat.generateToken, 16)
+    os = realOs
+    harness.assertTrue(ok, 'token generation must not raise without os')
+    harness.assertEqual(#token, 16)
+    harness.assertTrue(token:match('^[%w]+$') ~= nil)
+end)
+
 harness.report('internal compatibility')

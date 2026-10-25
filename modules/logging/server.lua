@@ -45,6 +45,9 @@ function QB.logging.event(category, src, data)
         local payloadEncoded, payload = pcall(json.encode, {
             username = resource,
             content = content,
+            -- Log data routinely contains player-supplied text (names, chat,
+            -- reasons); without this a crafted "@everyone" would ping the channel.
+            allowed_mentions = { parse = {} },
         })
         if not payloadEncoded then
             print(('[qblib:logging] webhook envelope for %q could not be encoded: %s'):format(category, tostring(payload)))

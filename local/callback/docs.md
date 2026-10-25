@@ -125,7 +125,7 @@ removing its own name and `false` when the name belongs to another resource.
   and names before it looks up local pending/registered state.
 - One handler per name per realm: registering a name another resource already claimed replaces it and logs a warning naming both resources. Namespace your names (`inventory:hasItem`, not `check`). Re-registering your own name — what happens on a resource restart — is normal and silent.
 - The client-side and server-side callback registries are independent — a client `QB.callback.register('foo', ...)` and a server `QB.callback.register('foo', ...)` don't collide, since they only ever answer requests coming from the other side.
-- A handler can return more than one value — all of them are sent back to the caller, in order. Only genuine Lua errors (an uncaught `error(...)` inside the handler) reject the promise instead; a deliberate `return false, "reason"` is just the handler's own return values like any other.
+- A handler can return more than one value — all of them are sent back to the caller, in order. Only genuine Lua errors (an uncaught `error(...)` inside the handler) reject the promise instead; a deliberate `return false, "reason"` is just the handler's own return values like any other. A raised error is printed to the server console (callback name, player, full message); the client only receives the message with its leading `file.lua:123: ` position removed, so internal paths and line numbers are not disclosed. The token handshake is limited to 5 answers per player per minute.
 - A callback handler must validate every client-controlled argument plus the
   relevant server-side permission, ownership, distance, cooldown, and current
   state before changing anything valuable.

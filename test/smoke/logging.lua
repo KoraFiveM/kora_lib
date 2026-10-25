@@ -104,6 +104,16 @@ harness.test("event() calls the webhook when qblib_log_webhook is set", function
     harness.assertEqual(httpRequests[1].method, "POST", "the webhook request should be a POST")
 end)
 
+harness.test("event() webhook payload disables mention parsing", function()
+    convars = { qblib_log_webhook = "https://example.invalid/webhook" }
+    httpRequests = {}
+
+    QB.logging.event("chat", 5, { text = "@everyone" })
+
+    harness.assertTrue(httpRequests[1].body:find("allowed_mentions", 1, true) ~= nil,
+        "the webhook payload must carry an allowed_mentions block")
+end)
+
 harness.test("event() falls back to the legacy qbcore_log_webhook convar", function()
     convars = { qbcore_log_webhook = "https://legacy.invalid/webhook" }
     httpRequests = {}

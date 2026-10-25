@@ -20,6 +20,7 @@ dependency 'qbtheme'
 -- through QB.compat.provideExport (see their own header comments).
 provide 'qb-menu'
 provide 'qb-input'
+provide 'progressbar'
 provide 'qb-radialmenu'
 provide 'qb-minigames'
 -- qblib's screenshot module implements screenshot-basic's public exports so
@@ -115,6 +116,7 @@ client_scripts {
     'modules/blips/settings.lua',
     'compat/client/qb-menu.lua',
     'compat/client/qb-input.lua',
+    'compat/client/progressbar.lua',
     'compat/client/qb-radialmenu.lua',
     'compat/client/qb-minigames.lua',
     'compat/client/screenshot-basic.lua',

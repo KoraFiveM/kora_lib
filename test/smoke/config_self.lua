@@ -18,6 +18,7 @@ local previousGlobals = {
     Config = Config,
     exports = exports,
     GetCurrentResourceName = GetCurrentResourceName,
+    GetGameTimer = GetGameTimer,
     GetInvokingResource = GetInvokingResource,
     IsDuplicityVersion = IsDuplicityVersion,
     LoadResourceFile = LoadResourceFile,
@@ -28,6 +29,7 @@ local previousGlobals = {
 }
 
 _G.GetCurrentResourceName = function() return 'qblib' end
+_G.GetGameTimer = function() return 1000 end
 _G.GetInvokingResource = function() return nil end
 _G.IsDuplicityVersion = function() return true end
 _G.LoadResourceFile = function(_, path)
@@ -71,6 +73,13 @@ H.test('qblib self registration withholds its server-only configuration from cli
     H.assertEqual(snapshot.target, 42)
     H.assertEqual(snapshot.values[2].discord, nil)
     H.assertEqual(snapshot.values[4], 1)
+end)
+
+H.test('configuration snapshot requests are rate limited per player', function()
+    _G.source = 43
+    local before = #clientEvents
+    for requestId = 1, 40 do netEvents['qblib:server:configRequested']('qblib', requestId) end
+    H.assertEqual(#clientEvents - before, 30)
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

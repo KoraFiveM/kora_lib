@@ -330,13 +330,23 @@ local function prepareProp(session, definition, index)
             if session.cleaned then return end
 
             local coords = GetEntityCoords(session.ped)
-            entity = CreateObjectNoOffset(hash, coords.x, coords.y, coords.z, false, false, false)
+            if session.networkedProps then
+                entity = CreateObject(hash, coords.x, coords.y, coords.z, true, true, true)
+            else
+                entity = CreateObjectNoOffset(hash, coords.x, coords.y, coords.z, false, false, false)
+            end
             if not entity or entity == 0 or not DoesEntityExist(entity) then
                 error("CreateObjectNoOffset did not return a valid entity.")
             end
 
             session.props[#session.props + 1] = entity
             propRegistry.track(session.owner, entity)
+            if session.networkedProps then
+                local netId = NetworkGetNetworkIdFromEntity(entity)
+                SetNetworkIdExistsOnAllMachines(netId, true)
+                NetworkUseHighPrecisionBlending(netId, true)
+                SetNetworkIdCanMigrate(netId, false)
+            end
 
             local bone = definition.bone or 60309
             local boneIndex = type(bone) == "string"
@@ -349,7 +359,7 @@ local function prepareProp(session, definition, index)
             AttachEntityToEntity(entity, session.ped, boneIndex,
                 offset.x, offset.y, offset.z,
                 rotation.x, rotation.y, rotation.z,
-                false,
+                session.networkedProps == true,
                 definition.softPinning ~= false,
                 definition.collision == true,
                 true,
@@ -383,9 +393,15 @@ end
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean completed
 ---@return string? error
-function QB.progressbar.start(payload, owner)
+function QB.progressbar.start(payload, owner, hooks)
     QB.progressbar.validate(payload)
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
+    if hooks then
+        assert(hooks.networkedProps == nil or type(hooks.networkedProps) == 'boolean', 'Networked props flag must be boolean.')
+        for _, name in ipairs({ 'onStart', 'onTick', 'isFinished' }) do
+            assert(hooks[name] == nil or QB.compat.isCallable(hooks[name]), 'Progress hook must be callable.')
+        end
+    end
     local cancelControls = payload.cancelControls == nil and Config.progressbar.cancelControls or payload.cancelControls
 
     if busy then return false, "A progress bar is already active." end
@@ -394,6 +410,7 @@ function QB.progressbar.start(payload, owner)
         owner = owner or GetInvokingResource() or GetCurrentResourceName(),
         ped = PlayerPedId(),
         props = {},
+        networkedProps = hooks and hooks.networkedProps == true,
         anim = payload.anim,
         cleaned = false,
         cancelRequested = false,
@@ -475,8 +492,15 @@ function QB.progressbar.start(payload, owner)
             position = payload.position,
         })
 
+        if hooks and hooks.onStart then hooks.onStart() end
+        local finishedEarly = false
         local cancelled = QB.loops.controlled(function()
             if session.cleaned or activeSession ~= session then return true end
+            if hooks and hooks.onTick then hooks.onTick() end
+            if hooks and hooks.isFinished and hooks.isFinished() then
+                finishedEarly = true
+                return true
+            end
             if (not payload.useWhileDead and IsEntityDead(session.ped))
                 or (not payload.allowRagdoll and IsPedRagdoll(session.ped))
                 or (not payload.allowCuffed and IsPedCuffed(session.ped))
@@ -496,7 +520,7 @@ function QB.progressbar.start(payload, owner)
             return false
         end, false, payload.duration)
 
-        local completed = cancelled == false and not session.cleaned
+        local completed = (cancelled == false or finishedEarly) and not session.cleaned
         cleanupSession(session, not completed)
         return completed
     end)

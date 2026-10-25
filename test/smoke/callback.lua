@@ -71,6 +71,41 @@ harness.test("client asks server: rejects when the handler errors", function()
     harness.assertTrue(tostring(p.value):find("kaboom") ~= nil, "the rejection should carry the error message")
 end)
 
+harness.test("client asks server: handler errors are logged and sent without file positions", function()
+    serverRegister("smoke:positioned", function() error("attempt to index nil") end)
+    local printed = {}
+    local realPrint = print
+    print = function(...) printed[#printed + 1] = table.concat({ ... }, " ") end
+    local p = clientTrigger("smoke:positioned")
+    print = realPrint
+
+    harness.assertEqual(p.state, "rejected")
+    harness.assertEqual(tostring(p.value), "attempt to index nil", "the file:line prefix must not reach the client")
+    harness.assertTrue(#printed >= 1 and printed[1]:find("smoke:positioned", 1, true) ~= nil,
+        "the full error should be logged on the server")
+end)
+
+harness.test("callback handshake is rate limited per player", function()
+    local source = mocks.SOURCE + 500
+    local issued = 0
+    for _ = 1, 8 do
+        local before = #net.triggeredClientEvents
+        _G.source = source
+        for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
+        _G.source = nil
+        for index = before + 1, #net.triggeredClientEvents do
+            if net.triggeredClientEvents[index].name == "qblib:callback:handshake:response" then issued = issued + 1 end
+        end
+    end
+    harness.assertEqual(issued, 5, "only five handshakes per minute may be answered")
+
+    -- The single-process mock delivers every client event to the simulated
+    -- client, so give it back its own token.
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
+    _G.source = nil
+end)
+
 harness.test("client asks server: the gateway drops a request carrying the wrong token", function()
     local ran = false
     serverRegister("smoke:should-not-run", function() ran = true end)

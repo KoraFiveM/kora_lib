@@ -80,7 +80,7 @@ local function callResource(resource, method, request)
 end
 
 ---@param definition table `{resource, schema, configured, client, revision}`
-function QB.config.register(definition)
+local function register(definition, caller)
     assert(type(definition) == 'table', 'Configuration registration must be a table.')
     assert(validResource(definition.resource), 'Configuration registration needs a valid resource name.')
     assert(type(definition.schema) == 'table', 'Configuration registration needs a schema.')
@@ -89,13 +89,17 @@ function QB.config.register(definition)
     assert(validRevision(definition.revision),
         'Configuration registration needs a positive integer revision.')
 
-    local caller = GetInvokingResource()
     local selfRegistration = caller == nil and definition.resource == GetCurrentResourceName()
     assert(caller == definition.resource or selfRegistration,
         ('Resource %q cannot register configuration for %q.'):format(tostring(caller), definition.resource))
 
     registry[definition.resource] = copy(definition)
     return true
+end
+
+---@param definition table `{resource, schema, configured, client, revision}`
+function QB.config.register(definition)
+    return register(definition, GetInvokingResource())
 end
 
 ---@return table[]
@@ -171,10 +175,33 @@ function QB.config.reset(resource, request)
     return copy(result)
 end
 
+-- Any player may request the client-safe snapshot, and each request deep-copies
+-- it, so cap the rate per player. A client legitimately asks once per adopting
+-- resource at join, hence the generous allowance.
+local SNAPSHOT_MAX_REQUESTS = 30
+local SNAPSHOT_WINDOW = 10000
+local snapshotRequests = {}
+
+local function allowSnapshotRequest(src)
+    local now = GetGameTimer()
+    local window = snapshotRequests[src]
+    if not window or now - window.startedAt >= SNAPSHOT_WINDOW then
+        snapshotRequests[src] = { startedAt = now, count = 1 }
+        return true
+    end
+    window.count = window.count + 1
+    return window.count <= SNAPSHOT_MAX_REQUESTS
+end
+
+AddEventHandler('playerDropped', function()
+    snapshotRequests[source] = nil
+end)
+
 RegisterNetEvent('qblib:server:configRequested', function(resource, requestId)
     local src = source
     if type(src) ~= 'number' or src < 1 or src % 1 ~= 0 or src ~= src
         or src == math.huge or src == -math.huge then return end
+    if not allowSnapshotRequest(src) then return end
     if not validRevision(requestId) then return end
     if not validResource(resource) then return end
     local entry = registry[resource]
@@ -198,7 +225,9 @@ local function registerQblibConfig()
     local factory = assert(load(source, '@@qblib/modules/config/consumer.lua', 't', _ENV))()
     local bridge = factory({
         config_register = function(_, definition)
-            return QB.config.register(definition)
+            -- A resource-driven start retains the starter as the ambient invoker.
+            -- This private same-VM bridge owns qblib; public calls still prove ownership.
+            return register(definition, 'qblib')
         end,
     })
     local discord = Config.discord

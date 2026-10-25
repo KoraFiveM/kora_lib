@@ -3,6 +3,12 @@
 
 local ACE = 'qblib.config.edit'
 
+-- The permission check runs first inside each handler, but it can call into
+-- qbadmin and the ACE system, so cap what a non-admin can make the server do.
+local READ_LIMIT = { rateLimit = { max = 30, window = 10000 } }
+local WRITE_LIMIT = { rateLimit = { max = 10, window = 10000 } }
+local RESTART_LIMIT = { rateLimit = { max = 3, window = 30000 } }
+
 local function validResource(resource)
     return type(resource) == 'string' and resource:match('^[%w_%-]+$') ~= nil
 end
@@ -156,7 +162,7 @@ QB.callback.register('qblib:configCatalog', function(source)
         catalog[#catalog + 1] = summary
     end
     return catalog
-end)
+end, READ_LIMIT)
 
 QB.callback.register('qblib:configRead', function(source, resource)
     local ok, err = requireEditor(source)
@@ -165,7 +171,7 @@ QB.callback.register('qblib:configRead', function(source, resource)
     local readOk, entry = pcall(QB.config.read, resource)
     if not readOk or type(entry) ~= 'table' then return nil, 'configuration is unavailable' end
     return sanitizeEntry(entry)
-end)
+end, READ_LIMIT)
 
 local function isRegistered(resource)
     local ok, summaries = pcall(QB.config.catalog)
@@ -197,7 +203,7 @@ QB.callback.register('qblib:configRestart', function(source, resource)
         return { ok = false, error = 'The resource stopped but could not be started again. Start it from the server console.' }
     end
     return { ok = true }
-end)
+end, RESTART_LIMIT)
 
 QB.callback.register('qblib:configCommit', function(source, request)
     local ok, err = requireEditor(source)
@@ -213,7 +219,7 @@ QB.callback.register('qblib:configCommit', function(source, request)
         result.values = sanitize(entry.schema, entry.values)
     end
     return result
-end)
+end, WRITE_LIMIT)
 
 QB.callback.register('qblib:configReset', function(source, request)
     local ok, err = requireEditor(source)
@@ -229,7 +235,7 @@ QB.callback.register('qblib:configReset', function(source, request)
         result.values = sanitize(entry.schema, entry.values)
     end
     return result
-end)
+end, WRITE_LIMIT)
 
 -- qbadmin provides the server's owner-gated `/config` presentation layer. Do
 -- not re-register the same command when it is running: qblib resources can
