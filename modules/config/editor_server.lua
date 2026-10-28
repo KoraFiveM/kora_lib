@@ -1,10 +1,10 @@
--- qblib owns the configuration editor boundary so an administrator can swap
--- qbadmin without also replacing configuration authorization or transport.
+-- kora_lib owns the configuration editor boundary so an administrator can swap
+-- kora_admin without also replacing configuration authorization or transport.
 
 local ACE = 'qblib.config.edit'
 
 -- The permission check runs first inside each handler, but it can call into
--- qbadmin and the ACE system, so cap what a non-admin can make the server do.
+-- kora_admin and the ACE system, so cap what a non-admin can make the server do.
 local READ_LIMIT = { rateLimit = { max = 30, window = 10000 } }
 local WRITE_LIMIT = { rateLimit = { max = 10, window = 10000 } }
 local RESTART_LIMIT = { rateLimit = { max = 3, window = 30000 } }
@@ -41,10 +41,10 @@ end
 
 local function allowed(source)
     if source == 0 then return true end
-    if type(GetResourceState) == 'function' and GetResourceState('qbadmin') == 'started' then
-        local ok, permitted = pcall(function() return exports.qbadmin:canEditConfig(source) end)
+    if type(GetResourceState) == 'function' and GetResourceState('kora_admin') == 'started' then
+        local ok, permitted = pcall(function() return exports.kora_admin:canEditConfig(source) end)
         if ok and type(permitted) == 'boolean' then return permitted end
-        -- Older qbadmin releases have no bridge; retain their standalone ACE path.
+        -- Older kora_admin releases have no bridge; retain their standalone ACE path.
         if not ok and not tostring(permitted):find('No such export canEditConfig', 1, true) then return false end
     end
     if type(IsPlayerAceAllowed) == 'function' and IsPlayerAceAllowed(source, ACE) == true then return true end
@@ -237,12 +237,12 @@ QB.callback.register('qblib:configReset', function(source, request)
     return result
 end, WRITE_LIMIT)
 
--- qbadmin provides the server's owner-gated `/config` presentation layer. Do
--- not re-register the same command when it is running: qblib resources can
+-- kora_admin provides the server's owner-gated `/config` presentation layer. Do
+-- not re-register the same command when it is running: kora_lib resources can
 -- restart independently, and taking the name back would route the command
--- through qblib's different ACE boundary and editor callbacks.
+-- through kora_lib's different ACE boundary and editor callbacks.
 local function registerFallbackCommand()
-    if type(GetResourceState) == 'function' and GetResourceState('qbadmin') == 'started' then return end
+    if type(GetResourceState) == 'function' and GetResourceState('kora_admin') == 'started' then return end
 
     QB.commands.add('config', 'Open the qblib configuration editor', nil, false, function(source, args)
         local resource = type(args[1]) == 'string' and args[1] or nil
@@ -250,17 +250,17 @@ local function registerFallbackCommand()
     end, {
         permission = ACE,
         checkPermission = function(source) return source == 0 or allowed(source) end,
-        resource = 'qblib',
+        resource = 'kora_lib',
     })
 end
 
 registerFallbackCommand()
 
--- If qbadmin is stopped after qblib, restore the standalone fallback. The
--- deferred registration lets qbadmin finish releasing its command ownership.
+-- If kora_admin is stopped after kora_lib, restore the standalone fallback. The
+-- deferred registration lets kora_admin finish releasing its command ownership.
 if type(AddEventHandler) == 'function' then
     AddEventHandler('onResourceStop', function(resource)
-        if resource ~= 'qbadmin' or type(SetTimeout) ~= 'function' then return end
+        if resource ~= 'kora_admin' or type(SetTimeout) ~= 'function' then return end
         SetTimeout(0, registerFallbackCommand)
     end)
 end

@@ -150,7 +150,7 @@ function SetTimeout() end
 function RegisterCommand(name, callback) commands[name] = callback end
 function RegisterKeyMapping() end
 function GetConvarInt(name, default) return name == 'ox:progressPropLimit' and 2 or default end
-function GetCurrentResourceName() return 'qblib' end
+function GetCurrentResourceName() return 'kora_lib' end
 function GetLocalTime() return 2026, 9, 8, 12, 0, 0 end
 function IsNuiFocused() return false end
 function IsPauseMenuActive() return false end

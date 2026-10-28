@@ -34,7 +34,7 @@ end)
 
 Called cross-resource via export (e.g. from a targeting resource):
 ```lua
-exports.qblib:drawing_text3d(promptCoords, ("%d options"):format(#options), { scale = 0.4 })
+exports.kora_lib:drawing_text3d(promptCoords, ("%d options"):format(#options), { scale = 0.4 })
 ```
 
 ## Notes

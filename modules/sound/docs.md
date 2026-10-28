@@ -26,7 +26,7 @@ Each returns `integer | false` (the sound id, for `QB.sound.stop`) plus an error
 string on failure.
 
 `options` must be a table when supplied. `network` must be boolean and `bank`
-must be a non-empty string; explicit invalid values are rejected before qblib
+must be a non-empty string; explicit invalid values are rejected before kora_lib
 claims a sound id or requests an audio bank.
 
 ### `QB.sound.playFrontend(name, set, options?)`
@@ -61,7 +61,7 @@ for any other value.
 Whether an id allocated by this module is still held.
 
 ## Notes
-- **Foreign ids are refused.** `exports.qblib:sound_stop` is callable from any
+- **Foreign ids are refused.** `exports.kora_lib:sound_stop` is callable from any
   resource, but it can only stop a sound the caller created. This prevents it
   becoming a stop-anything primitive against another resource's audio.
 - **Every call gets a stoppable handle.** The usual fire-and-forget idiom

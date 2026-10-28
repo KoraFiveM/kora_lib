@@ -1,4 +1,4 @@
--- AppShell presentation for qblib's configuration service. The server owns
+-- AppShell presentation for kora_lib's configuration service. The server owns
 -- authorization; this client file never treats a locally opened app as access.
 
 local catalog = {}
@@ -18,7 +18,7 @@ local function objectTableKey(schema, key)
     return schema.fieldKeys and schema.fieldKeys[key] or key
 end
 
--- Calls made from qblib itself receive the raw callback promise. Consumer
+-- Calls made from kora_lib itself receive the raw callback promise. Consumer
 -- resources get the auto-awaited export result, so normalize both paths here.
 local function triggerCallback(name, ...)
     local direct = table.pack(QB.callback.trigger(name, ...))
@@ -462,7 +462,7 @@ local function settingsContent(entry)
     if entry._pendingCount > 0 then
         content.description = content.description .. (' %d saved changes are waiting for a restart.'):format(entry._pendingCount)
     end
-    if entry._pendingCount > 0 and entry.resource ~= 'qblib' then
+    if entry._pendingCount > 0 and entry.resource ~= 'kora_lib' then
         content.actions[#content.actions + 1] = {
             id = 'config:restart', label = 'Restart resource to apply saved changes', icon = 'refresh-cw',
             variant = 'outline',
@@ -479,7 +479,7 @@ local function editContent(entry, setting)
             confirm = 'Restore this setting to its original value?' },
         { id = 'config:back', label = ('Back to %s'):format(entry.resource), icon = 'arrow-left', variant = 'ghost' },
     }
-    if setting.pending and entry.resource ~= 'qblib' then
+    if setting.pending and entry.resource ~= 'kora_lib' then
         table.insert(actions, 2, {
             id = 'config:restart', label = 'Restart resource now', icon = 'refresh-cw', variant = 'outline',
             confirm = ('Restart %s now? Active scripts in this resource will briefly stop and connected players may notice the interruption.'):format(entry.resource),
@@ -646,7 +646,7 @@ local function handleAction(action, context)
 
     if action == 'config:restart' then
         local resource = resourcesByView[context.viewId]
-        if not resource or resource == 'qblib' then
+        if not resource or resource == 'kora_lib' then
             return updateNavigation({ tone = 'destructive',
                 message = 'That resource cannot be restarted from this editor.' }, context.viewId)
         end

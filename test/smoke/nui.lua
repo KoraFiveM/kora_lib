@@ -47,7 +47,7 @@ _G.SetNuiFocusKeepInput = function(keepInput)
 end
 _G.IsNuiFocusKeepingInput = function() return currentKeepInput end
 
--- qblib imports qbtheme's bridge before this module in production. Model the
+-- kora_lib imports kora_theme's bridge before this module in production. Model the
 -- bridge's important contract here: a nil app accent restores the player's
 -- saved /theme colour rather than clearing the browser back to the server
 -- default.
@@ -1291,7 +1291,7 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     local previousClock = GetGameTimer
     local clock = 1000
     GetGameTimer = function() return clock end
-    local caller = 'qbdispatch'
+    local caller = 'kora_dispatch'
     GetInvokingResource = function() return caller end
     local beforeFocus = #focusCalls
     local function ready()
@@ -1322,11 +1322,11 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     harness.assertEqual(#sentMessages, beforeMessages, 'foreign operations never alter the feed')
     harness.assertEqual(ready().now, 2700)
 
-    caller = 'qbdispatch'
+    caller = 'kora_dispatch'
     harness.assertTrue(QB.nui.setDispatchFeed(false))
     caller = 'other'
     harness.assertTrue(QB.nui.setDispatchFeed(first))
-    net.fire('onClientResourceStop', 'qbdispatch')
+    net.fire('onClientResourceStop', 'kora_dispatch')
     harness.assertEqual(ready().now, first.now, 'an old owner cannot clear its successor')
     net.fire('onClientResourceStop', 'other')
     harness.assertEqual(ready(), false)
@@ -1338,7 +1338,7 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     caller = 'shop'
     local release = QB.nui.acquireFocus(true, true)
     local focusedCalls = #focusCalls
-    caller = 'qbdispatch'
+    caller = 'kora_dispatch'
     QB.nui.setDispatchFeed(first)
     ready()
     QB.nui.setDispatchFeed(false)

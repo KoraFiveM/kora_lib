@@ -86,10 +86,10 @@ list before command permissions or provider code are evaluated.
 - Keybind sync and execution events accept only a positive finite integer player
   source before they read command state. The normal server console command path
   remains separate and continues to use source `0`.
-- Key mappings synchronize on registration, replacement, removal, qblib client
+- Key mappings synchronize on registration, replacement, removal, kora_lib client
   startup, and explicit late-client sync. User-command mappings broadcast once;
   non-user mappings are delivered only after their `checkPermission` accepts
   that player. FiveM owns the persistent settings row; removing a command makes
   its native row inert.
-- A command with no `checkPermission` and a non-`'user'` `permission` is always denied -- there's no framework-level permission system in qblib to fall back on, so an ungated non-default permission fails closed rather than silently allowing everyone.
+- A command with no `checkPermission` and a non-`'user'` `permission` is always denied -- there's no framework-level permission system in kora_lib to fall back on, so an ungated non-default permission fails closed rather than silently allowing everyone.
 - A `handler` error is caught and logged (`print`), not propagated -- one broken command can't take down whatever fired it.

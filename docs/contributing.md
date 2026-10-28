@@ -45,4 +45,4 @@ The `Publish documentation` workflow runs for documentation changes on `main` an
 3. uploads the Pages artifact; and
 4. deploys it to the repository's `github-pages` environment.
 
-In the repository settings, select **GitHub Actions** as the Pages source. The deployed site is expected at [qbcore2.github.io/qblib](https://qbcore2.github.io/qblib/).
+In the repository settings, select **GitHub Actions** as the Pages source. The deployed site is expected at [qbcore2.github.io/qblib](https://qbcore2.github.io/kora_lib/).

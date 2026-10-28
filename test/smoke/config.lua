@@ -1,6 +1,6 @@
 -- QB.config's consumer bridge is deliberately plain-Lua testable: config
 -- ownership and persistence happen in the consuming VM, rather than through a
--- qblib export with hidden cross-resource filesystem access.
+-- kora_lib export with hidden cross-resource filesystem access.
 
 local scriptDir = debug.getinfo(1, 'S').source:match('@?(.*/)') or './'
 local testDir = scriptDir .. '../'
@@ -31,7 +31,7 @@ _G.SaveResourceFile = function(resource, path, contents)
     files[path] = contents
     return true
 end
-_G.GetInvokingResource = function() return 'qblib' end
+_G.GetInvokingResource = function() return 'kora_lib' end
 _G.TriggerClientEvent = function(name, target, ...)
     clientUpdates[#clientUpdates + 1] = { name = name, target = target, values = { ... } }
 end
@@ -660,7 +660,7 @@ H.test('clients re-request their active snapshot when qblib restarts', function(
             options = { 'kmh', 'mph' }, live = true,
         }) })
         handlers.onClientResourceStart('unrelated')
-        handlers.onClientResourceStart('qblib')
+        handlers.onClientResourceStart('kora_lib')
         handlers.onClientResourceStart('sample')
     end)
 

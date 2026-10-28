@@ -2,12 +2,14 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-name 'qblib'
+name 'kora_lib'
+-- Keep the legacy resource name resolvable for exports['qblib'] callers.
+provide 'qblib'
 author 'Jamie'
 version '1.0.0'
 description 'Lightweight Lua library exposing a shared QB namespace over FiveM exports'
 
-dependency 'qbtheme'
+dependency 'kora_theme'
 
 -- qb-menu, qb-input, qb-radialmenu and qb-minigames are being deprecated in
 -- favour of QB.nui.openMenu/openContextMenu/openRadialMenu/openInputDialog
@@ -23,17 +25,17 @@ provide 'qb-input'
 provide 'progressbar'
 provide 'qb-radialmenu'
 provide 'qb-minigames'
--- qblib's screenshot module implements screenshot-basic's public exports so
+-- kora_lib's screenshot module implements screenshot-basic's public exports so
 -- existing resources can migrate without a second, permanently-rendering NUI
 -- resource. The legacy export identities are registered by its late compat bridge.
 provide 'screenshot-basic'
 
--- Consumers pull the QB proxy in with: shared_script '@qblib/init.lua'
+-- Consumers pull the QB proxy in with: shared_script '@kora_lib/init.lua'
 -- It must be listed here so the client can fetch it.
 files {
     'init.lua',
     -- QB.require executes in each consumer's Lua environment rather than as a
-    -- qblib export, so init.lua loads this small factory on demand.
+    -- kora_lib export, so init.lua loads this small factory on demand.
     'modules/require/loader.lua',
     -- Like QB.require, QB.config executes in each consuming resource so it
     -- can safely own that resource's Config table and config.local.lua.
@@ -97,13 +99,13 @@ shared_scripts {
 -- twice). Add new local/ modules to this list explicitly, after resources.
 -- compat/client/* load after 'modules/**/client.lua' (they call QB.nui.*/
 -- QB.minigames.* directly) and before finalise, same reasoning
--- qbcore/fxmanifest.lua gives for its own compat/* placement: each compat
+-- kora_core/fxmanifest.lua gives for its own compat/* placement: each compat
 -- function calls those modules DIRECTLY rather than through
--- exports.qblib:..., so GetInvokingResource() inside it still resolves to
+-- exports.kora_lib:..., so GetInvokingResource() inside it still resolves to
 -- the real external caller (qb-menu/qb-input/qb-radialmenu/qb-minigames
--- consumer), not to qblib itself.
+-- consumer), not to kora_lib itself.
 client_scripts {
-    '@qbtheme/client/bridge.lua',
+    '@kora_theme/client/bridge.lua',
     'local/resources/client.lua',
     'local/callback/client.lua',
     'local/events/client.lua',

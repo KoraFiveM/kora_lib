@@ -105,4 +105,4 @@ if not handle then return print('scaleform failed:', err) end
   exactly as they are used in the game assets.
 - When using callbacks, keep the callback logic lightweight so the load cycle stays predictable.
 - Every loader (not just `loadModel`) releases its asset immediately after its callback returns — anims, clip sets, ptfx, etc. that need to keep playing beyond the callback's synchronous scope should not be requested this way.
-- All callbacks, option tables, native flags, and numeric model/weapon/entity handles are validated before qblib calls a streaming native.
+- All callbacks, option tables, native flags, and numeric model/weapon/entity handles are validated before kora_lib calls a streaming native.

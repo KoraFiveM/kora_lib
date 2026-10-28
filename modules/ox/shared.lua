@@ -1,4 +1,4 @@
----Returns the locale selected by qblib for the ox_lib compatibility surface.
+---Returns the locale selected by kora_lib for the ox_lib compatibility surface.
 ---@param owner? string Private originating-resource metadata from ox_lib.
 ---@return string locale
 function QB.ox.getLocaleKey(owner)

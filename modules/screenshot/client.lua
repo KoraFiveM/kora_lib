@@ -180,8 +180,8 @@ function QB.screenshot.requestScreenshotUpload(url, field, options, callback)
     end)
 end
 
--- qblib's direct aliases are useful for a resource that has already made
--- qblib a dependency, while the provided-resource hooks preserve the normal
+-- kora_lib's direct aliases are useful for a resource that has already made
+-- kora_lib a dependency, while the provided-resource hooks preserve the normal
 -- exports['screenshot-basic']:requestScreenshot(...) call shape.
 if exports then
     exports('requestScreenshot', QB.screenshot.requestScreenshot)

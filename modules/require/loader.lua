@@ -1,6 +1,6 @@
 -- This file returns a factory because QB.require has to run inside the
--- consumer resource that loaded @qblib/init.lua. Exporting these functions
--- from qblib would execute required chunks in qblib's environment instead.
+-- consumer resource that loaded @kora_lib/init.lua. Exporting these functions
+-- from kora_lib would execute required chunks in kora_lib's environment instead.
 return function(currentResource)
     assert(type(currentResource) == 'string' and currentResource ~= '', 'Current resource name not found')
 

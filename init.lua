@@ -1,4 +1,4 @@
-local library = exports.qblib
+local library = exports.kora_lib
 local requireModule
 local configModule
 local compatModule
@@ -6,7 +6,7 @@ local compatModule
 -- These modules are intentionally instantiated inside each consumer. They
 -- contain no shared registry or long-lived ownership state, and their native
 -- calls should be attributed to the script that uses them. Everything else
--- stays behind qblib's exports so there remains one authoritative instance.
+-- stays behind kora_lib's exports so there remains one authoritative instance.
 local consumerModuleFiles = {
     loops = { 'modules/loops/shared.lua' },
     util = { 'modules/util/shared.lua' },
@@ -30,8 +30,8 @@ local function loadConsumerModule(namespace, name, paths)
     local ok, loadError = pcall(function()
         for index = 1, #paths do
             local path = paths[index]
-            local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
-            local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+            local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
+            local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
             assert(chunk, compileError)
             chunk()
         end
@@ -48,19 +48,19 @@ local function loadConsumerModule(namespace, name, paths)
 end
 
 -- Requiring Lua files is deliberately consumer-local. Running this through a
--- qblib export would execute the required chunk in qblib's Lua environment,
+-- kora_lib export would execute the required chunk in kora_lib's Lua environment,
 -- leaking globals between resources and making the cache survive a consumer
 -- restart. Load the factory into this resource's environment instead.
 local function getRequireModule()
     if requireModule then return requireModule end
 
     local path = 'modules/require/loader.lua'
-    local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
-    local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
     assert(chunk, compileError)
 
     local createRequire = chunk()
-    assert(type(createRequire) == 'function', ('@qblib/%s must return a factory function'):format(path))
+    assert(type(createRequire) == 'function', ('@kora_lib/%s must return a factory function'):format(path))
 
     requireModule = createRequire(GetCurrentResourceName())
     return requireModule
@@ -68,18 +68,18 @@ end
 
 -- Configuration has to run inside the CONSUMING resource: its Config table,
 -- override file, and live handlers are all local to that resource. The normal
--- exported-module path deliberately routes calls into qblib instead, so config
+-- exported-module path deliberately routes calls into kora_lib instead, so config
 -- uses its own consumer factory rather than the module loader above.
 local function getConfigModule()
     if configModule then return configModule end
 
     local path = 'modules/config/consumer.lua'
-    local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
-    local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
     assert(chunk, compileError)
 
     local createConfig = chunk()
-    assert(type(createConfig) == 'function', ('@qblib/%s must return a factory function'):format(path))
+    assert(type(createConfig) == 'function', ('@kora_lib/%s must return a factory function'):format(path))
     configModule = createConfig(library)
     return configModule
 end
@@ -87,8 +87,8 @@ end
 local function getCompatModule()
     if compatModule then return compatModule end
     local path = 'compat/provider.lua'
-    local source = assert(LoadResourceFile('qblib', path), ('Unable to load @qblib/%s'):format(path))
-    local chunk, compileError = load(source, ('@@qblib/%s'):format(path), 't', _ENV)
+    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
     assert(chunk, compileError)
     local createCompat = chunk()
     compatModule = createCompat()
@@ -169,10 +169,10 @@ QB = setmetatable({}, {
         -- proxy per lookup (__index only fires while the key is absent).
         local proxy = setmetatable({}, {
             -- A bare function on QB, e.g. a hypothetical QB.foo(...) ->
-            -- exports.qblib:foo(...)
+            -- exports.kora_lib:foo(...)
             __call = function(_, ...) return moduleCall(...) end,
             -- A module function, e.g. QB.notify.send(...) ->
-            -- exports.qblib:notify_send(...). Memoized the same way as the
+            -- exports.kora_lib:notify_send(...). Memoized the same way as the
             -- module-level proxy above: rawset into the sub-proxy so the
             -- colon-call chunk for a given QB.<module>.<fn> is compiled via
             -- load() once, not on every single call.
@@ -188,7 +188,7 @@ QB = setmetatable({}, {
     end,
 })
 
--- qblib emits this after rebuilding its exports. Refresh only modules this
+-- kora_lib emits this after rebuilding its exports. Refresh only modules this
 -- consumer already touched; untouched modules remain lazy. Copying into the
 -- original table also keeps `local stream = QB.stream` references current.
 AddEventHandler(isServer and 'qblib:server:updated' or 'qblib:client:updated', function()

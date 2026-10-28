@@ -2,7 +2,7 @@
 -- (exports['qb-radialmenu']:AddOption/RemoveOption, the
 -- 'qb-radialmenu:client:AddOption'/'qb-radialmenu:client:RemoveOption' net
 -- events, and the fixed keybind that opens the wheel) onto
--- QB.nui.openRadialMenu, qblib's own native replacement. qb-radialmenu itself
+-- QB.nui.openRadialMenu, kora_lib's own native replacement. qb-radialmenu itself
 -- is being deprecated in favour of QB.nui.openMenu/openContextMenu/
 -- openRadialMenu -- this file exists so a script written against
 -- exports['qb-radialmenu']:... keeps working unmodified while it migrates,
@@ -46,7 +46,7 @@
 --   * qb-radialmenu's own stretcher.lua/trunk.lua/clothing.lua submodules --
 --     these are ambulance/police/character-creation FEATURES bundled into
 --     the real resource, not part of the generic AddOption/RemoveOption API
---     surface, and this environment's qbambulance/qbclothing already own
+--     surface, and this environment's kora_ambulance/qbclothing already own
 --     equivalent functionality through their own (differently-shaped)
 --     mechanisms.
 --
@@ -278,26 +278,26 @@ end
 -- Config.radialmenuCompat comment for exactly why).
 
 -- pcall-guarded and framework-agnostic, same reasoning as qb-menu compat's
--- imageFor: qblib itself has no player-data concept of its own, so if
--- qbcore isn't running (or a different framework is), this content simply
+-- imageFor: kora_lib itself has no player-data concept of its own, so if
+-- kora_core isn't running (or a different framework is), this content simply
 -- doesn't appear -- the same way real qb-radialmenu would show nothing here
 -- without QBCore.Functions.GetPlayerData() ever resolving.
 local function getPlayerDataPath(path)
-    local ok, value = pcall(function() return exports.qbcore:getPlayerData(path) end)
+    local ok, value = pcall(function() return exports.kora_core:getPlayerData(path) end)
     if ok and type(value) == "table" then return value end
     return {}
 end
 
--- PlayerData.job in THIS environment's qbcore only carries name/label/
--- payment/onduty/isboss/grade (see qbcore's shared/jobs.lua) -- `type`
+-- PlayerData.job in THIS environment's kora_core only carries name/label/
+-- payment/onduty/isboss/grade (see kora_core's shared/jobs.lua) -- `type`
 -- ('leo'/'ems'/'civ', what real qb-core's own PlayerData.job carries and
 -- what upstream qb-radialmenu's IsPoliceOrEMS/JobInteractionCheck key off)
 -- only lives on the job's REGISTRY record, fetched separately exactly the
--- way that file's own header comment says to: `exports.qbcore:getShared(
+-- way that file's own header comment says to: `exports.kora_core:getShared(
 -- 'jobs', jobName)`, not PlayerData.job.
 local function getJobType(jobName)
     if not jobName then return nil end
-    local ok, def = pcall(function() return exports.qbcore:getShared("jobs", jobName) end)
+    local ok, def = pcall(function() return exports.kora_core:getShared("jobs", jobName) end)
     if ok and type(def) == "table" then return def.type end
     return nil
 end
@@ -538,7 +538,7 @@ local function openRegisteredRadial()
 
     if #items == 0 then return end
 
-    -- This is invoked from qblib's own command/keybind, not from the resource
+    -- This is invoked from kora_lib's own command/keybind, not from the resource
     -- that originally registered an option. QB.nui.openRadialMenu therefore
     -- returns its pending same-resource promise and must be awaited here.
     isOpen = true

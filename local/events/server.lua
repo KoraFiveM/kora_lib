@@ -100,7 +100,7 @@ end)
 local generateToken = QB.compat.generateToken
 
 -- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across qblib modules.
+-- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = QB.compat.isCallable
 
 ---Registers a handler callable from the client via QB.events.trigger.

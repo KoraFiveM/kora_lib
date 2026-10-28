@@ -12,7 +12,7 @@ function QB.notify.send(payload)
 
         if Config.third_party_notify then
             -- Forwarded as given: a third-party notify resource has its own
-            -- defaults, and shouldn't have qblib's substituted underneath it.
+            -- defaults, and shouldn't have kora_lib's substituted underneath it.
             TriggerEvent('qblib:notify:send', payload)
             return
         end

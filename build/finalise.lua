@@ -1,17 +1,17 @@
 for key, value in pairs(QB) do
-    -- compat/ is internal wiring used by qblib's legacy bridges. It must be
+    -- compat/ is internal wiring used by kora_lib's legacy bridges. It must be
     -- loaded into the shared QB table so separate Lua chunks can reuse it,
-    -- but it is not part of qblib's consumer-facing export API.
+    -- but it is not part of kora_lib's consumer-facing export API.
     if key ~= "compat" then
         local kind = type(value)
 
         if kind == "function" then
             -- A bare function attached directly to QB (none exist today; every
             -- current module is a table) -- a hypothetical QB.foo(...) would
-            -- export as exports.qblib:foo(...)
+            -- export as exports.kora_lib:foo(...)
             exports(key, value)
         elseif kind == "table" then
-            -- QB.stream.loadModel(...) -> exports.qblib:stream_loadModel(...)
+            -- QB.stream.loadModel(...) -> exports.kora_lib:stream_loadModel(...)
             for name, func in pairs(value) do
                 if type(func) == "function" then
                     exports(key .. "_" .. name, func)
@@ -22,7 +22,7 @@ for key, value in pairs(QB) do
 end
 
 -- Consumers keep a few stateless modules in their own Lua environment. Tell
--- already-running consumers to pull fresh source after a qblib restart; the
+-- already-running consumers to pull fresh source after a kora_lib restart; the
 -- event carries no functions or state across the resource boundary.
 local isServer = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
 TriggerEvent(isServer and 'qblib:server:updated' or 'qblib:client:updated')

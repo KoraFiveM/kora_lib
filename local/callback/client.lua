@@ -43,22 +43,22 @@ local function awaitToken()
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across qblib modules.
+-- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = QB.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
--- inside qblib, while plain field reads (.state, .value -- what Citizen.Await
+-- inside kora_lib, while plain field reads (.state, .value -- what Citizen.Await
 -- itself checks) on the crossed reference never reflect the real remote
 -- promise's settlement, so the caller's own Citizen.Await silently resolves
 -- nil regardless of the real outcome. GetInvokingResource() is nil for a
--- same-VM call (qblib's own modules, every dofile()'d smoke test) and the
+-- same-VM call (kora_lib's own modules, every dofile()'d smoke test) and the
 -- real calling resource's name for a genuine cross-resource exports() call
 -- (same signal modules/zones already relies on for ownership tracking -- see
 -- its AGENTS.md's "Resource ownership" note) -- exactly the distinction that
 -- matters here. Same-VM callers get the real promise back unchanged. A
 -- genuine cross-resource caller gets the already-awaited plain value (or a
--- raised error on rejection/timeout, which -- like every other qblib error --
+-- raised error on rejection/timeout, which -- like every other kora_lib error --
 -- surfaces to that caller as a printed export-call error and a nil return,
 -- not a catchable Lua error) instead of a promise it can't usefully await.
 --
@@ -81,7 +81,7 @@ local isCallable = QB.compat.isCallable
 -- see p.qblibCallbackResults on the events.response handler below. The
 -- promise itself still resolves with ONLY the handler's first return value,
 -- deliberately unchanged from before this existed, so every EXISTING
--- same-VM caller inside qblib (e.g. modules/minigames/client.lua's own
+-- same-VM caller inside kora_lib (e.g. modules/minigames/client.lua's own
 -- `Citizen.Await(QB.callback.trigger(...))`) keeps working exactly as it did
 -- -- only a genuine cross-resource caller, reached here, gets the extra
 -- values, by reading the side-channel field Citizen.Await(p) itself can't
@@ -136,7 +136,7 @@ end
 ---@param name string
 ---@param ... any
 ---@return promise|any ... A promise for a same-VM caller (unchanged, awaitable as before -- its resolved
----value is the handler's first return value, while additional values remain available to qblib's internal
+---value is the handler's first return value, while additional values remain available to kora_lib's internal
 ---cross-resource settlement path). For a genuine cross-resource caller, the handler's return values are unpacked --
 ---e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
 ---settleForExport above).

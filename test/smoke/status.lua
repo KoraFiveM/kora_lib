@@ -423,7 +423,7 @@ harness.test("internal status updates can replace a locally owned effect", funct
     _G.GetInvokingResource = function() return "status_effect_owner" end
     harness.assertTrue(clientApply("injured_leg"), "the resource should apply its cosmetic effect")
 
-    -- Push handlers execute inside qblib rather than the consumer export, so
+    -- Push handlers execute inside kora_lib rather than the consumer export, so
     -- their update must retain server authority over local presentation.
     _G.GetInvokingResource = function() return nil end
     harness.assertTrue(clientApply("injured_leg"), "an internal update should replace the local effect")

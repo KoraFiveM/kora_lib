@@ -145,13 +145,13 @@ through `QB.instructional`; the NUI editor card is reserved for shape state.
 Mouse-look and movement are suppressed through a `QB.controls` lease while the creator is active. Confirm, cancel, an internal error, or either owning resource stopping releases the lease.
 
 #### Returns
-- `{ type, opts }` once confirmed (`opts` matches that shape's own constructor options, so `QB.zones.<type>(result.opts)` recreates it), or `nil` if cancelled, if a creator was already running, or if the creator is disabled (`Config.zones.creator.enabled = false`) -- check qblib's own console to tell which, since that detail doesn't cross the exports boundary. An invalid `zoneType` (or malformed `existingOpts`) raises a synchronous error instead, exactly like the zone constructors themselves. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the player confirms or cancels.
+- `{ type, opts }` once confirmed (`opts` matches that shape's own constructor options, so `QB.zones.<type>(result.opts)` recreates it), or `nil` if cancelled, if a creator was already running, or if the creator is disabled (`Config.zones.creator.enabled = false`) -- check kora_lib's own console to tell which, since that detail doesn't cross the exports boundary. An invalid `zoneType` (or malformed `existingOpts`) raises a synchronous error instead, exactly like the zone constructors themselves. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the player confirms or cancels.
 
 #### Example
 ```lua
 RegisterCommand('my_zone_tool', function()
     local result = QB.zones.startCreator("box")
-    if not result then return print("cancelled (or failed -- see qblib's own console)") end
+    if not result then return print("cancelled (or failed -- see kora_lib's own console)") end
 
     print("captured:", QB.zones.generateSnippet(result.type, result.opts))
 end, false)

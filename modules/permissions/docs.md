@@ -4,7 +4,7 @@
 The central server-side permission gateway for FiveM ACEs and optional Discord
 roles. The level vocabulary (for example `'user'`/`'mod'`/`'admin'`/`'god'`)
 and ACE namespace prefix (for example `'qbcore'`) are supplied by the caller,
-so qblib does not impose a framework-specific permission model.
+so kora_lib does not impose a framework-specific permission model.
 
 ACE checks are always active. Discord roles are additive: a configured role
 can grant access, but a disabled bot, stale role cache, or lookup failure
@@ -89,7 +89,7 @@ end
 
 Called cross-resource via export:
 ```lua
-exports.qblib:permissions_hasPermission(source, 'admin', 'myresource')
+exports.kora_lib:permissions_hasPermission(source, 'admin', 'myresource')
 ```
 
 ### `QB.permissions.explain(src, levels, prefixOrOptions?)` -- server
@@ -131,9 +131,9 @@ end
   a numeric return would make `getLevel` match its FIRST candidate level for
   everyone -- over-permission, not under. A "no permissions" report is almost
   always an `add_principal` naming an identifier the player does not hold;
-  `explain` above prints the objects, and qbadmin's console-only
+  `explain` above prints the objects, and kora_admin's console-only
   `qbadmin_whyperms <id>` prints those alongside the player's real identifiers.
 - Grants are ordinary ace principals -- add them with `add_ace`/`add_principal` in `server.cfg` or at runtime via `ExecuteCommand`, same as any other FXServer permission.
 - ACEs are evaluated before Discord, so `group.admin` continues to work when
   the bot is disabled or its cache is unavailable.
-- This module only *checks* permissions. Granting a runtime permission (e.g. tying it to a player identity) is left to the caller -- qbcore's `Core.permissions.addPermission` is one example.
+- This module only *checks* permissions. Granting a runtime permission (e.g. tying it to a player identity) is left to the caller -- kora_core's `Core.permissions.addPermission` is one example.

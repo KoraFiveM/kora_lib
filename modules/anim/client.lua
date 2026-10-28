@@ -21,7 +21,7 @@
 ---@field fixedRot? boolean Defaults to true.
 
 -- Keyed by entity, not a synthetic handle id -- QB.anim.stop/isPlaying take
--- the entity directly (matching how every other per-entity qblib primitive,
+-- the entity directly (matching how every other per-entity kora_lib primitive,
 -- e.g. QB.cache, is addressed), so the entity itself IS the id space this
 -- module tracks. A `generation` counter guards a delayed auto-stop thread
 -- (started by a `duration` option) against stopping a LATER anim that

@@ -651,14 +651,14 @@ end
 local function sqlQuery(sql, params)
     local resource = GetCurrentResourceName()
     return awaitSql(function(callback)
-        exports.qbsql:query(sql, params or {}, callback, resource)
+        exports.kora_sql:query(sql, params or {}, callback, resource)
     end)
 end
 
 local function sqlTransaction(statements)
     local resource = GetCurrentResourceName()
     return awaitSql(function(callback)
-        exports.qbsql:transaction(statements, nil, callback, resource)
+        exports.kora_sql:transaction(statements, nil, callback, resource)
     end)
 end
 
@@ -667,12 +667,12 @@ local function waitForQbSql()
     local deadline = GetGameTimer() + discordConfig('databaseTimeout', 60000)
 
     while true do
-        local state = GetResourceState('qbsql')
+        local state = GetResourceState('kora_sql')
         if state == 'missing' or state == 'stopped' or state == 'uninitialized' then
             return false, ('qbsql is %s'):format(state)
         end
         if state == 'started' then
-            local ok, ready = pcall(function() return exports.qbsql:isReady() end)
+            local ok, ready = pcall(function() return exports.kora_sql:isReady() end)
             if ok and ready then return true end
         end
         if GetGameTimer() >= deadline then return false, 'qbsql did not become ready before the timeout' end
@@ -746,7 +746,7 @@ local function ensureDatabase()
     end
 
     local migrated, migrateErr = awaitSql(function(callback)
-        exports.qbsql:migrate(resource, {
+        exports.kora_sql:migrate(resource, {
             {
                 version = 1,
                 name = 'discord_roles',
@@ -1137,7 +1137,7 @@ local function runFullRoleSync()
 end
 
 ---Fetch the guild role catalog and every online player's member roles, then
----replace the in-memory cache and qbsql snapshots. Only one sync may run at once.
+---replace the in-memory cache and kora_sql snapshots. Only one sync may run at once.
 ---@param callback fun(ok:boolean, response:table)|nil
 ---@return boolean queued
 function QB.discord.syncRoles(callback)
@@ -1208,7 +1208,7 @@ end)
 
 -- The token convar is intentionally sampled at resource start for background
 -- work. Explicit bot functions still read it per call, but enabling the bot's
--- heartbeat requires a qblib restart after setting the convar.
+-- heartbeat requires a kora_lib restart after setting the convar.
 CreateThread(function()
     if not QB.discord.botEnabled() then return end
 

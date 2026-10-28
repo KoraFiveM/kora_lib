@@ -1,12 +1,12 @@
 # Configuration
 
 `QB.config` lets a resource keep a normal authored Lua `Config` table while
-registering typed, owner-editable settings. qblib never rewrites `config.lua`:
+registering typed, owner-editable settings. kora_lib never rewrites `config.lua`:
 the owning resource saves only changes to `config.local.lua`.
 
 ## Quick start
 
-Put the config file after `@qblib/init.lua` in `shared_scripts` so the same
+Put the config file after `@kora_lib/init.lua` in `shared_scripts` so the same
 schema exists on both server and client:
 
 ```lua
@@ -114,7 +114,7 @@ the client realm.
 Every field is **Restart required** by default. Set `live = true` only when
 changing the live `Config` value is safe, and register `onChange` when the
 resource has additional side effects to reconfigure. A handler receives
-`(value, previous)` and may return `false` to reject the update; qblib then
+`(value, previous)` and may return `false` to reject the update; kora_lib then
 restores the saved override and revision. Server handlers are deliberately
 not run for client-scoped settings.
 
@@ -147,9 +147,9 @@ fields, and leaves the authored `config.lua` untouched. Saving writes a
 deterministic generated Lua table containing only values that differ from the
 authored defaults. Resetting a field removes that field’s override. The last
 file is retained as `config.local.lua.bak`; if the primary override is invalid
-at startup, qblib uses that backup instead.
+at startup, kora_lib uses that backup instead.
 
-Each resource writes only its own files through `SaveResourceFile`. qblib’s
+Each resource writes only its own files through `SaveResourceFile`. kora_lib’s
 central catalog coordinates requests but never receives cross-resource
 filesystem access. Add both generated files to the resource’s `.gitignore`.
 
@@ -160,7 +160,7 @@ never cross this boundary. Each request carries a monotonic local request ID;
 only its latest reply is applied, and a live update invalidates an older pending
 snapshot. A delayed network reply therefore cannot roll back current settings.
 
-qblib’s ACE-gated `/config` workspace reads the catalog, shows saved
+kora_lib’s ACE-gated `/config` workspace reads the catalog, shows saved
 and running values, and labels a field **Applies now** or **Restart required**.
 Lists and maps use key/value rows: list keys are consecutive positions, while
 maps accept text keys by default and can explicitly opt into integer or mixed
@@ -175,7 +175,7 @@ opening an unusually large configuration does not mount every row at once.
 Every registered resource remains in the sidebar while a setting is edited;
 the overview also shows its editable-setting count and availability. Sensitive
 fields are removed before they reach the workspace. Grant access explicitly
-with `add_ace <principal> qblib.config.edit allow`; qbadmin may optionally open
+with `add_ace <principal> qblib.config.edit allow`; kora_admin may optionally open
 the workspace through `QB.config.open()` but is not required.
 
 The initial catalog transfers only sanitized schemas. Saved and running values
@@ -188,13 +188,13 @@ back, and reports whether its persisted configuration loaded successfully.
 Editor requests with a missing, fractional, or non-finite revision are rejected
 before they reach the owning resource; a valid but stale revision is refused by
 the owner.
-qblib cannot restart itself from its own editor, so its restart-required values
+kora_lib cannot restart itself from its own editor, so its restart-required values
 must be applied from the server console or during a normal server restart.
 
 ## Server catalog API
 
 The following server API is primarily for privileged integration points such
-as qbadmin; ordinary resources use the consumer API above:
+as kora_admin; ordinary resources use the consumer API above:
 
 - `QB.config.catalog()` lists registered resource schemas.
 - `QB.config.read(resource)` returns schema, saved values, running values, and
@@ -204,13 +204,13 @@ as qbadmin; ordinary resources use the consumer API above:
 - `QB.config.reset(resource, request)` removes one override through that
   bridge.
 
-`QB.config.register(definition)` is qblib’s internal bridge registration API.
+`QB.config.register(definition)` is kora_lib’s internal bridge registration API.
 It only accepts a registration from the resource it names. Its `revision` is a
 positive integer: the consumer begins at `1` and increments it after every
 accepted edit, allowing stale editor saves to be refused deterministically.
 Catalog discovery and bridge refreshes enforce the same invariant, so a
 malformed bridge response cannot poison the stored revision. Successful commit
-and reset responses must carry the same valid revision before qblib publishes
+and reset responses must carry the same valid revision before kora_lib publishes
 the resulting local change event.
 
 ## Live consumer API
@@ -230,7 +230,7 @@ end)
 `nil, 'not_ready'` before its snapshot arrives. `QB.config.whenReady({
 'qbtarget', 'qbhud' }, handler)` runs once the listed active snapshots are
 available. Bindings receive an initial callback and subsequent live active
-changes. They are process-local: qblib distributes network snapshots to each
+changes. They are process-local: kora_lib distributes network snapshots to each
 client resource and broadcasts server changes locally, so no gameplay read
 performs database or export work.
 

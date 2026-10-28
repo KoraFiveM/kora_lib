@@ -134,7 +134,7 @@ end
 ---engine is still resolving it; every other value is meaningless until it is
 ---true. Unlike `await` this never yields, so a caller driving its own tick
 ---loop can start a ray on one tick and consume it on the next without ever
----spending a frame parked inside qblib.
+---spending a frame parked inside kora_lib.
 ---@param rayHandle number
 ---@return boolean settled
 ---@return boolean hit

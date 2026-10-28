@@ -9,7 +9,7 @@
 ---@field gang? string|string[]|table<string, integer>
 ---@field citizenid? string|string[]|table<string, boolean>
 ---@field item? string|string[]
----@field icon? string UI consumers may use this; qblib's compact selector currently renders labels only.
+---@field icon? string UI consumers may use this; kora_lib's compact selector currently renders labels only.
 
 local active
 local callbackRegistered = false
@@ -20,9 +20,9 @@ local targetHandles = { entity = {}, model = {} }
 local targetRegistry = QB.resources.registry(function(handle)
     targetHandles[handle.kind][handle.id] = nil
     if handle.kind == 'entity' then
-        exports.qbtarget:removeEntity(handle.value, handle.id)
+        exports.kora_target:removeEntity(handle.value, handle.id)
     else
-        exports.qbtarget:removeModel(handle.value, handle.id)
+        exports.kora_target:removeModel(handle.value, handle.id)
     end
 end)
 
@@ -31,7 +31,7 @@ local isCallable = QB.compat.isCallable
 local function isEnabled()
     local state = LocalPlayer and LocalPlayer.state
     -- Character/scene selection is a camera preview, not gameplay. Do not let
-    -- a nearby world target open a qblib selector over that NUI.
+    -- a nearby world target open a kora_lib selector over that NUI.
     if state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false then return false end
     return Config.ui and Config.ui.interact == true
 end
@@ -60,7 +60,7 @@ end
 
 local function playerData()
     local ok, data = pcall(function()
-        return exports.qbcore:getPlayerData()
+        return exports.kora_core:getPlayerData()
     end)
 
     return ok and type(data) == "table" and data or nil
@@ -162,7 +162,7 @@ end
 -- option: onExit/onEnter can't refire while they're still standing inside.
 -- Polls IsNuiFocused() rather than requiring the dispatched action to report
 -- back, so this works for any option (an external menu, a server roundtrip,
--- or nothing at all) without qbinventory/other resources needing to know
+-- or nothing at all) without kora_inventory/other resources needing to know
 -- interact exists. The grace period before the first check gives an
 -- externally-opened menu (e.g. a shop, which grabs focus only after a server
 -- roundtrip) time to actually take focus, so the prompt doesn't flash back on
@@ -350,7 +350,7 @@ local function zoneOptionList(targetOptions)
     return options
 end
 
----Adds a qblib sphere zone using qb-target-compatible option arguments.
+---Adds a kora_lib sphere zone using qb-target-compatible option arguments.
 ---@param name string
 ---@param coords any
 ---@param radius number
@@ -387,7 +387,7 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     return zone
 end
 
----Adds a qblib box zone using qb-target-compatible length/width/minZ/maxZ arguments.
+---Adds a kora_lib box zone using qb-target-compatible length/width/minZ/maxZ arguments.
 ---@param name string
 ---@param coords any
 ---@param size vector4
@@ -487,7 +487,7 @@ function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
     return QB.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
 end
 
--- Registers an aim-targeted entity through qbtarget, while keeping qblib's
+-- Registers an aim-targeted entity through kora_target, while keeping kora_lib's
 -- option vocabulary (`action`/`event`) and resource-stop ownership at this
 -- public boundary. Unlike addTargetEntity this follows a moving entity.
 local function assertTargetDistance(distance)
@@ -519,8 +519,8 @@ function QB.interact.addEntity(entity, options, distance)
             onSelect = function() dispatch(option) end,
         }
     end
-    local id = exports.qbtarget:addEntity(entity, translated, distance)
-    -- qbtarget's removeEntity takes one entity even when registration covered
+    local id = exports.kora_target:addEntity(entity, translated, distance)
+    -- kora_target's removeEntity takes one entity even when registration covered
     -- several; removing by id tears down that whole registration.
     local handle = { kind = 'entity', value = type(entity) == 'table' and entity[1] or entity, id = id }
     targetHandles.entity[id] = handle
@@ -537,7 +537,7 @@ function QB.interact.removeEntity(entity, id)
         if not handle or targetRegistry.owner(handle) ~= (GetInvokingResource() or GetCurrentResourceName()) then
             return false
         end
-        if exports.qbtarget:removeEntity(handle.value, id) ~= true then return false end
+        if exports.kora_target:removeEntity(handle.value, id) ~= true then return false end
         targetHandles.entity[id] = nil
         targetRegistry.untrack(handle)
         return true
@@ -546,7 +546,7 @@ function QB.interact.removeEntity(entity, id)
     local removed = false
     for targetId, handle in pairs(targetHandles.entity) do
         if handle.value == entity and targetRegistry.owner(handle) == (GetInvokingResource() or GetCurrentResourceName())
-            and exports.qbtarget:removeEntity(handle.value, targetId) == true then
+            and exports.kora_target:removeEntity(handle.value, targetId) == true then
             targetHandles.entity[targetId] = nil
             targetRegistry.untrack(handle)
             removed = true
@@ -578,7 +578,7 @@ function QB.interact.addModel(model, options, distance)
             onSelect = function() dispatch(option) end,
         }
     end
-    local id = exports.qbtarget:addModel(model, translated, distance)
+    local id = exports.kora_target:addModel(model, translated, distance)
     local handle = { kind = 'model', value = model, id = id }
     targetHandles.model[id] = handle
     targetRegistry.track(owner, handle)
@@ -594,7 +594,7 @@ function QB.interact.removeModel(model, id)
         if not handle or targetRegistry.owner(handle) ~= (GetInvokingResource() or GetCurrentResourceName()) then
             return false
         end
-        if exports.qbtarget:removeModel(handle.value, id) ~= true then return false end
+        if exports.kora_target:removeModel(handle.value, id) ~= true then return false end
         targetHandles.model[id] = nil
         targetRegistry.untrack(handle)
         return true
@@ -603,7 +603,7 @@ function QB.interact.removeModel(model, id)
     local removed = false
     for targetId, handle in pairs(targetHandles.model) do
         if handle.value == model and targetRegistry.owner(handle) == (GetInvokingResource() or GetCurrentResourceName())
-            and exports.qbtarget:removeModel(handle.value, targetId) == true then
+            and exports.kora_target:removeModel(handle.value, targetId) == true then
             targetHandles.model[targetId] = nil
             targetRegistry.untrack(handle)
             removed = true

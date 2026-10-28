@@ -1,7 +1,7 @@
 -- Drop-in compatibility bridge: translates the real, public qb-minigames API
 -- (github.com/qbcore-fivem/qb-minigames -- exports['qb-minigames']:Hacking/
 -- KeyMinigame/Lockpick/StartPinpad/Quiz/Skillbar/WordGuess/WordScramble) onto
--- QB.minigames.play, qblib's own server-authoritative replacement. Unlike
+-- QB.minigames.play, kora_lib's own server-authoritative replacement. Unlike
 -- upstream (pure client-trust: the NUI itself decides pass/fail and just
 -- posts the result), every call here is validated server-side -- see
 -- modules/minigames/AGENTS.md and this file's "Divergences" note below for
@@ -48,8 +48,8 @@ end
 
 -- Divergence: upstream's Lockpick(pins) is a different mechanic (a
 -- standalone tumbler minigame whose `pins` argument its own README calls
--- "number of tries") from qblib's pin-target-on-a-triangle-wave lockpick.
--- Rather than build a second, upstream-faithful lockpick alongside qblib's
+-- "number of tries") from kora_lib's pin-target-on-a-triangle-wave lockpick.
+-- Rather than build a second, upstream-faithful lockpick alongside kora_lib's
 -- existing one, `pins` is mapped onto pinCount -- close enough in spirit
 -- (more pins = harder) without claiming pixel/mechanic parity.
 local function playLockpick(pins)
@@ -68,12 +68,12 @@ local function playQuiz(questions, correctRequired, timer)
 end
 
 -- Divergence: upstream's Skillbar(difficulty, validKeys) is a key-sequence
--- minigame -- `validKeys` (e.g. "wasdfgh") has no analogue in qblib's
+-- minigame -- `validKeys` (e.g. "wasdfgh") has no analogue in kora_lib's
 -- existing triangle-wave skillbar, so it's dropped rather than guessed at,
 -- same "drop what can't be faithfully translated, warn once" precedent
 -- compat/client/qb-menu.lua's imageFor sets for icons it can't map.
 -- `difficulty` is translated into a zoneSize (smaller = harder), the closest
--- qblib equivalent to upstream's easy/medium/hard levels.
+-- kora_lib equivalent to upstream's easy/medium/hard levels.
 local SKILLBAR_ZONE_SIZE = { easy = 0.20, medium = 0.14, hard = 0.08 }
 
 local function playSkillbar(difficulty, validKeys)

@@ -63,7 +63,7 @@ local playedEmotes = {}
 local cancelledEmotes = {}
 
 _G.exports = {
-    qbemotemenu = {
+    kora_emotemenu = {
         playEmote = function(_, emote) playedEmotes[#playedEmotes + 1] = emote end,
         cancelEmote = function(_, forced) cancelledEmotes[#cancelledEmotes + 1] = forced end,
     },
@@ -751,7 +751,7 @@ end)
 harness.test('core forwarding preserves the original resource owner', function()
     reset()
     local finished = false
-    _G.GetInvokingResource = function() return 'qbcore' end
+    _G.GetInvokingResource = function() return 'kora_core' end
     legacyExports.Progress({ label = 'Core forwarded', duration = 5000, prop = { model = 'prop_one' } }, function() finished = true end, 'original_job')
     _G.GetInvokingResource = function() return nil end
     mockHandle.fire('onClientResourceStop', 'original_job')

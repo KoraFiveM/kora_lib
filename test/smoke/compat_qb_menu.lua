@@ -11,13 +11,13 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Controllable mock qbcore shared-item registry -- imageFor (in
+-- Controllable mock kora_core shared-item registry -- imageFor (in
 -- compat/client/qb-menu.lua) reads item definitions via
--- exports.qbcore:getShared('items', key), pcall-guarded, same pattern as
--- compat_qb_radialmenu.lua's exports.qbcore mock.
+-- exports.kora_core:getShared('items', key), pcall-guarded, same pattern as
+-- compat_qb_radialmenu.lua's exports.kora_core mock.
 local sharedItems = {}
 _G.exports = {
-    qbcore = {
+    kora_core = {
         getShared = function(_, collection, key)
             if collection == 'items' then return sharedItems[key] end
             return nil
@@ -118,7 +118,7 @@ end)
 -- A `function` value on `item.action` set by ANOTHER resource crosses the
 -- exports['qb-menu']:openMenu(...) boundary as a table with a __call
 -- metamethod, not a real function -- FXServer's own funcref marshalling, the
--- same shape test/smoke/funcref.lua in qbinventory exercises for the
+-- same shape test/smoke/funcref.lua in kora_inventory exercises for the
 -- identical reason. A masked action must still fire, matching a real
 -- (same-resource, unmasked) function action.
 harness.test("selecting an item with a masked cross-resource function action still fires it", function()
@@ -240,11 +240,11 @@ end)
 
 -- Real qb-menu items sometimes carry a shared-item NAME as `icon` rather
 -- than a real icon; imageFor looks that name up via
--- exports.qbcore:getShared('items', icon). If the matched definition has a real
+-- exports.kora_core:getShared('items', icon). If the matched definition has a real
 -- `imageUrl`, it's used as-is (not exercised here). But if the definition
 -- only has the LEGACY local-file `image` field (no `imageUrl`), imageFor
 -- used to fall back to building a `nui://qb-inventory/html/images/%s` URL --
--- dead, because qbinventory (the resource that actually provides the
+-- dead, because kora_inventory (the resource that actually provides the
 -- 'qb-inventory' identity) ships no such files and never exposes that path
 -- in its fxmanifest.lua `files{}` block. That URL always 404s in the NUI, so
 -- imageFor now drops the icon entirely in this case instead, matching its

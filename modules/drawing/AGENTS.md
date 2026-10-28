@@ -1,10 +1,10 @@
 # drawing module guide
 
 ## Purpose
-World-space visuals for client-side rendering, starting with 3D text. Added specifically because a crosshair-based targeting system needs to show an interaction prompt ("[E] Open") near whatever the player is aiming at, and nothing in qblib rendered anything in world space.
+World-space visuals for client-side rendering, starting with 3D text. Added specifically because a crosshair-based targeting system needs to show an interaction prompt ("[E] Open") near whatever the player is aiming at, and nothing in kora_lib rendered anything in world space.
 
 ## Why a new module rather than folding this into an existing one
-Nothing else in qblib draws to the screen. `modules/zones`' debug renderer (`drawDebugBox`/`drawDebugSphere`/`drawDebugPoly`) draws wireframes for its own zone shapes specifically and isn't a general-purpose primitive; text rendering is an unrelated concern (no shape, no containment, no ownership) that belongs on its own.
+Nothing else in kora_lib draws to the screen. `modules/zones`' debug renderer (`drawDebugBox`/`drawDebugSphere`/`drawDebugPoly`) draws wireframes for its own zone shapes specifically and isn't a general-purpose primitive; text rendering is an unrelated concern (no shape, no containment, no ownership) that belongs on its own.
 
 ## Implementation notes
 - `toVec3`/`withinDistance` are private copies of the same small helpers duplicated across `modules/raycast`, `modules/world`, and `modules/zones` -- per the top-level `AGENTS.md`, Lua `local`s don't cross files and this repo has no shared-utils convention, so every client-only module keeps its own copies. Squared-component culling avoids a square root in this per-frame path.

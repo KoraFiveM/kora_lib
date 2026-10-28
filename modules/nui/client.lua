@@ -56,7 +56,7 @@ local function assertAppId(id)
 end
 
 local function translateAppLabel(key)
-    if QB.locale and QB.locale.translate then return QB.locale.translate('qblib', 'app.' .. key) end
+    if QB.locale and QB.locale.translate then return QB.locale.translate('kora_lib', 'app.' .. key) end
     return APP_LABEL_FALLBACKS[key]
 end
 
@@ -684,7 +684,7 @@ local function acquireFocus(mouse, keyboard, owner, keepInput)
 end
 
 ---Acquires an owner-tracked focus lease for a composed compatibility surface.
----The returned release function is intended to stay inside qblib; ordinary
+---The returned release function is intended to stay inside kora_lib; ordinary
 ---resources should use withFocus or an open* helper.
 ---@param mouse boolean
 ---@param keyboard boolean
@@ -712,7 +712,7 @@ end
 ---@param mouse boolean
 ---@param keyboard boolean
 ---@param fn fun(): any
----@param owner? string Internal owner override for qblib modules whose operation continues in a new coroutine.
+---@param owner? string Internal owner override for kora_lib modules whose operation continues in a new coroutine.
 ---@return any
 function QB.nui.withFocus(mouse, keyboard, fn, owner)
     assert(type(mouse) == 'boolean' and type(keyboard) == 'boolean', 'withFocus requires boolean mouse and keyboard values.')
@@ -758,7 +758,7 @@ local feedOwnership = QB.resources.registry(function()
     QB.nui.send('qbdispatch:feed', false)
 end)
 
----Updates qbdispatch's display-only feed without taking focus.
+---Updates kora_dispatch's display-only feed without taking focus.
 ---@param payload table|false false clears the caller-owned surface.
 ---@return boolean accepted
 function QB.nui.setDispatchFeed(payload)
@@ -834,11 +834,11 @@ end)
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it (:next(), used below)
--- reach the real promise inside qblib, while plain field reads (.state,
+-- reach the real promise inside kora_lib, while plain field reads (.state,
 -- .value -- what Citizen.Await itself checks) on the crossed reference never
 -- reflect the real remote promise's settlement, so the caller's own
 -- Citizen.Await silently resolves nil regardless of the real outcome.
--- GetInvokingResource() is nil for a same-VM call (qblib's own modules,
+-- GetInvokingResource() is nil for a same-VM call (kora_lib's own modules,
 -- every dofile()'d smoke test) and the real calling resource's name for a
 -- genuine cross-resource exports() call (same signal modules/zones already
 -- relies on for ownership tracking -- see its AGENTS.md's "Resource
@@ -846,7 +846,7 @@ end)
 -- callers get the real promise back unchanged, so `Citizen.Await(QB.nui.X(...))`
 -- keeps working exactly as before for internal callers and every smoke test.
 -- A genuine cross-resource caller gets the already-awaited plain value (or a
--- raised error on rejection/timeout, which -- like every other qblib error --
+-- raised error on rejection/timeout, which -- like every other kora_lib error --
 -- surfaces to that caller as a printed export-call error and a nil return,
 -- not a catchable Lua error) instead of a promise it can't usefully await.
 -- Deliberately duplicated per-file -- see local/callback/{client,server}.lua
@@ -865,7 +865,7 @@ end
 ---@param action string
 ---@param data any
 ---@param timeout? integer | false Milliseconds before the promise rejects. Defaults to 30000; pass false to disable.
----@param owner? string Internal owner override for qblib operations that continue in a new coroutine.
+---@param owner? string Internal owner override for kora_lib operations that continue in a new coroutine.
 ---@return promise promise
 local function requestPromise(action, data, timeout, owner, onEvent)
     if timeout ~= false then
@@ -923,11 +923,11 @@ local function settlePendingRequest(p, ok, value)
 end
 
 ---Public wrapper over the same primitive above, for callers sending a custom
----NUI action qblib doesn't have a dedicated wrapper for.
+---NUI action kora_lib doesn't have a dedicated wrapper for.
 ---@param action string
 ---@param data any
 ---@param timeout? integer | false
----@param owner? string Internal owner override for qblib operations that continue in a new coroutine.
+---@param owner? string Internal owner override for kora_lib operations that continue in a new coroutine.
 ---@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before); the
 ---already-settled result value directly for a genuine cross-resource caller (see settleForExport above).
 function QB.nui.request(action, data, timeout, owner)
@@ -937,7 +937,7 @@ end
 local focusUntilSettled
 
 ---Starts a request without awaiting it across an enclosing export call.
----This is an internal composition primitive for qblib modules that need to
+---This is an internal composition primitive for kora_lib modules that need to
 ---retain a cancellable request handle while preserving the original consumer
 ---as owner. Ordinary resources should use QB.nui.request/open* instead.
 ---@param action string

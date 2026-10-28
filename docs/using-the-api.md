@@ -14,11 +14,11 @@ QB.<module>.<function>(...)
 ```
 
 For example, a stateful call such as `QB.entities.create(...)` resolves to
-qblib's `entities_create` export. A non-Lua consumer can call generated exports
+kora_lib's `entities_create` export. A non-Lua consumer can call generated exports
 directly:
 
 ```lua
-local entity = exports.qblib:entities_create(model, coords)
+local entity = exports.kora_lib:entities_create(model, coords)
 ```
 
 Use the documented `QB` form in Lua. It provides language-server types and keeps consumer code consistent when an implementation changes behind the proxy.
@@ -27,7 +27,7 @@ Use the documented `QB` form in Lua. It provides language-server types and keeps
 lazily inside the consuming resource. `QB.stream` is loaded the same way on
 the client, so model and asset streaming natives execute in the resource that
 requested them. These modules are cached for the lifetime of that consumer.
-After qblib restarts, an update notification reloads already-used stateless
+After kora_lib restarts, an update notification reloads already-used stateless
 helpers (`QB.util`, `QB.loops`, and client-side `QB.stream`) in place;
 untouched modules remain lazy. `QB.require`, `QB.config`, and `QB.compat`
 deliberately retain their consumer-local caches, registrations, and
@@ -35,7 +35,7 @@ configuration state until that consumer restarts. Existing references to a
 refreshed module table stay valid.
 
 Modules with shared registries, long-lived handles, or central state continue
-to dispatch through qblib exports. Direct exports remain available for every
+to dispatch through kora_lib exports. Direct exports remain available for every
 module, including the consumer-local modules, for non-Lua callers and explicit
 compatibility use.
 
@@ -54,7 +54,7 @@ Calling a function from the wrong realm requests an export that was never regist
 
 ## Results and expected failures
 
-qblib uses assertions for programmer errors such as an invalid argument type or an impossible internal state. Recoverable runtime failures normally return `false, reason` or `nil, reason`, as documented by the individual function.
+kora_lib uses assertions for programmer errors such as an invalid argument type or an impossible internal state. Recoverable runtime failures normally return `false, reason` or `nil, reason`, as documented by the individual function.
 
 ```lua
 local entity, reason = QB.entities.create(model, coords)
@@ -71,7 +71,7 @@ Do not discard a second return value when the reference documents one; it is int
 Pass real, finite Lua numbers to numeric APIs. `NaN`, positive infinity, and
 negative infinity are invalid even when Lua classifies them as numbers. Values
 documented as IDs, counts, durations, delays, sizes, or limits must also be
-whole numbers. qblib rejects invalid values before they can reach timers,
+whole numbers. kora_lib rejects invalid values before they can reach timers,
 loops, native calls, or server-side state; validate consumer-owned input with
 `QB.util.isFiniteNumber(value)` or `QB.util.isInteger(value)` when useful.
 
@@ -83,11 +83,11 @@ Use promise-returning APIs from a yieldable coroutine such as a command handler 
 
 ## Resource ownership
 
-Registrations and long-lived handles are owned by the invoking resource. qblib automatically cleans them up when that resource stops. This covers zones, entities, keybinds, callbacks, events, timers, sounds, NUI requests, and other registered state.
+Registrations and long-lived handles are owned by the invoking resource. kora_lib automatically cleans them up when that resource stops. This covers zones, entities, keybinds, callbacks, events, timers, sounds, NUI requests, and other registered state.
 
 Status-effect definitions follow the same rule: their names are owner-scoped,
 released on resource stop, and stored as immutable snapshots. A second resource
-cannot silently replace a definition, and reading one never returns qblib's
+cannot silently replace a definition, and reading one never returns kora_lib's
 live configuration table.
 
 Ownership also protects mutation: a handle returned to one resource does not
@@ -125,4 +125,4 @@ grant a reward.
 
 ## Configuration
 
-qblib's own defaults live in `config.lua`, with server-only values in `server/config.lua`. Consumers can use `QB.config` to define typed, owner-editable settings while retaining a normal authored Lua `Config` table. See the [configuration module]({{ site.baseurl }}/reference/config/) for scopes, validation, persistence, and live-change handlers.
+kora_lib's own defaults live in `config.lua`, with server-only values in `server/config.lua`. Consumers can use `QB.config` to define typed, owner-editable settings while retaining a normal authored Lua `Config` table. See the [configuration module]({{ site.baseurl }}/reference/config/) for scopes, validation, persistence, and live-change handlers.

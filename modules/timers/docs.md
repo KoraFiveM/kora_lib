@@ -110,9 +110,9 @@ if IsPedShooting(ped) then alertShotsFired.run(GetEntityCoords(ped)) end
 ### Calling the handle from another resource
 
 Both handles are callable tables, made callable by a `__call` metamethod. **That
-metamethod does not survive the export boundary.** Any resource other than qblib
+metamethod does not survive the export boundary.** Any resource other than kora_lib
 reaches these through the `QB` proxy, which compiles `QB.timers.throttle(...)`
-into `exports.qblib:timers_throttle(...)`; the returned table's *fields* cross
+into `exports.kora_lib:timers_throttle(...)`; the returned table's *fields* cross
 fine as funcrefs, but its metatable is not carried across. Calling the handle
 directly there fails with:
 
@@ -120,12 +120,12 @@ directly there fails with:
 attempt to call a table value (upvalue 'reportMelee')
 ```
 
-So from outside qblib, always use `.run(...)`:
+So from outside kora_lib, always use `.run(...)`:
 
 ```lua
 local reportMelee = QB.timers.throttle(function() ... end, 30000)
 
-reportMelee()      -- works only inside qblib itself
+reportMelee()      -- works only inside kora_lib itself
 reportMelee.run()  -- correct everywhere
 ```
 
@@ -174,6 +174,6 @@ timers themselves; a debouncer with a pending run contributes one.
   coroutine, so cancelling sets a flag the parked loop checks immediately after
   its `Wait`. `clearInterval` therefore never fires one extra tick.
 - **`debounce` attributes its pending run to the resource that created it**, not
-  to qblib. `GetInvokingResource()` inside a deferred closure is always `nil`
+  to kora_lib. `GetInvokingResource()` inside a deferred closure is always `nil`
   (there is no in-progress `exports()` call at that point), so the owner is
   captured at registration time and carried down.

@@ -5,7 +5,7 @@ permalink: /reference/
 
 # API index
 
-Every public qblib namespace has a reference page. Each page is generated from the `docs.md` file beside its implementation, and every normal exported function is checked against both that guide and `types.lua` by the test suite.
+Every public kora_lib namespace has a reference page. Each page is generated from the `docs.md` file beside its implementation, and every normal exported function is checked against both that guide and `types.lua` by the test suite.
 
 ## Core
 

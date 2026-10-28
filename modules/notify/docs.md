@@ -14,7 +14,7 @@ Shows a notification on the local player.
   - `duration?: integer` — Milliseconds. Defaults to `Config.notify.defaultDuration`, capped at `Config.notify.maxDuration`.
   - `type?: "info" | "success" | "warning" | "error"` — Visual variant (accent colour + icon). Defaults to `Config.notify.defaultType`.
   - `position?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right" | "center-left" | "center-right" | "top" | "bottom"` — Defaults to `Config.notify.defaultPosition`.
-  - `icon?: string` — Overrides the variant's default icon. Supports qblib's
+  - `icon?: string` — Overrides the variant's default icon. Supports kora_lib's
     Lucide set, ox-compatible Font Awesome names, and safe HTTP/NUI image URLs.
   - `iconColor?: string` — CSS colour for the icon.
   - `iconAnimation?: string` — `spin`, `spinPulse`, `spinReverse`, `pulse`,
@@ -66,4 +66,4 @@ rejected by `QB.notify.assert` rather than silently replaced.
 - `duration` defaults to `Config.notify.defaultDuration` (5000ms), must be a finite whole number of milliseconds, and must be `<= Config.notify.maxDuration` (120000ms by default).
 - A malformed payload never throws out of `send` — it's caught internally and the notification is silently dropped.
 - Toasts stack per position, newest nearest the screen edge, capped at 6 on screen at once (oldest dropped) so a spamming caller can't grow the overlay unboundedly.
-- Set `Config.third_party_notify = true` to route every notification through the `qblib:notify:send` event instead of qblib's own NUI toast, if you'd rather use a different notification resource. In that mode the payload is forwarded exactly as given — `withDefaults` is *not* applied, since a third-party resource has its own defaults.
+- Set `Config.third_party_notify = true` to route every notification through the `qblib:notify:send` event instead of kora_lib's own NUI toast, if you'd rather use a different notification resource. In that mode the payload is forwarded exactly as given — `withDefaults` is *not* applied, since a third-party resource has its own defaults.

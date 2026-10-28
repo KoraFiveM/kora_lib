@@ -29,7 +29,7 @@ end)
 
 harness.test('options API registers a protected press handler and mapper', function()
     local calls = 0
-    invokingResource = 'qbchat'
+    invokingResource = 'kora_chat'
     local handle = QB.keybind.add({
         name = 'qbchat_open',
         description = 'Open chat',
@@ -45,7 +45,7 @@ harness.test('options API registers a protected press handler and mapper', funct
     net.commands['+qbchat_open']()
     net.commands['-qbchat_open']()
     harness.assertEqual(calls, 1)
-    harness.assertEqual(handle.resource, 'qbchat')
+    harness.assertEqual(handle.resource, 'kora_chat')
     harness.assertEqual(mappings[#mappings].key, 'T')
     harness.assertEqual(mappings[#mappings].mapper, 'keyboard')
 end)
@@ -214,7 +214,7 @@ end)
 
 harness.test('server command mappings use the same registry and transport', function()
     TriggerClientEvent('qblib:commands:keybind:add', 1, 'admin', {
-        description = 'Open admin', defaultKey = 'F7', resource = 'qbadmin',
+        description = 'Open admin', defaultKey = 'F7', resource = 'kora_admin',
     })
     net.commands['+qblib_command:admin']()
     local execute = mocks.lastEntry(net.triggeredServerEvents, 'qblib:commands:keybind:execute')

@@ -60,7 +60,7 @@ end, false)
 
 Called from another resource:
 ```lua
-local result = exports.qblib:minigames_play("skillbar", { attempts = 1 })
+local result = exports.kora_lib:minigames_play("skillbar", { attempts = 1 })
 if result.success then
     -- proceed
 end
@@ -82,15 +82,15 @@ should normally use `play`, which waits and returns the result directly.
 - Numeric inputs must be finite. Attempt arrays must be dense and are capped to the expected round size. Puzzle content is byte/count bounded by `Config.minigames.inputLimits` (including at most 8 PIN digits, 20 quiz questions with 8 options each, 32-byte wordguess words, 64-byte scrambled words, and 256-byte hints). `wordguess` words are ASCII letters because its input protocol submits one ASCII letter at a time.
 - The start/submit/cancel callbacks have per-player quotas in `Config.minigames.callbackRateLimits`; the defaults are 5/20/10 calls respectively per 10 seconds.
 
-### Skill-aware checks (`qbskills`, optional)
+### Skill-aware checks (`kora_skills`, optional)
 
 `QB.minigames.playSkillCheck(skill, gameType, opts?, authorization?)` is the
-client helper for a check whose difficulty may scale with a `qbskills` level.
-If `qbskills` is not started it behaves exactly like `play`.
+client helper for a check whose difficulty may scale with a `kora_skills` level.
+If `kora_skills` is not started it behaves exactly like `play`.
 
 For an action that has real value, issue the authorization on the server with
-`QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts)`. qblib
-first resolves the trusted options, then lets qbskills adjust that resolved
+`QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts)`. kora_lib
+first resolves the trusted options, then lets kora_skills adjust that resolved
 configuration and captures the final result inside the authorization. The
 client cannot replace it with easier options at start time.
 
@@ -161,8 +161,8 @@ Authorizations are single-start capabilities. Failed or cancelled sessions do no
 | `WordScramble(word, hint, timer)` | `play('wordscramble', { word, hint, timer })` | Direct mapping |
 
 Three documented divergences:
-- **`Lockpick`**: upstream's `pins` argument (its own README calls it "number of tries") is mapped onto qblib's `pinCount` for a script that "just works", but it's a different minigame -- qblib's pin-target-on-a-triangle-wave lockpick, not upstream's own tumbler minigame.
-- **`Skillbar`**: `validKeys` (e.g. `"wasdfgh"`) has no equivalent in qblib's triangle-wave skillbar and is silently dropped (one-time console warning); `difficulty` is translated into a `zoneSize` instead.
+- **`Lockpick`**: upstream's `pins` argument (its own README calls it "number of tries") is mapped onto kora_lib's `pinCount` for a script that "just works", but it's a different minigame -- kora_lib's pin-target-on-a-triangle-wave lockpick, not upstream's own tumbler minigame.
+- **`Skillbar`**: `validKeys` (e.g. `"wasdfgh"`) has no equivalent in kora_lib's triangle-wave skillbar and is silently dropped (one-time console warning); `difficulty` is translated into a `zoneSize` instead.
 - **`WordGuess`**: the browser never receives the solution, so it cannot reveal
   hits or distinguish a wrong guess while the round is live. It submits the
   collected unique letters when time expires and the server scores them.

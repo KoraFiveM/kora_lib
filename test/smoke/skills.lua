@@ -10,12 +10,12 @@ mocks.install()
 
 local state = 'missing'
 _G.GetResourceState = function(name)
-    harness.assertEqual(name, 'qbskills', 'the bridge should only inspect qbskills')
+    harness.assertEqual(name, 'kora_skills', 'the bridge should only inspect qbskills')
     return state
 end
 
 _G.exports = {
-    qbskills = {
+    kora_skills = {
         getRep = function(_, src, skill) return { source = src, name = skill, level = 20 } end,
         getAllRep = function(_, src) return { mining = { source = src, level = 20 } } end,
         isLevel = function(_, src, _, level) return src == 1 and level <= 20 end,
@@ -70,7 +70,7 @@ harness.test('server skills calls reject invalid sources and awards before forwa
     harness.assertThrows(function() QB.skills.adjustMinigame(1, 'mining', '', {}) end)
 end)
 
-_G.exports.qbskills = {
+_G.exports.kora_skills = {
     getRep = function(_, skill) return { name = skill, level = 20 } end,
     getAllRep = function() return { mining = { level = 20 } } end,
     isLevel = function(_, skill, level) return skill == 'mining' and level <= 20 end,

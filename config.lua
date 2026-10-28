@@ -3,7 +3,7 @@ Config = {}
 Config.third_party_notify = false
 
 Config.ui = {
-    interact = true, -- set false to disable the qblib interact-zone module entirely
+    interact = true, -- set false to disable the kora_lib interact-zone module entirely
 }
 
 -- Screenshot capture is rendered only when a resource requests it. Keeping a
@@ -21,7 +21,7 @@ Config.screenshot = {
     maxBytes = 12 * 1024 * 1024,
 }
 
--- Controls are consumed only while a qblib interact selector is visible.
+-- Controls are consumed only while a kora_lib interact selector is visible.
 -- Keeping them here makes the gameplay-side interaction rebindable without
 -- changing the NUI, which remains a pointer-transparent display layer.
 Config.interact = {
@@ -36,7 +36,7 @@ Config.callback = {
     -- rejecting. This has to cover the WORST client, not the average one: a
     -- cold machine still finishing its join answers its first few round trips
     -- far slower than a settled one, and a rejection here is indistinguishable
-    -- from a refusal at the call site -- qbmultichar's character select used to
+    -- from a refusal at the call site -- kora_multichar's character select used to
     -- silently give up on an empty scene catalog because of exactly that.
     -- Nothing waits on this in the happy path, so a generous value costs only
     -- how long a genuinely broken callback takes to report itself.
@@ -85,7 +85,7 @@ Config.blips = {
     -- not a collapsible group.
     groupedCategory = 2,
 
-    -- GTA's range for named custom legend categories. qblib's fixed catalogue
+    -- GTA's range for named custom legend categories. kora_lib's fixed catalogue
     -- in modules/blips/shared.lua uses ids from this range.
     namedCategoryStart = 12,
     namedCategoryEnd = 133,
@@ -100,7 +100,7 @@ Config.progressbar = {
 -- compat/client/qb-radialmenu.lua's built-in wheel content -- the same
 -- categories real qbcore-framework/qb-radialmenu injects into every player's
 -- wheel by default (SetupJobMenu/SetupVehicleMenu in its main.lua), ported
--- here so a server pairing qblib's compat with no qb-radialmenu installed
+-- here so a server pairing kora_lib's compat with no qb-radialmenu installed
 -- still sees the same default content, not an empty wheel.
 Config.radialmenuCompat = {
     enableVehicleExtras = true, -- mirrors real qb-radialmenu's Config.EnableExtraMenu
@@ -119,7 +119,7 @@ Config.radialmenuCompat = {
     -- to know an aimed-at/nearby TARGET player (search/escort/jail/seize
     -- license) that the wheel's own event payload never carries -- copying
     -- those in verbatim would just be dead buttons against resources this
-    -- server doesn't run, or against ones (qbambulance/qbpolice) that
+    -- server doesn't run, or against ones (kora_ambulance/qbpolice) that
     -- implement the equivalent action under a different, non-parameterless
     -- shape. Only entries verified to have a real, self-contained handler in
     -- THIS server's own resources are wired up below; add your own the same
@@ -131,7 +131,7 @@ Config.radialmenuCompat = {
             { id = 'treatwounds', title = 'Heal Wounds', type = 'client', event = 'hospital:client:TreatWounds', shouldClose = true },
             -- Real upstream's ambulance/police "Emergency button" entries both
             -- fire 'police:client:SendPoliceEmergencyAlert', which this
-            -- server's qbpolice doesn't implement -- qbpolice's own real
+            -- server's kora_police doesn't implement -- kora_police's own real
             -- equivalent is the self-contained, on-duty-gated `/backup`
             -- command (client/dispatch.lua), fired here via `type =
             -- 'command'` (a real qb-radialmenu dispatch type -- see
@@ -214,7 +214,7 @@ Config.zones = {
     tickInside = 0,              -- ms Wait() while inside a zone with an `inside` callback
     defaultPointRadius = 1.0,    -- meters; QB.zones.point() default
     defaultPolyThickness = 4.0,  -- meters; QB.zones.poly() default height band
-    debugAlpha = 200, -- 0-255; colour follows qbtheme's configured primary through QB.theme.accentColor()
+    debugAlpha = 200, -- 0-255; colour follows kora_theme's configured primary through QB.theme.accentColor()
     debugWallAlpha = 40,         -- 0-255; translucent fill for box/poly walls, deliberately lower than debugAlpha so it doesn't bury the wireframe it complements
     debug = false, -- global default OR'd into every zone's own opts.debug at creation (QB.zones.setDebug can still flip debug on/off for already-created zones at runtime)
 

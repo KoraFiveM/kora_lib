@@ -1,11 +1,11 @@
--- qblib's own client-side configuration consumer. The server-side catalog
+-- kora_lib's own client-side configuration consumer. The server-side catalog
 -- bridge lives in server.lua; this counterpart receives only the shared and
--- client-scoped portion of qblib's configuration.
+-- client-scoped portion of kora_lib's configuration.
 
-if type(Config) == 'table' and type(GetCurrentResourceName) == 'function' and GetCurrentResourceName() == 'qblib' then
-    local source = assert(LoadResourceFile('qblib', 'modules/config/consumer.lua'))
-    local factory = assert(load(source, '@@qblib/modules/config/consumer.lua', 't', _ENV))()
-    local bridge = factory(exports.qblib)
+if type(Config) == 'table' and type(GetCurrentResourceName) == 'function' and GetCurrentResourceName() == 'kora_lib' then
+    local source = assert(LoadResourceFile('kora_lib', 'modules/config/consumer.lua'))
+    local factory = assert(load(source, '@@kora_lib/modules/config/consumer.lua', 't', _ENV))()
+    local bridge = factory(exports.kora_lib)
     if type(Config.notify) == 'table' then
         Config.notify.defaultType = bridge.enum(Config.notify.defaultType, {
             live = true,

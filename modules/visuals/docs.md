@@ -1,11 +1,11 @@
 # Visual effects
 
-Client-side screen and drug-effect conveniences. Drug effects start asynchronously and return immediately; multiple effects may overlap. qblib restores the default sprint multiplier after the last live effect finishes.
+Client-side screen and drug-effect conveniences. Drug effects start asynchronously and return immediately; multiple effects may overlap. kora_lib restores the default sprint multiplier after the last live effect finishes.
 
 ## Screen fade
 
 `QB.visuals.fade(duration?, fn?)` fades to black over `duration` milliseconds (default `500`), runs `fn` while the screen is fully black, and always fades back in. If the callback raises, the screen is restored before the error is re-raised.
-If the game does not report a completed fade, qblib waits at most one extra
+If the game does not report a completed fade, kora_lib waits at most one extra
 second before continuing, so a stalled native cannot strand the caller.
 
 ```lua

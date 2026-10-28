@@ -46,10 +46,10 @@ local function awaitToken()
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across qblib modules.
+-- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = QB.compat.isCallable
 
----Triggers a registered server event through qblib's session-correlated gateway.
+---Triggers a registered server event through kora_lib's session-correlated gateway.
 ---Waits for the initial handshake token if it hasn't arrived yet.
 ---@param name string
 ---@param ... any

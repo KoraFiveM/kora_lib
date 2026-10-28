@@ -6,14 +6,14 @@ local harness = require('harness')
 local handlers = {}
 
 _G.exports = {
-    qblib = {
+    kora_lib = {
         util_isCallable = function(_, value) return type(value) == 'function' end,
     },
 }
 _G.GetCurrentResourceName = function() return 'consumer' end
 _G.AddEventHandler = function(name, handler) handlers[name] = handler end
 _G.LoadResourceFile = function(resource, path)
-    if resource ~= 'qblib' then return nil end
+    if resource ~= 'kora_lib' then return nil end
     local file = assert(io.open(repoRoot .. path, 'r'))
     local source = file:read('*a')
     file:close()

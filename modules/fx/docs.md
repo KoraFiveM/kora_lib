@@ -11,7 +11,7 @@ startup fails.
 
 When supplied, `entity` is a positive finite integer, `bone` is a string, and `looped`
 is boolean. `offset`, `rot`, and `scale` default only when omitted; malformed
-explicit values are rejected before qblib streams an asset or calls a native.
+explicit values are rejected before kora_lib streams an asset or calls a native.
 
 ## `QB.fx.stop(handle)`
 

@@ -1,5 +1,5 @@
 // @citizenfx/three is FiveM's CfxTexture-enabled fork of Three r100. The
-// package predates bundled TypeScript declarations; qblib uses only this tiny
+// package predates bundled TypeScript declarations; kora_lib uses only this tiny
 // runtime surface for the headless game-view capture component.
 declare module "@citizenfx/three" {
     export const OrthographicCamera: any

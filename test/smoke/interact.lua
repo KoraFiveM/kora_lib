@@ -35,13 +35,13 @@ _G.DisablePlayerFiring = function() end
 _G.IsDisabledControlJustPressed = function(_, control) return pressedControls[control] == true end
 
 _G.exports = {
-    qbcore = {
+    kora_core = {
         getPlayerData = function() return player end,
     },
     ["qb-inventory"] = {
         HasItem = function(_, item) return inventory[item] == true end,
     },
-    qbtarget = {
+    kora_target = {
         addEntity = function(_, entity, options, distance)
             targetRegistrations[#targetRegistrations + 1] = { kind = 'entity', value = entity, options = options, distance = distance }
             return #targetRegistrations
@@ -255,7 +255,7 @@ harness.test("selectOption dispatches the selected client event once and hides",
     harness.assertTrue(type(response) == "table", "the NUI callback should always respond")
 end)
 
--- exports.qblib:addCircleZone(...)/addBoxZone(...) are real cross-resource
+-- exports.kora_lib:addCircleZone(...)/addBoxZone(...) are real cross-resource
 -- entry points -- a `function` value another resource puts on `option.action`
 -- or `option.canInteract` crosses that boundary as a table with a __call
 -- metamethod, not a real function (FXServer's own funcref marshalling; see

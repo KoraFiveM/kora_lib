@@ -14,8 +14,8 @@ local stoppedResource
 local startedResource
 
 _G.IsPlayerAceAllowed = function(_, object) return allowed and object == 'qblib.config.edit' end
-_G.GetCurrentResourceName = function() return 'qblib' end
-_G.GetResourceState = function(resource) return resource == 'qbadmin' and 'stopped' or 'started' end
+_G.GetCurrentResourceName = function() return 'kora_lib' end
+_G.GetResourceState = function(resource) return resource == 'kora_admin' and 'stopped' or 'started' end
 _G.StopResource = function(resource) stoppedResource = resource; return true end
 _G.StartResource = function(resource) startedResource = resource; return true end
 QB = {
@@ -137,8 +137,8 @@ H.test('an authorised owner can restart a registered resource but not qblib', fu
     H.assertEqual(stoppedResource, 'sample')
     H.assertEqual(startedResource, 'sample')
 
-    QB.config.catalog = function() return { { resource = 'qblib', schema = {} } } end
-    result = callbacks['qblib:configRestart'](12, 'qblib')
+    QB.config.catalog = function() return { { resource = 'kora_lib', schema = {} } } end
+    result = callbacks['qblib:configRestart'](12, 'kora_lib')
     H.assertFalse(result.ok)
 end)
 
@@ -155,24 +155,24 @@ end)
 
 H.test('Discord-only qbadmin access is authoritative while compatible mode retains ACE access', function()
     _G.GetResourceState = function() return 'started' end
-    _G.exports = { qbadmin = { canEditConfig = function() return false end } }
+    _G.exports = { kora_admin = { canEditConfig = function() return false end } }
     allowed = true
     local value, err = callbacks['qblib:configCatalog'](12)
     H.assertEqual(value, nil)
     H.assertEqual(err, 'permission denied')
 
-    exports.qbadmin.canEditConfig = function() return true end
+    exports.kora_admin.canEditConfig = function() return true end
     allowed = false
     H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
 
-    exports.qbadmin.canEditConfig = function() return nil end
+    exports.kora_admin.canEditConfig = function() return nil end
     allowed = true
     H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
 
-    exports.qbadmin.canEditConfig = function() error('permission bridge unavailable') end
+    exports.kora_admin.canEditConfig = function() error('permission bridge unavailable') end
     H.assertEqual(callbacks['qblib:configCatalog'](12), nil)
 
-    exports.qbadmin.canEditConfig = function() error('No such export canEditConfig in resource qbadmin') end
+    exports.kora_admin.canEditConfig = function() error('No such export canEditConfig in resource qbadmin') end
     H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
 end)
 

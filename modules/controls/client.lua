@@ -170,7 +170,7 @@ function QB.controls.acquire(controlIds, options)
     return acquire(controlIds, options)
 end
 
----Internal captured-owner bridge for qblib's asynchronous UI flows. Kept in
+---Internal captured-owner bridge for kora_lib's asynchronous UI flows. Kept in
 ---QB.compat so it is never published as a consumer-facing export.
 ---@param controlIds integer[]
 ---@param options QBControlsOptions?

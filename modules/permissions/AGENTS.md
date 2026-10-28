@@ -2,12 +2,12 @@
 
 ## Purpose
 The central, generic server-side wrapper over FiveM's ace/principal system and
-optional `QB.discord` role authorization. It remains independent of qbcore's
+optional `QB.discord` role authorization. It remains independent of kora_core's
 player/identity model; runtime principal mutation belongs to consumers such as
-qbcore.
+kora_core.
 
 ## Why the level list and prefix are parameters, not config
-qbcore's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its ace namespace (`qbcore.<level>`) are product choices, not something qblib should hardcode. `getLevel`, `hasLevel`, and `hasPermission` take a legacy prefix string or `{ prefix?, discordRoles? }`; qbcore can keep passing `'qbcore'`, while an admin resource can opt into its own Discord role map.
+kora_core's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its ace namespace (`kora_core.<level>`) are product choices, not something kora_lib should hardcode. `getLevel`, `hasLevel`, and `hasPermission` take a legacy prefix string or `{ prefix?, discordRoles? }`; kora_core can keep passing `'qbcore'`, while an admin resource can opt into its own Discord role map.
 
 ## Implementation notes
 - **`getLevel` always matches `'user'`** if it's in the `levels` list, regardless of any ace grant -- it's the vocabulary's floor, not something that needs an explicit principal.

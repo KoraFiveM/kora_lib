@@ -1,4 +1,4 @@
--- qblib's server-side configuration catalog. The catalog intentionally owns
+-- kora_lib's server-side configuration catalog. The catalog intentionally owns
 -- no resource configuration files: commits are sent back to the target
 -- resource's consumer-local bridge, where SaveResourceFile is permitted.
 
@@ -50,8 +50,8 @@ end
 -- race cannot leave the in-game editor permanently empty. The bridge cannot
 -- forge another resource's entry because the returned owner must match the
 -- resource whose export was queried. Probe every started resource: an
--- `@qblib/init.lua` import is a valid consumer even when the manifest does not
--- repeat qblib as an explicit dependency metadata entry.
+-- `@kora_lib/init.lua` import is a valid consumer even when the manifest does not
+-- repeat kora_lib as an explicit dependency metadata entry.
 discoverRegistrations = function()
     if type(GetNumResources) ~= 'function' or type(GetResourceByFindIndex) ~= 'function'
         or type(GetResourceState) ~= 'function' then return end
@@ -213,21 +213,21 @@ AddEventHandler('onResourceStop', function(resource)
     registry[resource] = nil
 end)
 
--- qblib uses the same consumer-local bridge as every adopting resource. It
--- cannot import @qblib/init.lua into itself because that file is the external
+-- kora_lib uses the same consumer-local bridge as every adopting resource. It
+-- cannot import @kora_lib/init.lua into itself because that file is the external
 -- proxy, so it loads the bridge factory directly during its own bootstrap.
 -- Config.discord is declared by server/config.lua and is deliberately added
 -- after the shared table so it never enters the client snapshot.
 local function registerQblibConfig()
-    if type(Config) ~= 'table' or type(GetCurrentResourceName) ~= 'function' or GetCurrentResourceName() ~= 'qblib' then return end
+    if type(Config) ~= 'table' or type(GetCurrentResourceName) ~= 'function' or GetCurrentResourceName() ~= 'kora_lib' then return end
 
-    local source = assert(LoadResourceFile('qblib', 'modules/config/consumer.lua'))
-    local factory = assert(load(source, '@@qblib/modules/config/consumer.lua', 't', _ENV))()
+    local source = assert(LoadResourceFile('kora_lib', 'modules/config/consumer.lua'))
+    local factory = assert(load(source, '@@kora_lib/modules/config/consumer.lua', 't', _ENV))()
     local bridge = factory({
         config_register = function(_, definition)
             -- A resource-driven start retains the starter as the ambient invoker.
-            -- This private same-VM bridge owns qblib; public calls still prove ownership.
-            return register(definition, 'qblib')
+            -- This private same-VM bridge owns kora_lib; public calls still prove ownership.
+            return register(definition, 'kora_lib')
         end,
     })
     local discord = Config.discord

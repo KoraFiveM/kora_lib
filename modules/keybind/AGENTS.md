@@ -13,7 +13,7 @@ keybindings synchronized by `QB.commands.add(..., { keybind = ... })`.
 
 The handle exposes `disable(toggle)`, `isDisabled()`, `isPressed()`,
 `getCurrentBinding()`, and `remove()`. Callback errors are contained and logged.
-An extended options-table form remains available for qblib's internal command
+An extended options-table form remains available for kora_lib's internal command
 keybind synchronization.
 
 ## Native lifetime

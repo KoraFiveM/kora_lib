@@ -47,7 +47,7 @@ local function assertKey(key)
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across qblib modules.
+-- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = QB.compat.isCallable
 
 -- No-op when the value hasn't actually changed, so setting the same vehicle/
@@ -194,7 +194,7 @@ end
 
 ---Sets a cached value directly, firing any QB.cache.onChange handlers
 ---registered for `key` if the value actually changed. Lets other modules (or
----other resources, via exports.qblib:cache_set) piggyback on the same cache +
+---other resources, via exports.kora_lib:cache_set) piggyback on the same cache +
 ---change-notification system for their own local state. Writing a built-in
 ---key (playerId/serverId/ped/vehicle/seat/weapon/health/armour/stamina/coords) is rejected
 ---outright -- logged and ignored -- rather than merely self-healing on the

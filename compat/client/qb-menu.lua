@@ -1,11 +1,11 @@
 -- Drop-in compatibility bridge: translates the real, public qb-menu API
 -- (exports['qb-menu']:openMenu/closeMenu, the 'qb-menu:client:openMenu' /
--- 'qb-menu:client:closeMenu' net events) onto QB.nui.openMenu, qblib's own
+-- 'qb-menu:client:closeMenu' net events) onto QB.nui.openMenu, kora_lib's own
 -- native replacement. qb-menu itself is being deprecated in favour of
 -- QB.nui.openMenu/openContextMenu/openRadialMenu -- this file exists so a
 -- script written against exports['qb-menu']:... keeps working unmodified
 -- while it migrates, exactly the same shape of shim as
--- qbtarget/client/compat/ox-target.lua and qbcore/compat/*.
+-- kora_target/client/compat/ox-target.lua and kora_core/compat/*.
 --
 -- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
 -- mapping table and the caveats flagged below.
@@ -32,24 +32,24 @@ local function imageFor(item)
     -- Resolve at render time through the registry getter. Capturing the whole
     -- Items map here would miss definitions registered after this resource
     -- started (and getShared expects a lowercase registry plus a record key).
-    local ok, definition = pcall(function() return exports.qbcore:getShared('items', item.icon) end)
+    local ok, definition = pcall(function() return exports.kora_core:getShared('items', item.icon) end)
     definition = ok and definition or nil
     if definition and type(definition.imageUrl) == 'string' and definition.imageUrl ~= '' then return definition.imageUrl end
     -- `definition.image` (e.g. "bread.png") is the LEGACY local-file field --
     -- real qb-inventory served it from its own html/images/ folder, but
-    -- qbinventory (the resource that actually `provide`s the 'qb-inventory'
+    -- kora_inventory (the resource that actually `provide`s the 'qb-inventory'
     -- identity in this codebase) ships no such files: its fxmanifest.lua
     -- `files{}` block only exposes web/build/**, nothing under
     -- html/images/. A `nui://qb-inventory/html/images/%s` URL therefore
     -- always 404s in the NUI -- it used to be built here as a fallback, which
     -- is dead weight, not a fallback.
     --
-    -- qbcore's own seed data (shared/items.lua) already does the real
+    -- kora_core's own seed data (shared/items.lua) already does the real
     -- resolution: every seeded item gets `imageUrl = QBCoreSeed.imageUrl(name)`
     -- at load time, which looks the item name up in `itemImagePaths` and
     -- returns a real, fetchable itemImageBaseUrl+path URL when one exists, or
     -- nil otherwise. So by the time `definition.imageUrl` is missing/empty
-    -- here, qbcore has already told us there is no real artwork for this
+    -- here, kora_core has already told us there is no real artwork for this
     -- item -- re-deriving through itemImagePaths ourselves would just
     -- reproduce that same nil. Match this function's own "the icon is simply
     -- dropped" philosophy (see the Font-Awesome-vs-lucide comment above) and
@@ -101,10 +101,10 @@ end
 -- with a __call metamethod, not a real function -- a bare `type(x) ==
 -- 'function'` guard rejects every item/action built by another resource and
 -- handed to this one via exports['qb-menu']:openMenu(...). Same fix, same
--- reasoning, as qblib's own isCallable (local/events, local/callback,
+-- reasoning, as kora_lib's own isCallable (local/events, local/callback,
 -- modules/cache, modules/status, modules/zones, modules/interact) and
--- qbcore/qbinventory/qbtarget's copies -- duplicated per-file rather than
--- shared, like all of those. See the qbinventory funcref bug in
+-- kora_core/kora_inventory/qbtarget's copies -- duplicated per-file rather than
+-- shared, like all of those. See the kora_inventory funcref bug in
 -- qbcore-compat-parity/inventory-compat-identities memory for the live crash
 -- this pattern was discovered from.
 local isCallable = QB.compat.isCallable

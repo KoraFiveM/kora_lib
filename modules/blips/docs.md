@@ -29,7 +29,7 @@ Creates a map blip.
   - `route: boolean` — Draws a waypoint route line to the blip. If `color` is also set, the route is colored to match.
   - `info: QBBlipInfo` — Optional detail panel shown when the player highlights the blip in the pause map.
 
-All supplied options are validated before qblib creates a native blip: sprite,
+All supplied options are validated before kora_lib creates a native blip: sprite,
 color, and display are non-negative integers; scale is positive and finite;
 and `shortRange` and `route` are booleans. Values default only when omitted.
 
@@ -101,7 +101,7 @@ end
 ```
 
 `QB.blips.getCategoryIds()` returns a fresh canonical name-to-id table in both
-client and server realms. Mutating the returned table does not alter qblib's
+client and server realms. Mutating the returned table does not alter kora_lib's
 catalogue.
 
 ### Registry and player visibility
@@ -135,7 +135,7 @@ QB.blips.showCategory('Fuel')
 
 ### Player settings UI
 
-Players can run `/blips` to open qblib's compact AppShell settings screen. The
+Players can run `/blips` to open kora_lib's compact AppShell settings screen. The
 screen lists the fixed categories and nests every currently registered blip
 beneath its category. Category actions apply immediately, update the open
 screen in place, and use the same client KVP preference as
@@ -174,7 +174,7 @@ local blip = QB.blips.create(contract.coords, {
 })
 ```
 
-`image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Shared dictionaries are retained once and released after the final panel using them is cleared or removed. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`. While a detailed blip is highlighted, qblib refreshes the frontend column every frame because GTA rebuilds pause-map columns continuously; the renderer returns to its low-frequency idle poll as soon as the highlight ends.
+`image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Shared dictionaries are retained once and released after the final panel using them is cleared or removed. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`. While a detailed blip is highlighted, kora_lib refreshes the frontend column every frame because GTA rebuilds pause-map columns continuously; the renderer returns to its low-frequency idle poll as soon as the highlight ends.
 
 ### `QB.blips.setInfo(blip, info)`
 

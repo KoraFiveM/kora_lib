@@ -50,8 +50,8 @@ QB.keybind = {
 
 dofile(repoRoot .. "compat/shared.lua")
 
--- Controllable mock qbcore PlayerData -- the built-in job/vehicle content
--- reads job/metadata via exports.qbcore:getPlayerData/getShared (pcall-
+-- Controllable mock kora_core PlayerData -- the built-in job/vehicle content
+-- reads job/metadata via exports.kora_core:getPlayerData/getShared (pcall-
 -- guarded in the compat file itself, same pattern as qb-menu compat's
 -- imageFor), so a real exports mock is needed to exercise that content
 -- rather than only its "qbcore isn't running" degraded path.
@@ -60,7 +60,7 @@ local playerMetadata = {}
 local jobDefs = { police = { type = "leo" }, ambulance = { type = "ems" }, unemployed = { type = "civ" } }
 
 _G.exports = {
-    qbcore = {
+    kora_core = {
         getPlayerData = function(_, path)
             if type(path) == "table" and path[1] == "job" then return playerJob end
             if type(path) == "table" and path[1] == "metadata" then return playerMetadata end

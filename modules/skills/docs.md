@@ -1,7 +1,7 @@
 # Skills bridge
 
-`QB.skills` is an optional bridge for servers running `qbskills`. It does not
-make qblib depend on that resource: every function is safe when `qbskills` is
+`QB.skills` is an optional bridge for servers running `kora_skills`. It does not
+make kora_lib depend on that resource: every function is safe when `kora_skills` is
 absent, stopped, or restarting.
 
 The bridge API is `QB.skills.isAvailable()`, `QB.skills.get(...)`,
@@ -37,5 +37,5 @@ bypass the minigame server checks.
 
 Client reads and presentation-only minigame adjustment use the same non-empty
 skill/game-type and positive integer level requirements. They remain optional:
-when `qbskills` is unavailable, reads return no data and adjustment leaves the
+when `kora_skills` is unavailable, reads return no data and adjustment leaves the
 provided options unchanged.

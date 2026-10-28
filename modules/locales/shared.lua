@@ -49,7 +49,7 @@ local function loadLocaleFile(resource, language)
 
     -- Legacy qb-core locale files register their table through `Locale:new`
     -- when FiveM executes them. Give those side effects harmless stand-ins so
-    -- the final `return Translations` can also be read by qblib on demand.
+    -- the final `return Translations` can also be read by kora_lib on demand.
     local noopLocale = { new = function() return { addLocale = function() end } end }
     local chunk = load(luaRaw, ('@@%s/%s'):format(resource, luaPath), 't', {
         Locale = noopLocale,

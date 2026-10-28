@@ -1,7 +1,7 @@
 return function()
     local compat = {}
 
-    -- Consumer-local QB.util uses the same callable rules as qblib's own VM.
+    -- Consumer-local QB.util uses the same callable rules as kora_lib's own VM.
     -- Keep this here to avoid routing callback validation back through an
     -- export when the surrounding module is deliberately local.
     local function isCallable(value, seen)

@@ -20,7 +20,7 @@ QB.logging.event('money', source, { type = 'add', amount = 500, account = 'bank'
 
 Called cross-resource via export:
 ```lua
-exports.qblib:logging_event('admin', source, { action = 'kick', target = 12 })
+exports.kora_lib:logging_event('admin', source, { action = 'kick', target = 12 })
 ```
 
 ### `QB.logging.getStats()` -- server
@@ -36,5 +36,5 @@ exports.qblib:logging_event('admin', source, { action = 'kick', target = 12 })
 - Webhook content is capped at Discord's 2,000-character message limit; this
   affects only the outbound mirror, never the complete local ring entry.
 - If a webhook payload cannot be JSON-encoded, the event remains in the local
-  ring/counters and qblib logs one diagnostic instead of interrupting the caller.
+  ring/counters and kora_lib logs one diagnostic instead of interrupting the caller.
 - The webhook message's `username` is whichever resource called `event()` (via `GetInvokingResource()`), so events from different resources are distinguishable in the Discord channel.

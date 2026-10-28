@@ -12,7 +12,7 @@
 // modules/notify/client.lua (the "notify" action),
 // and modules/minigames/client.lua (the minigames:* actions),
 // modules/screenshot/client.lua (the screenshot:* actions), plus
-// qbtarget/client/loop.lua (the qbtarget:target display action) -- this file is
+// kora_target/client/loop.lua (the qbtarget:target display action) -- this file is
 // the one place the whole contract is written down on the NUI side.
 
 // The outer wire envelope every Lua->NUI message travels in.
@@ -40,7 +40,7 @@ export interface NuiResponseEnvelope<T = unknown> {
     error?: string
 }
 
-// qblib interact contract. The browser renders the selector but never owns
+// kora_lib interact contract. The browser renders the selector but never owns
 // game controls, focus, or selection state outside the visible row.
 export interface InteractOption {
     label: string
@@ -52,7 +52,7 @@ export interface InteractOption {
 export type InteractOpenPayload = InteractOption[]
 
 // action: "qbtarget:target" (fire-and-forget) -- a transparent, game-input
-// driven target reticle/prompt. qbtarget owns raycasts, eligibility, controls,
+// driven target reticle/prompt. kora_target owns raycasts, eligibility, controls,
 // and selection; this payload is display-only and never requests NUI focus.
 export interface TargetHudPayload {
     active: boolean
@@ -378,7 +378,7 @@ export interface CopyToClipboardPayload {
     text: string
 }
 
-// Registered AppShell contract. qblib owns this frame and its standard
+// Registered AppShell contract. kora_lib owns this frame and its standard
 // content primitives; consumer resources own the definition, data, and Lua
 // action handler. The deliberately small discriminated block set keeps the
 // wire format JSON-safe while leaving room to add richer primitives later.
@@ -856,7 +856,7 @@ export interface SkillbarAttempt {
 export type OxSkillCheckDifficulty = "easy" | "medium" | "hard" | { areaSize: number; speedMultiplier: number }
 
 // action: "oxSkillCheck" (request). This is intentionally client-local like
-// upstream ox_lib; qblib's proof-producing minigames use the separate round API.
+// upstream ox_lib; kora_lib's proof-producing minigames use the separate round API.
 export interface OxSkillCheckPayload {
     difficulty: OxSkillCheckDifficulty | OxSkillCheckDifficulty[]
     inputs?: string[]

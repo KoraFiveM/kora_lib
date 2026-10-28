@@ -32,7 +32,7 @@ Creates a local entity.
   - `invincible: boolean` -- Overrides the preset's invincibility value, in either direction.
 
 When supplied, `options` must be a table and every documented boolean option
-must be a boolean; invalid calls are rejected before qblib requests a model or
+must be a boolean; invalid calls are rejected before kora_lib requests a model or
 registers a scoped zone.
 
 #### Returns
@@ -74,7 +74,7 @@ QB.entities.create('prop_bin_08', vector3(100.0, 200.0, 30.0), {
 
 Called cross-resource via export (e.g. from resource `my_script`):
 ```lua
-local entity = exports.qblib:entities_create('a_m_y_beach_01', coords, { preset = 'static' })
+local entity = exports.kora_lib:entities_create('a_m_y_beach_01', coords, { preset = 'static' })
 -- tracked as owned by 'my_script'; deleted automatically if my_script stops
 ```
 
@@ -145,7 +145,7 @@ local guard = QB.entities.createScoped('a_m_y_beach_01', vector4(100.0, 200.0, 3
 `QB.entities.requestControl(entity, timeout?)` requests control of an existing
 networked entity. `QB.entities.delete(entity, timeout?)` obtains control,
 marks it as mission-owned, then deletes it. These functions intentionally do
-not require qblib ownership; call them only after your resource's server has
+not require kora_lib ownership; call them only after your resource's server has
 authorized the operation. `timeout` defaults to `1000` only when omitted and
 must otherwise be a non-negative integer in milliseconds.
 

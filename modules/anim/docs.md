@@ -1,8 +1,8 @@
 # Animations
 
-Client-side, resource-owned animation and attached-prop helpers. Animation dictionaries and prop models are streamed automatically. qblib releases loaded dictionaries, stops tracked animations, and deletes attached props when their owning resource stops.
+Client-side, resource-owned animation and attached-prop helpers. Animation dictionaries and prop models are streamed automatically. kora_lib releases loaded dictionaries, stops tracked animations, and deletes attached props when their owning resource stops.
 
-Only one qblib animation is tracked per entity. The owning resource may replace
+Only one kora_lib animation is tracked per entity. The owning resource may replace
 its own tracked handle; another resource cannot replace or stop it.
 `QB.anim.stopHandle` prevents an older system from stopping a newer animation.
 
@@ -14,7 +14,7 @@ Options:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `duration` | `-1` | `-1` or a non-negative finite integer in milliseconds passed to `TaskPlayAnim`. `-1` retains the native's indefinite/natural-length behavior; a positive value also schedules qblib cleanup. |
+| `duration` | `-1` | `-1` or a non-negative finite integer in milliseconds passed to `TaskPlayAnim`. `-1` retains the native's indefinite/natural-length behavior; a positive value also schedules kora_lib cleanup. |
 | `flag` | `1` | FiveM animation flag bitmask. |
 | `blendInSpeed` | `8.0` | Animation blend-in speed. |
 | `blendOutSpeed` | `8.0` | Animation blend-out speed. |
@@ -23,9 +23,9 @@ Options:
 | `onFinish` | none | Callable invoked with `entity` after a positive duration expires. It is not called after explicit cancellation or replacement. |
 
 Every supplied numeric option must be finite (`duration` and `flag` are
-integers); axis locks must be booleans. qblib validates these before streaming
+integers); axis locks must be booleans. kora_lib validates these before streaming
 the dictionary or changing the entity's active animation. `onFinish` runs only
-after qblib has stopped and released the animation; an error is logged without
+after kora_lib has stopped and released the animation; an error is logged without
 leaving the animation active.
 
 ```lua
@@ -41,10 +41,10 @@ end
 
 ## Stopping and inspecting
 
-- `QB.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active. `blendOutSpeed`, when supplied, must be finite. A resource can stop only an animation it started; qblib's own delayed cleanup remains internal.
+- `QB.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active. `blendOutSpeed`, when supplied, must be finite. A resource can stop only an animation it started; kora_lib's own delayed cleanup remains internal.
 - `QB.anim.stopHandle(handle, blendOutSpeed?)` stops only when `handle` is still current for its entity. It returns `false` for a stale or invalid handle.
 - `QB.anim.isPlaying(entity)` returns whether the tracked dictionary and clip are currently playing according to the native state.
-- `QB.anim.clear(entity, immediate?)` stops qblib's tracked animation and clears all ped tasks. `immediate = true` uses immediate task clearing.
+- `QB.anim.clear(entity, immediate?)` stops kora_lib's tracked animation and clears all ped tasks. `immediate = true` uses immediate task clearing.
 
 ## Scenarios
 
@@ -62,7 +62,7 @@ end
 - `fixedRot` controls rotation synchronization and defaults to `true`.
 
 Offsets and rotations require finite `x`/`y`/`z` components. Attachment flags
-must be booleans and `vertexIndex` is an integer from `0` to `5`; qblib checks
+must be booleans and `vertexIndex` is an integer from `0` to `5`; kora_lib checks
 all of them before streaming a model or creating a local prop.
 
 ```lua

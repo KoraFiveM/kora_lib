@@ -187,7 +187,7 @@ function QB.sound.playFromEntity(entity, name, set, options)
 end
 
 ---Stops a sound and releases its id. Refuses ids this module didn't allocate
------ exports.qblib:sound_stop is callable from any resource, and the
+----- exports.kora_lib:sound_stop is callable from any resource, and the
 ---untracked-id gate is what stops it doubling as a stop-anything primitive
 ---against another resource's audio (same rule QB.blips.remove enforces).
 ---@param soundId number

@@ -5,21 +5,21 @@ permalink: /performance/
 
 # Performance and lifecycle
 
-qblib is designed so ordinary use does not require each resource to own a
-per-frame loop. Prefer the direct qblib API, retain handles when an object has
-a shorter lifetime than its resource, and let qblib clean up owner-scoped
+kora_lib is designed so ordinary use does not require each resource to own a
+per-frame loop. Prefer the direct kora_lib API, retain handles when an object has
+a shorter lifetime than its resource, and let kora_lib clean up owner-scoped
 state when the resource stops.
 
 ## Choose the direct API first
 
 Use `QB.<module>.<function>` in new resources. The consumer-side proxy loads
-stateless helpers lazily, while qblib keeps shared registries and active
+stateless helpers lazily, while kora_lib keeps shared registries and active
 handles in one place. This avoids copying implementations and avoids a
 separate scheduler in every resource.
 
 The `ox_lib` and `PolyZone` compatibility resources are optional. They are
 not started by the default server configuration. Install and ensure one only
-when an unchanged legacy manifest imports it; new code should use qblib
+when an unchanged legacy manifest imports it; new code should use kora_lib
 directly. See [legacy compatibility]({{ site.baseurl }}/legacy-compat/) and
 the [ox_lib migration guide]({{ site.baseurl }}/migration/ox-lib/).
 
@@ -37,7 +37,7 @@ the [ox_lib migration guide]({{ site.baseurl }}/migration/ox-lib/).
 ## Zones and interaction checks
 
 For a normal static area, use `QB.zones.box`, `QB.zones.sphere`,
-`QB.zones.circle`, or `QB.zones.poly` with `onEnter` and `onExit`. qblib indexes these zones in its
+`QB.zones.circle`, or `QB.zones.poly` with `onEnter` and `onExit`. kora_lib indexes these zones in its
 shared spatial grid, so it does not run one player-position loop per zone.
 
 ```lua
@@ -66,7 +66,7 @@ poll because moving model bounds cannot live in the static spatial grid; its
 
 ## Per-frame work is opt-in
 
-qblib uses `Wait(0)` only while a feature needs frame-accurate native calls:
+kora_lib uses `Wait(0)` only while a feature needs frame-accurate native calls:
 an active control lease, visible interaction selector, movement modifier, or
 debug zone renderer. Each loop starts lazily and stops when its final lease,
 session, effect, or debug zone is gone. Calling the ordinary APIs while those
@@ -74,11 +74,11 @@ features are inactive does not create a permanent client loop.
 
 Do not add a second loop to reapply controls, redraw zones, or poll a static
 zone. Acquire a `QB.controls` lease, use a zone callback, or enable debug
-drawing instead; qblib composes those users into the existing shared loop.
+drawing instead; kora_lib composes those users into the existing shared loop.
 
 ## Observe state changes instead of polling
 
-For local-player state that qblib already samples, subscribe to the cache
+For local-player state that kora_lib already samples, subscribe to the cache
 instead of starting another loop. Handlers run only when the value changes;
 they are also removed automatically when the registering resource stops.
 
@@ -93,18 +93,18 @@ end)
 ```
 
 Use `QB.cache.coords()` for ordinary interval or event work. It is sampled on
-qblib's shared 200ms cache tick; read the native directly only when an engine
+kora_lib's shared 200ms cache tick; read the native directly only when an engine
 feature genuinely needs the current frame's position.
 
 ## Own what you create
 
 Most registrations are automatically owned by the invoking resource. This
 includes zones, keybinds, event handlers, callbacks, timers, sounds, entities,
-and NUI requests. qblib releases them on resource stop. Remove a handle
+and NUI requests. kora_lib releases them on resource stop. Remove a handle
 yourself when the feature ends earlier, such as a temporary mission zone or a
 modal keybind.
 
-Keep handles with their owner. qblib deliberately rejects cross-resource
+Keep handles with their owner. kora_lib deliberately rejects cross-resource
 mutation of tracked animations, props, effects, entities, blips, controls, and
 interactive sessions; passing a handle around is not a shared-control API.
 When coordination is necessary, expose one narrow operation from the owning
@@ -128,12 +128,12 @@ explicit owner registries for custom cleanup.
   and proofs run only while there is expiring state to reclaim, at a coarse
   30-second cadence. They stop again when the last entry is gone.
 - Profile a real server before adding caching layers or abstractions. Prefer a
-  direct native or existing qblib module when it already covers the use case.
+  direct native or existing kora_lib module when it already covers the use case.
 
 ## Targeted regression check
 
 The configuration editor includes a lightweight Lua benchmark for its largest
-expected catalog shape (60 resources × 500 settings). Run it from the qblib
+expected catalog shape (60 resources × 500 settings). Run it from the kora_lib
 root with `lua test/bench_config_editor.lua`. It reports timings rather than
 enforcing a machine-dependent threshold, and asserts the important invariant:
 toggling the advanced view populates only the selected resource's rows.

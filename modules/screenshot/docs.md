@@ -11,8 +11,8 @@ captures cheap on high-DPI or ultrawide clients.
 compatibility equivalent is `QB.screenshot.requestScreenshot(options, callback)`.
 
 ```lua
--- Client: returns an awaitable promise in qblib and a settled data URI through
--- exports.qblib:screenshot_capture(...) for another resource.
+-- Client: returns an awaitable promise in kora_lib and a settled data URI through
+-- exports.kora_lib:screenshot_capture(...) for another resource.
 local image = Citizen.Await(QB.screenshot.capture({
     encoding = 'jpg', -- jpg | png | webp
     quality = 0.9,    -- 0 to 1
@@ -49,7 +49,7 @@ invalid. `QB.screenshot.requestClient(source)` is valid and uses the configured
 server defaults.
 
 For server-initiated captures, the browser posts the encoded image bytes
-directly to qblib's one-time HTTP upload endpoint. The multi-megabyte image does
+directly to kora_lib's one-time HTTP upload endpoint. The multi-megabyte image does
 not become a base64 Lua string or cross a network event; only small progress or
 failure messages do in the normal path. If a secure NUI page cannot reach a
 plain-HTTP server endpoint, the client automatically retries through the
@@ -59,7 +59,7 @@ screenshot.
 
 ## `screenshot-basic` compatibility
 
-qblib provides `screenshot-basic` and exposes its public client exports
+kora_lib provides `screenshot-basic` and exposes its public client exports
 `requestScreenshot` / `requestScreenshotUpload` plus server export
 `requestClientScreenshot`. Existing callers can keep using
 `exports['screenshot-basic']` while migrating to `QB.screenshot`.

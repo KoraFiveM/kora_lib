@@ -1,7 +1,7 @@
--- Optional server bridge to qbskills. All writes remain server-only: this
+-- Optional server bridge to kora_skills. All writes remain server-only: this
 -- module merely keeps dependent resources free of resource-state plumbing.
 
-local RESOURCE = 'qbskills'
+local RESOURCE = 'kora_skills'
 
 local function isStarted()
     return type(GetResourceState) == 'function' and GetResourceState(RESOURCE) == 'started'

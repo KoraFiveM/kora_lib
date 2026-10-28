@@ -1,7 +1,7 @@
 ---@class QBProgressBarDisable
 ---@field move? boolean Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to false.
 ---@field moveMode? 'freeze'|'controls' How move=true is enforced. Defaults to freeze; ox compatibility uses controls.
----@field controlProfile? 'qblib'|'ox' Selects the exact control set. Defaults to qblib.
+---@field controlProfile? 'qblib'|'ox' Selects the exact control set. Defaults to kora_lib.
 ---@field sprint? boolean Disables sprinting. Defaults to false.
 ---@field combat? boolean Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to false.
 ---@field car? boolean Disables vehicle driving controls while the ped is in a vehicle. Defaults to false.
@@ -293,7 +293,7 @@ local function cleanupSession(session, cancelled)
     end
 
     if session.emoteStarted then
-        safeCleanup("emote", function() exports.qbemotemenu:cancelEmote(true) end)
+        safeCleanup("emote", function() exports.kora_emotemenu:cancelEmote(true) end)
         session.emoteStarted = false
     end
 
@@ -456,7 +456,7 @@ function QB.progressbar.start(payload, owner, hooks)
             TaskStartScenarioInPlace(session.ped, payload.scenario.name, 0, payload.scenario.playEnter ~= false)
             session.scenarioStarted = true
         elseif payload.emote then
-            exports.qbemotemenu:playEmote(payload.emote)
+            exports.kora_emotemenu:playEmote(payload.emote)
             session.emoteStarted = true
         end
 

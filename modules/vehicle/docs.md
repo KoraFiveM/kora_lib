@@ -1,7 +1,7 @@
 # Vehicle module
 
 Client-side vehicle helpers. Persistent garage, ownership, impound, and payment
-rules remain in qbcore or the resource that owns them.
+rules remain in kora_core or the resource that owns them.
 
 `QB.vehicle.normalizePlate(value, options?)` is shared across client and server.
 It trims and uppercases plates, collapses internal whitespace, validates
@@ -11,7 +11,7 @@ only when an existing storage contract requires different behavior. Invalid
 external values return `nil, reason`.
 
 Every optional vehicle options argument must be a table when supplied. Invalid
-options are rejected before qblib requests entity control or calls a vehicle
+options are rejected before kora_lib requests entity control or calls a vehicle
 native. Vehicle handles must be positive finite integers; inspection helpers
 return `false` for an invalid handle, while `delete` rejects one.
 

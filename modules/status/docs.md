@@ -32,7 +32,7 @@ accepts an effect name validates this contract before reading or changing state.
 Invalid definition-level fields fail at registration, before an effect can be
 applied. Nested particle transforms and other native-specific visual options
 are checked when rendering; if one fails after an earlier visual started,
-qblib rolls that earlier visual back before returning the error. A definition
+kora_lib rolls that earlier visual back before returning the error. A definition
 name belongs to the resource that first registers it; another
 resource receives `false, error` rather than silently replacing it. Definitions
 are removed when their owning resource stops, so restartable resources do not
@@ -71,7 +71,7 @@ cosmetic state and use the same stacking rules.
 Each active entry contains `name`, optional `severity`, and optional
 `expiresAt` (the game-timer deadline in milliseconds). Removing an absent
 effect returns `false`. On the client, a resource cannot replace or remove an
-active effect owned by another resource; server-pushed effects run inside qblib
+active effect owned by another resource; server-pushed effects run inside kora_lib
 and can supersede local presentation. Every server operation requires a
 positive integer target server ID. Server entries are also cleared when a player drops.
 Client and server queries remove an effect once its deadline has passed, so

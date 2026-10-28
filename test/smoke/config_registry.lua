@@ -187,11 +187,11 @@ end)
 
 H.test('own bootstrap survives a resource-driven restart without granting callers ownership', function()
     invoker = 'qbcompat-control'
-    _G.GetCurrentResourceName = function() return 'qblib' end
+    _G.GetCurrentResourceName = function() return 'kora_lib' end
     _G.IsDuplicityVersion = function() return true end
     _G.GetNumResources = function() return 0 end
     _G.LoadResourceFile = function(resource, path)
-        H.assertEqual(resource, 'qblib')
+        H.assertEqual(resource, 'kora_lib')
         if path ~= 'modules/config/consumer.lua' then return nil end
         local file = assert(io.open(repoRoot .. path, 'r'))
         local contents = file:read('*a')
@@ -204,13 +204,13 @@ H.test('own bootstrap survives a resource-driven restart without granting caller
     dofile(repoRoot .. 'modules/config/server.lua')
     local catalog = QB.config.catalog()
     H.assertEqual(#catalog, 1)
-    H.assertEqual(catalog[1].resource, 'qblib')
+    H.assertEqual(catalog[1].resource, 'kora_lib')
     H.assertTrue(Config.enabled)
     local snapshot = owned.qblib_configRead()
     H.assertEqual(snapshot.client.discord, nil)
     H.assertEqual(snapshot.configured.discord.secret, 'server-only')
     H.assertThrows(function()
-        QB.config.register({ resource = 'qblib', schema = {}, configured = {}, client = {}, revision = 1 })
+        QB.config.register({ resource = 'kora_lib', schema = {}, configured = {}, client = {}, revision = 1 })
     end)
     H.assertTrue(QB.config.register({
         resource = 'qbcompat-control', schema = {}, configured = {}, client = {}, revision = 1,

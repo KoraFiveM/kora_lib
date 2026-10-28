@@ -18,7 +18,7 @@ local lastOverrides
 local tokenResult = { primary = "262.1 83.3% 57.8%", background = "0 0% 6.3%" }
 
 _G.exports = {
-    qbtheme = {
+    kora_theme = {
         getPrimaryColor = function()
             primaryCalls = primaryCalls + 1
             return "#7C3AED"

@@ -41,7 +41,7 @@ Callbacks are protected with `pcall`. Disabling while pressed clears the held
 state without firing a synthetic release. Re-registering a stable name replaces
 its callbacks. A stopped owning resource is cleaned up automatically. FiveM
 cannot unregister a native mapping individually, so removed settings entries
-remain inert until qblib stops or the stable name is re-added.
+remain inert until kora_lib stops or the stable name is re-added.
 
 ## `QB.keybind.remove(name)` — client
 

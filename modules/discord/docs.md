@@ -8,7 +8,7 @@ Server-only Discord helpers with two independent parts:
 2. REST bot: read and manage guild members, roles, channels, and messages. The
    bot client is disabled unless `qblib_discord_bot_token` is set.
 3. Role directory: a five-minute online-player heartbeat, memory cache, optional
-   qbsql persistence, and role-name-based authorization/mutation helpers.
+   kora_sql persistence, and role-name-based authorization/mutation helpers.
 
 This is an HTTP/REST client, not a Discord Gateway connection. It performs
 outbound tasks but does not listen for Discord messages or events.
@@ -29,7 +29,7 @@ set qblib_discord_bot_token "your-bot-token"
 set qblib_discord_guild_id "123456789012345678"
 ```
 
-Restart qblib after enabling the bot token so its background heartbeat starts.
+Restart kora_lib after enabling the bot token so its background heartbeat starts.
 The interval and authorization-cache TTL default to five and ten minutes,
 respectively (`Config.discord.roleSyncInterval` / `cacheMaxAge`).
 
@@ -41,9 +41,9 @@ its calls need. Role management requires `MANAGE_ROLES` and can only affect
 roles below the bot's highest role; channel management requires
 `MANAGE_CHANNELS`.
 
-When qbsql is running, qblib applies `modules/discord/sql/001_discord.sql` with
-qbsql's migration runner and persists the guild catalog, known members, and
-their role assignments. If qbsql is absent, all bot/cache functions still work
+When kora_sql is running, kora_lib applies `modules/discord/sql/001_discord.sql` with
+kora_sql's migration runner and persists the guild catalog, known members, and
+their role assignments. If kora_sql is absent, all bot/cache functions still work
 in memory and the console reports that persistence is unavailable.
 
 ## Callback and return contract
@@ -158,7 +158,7 @@ they also accept role names.
 
 ### Cached role directory and authorization
 
-At resource start, and every five minutes afterward, qblib fetches the complete
+At resource start, and every five minutes afterward, kora_lib fetches the complete
 guild role catalog followed by the member role list for every online FiveM
 player that has a `discord:<id>` identifier. A joining player is also refreshed
 after one second. Only one full sync can run at once.
@@ -197,7 +197,7 @@ For member methods, `id` may be:
 - an online FiveM server ID number (`source`).
 
 Role names are case-insensitive. Discord permits duplicate names; if a name is
-ambiguous, qblib refuses it and asks for the exact role ID. `getRoles` is
+ambiguous, kora_lib refuses it and asks for the exact role ID. `getRoles` is
 synchronous and returns cached role objects. It may return stale roles for an
 admin display together with a second `error` result, but `hasRole`/`hasRoles`
 always fail closed when the snapshot is absent, marked stale after a failed
@@ -245,7 +245,7 @@ QB.discord.sendMessage(channelId, {
 ```
 
 Embed `fields`, when supplied, must be a dense array of at most 25 entries;
-malformed lists are rejected before qblib encodes or sends a webhook.
+malformed lists are rejected before kora_lib encodes or sends a webhook.
 
 Discord's current endpoint payload fields and permission requirements are
 documented in its official [Guild](https://docs.discord.com/developers/resources/guild),

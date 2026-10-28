@@ -1,6 +1,6 @@
 # Developer editors
 
-qblib includes two in-game developer commands for capturing zone and entity
+kora_lib includes two in-game developer commands for capturing zone and entity
 placement data. They only return or copy Lua data; they never persist it or
 create a networked entity.
 
@@ -26,7 +26,7 @@ Config.editor = {
 ```
 
 Set `enabled = false` to remove both command entry points. Rename either
-command by changing its matching configuration field before qblib starts.
+command by changing its matching configuration field before kora_lib starts.
 
 ## Zone creator
 

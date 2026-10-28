@@ -265,7 +265,7 @@ end)
 
 -- The `__call` metamethod does not cross the export boundary, so every handle
 -- must also expose a plain `.run` field -- funcrefs DO cross. Dropping `.run`
--- is what broke qbpolice's melee detector with "attempt to call a table value".
+-- is what broke kora_police's melee detector with "attempt to call a table value".
 harness.test("throttle and debounce handles expose a plain .run field", function()
     local throttled = QB.timers.throttle(function() end, 1000)
     local debounced = QB.timers.debounce(function() end, 100)

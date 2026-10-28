@@ -204,8 +204,8 @@ function QB.minigames.cancel(owner)
     return QB.nui.cancelRequest(request, { cancelled = true })
 end
 
----Plays a minigame whose optional difficulty adjustment comes from qbskills.
----Without qbskills, this is exactly the same as play(gameType, opts,
+---Plays a minigame whose optional difficulty adjustment comes from kora_skills.
+---Without kora_skills, this is exactly the same as play(gameType, opts,
 ---authorization). An authorization issued by authorizeSkillCheck is still the
 ---only safe path for an action with a server-side reward or consequence.
 ---@param skill string

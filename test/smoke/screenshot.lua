@@ -283,7 +283,7 @@ end)
 harness.test('server capture writes a caller-controlled server path when requested', function()
     -- requestClient's fileName is a server API value, never data supplied by
     -- the player/browser. Use the OS temporary directory here so this smoke
-    -- path proves qblib-playground's PDF attachment flow receives real bytes.
+    -- path proves kora_lib-playground's PDF attachment flow receives real bytes.
     local destination = os.tmpname()
     local callbackErr, callbackResult
     QB.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)

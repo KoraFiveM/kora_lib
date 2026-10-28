@@ -28,7 +28,7 @@ QB.actions.run({
 Only one action can run at a time. A rejected `begin` returns `false, reason`;
 otherwise the first return is `true` after `complete` has been called.
 `duration`, when supplied, must be a positive integer; `minigame` must be one
-of qblib's supported game types; and `canCancel` must be boolean. qblib
+of kora_lib's supported game types; and `canCancel` must be boolean. kora_lib
 validates these before calling `begin`, so malformed UI configuration cannot
 issue a server token.
 For progress-bar actions this includes the forwarded `disable` and `anim`
@@ -41,7 +41,7 @@ server completion handler can call `consumeProof` with both values.
 
 ## Server pattern for a valuable action
 
-The action token is your resource's state, not a qblib capability. Create it
+The action token is your resource's state, not a kora_lib capability. Create it
 only after validating the initial request, consume it on every outcome, and
 repeat live checks after the client UI completes. This keeps a player from
 replaying a token, moving away during the UI, or substituting another player's
@@ -99,7 +99,7 @@ end)
 
 `newPendingToken`, `isValidStation`, `isPlayerAtStation`,
 `playerHasRequiredItem`, and `grantStationReward` belong to the gameplay
-resource. Keep that policy there: qblib supplies the proof and callback
+resource. Keep that policy there: kora_lib supplies the proof and callback
 boundary, but cannot know an individual resource's inventory, permission,
 cooldown, ownership, or location rules.
 The example's one-shot timeout and `playerDropped` cleanup keep abandoned

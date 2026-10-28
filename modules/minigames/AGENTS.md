@@ -5,9 +5,9 @@ This module provides eleven server-validated skill-check minigames -- lockpick, 
 
 ## Public API
 - `QB.minigames.play(gameType, opts, authorization?)` (client) -- plays one round-based session for `"lockpick" | "skillbar" | "circuit" | "mash" | "fishing" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"`. Without an authorization, `opts` is client-controlled, bounded/clamped server-side, and the result is deliberately proof-less. With an authorization, client `opts` is ignored and the server uses the trusted configuration captured when the authorization was issued. Returns the resolved `{ success, attempts, proof?, cancelled?, faults? }` table directly; callers do not need `Citizen.Await`.
-- `QB.minigames.playSkillCheck(skill, gameType, opts?, authorization?)` (client) -- the optional qbskills-aware form of `play`. It uses the local skill cache for presentation-only checks and is a no-op adjustment when qbskills is stopped.
+- `QB.minigames.playSkillCheck(skill, gameType, opts?, authorization?)` (client) -- the optional qbskills-aware form of `play`. It uses the local skill cache for presentation-only checks and is a no-op adjustment when kora_skills is stopped.
 - `QB.minigames.authorizeProof(src, gameType, trustedOpts?)` (server) -- resolves/copies trusted puzzle options and returns an opaque, resource-owned, single-use authorization for that player and game type.
-- `QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts?)` (server) -- resolves trusted options, obtains the player's configured qbskills adjustment when available, and captures that result in the single-use authorization. Use this version for a valuable skill-gated action.
+- `QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts?)` (server) -- resolves trusted options, obtains the player's configured kora_skills adjustment when available, and captures that result in the single-use authorization. Use this version for a valuable skill-gated action.
 - `QB.minigames.consumeProof(src, proof, gameType, authorization)` (server) -- consumes an authorized success proof only when issuer resource, player, game type, authorization, and TTL match. Mismatches do not burn a valid proof.
 - `QB.minigames.triangleWave(elapsedMs, speedHz)` (shared) -- deterministic renderer/server motion formula.
 
@@ -39,8 +39,8 @@ This module provides eleven server-validated skill-check minigames -- lockpick, 
 
 ## Legacy compat (qb-minigames)
 `compat/client/qb-minigames.lua` keeps `exports['qb-minigames']:Hacking/KeyMinigame/Lockpick/StartPinpad/Quiz/Skillbar/WordGuess/WordScramble` working for scripts written against the real `github.com/qbcore-fivem/qb-minigames` resource, by translating each call onto `QB.minigames.play` and reshaping the result to upstream's exact return shape (same `provide '<name>'` + `__cfx_export_` identity-hijack pattern as `compat/client/qb-menu.lua`). Two calls carry a documented mechanic divergence rather than a 1:1 port:
-- **`Lockpick(pins)`**: upstream's `pins` (its own README calls it "number of tries") maps onto qblib's `pinCount`, close in spirit (more pins = harder) but not the same tumbler minigame upstream ships.
-- **`Skillbar(difficulty, validKeys)`**: `difficulty` maps onto a `zoneSize` (smaller = harder); `validKeys` has no equivalent in qblib's triangle-wave skillbar and is dropped, with a one-time console warning -- same "drop what can't be faithfully translated" precedent `compat/client/qb-menu.lua`'s `imageFor` sets for icons it can't map.
+- **`Lockpick(pins)`**: upstream's `pins` (its own README calls it "number of tries") maps onto kora_lib's `pinCount`, close in spirit (more pins = harder) but not the same tumbler minigame upstream ships.
+- **`Skillbar(difficulty, validKeys)`**: `difficulty` maps onto a `zoneSize` (smaller = harder); `validKeys` has no equivalent in kora_lib's triangle-wave skillbar and is dropped, with a one-time console warning -- same "drop what can't be faithfully translated" precedent `compat/client/qb-menu.lua`'s `imageFor` sets for icons it can't map.
 
 Every other export (`Hacking`, `KeyMinigame`, `StartPinpad`, `Quiz`, `WordGuess`, `WordScramble`) maps directly onto this module's matching new type with no divergence beyond the underlying anti-cheat model itself: upstream trusts the client's own pass/fail; here the server always decides.
 

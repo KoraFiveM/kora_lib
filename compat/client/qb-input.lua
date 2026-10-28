@@ -1,10 +1,10 @@
 -- Drop-in compatibility bridge: translates the real, public qb-input API
--- (exports['qb-input']:ShowInput) onto QB.nui.openInputDialog, qblib's own
+-- (exports['qb-input']:ShowInput) onto QB.nui.openInputDialog, kora_lib's own
 -- native replacement. qb-input itself is being deprecated in favour of
 -- QB.nui.openInputDialog -- this file exists so a script written against
 -- exports['qb-input']:ShowInput(...) keeps working unmodified while it
 -- migrates, exactly the same shape of shim as
--- qbtarget/client/compat/ox-target.lua and qbcore/compat/*.
+-- kora_target/client/compat/ox-target.lua and kora_core/compat/*.
 --
 -- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
 -- mapping table and the caveats flagged below.
@@ -146,7 +146,7 @@ end
 -- Real ShowInput blocks the calling coroutine and returns either a table of
 -- `{ [name]: value }` (submit) or `false` (cancel) -- never a promise the
 -- caller has to unwrap. QB.nui.openInputDialog already performs that wait when
--- this compatibility export was invoked by another resource. A direct qblib
+-- this compatibility export was invoked by another resource. A direct kora_lib
 -- invocation still returns a promise, so retain the await for that path.
 local function showInput(data)
     -- Upstream returns nil for an empty request or while its one dialog is

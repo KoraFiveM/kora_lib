@@ -14,7 +14,7 @@ Scope is FiveM. RedM branches are recorded only where they affect a shared
 contract. This inventory describes runtime Lua contracts, not the separate
 experimental TypeScript package under `package/`.
 
-The `qblib gap` notes below compare qblib by itself with ox_lib. They explain
+The `kora_lib gap` notes below compare kora_lib by itself with ox_lib. They explain
 why a real optional resource named `ox_lib` is necessary for manifest imports;
 they are not current limitations of the installed compatibility resource. The
 wrapper supplies the pinned upstream runtime and is verified separately for
@@ -27,7 +27,7 @@ An actual resource named **`ox_lib`** is required. FiveM resolves
 resource; `provide 'ox_lib'` does not redirect an `@resource/file` import.
 
 The consumer `init.lua` must execute in the consuming resource's environment.
-It cannot be reduced to `exports.qblib:*`, because these contracts contain
+It cannot be reduced to `exports.kora_lib:*`, because these contracts contain
 consumer-local closures, function arguments, metatables, local registries, and
 objects that cannot safely be transported through msgpack/export boundaries:
 
@@ -40,7 +40,7 @@ objects that cannot safely be transported through msgpack/export boundaries:
 
 Recommended parity baseline: vendor the upstream runtime at the pinned commit
 inside the new `ox_lib` resource, including LGPL-3.0 license/notice and built
-web assets. Substitute qblib adapters only after contract tests prove exact
+web assets. Substitute kora_lib adapters only after contract tests prove exact
 argument, return, error, event, lifecycle, and ownership behavior.
 
 ### Manifest contract
@@ -108,7 +108,7 @@ Client engine cache keys are `playerId`, `serverId`, `ped`, `vehicle`, `seat`,
 The resource polls every 100 ms. `cache.coords` is opportunistically updated by
 points/zones (it is not part of the base cache poll).
 
-qblib gap: `QB` proxy only; no `lib`, global callable/indexable `cache`,
+kora_lib gap: `QB` proxy only; no `lib`, global callable/indexable `cache`,
 `lib.onCache`, loader metadata, startup guards, interval globals, or ox cache
 events. `QB.cache` has related but incompatible function getters, extra keys,
 different update cadence, handler ordering/isolation, and write semantics.
@@ -147,7 +147,7 @@ Explicit/dynamic exports:
 - any resource constructing `lib.hook:new(event, filter)` dynamically exposes
   `registerHook:<event>` and `removeHook:<event>`.
 
-qblib gap: no export names above under resource identity `ox_lib`; its flattened
+kora_lib gap: no export names above under resource identity `ox_lib`; its flattened
 exports are `<QBmodule>_<function>`, and several related functions have
 incompatible arguments/returns.
 
@@ -200,7 +200,7 @@ rejects/errors with `callback '<name>' does not exist`; timeout rejects with
 printed with stack trace and respond `false`. Multiple return values are
 preserved. Callback names have one owning resource and are cleared on stop.
 
-qblib gap: related promise/export system uses different event names,
+kora_lib gap: related promise/export system uses different event names,
 signatures, timeout messages, ownership/overwrite rules, handshake token,
 throttling behavior, and same-VM vs export return mode. Do not alias names
 without an ox-protocol adapter.
@@ -209,7 +209,7 @@ without an ox-protocol adapter.
 
 All UI calls are singleton/registry state in the ox_lib resource. Exact NUI
 message names and focus transitions are observable and require ox-compatible
-web assets or a complete qblib renderer adapter.
+web assets or a complete kora_lib renderer adapter.
 
 ### Alert
 
@@ -270,7 +270,7 @@ are 1-based. Confirm callback is `(selected,scrollIndex?,args?,checked?)`.
 `getOpenMenu()->id?`. Side-scroll/select/check callback shapes must match
 upstream, including `args` table validation and mutation used for checked rows.
 The bridge uses `presentation='panel'`, which is compact and non-modal and does
-not filter options from hidden text input; qblib's default searchable dialog is
+not filter options from hidden text input; kora_lib's default searchable dialog is
 not changed.
 
 ### Radial
@@ -323,11 +323,11 @@ animation/props, and applies a 100 ms completion tolerance.
 - `setNuiFocus(allowInput?,disableCursor?)` means focus true with cursor unless
   disabled, optionally KeepInput; `resetNuiFocus()` clears focus/keep-input.
 
-qblib gaps: it has related NUI functions but different one-shot vs registry
+kora_lib gaps: it has related NUI functions but different one-shot vs registry
 models, return shapes, singleton behavior, callback timing/indexing, schemas,
 focus ownership, events/messages, error semantics, styling/icons/markdown,
 date/time/color fields, progress circle and remote prop replication. Existing
-qbinventory ox adapter is only a narrow consumer adapter, not parity.
+kora_inventory ox adapter is only a narrow consumer adapter, not parity.
 
 ## 6. Shared collections/classes (P1)
 
@@ -369,7 +369,7 @@ These must be consumer-local to preserve methods/metatables.
   8/16/32/64, Float32/64, LuaInt/UluaInt/LuaNum, null-terminated String;
   endian boolean; setters chain and error when forbidden growth occurs.
 
-qblib gap: all are missing; `QB.util.weightedChoice` and deepClone are isolated
+kora_lib gap: all are missing; `QB.util.weightedChoice` and deepClone are isolated
 helpers, not substitute contracts.
 
 ## 7. Shared primitive/library extensions (P1)
@@ -398,7 +398,7 @@ helpers, not substitute contracts.
   `lib.loadJson(path)`: ox dotted module resolution/caching/circular detection,
   `@resource.module` access, relative requires derived from caller source,
   `.lua`/`init.lua` candidates, multi-return caching semantics and informative
-  search errors must match upstream. qblib's require accepts a different
+  search errors must match upstream. kora_lib's require accepts a different
   `resource, paths` API and different path grammar/cache semantics.
 
 ## 8. Locale (P1)
@@ -416,7 +416,7 @@ server key is convar `ox:locale`; ox_lib publishes the list of locale code/label
 pairs to `GlobalState['ox_lib:locales']`. Settings KVPs include locale,
 notification position and notification audio.
 
-qblib locale differs in convar names, Lua-file support, lookup/interpolation,
+kora_lib locale differs in convar names, Lua-file support, lookup/interpolation,
 language catalog, KVP/UI flow, flattening/substitution, and exported/global API.
 
 ## 9. Grid, points, zones (P1)
@@ -455,7 +455,7 @@ Geometry:
   quaternion-compatible rotation, centers vertical thickness;
 - sphere defaults radius 2 and uses strict `< radius` (boundary excluded).
 
-qblib zones differ: export-owned shared registry rather than consumer-local
+kora_lib zones differ: export-owned shared registry rather than consumer-local
 registry; handles use `type` not `__type`, methods/fields/getter return shapes
 differ; point is a sphere alias; polygon default vertical extrusion starts at
 the lowest point instead of centered planar thickness; callback cadence/order,
@@ -469,7 +469,7 @@ shape test settles and return exactly `(hit, entityHit, endCoords,
 surfaceNormal, materialHash)`. The fourth native argument is the shape-test
 option/ignore mode; entity ignored is always `cache.ped` in the LOS probe.
 
-qblib is incompatible: fromCamera order `(distance,flags,ignoreEntity)`, uses a
+kora_lib is incompatible: fromCamera order `(distance,flags,ignoreEntity)`, uses a
 different native/default flags, treats ignore as entity, has a timeout, drops
 material, and returns `(hit,coords,entity,normal)` with nils on miss.
 
@@ -485,7 +485,7 @@ Nearby/closest defaults use strict distance `< 2.0`:
 - `getRelativeCoords` supports (vec3,heading,offset), (vec4,offset), or
   (vec3,rotationVec3,offset), preserving vec4 heading.
 
-qblib `QB.closest/world` uses different options/filtering, defaults and return
+kora_lib `QB.closest/world` uses different options/filtering, defaults and return
 shapes. Thin exact adapters are possible but must preserve strict boundary and
 vector types.
 
@@ -505,12 +505,12 @@ Client imports:
   requests dict, plays, removes dict.
 
 All requests return synchronously after yielding; invalid input/load timeout
-raises an error. qblib `QB.stream.*` is callback-oriented with different
+raises an error. kora_lib `QB.stream.*` is callback-oriented with different
 timeouts/failure values, so exact wrappers are required.
 
 `lib.disableControls` is callable each frame and has capitalized
 `:Add(...ids|table)`, `:Remove(...)` with reference counts, and `:Clear(...)`;
-qblib's lease-based control API is intentionally different.
+kora_lib's lease-based control API is intentionally different.
 
 `lib.addKeybind(data)->CKeybind` retains caller fields and adds `hash`, dynamic
 `currentKey`, boolean `disabled` and `isPressed`, plus methods
@@ -519,7 +519,7 @@ qblib's lease-based control API is intentionally different.
 `secondaryMapper?`, `secondaryKey?`, `disabled?`, `allowInPauseMenu?`,
 `onPressed(self)?`, and `onReleased(self)?`. It registers `+name`/`-name`
 commands and primary/secondary key mappings, blocks callbacks in the pause
-menu unless allowed, and removes chat suggestions after 500 ms. qblib's
+menu unless allowed, and removes chat suggestions after 500 ms. kora_lib's
 related handle uses different property/method names (`isPressed()` function,
 `getCurrentBinding`) and has different pause/release/error/cleanup behavior.
 
@@ -545,7 +545,7 @@ are removed on consumer stop.
 renderTarget. Methods `callMethod(name,args?,returnType?)`, `setFullScreen`,
 `setProperties`, `setRenderTarget`, `isDrawing`, `draw`, `startDrawing`,
 `stopDrawing`, `dispose`; argument conversion and boolean/integer/string returns
-are exact. qblib only loads raw scaleform handles.
+are exact. kora_lib only loads raw scaleform handles.
 
 ## 12. Entity/player/vehicle classes and properties (P1)
 
@@ -593,7 +593,7 @@ tyres maps wheel id to 1/2 burst state; get rounds health/fuel/oil/dirt;
 and optionally fixes vehicle, statebag handler validates entity ownership;
 server set writes the `ox_lib:setVehicleProperties` entity state key.
 
-qblib vehicle schema differs (boolean extras, intact/broken maps, tireHealth/
+kora_lib vehicle schema differs (boolean extras, intact/broken maps, tireHealth/
 tireBurstState/tireBurstCompletely, liveryRoof naming, custom xenon RGB, missing
 lock/paint/nitrous/subwoofer/hydraulics/drift fields). Never pass snapshots
 through unchanged; implement lossless ox normalization.
@@ -684,10 +684,10 @@ Cross-cutting release gates:
    tested. For literal parity, `diff -qr` should be empty except manifest
    metadata/branding changes that do not affect runtime.
 2. Enumerate direct exports in client and server and compare to section 2.
-3. Run qblib's full smoke suite and every qbcore2 consumer suite after adding
+3. Run kora_lib's full smoke suite and every qbcore2 consumer suite after adding
    aliases/adapters; existing `QB.*` contracts must remain unchanged.
 4. Add external black-box fixtures using only documented ox syntax—never
-   loading qblib directly—including manifest eager imports.
+   loading kora_lib directly—including manifest eager imports.
 5. Preserve upstream LGPL-3.0 `LICENSE`, `NOTICE.md`, source headers, and make
    modified source available.
 

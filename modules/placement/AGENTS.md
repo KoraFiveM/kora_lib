@@ -9,7 +9,7 @@ freecam, returns/copies its transform, and deletes the preview on every exit.
 ## Invariants
 
 - Never leave the preview alive after confirm, cancel, error, owner stop, or
-  qblib stop. `releaseStateResources` is the shared teardown path.
+  kora_lib stop. `releaseStateResources` is the shared teardown path.
 - Never create a networked entity. Spawn through `QB.entities.create` and keep
   its normal owner tracking intact until `QB.entities.remove` is called.
 - Capture `GetInvokingResource()` before raycasting or streaming yields.

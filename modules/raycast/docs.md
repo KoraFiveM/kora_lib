@@ -43,7 +43,7 @@ end
 
 Called cross-resource via export (e.g. from a targeting resource):
 ```lua
-local hit, coords, entity = exports.qblib:raycast_fromCamera(3.0)
+local hit, coords, entity = exports.kora_lib:raycast_fromCamera(3.0)
 if hit and entity ~= 0 then
     -- entity is what the player is currently aiming at
 end
@@ -95,7 +95,7 @@ A handle that has already settled -- because another ray started in the same fra
 Same as `fromCoords`.
 
 ### `QB.raycast.poll(rayHandle)`
-Non-blocking read of a started ray. Never yields, so a caller driving its own tick loop can start a ray on one tick and consume it on the next without parking a frame inside qblib.
+Non-blocking read of a started ray. Never yields, so a caller driving its own tick loop can start a ray on one tick and consume it on the next without parking a frame inside kora_lib.
 
 #### Returns
 - `boolean` -- `settled`. Every other value is meaningless while this is `false`.
@@ -117,7 +117,7 @@ local entityHit, entityCoords, entityHandle = QB.raycast.await(entities) -- alre
 ## Notes
 - `fromCoords`/`fromCamera` are `start` + `await` in one call; they exist unchanged and remain the right choice for a one-off ray.
 - Shape-test output values are undefined while `GetShapeTestResult` reports
-  status `1`. qblib never exposes those pending coordinates/entity handles to
+  status `1`. kora_lib never exposes those pending coordinates/entity handles to
   callers; this prevents stale handles reaching entity natives such as
   `GetEntityModel`.
 - `entityHit` is `0` (not `nil`) when the ray strikes bare world geometry rather than an entity -- check `entity ~= 0` before treating it as an entity handle.
@@ -159,4 +159,4 @@ can override the defaults of 180 degrees, 50 metres, and all intersections.
 Numeric coordinate-grabber options must be finite integers where they are native
 handles or flags, and `maxDistance` must be positive. Only one coordinate grabber may be active at once. UI, disabled controls, and
 the local preview entity are cleaned up on confirmation, cancellation, errors,
-or when either qblib or the calling resource stops.
+or when either kora_lib or the calling resource stops.

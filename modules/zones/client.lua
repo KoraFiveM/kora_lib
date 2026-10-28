@@ -42,16 +42,16 @@ local function toVec3(v)
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across qblib modules.
+-- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = QB.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
--- inside qblib, while plain field reads (.state, .value -- what Citizen.Await
+-- inside kora_lib, while plain field reads (.state, .value -- what Citizen.Await
 -- itself checks) on the crossed reference never reflect the real remote
 -- promise's settlement, so the caller's own Citizen.Await silently resolves
 -- nil regardless of the real outcome. GetInvokingResource() is nil for a
--- same-VM call (qblib's own qb_zonecreator command below, every dofile()'d
+-- same-VM call (kora_lib's own qb_zonecreator command below, every dofile()'d
 -- smoke test) and the real calling resource's name for a genuine
 -- cross-resource exports() call (same signal this file already relies on for
 -- ownership tracking -- see this module's own AGENTS.md "Resource ownership"
@@ -59,7 +59,7 @@ local isCallable = QB.compat.isCallable
 -- real promise back unchanged, so qb_zonecreator's own Citizen.Await keeps
 -- working exactly as before. A genuine cross-resource caller gets the
 -- already-awaited plain value (or a raised error on rejection, which -- like
--- every other qblib error -- surfaces to that caller as a printed
+-- every other kora_lib error -- surfaces to that caller as a printed
 -- export-call error and a nil return, not a catchable Lua error) instead of
 -- a promise it can't usefully await. Deliberately duplicated per-file -- see
 -- local/callback/{client,server}.lua, local/events/{client,server}.lua, and
@@ -562,7 +562,7 @@ local function hexToRgb(hex)
 end
 
 -- Debug zones and the creator's live preview should look like the rest of
--- qblib's UI, not carry their own hardcoded colour -- so the colour tracks
+-- kora_lib's UI, not carry their own hardcoded colour -- so the colour tracks
 -- QB.theme.accentColor() live (a config change takes effect on the very next
 -- draw) instead of being baked into Config.zones at load time.
 local function zoneDebugColor()
@@ -712,7 +712,7 @@ local function createZone(zoneType, opts, initShape)
     zoneOwnership.track(zone.resource, zone.id)
 
     -- Config.zones.debug is a server-wide default OR'd in here, same pattern
-    -- qbtarget's own Config.target.debug already uses on top of this --
+    -- kora_target's own Config.target.debug already uses on top of this --
     -- opts.debug still wins on its own (a zone can opt in even with the
     -- global default off), it just isn't the only way in anymore.
     if Config.zones.debug == true or opts.debug == true then
@@ -1746,10 +1746,10 @@ local function ensureCreatorThread(state)
     end)
 end
 
--- A restart of THIS resource (qblib itself, not whichever resource called
+-- A restart of THIS resource (kora_lib itself, not whichever resource called
 -- QB.zones.startCreator) kills the creator's thread outright -- no pcall, no
 -- loop-exit path, and no cleanup below either runs for that, since the
--- coroutine is simply gone. Without this, a player mid-session when qblib
+-- coroutine is simply gone. Without this, a player mid-session when kora_lib
 -- restarts is left frozen in place with a scripted camera stuck on screen
 -- until they reconnect. Immediate, not eased: there's no gameplay camera
 -- transition worth easing into when the resource providing it is already gone.
@@ -1850,7 +1850,7 @@ end
 
 ---Whether a zone creator session currently owns player input (camera fly,
 ---place/undo/cycle keybinds). Consulted by other resources whose own
----keybind collides with a creator keybind by default -- e.g. qbinventory's
+---keybind collides with a creator keybind by default -- e.g. kora_inventory's
 ---TAB-bound inventory toggle vs. qblib_zonecreator_cycle -- so the second
 ---handler can bail instead of firing alongside the creator's.
 ---@return boolean

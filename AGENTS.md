@@ -1,4 +1,4 @@
-# qblib agent guide
+# kora_lib agent guide
 
 ## Project overview
 This repository is a lightweight Lua library for FiveM-style export registration. The public API is built around a global `QB` table that is populated by modules and exposed via the `exports` system.
@@ -45,12 +45,12 @@ The NUI frontend is a React app under `web/`, built with Vite to `web/build/` (s
 
 The NUI has exactly one permanent theme (dark) — it's a fixed game overlay, not a user-configurable app, so there's no light/dark toggle to serve (`web/src/styles/globals.css`). Every `QB.nui.request` call carries a random per-request token the NUI must echo back in its response (`web/src/lib/fetchNui.ts`'s `respondToNui`) — see `modules/nui/AGENTS.md` for why.
 
-The palette and token derivation live in the standalone `qbtheme` resource.
-`modules/theme` permanently forwards the legacy `QB.theme` API to qbtheme;
-qblib must not introduce a second palette or token implementation.
+The palette and token derivation live in the standalone `kora_theme` resource.
+`modules/theme` permanently forwards the legacy `QB.theme` API to kora_theme;
+kora_lib must not introduce a second palette or token implementation.
 
 ### Legacy compat (`compat/`)
-The standalone `qb-menu`, `qb-input` and `qb-minigames` resources are deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` and `QB.minigames.play`. `compat/client/qb-menu.lua` and `compat/client/qb-input.lua` keep `exports['qb-menu']:openMenu/closeMenu` and `exports['qb-input']:ShowInput` working unmodified by translating them onto those same `QB.nui.*` calls and registering under the `qb-menu`/`qb-input` export identities (`provide 'qb-menu'`/`provide 'qb-input'` plus the `__cfx_export_` hijack — same pattern as `qbtarget/client/compat/ox-target.lua` and `qbcore/compat/*`). `compat/client/qb-minigames.lua` does the same for `exports['qb-minigames']:Hacking/KeyMinigame/Lockpick/StartPinpad/Quiz/Skillbar/WordGuess/WordScramble` against `QB.minigames.play` — see `modules/minigames/docs.md`'s "Legacy compat" section for its two documented mechanic divergences (Lockpick, Skillbar). They load after `modules/**/client.lua` (they call `QB.nui.*`/`QB.minigames.*`) and before `build/finalise.lua`, same ordering rule qbcore's own `compat/*` uses. See `modules/nui/docs.md`'s "Legacy compat" section for the qb-menu/qb-input field mapping and caveats.
+The standalone `qb-menu`, `qb-input` and `qb-minigames` resources are deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` and `QB.minigames.play`. `compat/client/qb-menu.lua` and `compat/client/qb-input.lua` keep `exports['qb-menu']:openMenu/closeMenu` and `exports['qb-input']:ShowInput` working unmodified by translating them onto those same `QB.nui.*` calls and registering under the `qb-menu`/`qb-input` export identities (`provide 'qb-menu'`/`provide 'qb-input'` plus the `__cfx_export_` hijack — same pattern as `kora_target/client/compat/ox-target.lua` and `kora_core/compat/*`). `compat/client/qb-minigames.lua` does the same for `exports['qb-minigames']:Hacking/KeyMinigame/Lockpick/StartPinpad/Quiz/Skillbar/WordGuess/WordScramble` against `QB.minigames.play` — see `modules/minigames/docs.md`'s "Legacy compat" section for its two documented mechanic divergences (Lockpick, Skillbar). They load after `modules/**/client.lua` (they call `QB.nui.*`/`QB.minigames.*`) and before `build/finalise.lua`, same ordering rule kora_core's own `compat/*` uses. See `modules/nui/docs.md`'s "Legacy compat" section for the qb-menu/qb-input field mapping and caveats.
 
 ## Naming guidance
 - Module names should be nouns or domain names such as `stream`, `inventory`, `player`, `vehicle`.

@@ -7,7 +7,7 @@ local movementLoopRunning = false
 local isInteger = QB.util.isInteger
 
 -- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across qblib modules.
+-- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = QB.compat.isCallable
 
 local statusRegistry = QB.resources.registry(function(name)

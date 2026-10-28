@@ -1,4 +1,4 @@
--- Annotation-only qblib public API. This file is shipped for LuaLS indexing
+-- Annotation-only kora_lib public API. This file is shipped for LuaLS indexing
 -- but is never loaded as a client, server, or shared runtime script.
 
 ---@class promise
@@ -295,7 +295,7 @@
 ---@field label string Pause-map/UI category label.
 ---@field id integer Native SetBlipCategory id.
 ---@field visible boolean Player's persisted client visibility preference.
----@field count integer Number of currently registered qblib blips in the category.
+---@field count integer Number of currently registered kora_lib blips in the category.
 
 ---@class QBRegisteredBlip
 ---@field handle integer Actual native blip handle returned by QB.blips.create.
@@ -399,7 +399,7 @@
 ---@class QBProgressBarDisable
 ---@field move? boolean
 ---@field moveMode? 'freeze'|'controls' Defaults to freeze; controls matches ox_lib movement blocking.
----@field controlProfile? 'qblib'|'ox' Exact disabled-control set; defaults to qblib.
+---@field controlProfile? 'qblib'|'ox' Exact disabled-control set; defaults to kora_lib.
 ---@field sprint? boolean
 ---@field combat? boolean
 ---@field car? boolean
@@ -1114,7 +1114,7 @@
 ---@field maxLength? integer
 ---@field pattern? string
 ---@field options? table[]
----@field sensitive? boolean Excluded from qblib's in-game editor.
+---@field sensitive? boolean Excluded from kora_lib's in-game editor.
 
 ---@class QBLibConfig
 ---@field define fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
@@ -1139,7 +1139,7 @@
 ---@field whenReady fun(resources: string[], handler: fun()) [client/server; consumer-local]
 ---@field onValidate fun(handler: fun(proposed: table, previous: table, path: string[]): boolean?, string?) [server; consumer-local]
 ---@field onApply fun(handler: fun(configured: table, active: table, path: string[]): boolean?) [server; consumer-local]
----@field register fun(definition: table): boolean [server; qblib internal]
+---@field register fun(definition: table): boolean [server; kora_lib internal]
 ---@field catalog fun(): table[] [server]
 ---@field read fun(resource: string): table|nil [server]
 ---@field commit fun(resource: string, request: table): table [server]
@@ -1398,7 +1398,7 @@
 ---@field adjustMinigame fun(...: any): table|nil [client: (skill: string, gameType: string, options?: table); server: (src: integer, skill: string, gameType: string, resolvedOptions: table)]
 
 ---@class QBPermissionOptions
----@field prefix? string ACE object prefix, such as `qbcore` for `qbcore.admin`.
+---@field prefix? string ACE object prefix, such as `kora_core` for `qbcore.admin`.
 ---@field discordRoles? table<string, string|string[]> Permission/level to Discord role name/ID mappings.
 
 ---@class QBPermissionCheck
@@ -1498,7 +1498,7 @@
 
 ---@class QBLibRaycast
 ---@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; returns hit, coords, entityHit, surfaceNormal]
----@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; qblib order differs from ox_lib]
+---@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; kora_lib order differs from ox_lib]
 ---@field fromCam fun(cam: integer, maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client]
 ---@field getCoords fun(data?: QBRaycastCoordsOptions): QBRaycastCoordsResult? [client; blocks until confirmed or cancelled]
 ---@field start fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
@@ -1598,7 +1598,7 @@
 ---@class QBLibTheme
 ---@field accentColor fun(): string [shared] Forwarded to qbtheme:getPrimaryColor().
 ---@field tokens fun(overrides?: string|table<string, string>): table<string, string> [shared] Forwarded to qbtheme:getTokens().
----@field push fun(): table<string, string> [client] Reapplies qbtheme to qblib's NUI.
+---@field push fun(): table<string, string> [client] Reapplies kora_theme to kora_lib's NUI.
 
 ---@class QBDebounced
 ---@field cancel fun(): boolean Drops a pending run without firing it.

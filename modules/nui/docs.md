@@ -7,8 +7,8 @@ The NUI is **headless**: it renders nothing and holds no focus until a message f
 
 ## UI branding configuration
 
-Set the shared colours in `qbtheme/config.lua`. qblib imports qbtheme's browser
-loader and bridge, while the permanent `QB.theme` functions forward to qbtheme
+Set the shared colours in `kora_theme/config.lua`. kora_lib imports kora_theme's browser
+loader and bridge, while the permanent `QB.theme` functions forward to kora_theme
 for older Lua consumers. See [modules/theme/docs.md](../theme/docs.md).
 
 ## API
@@ -61,7 +61,7 @@ Registers an NUI callback. `handler(data)` returns a plain value (or nil); the r
 Sends `action` to the NUI and returns its response, once available. Requests are owned by the calling resource: stopping that resource rejects its outstanding requests, removes only its focus leases, and dismisses the matching browser surfaces without posting stale responses.
 
 `QB.nui.requestAsync`, `QB.nui.cancelRequest`, and `QB.nui.updateRequest` are lower-level composition
-primitives used by qblib's compatibility modules. They retain a tokenized
+primitives used by kora_lib's compatibility modules. They retain a tokenized
 request handle so an API such as ox_lib's programmatic dialog close can both
 update or dismiss the browser surface while retaining one promise and focus
 lease. Gameplay
@@ -78,7 +78,7 @@ calls. They are internal building blocks; normal callers should prefer
 - `timeout: non-negative finite integer | false | nil` — milliseconds before the request times out. Defaults to `30000`. Pass `false` to disable.
 
 #### Returns
-- The NUI's result value, or (from your own resource, calling this like any other `QB.*` export) `nil` on timeout/error — check qblib's own console for why. Must run inside a coroutine (`CreateThread`, a command handler, an NUI callback — anywhere `Citizen.Await` is legal), since it suspends until the NUI responds.
+- The NUI's result value, or (from your own resource, calling this like any other `QB.*` export) `nil` on timeout/error — check kora_lib's own console for why. Must run inside a coroutine (`CreateThread`, a command handler, an NUI callback — anywhere `Citizen.Await` is legal), since it suspends until the NUI responds.
 
 #### Example
 ```lua
@@ -154,7 +154,7 @@ Opens a searchable list menu. Grants mouse+keyboard NUI focus while open and rel
 #### Returns
 - `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
 
-`icon` resolves qblib's curated Lucide names immediately, ox-compatible Font
+`icon` resolves kora_lib's curated Lucide names immediately, ox-compatible Font
 Awesome names through lazy prefix chunks, and safe HTTP/NUI image URLs.
 
 ```lua
@@ -266,7 +266,7 @@ end
 with the same automatic focus and dismissal lifecycle as menus and inputs.
 When supplied, `openApp`'s `viewId` and `tabId` are string identifiers;
 invalid values fail before the browser request or focus lease is created.
-qblib renders the shared application frame, navigation, tables, lists, forms,
+kora_lib renders the shared application frame, navigation, tables, lists, forms,
 records, timelines, maps, summary cards, empty states, and buttons. The
 registering resource remains the owner of its data, permissions, validation,
 and every action handler in Lua.
@@ -332,7 +332,7 @@ local result = QB.nui.openApp('qbmdt:police', {
   (`resource:app`). A registration is removed
   automatically if its resource stops. An optional `accent = '#RRGGBB'`
   applies that primary colour only for the app's open lifetime; closing or
-  superseding the app restores the player's `/theme` colour (or qbtheme's
+  superseding the app restores the player's `/theme` colour (or kora_theme's
   configured palette when the player has not selected one). Apps without an
   `accent` use that effective player/server theme throughout.
 - `layout = 'standard'` (the default) uses the sidebar at normal resolutions
@@ -375,9 +375,9 @@ them. Drafts survive unrelated `updateApp` refreshes. The submitted
 explicit acknowledgement, including for actions with no fields.
 
 Set `closeBeforeAction = true` when the handler launches another focused UI or
-world editor. qblib closes AppShell and releases its focus lease before calling
+world editor. kora_lib closes AppShell and releases its focus lease before calling
 the owner handler; handler/result failures are reported as notifications
-because the shell is no longer visible. Ordinary nested qblib dialogs instead
+because the shell is no longer visible. Ordinary nested kora_lib dialogs instead
 take their own focus lease, so closing the child restores the still-open app.
 
 For dependent selects or multiselects, set `dependsOn` to the controlling field
@@ -422,11 +422,11 @@ An action handler may combine these result fields:
   definition. Unless `replace` is true, AppShell exposes Back to return to the
   prior view/tab.
 - `notice = { tone, message }` — persistent in-shell feedback. If the action
-  also closes the shell, qblib routes the notice through notifications.
+  also closes the shell, kora_lib routes the notice through notifications.
 - `close = true` — close AppShell after the action.
 
 Shell-owned copy (Cancel, Confirm, Working, paging, search/empty defaults, map
-controls, and accessibility labels) comes from `qblib/locales/*.json` through
+controls, and accessibility labels) comes from `kora_lib/locales/*.json` through
 the normal locale fallback system. Consumer titles, action labels, field
 labels, and content remain the consumer's responsibility.
 
@@ -504,7 +504,7 @@ strings use the same curated Lucide resolver as menus.
 
 ## Legacy compat: `qb-menu` / `qb-input` / `qb-radialmenu`
 
-`qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `QB.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `qbtarget/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.
+`qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `QB.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `kora_target/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.
 
 ### `exports['qb-menu']:openMenu(menu)`
 Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, fires the item's legacy `params.event` the same way real qb-menu does.
@@ -548,8 +548,8 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 **Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `QB.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no QB.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `QB.nui.openRadialMenu` when its own keybind (`qblib_radialmenu_open`, default `F1`, matching qbcore-framework/qb-radialmenu's own `config.lua` default; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
 - There is no script-triggered "open now" call — matching real qb-radialmenu's own keybind-driven UX, but unlike every other `QB.nui.open*` wrapper, which is always caller-initiated.
 - `option.shouldClose == false` is approximated by immediately re-issuing a fresh `QB.nui.openRadialMenu` request after dispatch, rather than a truly persistent NUI state staying open across the selection.
-- **Built-in default content is reproduced**, the same way real qb-radialmenu's own `main.lua` injects it fresh every time the wheel opens: a **Vehicle** submenu (doors, extras, a flip option once the vehicle is off its wheels, and a seats submenu while occupying it — built from live vehicle-native state, ported from upstream's `SetupVehicleMenu`) and a per-job **Work** submenu (`Config.radialmenuCompat.jobInteractions`, ported from upstream's `SetupJobMenu` and `Config.JobInteractions`), both registered through this file's own `AddOption` at a stable slot so repeated opens update the entry instead of duplicating it. A **downed police/EMS player** sees the wheel wholesale replaced with a single emergency-button option, matching upstream's own downed override, and the wheel is blocked outright (matching upstream) for anyone else while downed, or for anyone while handcuffed. `PlayerData`/job-registry lookups go through `exports.qbcore:getPlayerData`/`getShared`, pcall-guarded the same way qb-menu compat's `imageFor` reads item images — without qbcore running, this content simply doesn't appear rather than erroring.
-  - **Not reproduced**: most of real qb-radialmenu's *default* `Config.JobInteractions` content (tow/taxi/mechanic/hotdog jobs, and most of the police entries — search/escort/jail/seize-license/the objects submenu) fires events owned by companion job resources this environment doesn't run, or needs an aimed-at/nearby **target** player the wheel's own event payload never carries; only entries with a real, self-contained, verified-working handler in this server's own resources are wired up (see `config.lua`'s `Config.radialmenuCompat` comment for the exact list and reasoning). `stretcher.lua`/`trunk.lua`/`clothing.lua` — features bundled into the real resource, not part of the generic `AddOption`/`RemoveOption` API surface — aren't ported either; this server's `qbambulance`/`qbclothing` already own equivalent functionality through their own mechanisms.
+- **Built-in default content is reproduced**, the same way real qb-radialmenu's own `main.lua` injects it fresh every time the wheel opens: a **Vehicle** submenu (doors, extras, a flip option once the vehicle is off its wheels, and a seats submenu while occupying it — built from live vehicle-native state, ported from upstream's `SetupVehicleMenu`) and a per-job **Work** submenu (`Config.radialmenuCompat.jobInteractions`, ported from upstream's `SetupJobMenu` and `Config.JobInteractions`), both registered through this file's own `AddOption` at a stable slot so repeated opens update the entry instead of duplicating it. A **downed police/EMS player** sees the wheel wholesale replaced with a single emergency-button option, matching upstream's own downed override, and the wheel is blocked outright (matching upstream) for anyone else while downed, or for anyone while handcuffed. `PlayerData`/job-registry lookups go through `exports.kora_core:getPlayerData`/`getShared`, pcall-guarded the same way qb-menu compat's `imageFor` reads item images — without kora_core running, this content simply doesn't appear rather than erroring.
+  - **Not reproduced**: most of real qb-radialmenu's *default* `Config.JobInteractions` content (tow/taxi/mechanic/hotdog jobs, and most of the police entries — search/escort/jail/seize-license/the objects submenu) fires events owned by companion job resources this environment doesn't run, or needs an aimed-at/nearby **target** player the wheel's own event payload never carries; only entries with a real, self-contained, verified-working handler in this server's own resources are wired up (see `config.lua`'s `Config.radialmenuCompat` comment for the exact list and reasoning). `stretcher.lua`/`trunk.lua`/`clothing.lua` — features bundled into the real resource, not part of the generic `AddOption`/`RemoveOption` API surface — aren't ported either; this server's `kora_ambulance`/`kora_clothing` already own equivalent functionality through their own mechanisms.
 
 | qb-radialmenu `option` field | Mapped to | Notes |
 |---|---|---|
@@ -569,8 +569,8 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 
 ## Notes
 - `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`qblib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
-- The invoking resource owns its pending requests and focus leases. If it stops, qblib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
-- Releasing the final focus lease restores the keep-input state that existed before qblib acquired focus, so compatibility surfaces do not interfere with another overlay's input policy.
+- The invoking resource owns its pending requests and focus leases. If it stops, kora_lib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
+- Releasing the final focus lease restores the keep-input state that existed before kora_lib acquired focus, so compatibility surfaces do not interfere with another overlay's input policy.
 - A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.
 - `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `QB.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
-- These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `QB.nui.*` from **within qblib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.
+- These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `QB.nui.*` from **within kora_lib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.

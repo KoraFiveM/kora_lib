@@ -6,7 +6,7 @@
 -- N ms until I say stop", which is what a heartbeat, a decay tick, or a
 -- periodic refresh needs. Bare SetTimeout/CreateThread do that, but nothing
 -- cancels them when the owning resource stops -- a stopped resource's
--- interval keeps ticking inside qblib's VM forever, calling a closure whose
+-- interval keeps ticking inside kora_lib's VM forever, calling a closure whose
 -- upvalues belong to a dead script. Every timer here is tracked against
 -- GetInvokingResource() and swept on stop, same contract as blips/zones.
 --
@@ -55,7 +55,7 @@ local nextId = 0
 
 ---Cross-resource callables arrive as a table with a `__call` metamethod, not
 ---a function -- a bare `type(x) == "function"` guard rejects every handler
----that came through an exports boundary. Same helper every other qblib module
+---that came through an exports boundary. Same helper every other kora_lib module
 ---that accepts a callback carries.
 ---@param value any
 ---@return boolean
@@ -90,7 +90,7 @@ end
 
 ---Internal one-shot scheduler taking an explicit owner, so debounce() can
 ---attribute its pending run to the resource that created the debouncer rather
----than to qblib. GetInvokingResource() inside a deferred closure is always
+---than to kora_lib. GetInvokingResource() inside a deferred closure is always
 ---nil -- there is no in-progress exports() call at that point -- so the owner
 ---has to be captured at registration time and carried down.
 ---@param owner string
@@ -246,10 +246,10 @@ function QB.timers.debounce(fn, wait)
     ---
     ---`.run()` exists because the `__call` metamethod below does NOT survive
     ---the export boundary: a resource reaching this through the `QB` proxy
-    ---(init.lua -> exports.qblib:timers_debounce) receives the table's fields
+    ---(init.lua -> exports.kora_lib:timers_debounce) receives the table's fields
     ---but not its metatable, so `debounced(...)` there raises "attempt to call
     ---a table value". Plain function fields cross as funcrefs and keep
-    ---working, so `.run(...)` is the form every consumer outside qblib must
+    ---working, so `.run(...)` is the form every consumer outside kora_lib must
     ---use. Same reasoning as QB.timers.throttle's `.run`.
     function debounced.run(...)
         pendingArgs = table.pack(...)
@@ -306,11 +306,11 @@ function QB.timers.throttle(fn, interval)
     ---
     ---`.run()` exists because the `__call` metamethod below does NOT survive
     ---the export boundary: a resource reaching this through the `QB` proxy
-    ---(init.lua -> exports.qblib:timers_throttle) receives the table's fields
+    ---(init.lua -> exports.kora_lib:timers_throttle) receives the table's fields
     ---but not its metatable, so `throttled(...)` there raises "attempt to call
-    ---a table value" -- which is exactly how qbpolice's melee detector
+    ---a table value" -- which is exactly how kora_police's melee detector
     ---crashed. Plain function fields cross as funcrefs and keep working, so
-    ---`.run(...)` is the form every consumer outside qblib must use.
+    ---`.run(...)` is the form every consumer outside kora_lib must use.
     ---@return boolean ran
     function throttled.run(...)
         local now = GetGameTimer()

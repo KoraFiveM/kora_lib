@@ -1,6 +1,6 @@
--- qblib bootstraps its own configuration bridge directly rather than through
--- @qblib/init.lua, which is the consumer-facing export proxy. Keep that
--- bootstrap path covered so qblib remains the platform's first consumer.
+-- kora_lib bootstraps its own configuration bridge directly rather than through
+-- @kora_lib/init.lua, which is the consumer-facing export proxy. Keep that
+-- bootstrap path covered so kora_lib remains the platform's first consumer.
 
 local scriptDir = debug.getinfo(1, 'S').source:match('@?(.*/)') or './'
 local testDir = scriptDir .. '../'
@@ -28,7 +28,7 @@ local previousGlobals = {
     TriggerClientEvent = TriggerClientEvent,
 }
 
-_G.GetCurrentResourceName = function() return 'qblib' end
+_G.GetCurrentResourceName = function() return 'kora_lib' end
 _G.GetGameTimer = function() return 1000 end
 _G.GetInvokingResource = function() return nil end
 _G.IsDuplicityVersion = function() return true end
@@ -47,7 +47,7 @@ _G.AddEventHandler = function() end
 _G.TriggerClientEvent = function(name, target, ...)
     clientEvents[#clientEvents + 1] = { name = name, target = target, values = { ... } }
 end
-_G.exports = setmetatable({ qblib = bridge }, {
+_G.exports = setmetatable({ kora_lib = bridge }, {
     __call = function(_, name, handler) bridge[name] = handler end,
 })
 
@@ -59,7 +59,7 @@ Config = {
 dofile(repoRoot .. 'modules/config/server.lua')
 
 H.test('qblib registers its own shared and server-only configuration', function()
-    local entry = QB.config.read('qblib')
+    local entry = QB.config.read('kora_lib')
     H.assertEqual(entry.schema.fields.ui.scope, 'shared')
     H.assertEqual(entry.schema.fields.discord.scope, 'server')
     H.assertEqual(entry.values.discord.roleSyncInterval, 300000)
@@ -67,7 +67,7 @@ end)
 
 H.test('qblib self registration withholds its server-only configuration from clients', function()
     _G.source = 42
-    netEvents['qblib:server:configRequested']('qblib', 1)
+    netEvents['qblib:server:configRequested']('kora_lib', 1)
     local snapshot = clientEvents[#clientEvents]
     H.assertEqual(snapshot.name, 'qblib:client:configSnapshot')
     H.assertEqual(snapshot.target, 42)
@@ -78,7 +78,7 @@ end)
 H.test('configuration snapshot requests are rate limited per player', function()
     _G.source = 43
     local before = #clientEvents
-    for requestId = 1, 40 do netEvents['qblib:server:configRequested']('qblib', requestId) end
+    for requestId = 1, 40 do netEvents['qblib:server:configRequested']('kora_lib', requestId) end
     H.assertEqual(#clientEvents - before, 30)
 end)
 

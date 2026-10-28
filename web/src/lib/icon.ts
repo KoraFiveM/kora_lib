@@ -135,7 +135,7 @@ const ICONS: Record<string, ComponentType<LucideProps>> = {
 }
 
 // The full ox_lib Font Awesome catalog is split into fixed prefix chunks. Most
-// qblib screens use the small Lucide set above and never download one; an
+// kora_lib screens use the small Lucide set above and never download one; an
 // unprefixed ox icon loads solid only, while regular/brand packs are loaded
 // solely for explicit `far:name`/`fab:name` requests.
 const fontAwesomePacks = new globalThis.Map<IconPrefix, Promise<IconPack>>()

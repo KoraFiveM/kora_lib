@@ -57,7 +57,7 @@ export function InteractSelect() {
 
     if (!state) return null
 
-    // qbhud owns the bottom-centre gauge/vehicle stack in a separate NUI page,
+    // kora_hud owns the bottom-centre gauge/vehicle stack in a separate NUI page,
     // so keep this selector above that reserved gameplay-HUD band.
     //
     // Two elements deep, and deliberately no deeper: the panel, and one row per

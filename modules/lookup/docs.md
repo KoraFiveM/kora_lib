@@ -6,7 +6,7 @@
 weapon-component, and pickup names on both the client and server. Base records
 come from compact generated Lua indexes and each namespace is loaded only on
 its first use. Loaded indexes and materialized records remain cached for the
-lifetime of qblib; there is no SQL, expiry, or periodic scan.
+lifetime of kora_lib; there is no SQL, expiry, or periodic scan.
 
 The generated catalog is pinned to
 [`DurtyFree/gta-v-data-dumps@b65684e`](https://github.com/DurtyFree/gta-v-data-dumps/tree/b65684e00f689fdec405c5f1055322c802d3c895),
@@ -86,7 +86,7 @@ changing it so a mutation does not alter the process-wide cache.
 
 ## Custom resources
 
-At server startup qblib scans discovered resources once. It checks streamed
+At server startup kora_lib scans discovered resources once. It checks streamed
 `.ydr` names, readable text `.ytyp` archetypes, and known vehicle, ped, weapon,
 and component metadata. Binary `.ytyp` and ambiguous `.yft` files are skipped
 with a warning because their model kind cannot safely be inferred from the
@@ -135,19 +135,19 @@ inferred fields they do not replace.
 Only the custom overlay is sent to clients. It is split into versioned batches
 below 24 KiB and published atomically after every batch arrives; out-of-order,
 duplicate, and stale batches are harmless. Clients retry the request after the
-secure qblib event handshake until the snapshot is ready.
+secure kora_lib event handshake until the snapshot is ready.
 
-The scan runs only when qblib starts and yields between resources, so a large
+The scan runs only when kora_lib starts and yields between resources, so a large
 custom-resource set does not hold one long server tick. Each resource is capped
-at 4,096 directory entries; qblib warns and skips the remainder rather than
+at 4,096 directory entries; kora_lib warns and skips the remainder rather than
 letting a malformed or unusually large resource extend startup indefinitely.
-Use `qblib.lookup.json` for assets beyond that limit. Restart qblib after
+Use `qblib.lookup.json` for assets beyond that limit. Restart kora_lib after
 installing, removing, or changing a custom resource. The scanner writes no
 runtime files.
 
 ## Regenerating base data
 
-From the qblib resource root:
+From the kora_lib resource root:
 
 ```sh
 node tools/lookup/generate.mjs

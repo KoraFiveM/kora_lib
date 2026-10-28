@@ -1,6 +1,6 @@
 # Interact module
 
-`QB.interact` provides a compact, game-input-driven option selector for qblib zones. It is entirely client-side, remains click-through, and never grants NUI focus.
+`QB.interact` provides a compact, game-input-driven option selector for kora_lib zones. It is entirely client-side, remains click-through, and never grants NUI focus.
 
 ## Zone API
 
@@ -31,7 +31,7 @@ The current signatures are:
 zones around the current entity/model positions. They do not follow moving
 entities; use the aim-target facade below when movement tracking is required.
 Zone `targetOptions` use qb-target's `{ options = { ... } }` shape; a direct
-option array remains accepted for existing qblib callers.
+option array remains accepted for existing kora_lib callers.
 Zone coordinates must be finite; circle radii and box dimensions must be
 positive finite numbers. Invalid replacement geometry is rejected before an
 existing zone of the same name is removed. `addCircleZone` defaults its radius
@@ -53,7 +53,7 @@ Each option needs a non-empty `label`. On selection it calls `action()`, or trig
 `{ police = 2 }`; `citizenid` also accepts a keyed boolean map such as
 `{ ['CID-1'] = true }`. Unknown grades fail closed.
 Within one selector opening, repeated `item` requirements share one inventory
-check; live aim targets still check availability each time qbtarget evaluates
+check; live aim targets still check availability each time kora_target evaluates
 them.
 
 An option with `type = "server"` only sends a client request. Treat its
@@ -64,8 +64,8 @@ state again in the event handler before making a persistent change.
 ## Aim targets
 
 `QB.interact.addEntity(entity, options, distance?)` and
-`QB.interact.addModel(model, options, distance?)` are qblib's facade over
-qbtarget. They use the same `label`, `action`, `event`, `args`, and restriction
+`QB.interact.addModel(model, options, distance?)` are kora_lib's facade over
+kora_target. They use the same `label`, `action`, `event`, `args`, and restriction
 fields as zones, follow moving entities, and clean up automatically when the
 invoking resource stops. Use `QB.interact.removeEntity(entity, id?)` or
 `QB.interact.removeModel(model, id?)` for early teardown; they remove only
@@ -77,7 +77,7 @@ positive finite constraint.
 
 While the selector is visible, E or left-click confirms the highlighted option. Space and Enter do not confirm it. Up/Down or the mouse wheel changes the highlighted option, and Escape/Backspace/Pause closes the selector.
 
-These inputs are held through one reference-counted `QB.controls` lease for the selector's lifetime. Closing, replacing, selecting from, or losing the owning resource releases that lease without disturbing another qblib system that disabled the same control.
+These inputs are held through one reference-counted `QB.controls` lease for the selector's lifetime. Closing, replacing, selecting from, or losing the owning resource releases that lease without disturbing another kora_lib system that disabled the same control.
 
 ## UI contract
 

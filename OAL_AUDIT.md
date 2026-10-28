@@ -8,21 +8,21 @@ static check and an in-game regression pass.
 
 | Resource | Status | Reason |
 |---|---|---|
-| `qbsmallresources` | enabled | Small, explicit native surface. All native coordinates are scalar arguments; the sole frame task is required weapon-wheel suppression. |
-| `qbhud` | enabled | NUI/cache/voice consumer with no vector-native invocation. |
-| `qbloading` | enabled | NUI/theme consumer with no vector-native invocation. |
-| `qbadmin` | excluded | Administrative teleport/noclip surface needs its own full native audit. |
-| `qbambulance` | excluded | Death, stretcher and active animation/native flows are gameplay-critical. |
-| `qbclothing` | excluded | Camera and ped-clothing native surface needs dedicated visual regression. |
-| `qbcore` | excluded | Framework compatibility surface includes legacy vector-native usage and broad public contracts. |
-| `qbdrugs` | excluded | Gameplay resource; no current native-call performance case justifies experimental risk. |
-| `qbinventory` | excluded | Server-authoritative compatibility provider with vehicle/drop/container native paths. |
-| `qblib` | excluded | Shared provider; a native marshalling regression would affect every consumer. |
-| `qblib-playground` | excluded | Development-only command harness; no production benefit. |
-| `qbmultichar` | excluded | Spawn/teleport flow is sensitive and must be audited separately. |
-| `qbpolice` | excluded | Broad entity, evidence, vehicle and duty native surface. |
-| `qbsql` | excluded | Database provider has no client-native hot path to benefit. |
-| `qbtarget` | excluded | Raycast/targeting precision and compatibility outweigh marginal native-call savings. |
+| `kora_smallresources` | enabled | Small, explicit native surface. All native coordinates are scalar arguments; the sole frame task is required weapon-wheel suppression. |
+| `kora_hud` | enabled | NUI/cache/voice consumer with no vector-native invocation. |
+| `kora_loading` | enabled | NUI/theme consumer with no vector-native invocation. |
+| `kora_admin` | excluded | Administrative teleport/noclip surface needs its own full native audit. |
+| `kora_ambulance` | excluded | Death, stretcher and active animation/native flows are gameplay-critical. |
+| `kora_clothing` | excluded | Camera and ped-clothing native surface needs dedicated visual regression. |
+| `kora_core` | excluded | Framework compatibility surface includes legacy vector-native usage and broad public contracts. |
+| `kora_drugs` | excluded | Gameplay resource; no current native-call performance case justifies experimental risk. |
+| `kora_inventory` | excluded | Server-authoritative compatibility provider with vehicle/drop/container native paths. |
+| `kora_lib` | excluded | Shared provider; a native marshalling regression would affect every consumer. |
+| `kora_lib-playground` | excluded | Development-only command harness; no production benefit. |
+| `kora_multichar` | excluded | Spawn/teleport flow is sensitive and must be audited separately. |
+| `kora_police` | excluded | Broad entity, evidence, vehicle and duty native surface. |
+| `kora_sql` | excluded | Database provider has no client-native hot path to benefit. |
+| `kora_target` | excluded | Raycast/targeting precision and compatibility outweigh marginal native-call savings. |
 
 ## Re-audit rule
 

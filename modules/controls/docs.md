@@ -17,13 +17,13 @@ local lease = QB.controls.acquire({ 24, 25 }, {
 - `options.disablePlayerFiring` defaults to `false`. When enabled, `DisablePlayerFiring(PlayerId(), true)` is also applied every frame.
 - `options.ignoreWeaponWheel` defaults to `false`. When enabled, `HudWeaponWheelIgnoreSelection()` is applied every frame.
 - At least one control ID or active suppression option is required.
-- Returns an opaque integer lease ID. The calling resource owns the lease, and qblib releases it automatically if that resource stops.
+- Returns an opaque integer lease ID. The calling resource owns the lease, and kora_lib releases it automatically if that resource stops.
 
 The controls are applied immediately before `acquire` returns and then once per frame. That makes disabled-input reads such as `IsDisabledControlJustPressed` and `GetDisabledControlNormal` safe in the same tick.
 
-The lease remains owned by the resource that acquired it even when qblib later
+The lease remains owned by the resource that acquired it even when kora_lib later
 finishes an asynchronous progress bar, menu, placement tool, raycast tool, or
-zone creator on that resource's behalf. qblib uses that captured ownership only
+zone creator on that resource's behalf. kora_lib uses that captured ownership only
 for its own cleanup; it does not make a lease transferable between resources.
 
 ## `QB.controls.release(leaseId)`

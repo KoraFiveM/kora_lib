@@ -1,7 +1,7 @@
 # World module
 
 ## Overview
-The world module answers "what already exists near me right now" by reading the live entity pool (`GetGamePool`/`GetActivePlayers`) — a different job from `modules/entities`, which only spawns and owns entities qblib itself created. It was added alongside `modules/drawing` as a foundation for a crosshair-based targeting system (resolving "what model/type is under my aim"), but is independently useful for anything that needs to find nearby peds/vehicles/objects/players — radar scripts, spawn logic, proximity checks.
+The world module answers "what already exists near me right now" by reading the live entity pool (`GetGamePool`/`GetActivePlayers`) — a different job from `modules/entities`, which only spawns and owns entities kora_lib itself created. It was added alongside `modules/drawing` as a foundation for a crosshair-based targeting system (resolving "what model/type is under my aim"), but is independently useful for anything that needs to find nearby peds/vehicles/objects/players — radar scripts, spawn logic, proximity checks.
 
 ## API
 
@@ -46,7 +46,7 @@ end
 
 Called cross-resource via export:
 ```lua
-local matches = exports.qblib:world_getNearbyEntities("ped", coords, 20.0)
+local matches = exports.kora_lib:world_getNearbyEntities("ped", coords, 20.0)
 for _, match in ipairs(matches) do
     print(match.entity, match.distance)
 end
@@ -56,11 +56,11 @@ end
 - Optional `options` values must be tables when supplied. Model and exclusion
   lists must be dense arrays with documented entry types, predicates must be
   callable, and boolean filters must be booleans; malformed queries are
-  rejected before qblib scans a pool or calls a native.
+  rejected before kora_lib scans a pool or calls a native.
 - `"player"` is not a `GetGamePool` pool type — it's enumerated via `GetActivePlayers()`/`GetPlayerPed`, one ped per connected player (including the local one, subject to `includeOwnPed` like `"ped"`).
 - Filters run cheapest-first (self-exclusion, explicit exclude list, model set, visibility) before `predicate`, which may be arbitrarily expensive — same discipline `modules/zones` documents for its own AABB-then-exact-shape containment tests.
 - Closest-entity and spawn-clear scans retain native coordinates while walking
-  candidates. qblib makes a plain `{x, y, z}` table only for a predicate or a
+  candidates. kora_lib makes a plain `{x, y, z}` table only for a predicate or a
   returned match, avoiding one short-lived allocation per otherwise irrelevant
   candidate.
 - Pool queries are available on both realms. Client queries inspect streamed entities; server queries inspect OneSync's server entity pools.

@@ -3,7 +3,7 @@
 -- functions take `src` first and measure from that player's ped. Plain
 -- coordinate tables prove the hot path does not need temporary vectors.
 --
--- Client and server both define QB.distance.*, so -- per qblib's
+-- Client and server both define QB.distance.*, so -- per kora_lib's
 -- same-name-across-realms rule -- the client functions are captured before the
 -- server file overwrites them.
 

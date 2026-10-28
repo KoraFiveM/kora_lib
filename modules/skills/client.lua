@@ -1,7 +1,7 @@
--- Optional client bridge to qbskills. qblib remains usable on servers that do
--- not run qbskills; callers simply receive no skill data or modifier there.
+-- Optional client bridge to kora_skills. kora_lib remains usable on servers that do
+-- not run kora_skills; callers simply receive no skill data or modifier there.
 
-local RESOURCE = 'qbskills'
+local RESOURCE = 'kora_skills'
 
 local function isStarted()
     return type(GetResourceState) == 'function' and GetResourceState(RESOURCE) == 'started'

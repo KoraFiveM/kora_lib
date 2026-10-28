@@ -12,7 +12,7 @@ declare global {
 export const isBrowserEnv = typeof window.invokeNative !== "function"
 
 function resourceName(): string {
-    return window.GetParentResourceName ? window.GetParentResourceName() : "qblib"
+    return window.GetParentResourceName ? window.GetParentResourceName() : "kora_lib"
 }
 
 /**

@@ -1,4 +1,4 @@
--- Admin-facing entry commands for qblib's client-side zone and entity
+-- Admin-facing entry commands for kora_lib's client-side zone and entity
 -- editors. This is a convenience/UX gate only: a modified client can invoke
 -- its own local library code, so consuming resources must separately
 -- authorize every persistent or gameplay-affecting change on the server.

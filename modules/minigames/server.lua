@@ -332,8 +332,8 @@ function QB.minigames.authorizeProof(src, gameType, trustedOpts)
     return issueAuthorization(src, gameType, resolveConfig[gameType](trustedOpts))
 end
 
----Issues a proof authorization after applying the player's qbskills bonus to
----the trusted, server-resolved minigame configuration. If qbskills is absent,
+---Issues a proof authorization after applying the player's kora_skills bonus to
+---the trusted, server-resolved minigame configuration. If kora_skills is absent,
 ---the configuration is left unchanged. The resulting difficulty is captured
 ---in the authorization, so the client cannot weaken it before starting.
 ---@param src integer

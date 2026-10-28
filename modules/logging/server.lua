@@ -31,7 +31,7 @@ function QB.logging.event(category, src, data)
     counts[category] = (counts[category] or 0) + 1
 
     -- 'qbcore_log_webhook' is a legacy fallback for servers that already set
-    -- it before this module lived in qblib.
+    -- it before this module lived in kora_lib.
     local url = GetConvar('qblib_log_webhook', GetConvar('qbcore_log_webhook', ''))
     if url ~= '' then
         local resource = GetInvokingResource() or GetCurrentResourceName()

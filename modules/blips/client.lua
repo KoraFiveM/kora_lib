@@ -523,7 +523,7 @@ function QB.blips.getCategory(category)
 end
 
 ---Returns plain snapshots of qblib-created blips. The `handle` remains the
----actual native handle returned by `create`; qblib never replaces it with an
+---actual native handle returned by `create`; kora_lib never replaces it with an
 ---object wrapper.
 ---@return QBRegisteredBlip[] blips
 function QB.blips.getRegistered()

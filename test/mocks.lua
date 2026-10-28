@@ -1,4 +1,4 @@
----Minimal stand-ins for the FiveM/CFX globals qblib's modules call directly
+---Minimal stand-ins for the FiveM/CFX globals kora_lib's modules call directly
 ---(RegisterNetEvent, TriggerServerEvent, CreateThread, promise, ...), so module
 ---files can be `dofile`'d and smoke-tested under plain Lua. Native functions
 ---specific to a single module (e.g. CreatePed, glm.vec3) are mocked in that

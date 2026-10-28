@@ -103,7 +103,7 @@ end)
 ## Notes
 - Built-in telemetry refreshes every `Config.cache.tickInterval` ms (200ms by default). It must be a positive finite integer and is captured at startup. The cache is intentionally a bounded shared poll rather than a frame loop; use direct per-frame natives only for controls that the engine requires to be reasserted every frame.
 - `playerId`/`serverId` are session constants and are not re-read by that telemetry tick. A cached vehicle seat is validated directly; the cache only scans every seat when the cached slot no longer contains the player ped.
-- If qblib starts before networking assigns a server ID, its small retry worker
+- If kora_lib starts before networking assigns a server ID, its small retry worker
   checks every 250ms until the `-1` startup sentinel becomes a real ID; it is
   not a frame loop.
 - `QB.cache.set` rejects writes to any built-in key outright (logged, ignored) — it isn't just that the next refresh tick would overwrite a bogus value back, the write never lands in the first place.

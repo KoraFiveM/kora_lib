@@ -70,7 +70,7 @@ harness.test("createEmbed creates a transport-safe embed without mutating its in
         description = "A thing happened",
         color = "#DC143C",
         timestamp = 0,
-        footer = "qblib",
+        footer = "kora_lib",
         image = "https://example.invalid/image.png",
         fields = { { name = "Player", value = "Jamie", inline = true } },
     }
@@ -79,7 +79,7 @@ harness.test("createEmbed creates a transport-safe embed without mutating its in
 
     harness.assertEqual(embed.color, 0xDC143C, "hex colors should become Discord's integer color")
     harness.assertEqual(embed.timestamp, "1970-01-01T00:00:00Z", "Unix timestamps should become UTC ISO8601")
-    harness.assertEqual(embed.footer.text, "qblib", "string footers should be expanded")
+    harness.assertEqual(embed.footer.text, "kora_lib", "string footers should be expanded")
     harness.assertEqual(embed.image.url, options.image, "string images should be expanded")
     harness.assertTrue(embed.fields ~= options.fields, "the fields array should be copied")
     harness.assertEqual(options.color, "#DC143C", "the source table should remain unchanged")
@@ -240,17 +240,17 @@ harness.test("sync migrates and persists its role directory when qbsql is availa
         file:close()
         return contents
     end
-    _G.exports = { qbsql = {} }
-    function _G.exports.qbsql:isReady() return true end
-    function _G.exports.qbsql:migrate(resource, migrations, callback)
+    _G.exports = { kora_sql = {} }
+    function _G.exports.kora_sql:isReady() return true end
+    function _G.exports.kora_sql:migrate(resource, migrations, callback)
         sqlCalls.migrations[#sqlCalls.migrations + 1] = { resource = resource, migrations = migrations }
         callback({ ran = 1, total = 1 }, nil)
     end
-    function _G.exports.qbsql:query(sql, params, callback)
+    function _G.exports.kora_sql:query(sql, params, callback)
         sqlCalls.queries[#sqlCalls.queries + 1] = { sql = sql, params = params }
         callback({}, nil)
     end
-    function _G.exports.qbsql:transaction(statements, _, callback)
+    function _G.exports.kora_sql:transaction(statements, _, callback)
         sqlCalls.transactions[#sqlCalls.transactions + 1] = statements
         callback(true, nil)
     end

@@ -26,7 +26,7 @@ boundary, transform and placement count. Owning-resource stop also cancels any
 numeric/confirmation request and releases its focus.
 
 Starts at the solid surface currently under the gameplay-camera crosshair. The
-model is validated and streamed through qblib's existing entity helpers. A
+model is validated and streamed through kora_lib's existing entity helpers. A
 scripted free camera then lets the player inspect the placement from any angle.
 `model` is a non-empty model name or a finite integer model hash.
 
@@ -38,7 +38,7 @@ print(QB.placement.generateSnippet(result))
 ```
 
 Same-resource calls return an awaitable promise. Calls made through
-`@qblib/init.lua` cross the qblib export boundary and return the settled result
+`@kora_lib/init.lua` cross the kora_lib export boundary and return the settled result
 directly, matching `QB.zones.startCreator`.
 
 The confirmed result is:
@@ -61,9 +61,9 @@ Euler values use rotation order `2`; heading may therefore be `270` while yaw
 is `-90`. Cancelling resolves `nil`. Invalid/unloadable models, a missing
 initial raycast hit, disabled placement, or another active creator reject.
 
-The calling resource owns its session. If it stops, qblib cancels the session,
+The calling resource owns its session. If it stops, kora_lib cancels the session,
 closes any open summary, releases controls and camera state, restores the
-radar/player state, and deletes the local preview. Stopping qblib performs the
+radar/player state, and deletes the local preview. Stopping kora_lib performs the
 same cleanup immediately and rejects the interrupted promise. A confirmed or
 cancelled session always deletes its preview; placement never creates a
 networked entity.

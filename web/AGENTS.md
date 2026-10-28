@@ -1,8 +1,8 @@
-# qblib web design system
+# kora_lib web design system
 
 ## Purpose and authority
 
-This file is the canonical visual specification for qblib NUI and the reference for other QBCore resources that want the same look. Use it when editing an existing component, installing a shadcn component, or creating a new resource UI. The goal is a compact, modern game overlay built from neutral charcoal surfaces with QBCore crimson used as a focused accent.
+This file is the canonical visual specification for kora_lib NUI and the reference for other QBCore resources that want the same look. Use it when editing an existing component, installing a shadcn component, or creating a new resource UI. The goal is a compact, modern game overlay built from neutral charcoal surfaces with QBCore crimson used as a focused accent.
 
 This guide is prescriptive: reuse its semantic tokens and component recipes instead of inventing a parallel palette or one-off treatment. The parent `../AGENTS.md` still governs NUI architecture, focus, build output, and request/response behavior. If a visual choice conflicts with the headless-overlay rules there, the parent rules win.
 
@@ -155,15 +155,15 @@ extend: {
 ### Server-configured accent
 
 `#DC143C` is the default accent, not a hard-coded component dependency. Server
-owners configure semantic colours in `qbtheme/config.lua`; qblib imports
-qbtheme's stylesheet and browser loader. Components must use those semantic
-tokens. qbtheme derives hover, pressed, translucent, focus, and readable
+owners configure semantic colours in `kora_theme/config.lua`; kora_lib imports
+kora_theme's stylesheet and browser loader. Components must use those semantic
+tokens. kora_theme derives hover, pressed, translucent, focus, and readable
 foreground variants.
 
 Never add raw Tailwind slate, zinc, neutral, grey, sky, or blue utilities inside reusable components when an appropriate semantic token exists. Neutral palette values above are the source of truth even if a Tailwind named colour happens to look close.
 
-New UI consumers should depend directly on qbtheme and import its client bridge,
-stylesheet, and loader. `QB.theme.tokens()` remains a qblib compatibility
+New UI consumers should depend directly on kora_theme and import its client bridge,
+stylesheet, and loader. `QB.theme.tokens()` remains a kora_lib compatibility
 forward only; never re-derive the HSL math locally.
 
 ## Foundations
@@ -386,7 +386,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 - Toast stacks remain pointer-transparent, stay 16px from the viewport, use an 8px gap, and animate in from their anchored edge.
 - A toast may include one 1px semantic lifetime strip driven by its existing timeout. It is noninteractive and `aria-hidden`; reduced motion removes the strip animation without changing dismissal timing.
 - Routine updates use `role="status"`/`aria-live="polite"`; reserve `role="alert"` for urgent errors. Announce only the new toast, not the full stack again.
-- Nonessential transient toasts remain for at least 5 seconds. Because qblib toasts are pointer-transparent and cannot be paused or dismissed, essential/actionable information and important errors must also remain visible in the persistent workflow state. A resource claiming full WCAG 2.2 timing compliance must additionally mirror every timed notification in a persistent accessible history or provide a user-adjustable duration.
+- Nonessential transient toasts remain for at least 5 seconds. Because kora_lib toasts are pointer-transparent and cannot be paused or dismissed, essential/actionable information and important errors must also remain visible in the persistent workflow state. A resource claiming full WCAG 2.2 timing compliance must additionally mirror every timed notification in a persistent accessible history or provide a user-adjustable duration.
 
 ### Progress, skeleton, separator, and scrollbar
 
@@ -423,7 +423,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 - The interact selector is a display-only, left-edge gameplay overlay. Keep it pointer-transparent and do not grant NUI focus; its owning resource retains all game-control behavior.
 - Use the compact HUD surface, a 10px radius, low neutral shadow, and 40px minimum rows. The current row uses brand-soft plus the shared slim crimson rail; do not turn the whole panel crimson.
 - The selected row may carry one compact confirm-key chip. Labels truncate rather than widening the panel into the gameplay centre.
-- Its qblib interaction contract is `openInteract` carrying `[{ label }]`, `scroll` carrying `1` or `-1`, `select` confirming the highlighted row, and `hideInteract` hiding it. Confirmation POSTs the one-based numeric choice to `selectOption`.
+- Its kora_lib interaction contract is `openInteract` carrying `[{ label }]`, `scroll` carrying `1` or `-1`, `select` confirming the highlighted row, and `hideInteract` hiding it. Confirmation POSTs the one-based numeric choice to `selectOption`.
 
 ### Input dialog
 
@@ -484,7 +484,7 @@ Do:
 - Use crimson to make the next action, current selection, or keyboard focus obvious.
 - Keep important content legible over both bright and dark gameplay.
 - Review long labels, empty data, overflow, keyboard focus, and disabled states.
-- Reuse the exact tokens in other resources so qblib interfaces feel related.
+- Reuse the exact tokens in other resources so kora_lib interfaces feel related.
 
 Do not:
 
@@ -501,7 +501,7 @@ Do not:
 Before considering a UI styling change complete, verify:
 
 - Surfaces are neutral charcoal with no blue cast, and the root is still transparent.
-- The rendered brand matches qbtheme's configured primary (default `#DC143C`); hover/pressed and brand-soft states derive from that same token.
+- The rendered brand matches kora_theme's configured primary (default `#DC143C`); hover/pressed and brand-soft states derive from that same token.
 - Text/background pairs meet WCAG AA. In particular, white on the brand is valid, muted copy is not replaced with disabled grey, and semantic text remains on charcoal.
 - Every control has default, hover, focus-visible, pressed/open, disabled, loading, and invalid states where applicable.
 - Mouse, keyboard, Escape, backdrop dismissal, and Radix focus behavior still work.
