@@ -8,7 +8,7 @@ static check and an in-game regression pass.
 
 | Resource | Status | Reason |
 |---|---|---|
-| `kora_smallresources` | enabled | Small, explicit native surface. All native coordinates are scalar arguments; the sole frame task is required weapon-wheel suppression. |
+| `kora_utils` | enabled | Small, explicit native surface. All native coordinates are scalar arguments; the sole frame task is required weapon-wheel suppression. |
 | `kora_hud` | enabled | NUI/cache/voice consumer with no vector-native invocation. |
 | `kora_loading` | enabled | NUI/theme consumer with no vector-native invocation. |
 | `kora_admin` | excluded | Administrative teleport/noclip surface needs its own full native audit. |
