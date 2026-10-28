@@ -521,7 +521,7 @@ describe("AppShell", () => {
 
     it("lazily renders tile maps and selectable markers", async () => {
         render(<AppShell />)
-        openApp(baseApp({ blocks: [{ type: "map", id: "dispatch-map", title: "Live map", minZoom: 0, maxZoom: 1, now: 100, fadeDuration: 100, tiles: { url: "https://cfx-nui-qbdispatch/web/build/map/{z}/{x}/{y}.jpg", grid: { x: 2, y: 2 } }, markers: [{ id: "call-1", x: 128, y: 128, label: "Robbery", action: "select-call", expiresAt: 110, fadeDuration: 20 }] }] }))
+        openApp(baseApp({ blocks: [{ type: "map", id: "dispatch-map", title: "Live map", minZoom: 0, maxZoom: 1, now: 100, fadeDuration: 100, tiles: { url: "https://cfx-nui-kora_dispatch/web/build/map/{z}/{x}/{y}.jpg", grid: { x: 2, y: 2 } }, markers: [{ id: "call-1", x: 128, y: 128, label: "Robbery", action: "select-call", expiresAt: 110, fadeDuration: 20 }] }] }))
         expect(await screen.findByRole("application", { name: "Live map" })).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /Robbery/ })).toHaveStyle({ opacity: "0.5" })
     })
