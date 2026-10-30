@@ -15,7 +15,7 @@ for resourceIndex = 1, 60 do
         revision = 1, loaded = true }
 end
 QB = { config = {}, callback = { trigger = function(name)
-    if name == 'qblib:configCatalog' then return entries end
+    if name == 'kora_lib:configCatalog' then return entries end
     error('Unexpected callback: ' .. name)
 end }, nui = {
     registerApp = function(value) definition = value end,

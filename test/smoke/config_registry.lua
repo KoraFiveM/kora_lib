@@ -11,16 +11,16 @@ local invoker = 'sample'
 _G.GetInvokingResource = function() return invoker end
 
 local bridge = {
-    qblib_configRead = function()
+    kora_lib_configRead = function()
         return {
             schema = { kind = 'object', fields = {} }, configured = { enabled = true },
             values = { enabled = false }, revision = 1,
         }
     end,
-    qblib_configCommit = function(_, request)
+    kora_lib_configCommit = function(_, request)
         return { ok = true, revision = request.revision + 1, configured = { enabled = request.value } }
     end,
-    qblib_configReset = function(_, request)
+    kora_lib_configReset = function(_, request)
         return { ok = true, revision = request.revision + 1, configured = { enabled = true }, values = { enabled = true } }
     end,
 }
@@ -50,7 +50,7 @@ H.test('catalog rejects malformed registration revisions', function()
 end)
 
 H.test('config snapshots reject malformed client sources and request IDs', function()
-    local request = net.netHandlers['qblib:server:configRequested'][1]
+    local request = net.netHandlers['kora_lib:server:configRequested'][1]
     local sent = #net.triggeredClientEvents
     _G.source = nil
     request('sample')
@@ -69,7 +69,7 @@ end)
 
 H.test('commit and reset are delegated to the target resource bridge', function()
     local changes = {}
-    AddEventHandler('qblib:server:configChanged', function(resource, values, revision)
+    AddEventHandler('kora_lib:server:configChanged', function(resource, values, revision)
         changes[#changes + 1] = { resource = resource, values = values, revision = revision }
     end)
     local read = QB.config.read('sample')
@@ -96,10 +96,10 @@ H.test('another resource cannot register a forged catalog entry', function()
     invoker = 'sample'
 end)
 
-H.test('catalog discovers a started qblib consumer that missed its startup announcement', function()
+H.test('catalog discovers a started kora_lib consumer that missed its startup announcement', function()
     local reads = 0
     _G.exports.late = {
-        qblib_configRead = function()
+        kora_lib_configRead = function()
             reads = reads + 1
             return {
                 resource = 'late', schema = { kind = 'object', fields = {} }, configured = { enabled = true },
@@ -124,7 +124,7 @@ end)
 
 H.test('catalog discovery and refresh preserve the revision invariant', function()
     _G.exports.invalid_revision = {
-        qblib_configRead = function()
+        kora_lib_configRead = function()
             return {
                 resource = 'invalid_revision', schema = {}, configured = {}, client = {}, revision = 1.5,
             }
@@ -141,12 +141,12 @@ H.test('catalog discovery and refresh preserve the revision invariant', function
     for _, entry in ipairs(QB.config.catalog()) do
         if entry.resource == 'sample' then revision = entry.revision break end
     end
-    local read = bridge.qblib_configRead
-    bridge.qblib_configRead = function()
+    local read = bridge.kora_lib_configRead
+    bridge.kora_lib_configRead = function()
         return { configured = {}, values = {}, client = {}, revision = math.huge }
     end
     H.assertEqual(QB.config.read('sample').revision, revision)
-    bridge.qblib_configRead = read
+    bridge.kora_lib_configRead = read
 end)
 
 H.test('invalid successful bridge revisions do not update the catalog', function()
@@ -154,12 +154,12 @@ H.test('invalid successful bridge revisions do not update the catalog', function
     for _, entry in ipairs(QB.config.catalog()) do
         if entry.resource == 'sample' then revision = entry.revision break end
     end
-    local commit, reset = bridge.qblib_configCommit, bridge.qblib_configReset
-    bridge.qblib_configCommit = function() return { ok = true, revision = math.huge } end
-    bridge.qblib_configReset = function() return { ok = true, revision = 1.5 } end
+    local commit, reset = bridge.kora_lib_configCommit, bridge.kora_lib_configReset
+    bridge.kora_lib_configCommit = function() return { ok = true, revision = math.huge } end
+    bridge.kora_lib_configReset = function() return { ok = true, revision = 1.5 } end
     H.assertFalse(QB.config.commit('sample', {}).ok)
     H.assertFalse(QB.config.reset('sample', {}).ok)
-    bridge.qblib_configCommit, bridge.qblib_configReset = commit, reset
+    bridge.kora_lib_configCommit, bridge.kora_lib_configReset = commit, reset
     for _, entry in ipairs(QB.config.catalog()) do
         if entry.resource == 'sample' then H.assertEqual(entry.revision, revision) end
     end
@@ -167,7 +167,7 @@ end)
 
 H.test('an on-demand read discovers a resource whose announcement raced startup', function()
     _G.exports.on_demand = {
-        qblib_configRead = function()
+        kora_lib_configRead = function()
             return {
                 resource = 'on_demand', schema = { kind = 'object', fields = {} },
                 configured = { enabled = true }, values = { enabled = true },
@@ -206,7 +206,7 @@ H.test('own bootstrap survives a resource-driven restart without granting caller
     H.assertEqual(#catalog, 1)
     H.assertEqual(catalog[1].resource, 'kora_lib')
     H.assertTrue(Config.enabled)
-    local snapshot = owned.qblib_configRead()
+    local snapshot = owned.kora_lib_configRead()
     H.assertEqual(snapshot.client.discord, nil)
     H.assertEqual(snapshot.configured.discord.secret, 'server-only')
     H.assertThrows(function()

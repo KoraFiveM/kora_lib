@@ -96,7 +96,7 @@ mode and active rotation axis; the NUI HUD is reserved for transform state.
   coordinate, heading, and rotation component must be finite.
 - `/qb_place <model>` starts the same flow without writing Lua. A numeric
   argument is treated as a model hash. The server command requires the
-  `qblib.editor` ACE by default; configure it through `Config.editor`.
+  `kora_lib.editor` ACE by default; configure it through `Config.editor`.
 
 Only one placement may run at a time, and it cannot overlap the zone creator.
 The preview is translucent, frozen, invincible, non-colliding, and visible only

@@ -269,11 +269,11 @@ function QB.entities.createScoped(model, coords, options)
                 scope.spawning = false
 
                 if not ok then
-                    print(("[qblib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(entity)))
+                    print(("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(entity)))
                     return
                 end
                 if not entity and createErr then
-                    print(("[qblib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(createErr)))
+                    print(("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(createErr)))
                 end
 
                 -- The scope can be removed, or exited, while model streaming
@@ -342,7 +342,7 @@ function QB.entities.remove(entity)
 end
 
 ---Requests network control of an existing entity. This is intentionally
----separate from `create`: qblib-created entities are local, while gameplay
+---separate from `create`: kora_lib-created entities are local, while gameplay
 ---resources often need to clean up a server-authorized networked entity.
 ---@param entity number
 ---@param timeout? integer Defaults to 1000ms.
@@ -364,7 +364,7 @@ end
 
 ---Deletes an entity only after network control is acquired. Unlike `remove`,
 ---this is for an existing networked gameplay entity and does not require that
----qblib created it; callers must already have server authorization.
+---kora_lib created it; callers must already have server authorization.
 ---@param entity number
 ---@param timeout? integer
 ---@return boolean deleted

@@ -361,7 +361,7 @@ local function safeCall(zone, label, fn, ...)
     local ok, err = pcall(fn, ...)
 
     if not ok then
-        print(("[qblib:zones] %s callback for zone %d (%s, owned by %s) errored: %s")
+        print(("[kora_lib:zones] %s callback for zone %d (%s, owned by %s) errored: %s")
             :format(label, zone.id, zone.type, zone.resource, tostring(err)))
     end
 end
@@ -1056,7 +1056,7 @@ local function restoreCreatorRadar(state)
 end
 
 local function creatorLog(msg)
-    print(("[qblib:zones] %s"):format(msg))
+    print(("[kora_lib:zones] %s"):format(msg))
 end
 
 local function formatNumber(n)
@@ -1903,7 +1903,7 @@ function QB.zones.edit(handle, opts)
     return editZone(handle, opts)
 end
 
-RegisterNetEvent("qblib:editor:startZoneCreator", function(zoneType)
+local function onStartZoneCreator(zoneType)
     if type(zoneType) ~= "string" then return end
     local ok, result = pcall(function() return Citizen.Await(QB.zones.startCreator(zoneType)) end)
 
@@ -1914,4 +1914,8 @@ RegisterNetEvent("qblib:editor:startZoneCreator", function(zoneType)
     else
         creatorLog("zone creator cancelled.")
     end
-end)
+end
+
+RegisterNetEvent("kora_lib:editor:startZoneCreator", onStartZoneCreator)
+-- Deprecated alias for callers that predate the rename.
+RegisterNetEvent("qblib:editor:startZoneCreator", onStartZoneCreator)

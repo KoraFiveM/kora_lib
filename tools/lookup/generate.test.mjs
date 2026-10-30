@@ -32,7 +32,7 @@ test('JOAAT is case-insensitive and uses unsigned 32-bit output', () => {
 })
 
 test('generation is deterministic, records collisions, and check detects changes', async () => {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'qblib-lookup-'))
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'kora_lib-lookup-'))
     try {
         const source = fixtures({ 'ObjectList.ini': 'collision_10a4\ncollision_5kq0\n' })
         const first = await generate({ outputDirectory: directory, sources: source })

@@ -132,7 +132,7 @@ local function metadataValue(item, label)
 end
 
 harness.test('registers a compact AppShell and the /blips command', function()
-    harness.assertEqual(registeredApp.id, 'qblib:blips', 'settings app should use a namespaced id')
+    harness.assertEqual(registeredApp.id, 'kora_lib:blips', 'settings app should use a namespaced id')
     harness.assertEqual(registeredApp.layout, 'compact', 'settings should use the focused compact layout')
     harness.assertTrue(type(net.commands.blips) == 'function', '/blips should be a client command')
 end)
@@ -166,13 +166,13 @@ harness.test('shows categories with registered blips as children and official ar
 end)
 
 harness.test('toggles a category immediately and refreshes the open app', function()
-    local result = registeredApp.onAction('qblib:blips:toggleCategory', { itemId = 'category:13' })
+    local result = registeredApp.onAction('kora_lib:blips:toggleCategory', { itemId = 'category:13' })
     harness.assertEqual(hideCalls[#hideCalls], 13, 'visible category should be hidden')
     harness.assertEqual(itemById(lastUpdate.navigation, 'category:13').badge, 'Hidden',
         'open AppShell should refresh immediately after the toggle')
     harness.assertEqual(result.notice.tone, 'success', 'successful toggle should give in-shell feedback')
 
-    result = registeredApp.onAction('qblib:blips:toggleCategory', { itemId = 'category:14' })
+    result = registeredApp.onAction('kora_lib:blips:toggleCategory', { itemId = 'category:14' })
     harness.assertEqual(showCalls[#showCalls], 14, 'hidden category should be shown')
     harness.assertEqual(result.notice.message, 'Bars blips shown.', 'feedback should name the affected category')
 end)

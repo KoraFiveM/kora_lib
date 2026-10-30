@@ -191,22 +191,22 @@ end
 local function sendLatentScreenshot(token, options, timeout)
     beginCapture(options, timeout):next(function(dataUri)
         if type(dataUri) ~= 'string' or dataUri == '' then
-            TriggerServerEvent('qblib:server:screenshotFailed', token, 'The NUI returned an empty screenshot.')
+            TriggerServerEvent('kora_lib:server:screenshotFailed', token, 'The NUI returned an empty screenshot.')
             return
         end
 
-        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'captured', #dataUri)
+        TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'captured', #dataUri)
         local bytesPerSecond = tonumber(screenshotConfig().uploadBytesPerSecond) or (2 * 1024 * 1024)
-        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'sending', #dataUri)
+        TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'sending', #dataUri)
         local ok, err = pcall(TriggerLatentServerEvent,
-            'qblib:server:screenshotCaptured', bytesPerSecond, token, dataUri)
-        if not ok then TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err)) end
+            'kora_lib:server:screenshotCaptured', bytesPerSecond, token, dataUri)
+        if not ok then TriggerServerEvent('kora_lib:server:screenshotFailed', token, tostring(err)) end
     end, function(err)
-        TriggerServerEvent('qblib:server:screenshotFailed', token, tostring(err))
+        TriggerServerEvent('kora_lib:server:screenshotFailed', token, tostring(err))
     end)
 end
 
-RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
+RegisterNetEvent('kora_lib:client:screenshotRequested', function(payload)
     if type(payload) ~= 'table' or type(payload.token) ~= 'string' then return end
 
     local token = payload.token
@@ -214,7 +214,7 @@ RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
     for key, value in pairs(payload) do if key ~= 'token' and key ~= 'timeout' then options[key] = value end end
     local timeout = tonumber(payload.timeout) or screenshotConfig().requestTimeout or 30000
     local captureTimeout = math.max(1000, timeout - 1000)
-    TriggerServerEvent('qblib:server:screenshotProgressed', token, 'received')
+    TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'received')
 
     if payload.rawBody then
         local endpoint = GetCurrentServerEndpoint()
@@ -232,7 +232,7 @@ RegisterNetEvent('qblib:client:screenshotRequested', function(payload)
         options.url = ('%s/%s/screenshot/upload/%s'):format(endpoint, GetCurrentResourceName(), token)
         options.headers = {}
 
-        TriggerServerEvent('qblib:server:screenshotProgressed', token, 'sending')
+        TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'sending')
         QB.nui.request('screenshot:upload', options, captureTimeout):next(function()
             -- The HTTP handler owns successful completion; there is no large
             -- Lua/event payload to acknowledge here.

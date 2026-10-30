@@ -347,7 +347,7 @@ harness.test('a command keybind is published, listed, synchronized, and securely
         keybind = { defaultKey = 'F7', secondaryKey = 'F8' },
     })
 
-    local published = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    local published = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:add')
     harness.assertEqual(published[1], 'boundcommand')
     harness.assertEqual(published[2].description, 'Run bound command')
     harness.assertEqual(published[2].defaultKey, 'F7')
@@ -359,13 +359,13 @@ harness.test('a command keybind is published, listed, synchronized, and securely
     end
     harness.assertEqual(listed.keybind.defaultKey, 'F7')
 
-    TriggerServerEvent('qblib:commands:keybind:execute', 'boundcommand')
+    TriggerServerEvent('kora_lib:commands:keybind:execute', 'boundcommand')
     harness.assertEqual(seen.src, mocks.SOURCE)
     harness.assertEqual(#seen.args, 0, 'key mappings invoke commands without arguments')
     harness.assertEqual(seen.raw, 'boundcommand')
 
-    TriggerServerEvent('qblib:commands:keybind:sync')
-    local synced = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    TriggerServerEvent('kora_lib:commands:keybind:sync')
+    local synced = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:add')
     harness.assertEqual(synced.target, mocks.SOURCE)
     harness.assertEqual(synced[1], 'boundcommand')
 end)
@@ -376,8 +376,8 @@ harness.test('command keybind events discard malformed sources before dispatch',
         keybind = { defaultKey = 'F12' },
     })
 
-    local syncHandlers = net.netHandlers['qblib:commands:keybind:sync']
-    local executeHandlers = net.netHandlers['qblib:commands:keybind:execute']
+    local syncHandlers = net.netHandlers['kora_lib:commands:keybind:sync']
+    local executeHandlers = net.netHandlers['kora_lib:commands:keybind:execute']
     local ok = pcall(function()
         for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
             _G.source = src
@@ -397,7 +397,7 @@ harness.test('command keybind dispatch uses the same permission and required-arg
     QB.commands.add('bounddenied', '', nil, false, function() deniedRan = true end, {
         permission = 'admin', keybind = { defaultKey = 'F9' },
     })
-    local deniedMapping = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    local deniedMapping = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:add')
     harness.assertEqual(deniedMapping[1], 'bound-malformed-source',
         'a denied permission must not publish a key mapping')
     QB.commands.add('boundrequired', '', { { name = 'value' } }, true, function() requiredRan = true end, {
@@ -405,14 +405,14 @@ harness.test('command keybind dispatch uses the same permission and required-arg
     })
 
     notifyCalls = {}
-    TriggerServerEvent('qblib:commands:keybind:execute', 'bounddenied')
-    TriggerServerEvent('qblib:commands:keybind:execute', 'boundrequired')
+    TriggerServerEvent('kora_lib:commands:keybind:execute', 'bounddenied')
+    TriggerServerEvent('kora_lib:commands:keybind:execute', 'boundrequired')
     harness.assertFalse(deniedRan)
     harness.assertFalse(requiredRan)
     harness.assertEqual(#notifyCalls, 2, 'both ordinary command gates should notify through the usual path')
 
     local before = #notifyCalls
-    TriggerServerEvent('qblib:commands:keybind:execute', 'complete')
+    TriggerServerEvent('kora_lib:commands:keybind:execute', 'complete')
     harness.assertEqual(#notifyCalls, before, 'an unbound command must not be reachable through the keybind transport')
 end)
 
@@ -423,14 +423,14 @@ harness.test('privileged keybinds synchronize only to permitted players', functi
         keybind = { defaultKey = 'F6' },
     })
 
-    local published = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:add')
+    local published = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:add')
     harness.assertEqual(published.target, 2)
     harness.assertEqual(published[1], 'boundadmin')
 
     local function mappingCount(target)
         local count = 0
         for _, event in ipairs(net.triggeredClientEvents) do
-            if event.name == 'qblib:commands:keybind:add' and event.target == target and event[1] == 'boundadmin' then
+            if event.name == 'kora_lib:commands:keybind:add' and event.target == target and event[1] == 'boundadmin' then
                 count = count + 1
             end
         end
@@ -439,13 +439,13 @@ harness.test('privileged keybinds synchronize only to permitted players', functi
 
     local beforeDeniedSync = mappingCount(1)
     _G.source = 1
-    for _, fn in ipairs(net.netHandlers['qblib:commands:keybind:sync']) do fn() end
+    for _, fn in ipairs(net.netHandlers['kora_lib:commands:keybind:sync']) do fn() end
     _G.source = nil
     harness.assertEqual(mappingCount(1), beforeDeniedSync, 'an unauthorized sync must not receive the mapping')
 
     local beforeAllowedSync = mappingCount(2)
     _G.source = 2
-    for _, fn in ipairs(net.netHandlers['qblib:commands:keybind:sync']) do fn() end
+    for _, fn in ipairs(net.netHandlers['kora_lib:commands:keybind:sync']) do fn() end
     _G.source = nil
     harness.assertEqual(mappingCount(2), beforeAllowedSync + 1)
 end)
@@ -453,12 +453,12 @@ end)
 harness.test('removing or replacing a bound command removes its client mapping', function()
     QB.commands.add('bindingcleanup', '', nil, false, function() end, { keybind = { defaultKey = 'F11' } })
     QB.commands.add('bindingcleanup', '', nil, false, function() end)
-    local removed = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:remove')
+    local removed = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:remove')
     harness.assertEqual(removed[1], 'bindingcleanup')
 
     QB.commands.add('bindingcleanup', '', nil, false, function() end, { keybind = { defaultKey = 'F11' } })
     QB.commands.remove('bindingcleanup')
-    removed = mocks.lastEntry(net.triggeredClientEvents, 'qblib:commands:keybind:remove')
+    removed = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:remove')
     harness.assertEqual(removed[1], 'bindingcleanup')
 end)
 

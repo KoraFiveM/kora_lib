@@ -56,7 +56,8 @@ end
 - Every player gets a unique token issued over a per-source handshake. It keeps
   unrelated or malformed protocol traffic out of a handler, but it does not
   authenticate a player: a modified client can complete its own handshake.
-- The gateway event name itself (`qblib:events:invoke`) is fixed and public.
+- The gateway event name itself (`kora_lib:events:invoke`) is fixed and public;
+  the deprecated `qblib:events:invoke` name is still accepted.
   Never use knowledge of the token or event name as permission to grant an
   item, money, progression, or privileged action.
 - Handshake and gateway traffic must originate from a positive finite integer

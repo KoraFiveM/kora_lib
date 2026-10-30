@@ -933,7 +933,14 @@ ensureExpirySweep = function()
     end)
 end
 
-QB.callback.register("qblib:minigames:start", function(src, gameType, opts, authorizationToken)
+-- Registers the callback under its kora_lib: name and under the deprecated
+-- qblib: alias, so callers that predate the rename keep working.
+local function registerWithLegacyAlias(name, handler, options)
+    QB.callback.register(name, handler, options)
+    QB.callback.register((name:gsub("^kora_lib:", "qblib:")), handler, options)
+end
+
+registerWithLegacyAlias("kora_lib:minigames:start", function(src, gameType, opts, authorizationToken)
     assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
 
     -- A coarse sweep may not have run since a player's last abandoned round.
@@ -1005,7 +1012,7 @@ QB.callback.register("qblib:minigames:start", function(src, gameType, opts, auth
     return { sessionId = sessionId, attempt = 1, attempts = cfg.attempts, timeLimit = cfg.timeLimit, public = public }
 end, { rateLimit = Config.minigames.callbackRateLimits.start })
 
-QB.callback.register("qblib:minigames:submit", function(src, sessionId, attempt)
+registerWithLegacyAlias("kora_lib:minigames:submit", function(src, sessionId, attempt)
     if not isInteger(sessionId) or sessionId < 1 then
         error("No active minigame session.")
     end
@@ -1066,7 +1073,7 @@ end, { rateLimit = Config.minigames.callbackRateLimits.submit })
 -- maxConcurrentPerPlayer: without this, a player who cancels and immediately
 -- retries would spuriously hit "already in progress" for up to sessionTTL.
 -- Does NOT consume an attempt -- a cancel isn't a failed guess at the puzzle.
-QB.callback.register("qblib:minigames:cancel", function(src, sessionId)
+registerWithLegacyAlias("kora_lib:minigames:cancel", function(src, sessionId)
     if not isInteger(sessionId) or sessionId < 1 then return false end
 
     local session = sessions[sessionId]

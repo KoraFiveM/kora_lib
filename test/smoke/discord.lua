@@ -120,10 +120,10 @@ harness.test("webhooks work without the bot convar and accept a single embed", f
 end)
 
 harness.test("a nil webhook URL uses its convar and missing config fails locally", function()
-    convars = { qblib_discord_webhook = "https://discord.com/api/webhooks/2/token" }
+    convars = { kora_lib_discord_webhook = "https://discord.com/api/webhooks/2/token" }
     resetHttp()
     harness.assertTrue(QB.discord.sendWebhook(nil, "hello"), "the default webhook should queue")
-    harness.assertEqual(httpRequests[1].url, convars.qblib_discord_webhook, "the webhook convar should be used")
+    harness.assertEqual(httpRequests[1].url, convars.kora_lib_discord_webhook, "the webhook convar should be used")
     harness.assertEqual(encodedValues[httpRequests[1].body].content, "hello", "string messages should become content")
 
     convars = {}
@@ -139,7 +139,7 @@ harness.test("a nil webhook URL uses its convar and missing config fails locally
 end)
 
 harness.test("the bot client is disabled and inert without its token convar", function()
-    convars = { qblib_discord_guild_id = GUILD_ID }
+    convars = { kora_lib_discord_guild_id = GUILD_ID }
     resetHttp()
     local callbackOk, callbackResponse
 
@@ -160,8 +160,8 @@ end)
 
 harness.test("fetchGuildRoles uses API v10, the default guild, and bot authorization", function()
     convars = {
-        qblib_discord_bot_token = "secret-token",
-        qblib_discord_guild_id = GUILD_ID,
+        kora_lib_discord_bot_token = "secret-token",
+        kora_lib_discord_guild_id = GUILD_ID,
     }
     resetHttp()
     decodedValues.roles_response = { { id = ROLE_ID, name = "Police" } }
@@ -185,8 +185,8 @@ end)
 harness.test("the console-only sync caches guild names and online member roles", function()
     local MOD_ROLE_ID = "623456789012345678"
     convars = {
-        qblib_discord_bot_token = "secret-token",
-        qblib_discord_guild_id = GUILD_ID,
+        kora_lib_discord_bot_token = "secret-token",
+        kora_lib_discord_guild_id = GUILD_ID,
     }
     resourceState = "missing"
     onlinePlayers = { "7" }
@@ -198,14 +198,14 @@ harness.test("the console-only sync caches guild names and online member roles",
     }
     decodedValues.sync_member = { roles = { ROLE_ID } }
 
-    net.commands.qblib_discord_sync(1, {}, "qblib_discord_sync")
+    net.commands.kora_lib_discord_sync(1, {}, "kora_lib_discord_sync")
     harness.assertEqual(#httpRequests, 0, "a player source must not be able to run the sync command")
 
     responses = {
         { status = 200, body = "sync_roles" },
         { status = 200, body = "sync_member" },
     }
-    net.commands.qblib_discord_sync(0, {}, "qblib_discord_sync")
+    net.commands.kora_lib_discord_sync(0, {}, "kora_lib_discord_sync")
 
     harness.assertEqual(#httpRequests, 2, "the console sync should fetch the guild and one online member")
     local catalog = QB.discord.getGuildRoles()
@@ -223,8 +223,8 @@ end)
 
 harness.test("sync migrates and persists its role directory when qbsql is available", function()
     convars = {
-        qblib_discord_bot_token = "secret-token",
-        qblib_discord_guild_id = GUILD_ID,
+        kora_lib_discord_bot_token = "secret-token",
+        kora_lib_discord_guild_id = GUILD_ID,
     }
     resourceState = "started"
     resetHttp()
@@ -266,8 +266,8 @@ end)
 
 harness.test("giveRole and removeRole accept names and update the authorization cache", function()
     convars = {
-        qblib_discord_bot_token = "secret-token",
-        qblib_discord_guild_id = GUILD_ID,
+        kora_lib_discord_bot_token = "secret-token",
+        kora_lib_discord_guild_id = GUILD_ID,
     }
     resetHttp()
     local giveOk, removeOk
@@ -284,7 +284,7 @@ harness.test("giveRole and removeRole accept names and update the authorization 
 end)
 
 harness.test("member role helpers use the correct methods and preserve string snowflakes", function()
-    convars = { qblib_discord_bot_token = "secret-token" }
+    convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
 
     QB.discord.setMemberRoles(GUILD_ID, USER_ID, { ROLE_ID }, nil, "Role sync / hire")
@@ -308,7 +308,7 @@ harness.test("member role helpers use the correct methods and preserve string sn
 end)
 
 harness.test("role, channel, and message helpers map to Discord's REST routes", function()
-    convars = { qblib_discord_bot_token = "secret-token" }
+    convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
 
     QB.discord.createRole(GUILD_ID, { name = "Mechanic" })
@@ -337,7 +337,7 @@ harness.test("role, channel, and message helpers map to Discord's REST routes", 
 end)
 
 harness.test("botRequest refuses absolute routes so credentials stay on Discord", function()
-    convars = { qblib_discord_bot_token = "secret-token" }
+    convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
     harness.assertThrows(function()
         QB.discord.botRequest("GET", "https://example.invalid/steal-token")
@@ -346,7 +346,7 @@ harness.test("botRequest refuses absolute routes so credentials stay on Discord"
 end)
 
 harness.test("a Discord 429 is retried once after retry_after", function()
-    convars = { qblib_discord_bot_token = "secret-token" }
+    convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
     decodedValues.rate_limited = { message = "rate limited", retry_after = 0.25 }
     decodedValues.after_retry = { id = CHANNEL_ID }
@@ -370,7 +370,7 @@ harness.test("a Discord 429 is retried once after retry_after", function()
 end)
 
 harness.test("a Discord 429 with a non-finite retry delay returns normally", function()
-    convars = { qblib_discord_bot_token = "secret-token" }
+    convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
     decodedValues.invalid_rate_limit = { message = "rate limited", retry_after = math.huge }
     responses = { { status = 429, body = "invalid_rate_limit" } }
@@ -386,7 +386,7 @@ harness.test("a Discord 429 with a non-finite retry delay returns normally", fun
 end)
 
 harness.test("exported callback references work for webhook and bot APIs", function()
-    convars = { qblib_discord_bot_token = "test-token", qblib_discord_guild_id = GUILD_ID }
+    convars = { kora_lib_discord_bot_token = "test-token", kora_lib_discord_guild_id = GUILD_ID }
     resetHttp()
     local calls = 0
     local callback = setmetatable({ __cfx_functionReference = 'test:callback' }, {
@@ -402,6 +402,20 @@ harness.test("exported callback references work for webhook and bot APIs", funct
     QB.discord.getChannels(callback)
     harness.assertEqual(calls, 5, 'full and shorthand APIs must invoke callable-table callbacks')
     harness.assertThrows(function() QB.discord.sendWebhook(nil, 'test', {}) end)
+end)
+
+harness.test("deprecated qblib_ convars and sync command remain supported as fallbacks", function()
+    convars = { qblib_discord_bot_token = "legacy-token", qblib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
+    resetHttp()
+    harness.assertTrue(QB.discord.botEnabled(), "the legacy bot token convar should still enable the bot")
+    harness.assertTrue(QB.discord.sendWebhook(nil, "hello"), "the legacy webhook convar should queue")
+    harness.assertEqual(httpRequests[1].url, convars.qblib_discord_webhook, "the legacy webhook URL should be used")
+    harness.assertTrue(net.commands.qblib_discord_sync ~= nil, "the deprecated console command should stay registered")
+
+    convars = { kora_lib_discord_webhook = "https://discord.com/api/webhooks/4/token", qblib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
+    resetHttp()
+    QB.discord.sendWebhook(nil, "hello")
+    harness.assertEqual(httpRequests[1].url, convars.kora_lib_discord_webhook, "the kora_lib_ convar wins over the legacy name")
 end)
 
 harness.report("discord")

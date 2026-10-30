@@ -33,7 +33,7 @@ dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread comp
 local clientRegister = QB.callback.register
 local clientTrigger = QB.callback.trigger
 
-local INVOKE = "qblib:callback:invoke"
+local INVOKE = "kora_lib:callback:invoke"
 
 local function namedUpvalue(fn, wanted)
     local index = 1
@@ -91,10 +91,10 @@ harness.test("callback handshake is rate limited per player", function()
     for _ = 1, 8 do
         local before = #net.triggeredClientEvents
         _G.source = source
-        for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
+        for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
         _G.source = nil
         for index = before + 1, #net.triggeredClientEvents do
-            if net.triggeredClientEvents[index].name == "qblib:callback:handshake:response" then issued = issued + 1 end
+            if net.triggeredClientEvents[index].name == "kora_lib:callback:handshake:response" then issued = issued + 1 end
         end
     end
     harness.assertEqual(issued, 5, "only five handshakes per minute may be answered")
@@ -102,7 +102,7 @@ harness.test("callback handshake is rate limited per player", function()
     -- The single-process mock delivers every client event to the simulated
     -- client, so give it back its own token.
     _G.source = mocks.SOURCE
-    for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
+    for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
     _G.source = nil
 end)
 
@@ -134,7 +134,7 @@ harness.test('client asks server: the gateway drops oversized names before dispa
 end)
 
 harness.test("callback handshake and gateway discard malformed server sources", function()
-    local handshakeHandlers = net.netHandlers["qblib:callback:handshake"]
+    local handshakeHandlers = net.netHandlers["kora_lib:callback:handshake"]
     local invokeHandlers = net.netHandlers[INVOKE]
     local ok = pcall(function()
         for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
@@ -169,7 +169,7 @@ harness.test("client asks server: the gateway drops malformed request IDs", func
 end)
 
 harness.test("client callback receiver drops malformed response IDs without faulting", function()
-    local responseHandlers = net.netHandlers["qblib:callback:response"]
+    local responseHandlers = net.netHandlers["kora_lib:callback:response"]
     local ok = pcall(function()
         for _, requestId in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
             for _, fn in ipairs(responseHandlers) do fn(requestId, true, "ignored") end
@@ -180,7 +180,7 @@ harness.test("client callback receiver drops malformed response IDs without faul
 end)
 
 harness.test("client callback receiver drops malformed invocations without faulting", function()
-    local invokeHandlers = net.netHandlers["qblib:callback:clientInvoke"]
+    local invokeHandlers = net.netHandlers["kora_lib:callback:clientInvoke"]
     local triggeredCount = #net.triggeredServerEvents
     local ok = pcall(function()
         for _, fn in ipairs(invokeHandlers) do
@@ -366,9 +366,9 @@ harness.test('callback quotas are independent per player', function()
     clientTrigger('smoke:per-player')
 
     _G.source = mocks.SOURCE + 1
-    for _, fn in ipairs(net.netHandlers['qblib:callback:handshake']) do fn() end
+    for _, fn in ipairs(net.netHandlers['kora_lib:callback:handshake']) do fn() end
     _G.source = nil
-    local handshake = mocks.lastEntry(net.triggeredClientEvents, 'qblib:callback:handshake:response')
+    local handshake = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:callback:handshake:response')
     local secondToken = handshake[1]
 
     _G.source = mocks.SOURCE + 1
@@ -381,7 +381,7 @@ harness.test('callback quotas are independent per player', function()
     -- Restore the simulated client's token to its ordinary source for all
     -- subsequent round trips in this single-process harness.
     _G.source = mocks.SOURCE
-    for _, fn in ipairs(net.netHandlers['qblib:callback:handshake']) do fn() end
+    for _, fn in ipairs(net.netHandlers['kora_lib:callback:handshake']) do fn() end
     _G.source = nil
 end)
 
@@ -430,10 +430,10 @@ harness.test("client asks server: playerDropped clears the token", function()
     harness.assertTrue(rateBuckets['smoke:after-drop'] ~= nil, 'sanity check: the player should have a callback bucket')
 
     clientRegister("smoke:disconnect-pending", function() return "too late" end)
-    local responseHandlers = net.netHandlers["qblib:callback:clientResponse"]
-    net.netHandlers["qblib:callback:clientResponse"] = {}
+    local responseHandlers = net.netHandlers["kora_lib:callback:clientResponse"]
+    net.netHandlers["kora_lib:callback:clientResponse"] = {}
     local pending = serverTrigger(mocks.SOURCE, "smoke:disconnect-pending")
-    net.netHandlers["qblib:callback:clientResponse"] = responseHandlers
+    net.netHandlers["kora_lib:callback:clientResponse"] = responseHandlers
     harness.assertEqual(pending.state, "pending", "sanity check: the client callback should be in flight")
 
     local invokeEntry = mocks.lastEntry(net.triggeredServerEvents, INVOKE)
@@ -495,17 +495,17 @@ harness.test("server asks client: a response is only accepted from the addressed
     -- Hold the client response so the request remains pending while the
     -- authorization check is exercised below.
     clientRegister("smoke:manual-client-response", function() return "ignored" end)
-    local responseHandlers = net.netHandlers["qblib:callback:clientResponse"]
-    net.netHandlers["qblib:callback:clientResponse"] = {}
+    local responseHandlers = net.netHandlers["kora_lib:callback:clientResponse"]
+    net.netHandlers["kora_lib:callback:clientResponse"] = {}
     local p = serverTrigger(mocks.SOURCE, "smoke:manual-client-response")
-    net.netHandlers["qblib:callback:clientResponse"] = responseHandlers
+    net.netHandlers["kora_lib:callback:clientResponse"] = responseHandlers
     harness.assertEqual(p.state, "pending", "sanity check: nothing should have answered yet")
 
-    local invokeEntry = mocks.lastEntry(net.triggeredClientEvents, "qblib:callback:clientInvoke")
+    local invokeEntry = mocks.lastEntry(net.triggeredClientEvents, "kora_lib:callback:clientInvoke")
     harness.assertTrue(invokeEntry ~= nil, "expected to capture the request id from the trigger above")
     local requestId = invokeEntry[1]
 
-    local clientResponseHandlers = net.netHandlers["qblib:callback:clientResponse"]
+    local clientResponseHandlers = net.netHandlers["kora_lib:callback:clientResponse"]
 
     _G.source = mocks.SOURCE
     local malformedOk = pcall(function()
@@ -555,7 +555,7 @@ harness.test("foreign resources cannot unregister callbacks in either realm", fu
 end)
 
 -- The rest of these fire onResourceStop/onClientResourceStop for the mocked
--- resource name ("qblib_test", from GetCurrentResourceName()), which sweeps
+-- resource name ("kora_lib_test", from GetCurrentResourceName()), which sweeps
 -- every handler currently owned by it -- placed last so no earlier test's
 -- still-needed registration gets swept out from under it.
 --
@@ -565,7 +565,7 @@ end)
 -- exactly like a real reconnect, replaying the handshake refreshes both
 -- sides in sync.
 _G.source = mocks.SOURCE
-for _, fn in ipairs(net.netHandlers["qblib:callback:handshake"]) do fn() end
+for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
 _G.source = nil
 
 harness.test("client asks server: a handler survives an unrelated resource stopping", function()
@@ -582,7 +582,7 @@ harness.test("client asks server: a handler is dropped when its owning resource 
     })
     clientTrigger('smoke:dropped-on-stop')
     harness.assertTrue(rateBuckets['smoke:dropped-on-stop'] ~= nil, 'sanity check: the callback should own a rate bucket')
-    net.fire("onResourceStop", "qblib_test")
+    net.fire("onResourceStop", "kora_lib_test")
     harness.assertEqual(rateBuckets['smoke:dropped-on-stop'], nil, 'owner cleanup should clear the callback bucket')
 
     local p = clientTrigger("smoke:dropped-on-stop")
@@ -591,7 +591,7 @@ end)
 
 harness.test("server asks client: a handler is dropped when its owning resource stops", function()
     clientRegister("smoke:client-dropped-on-stop", function() return "should not run" end)
-    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "kora_lib_test")
 
     local p = serverTrigger(mocks.SOURCE, "smoke:client-dropped-on-stop")
     harness.assertEqual(p.state, "rejected", "a swept client callback should reject immediately")
@@ -651,7 +651,7 @@ harness.test("cross-resource trigger during in-flight handshake resolves to the 
     -- would between a real yield and its resume.
     invokerName = nil
 
-    _G.TriggerServerEvent("qblib:callback:handshake")
+    _G.TriggerServerEvent("kora_lib:callback:handshake")
 
     local ok2, err2 = coroutine.resume(co)
     harness.assertTrue(ok2, ("trigger errored after resuming: %s"):format(tostring(err2)))

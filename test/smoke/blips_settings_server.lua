@@ -11,9 +11,11 @@ dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
 
 local callbackName, callbackHandler, callbackOptions
+local registeredNames = {}
 QB.callback = {
     register = function(name, handler, options)
-        callbackName = name
+        callbackName = callbackName or name
+        registeredNames[#registeredNames + 1] = name
         callbackHandler = handler
         callbackOptions = options
     end,
@@ -30,8 +32,9 @@ QB.permissions = {
 dofile(repoRoot .. 'modules/blips/server.lua')
 
 harness.test('registers a rate-limited server callback for admin visibility', function()
-    harness.assertEqual(callbackName, 'qblib:blips:isAdmin', 'callback name should be namespaced')
+    harness.assertEqual(callbackName, 'kora_lib:blips:isAdmin', 'callback name should be namespaced')
     harness.assertEqual(callbackOptions.rateLimit.max, 10, 'permission checks should have a bounded request rate')
+    harness.assertEqual(registeredNames[2], 'qblib:blips:isAdmin', 'the deprecated qblib: alias should stay registered')
 end)
 
 harness.test('returns only the server-resolved admin permission', function()

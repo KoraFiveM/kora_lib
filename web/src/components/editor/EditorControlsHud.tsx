@@ -10,7 +10,7 @@ interface EditorControlsHudProps {
     width?: "sm" | "md"
 }
 
-/** Shared, pointer-transparent shell for qblib's in-world editing tools. */
+/** Shared, pointer-transparent shell for kora_lib's in-world editing tools. */
 export function EditorControlsHud({
     title,
     status,

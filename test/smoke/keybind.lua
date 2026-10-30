@@ -23,7 +23,7 @@ dofile(repoRoot .. 'local/resources/client.lua')
 dofile(repoRoot .. 'modules/keybind/client.lua')
 
 harness.test('client startup requests the current server-command mappings', function()
-    local sync = mocks.lastEntry(net.triggeredServerEvents, 'qblib:commands:keybind:sync')
+    local sync = mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:commands:keybind:sync')
     harness.assertTrue(sync ~= nil, 'the client should request command keybind synchronization')
 end)
 
@@ -213,17 +213,17 @@ harness.test('callback errors are contained', function()
 end)
 
 harness.test('server command mappings use the same registry and transport', function()
-    TriggerClientEvent('qblib:commands:keybind:add', 1, 'admin', {
+    TriggerClientEvent('kora_lib:commands:keybind:add', 1, 'admin', {
         description = 'Open admin', defaultKey = 'F7', resource = 'kora_admin',
     })
     net.commands['+qblib_command:admin']()
-    local execute = mocks.lastEntry(net.triggeredServerEvents, 'qblib:commands:keybind:execute')
+    local execute = mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:commands:keybind:execute')
     harness.assertEqual(execute[1], 'admin')
 
     net.commands['-qblib_command:admin']()
-    TriggerClientEvent('qblib:commands:keybind:remove', 1, 'admin')
+    TriggerClientEvent('kora_lib:commands:keybind:remove', 1, 'admin')
     net.commands['+qblib_command:admin']()
-    harness.assertEqual(mocks.lastEntry(net.triggeredServerEvents, 'qblib:commands:keybind:execute'), execute,
+    harness.assertEqual(mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:commands:keybind:execute'), execute,
         'removed command mappings should become inert')
 end)
 

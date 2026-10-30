@@ -31,7 +31,7 @@ local function assertRegistered(resource)
         discoverRegistrations()
         entry = registry[resource]
     end
-    assert(entry, ('Resource %q has not registered a qblib configuration.'):format(resource))
+    assert(entry, ('Resource %q has not registered a kora_lib configuration.'):format(resource))
     return entry
 end
 
@@ -61,7 +61,11 @@ discoverRegistrations = function()
         if resource and not registry[resource] and GetResourceState(resource) == 'started' then
             local target = exports[resource]
             if target then
-                local ok, definition = pcall(function() return target:qblib_configRead() end)
+                local ok, definition = pcall(function() return target:kora_lib_configRead() end)
+                if not ok then
+                    -- Started before the rename: only the deprecated export exists.
+                    ok, definition = pcall(function() return target:qblib_configRead() end)
+                end
                 if ok and isRegistrationFrom(resource, definition) then registry[resource] = copy(definition) end
             end
         end
@@ -73,10 +77,19 @@ local function callResource(resource, method, request)
     assert(target, ('Resource %q is unavailable.'):format(resource))
     -- FXServer export dispatch requires genuine colon bytecode; dynamic
     -- `target[method](target, ...)` can shift arguments (see init.lua).
-    if method == 'qblib_configRead' then return target:qblib_configRead() end
-    if method == 'qblib_configCommit' then return target:qblib_configCommit(request) end
-    if method == 'qblib_configReset' then return target:qblib_configReset(request) end
-    error(('Unknown configuration bridge method %q.'):format(method))
+    local ok, result = pcall(function()
+        if method == 'kora_lib_configRead' then return target:kora_lib_configRead() end
+        if method == 'kora_lib_configCommit' then return target:kora_lib_configCommit(request) end
+        if method == 'kora_lib_configReset' then return target:kora_lib_configReset(request) end
+        error(('Unknown configuration bridge method %q.'):format(method), 0)
+    end)
+    if ok then return result end
+    -- A resource started before the rename only exports the deprecated qblib_*
+    -- bridge names.
+    if not tostring(result):find('No such export', 1, true) then error(result, 0) end
+    if method == 'kora_lib_configRead' then return target:qblib_configRead() end
+    if method == 'kora_lib_configCommit' then return target:qblib_configCommit(request) end
+    return target:qblib_configReset(request)
 end
 
 ---@param definition table `{resource, schema, configured, client, revision}`
@@ -117,7 +130,7 @@ end
 ---@return table|nil
 function QB.config.read(resource)
     local entry = assertRegistered(resource)
-    local fresh = callResource(resource, 'qblib_configRead')
+    local fresh = callResource(resource, 'kora_lib_configRead')
     if type(fresh) == 'table' then
         entry.schema = copy(fresh.schema or entry.schema)
         entry.configured = copy(fresh.configured or entry.configured)
@@ -135,7 +148,7 @@ end
 function QB.config.commit(resource, request)
     local entry = assertRegistered(resource)
     assert(type(request) == 'table', 'Configuration commit must be a table.')
-    local result = callResource(resource, 'qblib_configCommit', request)
+    local result = callResource(resource, 'kora_lib_configCommit', request)
     if type(result) ~= 'table' then return { ok = false, error = 'The resource returned an invalid configuration response.' } end
     if result.ok and not validRevision(result.revision) then
         return { ok = false, error = 'The resource returned an invalid configuration revision.' }
@@ -149,6 +162,8 @@ function QB.config.commit(resource, request)
         -- refresh its in-memory copy without a cross-resource export call in
         -- a gameplay loop. The target resource has already applied its own
         -- handler before returning success.
+        TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
+        -- Deprecated alias for listeners that predate the rename.
         TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
@@ -160,7 +175,7 @@ end
 function QB.config.reset(resource, request)
     local entry = assertRegistered(resource)
     assert(type(request) == 'table', 'Configuration reset must be a table.')
-    local result = callResource(resource, 'qblib_configReset', request)
+    local result = callResource(resource, 'kora_lib_configReset', request)
     if type(result) ~= 'table' then return { ok = false, error = 'The resource returned an invalid configuration response.' } end
     if result.ok and not validRevision(result.revision) then
         return { ok = false, error = 'The resource returned an invalid configuration revision.' }
@@ -170,6 +185,8 @@ function QB.config.reset(resource, request)
         entry.revision = result.revision
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
+        TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
+        -- Deprecated alias for listeners that predate the rename.
         TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
@@ -197,7 +214,7 @@ AddEventHandler('playerDropped', function()
     snapshotRequests[source] = nil
 end)
 
-RegisterNetEvent('qblib:server:configRequested', function(resource, requestId)
+local function onConfigRequested(resource, requestId)
     local src = source
     if type(src) ~= 'number' or src < 1 or src % 1 ~= 0 or src ~= src
         or src == math.huge or src == -math.huge then return end
@@ -206,8 +223,14 @@ RegisterNetEvent('qblib:server:configRequested', function(resource, requestId)
     if not validResource(resource) then return end
     local entry = registry[resource]
     if not entry then return end
-    TriggerClientEvent('qblib:client:configSnapshot', src, resource, copy(entry.client), entry.revision, requestId)
-end)
+    local client = copy(entry.client)
+    TriggerClientEvent('kora_lib:client:configSnapshot', src, resource, client, entry.revision, requestId)
+    -- Deprecated alias: the requester may be a consumer started before the rename.
+    TriggerClientEvent('qblib:client:configSnapshot', src, resource, client, entry.revision, requestId)
+end
+
+RegisterNetEvent('kora_lib:server:configRequested', onConfigRequested)
+RegisterNetEvent('qblib:server:configRequested', onConfigRequested)
 
 AddEventHandler('onResourceStop', function(resource)
     registry[resource] = nil
@@ -218,7 +241,7 @@ end)
 -- proxy, so it loads the bridge factory directly during its own bootstrap.
 -- Config.discord is declared by server/config.lua and is deliberately added
 -- after the shared table so it never enters the client snapshot.
-local function registerQblibConfig()
+local function registerKoraLibConfig()
     if type(Config) ~= 'table' or type(GetCurrentResourceName) ~= 'function' or GetCurrentResourceName() ~= 'kora_lib' then return end
 
     local source = assert(LoadResourceFile('kora_lib', 'modules/config/consumer.lua'))
@@ -260,4 +283,4 @@ local function registerQblibConfig()
     end
 end
 
-registerQblibConfig()
+registerKoraLibConfig()

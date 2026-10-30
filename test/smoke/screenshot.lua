@@ -102,11 +102,11 @@ harness.test('legacy requestScreenshot keeps callback semantics', function()
     harness.assertEqual(result, 'data:image/jpeg;base64,/9j/c21va2U=', 'legacy callback should receive the data URI')
 end)
 
-harness.test('qblib registers its direct screenshot exports', function()
+harness.test('kora_lib registers its direct screenshot exports', function()
     harness.assertTrue(type(registeredExports.requestScreenshot) == 'function',
-        'qblib should expose requestScreenshot directly')
+        'kora_lib should expose requestScreenshot directly')
     harness.assertTrue(type(registeredExports.requestScreenshotUpload) == 'function',
-        'qblib should expose requestScreenshotUpload directly')
+        'kora_lib should expose requestScreenshotUpload directly')
 end)
 
 _G.SetHttpHandler = function(handler) httpHandler = handler end
@@ -115,9 +115,9 @@ _G.GetCurrentServerEndpoint = function() return 'https://127.0.0.1:30120' end
 
 dofile(repoRoot .. 'modules/screenshot/server.lua')
 
-harness.test('qblib registers requestClientScreenshot directly', function()
+harness.test('kora_lib registers requestClientScreenshot directly', function()
     harness.assertTrue(type(registeredExports.requestClientScreenshot) == 'function',
-        'qblib should expose requestClientScreenshot for server callers')
+        'kora_lib should expose requestClientScreenshot for server callers')
 end)
 
 harness.test('invalid request values do not reserve the player capture slot', function()
@@ -163,15 +163,15 @@ harness.test('server capture uses one tokenized raw browser upload', function()
     end)
     harness.assertTrue(type(token) == 'string' and #token == 48, 'server capture should return a long opaque token')
 
-    local sent = mocks.lastEntry(net.triggeredClientEvents, 'qblib:client:screenshotRequested')
+    local sent = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:client:screenshotRequested')
     harness.assertTrue(sent ~= nil, 'the server should ask the selected player to capture')
     harness.assertEqual(sent[1].token, token, 'the player should receive the one-time capture token')
     local upload = nuiRequests[#nuiRequests]
     harness.assertEqual(upload.action, 'screenshot:upload')
     harness.assertTrue(upload.payload.rawBody, 'server captures should upload a binary Blob without creating a data URI')
-    harness.assertTrue(upload.payload.url:find('/qblib_test/screenshot/upload/' .. token, 1, true) ~= nil,
+    harness.assertTrue(upload.payload.url:find('/kora_lib_test/screenshot/upload/' .. token, 1, true) ~= nil,
         'the browser upload should carry the one-time server token')
-    harness.assertEqual(mocks.lastEntry(net.triggeredServerEvents, 'qblib:server:screenshotCaptured'), nil,
+    harness.assertEqual(mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:server:screenshotCaptured'), nil,
         'new clients must not send multi-megabyte screenshot data through a Lua event')
     harness.assertEqual(callbackErr, false, 'success callback should receive false for err')
     harness.assertTrue(type(callbackResult) == 'string' and callbackResult:find('data:image/jpeg;base64,', 1, true) == 1,
@@ -196,7 +196,7 @@ harness.test('server capture falls back when the browser cannot reach the HTTP u
     harness.assertEqual(callbackErr, false, 'the fallback should complete the original request')
     harness.assertEqual(callbackResult, destination, 'the fallback should retain the requested destination')
     harness.assertEqual(bytes, '\255\216\255smoke', 'the fallback should preserve the captured JPEG')
-    harness.assertTrue(mocks.lastEntry(net.triggeredServerEvents, 'qblib:server:screenshotCaptured') ~= nil,
+    harness.assertTrue(mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:server:screenshotCaptured') ~= nil,
         'a failed browser upload should use the bounded latent receiver')
 end)
 
@@ -248,12 +248,12 @@ harness.test('server progress ignores malformed byte counts even when debug logg
 
     _G.GetConvarInt = function() return 1 end
     _G.source = mocks.SOURCE
-    local ok = pcall(net.fire, 'qblib:server:screenshotProgressed', token, 'received', math.huge)
+    local ok = pcall(net.fire, 'kora_lib:server:screenshotProgressed', token, 'received', math.huge)
     _G.GetConvarInt, _G.source = getConvarInt, nil
     harness.assertTrue(ok, 'untrusted progress values must not make debug logging throw')
 
     _G.source = mocks.SOURCE
-    net.fire('qblib:server:screenshotFailed', token)
+    net.fire('kora_lib:server:screenshotFailed', token)
     _G.source = nil
 end)
 

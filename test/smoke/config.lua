@@ -61,7 +61,7 @@ H.test('defines typed settings and writes only an override file', function()
         observed = { value, previous }
     end)
 
-    local result = registered.qblib_configCommit({ path = { 'shared' }, value = 15, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'shared' }, value = 15, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.shared, 15)
     H.assertEqual(observed[1], 15)
@@ -116,7 +116,7 @@ H.test('inferred lists accept new rows using the authored first row as their sch
     local config = makeConfig(library)
     config.define({ locations = { 'airport' } })
 
-    local result = registered.qblib_configCommit({
+    local result = registered.kora_lib_configCommit({
         path = { 'locations' }, value = { 'airport', 'city' }, revision = 1,
     })
     H.assertTrue(result.ok, result.error)
@@ -137,7 +137,7 @@ H.test('explicit maps accept newly added string keys', function()
     local config = makeConfig(library)
     config.define({ roles = config.map({ police = true }, config.boolean(false)) })
 
-    local result = registered.qblib_configCommit({
+    local result = registered.kora_lib_configCommit({
         path = { 'roles' }, value = { police = true, ambulance = true }, revision = 1,
     })
     H.assertTrue(result.ok, result.error)
@@ -160,7 +160,7 @@ H.test('explicit mixed-key maps preserve integer and text keys', function()
         keyType = 'mixed',
     }) })
 
-    local result = registered.qblib_configCommit({
+    local result = registered.kora_lib_configCommit({
         path = { 'rates' }, value = { default = 0.75, [0] = 0.2, [7] = 1.0 }, revision = 1,
     })
     H.assertTrue(result.ok, result.error)
@@ -181,7 +181,7 @@ H.test('maps can protect required fallback keys', function()
         keyType = 'mixed', requiredKeys = { 'default' },
     }) })
 
-    local result = registered.qblib_configCommit({
+    local result = registered.kora_lib_configCommit({
         path = { 'rates' }, value = { [0] = 0.2 }, revision = 1,
     })
     H.assertFalse(result.ok)
@@ -206,14 +206,14 @@ H.test('restart-required changes are saved but do not alter running values', fun
     registrations = {}
     local config = makeConfig(library)
     local values = config.define({ restart = config.string('old') })
-    local result = registered.qblib_configCommit({ path = { 'restart' }, value = 'new', revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'restart' }, value = 'new', revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.restart, 'old')
     H.assertEqual(result.configured.restart, 'new')
     H.assertTrue(result.restartRequired)
     H.assertEqual(registrations[#registrations].client.restart, 'old')
-    H.assertEqual(registered.qblib_configRead().client.restart, 'old')
-    local reset = registered.qblib_configReset({ path = { 'restart' }, revision = result.revision })
+    H.assertEqual(registered.kora_lib_configRead().client.restart, 'old')
+    local reset = registered.kora_lib_configReset({ path = { 'restart' }, revision = result.revision })
     H.assertTrue(reset.ok, reset.error)
     H.assertTrue(files['config.local.lua']:find('restart', 1, true) == nil)
 end)
@@ -250,10 +250,11 @@ H.test('client-only live settings update clients without running server handlers
     local config = makeConfig(library)
     local values = config.define({ visual = config.number(1, { scope = 'client', live = true }) })
     config.onChange('visual', function() error('client-only handler ran on the server') end)
-    local result = registered.qblib_configCommit({ path = { 'visual' }, value = 2, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'visual' }, value = 2, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.visual, 2)
-    H.assertEqual(clientUpdates[#clientUpdates].name, 'qblib:client:configUpdated')
+    H.assertEqual(clientUpdates[#clientUpdates - 1].name, 'kora_lib:client:configUpdated')
+    H.assertEqual(clientUpdates[#clientUpdates].name, 'qblib:client:configUpdated', 'deprecated alias for older consumers')
 end)
 
 H.test('uses the previous override when the current override is invalid', function()
@@ -279,7 +280,7 @@ H.test('adoption preserves executable and runtime-only legacy fields outside the
     H.assertTrue(type(legacy.registry) == 'table')
     H.assertEqual(registrations[#registrations].schema.fields.callback, nil)
     H.assertEqual(registrations[#registrations].schema.fields.registry, nil)
-    local read = registered.qblib_configRead()
+    local read = registered.kora_lib_configRead()
     H.assertEqual(read.values.callback, nil)
     H.assertEqual(read.values.registry, nil)
 end)
@@ -314,7 +315,7 @@ H.test('sparse numeric object keys persist and reload without becoming strings',
     local values = { classes = { [8] = true, [13] = true } }
     config.adopt(values)
 
-    local result = registered.qblib_configCommit({ path = { 'classes', '13' }, value = false, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'classes', '13' }, value = false, revision = 1 })
 
     H.assertTrue(result.ok, result.error)
     H.assertTrue(result.restartRequired)
@@ -340,14 +341,14 @@ H.test('adopted runtime callbacks do not break commit or reset responses', funct
     local values = { amount = config.number(10, { live = true }), callback = callback, runtime = {} }
     config.adopt(values)
     values.runtime.callback = callback
-    local result = registered.qblib_configCommit({ path = { 'amount' }, value = 15, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'amount' }, value = 15, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.amount, 15)
     H.assertEqual(result.values.amount, 15)
     H.assertEqual(result.values.callback, nil)
     H.assertEqual(result.values.runtime, nil)
     H.assertEqual(values.callback, callback)
-    result = registered.qblib_configReset({ path = { 'amount' }, revision = 2 })
+    result = registered.kora_lib_configReset({ path = { 'amount' }, revision = 2 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(result.values.amount, 10)
 end)
@@ -356,15 +357,15 @@ H.test('cleared optional defaults survive reload and can be reset', function()
     files, registered, registrations = {}, {}, {}
     local config = makeConfig(library)
     local values = config.define({ note = config.optional('enabled', config.string('example'), { live = true }) })
-    local result = registered.qblib_configCommit({ path = { 'note' }, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'note' }, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.note, nil)
-    H.assertEqual(registrations[#registrations].client.note.__qblibConfigType, 'nil')
+    H.assertEqual(registrations[#registrations].client.note.__koraLibConfigType, 'nil')
 
     config = makeConfig(library)
     values = config.define({ note = config.optional('enabled', config.string('example'), { live = true }) })
     H.assertEqual(values.note, nil, 'reload must preserve the explicit clear')
-    result = registered.qblib_configReset({ path = { 'note' }, revision = 1 })
+    result = registered.kora_lib_configReset({ path = { 'note' }, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.note, 'enabled')
     H.assertEqual(next(assert(load(files['config.local.lua']))()), nil, 'reset must remove the override')
@@ -377,7 +378,7 @@ H.test('nullable descriptors retain a nil authored default', function()
     local values = config.define({ message = config.optional(nil, config.string('example')) })
     H.assertEqual(values.message, nil)
     H.assertEqual(registrations[#registrations].schema.fields.message.innerDefault, 'example')
-    local result = registered.qblib_configCommit({ path = { 'message' }, value = 'hello', revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'message' }, value = 'hello', revision = 1 })
     H.assertTrue(result.ok, result.error)
 end)
 
@@ -426,13 +427,13 @@ H.test('typed lists, maps, colours, and vectors validate and serialize', functio
         colour = config.color('#95FF00'),
         location = config.vector3({ x = 1, y = 2, z = 3 }),
     })
-    local list = registered.qblib_configCommit({ path = { 'tags' }, value = { 'one', 'two' }, revision = 1 })
+    local list = registered.kora_lib_configCommit({ path = { 'tags' }, value = { 'one', 'two' }, revision = 1 })
     H.assertTrue(list.ok, list.error)
-    local map = registered.qblib_configCommit({ path = { 'flags' }, value = { primary = false, secondary = true }, revision = 2 })
+    local map = registered.kora_lib_configCommit({ path = { 'flags' }, value = { primary = false, secondary = true }, revision = 2 })
     H.assertTrue(map.ok, map.error)
-    local vector = registered.qblib_configCommit({ path = { 'location' }, value = { x = 4, y = 5, z = 6 }, revision = 3 })
+    local vector = registered.kora_lib_configCommit({ path = { 'location' }, value = { x = 4, y = 5, z = 6 }, revision = 3 })
     H.assertTrue(vector.ok, vector.error)
-    local invalid = registered.qblib_configCommit({ path = { 'colour' }, value = 'green', revision = 4 })
+    local invalid = registered.kora_lib_configCommit({ path = { 'colour' }, value = 'green', revision = 4 })
     H.assertFalse(invalid.ok)
     H.assertTrue(files['config.local.lua']:find('%["secondary"%] = true', 1) ~= nil)
 end)
@@ -472,7 +473,7 @@ H.test('every editable value kind can update the active snapshot live', function
         { 'note', nil },
     }
     for index, edit in ipairs(edits) do
-        local result = registered.qblib_configCommit({ path = { edit[1] }, value = edit[2], revision = index })
+        local result = registered.kora_lib_configCommit({ path = { edit[1] }, value = edit[2], revision = index })
         H.assertTrue(result.ok, result.error)
         H.assertTrue(result.applied, edit[1] .. ' should apply live')
     end
@@ -496,7 +497,7 @@ H.test('a refused live handler rolls back the saved value and revision', functio
     local config = makeConfig(library)
     config.define({ enabled = config.boolean(true, { live = true }) })
     config.onChange('enabled', function() return false end)
-    local result = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
     H.assertFalse(result.ok)
     H.assertEqual(result.revision, 1)
     H.assertTrue(files['config.local.lua']:find('enabled', 1, true) == nil,
@@ -511,7 +512,7 @@ H.test('a refused apply hook restores the prior backup', function()
     config.define({ enabled = config.boolean(true, { live = true }) })
     config.onApply(function() return false end)
 
-    local result = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
     H.assertFalse(result.ok)
     H.assertEqual(result.revision, 1)
     H.assertTrue(files['config.local.lua']:find('enabled', 1, true) == nil, files['config.local.lua'])
@@ -523,10 +524,10 @@ H.test('invalid values and stale edits are refused without persistence', functio
     registered = {}
     local config = makeConfig(library)
     config.define({ amount = config.integer(2, { min = 1, max = 3 }) })
-    local invalid = registered.qblib_configCommit({ path = { 'amount' }, value = 4, revision = 1 })
+    local invalid = registered.kora_lib_configCommit({ path = { 'amount' }, value = 4, revision = 1 })
     H.assertFalse(invalid.ok)
     H.assertEqual(files['config.local.lua'], nil)
-    local stale = registered.qblib_configCommit({ path = { 'amount' }, value = 2, revision = 9 })
+    local stale = registered.kora_lib_configCommit({ path = { 'amount' }, value = 2, revision = 9 })
     H.assertFalse(stale.ok)
 end)
 
@@ -555,7 +556,7 @@ H.test('unknown nested paths return a normal validation error', function()
     local config = makeConfig(library)
     config.define({ nested = { enabled = true } })
 
-    local ok, result = pcall(registered.qblib_configCommit,
+    local ok, result = pcall(registered.kora_lib_configCommit,
         { path = { 'missing', 'enabled' }, value = false, revision = 1 })
     H.assertTrue(ok, 'an unknown nested path must not crash the configuration bridge')
     H.assertFalse(result.ok)
@@ -568,7 +569,7 @@ H.test('numeric-looking map keys remain strings when edited', function()
     local config = makeConfig(library)
     config.define({ flags = config.map({ ['1'] = true }, config.boolean(false)) })
 
-    local result = registered.qblib_configCommit({ path = { 'flags', '1' }, value = false, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'flags', '1' }, value = false, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertFalse(result.configured.flags['1'])
     H.assertEqual(result.configured.flags[1], nil)
@@ -586,18 +587,18 @@ H.test('a numeric server flag preserves validation, live hooks, and commit autho
     local applied
     config.onApply(function(proposed) applied = proposed.count end)
 
-    local refused = registered.qblib_configCommit({ path = { 'count' }, value = 0, revision = 1 })
+    local refused = registered.kora_lib_configCommit({ path = { 'count' }, value = 0, revision = 1 })
     H.assertFalse(refused.ok)
     H.assertEqual(values.count, 1)
     H.assertEqual(applied, nil)
-    local accepted = registered.qblib_configCommit({ path = { 'count' }, value = 2, revision = 1 })
+    local accepted = registered.kora_lib_configCommit({ path = { 'count' }, value = 2, revision = 1 })
     H.assertTrue(accepted.ok, accepted.error)
     H.assertEqual(values.count, 2)
     H.assertEqual(applied, 2)
 
     local previousGetInvokingResource = _G.GetInvokingResource
     _G.GetInvokingResource = function() return 'other' end
-    local unauthorized = registered.qblib_configCommit({ path = { 'count' }, value = 3, revision = 2 })
+    local unauthorized = registered.kora_lib_configCommit({ path = { 'count' }, value = 3, revision = 2 })
     _G.GetInvokingResource = previousGetInvokingResource
     H.assertFalse(unauthorized.ok)
     H.assertEqual(values.count, 2)
@@ -622,7 +623,7 @@ H.test('owner validation, application, and bindings use the active snapshot', fu
     config.onValidate(function(proposed)
         return proposed.enabled ~= false, 'enabled cannot be disabled'
     end)
-    local refused = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    local refused = registered.kora_lib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
     H.assertFalse(refused.ok)
     H.assertTrue(values.enabled)
 
@@ -631,7 +632,7 @@ H.test('owner validation, application, and bindings use the active snapshot', fu
     local applied, observed
     config.onApply(function(proposed, active) applied = { proposed.enabled, active.enabled } end)
     config.bind('sample', { 'enabled' }, function(value, previous, change) observed = { value, previous, change } end)
-    local result = registered.qblib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
+    local result = registered.kora_lib_configCommit({ path = { 'enabled' }, value = false, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertFalse(applied[1])
     H.assertTrue(applied[2])
@@ -640,7 +641,7 @@ H.test('owner validation, application, and bindings use the active snapshot', fu
     H.assertFalse(config.get('sample', { 'enabled' }))
 end)
 
-H.test('clients re-request their active snapshot when qblib restarts', function()
+H.test('clients re-request their active snapshot when kora_lib restarts', function()
     local previousIsDuplicityVersion = _G.IsDuplicityVersion
     local previousAddEventHandler = _G.AddEventHandler
     local previousRegisterNetEvent = _G.RegisterNetEvent
@@ -670,9 +671,9 @@ H.test('clients re-request their active snapshot when qblib restarts', function(
     _G.TriggerServerEvent = previousTriggerServerEvent
 
     H.assertTrue(worked, failure)
-    H.assertEqual(#requests, 3, 'define, qblib restart, and owner restart should each request a snapshot')
+    H.assertEqual(#requests, 3, 'define, kora_lib restart, and owner restart should each request a snapshot')
     for index = 1, #requests do
-        H.assertEqual(requests[index].name, 'qblib:server:configRequested')
+        H.assertEqual(requests[index].name, 'kora_lib:server:configRequested')
         H.assertEqual(requests[index].resource, 'sample')
     end
 end)
@@ -713,7 +714,7 @@ H.test('snapshots preserve false values in every container and numeric map keys'
         optional = config.optional(false, config.boolean(true)),
         private = config.boolean(false, { scope = 'server' }),
     })
-    local snapshot = registered.qblib_configRead()
+    local snapshot = registered.kora_lib_configRead()
     H.assertEqual(config.get('sample', { 'classes', '0' }), false)
     for _, values in ipairs({ snapshot.values, snapshot.configured, snapshot.client }) do
         H.assertEqual(values.enabled, false)
@@ -728,5 +729,15 @@ H.test('snapshots preserve false values in every container and numeric map keys'
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end
+
+H.test('the deprecated qblib_config* bridge exports stay registered', function()
+    registered = {}
+    local config = makeConfig(library)
+    config.define({ visual = config.number(1, { scope = 'client', live = true }) })
+    for _, method in ipairs({ 'Read', 'Commit', 'Reset' }) do
+        H.assertTrue(registered['qblib_config' .. method] ~= nil, 'missing deprecated export ' .. method)
+        H.assertEqual(registered['qblib_config' .. method], registered['kora_lib_config' .. method])
+    end
+end)
 
 H.report('config')

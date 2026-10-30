@@ -10,8 +10,11 @@ return function(library)
     -- Some FXServer builds return numeric 1 for this native instead of true.
     local serverFlag = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
     local isServer = serverFlag == true or serverFlag == 1
-    local MARKER = '__qblibConfigDescriptor'
-    local STORAGE_MARKER = '__qblibConfigType'
+    local MARKER = '__koraLibConfigDescriptor'
+    local STORAGE_MARKER = '__koraLibConfigType'
+    -- Deprecated pre-rename marker. Existing config.local.lua overrides and
+    -- resources started before the rename still carry it, so decoding accepts both.
+    local LEGACY_STORAGE_MARKER = '__qblibConfigType'
     local config = {}
     local state
     local changeHandlers = {}
@@ -34,7 +37,7 @@ return function(library)
             resource = resource or RESOURCE
             nextSnapshotRequestId = nextSnapshotRequestId + 1
             snapshotRequests[resource] = nextSnapshotRequestId
-            TriggerServerEvent('qblib:server:configRequested', resource, nextSnapshotRequestId)
+            TriggerServerEvent('kora_lib:server:configRequested', resource, nextSnapshotRequestId)
         end
     end
 
@@ -421,7 +424,7 @@ return function(library)
 
     local function decodeStorage(value)
         if type(value) ~= 'table' then return value end
-        local marker = rawget(value, STORAGE_MARKER)
+        local marker = rawget(value, STORAGE_MARKER) or rawget(value, LEGACY_STORAGE_MARKER)
         if marker == 'nil' then return nil end
         if marker == 'vector2' or marker == 'vector3' or marker == 'vector4' then
             local constructor = rawget(_G, marker)
@@ -433,7 +436,7 @@ return function(library)
         end
         local out = {}
         for key, child in pairs(value) do
-            if key ~= STORAGE_MARKER then out[key] = decodeStorage(child) end
+            if key ~= STORAGE_MARKER and key ~= LEGACY_STORAGE_MARKER then out[key] = decodeStorage(child) end
         end
         return out
     end
@@ -607,10 +610,10 @@ return function(library)
         if values then return values end
         if errorMessage == 'missing' then return {} end
 
-        print(('[qblib:config] Ignoring invalid %s/%s: %s'):format(RESOURCE, fileName, errorMessage))
+        print(('[kora_lib:config] Ignoring invalid %s/%s: %s'):format(RESOURCE, fileName, errorMessage))
         local backup = loadOverrides(fileName .. '.bak')
         if backup then
-            print(('[qblib:config] Restoring %s/%s from its backup.'):format(RESOURCE, fileName))
+            print(('[kora_lib:config] Restoring %s/%s from its backup.'):format(RESOURCE, fileName))
             return backup
         end
         return {}
@@ -715,7 +718,7 @@ return function(library)
             end
             if wasAffected then
                 local ok, err = pcall(binding.handler, copy(value), copy(previous), change)
-                if not ok then print(('[qblib:config] Binding for %s failed: %s'):format(resource, err)) end
+                if not ok then print(('[kora_lib:config] Binding for %s failed: %s'):format(resource, err)) end
             end
         end
     end
@@ -1094,7 +1097,7 @@ return function(library)
         local value = config.get(resource, binding.path)
         if value ~= nil then
             local ok, err = pcall(handler, value, nil, { initial = true, resource = resource })
-            if not ok then print(('[qblib:config] Binding for %s failed: %s'):format(resource, err)) end
+            if not ok then print(('[kora_lib:config] Binding for %s failed: %s'):format(resource, err)) end
         elseif resource ~= RESOURCE then
             if isServer and type(library.config_read) == 'function' then
                 local ok, snapshot = pcall(function() return library:config_read(resource) end)
@@ -1253,7 +1256,10 @@ return function(library)
             markReady(RESOURCE)
             notifyBindings(RESOURCE, path, oldValue, { resource = RESOURCE, path = copy(path), revision = state.revision })
             if isServer and schema.scope ~= 'server' then
-                TriggerClientEvent('qblib:client:configUpdated', -1, RESOURCE, path, encodeStorage(value), state.revision)
+                local encodedValue = encodeStorage(value)
+                TriggerClientEvent('kora_lib:client:configUpdated', -1, RESOURCE, path, encodedValue, state.revision)
+                -- Deprecated alias for clients still running a pre-rename consumer.
+                TriggerClientEvent('qblib:client:configUpdated', -1, RESOURCE, path, encodedValue, state.revision)
             end
         end
         announce()
@@ -1276,30 +1282,46 @@ return function(library)
             and type(getmetatable(exports).__call) == 'function')
 
     if canExport then
-        exports('qblib_configRead', function()
+        local function bridgeRead()
             if not state then return nil end
             return { resource = RESOURCE, schema = metadata(state.schema), configured = encodeStorage(state.configured),
                 values = encodeStorage(projectValues(state.schema, state.values)),
                 client = clientProjection(state.schema, state.values) or {}, revision = state.revision }
-        end)
-        exports('qblib_configCommit', function(request)
+        end
+        local function bridgeCommit(request)
             local caller = GetInvokingResource()
             if isServer and caller ~= 'kora_lib' and not (RESOURCE == 'kora_lib' and caller == nil) then
-                return { ok = false, error = 'Only qblib may commit configuration changes.' }
+                return { ok = false, error = 'Only kora_lib may commit configuration changes.' }
             end
             return commit(request)
-        end)
-        exports('qblib_configReset', function(request)
+        end
+        local function bridgeReset(request)
             local caller = GetInvokingResource()
             if isServer and caller ~= 'kora_lib' and not (RESOURCE == 'kora_lib' and caller == nil) then
-                return { ok = false, error = 'Only qblib may reset configuration changes.' }
+                return { ok = false, error = 'Only kora_lib may reset configuration changes.' }
             end
             return reset(request)
-        end)
+        end
+        exports('kora_lib_configRead', bridgeRead)
+        exports('kora_lib_configCommit', bridgeCommit)
+        exports('kora_lib_configReset', bridgeReset)
+        -- Deprecated pre-rename export names, still served for callers that
+        -- predate the rename (for example a kora_lib that has not restarted yet).
+        exports('qblib_configRead', bridgeRead)
+        exports('qblib_configCommit', bridgeCommit)
+        exports('qblib_configReset', bridgeReset)
+    end
+
+    -- Listens on the kora_lib: name and its deprecated qblib: alias. Both can
+    -- arrive for one change, which is harmless: every handler discards stale
+    -- revisions and request ids.
+    local function registerNetEventWithLegacyAlias(name, handler)
+        RegisterNetEvent(name, handler)
+        RegisterNetEvent((name:gsub('^kora_lib:', 'qblib:')), handler)
     end
 
     if not isServer and type(RegisterNetEvent) == 'function' then
-        RegisterNetEvent('qblib:client:configUpdated', function(resource, path, encoded, revision)
+        registerNetEventWithLegacyAlias('kora_lib:client:configUpdated', function(resource, path, encoded, revision)
             if not validSequence(revision) then return end
             if resource ~= RESOURCE then
                 local normalizedRemote = normalizedPath(path)
@@ -1335,13 +1357,13 @@ return function(library)
             local handler = changeHandlers[pathKey({ displayPath(normalized) })]
             if handler then
                 local ok, err = pcall(handler, value, oldValue)
-                if not ok then print(('[qblib:config] Client update %s failed: %s'):format(displayPath(normalized), err)) end
+                if not ok then print(('[kora_lib:config] Client update %s failed: %s'):format(displayPath(normalized), err)) end
             end
             notifyBindings(RESOURCE, normalized, oldValue,
                 { resource = RESOURCE, path = copy(normalized), revision = state.revision })
         end)
 
-        RegisterNetEvent('qblib:client:configSnapshot', function(resource, encoded, revision, requestId)
+        registerNetEventWithLegacyAlias('kora_lib:client:configSnapshot', function(resource, encoded, revision, requestId)
             if type(encoded) ~= 'table' or not validSequence(revision) or requestId ~= snapshotRequests[resource] then return end
             snapshotRequests[resource] = nil
             if resource ~= RESOURCE then
@@ -1384,7 +1406,7 @@ return function(library)
     end
 
     if isServer and type(AddEventHandler) == 'function' then
-        AddEventHandler('qblib:server:configChanged', function(resource, encoded, revision)
+        AddEventHandler('kora_lib:server:configChanged', function(resource, encoded, revision)
             if resource == RESOURCE or not bindings[resource] or type(encoded) ~= 'table' then return end
             local previous = remoteValues[resource]
             remoteValues[resource] = decodeStorage(encoded)
@@ -1409,7 +1431,7 @@ return function(library)
         function config.open(resource)
             assert(resource == nil or type(resource) == 'string', 'Configuration resource must be a string.')
             assert(type(library) == 'table' and type(library.config_open) == 'function',
-                'The qblib configuration editor is unavailable.')
+                'The kora_lib configuration editor is unavailable.')
             return library:config_open(resource)
         end
     end

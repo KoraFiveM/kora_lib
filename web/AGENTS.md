@@ -10,7 +10,7 @@ The current stack is React, Tailwind CSS 3, shadcn's `new-york` style, Radix pri
 
 ### Current implementation status
 
-The neutral palette, Tailwind extensions, shared primitives, and qblib-owned UI surfaces implement this contract. Future shadcn installs and new resource UI must continue to use the same tokens and recipes; do not reintroduce stock blue/slate styling or bypass the shared primitives.
+The neutral palette, Tailwind extensions, shared primitives, and kora_lib-owned UI surfaces implement this contract. Future shadcn installs and new resource UI must continue to use the same tokens and recipes; do not reintroduce stock blue/slate styling or bypass the shared primitives.
 
 ## Non-negotiable direction
 
@@ -396,7 +396,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 - Separator is a single default-border line. Use whitespace instead when a line does not improve grouping.
 - Show the thumb only: preserve the platform scrollbar width and target behavior, but make the track fully transparent with no border, inset, or corner treatment. Use a rounded `#666666` thumb on background/card/popover surfaces and `#7A7A7A` beside raised or hover surfaces. Hover lightens the thumb one step. Do not force a thin custom scrollbar that is difficult to acquire with a pointer.
 
-## qblib-specific patterns
+## kora_lib-specific patterns
 
 ### Main menu
 

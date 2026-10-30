@@ -9,10 +9,10 @@ local commands = {}
 local MAX_SUGGESTIONS = 20
 local MAX_PARSED_ARGS = 16
 local keybindEvents = {
-    add = 'qblib:commands:keybind:add',
-    remove = 'qblib:commands:keybind:remove',
-    sync = 'qblib:commands:keybind:sync',
-    execute = 'qblib:commands:keybind:execute',
+    add = 'kora_lib:commands:keybind:add',
+    remove = 'kora_lib:commands:keybind:remove',
+    sync = 'kora_lib:commands:keybind:sync',
+    execute = 'kora_lib:commands:keybind:execute',
 }
 
 local isCallable = QB.compat.isCallable
@@ -106,7 +106,7 @@ local function dispatch(name, definition, source, rawArgs, raw)
     local allowed, denyReason = isAllowed(source, definition)
     if not allowed then
         if denyReason then
-            print(("^3[qblib:commands]^7 /%s denied for %s: %s"):format(name, tostring(source), denyReason))
+            print(("^3[kora_lib:commands]^7 /%s denied for %s: %s"):format(name, tostring(source), denyReason))
         end
         definition.notify(source, 'You do not have permission for this command.', 'error')
         return
@@ -116,7 +116,7 @@ local function dispatch(name, definition, source, rawArgs, raw)
         return
     end
     local ok, err = pcall(definition.handler, source, rawArgs, raw)
-    if not ok then print(("^3[qblib:commands]^7 /%s errored: %s"):format(name, tostring(err))) end
+    if not ok then print(("^3[kora_lib:commands]^7 /%s errored: %s"):format(name, tostring(err))) end
 end
 
 local function sendKeybind(src, name, definition)
@@ -319,7 +319,7 @@ function QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)
             args = parsedArgs,
         })
         if not ok then
-            print(("^3[qblib:commands]^7 suggestion provider for /%s argument %d errored: %s")
+            print(("^3[kora_lib:commands]^7 suggestion provider for /%s argument %d errored: %s")
                 :format(name, argumentIndex, tostring(provided)))
         elseif type(provided) == 'table' then
             for i = 1, #provided do candidates[#candidates + 1] = provided[i] end

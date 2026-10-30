@@ -12,6 +12,8 @@ function QB.notify.send(src, payload)
         QB.notify.assert(payload)
 
         if Config.third_party_notify then
+            TriggerClientEvent('kora_lib:notify:send', src, payload)
+            -- Deprecated alias: third-party handlers may still listen on the old name.
             TriggerClientEvent('qblib:notify:send', src, payload)
             return
         end
@@ -20,7 +22,7 @@ function QB.notify.send(src, payload)
     end)
 
     if not ok then
-        print(("[qblib:notify] send to %s failed: %s"):format(tostring(src), tostring(err)))
+        print(("[kora_lib:notify] send to %s failed: %s"):format(tostring(src), tostring(err)))
     end
 end
 

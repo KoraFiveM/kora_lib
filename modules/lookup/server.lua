@@ -1,6 +1,6 @@
 local state = QB.lookup._state
-local SYNC_REQUEST = 'qblib:lookup:sync'
-local SYNC_PUSH = 'qblib:lookup:syncBatch'
+local SYNC_REQUEST = 'kora_lib:lookup:sync'
+local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
 -- Leave framing headroom so the complete encoded event payload remains below
 -- the requested 24 KiB boundary, not merely the JSON array within it.
 local MAX_BATCH_BYTES = 23 * 1024
@@ -15,7 +15,7 @@ local snapshotBatches = nil
 local MAX_RESOURCES_PER_WIRE_RECORD = 16
 
 local function warn(message)
-    print(('[qblib:lookup] %s'):format(message))
+    print(('[kora_lib:lookup] %s'):format(message))
 end
 
 local function sortedKeys(values)
@@ -252,16 +252,24 @@ local function parseTextYtyp(raw, resource, records)
 end
 
 local function decodeOverride(resource)
-    local raw, readError = readResourceFile(resource, 'qblib.lookup.json', MAX_OVERRIDE_BYTES)
+    local fileName = 'kora_lib.lookup.json'
+    local raw, readError = readResourceFile(resource, fileName, MAX_OVERRIDE_BYTES)
+    if raw == nil and readError ~= 'file is too large' then
+        -- qblib.lookup.json is the deprecated pre-rename file name.
+        local legacyRaw, legacyError = readResourceFile(resource, 'qblib.lookup.json', MAX_OVERRIDE_BYTES)
+        if legacyRaw ~= nil or legacyError == 'file is too large' then
+            fileName, raw, readError = 'qblib.lookup.json', legacyRaw, legacyError
+        end
+    end
     if raw == nil then
         if readError == 'file is too large' then
-            warn(('%s/qblib.lookup.json is too large and was ignored'):format(resource))
+            warn(('%s/%s is too large and was ignored'):format(resource, fileName))
         end
         return nil
     end
     local ok, decoded = pcall(json.decode, raw)
     if not ok or type(decoded) ~= 'table' then
-        warn(('%s/qblib.lookup.json is not valid JSON and was ignored'):format(resource))
+        warn(('%s/%s is not valid JSON and was ignored'):format(resource, fileName))
         return nil
     end
     return decoded
@@ -323,7 +331,7 @@ end
 local function validateOverrideEntry(resource, entry)
     local name = type(entry) == 'table' and boundedString(entry.name, 128) or nil
     if type(entry) ~= 'table' or not state.namespaces[entry.namespace] or name == nil then
-        warn(('%s has an invalid qblib.lookup.json entry'):format(resource))
+        warn(('%s has an invalid kora_lib.lookup.json entry'):format(resource))
         return nil
     end
 
@@ -401,11 +409,11 @@ local function scanResource(resource)
     local overrideEntries = override.entries
     local overrideExclusions = override.exclude
     if overrideEntries ~= nil and type(overrideEntries) ~= 'table' then
-        warn(('%s qblib.lookup.json entries must be an array and were ignored'):format(resource))
+        warn(('%s kora_lib.lookup.json entries must be an array and were ignored'):format(resource))
         overrideEntries = {}
     end
     if overrideExclusions ~= nil and type(overrideExclusions) ~= 'table' then
-        warn(('%s qblib.lookup.json exclude must be an array and was ignored'):format(resource))
+        warn(('%s kora_lib.lookup.json exclude must be an array and was ignored'):format(resource))
         overrideExclusions = {}
     end
 
@@ -417,7 +425,7 @@ local function scanResource(resource)
         if type(entry) == 'table' and state.namespaces[entry.namespace] and name then
             excluded[entry.namespace .. ':' .. name:lower()] = true
         else
-            warn(('%s has an invalid qblib.lookup.json exclusion'):format(resource))
+            warn(('%s has an invalid kora_lib.lookup.json exclusion'):format(resource))
         end
     end
 
@@ -436,7 +444,7 @@ local function scanResource(resource)
     end
 
     if unresolvedYft > 0 or binaryYtyp > 0 then
-        warn(('%s left %d .yft and %d binary .ytyp files unclassified; add qblib.lookup.json entries if needed')
+        warn(('%s left %d .yft and %d binary .ytyp files unclassified; add kora_lib.lookup.json entries if needed')
             :format(resource, unresolvedYft, binaryYtyp))
     end
     if truncated then

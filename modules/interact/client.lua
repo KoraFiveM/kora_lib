@@ -287,7 +287,7 @@ local function open(options, source, owner)
     CreateThread(function()
         local ok, err = pcall(controls, session)
         if not ok then
-            print(("[qblib:interact] input loop stopped after an error: %s"):format(tostring(err)))
+            print(("[kora_lib:interact] input loop stopped after an error: %s"):format(tostring(err)))
             hide(session)
         end
     end)

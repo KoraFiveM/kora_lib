@@ -33,16 +33,16 @@ end
 
 QB = {
     callback = { trigger = function(name, request)
-        if name == 'qblib:configCatalog' then return {
+        if name == 'kora_lib:configCatalog' then return {
             { resource = entry.resource, revision = entry.revision, schema = entry.schema, loaded = false },
             { resource = otherEntry.resource, revision = otherEntry.revision, schema = otherEntry.schema, loaded = false },
         } end
-        if name == 'qblib:configRead' then
+        if name == 'kora_lib:configRead' then
             if request == 'sample' then return entry end
             if request == 'other' then return otherEntry end
             return nil, 'configuration is unavailable'
         end
-        if name == 'qblib:configCommit' then
+        if name == 'kora_lib:configCommit' then
             committed = request
             local target = request.resource == 'sample' and entry or otherEntry
             target.configured[request.path[1]] = request.value
@@ -50,8 +50,8 @@ QB = {
             target.revision = target.revision + 1
             return { ok = true, applied = request.resource == 'sample' }
         end
-        if name == 'qblib:configReset' then return { ok = true, applied = true } end
-        if name == 'qblib:configRestart' then restarted = request; return { ok = true } end
+        if name == 'kora_lib:configReset' then return { ok = true, applied = true } end
+        if name == 'kora_lib:configRestart' then restarted = request; return { ok = true } end
     end },
     config = {}, notify = { send = function() end },
     nui = { registerApp = function(value) definition = value end, openApp = function(_, opts) openArgs = opts end },
@@ -78,7 +78,7 @@ dofile(repoRoot .. 'modules/config/editor_client.lua')
 
 H.test('every registered resource remains available in the sidebar', function()
     QB.config.open('sample')
-    H.assertEqual(definition.id, 'qblib:config')
+    H.assertEqual(definition.id, 'kora_lib:config')
     H.assertEqual(openArgs.viewId, 'resource:sample')
     H.assertEqual(definition.navigation[1].id, 'resources')
     H.assertEqual(definition.navigation[2].label, 'other')
@@ -97,8 +97,8 @@ H.test('every registered resource remains available in the sidebar', function()
     H.assertEqual(tableBlock.rows[1].description, 'Controls whether the sample is enabled.')
 end)
 
-H.test('editing stays inside the resource view and saves via qblib callbacks', function()
-    events['qblib:client:configOpened']()
+H.test('editing stays inside the resource view and saves via kora_lib callbacks', function()
+    events['kora_lib:client:configOpened']()
     definition.onAction('config:resource', { viewId = 'resources', itemId = 'resource:sample' })
     local result = definition.onAction('config:setting', { viewId = 'resource:sample', itemId = 'enabled' })
     local sampleView
@@ -377,7 +377,7 @@ end)
 H.test('advanced preference survives reopening the editor runtime', function()
     local stored
     SetResourceKvpInt = function(key, value)
-        H.assertEqual(key, 'qblib:config:advanced')
+        H.assertEqual(key, 'kora_lib:config:advanced')
         stored = value
     end
     definition.onAction('config:advanced', { viewId = 'resource:other' })

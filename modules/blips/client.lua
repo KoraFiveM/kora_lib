@@ -132,7 +132,7 @@ end
 ---@param slot string
 ---@return string
 local function infoLabelName(blip, slot)
-    return ("QBLIB_BLIP_%d_%s"):format(blip, slot)
+    return ("KORA_LIB_BLIP_%d_%s"):format(blip, slot)
 end
 
 ---@param blip number
@@ -186,6 +186,13 @@ end
 ---@param category table
 ---@return string
 local function categoryKvp(category)
+    return ('kora_lib:blips:category:%d'):format(category.id)
+end
+
+---Deprecated pre-rename key, read only as a fallback so saved visibility survives.
+---@param category table
+---@return string
+local function legacyCategoryKvp(category)
     return ('qblib:blips:category:%d'):format(category.id)
 end
 
@@ -195,7 +202,9 @@ local function categoryIsVisible(category)
     local visible = categoryVisibility[category.id]
     if visible ~= nil then return visible end
 
-    visible = GetResourceKvpString(categoryKvp(category)) ~= '0'
+    local stored = GetResourceKvpString(categoryKvp(category))
+    if stored == nil then stored = GetResourceKvpString(legacyCategoryKvp(category)) end
+    visible = stored ~= '0'
     categoryVisibility[category.id] = visible
     return visible
 end
@@ -522,7 +531,7 @@ function QB.blips.getCategory(category)
     return publicCategory(resolveCategory(category))
 end
 
----Returns plain snapshots of qblib-created blips. The `handle` remains the
+---Returns plain snapshots of kora_lib-created blips. The `handle` remains the
 ---actual native handle returned by `create`; kora_lib never replaces it with an
 ---object wrapper.
 ---@return QBRegisteredBlip[] blips
@@ -614,7 +623,7 @@ function QB.blips.show(blip)
     return true
 end
 
----Sets or replaces the detail panel shown when a qblib-created blip is
+---Sets or replaces the detail panel shown when a kora_lib-created blip is
 ---highlighted in the pause map. Only the resource that created the blip may
 ---change its panel.
 ---@param blip number
@@ -632,7 +641,7 @@ function QB.blips.setInfo(blip, info)
     return true
 end
 
----Removes a detail panel from a qblib-created blip. Only the resource that
+---Removes a detail panel from a kora_lib-created blip. Only the resource that
 ---created the blip may remove its panel.
 ---@param blip number
 ---@return boolean success

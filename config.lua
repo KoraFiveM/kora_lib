@@ -11,7 +11,7 @@ Config.ui = {
 -- second full-resolution frame buffer just to attach a diagnostic image. Set
 -- either limit to false to leave that dimension unbounded.
 Config.screenshot = {
-    debugConvar = 'qblib_screenshot_debug',
+    debugConvar = 'kora_lib_screenshot_debug',
     defaultEncoding = 'jpg',
     defaultQuality = 0.92,
     maxWidth = 1920,
@@ -176,7 +176,7 @@ Config.drawing = {
 Config.editor = {
     enabled = true,
     permission = 'editor',
-    permissionPrefix = 'qblib',
+    permissionPrefix = 'kora_lib',
     zoneCommand = 'qb_zonecreator',
     placementCommand = 'qb_place',
 }

@@ -101,8 +101,8 @@ export function MenuContainer() {
 
     const emitEvent = useCallback((event: string, data: unknown) => {
         if (requestId === null || token === null) return
-        void fetchNui("qblib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
-            console.error(`[qblib] menu event '${event}' failed:`, error)
+        void fetchNui("kora_lib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
+            console.error(`[kora_lib] menu event '${event}' failed:`, error)
         })
     }, [requestId, token])
 
@@ -258,7 +258,7 @@ export function MenuContainer() {
                 <CommandEmpty>No results</CommandEmpty>
                 <CommandGroup>
                     {canGoBack && !panel && (
-                        <CommandItem forceMount value="__qblib_back__" onSelect={goBack} className="min-h-10 items-center gap-2 py-2 text-muted-foreground">
+                        <CommandItem forceMount value="__kora_lib_back__" onSelect={goBack} className="min-h-10 items-center gap-2 py-2 text-muted-foreground">
                             <ChevronLeft aria-hidden className="h-4 w-4 shrink-0" />
                             <span>Back</span>
                         </CommandItem>

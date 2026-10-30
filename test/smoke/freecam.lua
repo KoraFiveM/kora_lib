@@ -55,7 +55,7 @@ harness.test('freecam validates zones and cleans up when its owner stops', funct
     harness.assertThrows(function() QB.freecam.start({ zone = {} }) end)
     local cam = assert(QB.freecam.start({ zone = { contains = function() return true end } }))
     harness.assertFalse(QB.freecam.start())
-    net.fire('onClientResourceStop', 'qblib_test')
+    net.fire('onClientResourceStop', 'kora_lib_test')
     harness.assertFalse(cam.isActive())
     harness.assertFalse(frozen)
 end)

@@ -145,7 +145,7 @@ export function DispatchFeed() {
         setPayload({ ...data, calls: Array.isArray(data.calls) ? data.calls : [] })
     })
     useEffect(() => {
-        void fetchNui("qblib:dispatchfeed:ready").catch((error) => console.error("[qblib] dispatch feed ready failed:", error))
+        void fetchNui("kora_lib:dispatchfeed:ready").catch((error) => console.error("[kora_lib] dispatch feed ready failed:", error))
     }, [])
 
     const live = payload?.calls.filter((call) => isLive(call, now)).slice(0, payload.config?.feed?.maxVisible ?? 4) ?? []

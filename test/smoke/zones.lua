@@ -354,7 +354,7 @@ end)
 harness.test("zone geometry rejects non-finite values before entering the spatial grid", function()
     harness.assertThrows(function()
         QB.zones.box({ coords = "not coordinates", size = { x = 1, y = 1, z = 1 } })
-    end, "non-vector coordinates should raise qblib's public contract error")
+    end, "non-vector coordinates should raise kora_lib's public contract error")
     harness.assertThrows(function()
         QB.zones.box({ coords = { x = math.huge, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 } })
     end)
@@ -406,7 +406,7 @@ harness.test("getInside reports the zones the player is currently standing in", 
     harness.assertEqual(#inside, 1, "only the zone containing the player should be reported")
     harness.assertEqual(inside[1], zone, "getInside should hand back the very same handle the constructor returned")
 
-    harness.assertEqual(#QB.zones.getInside("qblib_test"), 1, "filtering by the owning resource should still match")
+    harness.assertEqual(#QB.zones.getInside("kora_lib_test"), 1, "filtering by the owning resource should still match")
     harness.assertEqual(#QB.zones.getInside("some_other_resource"), 0, "filtering by a different resource should match nothing")
 
     zone.remove()
@@ -794,7 +794,7 @@ harness.test("creator controls release when the owning resource stops", function
     local currentResource = "creator_consumer"
     _G.GetCurrentResourceName = function() return currentResource end
     local p = QB.zones.startCreator("box")
-    currentResource = "qblib_test"
+    currentResource = "kora_lib_test"
 
     net.fire("onClientResourceStop", "creator_consumer")
     harness.assertEqual(p.state, "resolved", "owner shutdown should cancel the creator")
@@ -803,7 +803,7 @@ harness.test("creator controls release when the owning resource stops", function
     net.step()
     harness.assertTrue(next(disabledControls) == nil, "owner shutdown should release creator controls")
 
-    _G.GetCurrentResourceName = function() return "qblib_test" end
+    _G.GetCurrentResourceName = function() return "kora_lib_test" end
 end)
 
 harness.test("a creator loop crash releases its control lease", function()

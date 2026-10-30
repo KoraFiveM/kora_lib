@@ -13,7 +13,7 @@ local registeredCommand
 local stoppedResource
 local startedResource
 
-_G.IsPlayerAceAllowed = function(_, object) return allowed and object == 'qblib.config.edit' end
+_G.IsPlayerAceAllowed = function(_, object) return allowed and object == 'kora_lib.config.edit' end
 _G.GetCurrentResourceName = function() return 'kora_lib' end
 _G.GetResourceState = function(resource) return resource == 'kora_admin' and 'stopped' or 'started' end
 _G.StopResource = function(resource) stoppedResource = resource; return true end
@@ -35,9 +35,9 @@ QB = {
             tokens = { kind = 'list', sensitive = true, item = { sensitive = true } },
             position = { kind = 'vector3', path = { 'position' } },
         } }, configured = { enabled = true, secret = 'hidden', tokens = { 'hidden' },
-            position = { __qblibConfigType = 'vector3', x = 1, y = 2, z = 3 } },
+            position = { __koraLibConfigType = 'vector3', x = 1, y = 2, z = 3 } },
             values = { enabled = false, secret = 'hidden', tokens = { 'hidden' },
-                position = { __qblibConfigType = 'vector3', x = 4, y = 5, z = 6 } } } end,
+                position = { __koraLibConfigType = 'vector3', x = 4, y = 5, z = 6 } } } end,
         commit = function() commits = commits + 1; return { ok = true } end,
         reset = function() return { ok = true } end,
     },
@@ -46,11 +46,11 @@ QB = {
 dofile(repoRoot .. 'modules/config/editor_server.lua')
 
 H.test('every editor callback requires the exact configuration ACE', function()
-    local value, err = callbacks['qblib:configCatalog'](12)
+    local value, err = callbacks['kora_lib:configCatalog'](12)
     H.assertEqual(value, nil)
     H.assertEqual(err, 'permission denied')
     allowed = true
-    value = callbacks['qblib:configCatalog'](12)
+    value = callbacks['kora_lib:configCatalog'](12)
     H.assertEqual(value[1].schema.fields.secret, nil)
     H.assertEqual(value[1].schema.fields.tokens, nil)
     H.assertEqual(value[1].schema.fieldKeys.secret, nil)
@@ -59,11 +59,11 @@ H.test('every editor callback requires the exact configuration ACE', function()
     H.assertFalse(value[1].loaded)
     H.assertEqual(value[1].configured, nil)
 
-    value = callbacks['qblib:configRead'](12, 'sample')
+    value = callbacks['kora_lib:configRead'](12, 'sample')
     H.assertEqual(value.configured.secret, nil)
     H.assertEqual(value.schema.fields.tokens, nil)
     H.assertEqual(value.schema.fieldKeys.secret, nil)
-    H.assertEqual(value.configured.position.__qblibConfigType, nil)
+    H.assertEqual(value.configured.position.__koraLibConfigType, nil)
     H.assertEqual(value.configured.position.z, 3)
     H.assertTrue(value.loaded)
 end)
@@ -71,7 +71,7 @@ end)
 H.test('an unavailable owner returns a normal editor error', function()
     local commit = QB.config.commit
     QB.config.commit = function() error('resource stopped', 0) end
-    local value, err = callbacks['qblib:configCommit'](12,
+    local value, err = callbacks['kora_lib:configCommit'](12,
         { resource = 'sample', path = { 'enabled' }, value = false, revision = 1 })
     H.assertEqual(value, nil)
     H.assertEqual(err, 'configuration is unavailable')
@@ -79,19 +79,19 @@ H.test('an unavailable owner returns a normal editor error', function()
 end)
 
 H.test('reads sanitize secrets and commits only valid requests', function()
-    local entry = callbacks['qblib:configRead'](12, 'sample')
+    local entry = callbacks['kora_lib:configRead'](12, 'sample')
     H.assertEqual(entry.configured.secret, nil)
     H.assertEqual(entry.configured.tokens, nil)
-    local value, err = callbacks['qblib:configCommit'](12, { resource = 'sample', path = {}, revision = 1 })
+    local value, err = callbacks['kora_lib:configCommit'](12, { resource = 'sample', path = {}, revision = 1 })
     H.assertEqual(value, nil)
     H.assertEqual(err, 'invalid configuration request')
     for _, revision in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
-        value, err = callbacks['qblib:configCommit'](12,
+        value, err = callbacks['kora_lib:configCommit'](12,
             { resource = 'sample', path = { 'enabled' }, value = false, revision = revision })
         H.assertEqual(value, nil)
         H.assertEqual(err, 'invalid configuration request')
     end
-    callbacks['qblib:configCommit'](12, { resource = 'sample', path = { 'enabled' }, value = false, revision = 1 })
+    callbacks['kora_lib:configCommit'](12, { resource = 'sample', path = { 'enabled' }, value = false, revision = 1 })
     H.assertEqual(commits, 1)
 end)
 
@@ -108,7 +108,7 @@ H.test('reads preserve authored numeric object keys', function()
         }
     end
 
-    local entry = callbacks['qblib:configRead'](12, 'sample')
+    local entry = callbacks['kora_lib:configRead'](12, 'sample')
     H.assertTrue(entry.configured.restricted[2])
     H.assertFalse(entry.values.restricted[2])
     H.assertEqual(entry.schema.fields.restricted.fieldKeys['2'], 2)
@@ -126,30 +126,30 @@ H.test('reads retain added inferred-list rows using the first authored item sche
         }
     end
 
-    local entry = callbacks['qblib:configRead'](12, 'sample')
+    local entry = callbacks['kora_lib:configRead'](12, 'sample')
     H.assertEqual(entry.configured.locations[2], 'city')
     H.assertEqual(entry.values.locations[2], 'city')
 end)
 
-H.test('an authorised owner can restart a registered resource but not qblib', function()
-    local result = callbacks['qblib:configRestart'](12, 'sample')
+H.test('an authorised owner can restart a registered resource but not kora_lib', function()
+    local result = callbacks['kora_lib:configRestart'](12, 'sample')
     H.assertTrue(result.ok)
     H.assertEqual(stoppedResource, 'sample')
     H.assertEqual(startedResource, 'sample')
 
     QB.config.catalog = function() return { { resource = 'kora_lib', schema = {} } } end
-    result = callbacks['qblib:configRestart'](12, 'kora_lib')
+    result = callbacks['kora_lib:configRestart'](12, 'kora_lib')
     H.assertFalse(result.ok)
 end)
 
 H.test('the command uses the same exact ACE check', function()
     allowed = false
     H.assertEqual(registeredCommand.name, 'config')
-    H.assertFalse(registeredCommand.options.checkPermission(12, 'qblib.config.edit'))
+    H.assertFalse(registeredCommand.options.checkPermission(12, 'kora_lib.config.edit'))
     allowed = true
-    H.assertTrue(registeredCommand.options.checkPermission(12, 'qblib.config.edit'))
+    H.assertTrue(registeredCommand.options.checkPermission(12, 'kora_lib.config.edit'))
     registeredCommand.handler(12, { 'sample' })
-    local event = mocks.lastEntry(net.triggeredClientEvents, 'qblib:client:configOpened')
+    local event = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:client:configOpened')
     H.assertEqual(event[1], 'sample')
 end)
 
@@ -157,23 +157,23 @@ H.test('Discord-only qbadmin access is authoritative while compatible mode retai
     _G.GetResourceState = function() return 'started' end
     _G.exports = { kora_admin = { canEditConfig = function() return false end } }
     allowed = true
-    local value, err = callbacks['qblib:configCatalog'](12)
+    local value, err = callbacks['kora_lib:configCatalog'](12)
     H.assertEqual(value, nil)
     H.assertEqual(err, 'permission denied')
 
     exports.kora_admin.canEditConfig = function() return true end
     allowed = false
-    H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
+    H.assertTrue(callbacks['kora_lib:configCatalog'](12) ~= nil)
 
     exports.kora_admin.canEditConfig = function() return nil end
     allowed = true
-    H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
+    H.assertTrue(callbacks['kora_lib:configCatalog'](12) ~= nil)
 
     exports.kora_admin.canEditConfig = function() error('permission bridge unavailable') end
-    H.assertEqual(callbacks['qblib:configCatalog'](12), nil)
+    H.assertEqual(callbacks['kora_lib:configCatalog'](12), nil)
 
     exports.kora_admin.canEditConfig = function() error('No such export canEditConfig in resource qbadmin') end
-    H.assertTrue(callbacks['qblib:configCatalog'](12) ~= nil)
+    H.assertTrue(callbacks['kora_lib:configCatalog'](12) ~= nil)
 end)
 
 H.report('config_editor_server')

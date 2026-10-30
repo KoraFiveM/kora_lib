@@ -312,7 +312,7 @@ export function ScreenshotCapture() {
             })
             .catch((error) => {
                 if (envelope) respondToNui(envelope.requestId, envelope.token, false, String(error))
-                else console.error("[qblib] server-requested screenshot upload failed:", error)
+                else console.error("[kora_lib] server-requested screenshot upload failed:", error)
             })
     })
 

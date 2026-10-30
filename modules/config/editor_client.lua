@@ -6,7 +6,7 @@ local entriesByResource = {}
 local resourcesByView = {}
 local activeEdit
 local activeResource
-local ADVANCED_PREFERENCE = 'qblib:config:advanced'
+local ADVANCED_PREFERENCE = 'kora_lib:config:advanced'
 local showAdvanced = type(GetResourceKvpInt) == 'function' and GetResourceKvpInt(ADVANCED_PREFERENCE) == 1
 local ENUM_OPTION_PREFIX = 'config-option:'
 
@@ -28,7 +28,7 @@ local function triggerCallback(name, ...)
     end
 
     local result = Citizen.Await(response)
-    local packed = response.qblibCallbackResults
+    local packed = response.koraLibCallbackResults
     if packed then return table.unpack(packed, 1, packed.n) end
     return result
 end
@@ -579,7 +579,7 @@ local function buildDefinition()
     end
 
     return {
-        id = 'qblib:config',
+        id = 'kora_lib:config',
         title = 'Server settings',
         icon = 'settings',
         defaultView = 'resources',
@@ -598,7 +598,7 @@ local function updateNavigation(notice, viewId)
 end
 
 local function readResource(resource)
-    local entry, readError = triggerCallback('qblib:configRead', resource)
+    local entry, readError = triggerCallback('kora_lib:configRead', resource)
     if not entry then return nil, readError or 'Could not read resource configuration.' end
     replaceEntry(entry)
     return entry
@@ -650,7 +650,7 @@ local function handleAction(action, context)
             return updateNavigation({ tone = 'destructive',
                 message = 'That resource cannot be restarted from this editor.' }, context.viewId)
         end
-        local response, restartError = triggerCallback('qblib:configRestart', resource)
+        local response, restartError = triggerCallback('kora_lib:configRestart', resource)
         if not response or not response.ok then
             return updateNavigation({ tone = 'destructive',
                 message = (response and response.error) or restartError or 'The resource could not be restarted.' }, context.viewId)
@@ -681,9 +681,9 @@ local function handleAction(action, context)
                 return updateNavigation({ tone = 'destructive', message = tostring(value) }, context.viewId)
             end
             request.value = value
-            response, requestError = triggerCallback('qblib:configCommit', request)
+            response, requestError = triggerCallback('kora_lib:configCommit', request)
         else
-            response, requestError = triggerCallback('qblib:configReset', request)
+            response, requestError = triggerCallback('kora_lib:configReset', request)
         end
 
         if not response or not response.ok then
@@ -708,7 +708,7 @@ local function handleAction(action, context)
 end
 
 local function openEditor(resource)
-    local result, err = triggerCallback('qblib:configCatalog')
+    local result, err = triggerCallback('kora_lib:configCatalog')
     if not result then
         return QB.notify.send({ type = 'error', message = err or 'You do not have access to configuration.' })
     end
@@ -733,7 +733,7 @@ local function openEditor(resource)
     local definition = buildDefinition()
     definition.onAction = handleAction
     QB.nui.registerApp(definition)
-    QB.nui.openApp('qblib:config', { viewId = viewId })
+    QB.nui.openApp('kora_lib:config', { viewId = viewId })
 end
 
 function QB.config.open(resource)
@@ -741,6 +741,10 @@ function QB.config.open(resource)
     openEditor(resource)
 end
 
-RegisterNetEvent('qblib:client:configOpened', function(resource)
+local function onConfigOpened(resource)
     QB.config.open(resource)
-end)
+end
+
+RegisterNetEvent('kora_lib:client:configOpened', onConfigOpened)
+-- Deprecated alias: older kora_admin releases open the editor with this name.
+RegisterNetEvent('qblib:client:configOpened', onConfigOpened)

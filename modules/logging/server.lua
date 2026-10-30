@@ -30,14 +30,15 @@ function QB.logging.event(category, src, data)
     if #ring < RING then ring[#ring + 1] = entry else ring[head + 1] = entry; head = (head + 1) % RING end
     counts[category] = (counts[category] or 0) + 1
 
-    -- 'qbcore_log_webhook' is a legacy fallback for servers that already set
-    -- it before this module lived in kora_lib.
-    local url = GetConvar('qblib_log_webhook', GetConvar('qbcore_log_webhook', ''))
+    -- 'qblib_log_webhook' and 'qbcore_log_webhook' are legacy fallbacks for
+    -- servers that already set them before this module lived in kora_lib.
+    local url = GetConvar('kora_lib_log_webhook', '')
+    if url == '' then url = GetConvar('qblib_log_webhook', GetConvar('qbcore_log_webhook', '')) end
     if url ~= '' then
         local resource = GetInvokingResource() or GetCurrentResourceName()
         local encoded, encodedData = pcall(json.encode, data or {})
         if not encoded then
-            print(('[qblib:logging] webhook payload for %q could not be encoded: %s'):format(category, tostring(encodedData)))
+            print(('[kora_lib:logging] webhook payload for %q could not be encoded: %s'):format(category, tostring(encodedData)))
             return
         end
         local content = ('[%s] src=%s %s'):format(category, tostring(src), encodedData)
@@ -50,7 +51,7 @@ function QB.logging.event(category, src, data)
             allowed_mentions = { parse = {} },
         })
         if not payloadEncoded then
-            print(('[qblib:logging] webhook envelope for %q could not be encoded: %s'):format(category, tostring(payload)))
+            print(('[kora_lib:logging] webhook envelope for %q could not be encoded: %s'):format(category, tostring(payload)))
             return
         end
         -- Fire-and-forget webhook; never blocks the caller.

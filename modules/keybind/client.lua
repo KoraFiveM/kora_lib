@@ -9,10 +9,10 @@ local commandBindings = {}
 local ownership
 
 local commandEvents = {
-    add = 'qblib:commands:keybind:add',
-    remove = 'qblib:commands:keybind:remove',
-    sync = 'qblib:commands:keybind:sync',
-    execute = 'qblib:commands:keybind:execute',
+    add = 'kora_lib:commands:keybind:add',
+    remove = 'kora_lib:commands:keybind:remove',
+    sync = 'kora_lib:commands:keybind:sync',
+    execute = 'kora_lib:commands:keybind:execute',
 }
 
 local isCallable = QB.compat.isCallable
@@ -45,7 +45,7 @@ local function safeCall(definition, phase)
 
     local ok, err = pcall(handler, definition.handle)
     if not ok then
-        print(("^3[qblib:keybind]^7 '%s' %s callback errored: %s")
+        print(("^3[kora_lib:keybind]^7 '%s' %s callback errored: %s")
             :format(definition.name, phase, tostring(err)))
     end
 end
@@ -151,7 +151,7 @@ local function add(options, resourceOverride)
     local owner = resourceOverride or GetInvokingResource() or GetCurrentResourceName()
     local previousOwner = ownership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("^3[qblib:keybind]^7 '%s' was registered by '%s' and is being overwritten by '%s'.")
+        print(("^3[kora_lib:keybind]^7 '%s' was registered by '%s' and is being overwritten by '%s'.")
             :format(name, previousOwner, owner))
     end
 
@@ -233,7 +233,7 @@ local function addCommandBinding(name, options)
     }, options.resource or GetCurrentResourceName())
 
     if not ok then
-        print(("^3[qblib:commands]^7 could not register key mapping for /%s: %s"):format(name, tostring(handle)))
+        print(("^3[kora_lib:commands]^7 could not register key mapping for /%s: %s"):format(name, tostring(handle)))
         return
     end
     commandBindings[name] = handle

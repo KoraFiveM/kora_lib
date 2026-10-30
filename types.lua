@@ -399,7 +399,7 @@
 ---@class QBProgressBarDisable
 ---@field move? boolean
 ---@field moveMode? 'freeze'|'controls' Defaults to freeze; controls matches ox_lib movement blocking.
----@field controlProfile? 'qblib'|'ox' Exact disabled-control set; defaults to kora_lib.
+---@field controlProfile? 'kora_lib'|'ox' Exact disabled-control set; defaults to kora_lib.
 ---@field sprint? boolean
 ---@field combat? boolean
 ---@field car? boolean
@@ -980,76 +980,76 @@
 ---@field resources? string[] Sorted custom resources contributing this entry.
 ---@field metadata? QBLookupMetadata Namespace-specific curated metadata.
 
----@class QBLibCompat
+---@class KoraLibCompat
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
----@class QBLib
----@field actions QBLibActions
----@field anim QBLibAnim
----@field blips QBLibBlips
----@field camera QBLibCamera
----@field cache QBLibCache
----@field callback QBLibCallback
----@field compat QBLibCompat
----@field closest QBLibClosest
----@field commands QBLibCommands
----@field config QBLibConfig
----@field controls QBLibControls
----@field discord QBLibDiscord
----@field distance QBLibDistance
----@field drawing QBLibDrawing
----@field entities QBLibEntities
----@field freecam QBLibFreecam
----@field events QBLibEvents
----@field fx QBLibFx
----@field interact QBLibInteract
----@field instructional QBLibInstructional
----@field keybind QBLibKeybind
----@field logging QBLibLogging
----@field lookup QBLibLookup
----@field loops QBLibLoops
----@field minigames QBLibMinigames
----@field notify QBLibNotify
----@field nui QBLibNui
----@field ox QBLibOx Private provider for the optional ox_lib bridge; native resources should use QB.nui.
----@field permissions QBLibPermissions
----@field placement QBLibPlacement
----@field print QBLibPrint
----@field progressbar QBLibProgressbar
----@field raycast QBLibRaycast
----@field random QBLibRandom
----@field require QBLibRequire
----@field resources QBLibResources
----@field rewards QBLibRewards
----@field screenshot QBLibScreenshot
----@field sound QBLibSound
----@field skills QBLibSkills
----@field state QBLibState
----@field status QBLibStatus
----@field stream QBLibStream
----@field teleport QBLibTeleport
----@field textui QBLibTextUI
----@field theme QBLibTheme
----@field timers QBLibTimers
----@field util QBLibUtil
----@field vehicle QBLibVehicle
----@field visuals QBLibVisuals
----@field world QBLibWorld
----@field zones QBLibZones
+---@class kora_lib
+---@field actions KoraLibActions
+---@field anim KoraLibAnim
+---@field blips KoraLibBlips
+---@field camera KoraLibCamera
+---@field cache KoraLibCache
+---@field callback KoraLibCallback
+---@field compat KoraLibCompat
+---@field closest KoraLibClosest
+---@field commands KoraLibCommands
+---@field config KoraLibConfig
+---@field controls KoraLibControls
+---@field discord KoraLibDiscord
+---@field distance KoraLibDistance
+---@field drawing KoraLibDrawing
+---@field entities KoraLibEntities
+---@field freecam KoraLibFreecam
+---@field events KoraLibEvents
+---@field fx KoraLibFx
+---@field interact KoraLibInteract
+---@field instructional KoraLibInstructional
+---@field keybind KoraLibKeybind
+---@field logging KoraLibLogging
+---@field lookup KoraLibLookup
+---@field loops KoraLibLoops
+---@field minigames KoraLibMinigames
+---@field notify KoraLibNotify
+---@field nui KoraLibNui
+---@field ox KoraLibOx Private provider for the optional ox_lib bridge; native resources should use QB.nui.
+---@field permissions KoraLibPermissions
+---@field placement KoraLibPlacement
+---@field print KoraLibPrint
+---@field progressbar KoraLibProgressbar
+---@field raycast KoraLibRaycast
+---@field random KoraLibRandom
+---@field require KoraLibRequire
+---@field resources KoraLibResources
+---@field rewards KoraLibRewards
+---@field screenshot KoraLibScreenshot
+---@field sound KoraLibSound
+---@field skills KoraLibSkills
+---@field state KoraLibState
+---@field status KoraLibStatus
+---@field stream KoraLibStream
+---@field teleport KoraLibTeleport
+---@field textui KoraLibTextUI
+---@field theme KoraLibTheme
+---@field timers KoraLibTimers
+---@field util KoraLibUtil
+---@field vehicle KoraLibVehicle
+---@field visuals KoraLibVisuals
+---@field world KoraLibWorld
+---@field zones KoraLibZones
 ---@field lang fun(key: string, ...: any): string [shared]
----@field locale QBLibLocale
+---@field locale KoraLibLocale
 
----@class QBLibLocale
+---@class KoraLibLocale
 ---@field getLanguage fun(): string [shared]
 ---@field getLanguages fun(): string[] [shared]
 ---@field setLanguage fun(language: string): boolean, string|nil [client]
 ---@field translate fun(resource: string, key: string, ...: any): any [shared]
 
----@class QBLibActions
+---@class KoraLibActions
 ---@field run fun(options: QBActionsOptions, ...: any): boolean, any [client]
 ---@field isActive fun(): boolean [client]
 
----@class QBLibAnim
+---@class KoraLibAnim
 ---@field play fun(entity: integer, dict: string, clip: string, opts?: QBAnimPlayOptions): QBAnimHandle|false, string? [client]
 ---@field stop fun(entity: integer, blendOutSpeed?: number): boolean [client]
 ---@field stopHandle fun(handle: QBAnimHandle, blendOutSpeed?: number): boolean [client]
@@ -1059,7 +1059,7 @@
 ---@field playScenario fun(entity: integer, scenario: string, enterVehicle?: boolean) [client]
 ---@field clear fun(entity: integer, immediate?: boolean) [client]
 
----@class QBLibBlips
+---@class KoraLibBlips
 ---@field getCategoryIds fun(): table<string, integer> [shared]
 ---@field create fun(coords: QBCoords, options?: QBBlipsCreateOptions): integer|false, string? [client]
 ---@field remove fun(blip: integer): boolean, string? [client]
@@ -1094,7 +1094,7 @@
 ---@field timestamp? boolean
 ---@field viewMode? integer GTA follow-camera mode to restore on close.
 
----@class QBLibCamera
+---@class KoraLibCamera
 ---@field open fun(options: QBCameraOptions): boolean [client]
 ---@field close fun(reason?: string): boolean [client]
 ---@field isOpen fun(): boolean [client]
@@ -1116,7 +1116,7 @@
 ---@field options? table[]
 ---@field sensitive? boolean Excluded from kora_lib's in-game editor.
 
----@class QBLibConfig
+---@class KoraLibConfig
 ---@field define fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
 ---@field adopt fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
 ---@field extend fun(values: table, options?: {scope?: 'shared'|'client'|'server'}): table [shared; consumer-local]
@@ -1146,7 +1146,7 @@
 ---@field reset fun(resource: string, request: table): table [server]
 ---@field open fun(resource?: string) [client]
 
----@class QBLibCache
+---@class KoraLibCache
 ---@field get fun(key: string): any [client]
 ---@field set fun(key: string, value: any) [client]
 ---@field onChange fun(key: string, handler: fun(newValue: any, oldValue: any)) [client]
@@ -1165,30 +1165,30 @@
 ---@field armour fun(): integer [client]
 ---@field stamina fun(): number [client]
 
----@class QBLibCallback
+---@class KoraLibCallback
 ---@field assertName fun(name: string) [shared]
 ---@field register fun(name: string, handler: fun(...: any): any, opts?: QBRegistrationOptions) [client/server; opts is server client-to-server only]
 ---@field unregister fun(name: string): boolean [client/server]
 ---@field trigger fun(targetOrName: integer|string, nameOrArg?: any, ...: any): any [client: name,...; server: target,name,...]
 
----@class QBLibClosest
+---@class KoraLibClosest
 ---@field player fun(srcOrCoords: integer|QBCoords, coordsOrDistance?: QBCoords|number, distance?: number): {id: integer?, distance: number?} [client/server]
 ---@field vehicle fun(srcOrCoords: integer|QBCoords, coordsOrDistance?: QBCoords|number, distance?: number): {id: integer?, distance: number?} [client/server]
 ---@field ped fun(srcOrCoords: integer|QBCoords, coordsOrDistance?: QBCoords|number, distance?: number): {id: integer?, distance: number?} [client/server]
 ---@field object fun(srcOrCoords: integer|QBCoords, coordsOrDistance?: QBCoords|number, distance?: number): {id: integer?, distance: number?} [client/server]
 
----@class QBLibCommands
+---@class KoraLibCommands
 ---@field add fun(name: string, help: string, args: QBCommandArgument[]?, argsRequired: boolean?, handler: fun(source: integer, args: string[], raw: string), opts?: QBCommandOptions) [server]
 ---@field remove fun(name: string) [server]
 ---@field refresh fun(src: integer) [server]
 ---@field list fun(): QBCommandInfo[] [server]
 ---@field suggest fun(src: integer, name: string, argumentIndex: integer, query?: string, parsedArgs?: string[]): QBCommandSuggestion[] [server]
 
----@class QBLibControls
+---@class KoraLibControls
 ---@field acquire fun(controlIds: integer[], options?: QBControlsOptions): integer [client]
 ---@field release fun(leaseId: integer): boolean [client]
 
----@class QBLibDiscord
+---@class KoraLibDiscord
 ---@field createEmbed fun(options: QBDiscordEmbedOptions): table [server]
 ---@field sendWebhook fun(url: string?, payload: string|table, callback?: QBDiscordCallback): boolean [server]
 ---@field botEnabled fun(): boolean [server]
@@ -1223,7 +1223,7 @@
 ---@field removeRole fun(id: integer|string, role: string, callback?: QBDiscordCallback, auditReason?: string): boolean [server]
 ---@field syncRoles fun(callback?: fun(ok: boolean, result: any)): boolean [server]
 
----@class QBLibDistance
+---@class KoraLibDistance
 ---@field player fun(srcOrCoords: integer|QBCoords, coordsOrDistance?: QBCoords|number, distance?: number): boolean [client/server]
 ---@field coords fun(coords1: QBCoords, coords2: QBCoords, distance: number): boolean [client/server]
 ---@field entity fun(srcOrEntity: integer, entityOrDistance: integer|number, distance?: number): boolean [client/server]
@@ -1231,10 +1231,10 @@
 ---@field y fun(srcOrPoint: integer|QBCoords, pointOrDistance: QBCoords|number, distance?: number): boolean [client/server]
 ---@field xy fun(srcOrPoint: integer|QBCoords, pointOrDistance: QBCoords|number, distance?: number): boolean [client/server]
 
----@class QBLibDrawing
+---@class KoraLibDrawing
 ---@field text3d fun(coords: QBCoords, text: string, options?: QBDrawingTextOptions): boolean [client]
 
----@class QBLibEntities
+---@class KoraLibEntities
 ---@field create fun(model: string|integer, coords: QBCoords, options?: QBEntitiesCreateOptions): integer|false, string? [client]
 ---@field createVehicle fun(model: string|integer, coords: QBCoords, vehicleType?: QBServerVehicleType): integer|false, string? [server]
 ---@field createScoped fun(model: string|integer, coords: QBCoords, options: QBEntitiesScopedOptions): QBScopedEntityHandle [client]
@@ -1242,7 +1242,7 @@
 ---@field requestControl fun(entity: integer, timeout?: integer): boolean, string? [client]
 ---@field delete fun(entity: integer, timeout?: integer): boolean, string? [client]
 
----@class QBLibEvents
+---@class KoraLibEvents
 ---@field assertName fun(name: string) [shared]
 ---@field register fun(name: string, handler: fun(src: integer, ...: any), opts?: QBRegistrationOptions) [server]
 ---@field unregister fun(name: string): boolean [server]
@@ -1251,13 +1251,13 @@
 ---@field onPush fun(name: string, handler: fun(...: any)) [client]
 ---@field offPush fun(name: string): boolean [client]
 
----@class QBLibFx
+---@class KoraLibFx
 ---@field playPtfx fun(def: QBFxPtfxDef): QBFxPtfxHandle|false, string? [client]
 ---@field stop fun(handle: QBFxPtfxHandle|false): boolean [client]
 ---@field screenEffect fun(name: string, duration?: integer, looped?: boolean): QBFxScreenHandle [client]
 ---@field stopScreenEffect fun(handle: QBFxScreenHandle|false): boolean [client]
 
----@class QBLibInteract
+---@class KoraLibInteract
 ---@field open fun(options: QBInteractOption[]): boolean [client]
 ---@field close fun() [client]
 ---@field isActive fun(): boolean [client]
@@ -1271,16 +1271,16 @@
 ---@field addModel fun(model: string|integer, options: QBInteractOption[], distance?: number): integer [client]
 ---@field removeModel fun(model: string|integer, id?: integer): boolean [client]
 
----@class QBLibKeybind
+---@class KoraLibKeybind
 ---@field add fun(options: QBKeybindOptions): QBKeybindHandle [client]
 ---@field remove fun(name: string): boolean [client]
 ---@field list fun(): table[] [client]
 
----@class QBLibLogging
+---@class KoraLibLogging
 ---@field event fun(category: string, src: integer, data?: table) [server]
 ---@field getStats fun(): table [server]
 
----@class QBLibLookup
+---@class KoraLibLookup
 ---@field get fun(namespace: QBLookupNamespace, value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
 ---@field model fun(value: integer|string, kind?: QBLookupModelNamespace): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
 ---@field weapon fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
@@ -1290,10 +1290,10 @@
 ---@field ready fun(): boolean [shared]
 ---@field awaitReady fun(timeout?: integer): boolean, string? [shared]
 
----@class QBLibLoops
+---@class KoraLibLoops
 ---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean|integer): any, string? [shared]
 
----@class QBLibMinigames
+---@class KoraLibMinigames
 ---@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): QBMinigameResult [client; waits for the round to finish]
 ---@field playAsync fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): promise [client; internal composition primitive]
 ---@field cancel fun(): boolean [client]
@@ -1303,7 +1303,7 @@
 ---@field consumeProof fun(src: integer, token: string, gameType: QBMinigameType, authorization: string): boolean [server]
 ---@field triangleWave fun(elapsedMs: number, speedHz: number): number [shared]
 
----@class QBLibNotify
+---@class KoraLibNotify
 ---@field send fun(payloadOrSource: QBNotifyPayload|integer, payload?: QBNotifyPayload) [client/server]
 ---@field sendToAll fun(payload: QBNotifyPayload) [server]
 ---@field assert fun(payload: QBNotifyPayload) [shared]
@@ -1325,7 +1325,7 @@
 ---@field startIndex? positive integer Initially selected one-based row.
 ---@field presentation? 'dialog'|'panel' Panel is compact and non-modal.
 
----@class QBLibNui
+---@class KoraLibNui
 ---@field send fun(action: string, data?: any) [client]
 ---@field setDispatchFeed fun(payload: table|false): boolean [client]
 ---@field setFocus fun(mouse: boolean, keyboard: boolean) [client]
@@ -1350,7 +1350,7 @@
 ---@field closeApp fun(id?: string): boolean [client]
 ---@field isAppOpen fun(id?: string): boolean [client]
 
----@class QBLibOx
+---@class KoraLibOx
 ---@field alertDialog fun(data: table, timeout: integer|false|nil, owner: string): 'confirm'|'cancel'|nil [client; ox_lib provider]
 ---@field closeAlertDialog fun(reason: string|nil, owner: string) [client; ox_lib provider]
 ---@field setClipboard fun(value: string, owner: string) [client; ox_lib provider]
@@ -1391,7 +1391,7 @@
 ---@field setLocale fun(key: string, localeData?: table|string, owner?: string) [client; ox_lib provider; string second arg preserves the legacy owner form]
 ---@field disposeOwner fun(owner: string) [client,server; ox_lib provider]
 
----@class QBLibSkills
+---@class KoraLibSkills
 ---@field isAvailable fun(): boolean [client,server]
 ---@field get fun(...: any): table|nil [client: (skill?: string); server: (src: integer, skill?: string)]
 ---@field getAll fun(...: any): table|nil [client: (); server: (src: integer)]
@@ -1410,7 +1410,7 @@
 ---@field type string type() of what the native returned.
 ---@field allowed boolean Normalized result.
 
----@class QBLibPermissions
+---@class KoraLibPermissions
 ---@field getLevel fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): string [server]
 ---@field hasLevel fun(src: integer, required: string, levels: string[], prefixOrOptions?: string|QBPermissionOptions): boolean [server]
 ---@field hasPermission fun(src: integer, permission: string, prefixOrOptions?: string|QBPermissionOptions): boolean [server]
@@ -1427,7 +1427,7 @@
 ---@field heading number
 ---@field rotation QBPlacementRotation
 
----@class QBLibPlacement
+---@class KoraLibPlacement
 ---@field cancel fun(): boolean, string? [client] Cancels only the invoking resource's placement; settles its pending result as nil.
 ---@field start fun(model: string|integer, options?: QBPlacementOptions): QBPlacementResult|promise|nil [client]
 ---@field isActive fun(): boolean [client]
@@ -1467,7 +1467,7 @@
 ---@field setMovementMode fun(mode: 'camera'|'grid'): boolean
 ---@field setFocus fun(coords: QBCoords|nil): boolean
 
----@class QBLibFreecam
+---@class KoraLibFreecam
 ---@field start fun(options?: QBFreecamOptions): QBFreecamHandle|false, string? [client]
 ---@field isActive fun(): boolean [client]
 
@@ -1482,23 +1482,23 @@
 ---@field hide fun(): boolean
 ---@field isVisible fun(): boolean
 
----@class QBLibInstructional
+---@class KoraLibInstructional
 ---@field show fun(buttons: QBInstructionalButton[]): QBInstructionalHandle [client]
 
----@class QBLibPrint
+---@class KoraLibPrint
 ---@field debug fun(...: any) [shared]
 ---@field info fun(...: any) [shared]
 ---@field error fun(...: any) [shared]
 ---@field warn fun(...: any) [shared]
 ---@field success fun(...: any) [shared]
 
----@class QBLibProgressbar
+---@class KoraLibProgressbar
 ---@field validate fun(payload: QBProgressBarPayload): true [client; validates without starting a bar]
 ---@field start fun(payload: QBProgressBarPayload, owner?: string): boolean, string? [client]
 ---@field cancel fun(): boolean [client]
 ---@field isActive fun(): boolean [client]
 
----@class QBLibRaycast
+---@class KoraLibRaycast
 ---@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; returns hit, coords, entityHit, surfaceNormal]
 ---@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; kora_lib order differs from ox_lib]
 ---@field fromCam fun(cam: integer, maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client]
@@ -1519,24 +1519,24 @@
 ---@field coords { x: number, y: number, z: number, w?: number } Two-decimal coordinates; w is present for object previews.
 ---@field object string|integer|false Preview model, or false for the orb picker.
 
----@class QBLibRandom
+---@class KoraLibRandom
 ---@field pick fun(list: any[], options?: QBRandomPickOptions): any|any[] [shared]
 
----@class QBLibRequire
+---@class KoraLibRequire
 ---@field load fun(resource: string, paths: string|string[]): any [shared; an array returns one value per path]
 ---@field current fun(paths: string|string[]): any [shared; an array returns one value per path]
 ---@field ["local"] fun(paths: string|string[]): any [shared; bracket-form alias of current]
 
----@class QBLibResources
+---@class KoraLibResources
 ---@field isStarted fun(resourceName: string): boolean [shared]
 ---@field awaitStarted fun(resourceName: string, options?: QBResourceAwaitOptions): boolean, string? [shared]
 ---@field registry fun(onDispose: fun(id: any)): QBResourcesRegistry [client]
 ---@field serverRegistry fun(onDispose: fun(id: any)): QBResourcesRegistry [server]
 
----@class QBLibRewards
+---@class KoraLibRewards
 ---@field generate fun(items: QBRewardItem[], opts?: QBRewardOptions): table[] [shared]
 
----@class QBLibScreenshot
+---@class KoraLibScreenshot
 ---@field capture fun(options?: QBScreenshotOptions, timeout?: integer): promise|any [client] Resolves to a data URI.
 ---@field upload fun(url: string, field?: string, options?: QBScreenshotOptions, timeout?: integer): promise|any [client] Captures then uploads the image.
 ---@field requestScreenshot fun(options?: QBScreenshotOptions|fun(data: string?), callback?: fun(data: string?)) [client] screenshot-basic-compatible callback export.
@@ -1549,19 +1549,19 @@
 ---@field bank? string Audio bank to request (and wait for) before playing.
 ---@field releaseAfter? number Milliseconds before the sound id is auto-released. Defaults to Config.sound.defaultReleaseAfter.
 
----@class QBLibSound
+---@class KoraLibSound
 ---@field playFrontend fun(name: string, set: string, options?: QBSoundOptions): number|false, string? [client]
 ---@field playFromCoords fun(coords: QBCoords, name: string, set: string, options?: QBSoundOptions): number|false, string? [client]
 ---@field playFromEntity fun(entity: number, name: string, set: string, options?: QBSoundOptions): number|false, string? [client]
 ---@field stop fun(soundId: number): boolean, string? [client]
 ---@field isLive fun(soundId: number): boolean [client]
 
----@class QBLibState
+---@class KoraLibState
 ---@field awaitGlobal fun(key: string, timeoutMs?: integer, pollIntervalMs?: integer): any, string? [shared]
 ---@field onChange fun(keyFilter: string?, bagFilter: string?, handler: fun(change: QBStateChange)): integer [client/server]
 ---@field offChange fun(listenerId: integer): boolean [client/server]
 
----@class QBLibStatus
+---@class KoraLibStatus
 ---@field assertName fun(name: string) [shared]
 ---@field registerEffect fun(name: string, def: QBStatusEffectDef) [shared]
 ---@field getEffectDef fun(name: string): QBStatusEffectDef? [shared]
@@ -1572,7 +1572,7 @@
 ---@field onChange fun(handler: fun(name: string, applied: boolean)): integer [client]
 ---@field offChange fun(listenerId: integer) [client]
 
----@class QBLibStream
+---@class KoraLibStream
 ---@field loadModel fun(model: string|integer, cb?: fun(hash: integer), options?: QBStreamLoadOptions): integer|false, string? [client]
 ---@field loadPtfx fun(fxName: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
 ---@field loadAnimDict fun(animDict: string, cb?: fun(name: string), options?: QBStreamLoadOptions): string|false, string? [client]
@@ -1585,19 +1585,19 @@
 ---@field loadCollision fun(coords: QBCoords, cb?: fun(), entity?: integer): boolean, string? [client]
 ---@field loadWeaponAsset fun(weapon: string|integer, cb?: fun(hash: integer), weaponResourceFlags?: integer, extraWeaponComponentFlags?: integer): integer|false, string? [client]
 
----@class QBLibTeleport
+---@class KoraLibTeleport
 ---@field entity fun(entity: integer, coords: QBCoords, opts?: QBTeleportOptions): boolean [client]
 ---@field player fun(coords: QBCoords, opts?: QBTeleportOptions): boolean [client]
 ---@field toWaypoint fun(opts?: QBWaypointTeleportOptions): boolean, string? [client]
 
----@class QBLibTextUI
+---@class KoraLibTextUI
 ---@field show fun(text: string, opts?: QBTextUIOptions, owner?: string): integer [client]
 ---@field update fun(id: integer, text: string, opts?: QBTextUIOptions): boolean [client]
 ---@field hide fun(id: integer): boolean [client]
 ---@field isOpen fun(id?: integer): boolean [client]
 ---@field isVisible fun(id: integer): boolean [client]
 
----@class QBLibTheme
+---@class KoraLibTheme
 ---@field accentColor fun(): string [shared] Forwarded to qbtheme:getPrimaryColor().
 ---@field tokens fun(overrides?: string|table<string, string>): table<string, string> [shared] Forwarded to qbtheme:getTokens().
 ---@field push fun(): table<string, string> [client] Reapplies kora_theme to kora_lib's NUI.
@@ -1610,7 +1610,7 @@
 ---@field reset fun() Clears the cooldown so the next call passes through.
 ---@field remaining fun(): integer Milliseconds until the next call is allowed; 0 when ready.
 
----@class QBLibTimers
+---@class KoraLibTimers
 ---@field setInterval fun(fn: fun(), interval: integer): integer [shared]
 ---@field setTimeout fun(fn: fun(), delay: integer): integer [shared]
 ---@field clearInterval fun(id: integer): boolean [shared]
@@ -1620,7 +1620,7 @@
 ---@field cooldown fun(interval: integer): QBCooldownHandle [shared]
 ---@field count fun(): integer [shared]
 
----@class QBLibUtil
+---@class KoraLibUtil
 ---@field deepClone fun(value: any): any [shared]
 ---@field fnv1a fun(value: string): string [shared]
 ---@field isCallable fun(value: any): boolean [shared]
@@ -1649,7 +1649,7 @@
 ---@field worldToScreen fun(coords: QBCoords): number, number, boolean [client]
 ---@field worldToScreenPixels fun(coords: QBCoords): number, number, boolean [client]
 
----@class QBLibVehicle
+---@class KoraLibVehicle
 ---@field normalizePlate fun(value: any, options?: QBVehicleNormalizePlateOptions): string|nil, string? [shared]
 ---@field requestControl fun(entity: integer, timeout?: integer): boolean, string? [client]
 ---@field delete fun(vehicle: integer, options?: QBVehicleDeleteOptions): boolean, string? [client]
@@ -1660,7 +1660,7 @@
 ---@field getProperties fun(vehicle: integer): QBVehicleProperties|false, string? [client]
 ---@field setProperties fun(vehicle: integer, properties: QBVehicleProperties, opts?: QBVehicleSetPropertiesOptions): boolean, string? [client]
 
----@class QBLibVisuals
+---@class KoraLibVisuals
 ---@field fade fun(duration?: number|string|QBCoords, fn?: fun()|table|number|string) [client]
 ---@field trevor fun(duration?: number|string) [client]
 ---@field meth fun(duration?: number|string) [client]
@@ -1669,7 +1669,7 @@
 ---@field crack fun(duration?: number|string) [client]
 ---@field coke fun(duration?: number|string) [client]
 
----@class QBLibWorld
+---@class KoraLibWorld
 ---@field getNearbyEntities fun(entityType: QBWorldEntityType, coords: QBCoords, radius: number, options?: QBWorldQueryOptions): QBWorldMatch[] [client/server]
 ---@field getClosestEntity fun(entityType: QBWorldEntityType, coords: QBCoords, options?: QBWorldQueryOptions): integer|false, QBCoords?, number? [client/server]
 ---@field getGroundCoords fun(coords: QBCoords, options?: QBWorldGroundOptions): QBCoords|false, string? [client]
@@ -1681,7 +1681,7 @@
 ---@field resolveNetworkEntity fun(src: integer, networkId: integer, options?: QBWorldNetworkEntityOptions): integer|nil, string? [server]
 ---@field resolveNearbyPlayer fun(src: integer, targetSrc: integer, options: QBWorldNearbyPlayerOptions): integer|nil, number|string [server]
 
----@class QBLibZones
+---@class KoraLibZones
 ---@field box fun(opts: QBZoneBoxOptions): QBZoneHandle [client]
 ---@field sphere fun(opts: QBZoneSphereOptions): QBZoneHandle [client]
 ---@field circle fun(opts: QBZoneCircleOptions): QBZoneHandle [client]

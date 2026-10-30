@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, info: ErrorInfo) {
-        console.error(`[qblib] ${this.props.surface ?? "NUI"} render error:`, error, info.componentStack)
+        console.error(`[kora_lib] ${this.props.surface ?? "NUI"} render error:`, error, info.componentStack)
     }
 
     render() {

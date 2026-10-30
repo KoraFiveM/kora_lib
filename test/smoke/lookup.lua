@@ -235,12 +235,12 @@ local resourceFiles = {
     ['fixture_a:weapons.meta'] = '<CWeaponInfo><Name>WEAPON_CUSTOM</Name><Name>COMPONENT_CUSTOM_CLIP</Name></CWeaponInfo>',
     ['fixture_a:stream/binary.ytyp'] = 'binary\0archetype',
     ['fixture_a:stream/props.ytyp'] = '<CMapTypes><archetypes><Item><name>shared_prop</name></Item><Item><name>text_prop</name></Item></archetypes></CMapTypes>',
-    ['fixture_a:qblib.lookup.json'] = 'OVERRIDE_A',
+    ['fixture_a:kora_lib.lookup.json'] = 'OVERRIDE_A',
 }
 
 local oldLoadResourceFile = LoadResourceFile
 _G.LoadResourceFile = function(resource, path)
-    if resource == 'qblib_test' then return bundles[path] end
+    if resource == 'kora_lib_test' then return bundles[path] end
     return resourceFiles[resource .. ':' .. path]
 end
 
@@ -281,6 +281,18 @@ local function warningContains(fragment)
     end
     return false
 end
+
+harness.test('the deprecated qblib.lookup.json override name is still read', function()
+    local current = resourceFiles['fixture_a:kora_lib.lookup.json']
+    resourceFiles['fixture_a:qblib.lookup.json'] = current
+    resourceFiles['fixture_a:kora_lib.lookup.json'] = nil
+    _G.print = function() end
+    local _, legacyTotal = scannerState.scanAll()
+    _G.print = realPrint
+    resourceFiles['fixture_a:kora_lib.lookup.json'] = current
+    resourceFiles['fixture_a:qblib.lookup.json'] = nil
+    harness.assertEqual(legacyTotal, scannedTotal, 'the legacy override file should yield the same records')
+end)
 
 harness.test('scanner combines metadata inference with explicit enrichment', function()
     local car = QB.lookup.model('custom_car', 'vehicle')

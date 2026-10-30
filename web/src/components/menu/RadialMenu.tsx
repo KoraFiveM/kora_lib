@@ -79,8 +79,8 @@ export function RadialMenuContainer() {
 
     const emitEvent = useCallback((event: string, data: unknown) => {
         if (requestId === null || token === null) return
-        void fetchNui("qblib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
-            console.error(`[qblib] radial event '${event}' failed:`, error)
+        void fetchNui("kora_lib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
+            console.error(`[kora_lib] radial event '${event}' failed:`, error)
         })
     }, [requestId, token])
 
@@ -97,13 +97,13 @@ export function RadialMenuContainer() {
     useEffect(() => {
         if (!isOpen || requestId === null || token === null) return
         const path = stack.slice(1).map((entry) => entry.viaId ?? "")
-        void fetchNui("qblib:nui:event", {
+        void fetchNui("kora_lib:nui:event", {
             requestId,
             token,
             event: "radialLevel",
             data: { path },
         } satisfies NuiRequestEventEnvelope).catch((error) => {
-            console.error("[qblib] radial level event failed:", error)
+            console.error("[kora_lib] radial level event failed:", error)
         })
     }, [isOpen, requestId, stack, token])
     const entries = useMemo<RingEntry[]>(() => {

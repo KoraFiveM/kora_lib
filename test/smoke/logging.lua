@@ -76,7 +76,7 @@ harness.test("event() rejects malformed data before recording or encoding", func
 end)
 
 harness.test("event() keeps the local record when webhook encoding fails", function()
-    convars = { qblib_log_webhook = "https://example.invalid/webhook" }
+    convars = { kora_lib_log_webhook = "https://example.invalid/webhook" }
     httpRequests = {}
     local before = QB.logging.getStats().ringSize
     local encode = json.encode
@@ -93,8 +93,8 @@ harness.test("event() keeps the local record when webhook encoding fails", funct
     harness.assertEqual(#httpRequests, 0, "an unencodable payload must not start an HTTP request")
 end)
 
-harness.test("event() calls the webhook when qblib_log_webhook is set", function()
-    convars = { qblib_log_webhook = "https://example.invalid/webhook" }
+harness.test("event() calls the webhook when kora_lib_log_webhook is set", function()
+    convars = { kora_lib_log_webhook = "https://example.invalid/webhook" }
     httpRequests = {}
 
     QB.logging.event("admin", 5, { action = "kick" })
@@ -105,7 +105,7 @@ harness.test("event() calls the webhook when qblib_log_webhook is set", function
 end)
 
 harness.test("event() webhook payload disables mention parsing", function()
-    convars = { qblib_log_webhook = "https://example.invalid/webhook" }
+    convars = { kora_lib_log_webhook = "https://example.invalid/webhook" }
     httpRequests = {}
 
     QB.logging.event("chat", 5, { text = "@everyone" })
@@ -125,7 +125,7 @@ harness.test("event() falls back to the legacy qbcore_log_webhook convar", funct
 end)
 
 harness.test("event() attributes the webhook username to the invoking resource", function()
-    convars = { qblib_log_webhook = "https://example.invalid/webhook" }
+    convars = { kora_lib_log_webhook = "https://example.invalid/webhook" }
     httpRequests = {}
     invokingResource = "some-other-resource"
 
@@ -138,7 +138,7 @@ harness.test("event() attributes the webhook username to the invoking resource",
 end)
 
 harness.test('event caps only oversized webhook content', function()
-    convars = { qblib_log_webhook = 'https://example.invalid/webhook' }
+    convars = { kora_lib_log_webhook = 'https://example.invalid/webhook' }
     local encode, mirroredContent = json.encode, nil
     json.encode = function(value)
         if value.content then mirroredContent = value.content end
@@ -150,6 +150,18 @@ harness.test('event caps only oversized webhook content', function()
 
     harness.assertEqual(#mirroredContent, 2000)
     harness.assertEqual(mirroredContent:sub(-3), '...')
+end)
+
+harness.test("event() prefers kora_lib_log_webhook, then qblib_log_webhook, then qbcore_log_webhook", function()
+    convars = { qblib_log_webhook = "https://old-name.invalid/webhook", qbcore_log_webhook = "https://legacy.invalid/webhook" }
+    httpRequests = {}
+    QB.logging.event("admin", 0, {})
+    harness.assertEqual(httpRequests[1].url, "https://old-name.invalid/webhook", "the qblib_ name outranks qbcore_")
+
+    convars.kora_lib_log_webhook = "https://example.invalid/webhook"
+    httpRequests = {}
+    QB.logging.event("admin", 0, {})
+    harness.assertEqual(httpRequests[1].url, "https://example.invalid/webhook", "the kora_lib_ name wins")
 end)
 
 harness.report("logging")

@@ -7,7 +7,7 @@ local harness = require("harness")
 local mocks = require("mocks")
 local net = mocks.install()
 
-local currentResource = "qblib_test"
+local currentResource = "kora_lib_test"
 _G.GetCurrentResourceName = function() return currentResource end
 
 dofile(repoRoot .. "config.lua")
@@ -477,7 +477,7 @@ harness.test("stopping the owning resource cancels and deletes its preview", fun
     currentResource = "placement_consumer"
     local p = QB.placement.start(OBJECT_MODEL)
     local entity = lastEntity
-    currentResource = "qblib_test"
+    currentResource = "kora_lib_test"
 
     net.fire("onClientResourceStop", "placement_consumer")
     harness.assertEqual(p.state, "resolved", "owner stop should cancel rather than strand the promise")
@@ -530,7 +530,7 @@ harness.test('only the placement owner may cancel a delegated workflow', functio
     harness.assertEqual(p.value, nil)
     harness.assertEqual(entities[entity], nil, 'owner cancellation removes the preview immediately')
     finishCameraTransition()
-    currentResource = 'qblib_test'
+    currentResource = 'kora_lib_test'
 end)
 
 harness.test("surface placement follows the scripted camera and stays bounded", function()
@@ -548,27 +548,27 @@ harness.test("surface placement follows the scripted camera and stays bounded", 
     harness.assertEqual(p.state, 'resolved')
 end)
 
-harness.test("qblib stop performs immediate camera, entity, HUD, radar, and freeze cleanup", function()
+harness.test("kora_lib stop performs immediate camera, entity, HUD, radar, and freeze cleanup", function()
     local p = QB.placement.start(OBJECT_MODEL)
     local entity = lastEntity
     local activeCamera
     for cam in pairs(cameras) do activeCamera = cam end
 
-    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "kora_lib_test")
 
-    harness.assertEqual(p.state, "rejected", "qblib stop should reject the interrupted session")
-    harness.assertEqual(entities[entity], nil, "qblib stop should delete the preview immediately")
-    harness.assertTrue(destroyedCameras[activeCamera] == true, "qblib stop should destroy the camera immediately")
-    harness.assertEqual(frozen[1], false, "qblib stop should unfreeze the player")
+    harness.assertEqual(p.state, "rejected", "kora_lib stop should reject the interrupted session")
+    harness.assertEqual(entities[entity], nil, "kora_lib stop should delete the preview immediately")
+    harness.assertTrue(destroyedCameras[activeCamera] == true, "kora_lib stop should destroy the camera immediately")
+    harness.assertEqual(frozen[1], false, "kora_lib stop should unfreeze the player")
     local clearedHud = false
     local closedConfirm = false
     for _, message in ipairs(nuiMessages) do
         if message.action == "placement:hud" and message.data == nil then clearedHud = true end
         if message.action == "placement:closeConfirm" then closedConfirm = true end
     end
-    harness.assertTrue(clearedHud, "qblib stop should clear the HUD")
-    harness.assertTrue(closedConfirm, "qblib stop should close the placement summary")
-    harness.assertTrue(radarCalls[#radarCalls] == true, "qblib stop should restore the radar")
+    harness.assertTrue(clearedHud, "kora_lib stop should clear the HUD")
+    harness.assertTrue(closedConfirm, "kora_lib stop should close the placement summary")
+    harness.assertTrue(radarCalls[#radarCalls] == true, "kora_lib stop should restore the radar")
 end)
 
 harness.report("placement")

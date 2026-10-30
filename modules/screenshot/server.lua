@@ -12,11 +12,13 @@ end
 
 local function screenshotDebug(session, stage, detail)
     local config = (Config and Config.screenshot) or {}
-    if GetConvarInt(config.debugConvar or 'qblib_screenshot_debug', 0) ~= 1 then return end
+    -- qblib_screenshot_debug is the deprecated name of the default debug convar.
+    if GetConvarInt(config.debugConvar or 'kora_lib_screenshot_debug', 0) ~= 1
+        and GetConvarInt('qblib_screenshot_debug', 0) ~= 1 then return end
 
     local elapsed = screenshotMilliseconds() - (session.startedAt or screenshotMilliseconds())
     local suffix = detail and detail ~= '' and ('; %s'):format(detail) or ''
-    print(('[qblib:screenshot][debug][%s] %s (+%d ms%s)'):format(session.token:sub(1, 8), stage, elapsed, suffix))
+    print(('[kora_lib:screenshot][debug][%s] %s (+%d ms%s)'):format(session.token:sub(1, 8), stage, elapsed, suffix))
 end
 
 local validEncodings = {
@@ -100,7 +102,7 @@ local function finish(session, err, result)
     if not isCallable(session.callback) then return end
     local ok, callbackErr = pcall(session.callback, err or false, result)
     if not ok then
-        print(('[qblib:screenshot] capture callback failed: %s'):format(tostring(callbackErr)))
+        print(('[kora_lib:screenshot] capture callback failed: %s'):format(tostring(callbackErr)))
     end
 end
 
@@ -178,7 +180,7 @@ function QB.screenshot.requestClient(player, options, callback)
         end
     end)
 
-    TriggerClientEvent('qblib:client:screenshotRequested', player, {
+    TriggerClientEvent('kora_lib:client:screenshotRequested', player, {
         token = token,
         rawBody = true,
         encoding = normalized.encoding,
@@ -198,7 +200,7 @@ end
 -- GetCurrentServerEndpoint is client-only. The player that received the
 -- request builds the upload URL, then reports this specific inability so a
 -- report can continue without waiting for the capture timeout.
-RegisterNetEvent('qblib:server:screenshotFailed', function(token, clientReason)
+RegisterNetEvent('kora_lib:server:screenshotFailed', function(token, clientReason)
     if type(token) ~= 'string' then return end
 
     local session = pendingUploads[token]
@@ -207,7 +209,7 @@ RegisterNetEvent('qblib:server:screenshotFailed', function(token, clientReason)
     finish(session, 'The client could not capture or return the screenshot.')
 end)
 
-RegisterNetEvent('qblib:server:screenshotProgressed', function(token, stage, value)
+RegisterNetEvent('kora_lib:server:screenshotProgressed', function(token, stage, value)
     local session = type(token) == 'string' and pendingUploads[token] or nil
     if not session or session.player ~= source then return end
 
@@ -226,7 +228,7 @@ local function persistScreenshot(session, data)
     if type(data) ~= 'string' or #data == 0 then return 'The screenshot was empty.', nil, 400 end
 
     local maxBytes = maxUploadBytes()
-    if #data > maxBytes then return 'The screenshot exceeded qblib\'s upload limit.', nil, 413 end
+    if #data > maxBytes then return 'The screenshot exceeded kora_lib\'s upload limit.', nil, 413 end
     if not imageMatchesEncoding(data, session.encoding) then
         return 'The uploaded file did not match the requested image format.', nil, 415
     end
@@ -245,7 +247,7 @@ local function persistScreenshot(session, data)
     return false, result, 200
 end
 
-RegisterNetEvent('qblib:server:screenshotCaptured', function(token, dataUri)
+RegisterNetEvent('kora_lib:server:screenshotCaptured', function(token, dataUri)
     local session = type(token) == 'string' and pendingUploads[token] or nil
     if not session or session.player ~= source then return end
 
@@ -260,7 +262,7 @@ RegisterNetEvent('qblib:server:screenshotCaptured', function(token, dataUri)
     local encoded = dataUri:sub(#prefix + 1)
     local maxBytes = maxUploadBytes()
     if #encoded > math.ceil(maxBytes / 3) * 4 then
-        finish(session, 'The screenshot exceeded qblib\'s upload limit.')
+        finish(session, 'The screenshot exceeded kora_lib\'s upload limit.')
         return
     end
 
@@ -324,8 +326,8 @@ local function receiveUpload(request, response)
     local maxBytes = maxUploadBytes()
     for name, value in pairs(request.headers or {}) do
         if tostring(name):lower() == 'content-length' and tonumber(value) and tonumber(value) > maxBytes then
-            finish(session, 'The screenshot exceeded qblib\'s upload limit.')
-            reply(response, 413, 'The screenshot exceeded qblib\'s upload limit.')
+            finish(session, 'The screenshot exceeded kora_lib\'s upload limit.')
+            reply(response, 413, 'The screenshot exceeded kora_lib\'s upload limit.')
             return
         end
     end

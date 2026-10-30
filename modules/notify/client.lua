@@ -14,6 +14,8 @@ function QB.notify.send(payload)
         if Config.third_party_notify then
             -- Forwarded as given: a third-party notify resource has its own
             -- defaults, and shouldn't have kora_lib's substituted underneath it.
+            TriggerEvent('kora_lib:notify:send', payload)
+            -- Deprecated alias: third-party handlers may still listen on the old name.
             TriggerEvent('qblib:notify:send', payload)
             return
         end
@@ -22,7 +24,7 @@ function QB.notify.send(payload)
     end)
 
     if not ok then
-        print(("[qblib:notify] send failed: %s"):format(tostring(err)))
+        print(("[kora_lib:notify] send failed: %s"):format(tostring(err)))
     end
 end
 

@@ -67,10 +67,10 @@ end
 dofile(repoRoot .. "build/finalise.lua")
 
 -- Simulates the NUI responding to the given request id/token via the shared
--- `qblib:nui:response` channel every QB.nui.request call resolves through.
+-- `kora_lib:nui:response` channel every QB.nui.request call resolves through.
 local function respond(requestId, token, ok, resultOrError)
     local field = ok and "result" or "error"
-    nuiCallbacks["qblib:nui:response"](
+    nuiCallbacks["kora_lib:nui:response"](
         { requestId = requestId, token = token, ok = ok, [field] = resultOrError },
         function() end
     )
@@ -99,23 +99,23 @@ local function lastMessage(action)
     end
 end
 
--- The qblib:nui:theme callback now lives in modules/theme/client.lua (see
+-- The kora_lib:nui:theme callback now lives in modules/theme/client.lua (see
 -- test/smoke/theme.lua) -- this file no longer dofiles that module, so those
 -- assertions moved rather than duplicated.
 
 harness.test("finalise exposes every registered-app lifecycle export", function()
     harness.assertEqual(registeredExports.nui_registerApp, QB.nui.registerApp,
-        "registerApp should cross the qblib export boundary")
+        "registerApp should cross the kora_lib export boundary")
     harness.assertEqual(registeredExports.nui_unregisterApp, QB.nui.unregisterApp,
-        "unregisterApp should cross the qblib export boundary")
+        "unregisterApp should cross the kora_lib export boundary")
     harness.assertEqual(registeredExports.nui_openApp, QB.nui.openApp,
-        "openApp should cross the qblib export boundary")
+        "openApp should cross the kora_lib export boundary")
     harness.assertEqual(registeredExports.nui_updateApp, QB.nui.updateApp,
-        "updateApp should cross the qblib export boundary")
+        "updateApp should cross the kora_lib export boundary")
     harness.assertEqual(registeredExports.nui_closeApp, QB.nui.closeApp,
-        "closeApp should cross the qblib export boundary")
+        "closeApp should cross the kora_lib export boundary")
     harness.assertEqual(registeredExports.nui_isAppOpen, QB.nui.isAppOpen,
-        "isAppOpen should cross the qblib export boundary")
+        "isAppOpen should cross the kora_lib export boundary")
 end)
 
 harness.test("request sends the action and payload via SendNuiMessage", function()
@@ -225,7 +225,7 @@ harness.test("a response with no token at all is ignored", function()
     local p = QB.nui.request("someAction", {})
     local requestId = lastRequestId()
 
-    nuiCallbacks["qblib:nui:response"]({ requestId = requestId, ok = true, result = "spoofed" }, function() end)
+    nuiCallbacks["kora_lib:nui:response"]({ requestId = requestId, ok = true, result = "spoofed" }, function() end)
     harness.assertEqual(p.state, "pending", "a response missing its token must not settle the promise")
 end)
 
@@ -236,14 +236,14 @@ harness.test("malformed browser callback payloads are ignored", function()
     local eventRequest = QB.nui.requestAsync("someAction", {}, false, nil, nil, function() events = events + 1 end)
     local eventRequestId, eventToken = lastRequestId(), lastToken()
 
-    nuiCallbacks["qblib:nui:response"]("not a table", function() end)
-    nuiCallbacks["qblib:nui:event"]("not a table", function() end)
+    nuiCallbacks["kora_lib:nui:response"]("not a table", function() end)
+    nuiCallbacks["kora_lib:nui:event"]("not a table", function() end)
 
     harness.assertEqual(p.state, "pending", "a malformed response must not settle a request")
     harness.assertEqual(events, 0, "a malformed event must not reach its handler")
 
     respond(requestId, token, true, "answered")
-    nuiCallbacks["qblib:nui:event"]({ requestId = eventRequestId, token = eventToken, event = "change" }, function() end)
+    nuiCallbacks["kora_lib:nui:event"]({ requestId = eventRequestId, token = eventToken, event = "change" }, function() end)
     harness.assertEqual(p.value, "answered", "a valid response should still settle normally")
     harness.assertEqual(events, 1, "a valid event should still reach its handler")
     QB.nui.cancelRequest(eventRequest)
@@ -601,7 +601,7 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openApp", "openApp should send its dedicated action")
     local accent = sentMessages[#sentMessages - 1]
-    harness.assertEqual(accent.action, "qbtheme:override", "the app accent should be applied through qblib's frame")
+    harness.assertEqual(accent.action, "qbtheme:override", "the app accent should be applied through kora_lib's frame")
     harness.assertEqual(accent.data, definition.accent, "the configured app accent should be forwarded")
     harness.assertEqual(sent.data.payload.app.id, definition.id, "the registered browser definition should be sent")
     harness.assertEqual(sent.data.payload.app.onAction, nil, "Lua action handlers must never enter the JSON payload")
@@ -752,14 +752,14 @@ harness.test("AppShell actions require the active token and route context to the
     local requestId, token = lastRequestId(), lastToken()
 
     local forged
-    nuiCallbacks["qblib:app:action"]({
+    nuiCallbacks["kora_lib:app:action"]({
         appId = "smoke:actions", token = "wrong", actionId = "refresh", viewId = "dashboard",
     }, function(result) forged = result end)
     harness.assertFalse(forged.ok, "an action with the wrong app token must be rejected")
     harness.assertEqual(receivedAction, nil, "a forged action must never reach the owning handler")
 
     local response
-    nuiCallbacks["qblib:app:action"]({
+    nuiCallbacks["kora_lib:app:action"]({
         appId = "smoke:actions",
         token = token,
         actionId = "open-record",
@@ -800,7 +800,7 @@ harness.test("AppShell changes validate sessions and forms, update content, and 
         "only the presence of the handler should enter the browser payload")
     local function change(sessionToken, actionId, value)
         local response
-        nuiCallbacks["qblib:app:change"]({ appId = "smoke:changes", token = sessionToken,
+        nuiCallbacks["kora_lib:app:change"]({ appId = "smoke:changes", token = sessionToken,
             actionId = actionId, viewId = "home", itemId = "pump", value = value },
             function(result) response = result end)
         return response
@@ -842,7 +842,7 @@ harness.test("AppShell discards yielding change handlers after newer edits", fun
     QB.nui.openApp("smoke:change-order")
     local token, oldResult, newResult = lastToken()
     local function change(quantity, cb)
-        nuiCallbacks["qblib:app:change"]({ appId = "smoke:change-order", token = token,
+        nuiCallbacks["kora_lib:app:change"]({ appId = "smoke:change-order", token = token,
             actionId = "edit", value = { quantity = quantity } }, cb)
     end
     local older = coroutine.create(function() change(1, function(result) oldResult = result end) end)
@@ -867,7 +867,7 @@ harness.test("AppShell accepts inline action field schemas and forwards submitte
     QB.nui.openApp("smoke:inline-fields")
     local _, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({
+    nuiCallbacks["kora_lib:app:action"]({
         appId = "smoke:inline-fields", token = token, actionId = "warn", viewId = "home", value = { reason = "Be civil" },
     }, function(result) response = result end)
     harness.assertTrue(response.ok, "an inline-field action should be accepted")
@@ -908,7 +908,7 @@ harness.test("registered apps are removed and closed automatically when their ow
     local opened = QB.nui.openApp("smoke:owned")
     local requestId, token = lastRequestId(), lastToken()
 
-    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "kora_lib_test")
     local close = lastMessage("closeApp")
     harness.assertEqual(close.action, "closeApp", "owner shutdown should close the visible app")
     harness.assertEqual(close.data.reason, "resourceStop", "owner shutdown should identify the close reason")
@@ -1021,7 +1021,7 @@ harness.test("AppShell rejects action ids not declared anywhere in the active de
     QB.nui.openApp("smoke:declared-actions")
     local requestId, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:declared-actions", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:declared-actions", token = token,
         actionId = "undeclared", viewId = "home" }, function(value) response = value end)
     harness.assertFalse(response.ok, "an undeclared action should be rejected")
     harness.assertFalse(called, "an undeclared action must not reach the owner")
@@ -1045,7 +1045,7 @@ harness.test("closeBeforeAction settles AppShell and releases focus before owner
     local opened = QB.nui.openApp("smoke:close-before")
     local _, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:close-before", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:close-before", token = token,
         actionId = "editor", viewId = "home" }, function(value) response = value end)
     harness.assertTrue(response.ok, "a declared close-before action should run")
     harness.assertEqual(opened.state, "resolved", "the shell request should settle before the handler returns")
@@ -1067,7 +1067,7 @@ harness.test("closeBeforeAction reports owner failures after the shell is gone",
     local opened = QB.nui.openApp("smoke:close-before-error")
     local token = lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:close-before-error", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:close-before-error", token = token,
         actionId = "editor", viewId = "home" }, function(value) response = value end)
 
     harness.assertFalse(response.ok, "an owner failure should be returned to the browser callback")
@@ -1091,7 +1091,7 @@ harness.test("AppShell validates and returns navigation and notice action result
     QB.nui.openApp("smoke:result-shapes")
     local requestId, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:result-shapes", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:result-shapes", token = token,
         actionId = "go", viewId = "home" }, function(value) response = value end)
     harness.assertTrue(response.ok, "valid result shapes should be accepted")
     harness.assertEqual(response.result.navigate.viewId, "records", "navigation should pass to the browser")
@@ -1125,7 +1125,7 @@ harness.test("AppShell declares lazy view actions and typed configuration fields
     QB.nui.openApp("smoke:lazy-view")
     local requestId, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:lazy-view", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:lazy-view", token = token,
         actionId = "load-resource", viewId = "home", itemId = "resource" }, function(value) response = value end)
     harness.assertTrue(response.ok, "a declared view-open action should be callable")
     harness.assertEqual(received[1], "load-resource", "the lazy action should reach its owner")
@@ -1153,7 +1153,7 @@ harness.test("AppShell applies updates before validating result navigation", fun
     QB.nui.openApp("smoke:update-navigation")
     local requestId, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:update-navigation", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:update-navigation", token = token,
         actionId = "load", viewId = "home" }, function(value) response = value end)
 
     harness.assertTrue(response.ok, "navigation may target a view introduced by the same result update")
@@ -1189,7 +1189,7 @@ harness.test("AppShell recursively validates dependent fields and nested collect
     QB.nui.openApp("smoke:nested-action")
     local requestId, token = lastRequestId(), lastToken()
     local response
-    nuiCallbacks["qblib:app:action"]({ appId = "smoke:nested-action", token = token,
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:nested-action", token = token,
         actionId = "open-child", viewId = "home", itemId = "child" }, function(value) response = value end)
     harness.assertTrue(response.ok, "a recursively declared child action should be accepted")
     harness.assertEqual(called, "open-child", "the nested child action should reach its owner")
@@ -1296,7 +1296,7 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     local beforeFocus = #focusCalls
     local function ready()
         local result
-        nuiCallbacks['qblib:dispatchfeed:ready']({}, function(value) result = value end)
+        nuiCallbacks['kora_lib:dispatchfeed:ready']({}, function(value) result = value end)
         harness.assertEqual(result, true, 'ready acknowledges without returning incident data')
         harness.assertEqual(sentMessages[#sentMessages].action, 'qbdispatch:feed')
         return sentMessages[#sentMessages].data
@@ -1347,6 +1347,13 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     harness.assertEqual(#focusCalls, beforeFocus + 2, 'only the unrelated lease acquires and releases focus')
     GetInvokingResource = previousCaller
     GetGameTimer = previousClock
+end)
+
+harness.test("internal NUI callbacks keep answering under their deprecated qblib: names", function()
+    for _, name in ipairs({ "nui:response", "nui:event", "app:action", "app:change", "dispatchfeed:ready" }) do
+        harness.assertTrue(nuiCallbacks["kora_lib:" .. name] ~= nil, "missing kora_lib:" .. name)
+        harness.assertTrue(nuiCallbacks["qblib:" .. name] ~= nil, "missing deprecated qblib:" .. name)
+    end
 end)
 
 harness.report("nui")

@@ -315,7 +315,7 @@ local function runContext(session)
     if activeContext ~= session then return end
     if not ok then
         activeContext = nil
-        print(('[qblib:ox] context menu failed: %s'):format(tostring(result)))
+        print(('[kora_lib:ox] context menu failed: %s'):format(tostring(result)))
         return
     end
 
@@ -440,7 +440,7 @@ local function runMenu(session)
         if activeMenu ~= session then return end
         if not ok then
             activeMenu = nil
-            print(('[qblib:ox] menu failed: %s'):format(tostring(result)))
+            print(('[kora_lib:ox] menu failed: %s'):format(tostring(result)))
             return
         end
         if not result or result.cancelled then
@@ -580,7 +580,7 @@ local function runRadial(session)
     releaseRadialLeases(session)
     if not ok then
         if activeRadial == session then activeRadial = nil end
-        print(('[qblib:ox] radial menu failed: %s'):format(tostring(err)))
+        print(('[kora_lib:ox] radial menu failed: %s'):format(tostring(err)))
     end
 end
 
@@ -1117,7 +1117,7 @@ function QB.ox.setLocale(key, data, owner)
 end
 
 
-QB.nui.registerCallback('qblib:oxLocale', function()
+QB.nui.registerCallback('kora_lib:oxLocale', function()
     return oxLocale
 end)
 

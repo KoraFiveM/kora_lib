@@ -2,10 +2,18 @@
 -- local/events/client.lua (separate Lua chunks can't share a local table) --
 -- any change here must be made there too, or the two realms stop talking.
 local events = {
+    gateway = 'kora_lib:events:invoke',
+    handshake = 'kora_lib:events:handshake',
+    handshakeResponse = 'kora_lib:events:handshake:response',
+    push = 'kora_lib:events:push',
+}
+
+-- Deprecated pre-rename names of the public gateway and its handshake, still
+-- accepted so third-party callers keep working.
+local legacyEvents = {
     gateway = 'qblib:events:invoke',
     handshake = 'qblib:events:handshake',
     handshakeResponse = 'qblib:events:handshake:response',
-    push = 'qblib:events:push',
 }
 
 local tokens = {}
@@ -124,7 +132,7 @@ function QB.events.register(name, handler, opts)
     -- (Re-registering your own name -- a resource restart -- is normal.)
     local previousOwner = eventOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("[qblib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
+        print(("[kora_lib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
             :format(name, previousOwner, owner))
     end
 
@@ -146,7 +154,7 @@ function QB.events.unregister(name)
     return true
 end
 
-RegisterNetEvent(events.handshake, function()
+local function acceptHandshake(responseEvent)
     local src = source
     if type(src) ~= "number" or src < 1 or src % 1 ~= 0 or src ~= src
         or src == math.huge or src == -math.huge then
@@ -157,10 +165,13 @@ RegisterNetEvent(events.handshake, function()
 
     tokens[src] = token
 
-    TriggerClientEvent(events.handshakeResponse, src, token)
-end)
+    TriggerClientEvent(responseEvent, src, token)
+end
 
-RegisterNetEvent(events.gateway, function(token, name, ...)
+RegisterNetEvent(events.handshake, function() acceptHandshake(events.handshakeResponse) end)
+RegisterNetEvent(legacyEvents.handshake, function() acceptHandshake(legacyEvents.handshakeResponse) end)
+
+local function dispatchGateway(token, name, ...)
     local src = source
 
     if type(src) ~= "number" or src < 1 or src % 1 ~= 0 or src ~= src
@@ -179,9 +190,12 @@ RegisterNetEvent(events.gateway, function(token, name, ...)
     -- shouldn't produce an unhandled server error a client can trigger at will.
     local ok, err = pcall(definition.handler, src, ...)
     if not ok then
-        print(("[qblib:events] handler for '%s' errored: %s"):format(name, tostring(err)))
+        print(("[kora_lib:events] handler for '%s' errored: %s"):format(name, tostring(err)))
     end
-end)
+end
+
+RegisterNetEvent(events.gateway, dispatchGateway)
+RegisterNetEvent(legacyEvents.gateway, dispatchGateway)
 
 AddEventHandler('playerDropped', function()
     tokens[source] = nil

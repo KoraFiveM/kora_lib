@@ -68,9 +68,9 @@ _G.QBTheme = {
 dofile(repoRoot .. "modules/nui/client.lua")
 dofile(repoRoot .. "modules/theme/client.lua")
 
-harness.test("legacy qblib theme callback keeps its response shape", function()
+harness.test("legacy kora_lib theme callback keeps its response shape", function()
     local response
-    nuiCallbacks["qblib:nui:theme"]({}, function(result) response = result end)
+    nuiCallbacks["kora_lib:nui:theme"]({}, function(result) response = result end)
     harness.assertEqual(response.accentColor, "#7C3AED", "legacy accentColor")
 end)
 

@@ -220,7 +220,7 @@ harness.test("start can opt out of the duration cap for compatibility providers"
         maxDuration = false,
     })
 
-    harness.assertTrue(completed, "the compatibility override should allow a duration above qblib's default cap")
+    harness.assertTrue(completed, "the compatibility override should allow a duration above kora_lib's default cap")
 end)
 
 harness.test("start rejects non-finite duration values before creating a session", function()
@@ -341,7 +341,7 @@ harness.test("cancel controls can be delegated to a compatibility command", func
         cancelControls = false,
     })
 
-    harness.assertTrue(completed, "qblib should not poll its native cancel keys when a compatibility command owns them")
+    harness.assertTrue(completed, "kora_lib should not poll its native cancel keys when a compatibility command owns them")
 end)
 
 harness.test("disable.combat and disable.car disable the expected controls", function()
@@ -503,7 +503,7 @@ harness.test("local props use defaults, custom attachment fields, and clean up",
     harness.assertTrue(completed, "props should not change successful completion")
     harness.assertEqual(#createdObjects, 2, "both props should be created")
     harness.assertFalse(createdObjects[1].networked, "progress props must remain local under strict entity lockdown")
-    harness.assertFalse(createdObjects[1].mission, "progress props should use qblib lifecycle ownership")
+    harness.assertFalse(createdObjects[1].mission, "progress props should use kora_lib lifecycle ownership")
     harness.assertFalse(createdObjects[1].door, "the object door flag should remain false")
     harness.assertEqual(pedBoneCalls[1], 60309, "the default numeric bone should be 60309")
     harness.assertEqual(namedBoneCalls[1], "PH_R_Hand", "named bones should resolve by name")

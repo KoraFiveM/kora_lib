@@ -444,7 +444,7 @@ harness.test("getCoords exits cleanly when its owning resource stops", function(
     nextResult = { hit = 0 }
     local wait = Wait
     _G.Wait = function()
-        net.fire("onClientResourceStop", "qblib_test")
+        net.fire("onClientResourceStop", "kora_lib_test")
     end
 
     local result = QB.raycast.getCoords()

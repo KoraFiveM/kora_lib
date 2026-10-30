@@ -20,6 +20,7 @@ local scaleformCalls = {}
 local textureRequests = {}
 local textureReleases = {}
 local textEntryCalls = 0
+-- Pharmacy was hidden before the rename: only the deprecated qblib: key exists.
 local resourceKvps = { ['qblib:blips:category:31'] = '0' }
 local nextBlip = 0
 local frontendReady = false
@@ -252,7 +253,7 @@ harness.test("creates and renders an optional pause-map detail panel", function(
     net.step()
     net.step()
     harness.assertTrue(#scaleformCalls > callsBeforeClose,
-        "closing the pause frontend should clear qblib's active detail column")
+        "closing the pause frontend should clear kora_lib's active detail column")
     harness.assertEqual(scaleformCalls[#scaleformCalls], "SHOW_COLUMN",
         "the scaleform column must not remain logically selected after the frontend closes")
 end)
@@ -373,7 +374,7 @@ harness.test("category visibility persists, hides routes, and restores each conf
 
     harness.assertTrue(QB.blips.hideCategory("vehicle tracking"))
     harness.assertFalse(QB.blips.isCategoryVisible("Vehicle Tracking"))
-    harness.assertEqual(resourceKvps["qblib:blips:category:38"], "0", "the hidden preference should be persisted")
+    harness.assertEqual(resourceKvps["kora_lib:blips:category:38"], "0", "the hidden preference should be persisted")
     harness.assertEqual(blipCalls[routed].display, 0)
     harness.assertEqual(blipCalls[routed].route, false, "a hidden category must not leave a route line behind")
 
@@ -383,7 +384,7 @@ harness.test("category visibility persists, hides routes, and restores each conf
     harness.assertEqual(blipCalls[later].display, 0, "new blips should honor the persisted category state")
 
     harness.assertTrue(QB.blips.showCategory("Vehicle Tracking"))
-    harness.assertEqual(resourceKvps["qblib:blips:category:38"], "1")
+    harness.assertEqual(resourceKvps["kora_lib:blips:category:38"], "1")
     harness.assertEqual(blipCalls[routed].display, 5, "show should restore the first configured display")
     harness.assertEqual(blipCalls[later].display, 8, "show should restore each blip's own configured display")
     harness.assertEqual(blipCalls[routed].route, true, "show should restore the configured route")

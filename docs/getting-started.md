@@ -35,7 +35,7 @@ default.
 An older resource can hard-code a file import such as
 `@ox_lib/init.lua` or `@PolyZone/BoxZone.lua` in its manifest. `provide` cannot
 satisfy that kind of import: FiveM needs a real, started resource with the exact
-name. Only then install the matching qblib-backed wrapper and start it after
+name. Only then install the matching kora_lib-backed wrapper and start it after
 `kora_lib`, before that legacy consumer:
 
 ```cfg
@@ -64,7 +64,7 @@ Declare the dependency and load the proxy from the consuming resource's `fxmanif
 fx_version 'cerulean'
 game 'gta5'
 
-dependency 'qblib'
+dependency 'kora_lib'
 shared_script '@kora_lib/init.lua'
 
 client_script 'client.lua'
@@ -94,16 +94,16 @@ only by the optional `ox_lib` compatibility resource.
 Add a temporary client command to a consumer resource:
 
 ```lua
-RegisterCommand('qblib_check', function()
+RegisterCommand('kora_lib_check', function()
     QB.notify.send({
-        title = 'qblib is ready',
+        title = 'kora_lib is ready',
         message = ('Player %s is connected.'):format(QB.cache.serverId()),
         type = 'success',
     })
 end, false)
 ```
 
-Restart the consumer and run `/qblib_check`. A notification with your server ID confirms that the proxy, client exports, cache, theme, and NUI are available.
+Restart the consumer and run `/kora_lib_check`. A notification with your server ID confirms that the proxy, client exports, cache, theme, and NUI are available.
 
 ## Keep valuable actions server-authoritative
 

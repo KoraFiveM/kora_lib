@@ -145,7 +145,7 @@ function QB.anim.play(entity, dict, clip, opts)
             if opts.onFinish then
                 local ok, err = pcall(opts.onFinish, entity)
                 if not ok then
-                    print(("[qblib] QB.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
+                    print(("[kora_lib] QB.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
                 end
             end
         end)

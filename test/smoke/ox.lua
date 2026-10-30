@@ -809,7 +809,7 @@ harness.test('skillCheck rejects sparse input lists before opening', function()
     harness.assertEqual(#requests, requestCount, 'sparse inputs must not open a skill check')
 end)
 
-harness.test('TextUI preserves the original ox text and extracts a qblib key chip', function()
+harness.test('TextUI preserves the original ox text and extracts a kora_lib key chip', function()
     QB.ox.showTextUI('[E] - Open door', {
         position = 'left-center', icon = { 'fas', 'door-open' }, iconColor = '#fff',
         iconAnimation = 'pulse', alignIcon = 'top', style = { color = 'red' },
@@ -846,7 +846,7 @@ harness.test('locale and owner disposal are explicit contracts', function()
     harness.assertEqual(message.action, 'oxLocale')
     harness.assertEqual(message.payload.cancel, 'Abbrechen')
     harness.assertEqual(message.payload.confirm, 'Bestaetigen')
-    harness.assertEqual(nuiCallbacks['qblib:oxLocale']().more, 'Mehr...')
+    harness.assertEqual(nuiCallbacks['kora_lib:oxLocale']().more, 'Mehr...')
 
     QB.ox.registerContext({ id = 'temporary', title = 'Temporary', options = {} }, 'temporary_owner')
     QB.ox.disposeOwner('temporary_owner')

@@ -1,6 +1,6 @@
 -- Legacy callback retained for callers that integrated with kora_lib before the
 -- shared kora_theme browser loader existed.
-QB.nui.registerCallback("qblib:nui:theme", function()
+QB.nui.registerCallback("kora_lib:nui:theme", function()
     return { accentColor = QB.theme.accentColor() }
 end)
 

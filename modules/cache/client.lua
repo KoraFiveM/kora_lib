@@ -70,7 +70,7 @@ local function setValue(key, value)
         if entry then
             local ok, err = pcall(entry.handler, value, old)
             if not ok then
-                print(("[qblib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
+                print(("[kora_lib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
             end
 
             if handlers[entryIndex] == entry then entryIndex = entryIndex + 1 end
@@ -206,7 +206,7 @@ function QB.cache.set(key, value)
     assertKey(key)
 
     if RESERVED_KEYS[key] then
-        print(("[qblib:cache] Ignoring QB.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
+        print(("[kora_lib:cache] Ignoring QB.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
         return
     end
 

@@ -77,7 +77,7 @@ local function start(action, onStart, onTick, onFinish, owner)
             })
         end)
         release(session)
-        if not ok then print(('[qblib:progressbar] %s'):format(completed)) end
+        if not ok then print(('[kora_lib:progressbar] %s'):format(completed)) end
         if onFinish and not session.stopped then onFinish(not ok or completed ~= true) end
     end)
 end

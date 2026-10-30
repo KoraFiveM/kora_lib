@@ -58,18 +58,19 @@ Config = {
 }
 dofile(repoRoot .. 'modules/config/server.lua')
 
-H.test('qblib registers its own shared and server-only configuration', function()
+H.test('kora_lib registers its own shared and server-only configuration', function()
     local entry = QB.config.read('kora_lib')
     H.assertEqual(entry.schema.fields.ui.scope, 'shared')
     H.assertEqual(entry.schema.fields.discord.scope, 'server')
     H.assertEqual(entry.values.discord.roleSyncInterval, 300000)
 end)
 
-H.test('qblib self registration withholds its server-only configuration from clients', function()
+H.test('kora_lib self registration withholds its server-only configuration from clients', function()
     _G.source = 42
-    netEvents['qblib:server:configRequested']('kora_lib', 1)
-    local snapshot = clientEvents[#clientEvents]
-    H.assertEqual(snapshot.name, 'qblib:client:configSnapshot')
+    netEvents['kora_lib:server:configRequested']('kora_lib', 1)
+    local snapshot = clientEvents[#clientEvents - 1]
+    H.assertEqual(snapshot.name, 'kora_lib:client:configSnapshot')
+    H.assertEqual(clientEvents[#clientEvents].name, 'qblib:client:configSnapshot', 'deprecated alias for older consumers')
     H.assertEqual(snapshot.target, 42)
     H.assertEqual(snapshot.values[2].discord, nil)
     H.assertEqual(snapshot.values[4], 1)
@@ -78,8 +79,9 @@ end)
 H.test('configuration snapshot requests are rate limited per player', function()
     _G.source = 43
     local before = #clientEvents
-    for requestId = 1, 40 do netEvents['qblib:server:configRequested']('kora_lib', requestId) end
-    H.assertEqual(#clientEvents - before, 30)
+    for requestId = 1, 40 do netEvents['kora_lib:server:configRequested']('kora_lib', requestId) end
+    -- Each accepted request answers on the kora_lib: name and its deprecated alias.
+    H.assertEqual(#clientEvents - before, 60)
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

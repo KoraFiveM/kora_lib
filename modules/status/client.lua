@@ -282,10 +282,10 @@ function QB.status.offChange(listenerId)
     return true
 end
 
-QB.events.onPush("qblib:status:apply", function(name, opts)
+QB.events.onPush("kora_lib:status:apply", function(name, opts)
     QB.status.apply(name, opts)
 end)
 
-QB.events.onPush("qblib:status:remove", function(name)
+QB.events.onPush("kora_lib:status:remove", function(name)
     QB.status.remove(name)
 end)

@@ -119,7 +119,7 @@ describe("AppShell", () => {
         expect(screen.queryByText("Retired notice")).not.toBeInTheDocument()
         expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled()
         expect(respondToNuiMock).toHaveBeenCalledTimes(settled)
-        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ appId: "next:app", token: nextToken }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("kora_lib:app:action", expect.objectContaining({ appId: "next:app", token: nextToken }))
         await act(async () => pending[1]({ ok: true, result: { notice: { tone: "success", message: "Current result" } } }))
         expect(screen.getByRole("status")).toHaveTextContent("Current result")
         expect(screen.getByRole("button", { name: "Next action" })).toBeEnabled()
@@ -156,7 +156,7 @@ describe("AppShell", () => {
         expect(screen.getByLabelText("Account")).toHaveValue("bank")
         expect(screen.getByRole("button", { name: "Fill up" })).toBeEnabled()
         expect(fetchNuiMock).toHaveBeenCalledTimes(1)
-        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:change", {
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:change", {
             appId: "test:app", token, actionId: "fill", viewId: "home", tabId: undefined, itemId: undefined,
             value: { quantity: 10, account: "bank" },
         })
@@ -172,7 +172,7 @@ describe("AppShell", () => {
         await user.click(screen.getByRole("button", { name: "Rename" }))
         expect(fetchNuiMock).not.toHaveBeenCalled()
         await user.type(screen.getByLabelText("Name"), "A")
-        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:change", expect.objectContaining({ actionId: "rename", itemId: "alpha", value: { name: "A" } }))
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:change", expect.objectContaining({ actionId: "rename", itemId: "alpha", value: { name: "A" } }))
         expect(screen.getByLabelText("Name")).toHaveValue("A")
     })
 
@@ -206,7 +206,7 @@ describe("AppShell", () => {
 
         await user.click(screen.getByRole("button", { name: "Create" }))
         await user.click(screen.getByRole("button", { name: "Run action" }))
-        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:action", expect.objectContaining({ value: {} }))
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:action", expect.objectContaining({ value: {} }))
     })
 
     it("renders a bounded progress graph with accessible values", () => {
@@ -317,7 +317,7 @@ describe("AppShell", () => {
         ] })
 
         await user.click(screen.getAllByRole("button", { name: "Sample" })[0])
-        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:app:action", expect.objectContaining({
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:action", expect.objectContaining({
             actionId: "load-resource",
             itemId: "resource:sample",
             viewId: "resource:sample",
@@ -396,13 +396,13 @@ describe("AppShell", () => {
         const open = within(card as HTMLElement).getByRole("button", { name: /Halloween Giveaway/ })
         open.focus()
         await user.keyboard("{Enter}")
-        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ actionId: "open-event", itemId: "halloween", value: { event: 42 } }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "open-event", itemId: "halloween", value: { event: 42 } }))
         await user.click(screen.getByRole("button", { name: "Manage event" }))
-        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ actionId: "manage", itemId: "halloween", value: { event: 42 } }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "manage", itemId: "halloween", value: { event: 42 } }))
         await user.click(screen.getByRole("button", { name: "Edit event" }))
         await user.type(screen.getByLabelText("Event name"), "Updated")
         await user.click(screen.getByRole("button", { name: "Run action" }))
-        expect(fetchNuiMock).toHaveBeenLastCalledWith("qblib:app:action", expect.objectContaining({ actionId: "edit", itemId: "halloween", value: { name: "Updated" } }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "edit", itemId: "halloween", value: { name: "Updated" } }))
         await user.click(screen.getByRole("button", { name: "Next" }))
         expect(screen.getByText("Community Giveaway")).toBeInTheDocument()
         expect(container.querySelector('article[data-card-style="media"] svg')).toBeInTheDocument()

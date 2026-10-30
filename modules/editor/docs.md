@@ -6,11 +6,11 @@ create a networked entity.
 
 ## Setup
 
-The commands are enabled by default and require the `qblib.editor` ACE. Grant
-that ACE only to trusted developers or administrators:
+The commands are enabled by default and require the `kora_lib.editor` ACE. Grant
+that ACE only to trusted developers or administrators (the deprecated `qblib.editor` ACE is still honoured):
 
 ```cfg
-add_ace group.admin qblib.editor allow
+add_ace group.admin kora_lib.editor allow
 ```
 
 Configure the commands in `Config.editor`:
@@ -19,7 +19,7 @@ Configure the commands in `Config.editor`:
 Config.editor = {
     enabled = true,
     permission = 'editor',
-    permissionPrefix = 'qblib',
+    permissionPrefix = 'kora_lib',
     zoneCommand = 'qb_zonecreator',
     placementCommand = 'qb_place',
 }

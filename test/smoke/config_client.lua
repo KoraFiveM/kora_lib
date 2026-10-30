@@ -46,14 +46,14 @@ config.onChange('shared', function(value, previous)
 end)
 
 H.test('client consumers request their resource snapshot', function()
-    H.assertEqual(serverEvents[#serverEvents].name, 'qblib:server:configRequested')
+    H.assertEqual(serverEvents[#serverEvents].name, 'kora_lib:server:configRequested')
     H.assertEqual(serverEvents[#serverEvents].values[1], 'sample')
     sampleRequestId = serverEvents[#serverEvents].values[2]
     H.assertEqual(sampleRequestId, 1)
 end)
 
 H.test('client snapshots apply shared and client-only fields only', function()
-    netEvents['qblib:client:configSnapshot']('sample', { shared = 15, clientOnly = 'red' }, 2, sampleRequestId)
+    netEvents['kora_lib:client:configSnapshot']('sample', { shared = 15, clientOnly = 'red' }, 2, sampleRequestId)
     H.assertEqual(values.shared, 15)
     H.assertEqual(values.clientOnly, 'red')
     H.assertEqual(values.serverOnly, true)
@@ -62,18 +62,18 @@ H.test('client snapshots apply shared and client-only fields only', function()
 end)
 
 H.test('live client updates apply a new revision', function()
-    netEvents['qblib:client:configUpdated']('sample', { 'shared' }, 20, 3)
+    netEvents['kora_lib:client:configUpdated']('sample', { 'shared' }, 20, 3)
     H.assertEqual(values.shared, 20)
     H.assertEqual(observed[1], 20)
     H.assertEqual(observed[2], 15)
 end)
 
 H.test('a delayed snapshot cannot overwrite a newer live update', function()
-    netEvents['qblib:client:configSnapshot']('sample', { shared = 15 }, 2, sampleRequestId)
+    netEvents['kora_lib:client:configSnapshot']('sample', { shared = 15 }, 2, sampleRequestId)
     H.assertEqual(values.shared, 20)
 end)
 
-H.test('consumer-local QB.config forwards editor opens to qblib', function()
+H.test('consumer-local QB.config forwards editor opens to kora_lib', function()
     H.assertTrue(config.open('sample'))
     H.assertEqual(openedResource, 'sample')
 end)
@@ -93,12 +93,12 @@ H.test('snapshots clear optional scalar and object defaults and notify bindings'
     local bound = 'not updated'
     config.bind('remote', 'note', function(value) bound = value end)
     local remoteRequestId = serverEvents[#serverEvents].values[2]
-    netEvents['qblib:client:configSnapshot']('remote', { note = 'enabled' }, 1, remoteRequestId)
+    netEvents['kora_lib:client:configSnapshot']('remote', { note = 'enabled' }, 1, remoteRequestId)
     H.assertEqual(bound, 'enabled')
-    local cleared = { __qblibConfigType = 'nil' }
+    local cleared = { __koraLibConfigType = 'nil' }
     local localRequestId = serverEvents[#serverEvents - 1].values[2]
-    netEvents['qblib:client:configSnapshot']('sample', { note = cleared, details = cleared }, 2, localRequestId)
-    netEvents['qblib:client:configUpdated']('remote', { 'note' }, cleared, 2)
+    netEvents['kora_lib:client:configSnapshot']('sample', { note = cleared, details = cleared }, 2, localRequestId)
+    netEvents['kora_lib:client:configUpdated']('remote', { 'note' }, cleared, 2)
     H.assertEqual(values.note, nil)
     H.assertEqual(values.details, nil)
     H.assertEqual(changes, 1)
@@ -112,12 +112,12 @@ H.test('client bridge exports refuse commits and resets without persistence nati
     _G.SaveResourceFile = nil
     local consumer = makeConfig({})
     local settings = consumer.define({ enabled = consumer.boolean(true, { live = true }) })
-    local snapshot = bridges.qblib_configRead()
+    local snapshot = bridges.kora_lib_configRead()
     local request = { path = { 'enabled' }, value = false, revision = snapshot.revision }
-    H.assertEqual(bridges.qblib_configCommit(request).ok, false)
-    H.assertEqual(bridges.qblib_configReset(request).ok, false)
+    H.assertEqual(bridges.kora_lib_configCommit(request).ok, false)
+    H.assertEqual(bridges.kora_lib_configReset(request).ok, false)
     H.assertEqual(settings.enabled, true)
-    H.assertEqual(bridges.qblib_configRead().revision, snapshot.revision)
+    H.assertEqual(bridges.kora_lib_configRead().revision, snapshot.revision)
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

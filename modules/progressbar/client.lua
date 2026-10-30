@@ -1,7 +1,7 @@
 ---@class QBProgressBarDisable
 ---@field move? boolean Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to false.
 ---@field moveMode? 'freeze'|'controls' How move=true is enforced. Defaults to freeze; ox compatibility uses controls.
----@field controlProfile? 'qblib'|'ox' Selects the exact control set. Defaults to kora_lib.
+---@field controlProfile? 'kora_lib'|'ox' Selects the exact control set. Defaults to kora_lib.
 ---@field sprint? boolean Disables sprinting. Defaults to false.
 ---@field combat? boolean Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to false.
 ---@field car? boolean Disables vehicle driving controls while the ped is in a vehicle. Defaults to false.
@@ -84,7 +84,7 @@ end
 local propRegistry = QB.resources.registry(function(entity)
     local ok, err = pcall(deleteProgressProp, entity)
     if not ok then
-        print(("[qblib:progressbar] failed to clean up prop %s: %s"):format(tostring(entity), tostring(err)))
+        print(("[kora_lib:progressbar] failed to clean up prop %s: %s"):format(tostring(entity), tostring(err)))
     end
 end)
 
@@ -171,8 +171,10 @@ local function assertPayload(payload)
         end
         assert(payload.disable.moveMode == nil or payload.disable.moveMode == 'freeze' or payload.disable.moveMode == 'controls',
             "Progress bar disable.moveMode must be 'freeze' or 'controls'.")
-        assert(payload.disable.controlProfile == nil or payload.disable.controlProfile == 'qblib' or payload.disable.controlProfile == 'ox',
-            "Progress bar disable.controlProfile must be 'qblib' or 'ox'.")
+        assert(payload.disable.controlProfile == nil or payload.disable.controlProfile == 'kora_lib'
+            -- 'qblib' is the deprecated name of the default profile.
+            or payload.disable.controlProfile == 'qblib' or payload.disable.controlProfile == 'ox',
+            "Progress bar disable.controlProfile must be 'kora_lib' or 'ox'.")
     end
 
     if payload.anim then
@@ -240,7 +242,7 @@ end
 local function safeCleanup(label, fn)
     local ok, err = pcall(fn)
     if not ok then
-        print(("[qblib:progressbar] %s cleanup failed: %s"):format(label, tostring(err)))
+        print(("[kora_lib:progressbar] %s cleanup failed: %s"):format(label, tostring(err)))
     end
 end
 
@@ -372,7 +374,7 @@ local function prepareProp(session, definition, index)
 
     if not ok then
         discardProp(session, entity)
-        print(("[qblib:progressbar] prop %d could not be created -- continuing without it: %s")
+        print(("[kora_lib:progressbar] prop %d could not be created -- continuing without it: %s")
             :format(index, tostring(err)))
     end
 end
@@ -449,7 +451,7 @@ function QB.progressbar.start(payload, owner, hooks)
             elseif payload.strictAnim then
                 error(("Progress bar animation dictionary '%s' could not be loaded."):format(payload.anim.dict))
             else
-                print(("[qblib:progressbar] anim dict '%s' could not be loaded -- continuing without it.")
+                print(("[kora_lib:progressbar] anim dict '%s' could not be loaded -- continuing without it.")
                     :format(payload.anim.dict))
             end
         elseif payload.scenario then

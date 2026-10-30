@@ -1,7 +1,9 @@
 -- kora_lib owns the configuration editor boundary so an administrator can swap
 -- kora_admin without also replacing configuration authorization or transport.
 
-local ACE = 'qblib.config.edit'
+local ACE = 'kora_lib.config.edit'
+-- Deprecated pre-rename ACE, still honoured for servers that already granted it.
+local LEGACY_ACE = 'qblib.config.edit'
 
 -- The permission check runs first inside each handler, but it can call into
 -- kora_admin and the ACE system, so cap what a non-admin can make the server do.
@@ -47,7 +49,10 @@ local function allowed(source)
         -- Older kora_admin releases have no bridge; retain their standalone ACE path.
         if not ok and not tostring(permitted):find('No such export canEditConfig', 1, true) then return false end
     end
-    if type(IsPlayerAceAllowed) == 'function' and IsPlayerAceAllowed(source, ACE) == true then return true end
+    if type(IsPlayerAceAllowed) == 'function'
+        and (IsPlayerAceAllowed(source, ACE) == true or IsPlayerAceAllowed(source, LEGACY_ACE) == true) then
+        return true
+    end
     return QB.permissions and QB.permissions.hasPermission
         and QB.permissions.hasPermission(source, 'admin') == true
 end
@@ -150,7 +155,14 @@ local function requireEditor(source)
     return true
 end
 
-QB.callback.register('qblib:configCatalog', function(source)
+-- Registers the callback under its kora_lib: name and under the deprecated
+-- qblib: alias, so callers that predate the rename keep working.
+local function registerWithLegacyAlias(name, handler, options)
+    QB.callback.register(name, handler, options)
+    QB.callback.register((name:gsub('^kora_lib:', 'qblib:')), handler, options)
+end
+
+registerWithLegacyAlias('kora_lib:configCatalog', function(source)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     local catalogOk, summaries = pcall(QB.config.catalog)
@@ -164,7 +176,7 @@ QB.callback.register('qblib:configCatalog', function(source)
     return catalog
 end, READ_LIMIT)
 
-QB.callback.register('qblib:configRead', function(source, resource)
+registerWithLegacyAlias('kora_lib:configRead', function(source, resource)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validResource(resource) then return nil, 'invalid resource' end
@@ -182,12 +194,12 @@ local function isRegistered(resource)
     return false
 end
 
-QB.callback.register('qblib:configRestart', function(source, resource)
+registerWithLegacyAlias('kora_lib:configRestart', function(source, resource)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validResource(resource) or not isRegistered(resource) then return nil, 'invalid resource' end
     if resource == GetCurrentResourceName() then
-        return { ok = false, error = 'qblib cannot restart itself from its own configuration editor.' }
+        return { ok = false, error = 'kora_lib cannot restart itself from its own configuration editor.' }
     end
     if type(GetResourceState) ~= 'function' or GetResourceState(resource) ~= 'started' then
         return { ok = false, error = 'The resource is not currently running.' }
@@ -205,7 +217,7 @@ QB.callback.register('qblib:configRestart', function(source, resource)
     return { ok = true }
 end, RESTART_LIMIT)
 
-QB.callback.register('qblib:configCommit', function(source, request)
+registerWithLegacyAlias('kora_lib:configCommit', function(source, request)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validRequest(request) then return nil, 'invalid configuration request' end
@@ -221,7 +233,7 @@ QB.callback.register('qblib:configCommit', function(source, request)
     return result
 end, WRITE_LIMIT)
 
-QB.callback.register('qblib:configReset', function(source, request)
+registerWithLegacyAlias('kora_lib:configReset', function(source, request)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validRequest(request) then return nil, 'invalid configuration request' end
@@ -244,9 +256,9 @@ end, WRITE_LIMIT)
 local function registerFallbackCommand()
     if type(GetResourceState) == 'function' and GetResourceState('kora_admin') == 'started' then return end
 
-    QB.commands.add('config', 'Open the qblib configuration editor', nil, false, function(source, args)
+    QB.commands.add('config', 'Open the kora_lib configuration editor', nil, false, function(source, args)
         local resource = type(args[1]) == 'string' and args[1] or nil
-        TriggerClientEvent('qblib:client:configOpened', source, resource)
+        TriggerClientEvent('kora_lib:client:configOpened', source, resource)
     end, {
         permission = ACE,
         checkPermission = function(source) return source == 0 or allowed(source) end,

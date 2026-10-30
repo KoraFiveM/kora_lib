@@ -1,10 +1,20 @@
 -- QB.discord (server realm) -- Discord webhook delivery and a small REST bot
 -- client. Webhooks do not need the bot token; every bot operation is gated by
--- qblib_discord_bot_token and fails locally when that convar is empty.
+-- kora_lib_discord_bot_token (or the deprecated qblib_discord_bot_token) and
+-- fails locally when that convar is empty.
 
 local API_BASE = 'https://discord.com/api/v10'
 local USER_AGENT = 'DiscordBot (https://github.com/qbcore2/qblib, 1.0.0)'
 local MAX_RATE_LIMIT_RETRIES = 1
+
+-- The kora_lib_* convars supersede the deprecated qblib_* names, which stay
+-- readable as a fallback for servers that configured them before the rename.
+local function getConvar(name, legacyName, default)
+    local value = GetConvar(name, '')
+    if value ~= '' then return value end
+    return GetConvar(legacyName, default)
+end
+
 local EMBED_TEXT_FIELDS = { 'title', 'description', 'url' }
 local FOOTER_FIELDS = { 'text', 'icon_url' }
 local AUTHOR_FIELDS = { 'name', 'url', 'icon_url' }
@@ -180,7 +190,7 @@ local function normaliseMessagePayload(payload)
     return payload
 end
 
----Post a webhook message. Pass nil as url to use qblib_discord_webhook.
+---Post a webhook message. Pass nil as url to use kora_lib_discord_webhook.
 ---This API remains available whether or not the bot token convar is set.
 ---@param url string|nil
 ---@param payload string|table
@@ -190,7 +200,7 @@ function QB.discord.sendWebhook(url, payload, callback)
     assertCallback(callback)
     assert(url == nil or type(url) == 'string', 'Discord webhook URL must be a string or nil.')
 
-    url = url and url:match('^%s*(.-)%s*$') or GetConvar('qblib_discord_webhook', '')
+    url = url and url:match('^%s*(.-)%s*$') or getConvar('kora_lib_discord_webhook', 'qblib_discord_webhook', '')
     if url == '' then
         if callback then
             callback(false, { status = 0, error = 'Discord webhook is not configured.' })
@@ -210,7 +220,7 @@ function QB.discord.sendWebhook(url, payload, callback)
 end
 
 local function botToken()
-    return GetConvar('qblib_discord_bot_token', '')
+    return getConvar('kora_lib_discord_bot_token', 'qblib_discord_bot_token', '')
 end
 
 ---Return whether the REST bot client is enabled by its token convar.
@@ -224,7 +234,7 @@ local function botDisabled(callback)
     if callback then
         callback(false, {
             status = 0,
-            error = 'Discord bot is disabled; set qblib_discord_bot_token to enable it.',
+            error = 'Discord bot is disabled; set kora_lib_discord_bot_token to enable it.',
         })
     end
     return false
@@ -240,9 +250,9 @@ end
 
 local function resolveGuildId(guildId)
     if guildId == nil or guildId == '' then
-        guildId = GetConvar('qblib_discord_guild_id', '')
+        guildId = getConvar('kora_lib_discord_guild_id', 'qblib_discord_guild_id', '')
     end
-    assert(guildId ~= '', 'Discord guild ID is required (argument or qblib_discord_guild_id).')
+    assert(guildId ~= '', 'Discord guild ID is required (argument or kora_lib_discord_guild_id).')
     return requireSnowflake(guildId, 'guild ID')
 end
 
@@ -296,7 +306,7 @@ local function requireBot(callback)
     return false
 end
 
----@param guildId string|nil Defaults to qblib_discord_guild_id.
+---@param guildId string|nil Defaults to kora_lib_discord_guild_id.
 ---@param callback function|nil
 ---@return boolean queued
 function QB.discord.getGuild(guildId, callback)
@@ -733,7 +743,7 @@ local function ensureDatabase()
         databaseInitializing = false
         if not databaseWarningPrinted then
             databaseWarningPrinted = true
-            print(('^3[qblib:discord]^7 %s; role caching will be memory-only.'):format(readyErr))
+            print(('^3[kora_lib:discord]^7 %s; role caching will be memory-only.'):format(readyErr))
         end
         return false, readyErr
     end
@@ -861,7 +871,7 @@ local function persistMemberSoon(guildId, userId, entry)
         if not ready then return end
         local ok, err = persistMemberRoles(guildId, userId, entry)
         if not ok then
-            print(('^3[qblib:discord]^7 could not persist roles for %s: %s'):format(userId, tostring(err or readyErr)))
+            print(('^3[kora_lib:discord]^7 could not persist roles for %s: %s'):format(userId, tostring(err or readyErr)))
         end
     end)
 end
@@ -873,7 +883,7 @@ local function localFailure(callback, message)
 end
 
 ---Return the cached guild role catalog, ordered from highest to lowest role.
----@param guildId string|nil Defaults to qblib_discord_guild_id.
+---@param guildId string|nil Defaults to kora_lib_discord_guild_id.
 ---@return table[]|nil roles
 ---@return string|nil error
 function QB.discord.getGuildRoles(guildId)
@@ -1166,29 +1176,33 @@ end
 
 -- Console-only on purpose: role names/IDs and sync diagnostics should not be
 -- exposed through a player command merely because an ACE wildcard permits it.
-RegisterCommand('qblib_discord_sync', function(source)
+local function discordSyncCommand(source)
     if source ~= 0 then return end
     if not QB.discord.botEnabled() then
-        print('^3[qblib:discord]^7 bot disabled; set qblib_discord_bot_token and restart qblib.')
+        print('^3[kora_lib:discord]^7 bot disabled; set kora_lib_discord_bot_token and restart kora_lib.')
         return
     end
 
     local queued = QB.discord.syncRoles(function(ok, response)
         if not ok then
-            print(('^1[qblib:discord]^7 role sync failed: %s'):format(tostring(response.error)))
+            print(('^1[kora_lib:discord]^7 role sync failed: %s'):format(tostring(response.error)))
             return
         end
         local data = response.data
-        print(('^2[qblib:discord]^7 synced %d guild roles and %d/%d online members (%d skipped, %d errors).'):format(
+        print(('^2[kora_lib:discord]^7 synced %d guild roles and %d/%d online members (%d skipped, %d errors).'):format(
             data.roles, data.members, data.players, data.skipped, data.errors))
         if not data.database then
-            print(('^3[qblib:discord]^7 database persistence unavailable: %s'):format(tostring(data.databaseError)))
+            print(('^3[kora_lib:discord]^7 database persistence unavailable: %s'):format(tostring(data.databaseError)))
         elseif data.databaseError then
-            print(('^3[qblib:discord]^7 database sync warning: %s'):format(tostring(data.databaseError)))
+            print(('^3[kora_lib:discord]^7 database sync warning: %s'):format(tostring(data.databaseError)))
         end
     end)
-    if queued then print('^5[qblib:discord]^7 role sync started...') end
-end, false)
+    if queued then print('^5[kora_lib:discord]^7 role sync started...') end
+end
+
+RegisterCommand('kora_lib_discord_sync', discordSyncCommand, false)
+-- Deprecated alias for the pre-rename console command.
+RegisterCommand('qblib_discord_sync', discordSyncCommand, false)
 
 AddEventHandler('playerJoining', function()
     if not QB.discord.botEnabled() then return end
@@ -1198,7 +1212,7 @@ AddEventHandler('playerJoining', function()
         if userId then
             QB.discord.refreshMember(userId, function(ok, response)
                 if not ok and response.status ~= 404 then
-                    print(('^3[qblib:discord]^7 could not refresh joining player %s: %s'):format(
+                    print(('^3[kora_lib:discord]^7 could not refresh joining player %s: %s'):format(
                         tostring(joiningSource), tostring(response.error)))
                 end
             end)
@@ -1214,9 +1228,9 @@ CreateThread(function()
 
     QB.discord.syncRoles(function(ok, response)
         if not ok then
-            print(('^3[qblib:discord]^7 initial role sync failed: %s'):format(tostring(response.error)))
+            print(('^3[kora_lib:discord]^7 initial role sync failed: %s'):format(tostring(response.error)))
         elseif response.data.databaseError then
-            print(('^3[qblib:discord]^7 initial role database sync warning: %s'):format(
+            print(('^3[kora_lib:discord]^7 initial role database sync warning: %s'):format(
                 tostring(response.data.databaseError)))
         end
     end)
@@ -1225,9 +1239,9 @@ CreateThread(function()
         Wait(discordConfig('roleSyncInterval', 300000))
         QB.discord.syncRoles(function(ok, response)
             if not ok then
-                print(('^3[qblib:discord]^7 heartbeat role sync failed: %s'):format(tostring(response.error)))
+                print(('^3[kora_lib:discord]^7 heartbeat role sync failed: %s'):format(tostring(response.error)))
             elseif response.data.databaseError then
-                print(('^3[qblib:discord]^7 heartbeat role database sync warning: %s'):format(
+                print(('^3[kora_lib:discord]^7 heartbeat role database sync warning: %s'):format(
                     tostring(response.data.databaseError)))
             end
         end)

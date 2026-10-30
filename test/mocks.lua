@@ -161,7 +161,7 @@ function M.install()
     end
 
     function _G.GetCurrentResourceName()
-        return "qblib_test"
+        return "kora_lib_test"
     end
 
     function _G.GetConvarInt(_, default)

@@ -305,7 +305,7 @@ harness.test("offChange removes the calling resource's handlers for that key", f
 end)
 
 -- Placed last: fires onClientResourceStop for the mocked resource name
--- ("qblib_test", from GetCurrentResourceName()), which sweeps every handler
+-- ("kora_lib_test", from GetCurrentResourceName()), which sweeps every handler
 -- registered by any earlier test still holding one.
 harness.test("onChange handlers are swept when their owning resource stops", function()
     local calls = 0
@@ -315,7 +315,7 @@ harness.test("onChange handlers are swept when their owning resource stops", fun
     QB.cache.set("sweep-target", "first")
     harness.assertEqual(calls, 1, "an unrelated resource stopping must not sweep this handler")
 
-    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "kora_lib_test")
     QB.cache.set("sweep-target", "second")
     harness.assertEqual(calls, 1, "the owning resource stopping must sweep the handler")
 end)

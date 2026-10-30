@@ -2,12 +2,12 @@
 -- local/callback/client.lua (separate Lua chunks can't share a local table) --
 -- any change here must be made there too, or the two realms stop talking.
 local events = {
-    handshake = 'qblib:callback:handshake',
-    handshakeResponse = 'qblib:callback:handshake:response',
-    invoke = 'qblib:callback:invoke',
-    response = 'qblib:callback:response',
-    clientInvoke = 'qblib:callback:clientInvoke',
-    clientResponse = 'qblib:callback:clientResponse',
+    handshake = 'kora_lib:callback:handshake',
+    handshakeResponse = 'kora_lib:callback:handshake:response',
+    invoke = 'kora_lib:callback:invoke',
+    response = 'kora_lib:callback:response',
+    clientInvoke = 'kora_lib:callback:clientInvoke',
+    clientResponse = 'kora_lib:callback:clientResponse',
 }
 
 local tokens = {}
@@ -128,7 +128,7 @@ local isCallable = QB.compat.isCallable
 -- modules/{cache,zones,nui}/client.lua), this copy also forwards every extra
 -- return value a callback handler produced (e.g.
 -- `return false, "you didn't have a proper item"`), not just the first --
--- see p.qblibCallbackResults on the events.clientResponse handler below. The
+-- see p.koraLibCallbackResults on the events.clientResponse handler below. The
 -- promise itself still resolves with ONLY the handler's first return value,
 -- deliberately unchanged from before this existed, so every EXISTING
 -- same-VM caller inside kora_lib keeps working exactly as it did -- only a
@@ -138,7 +138,7 @@ local isCallable = QB.compat.isCallable
 local function settleForExport(p)
     if GetInvokingResource() then
         Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
-        local packed = p.qblibCallbackResults
+        local packed = p.koraLibCallbackResults
         if packed == nil then return p.value end -- not a QB.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
         return table.unpack(packed, 1, packed.n)
     end
@@ -166,7 +166,7 @@ function QB.callback.register(name, handler, opts)
     -- overwrite is worth warning about rather than silently accepting.
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner and not replace then
-        print(("[qblib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
+        print(("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
             :format(name, previousOwner, owner))
     end
 
@@ -280,7 +280,7 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
         -- for the server owner rather than vanishing. Only the message goes
         -- back to the client: the leading "path/file.lua:123: " position is
         -- dropped so internal paths and line numbers are not disclosed.
-        print(("[qblib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
+        print(("[kora_lib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
         if type(results[2]) == 'string' then
             results[2] = (results[2]:gsub('^[^%s:]+%.lua:%d+: ', '', 1))
         end
@@ -312,7 +312,7 @@ RegisterNetEvent(events.clientResponse, function(requestId, ok, ...)
         -- existed, so a same-VM `Citizen.Await(QB.callback.trigger(...))`
         -- caller sees no behavior change at all.
         local packed = table.pack(...)
-        pending.promise.qblibCallbackResults = packed
+        pending.promise.koraLibCallbackResults = packed
         pending.promise:resolve(packed[1])
     else
         -- The error path only ever carries a single value (client.lua's

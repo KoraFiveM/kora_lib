@@ -115,7 +115,7 @@ local function scheduleTimeout(owner, fn, delay)
 
         local ok, err = pcall(fn)
         if not ok then
-            print(("[qblib] QB.timers timeout %d (%s) errored: %s"):format(id, owner, err))
+            print(("[kora_lib] QB.timers timeout %d (%s) errored: %s"):format(id, owner, err))
         end
     end)
 
@@ -153,7 +153,7 @@ function QB.timers.setInterval(fn, interval)
 
             local ok, err = pcall(fn)
             if not ok then
-                print(("[qblib] QB.timers interval %d (%s) errored: %s"):format(id, owner, err))
+                print(("[kora_lib] QB.timers interval %d (%s) errored: %s"):format(id, owner, err))
             end
         end
     end)

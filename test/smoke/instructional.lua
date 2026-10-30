@@ -48,7 +48,7 @@ end)
 harness.test('instructional displays validate and clean up with their owner', function()
     harness.assertThrows(function() QB.instructional.show({ { label = 'Bad' } }) end)
     local display = QB.instructional.show({ { control = 32, label = 'Move' } })
-    net.fire('onClientResourceStop', 'qblib_test')
+    net.fire('onClientResourceStop', 'kora_lib_test')
     harness.assertFalse(display.isVisible())
 end)
 

@@ -45,7 +45,7 @@ export function InteractSelect() {
             .then(() => setState(null))
             .catch((error) => {
                 submittingRef.current = false
-                console.error("[qblib] interact selection failed:", error)
+                console.error("[kora_lib] interact selection failed:", error)
             })
     }, [state])
 

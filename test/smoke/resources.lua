@@ -220,7 +220,7 @@ harness.test("a client registry disposes tracked state when its creating resourc
     local registry = QB.resources.registry(function(id) disposed[#disposed + 1] = id end)
 
     registry.track("resource_a", 1)
-    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "kora_lib_test")
     net.fire("onClientResourceStop", "resource_a")
 
     harness.assertEqual(#disposed, 1, "creator shutdown must release its tracked state")
@@ -232,7 +232,7 @@ harness.test("a server registry disposes tracked state when its creating resourc
     local registry = QB.resources.serverRegistry(function(id) disposed[#disposed + 1] = id end)
 
     registry.track("resource_a", 1)
-    net.fire("onResourceStop", "qblib_test")
+    net.fire("onResourceStop", "kora_lib_test")
     net.fire("onResourceStop", "resource_a")
 
     harness.assertEqual(#disposed, 1, "creator shutdown must release its tracked state")

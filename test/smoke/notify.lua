@@ -34,8 +34,13 @@ dofile(repoRoot .. "modules/nui/client.lua")
 
 -- A stand-in for whatever a consumer's own third-party notify resource would
 -- register on the client for this event.
-_G.RegisterNetEvent("qblib:notify:send", function(payload)
+_G.RegisterNetEvent("kora_lib:notify:send", function(payload)
     table.insert(thirdPartyClientPayloads, payload)
+end)
+-- A third-party handler written before the rename still listens on the old name.
+local legacyClientPayloads = {}
+_G.RegisterNetEvent("qblib:notify:send", function(payload)
+    table.insert(legacyClientPayloads, payload)
 end)
 
 dofile(repoRoot .. "modules/notify/shared.lua")
@@ -215,6 +220,7 @@ harness.test("client send routes through the third-party hook when configured", 
     clientNotifySend({ message = "via third party" })
 
     harness.assertEqual(#thirdPartyClientPayloads, 1, "the third-party client hook should have fired once")
+    harness.assertEqual(#legacyClientPayloads, 1, "the deprecated qblib:notify:send alias should fire too")
     harness.assertTrue(lastNui == nil, "the NUI path should be skipped when third-party notify is on")
 
     Config.third_party_notify = false
@@ -239,7 +245,7 @@ harness.test("server send drops malformed recipients before either dispatch rout
     thirdPartyClientPayloads = {}
     Config.third_party_notify = false
     QB.notify.send(1.5, { message = "invalid recipient" })
-    harness.assertEqual(lastNui, nil, "the qblib push route must not receive an invalid target")
+    harness.assertEqual(lastNui, nil, "the kora_lib push route must not receive an invalid target")
 
     Config.third_party_notify = true
     QB.notify.send(1.5, { message = "invalid recipient" })

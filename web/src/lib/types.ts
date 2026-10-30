@@ -2,7 +2,7 @@
 // `window` `message` event shaped like NuiWireMessage below (see
 // useNuiEvent.ts). Fire-and-forget messages (QB.nui.send) put the raw payload
 // directly in `data`; request/response messages (QB.nui.request) wrap it as
-// NuiRequestEnvelope, and expect the reply POSTed to the "qblib:nui:response"
+// NuiRequestEnvelope, and expect the reply POSTed to the "kora_lib:nui:response"
 // NUI callback (see respondToNui in fetchNui.ts) as a NuiResponseEnvelope.
 //
 // Keep this file in sync with every Lua-side QB.nui.send/request call site:
@@ -609,7 +609,7 @@ export interface AppDefinition {
     footer?: string
     /** #RRGGBB primary colour applied for this app's lifetime; omitted apps retain the player's /theme colour. */
     accent?: string
-    /** Supplied by qblib from its active locale; consumers normally omit it. */
+    /** Supplied by kora_lib from its active locale; consumers normally omit it. */
     labels?: Partial<AppShellLabels>
 }
 

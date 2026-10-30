@@ -236,7 +236,7 @@ local function addOption(option, second)
     end
 
     option.id = id
-    option.__qblibOwner = GetInvokingResource() or GetCurrentResourceName()
+    option.__koraLibOwner = GetInvokingResource() or GetCurrentResourceName()
 
     if not byId[id] then
         order[#order + 1] = id
@@ -329,7 +329,7 @@ local VEHICLE_DOOR_ITEMS = {
 local VEHICLE_EXTRA_COUNT = 13
 local VEHICLE_SEAT_LABELS = { [1] = "Driver Seat", [2] = "Passenger Seat", [3] = "Rear Left Seat", [4] = "Rear Right Seat" }
 
-RegisterNetEvent("qblib:radialmenuCompat:client:openDoor", function(data)
+RegisterNetEvent("kora_lib:radialmenuCompat:client:openDoor", function(data)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
     if not vehicle or vehicle == 0 then return end
@@ -350,7 +350,7 @@ end)
 -- header comment) -- the natives above still work fine locally either way,
 -- they just don't broadcast to other clients when used on a vehicle the
 -- player isn't in.
-RegisterNetEvent("qblib:radialmenuCompat:client:setExtra", function(data)
+RegisterNetEvent("kora_lib:radialmenuCompat:client:setExtra", function(data)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped)
     if vehicle == 0 or GetPedInVehicleSeat(vehicle, -1) ~= ped then return end
@@ -364,7 +364,7 @@ RegisterNetEvent("qblib:radialmenuCompat:client:setExtra", function(data)
     end
 end)
 
-RegisterNetEvent("qblib:radialmenuCompat:client:changeSeat", function(data)
+RegisterNetEvent("kora_lib:radialmenuCompat:client:changeSeat", function(data)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped)
     if vehicle == 0 then return end
@@ -380,7 +380,7 @@ end)
 -- cross-resource export that doesn't exist errors rather than returning
 -- nil/false, so it's omitted entirely rather than guarded with a pcall that
 -- would just always fall back the same way.
-RegisterNetEvent("qblib:radialmenuCompat:client:flipVehicle", function()
+RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     local completed = QB.progressbar.start({
         label = "Flipping vehicle...",
         duration = Config.radialmenuCompat.flipVehicleTime,
@@ -418,7 +418,7 @@ local function setupVehicleMenu()
         local door = VEHICLE_DOOR_ITEMS[doorIndex]
         doorItems[#doorItems + 1] = {
             id = door.id, title = door.title, doorIndex = door.doorIndex,
-            type = "client", event = "qblib:radialmenuCompat:client:openDoor", shouldClose = false,
+            type = "client", event = "kora_lib:radialmenuCompat:client:openDoor", shouldClose = false,
         }
     end
     local items = { { id = "vehicledoors", title = "Vehicle Doors", items = doorItems } }
@@ -428,7 +428,7 @@ local function setupVehicleMenu()
         for i = 1, VEHICLE_EXTRA_COUNT do
             extraItems[#extraItems + 1] = {
                 id = ("extra%d"):format(i), title = ("Extra %d"):format(i), extraIndex = i,
-                type = "client", event = "qblib:radialmenuCompat:client:setExtra", shouldClose = false,
+                type = "client", event = "kora_lib:radialmenuCompat:client:setExtra", shouldClose = false,
             }
         end
         items[#items + 1] = { id = "vehicleextras", title = "Vehicle Extras", items = extraItems }
@@ -437,7 +437,7 @@ local function setupVehicleMenu()
     if not IsVehicleOnAllWheels(vehicle) then
         items[#items + 1] = {
             id = "vehicle-flip", title = "Flip Vehicle",
-            type = "client", event = "qblib:radialmenuCompat:client:flipVehicle", shouldClose = true,
+            type = "client", event = "kora_lib:radialmenuCompat:client:flipVehicle", shouldClose = true,
         }
     end
 
@@ -448,7 +448,7 @@ local function setupVehicleMenu()
             local seatIndex = i - 2 -- real GTA seat numbering: -1 = driver, 0 = front passenger, 1.. = rear
             seatItems[#seatItems + 1] = {
                 id = tostring(seatIndex), title = VEHICLE_SEAT_LABELS[i] or "Other Seat", seatIndex = seatIndex,
-                type = "client", event = "qblib:radialmenuCompat:client:changeSeat", shouldClose = false,
+                type = "client", event = "kora_lib:radialmenuCompat:client:changeSeat", shouldClose = false,
             }
         end
         if #seatItems > 0 then
@@ -564,7 +564,7 @@ RegisterNetEvent("qb-radialmenu:client:RemoveOption", removeOption)
 AddEventHandler("onClientResourceStop", function(resource)
     local owned = {}
     for id, option in pairs(byId) do
-        if option.__qblibOwner == resource then owned[#owned + 1] = id end
+        if option.__koraLibOwner == resource then owned[#owned + 1] = id end
     end
     for i = 1, #owned do removeOption(owned[i]) end
 end)

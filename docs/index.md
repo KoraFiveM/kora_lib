@@ -43,7 +43,7 @@ The [API index]({{ site.baseurl }}/reference/) remains the complete alphabetical
 Add kora_lib to a consumer resource:
 
 ```lua
-dependency 'qblib'
+dependency 'kora_lib'
 shared_script '@kora_lib/init.lua'
 ```
 

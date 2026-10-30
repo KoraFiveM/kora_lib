@@ -6,7 +6,7 @@ Server-only Discord helpers with two independent parts:
 
 1. Webhooks: create embeds and post webhook messages. No bot is required.
 2. REST bot: read and manage guild members, roles, channels, and messages. The
-   bot client is disabled unless `qblib_discord_bot_token` is set.
+   bot client is disabled unless `kora_lib_discord_bot_token` is set.
 3. Role directory: a five-minute online-player heartbeat, memory cache, optional
    kora_sql persistence, and role-name-based authorization/mutation helpers.
 
@@ -19,17 +19,22 @@ Keep credentials in `server.cfg`, using server-only `set` (never `setr`):
 
 ```cfg
 # Optional default used when sendWebhook receives nil as its URL.
-set qblib_discord_webhook "https://discord.com/api/webhooks/.../..."
+set kora_lib_discord_webhook "https://discord.com/api/webhooks/.../..."
 
 # Enables every bot helper. If absent or empty, botEnabled() is false and bot
 # calls return false without making an HTTP request.
-set qblib_discord_bot_token "your-bot-token"
+set kora_lib_discord_bot_token "your-bot-token"
 
 # Optional convenience default. Pass nil as guildId to use this ID.
-set qblib_discord_guild_id "123456789012345678"
+set kora_lib_discord_guild_id "123456789012345678"
 ```
 
 Restart kora_lib after enabling the bot token so its background heartbeat starts.
+
+The deprecated `qblib_discord_webhook`, `qblib_discord_bot_token`, and
+`qblib_discord_guild_id` convars and the `qblib_discord_sync` console command are
+still read as fallbacks when the `kora_lib_` names are unset. The role directory's
+database tables keep their `qblib_discord_*` names.
 The interval and authorization-cache TTL default to five and ten minutes,
 respectively (`Config.discord.roleSyncInterval` / `cacheMaxAge`).
 
@@ -90,13 +95,13 @@ local embed = QB.discord.createEmbed({
         { name = 'Build', value = '142', inline = true },
         { name = 'Environment', value = 'production', inline = true },
     },
-    footer = 'qblib',
+    footer = 'kora_lib',
 })
 ```
 
 ### `QB.discord.sendWebhook(url, payload, callback?)`
 
-Posts a webhook message. `url = nil` uses `qblib_discord_webhook`. `payload`
+Posts a webhook message. `url = nil` uses `kora_lib_discord_webhook`. `payload`
 may be a content string, a complete Discord webhook payload, or a single embed
 table (which is wrapped in `embeds`). This works without the bot token.
 
@@ -166,7 +171,7 @@ after one second. Only one full sync can run at once.
 Run an immediate sync from the **server console only**:
 
 ```text
-qblib_discord_sync
+kora_lib_discord_sync
 ```
 
 Player attempts to run that command are ignored even if they have broad ACE

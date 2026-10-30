@@ -40,7 +40,7 @@ export async function fetchNui<T = unknown>(callbackName: string, data: unknown 
 
 /**
  * Resolves the QB.nui.request call on the Lua side that's waiting on
- * `requestId`, via the one shared "qblib:nui:response" callback every request
+ * `requestId`, via the one shared "kora_lib:nui:response" callback every request
  * flows through (see modules/nui/client.lua). Every component that answers a
  * Lua request (menu selection, input dialog submit, zone creator confirm,
  * clipboard write) should settle it through this, not a bespoke callback name.
@@ -59,7 +59,7 @@ export function respondToNui<T = unknown>(requestId: number, token: string, ok: 
         ? { requestId, token, ok: true, result: resultOrError as T }
         : { requestId, token, ok: false, error: String(resultOrError) }
 
-    return fetchNui("qblib:nui:response", body).catch((error) => {
-        console.error(`[qblib] respondToNui failed for request ${requestId}:`, error)
+    return fetchNui("kora_lib:nui:response", body).catch((error) => {
+        console.error(`[kora_lib] respondToNui failed for request ${requestId}:`, error)
     })
 }

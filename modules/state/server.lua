@@ -45,7 +45,7 @@ function QB.state.onChange(keyFilter, bagFilter, handler)
             replicated = replicated,
         })
         if not ok then
-            print(("^3[qblib:state]^7 listener %s errored: %s"):format(tostring(cookie), tostring(err)))
+            print(("^3[kora_lib:state]^7 listener %s errored: %s"):format(tostring(cookie), tostring(err)))
         end
     end)
 

@@ -261,7 +261,7 @@ export function AppShell() {
         const version = ++changeVersion.current
         setBusy(action.id); setError(undefined); setNotice(undefined)
         try {
-            const response = await fetchNui<AppActionResponse>("qblib:app:action", { appId: app.id, token, actionId: action.id, viewId: destination?.viewId ?? viewId, tabId: destination ? destination.tabId : tabId, itemId: context?.itemId, value: context?.value ?? action.data })
+            const response = await fetchNui<AppActionResponse>("kora_lib:app:action", { appId: app.id, token, actionId: action.id, viewId: destination?.viewId ?? viewId, tabId: destination ? destination.tabId : tabId, itemId: context?.itemId, value: context?.value ?? action.data })
             if (version !== changeVersion.current) return
             if (response.ok === false) throw new Error(response.error ?? "The action failed.")
             const resultApp = response.result?.app
@@ -281,7 +281,7 @@ export function AppShell() {
         if (!isOpen || !app?.onChange || !token || action.disabled || busy !== undefined) return
         const version = ++changeVersion.current
         try {
-            const response = await fetchNui<AppActionResponse>("qblib:app:change", { appId: app.id, token, actionId: action.id, viewId, tabId, itemId: context?.itemId, value: values })
+            const response = await fetchNui<AppActionResponse>("kora_lib:app:change", { appId: app.id, token, actionId: action.id, viewId, tabId, itemId: context?.itemId, value: values })
             if (version !== changeVersion.current) return
             if (response.ok === false) throw new Error(response.error ?? "The app change failed.")
             setError(undefined)

@@ -25,7 +25,7 @@ describe("shared dispatch feed", () => {
         const view = render(<DispatchFeed />)
         expect(view.container).toBeEmptyDOMElement()
         expect(fetchNui).toHaveBeenCalledTimes(1)
-        expect(fetchNui).toHaveBeenCalledWith("qblib:dispatchfeed:ready")
+        expect(fetchNui).toHaveBeenCalledWith("kora_lib:dispatchfeed:ready")
         send(payload()); expect(card()).toBeVisible()
         expect(view.container.querySelectorAll("button,input,select,textarea,[tabindex]")).toHaveLength(0)
         expect(screen.getByRole("region", { name: "Dispatch calls" })).toHaveClass("pointer-events-none")

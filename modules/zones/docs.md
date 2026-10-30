@@ -157,7 +157,7 @@ RegisterCommand('my_zone_tool', function()
 end, false)
 ```
 
-An equivalent `/qb_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `qblib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
+An equivalent `/qb_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `kora_lib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
 
 ### `QB.zones.generateSnippet(zoneType, opts)`
 Formats zone options into the `QB.zones.<type>({...})` Lua snippet the creator's confirm dialog shows and copies to the clipboard. Pure and deterministic — useful on its own if you already have `opts` (from `startCreator`, or hand-built) and just want the text.

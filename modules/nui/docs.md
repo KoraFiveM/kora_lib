@@ -514,7 +514,7 @@ Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, 
 | `header` | `label` | |
 | `txt` | `description` | |
 | `disabled` / `isMenuHeader` | `disabled` | Real qb-menu's `isMenuHeader` rows are unselectable section labels; the new menu has no dedicated header row type, so this is the closest equivalent. |
-| `icon` | `image` / `icon` | Item artwork URLs and known shared-item images render directly; qblib-native icon names retain their curated lucide rendering. |
+| `icon` | `image` / `icon` | Item artwork URLs and known shared-item images render directly; kora_lib-native icon names retain their curated lucide rendering. |
 | *(none)* | `id` | Real qb-menu items have no stable id; the 1-based position in the array is used. |
 | `params.event` / `params.isServer` / `params.args` | — | Fired via `TriggerEvent`/`TriggerServerEvent` on selection, exactly as real qb-menu's own `selectMenuItem` NUI callback does. |
 
@@ -568,7 +568,7 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 `exports['qb-radialmenu']:RemoveOption(id)` and the `qb-radialmenu:client:AddOption`/`qb-radialmenu:client:RemoveOption` net events are also registered, mirroring `AddOption`/`RemoveOption` 1:1.
 
 ## Notes
-- `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`qblib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
+- `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`kora_lib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
 - The invoking resource owns its pending requests and focus leases. If it stops, kora_lib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
 - Releasing the final focus lease restores the keep-input state that existed before kora_lib acquired focus, so compatibility surfaces do not interfere with another overlay's input policy.
 - A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.

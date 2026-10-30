@@ -92,8 +92,9 @@ and component metadata. Binary `.ytyp` and ambiguous `.yft` files are skipped
 with a warning because their model kind cannot safely be inferred from the
 filename alone.
 
-A resource can supply `qblib.lookup.json` for explicit additions, enrichment,
-or exclusions:
+A resource can supply `kora_lib.lookup.json` for explicit additions, enrichment,
+or exclusions (the deprecated name `qblib.lookup.json` is still read when the new
+file is absent):
 
 ```json
 {
@@ -141,7 +142,7 @@ The scan runs only when kora_lib starts and yields between resources, so a large
 custom-resource set does not hold one long server tick. Each resource is capped
 at 4,096 directory entries; kora_lib warns and skips the remainder rather than
 letting a malformed or unusually large resource extend startup indefinitely.
-Use `qblib.lookup.json` for assets beyond that limit. Restart kora_lib after
+Use `kora_lib.lookup.json` for assets beyond that limit. Restart kora_lib after
 installing, removing, or changing a custom resource. The scanner writes no
 runtime files.
 

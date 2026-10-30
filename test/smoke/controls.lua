@@ -144,7 +144,7 @@ harness.test('captured-owner cleanup releases an asynchronous consumer lease', f
     local lease = QB.compat.acquireControls({ 43 }, nil, 'async_owner')
 
     _G.GetInvokingResource = function() return nil end
-    harness.assertFalse(QB.controls.release(lease), 'the qblib continuation must not impersonate the consumer publicly')
+    harness.assertFalse(QB.controls.release(lease), 'the kora_lib continuation must not impersonate the consumer publicly')
     harness.assertTrue(QB.compat.releaseControlLease(lease, 'async_owner'),
         'the captured owner should release its lease after the export call has ended')
     harness.assertFalse(QB.compat.releaseControlLease(lease, 'other_owner'),

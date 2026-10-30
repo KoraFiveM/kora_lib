@@ -69,7 +69,7 @@ for line in types:gmatch('[^\r\n]+') do
         local fieldName, fieldType = line:match('^%-%-%-@field%s+([%w_]+)%s+([^%s]+)')
         if fieldName and currentClass then
             classFields[currentClass][fieldName] = true
-            if currentClass == 'QBLib' and fieldType ~= 'fun' then
+            if currentClass == 'kora_lib' and fieldType ~= 'fun' then
                 moduleClasses[fieldName] = fieldType
             end
         end
@@ -90,7 +90,7 @@ for _, sourcePath in ipairs(sourceFiles()) do
                 symbols[key] = true
                 harness.test(symbol .. ' is typed and documented', function()
                     local className = moduleClasses[moduleName]
-                    harness.assertTrue(className ~= nil, moduleName .. ' is missing from the QBLib type')
+                    harness.assertTrue(className ~= nil, moduleName .. ' is missing from the kora_lib type')
                     harness.assertTrue(classFields[className] and classFields[className][functionName],
                         symbol .. ' is missing from ' .. tostring(className))
                     harness.assertTrue(docs:find(symbol, 1, true) ~= nil,
@@ -102,7 +102,7 @@ for _, sourcePath in ipairs(sourceFiles()) do
 
     if source:find('function QB.lang(', 1, true) then
         harness.test('QB.lang is typed and documented', function()
-            harness.assertTrue(classFields.QBLib and classFields.QBLib.lang, 'QB.lang is missing from QBLib')
+            harness.assertTrue(classFields.kora_lib and classFields.kora_lib.lang, 'QB.lang is missing from kora_lib')
             harness.assertTrue(docs:find('QB.lang', 1, true) ~= nil, 'QB.lang is missing from ' .. docsPath)
         end)
     end

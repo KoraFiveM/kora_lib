@@ -133,7 +133,7 @@ local function makeColonCall(name)
     end
 end
 
----@type QBLib
+---@type kora_lib
 QB = setmetatable({}, {
     __index = function(t, k)
         if k == 'require' then
@@ -191,7 +191,7 @@ QB = setmetatable({}, {
 -- kora_lib emits this after rebuilding its exports. Refresh only modules this
 -- consumer already touched; untouched modules remain lazy. Copying into the
 -- original table also keeps `local stream = QB.stream` references current.
-AddEventHandler(isServer and 'qblib:server:updated' or 'qblib:client:updated', function()
+AddEventHandler(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated', function()
     for name, paths in pairs(consumerModuleFiles) do
         local current = rawget(QB, name)
         if current then

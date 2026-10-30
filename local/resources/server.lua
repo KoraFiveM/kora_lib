@@ -81,7 +81,7 @@ function QB.resources.serverRegistry(onDispose)
             ownerOf[id] = nil
             local ok, err = pcall(onDispose, id)
             if not ok then
-                print(("^3[qblib:resources]^7 cleanup for %s id %s failed: %s")
+                print(("^3[kora_lib:resources]^7 cleanup for %s id %s failed: %s")
                     :format(resource, tostring(id), tostring(err)))
             end
         end

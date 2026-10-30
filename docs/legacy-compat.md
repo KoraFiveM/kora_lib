@@ -12,7 +12,7 @@ Compatibility providers can use
 It registers the hidden CFX export event that `provide` alone does not create;
 the callable may be a Lua function or a FiveM funcref. Registration executes
 inside the consuming resource, so the alias handler stops with its provider
-instead of surviving as a stale qblib-owned reference.
+instead of surviving as a stale kora_lib-owned reference.
 
 These bridges preserve the documented call shape, but they cannot reproduce behavior for which kora_lib has no equivalent. Review the caveats below before removing the original resource.
 
@@ -89,7 +89,7 @@ client_script '@PolyZone/client.lua'
 ```
 
 `provide` cannot satisfy either import: FiveM resolves `@resource/file` by the
-actual started resource name. In that case, start the matching qblib-backed
+actual started resource name. In that case, start the matching kora_lib-backed
 compatibility resource after `kora_lib` and before the importing resource. The
 installed folder must therefore retain the exact `ox_lib` or `PolyZone` resource
 name from the importing manifest; do not rename it to a project-specific name.
@@ -119,7 +119,7 @@ client_scripts {
 }
 ```
 
-| Legacy surface | qblib-backed behavior |
+| Legacy surface | kora_lib-backed behavior |
 | --- | --- |
 | `PolyZone`, `BoxZone`, `CircleZone` | Containment, `onPlayerInOut`, `onPointInOut`, pausing, `addEvent`/`removeEvent`, debug blips, manual `draw(forceDraw)`, and destruction. PolyZones and BoxZones without explicit `minZ`/`maxZ` remain XY-only; flat CircleZones use kora_lib's exact shared-grid 2D circle; `useZ = true` uses a 3D sphere. Both preserve PolyZone's exclusive radius boundary. PolyZones retain bounding-box fields, `drawPoly`, and `ensureMetatable`; BoxZones retain heading, mutable size/center helpers, directional `scale`/`offset`, points/`TransformPoint`, and legacy geometry helpers. |
 | `EntityZone` | Moving model-bounds containment, validated player-transition polling, damage callbacks, and on-demand current-bounds drawing. Its debug blip follows the entity. |
@@ -169,10 +169,38 @@ ox_lib suite compares its vendored upstream files and resource exports against
 the declared ox_lib release. These checks validate compatibility coverage; they
 do not make either resource a default dependency.
 
+## Pre-rename `qblib` names
+
+kora_lib was previously named `qblib`. The old names below keep working as
+deprecated aliases or fallbacks; new configuration should use the `kora_lib`
+names. The manifest still `provide`s `qblib`, so `exports['qblib']` and
+`dependency 'qblib'` resolve to kora_lib.
+
+| Surface | Current name | Deprecated name still accepted |
+| --- | --- | --- |
+| Convars | `kora_lib_discord_bot_token`, `kora_lib_discord_guild_id`, `kora_lib_discord_webhook`, `kora_lib_log_webhook`, `kora_lib_screenshot_debug` | the same names starting with `qblib_` (read after the `kora_lib_` name) |
+| Console command | `kora_lib_discord_sync` | `qblib_discord_sync` |
+| ACEs | `kora_lib.config.edit`, `kora_lib.editor` | `qblib.config.edit`, `qblib.editor` |
+| Events | `kora_lib:notify:send`, `kora_lib:client:localeChanged`, `kora_lib:server:configChanged`, `kora_lib:server:updated` / `kora_lib:client:updated` | the same names starting with `qblib:` (fired alongside the new name) |
+| Public gateway | `kora_lib:events:invoke` and its handshake | `qblib:events:invoke` and its handshake |
+| Editor events | `kora_lib:editor:startZoneCreator`, `kora_lib:editor:startPlacement`, `kora_lib:client:configOpened` | the same names starting with `qblib:` |
+| Server callbacks | `kora_lib:minigames:*`, `kora_lib:blips:isAdmin`, `kora_lib:config*` | the same names starting with `qblib:` |
+| NUI callbacks | `kora_lib:nui:response`, `kora_lib:nui:event`, `kora_lib:app:action`, `kora_lib:app:change`, `kora_lib:nui:theme`, `kora_lib:oxLocale`, `kora_lib:dispatchfeed:ready` | the same names starting with `qblib:` |
+| Config bridge exports | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` | `qblib_configRead`, `qblib_configCommit`, `qblib_configReset` |
+| Lookup override file | `kora_lib.lookup.json` | `qblib.lookup.json` (used when the new file is absent) |
+| Blip category KVP | `kora_lib:blips:category:<id>` | `qblib:blips:category:<id>` (read when the new key is unset) |
+| Progress bar `disable.controlProfile` | `'kora_lib'` | `'qblib'` |
+
+Database tables created by the Discord role directory keep their original
+`qblib_discord_*` names; they are never renamed. Key mappings registered by the
+zone creator, entity placement, and radial menu (`qblib_zonecreator_*`,
+`qblib_placement_*`, `qblib_radialmenu_*`, `qblib_command:*`) also keep their
+names, because players' saved key bindings are stored under them.
+
 ## Migration order
 
 1. Start kora_lib in a test environment while the consumer still uses its legacy calls.
 2. Exercise every menu, input, radial action, minigame, or screenshot path the resource owns.
 3. Check the relevant mapping caveats above.
-4. Replace legacy calls with native `QB.nui`, `QB.minigames`, or `QB.screenshot` calls when you need a qblib-only capability.
+4. Replace legacy calls with native `QB.nui`, `QB.minigames`, or `QB.screenshot` calls when you need a kora_lib-only capability.
 5. Remove the standalone legacy resource only after all consumers work through kora_lib's provided identity.

@@ -48,7 +48,7 @@ local function beginPlay(gameType, opts, authorization, resource)
     CreateThread(function()
         local ok, result = pcall(function()
             return QB.nui.withFocus(true, true, function()
-                local round = Citizen.Await(QB.callback.trigger("qblib:minigames:start", gameType, opts, authorization))
+                local round = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", gameType, opts, authorization))
                 serverSessionId = round.sessionId
                 local lastResult = nil
 
@@ -80,12 +80,12 @@ local function beginPlay(gameType, opts, authorization, resource)
                     -- session immediately rather than waiting on its TTL, and
                     -- doesn't consume an attempt.
                     if attempt ~= nil and attempt.cancelled then
-                        Citizen.Await(QB.callback.trigger("qblib:minigames:cancel", round.sessionId))
+                        Citizen.Await(QB.callback.trigger("kora_lib:minigames:cancel", round.sessionId))
                         serverSessionId = nil
                         return { success = false, cancelled = true, attempts = round.attempt - 1 }
                     end
 
-                    local submitResult = Citizen.Await(QB.callback.trigger("qblib:minigames:submit", round.sessionId, attempt))
+                    local submitResult = Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", round.sessionId, attempt))
 
                     if submitResult.done then
                         serverSessionId = nil
@@ -123,7 +123,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                 -- or callback request failed. Best-effort cancel it now so an
                 -- immediate retry is not blocked until the expiry sweep.
                 pcall(function()
-                    Citizen.Await(QB.callback.trigger("qblib:minigames:cancel", serverSessionId))
+                    Citizen.Await(QB.callback.trigger("kora_lib:minigames:cancel", serverSessionId))
                 end)
                 serverSessionId = nil
             end

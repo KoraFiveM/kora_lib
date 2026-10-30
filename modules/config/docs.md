@@ -175,7 +175,7 @@ opening an unusually large configuration does not mount every row at once.
 Every registered resource remains in the sidebar while a setting is edited;
 the overview also shows its editable-setting count and availability. Sensitive
 fields are removed before they reach the workspace. Grant access explicitly
-with `add_ace <principal> qblib.config.edit allow`; kora_admin may optionally open
+with `add_ace <principal> kora_lib.config.edit allow` (the deprecated `qblib.config.edit` ACE is still honoured); kora_admin may optionally open
 the workspace through `QB.config.open()` but is not required.
 
 The initial catalog transfers only sanitized schemas. Saved and running values

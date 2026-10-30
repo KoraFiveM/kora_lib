@@ -120,7 +120,7 @@ local function run(state)
         end
     end)
     if not ok then
-        print(('[qblib:freecam] stopped after an error: %s'):format(tostring(err)))
+        print(('[kora_lib:freecam] stopped after an error: %s'):format(tostring(err)))
         stop(state, true)
     end
 end

@@ -6,7 +6,7 @@ kora_lib exposes interface components, callbacks, events, configuration, permiss
 
 ## Install
 
-Start `kora_theme` before qblib:
+Start `kora_theme` before kora_lib:
 
 ```cfg
 ensure kora_theme
@@ -20,13 +20,13 @@ legacy manifest imports `@ox_lib/...` or `@PolyZone/...`.
 Load the proxy from each consumer resource:
 
 ```lua
-dependency 'qblib'
+dependency 'kora_lib'
 shared_script '@kora_lib/init.lua'
 ```
 
 ## Documentation
 
-Read the complete documentation at **[qbcore2.github.io/qblib](https://qbcore2.github.io/kora_lib/)**.
+Read the complete documentation at **[qbcore2.github.io/kora_lib](https://qbcore2.github.io/kora_lib/)**.
 
 - [Installation](https://qbcore2.github.io/kora_lib/getting-started/)
 - [Using the API](https://qbcore2.github.io/kora_lib/using-the-api/)

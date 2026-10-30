@@ -175,7 +175,7 @@ harness.test('keyed restrictions fail closed when player data omits the group', 
     harness.assertFalse(QB.interact.isActive(), 'missing group data must not satisfy a keyed restriction')
 end)
 
-harness.test('aim-target facade translates qblib actions and restrictions', function()
+harness.test('aim-target facade translates kora_lib actions and restrictions', function()
     reset()
     local selected = 0
     local id = QB.interact.addEntity(202, {
@@ -184,9 +184,9 @@ harness.test('aim-target facade translates qblib actions and restrictions', func
     local registration = targetRegistrations[id]
     harness.assertEqual(registration.kind, 'entity', 'should register through qbtarget')
     harness.assertEqual(registration.distance, 2.0, 'should retain default distance')
-    harness.assertTrue(registration.options[1].canInteract(202, 1.0, {}), 'job restriction should be evaluated by qblib')
+    harness.assertTrue(registration.options[1].canInteract(202, 1.0, {}), 'job restriction should be evaluated by kora_lib')
     registration.options[1].onSelect(202, {})
-    harness.assertEqual(selected, 1, 'target selection should dispatch the qblib action')
+    harness.assertEqual(selected, 1, 'target selection should dispatch the kora_lib action')
 end)
 
 harness.test('aim-target facade rejects unsafe distances before registration', function()
@@ -383,7 +383,7 @@ harness.test("box zones pass coords, size, and rotation straight through", funct
     harness.assertEqual(box.size.x, 4, "size.x should pass through unchanged")
     harness.assertEqual(box.size.y, 6, "size.y should pass through unchanged")
     harness.assertEqual(box.size.z, 10, "size.z should pass through unchanged")
-    harness.assertEqual(box.rotation, 90, "size.w should map to qblib rotation")
+    harness.assertEqual(box.rotation, 90, "size.w should map to kora_lib rotation")
 end)
 
 harness.test("named zones replace and remove cleanly", function()

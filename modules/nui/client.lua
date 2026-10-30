@@ -38,7 +38,7 @@ end
 -- callback routing (the `https://<resource>/<callback>` fetch every NUI page
 -- uses) isn't scoped to the frame that issued a given request -- any other
 -- installed resource's own NUI page could in principle POST a response to
--- "qblib:nui:response" for a guessable sequential requestId. A random token,
+-- "kora_lib:nui:response" for a guessable sequential requestId. A random token,
 -- known only to this client and echoed back only by the legitimate response,
 -- closes that gap the same way local/callback's per-player token does for the
 -- client<->server boundary.
@@ -613,7 +613,7 @@ local function mergeAppUpdate(registration, update)
         assert(key ~= "id", "App id cannot be changed by updateApp.")
         assert(key ~= "onAction", "Use registerApp to replace an app action handler.")
         assert(key ~= "onChange", "Use registerApp to replace an app change handler.")
-        assert(key ~= "labels", "App labels are owned by qblib's locale system.")
+        assert(key ~= "labels", "App labels are owned by kora_lib's locale system.")
         candidate[key] = value
     end
     registration.actionIds = assertBrowserApp(candidate)
@@ -729,6 +729,16 @@ function QB.nui.withFocus(mouse, keyboard, fn, owner)
     return table.unpack(results, 2, results.n)
 end
 
+local LEGACY_ALIASED_CALLBACKS = {
+    ['kora_lib:dispatchfeed:ready'] = true,
+    ['kora_lib:nui:response'] = true,
+    ['kora_lib:nui:event'] = true,
+    ['kora_lib:nui:theme'] = true,
+    ['kora_lib:app:change'] = true,
+    ['kora_lib:app:action'] = true,
+    ['kora_lib:oxLocale'] = true,
+}
+
 ---Registers an NUI callback, wrapping RegisterNUICallback's raw `(data, cb)`
 ---signature so handlers just return a value (or nil) like a normal function.
 ---A handler that errors is logged and responds with an empty table rather than
@@ -738,17 +748,24 @@ end
 function QB.nui.registerCallback(name, handler)
     assert(type(name) == 'string' and name ~= '', 'registerCallback requires a non-empty callback name.')
     assert(isCallable(handler), 'registerCallback requires a callable handler.')
-    RegisterNUICallback(name, function(data, cb)
-        local ok, result = pcall(handler, data)
+    local function register(callbackName)
+        RegisterNUICallback(callbackName, function(data, cb)
+            local ok, result = pcall(handler, data)
 
-        if not ok then
-            print(("[qblib:nui] callback '%s' errored: %s"):format(name, tostring(result)))
-            cb({})
-            return
-        end
+            if not ok then
+                print(("[kora_lib:nui] callback '%s' errored: %s"):format(callbackName, tostring(result)))
+                cb({})
+                return
+            end
 
-        cb(result == nil and {} or result)
-    end)
+            cb(result == nil and {} or result)
+        end)
+    end
+
+    register(name)
+    -- kora_lib's own callbacks keep answering under their deprecated qblib:
+    -- names, so a cached older web build or an external caller still works.
+    if LEGACY_ALIASED_CALLBACKS[name] then register('qblib:' .. name:sub(#'kora_lib:' + 1)) end
 end
 
 local feedPayload = false
@@ -779,7 +796,7 @@ end
 
 -- Persistent state may arrive before the shared browser subscribes. Re-emit
 -- into this frame instead of returning dispatch data to callback fetchers.
-QB.nui.registerCallback('qblib:dispatchfeed:ready', function()
+QB.nui.registerCallback('kora_lib:dispatchfeed:ready', function()
     local payload = feedPayload
     if payload then
         payload = {}
@@ -795,7 +812,7 @@ end)
 ---dynamically-named one per request. `data.token` must match the token this
 ---request was issued with (see generateToken above); a mismatched or missing
 ---token is silently ignored rather than resolving/rejecting anything.
-QB.nui.registerCallback("qblib:nui:response", function(data)
+QB.nui.registerCallback("kora_lib:nui:response", function(data)
     if type(data) ~= "table" then return {} end
 
     local pending = pendingRequests[data.requestId]
@@ -818,7 +835,7 @@ end)
 -- an ox_lib menu changing its selected row, checkbox, or side-scroll value)
 -- without resolving the request. The same per-request token used by the final
 -- response validates these messages against the live request.
-QB.nui.registerCallback("qblib:nui:event", function(data)
+QB.nui.registerCallback("kora_lib:nui:event", function(data)
     if type(data) ~= "table" then return {} end
 
     local pending = pendingRequests[data.requestId]
@@ -827,7 +844,7 @@ QB.nui.registerCallback("qblib:nui:event", function(data)
 
     local ok, err = pcall(pending.onEvent, data.event, data.data)
     if not ok then
-        print(("[qblib:nui] request event '%s' errored: %s"):format(tostring(data.event), tostring(err)))
+        print(("[kora_lib:nui] request event '%s' errored: %s"):format(tostring(data.event), tostring(err)))
     end
     return {}
 end)
@@ -859,7 +876,7 @@ local function settleForExport(p)
 end
 
 ---Sends `action` to the NUI and returns a promise that resolves with whatever
----the NUI eventually posts back to the shared `qblib:nui:response` callback
+---the NUI eventually posts back to the shared `kora_lib:nui:response` callback
 ---for this request's id (carrying the matching token). This is the core
 ---primitive menus, input dialogs, and `QB.nui.copyToClipboard` are all built on.
 ---@param action string
@@ -881,9 +898,9 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     -- Private metadata used by the long-lived app shell callbacks. Keeping it
     -- on the local promise avoids changing the public wire envelope or return
     -- value of QB.nui.request.
-    p.qblibNuiRequestId = requestId
-    p.qblibNuiToken = token
-    p.qblibNuiOwner = owner
+    p.koraLibNuiRequestId = requestId
+    p.koraLibNuiToken = token
+    p.koraLibNuiOwner = owner
     pendingRequests[requestId] = { promise = p, token = token, onEvent = onEvent }
     requestOwnership.track(owner, requestId)
 
@@ -912,7 +929,7 @@ end
 -- to hide: focus must be released immediately even if the frame disappears
 -- before it gets a chance to answer normally.
 local function settlePendingRequest(p, ok, value)
-    local requestId = p and p.qblibNuiRequestId
+    local requestId = p and p.koraLibNuiRequestId
     local pending = requestId and pendingRequests[requestId]
     if not pending or pending.promise ~= p then return false end
 
@@ -963,7 +980,7 @@ end
 -- This is what makes the open* wrappers below actually clickable/typable
 -- in-game; without focus the NUI renders but can never receive input.
 function focusUntilSettled(p)
-    local release = acquireFocus(true, true, p.qblibNuiOwner)
+    local release = acquireFocus(true, true, p.koraLibNuiOwner)
     p:next(release, release)
 
     return p
@@ -977,11 +994,11 @@ end
 ---@param rejection? string
 ---@return boolean cancelled
 function QB.nui.cancelRequest(request, result, rejection)
-    assert(type(request) == 'table', 'cancelRequest requires a qblib NUI request.')
+    assert(type(request) == 'table', 'cancelRequest requires a kora_lib NUI request.')
     assert(rejection == nil or type(rejection) == 'string', 'cancelRequest rejection must be a string.')
 
-    local requestId = request.qblibNuiRequestId
-    local token = request.qblibNuiToken
+    local requestId = request.koraLibNuiRequestId
+    local token = request.koraLibNuiToken
     local pending = requestId and pendingRequests[requestId]
     if not pending or pending.promise ~= request then return false end
 
@@ -996,13 +1013,13 @@ end
 ---@param data any
 ---@return boolean updated
 function QB.nui.updateRequest(request, action, data)
-    assert(type(request) == 'table', 'updateRequest requires a qblib NUI request.')
+    assert(type(request) == 'table', 'updateRequest requires a kora_lib NUI request.')
     assert(type(action) == 'string' and action ~= '', 'updateRequest action must be a non-empty string.')
-    local requestId = request.qblibNuiRequestId
+    local requestId = request.koraLibNuiRequestId
     local pending = requestId and pendingRequests[requestId]
     if not pending or pending.promise ~= request then return false end
 
-    QB.nui.send(action, { requestId = requestId, token = request.qblibNuiToken, payload = data })
+    QB.nui.send(action, { requestId = requestId, token = request.koraLibNuiToken, payload = data })
     return true
 end
 
@@ -1374,7 +1391,7 @@ function QB.nui.openApp(id, opts)
 
     local instance = {
         id = id,
-        token = p.qblibNuiToken,
+        token = p.koraLibNuiToken,
         promise = p,
         data = opts.data,
     }
@@ -1451,7 +1468,7 @@ end
 
 -- Form edits update the visible definition without submitting, closing, or
 -- taking another focus lease. Yielding handlers must not overwrite newer edits.
-QB.nui.registerCallback("qblib:app:change", function(data)
+QB.nui.registerCallback("kora_lib:app:change", function(data)
     local current = activeApp
     if not current or type(data) ~= "table" then
         return { ok = false, error = "No app is open." }
@@ -1475,7 +1492,7 @@ QB.nui.registerCallback("qblib:app:change", function(data)
         itemId = data.itemId, value = data.value, data = current.data,
     })
     if not ok then
-        print(("[qblib:nui] app '%s' change '%s' errored: %s"):format(current.id, data.actionId, tostring(update)))
+        print(("[kora_lib:nui] app '%s' change '%s' errored: %s"):format(current.id, data.actionId, tostring(update)))
         return { ok = false, error = "The app change failed." }
     end
     if activeApp ~= current or registeredApps[current.id] ~= registration or current.changeVersion ~= version then
@@ -1485,7 +1502,7 @@ QB.nui.registerCallback("qblib:app:change", function(data)
 
     local updated, err = pcall(mergeAppUpdate, registration, update)
     if not updated then
-        print(("[qblib:nui] app '%s' change '%s' returned an invalid update: %s"):format(current.id, data.actionId, tostring(err)))
+        print(("[kora_lib:nui] app '%s' change '%s' returned an invalid update: %s"):format(current.id, data.actionId, tostring(err)))
         return { ok = false, error = "The app returned an invalid update." }
     end
     applyAppAccent(registration)
@@ -1535,7 +1552,7 @@ end
 -- One token-validated route for every button/list/table action emitted by the
 -- AppShell. The per-open token prevents another NUI page from invoking a
 -- registered application's privileged action handler by guessing its id.
-QB.nui.registerCallback("qblib:app:action", function(data)
+QB.nui.registerCallback("kora_lib:app:action", function(data)
     local current = activeApp
     if not current or type(data) ~= "table" then
         return { ok = false, error = "No app is open." }
@@ -1583,7 +1600,7 @@ QB.nui.registerCallback("qblib:app:action", function(data)
         data = current.data,
     })
     if not ok then
-        print(("[qblib:nui] app '%s' action '%s' errored: %s")
+        print(("[kora_lib:nui] app '%s' action '%s' errored: %s")
             :format(current.id, data.actionId, tostring(result)))
         if declared.closeBeforeAction then notifyClosedAppError("The app action failed.") end
         return { ok = false, error = "The app action failed." }
@@ -1599,7 +1616,7 @@ QB.nui.registerCallback("qblib:app:action", function(data)
     if result.update ~= nil then
         local updateOk, updateError = pcall(mergeAppUpdate, registration, result.update)
         if not updateOk then
-            print(("[qblib:nui] app '%s' action '%s' returned an invalid update: %s")
+            print(("[kora_lib:nui] app '%s' action '%s' returned an invalid update: %s")
                 :format(current.id, data.actionId, tostring(updateError)))
             if declared.closeBeforeAction then notifyClosedAppError("The app returned an invalid update.") end
             return { ok = false, error = "The app returned an invalid update." }
@@ -1609,7 +1626,7 @@ QB.nui.registerCallback("qblib:app:action", function(data)
     local resultOk, validated = pcall(validateActionResult, registration, result)
     if not resultOk then
         registration.browser, registration.actionIds = previousBrowser, previousActionIds
-        print(("[qblib:nui] app '%s' action '%s' returned an invalid result: %s")
+        print(("[kora_lib:nui] app '%s' action '%s' returned an invalid result: %s")
             :format(current.id, data.actionId, tostring(validated)))
         if declared.closeBeforeAction then notifyClosedAppError("The app returned an invalid result.") end
         return { ok = false, error = "The app returned an invalid result." }

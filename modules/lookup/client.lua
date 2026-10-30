@@ -1,6 +1,6 @@
 local state = QB.lookup._state
-local SYNC_REQUEST = 'qblib:lookup:sync'
-local SYNC_PUSH = 'qblib:lookup:syncBatch'
+local SYNC_REQUEST = 'kora_lib:lookup:sync'
+local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
 local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
 
 local assemblies = {}

@@ -126,7 +126,7 @@ describe("MenuContainer interactive controls", () => {
         expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument()
         expect(screen.queryByRole("option", { name: "Back" })).not.toBeInTheDocument()
         await user.click(screen.getByRole("button", { name: "Back" }))
-        expect(fetchNuiMock).toHaveBeenCalledWith("qblib:nui:event", {
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:nui:event", {
             requestId: 17,
             token: "menu-token",
             event: "back",

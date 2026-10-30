@@ -50,7 +50,7 @@ local function ensureThread()
         threadRunning = false
 
         if not ok then
-            print(("[qblib:controls] control loop stopped after an error: %s"):format(tostring(err)))
+            print(("[kora_lib:controls] control loop stopped after an error: %s"):format(tostring(err)))
         end
     end)
 end

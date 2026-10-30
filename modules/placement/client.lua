@@ -26,7 +26,7 @@ local held = {}
 local bindingHandles = {}
 
 local function placementLog(message)
-    print(("[qblib:placement] %s"):format(message))
+    print(("[kora_lib:placement] %s"):format(message))
 end
 
 local function plainVec3(value)
@@ -634,7 +634,7 @@ AddEventHandler("onClientResourceStop", function(resourceName)
         if state then
             state.aborted = true
             releaseStateResources(state)
-            state.promise:reject("qblib stopped during entity placement.")
+            state.promise:reject("kora_lib stopped during entity placement.")
         end
 
         pcall(QB.nui.send, "placement:hud", nil)
@@ -646,7 +646,7 @@ AddEventHandler("onClientResourceStop", function(resourceName)
     if state and state.resource == resourceName then resolveState(state, nil) end
 end)
 
-RegisterNetEvent("qblib:editor:startPlacement", function(model)
+local function onStartPlacement(model)
     if type(model) ~= "string" and type(model) ~= "number" then return end
     if type(model) == "string" and model:match("^%-?%d+$") then model = tonumber(model) end
 
@@ -668,4 +668,8 @@ RegisterNetEvent("qblib:editor:startPlacement", function(model)
             type = "success",
         })
     end
-end)
+end
+
+RegisterNetEvent("kora_lib:editor:startPlacement", onStartPlacement)
+-- Deprecated alias for callers that predate the rename.
+RegisterNetEvent("qblib:editor:startPlacement", onStartPlacement)

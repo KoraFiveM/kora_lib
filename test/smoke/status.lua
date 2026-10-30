@@ -327,8 +327,8 @@ harness.test("stacking = extend adds the new duration onto whatever is left", fu
     for _, e in ipairs(serverGetActive(mocks.SOURCE)) do if e.name == "extendable" then secondExpiry = e.expiresAt end end
 
     harness.assertTrue(secondExpiry > firstExpiry, "a second 'extend' apply should push the expiry further out")
-    local push = mocks.lastEntry(net.triggeredClientEvents, "qblib:events:push")
-    harness.assertEqual(push[1], "qblib:status:apply")
+    local push = mocks.lastEntry(net.triggeredClientEvents, "kora_lib:events:push")
+    harness.assertEqual(push[1], "kora_lib:status:apply")
     harness.assertEqual(push[2], "extendable")
     harness.assertEqual(push[3].duration, secondExpiry - GetGameTimer(), "the client should receive the full authoritative remaining duration")
 
@@ -427,7 +427,7 @@ harness.test("internal status updates can replace a locally owned effect", funct
     -- their update must retain server authority over local presentation.
     _G.GetInvokingResource = function() return nil end
     harness.assertTrue(clientApply("injured_leg"), "an internal update should replace the local effect")
-    harness.assertTrue(clientRemove("injured_leg"), "qblib should still clean up its authoritative effect")
+    harness.assertTrue(clientRemove("injured_leg"), "kora_lib should still clean up its authoritative effect")
 end)
 
 harness.test("playerDropped clears everything tracked for that player", function()

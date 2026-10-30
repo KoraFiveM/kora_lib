@@ -2,10 +2,10 @@
 -- local/events/server.lua (separate Lua chunks can't share a local table) --
 -- any change here must be made there too, or the two realms stop talking.
 local events = {
-    gateway = 'qblib:events:invoke',
-    handshake = 'qblib:events:handshake',
-    handshakeResponse = 'qblib:events:handshake:response',
-    push = 'qblib:events:push',
+    gateway = 'kora_lib:events:invoke',
+    handshake = 'kora_lib:events:handshake',
+    handshakeResponse = 'kora_lib:events:handshake:response',
+    push = 'kora_lib:events:push',
 }
 
 local token = nil
@@ -33,7 +33,7 @@ RegisterNetEvent(events.push, function(name, ...)
 
     local ok, err = pcall(handler, ...)
     if not ok then
-        print(("[qblib:events] push handler for '%s' errored: %s"):format(name, tostring(err)))
+        print(("[kora_lib:events] push handler for '%s' errored: %s"):format(name, tostring(err)))
     end
 end)
 
@@ -83,7 +83,7 @@ function QB.events.onPush(name, handler)
     -- overwrite is worth warning about rather than silently accepting.
     local previousOwner = pushOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("[qblib:events] push handler '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your push names.")
+        print(("[kora_lib:events] push handler '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your push names.")
             :format(name, previousOwner, owner))
     end
 

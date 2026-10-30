@@ -23,7 +23,7 @@ dofile(repoRoot .. "local/events/shared.lua")
 dofile(repoRoot .. "local/events/server.lua")
 dofile(repoRoot .. "local/events/client.lua") -- its startup CreateThread completes the handshake synchronously
 
-local GATEWAY = "qblib:events:invoke"
+local GATEWAY = "kora_lib:events:invoke"
 
 local function namedUpvalue(fn, wanted)
     local index = 1
@@ -79,7 +79,7 @@ harness.test("push rejects malformed targets before dispatch", function()
 end)
 
 harness.test("client push receiver drops malformed names without faulting", function()
-    local pushHandlers = net.netHandlers["qblib:events:push"]
+    local pushHandlers = net.netHandlers["kora_lib:events:push"]
     local ok = pcall(function()
         for _, fn in ipairs(pushHandlers) do fn(0 / 0, "ignored") end
     end)
@@ -134,7 +134,7 @@ end)
 
 harness.test("handshake and gateway discard malformed server sources", function()
     local gatewayHandlers = net.netHandlers[GATEWAY]
-    local handshakeHandlers = net.netHandlers["qblib:events:handshake"]
+    local handshakeHandlers = net.netHandlers["kora_lib:events:handshake"]
     local ok = pcall(function()
         for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
             _G.source = src
@@ -296,9 +296,9 @@ harness.test('event quotas are independent per player and handler name', functio
     harness.assertEqual(secondCalls, 1, 'a different name should retain independent quota')
 
     _G.source = mocks.SOURCE + 1
-    for _, fn in ipairs(net.netHandlers['qblib:events:handshake']) do fn() end
+    for _, fn in ipairs(net.netHandlers['kora_lib:events:handshake']) do fn() end
     _G.source = nil
-    local handshake = mocks.lastEntry(net.triggeredClientEvents, 'qblib:events:handshake:response')
+    local handshake = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:events:handshake:response')
     local secondToken = handshake[1]
     _G.source = mocks.SOURCE + 1
     for _, fn in ipairs(net.netHandlers[GATEWAY]) do fn(secondToken, 'smoke:independent-a') end
@@ -307,7 +307,7 @@ harness.test('event quotas are independent per player and handler name', functio
 
     -- Restore the single-process client's token to its ordinary source.
     _G.source = mocks.SOURCE
-    for _, fn in ipairs(net.netHandlers['qblib:events:handshake']) do fn() end
+    for _, fn in ipairs(net.netHandlers['kora_lib:events:handshake']) do fn() end
     _G.source = nil
 end)
 
@@ -416,7 +416,7 @@ harness.test("foreign resources cannot unregister events or push handlers", func
 end)
 
 -- The rest of these fire onResourceStop/onClientResourceStop for the mocked
--- resource name ("qblib_test", from GetCurrentResourceName()), which sweeps
+-- resource name ("kora_lib_test", from GetCurrentResourceName()), which sweeps
 -- every handler currently owned by it -- placed last so no earlier test's
 -- still-needed registration gets swept out from under it. They also need a
 -- working token, which "playerDropped clears the token" above deliberately
@@ -424,7 +424,7 @@ end)
 -- exactly like a real reconnect, replaying the handshake refreshes both
 -- sides in sync (see test/smoke/callback.lua for the same fix, same reason).
 _G.source = mocks.SOURCE
-for _, fn in ipairs(net.netHandlers["qblib:events:handshake"]) do fn() end
+for _, fn in ipairs(net.netHandlers["kora_lib:events:handshake"]) do fn() end
 _G.source = nil
 
 harness.test("register: a handler survives an unrelated resource stopping", function()
@@ -444,7 +444,7 @@ harness.test("register: a handler is dropped when its owning resource stops", fu
     QB.events.trigger('smoke:dropped-on-stop')
     harness.assertTrue(rateBuckets['smoke:dropped-on-stop'] ~= nil, 'sanity check: the handler should own a rate bucket')
     ran = false
-    net.fire("onResourceStop", "qblib_test")
+    net.fire("onResourceStop", "kora_lib_test")
     harness.assertEqual(rateBuckets['smoke:dropped-on-stop'], nil, 'owner cleanup should clear the rate bucket')
 
     QB.events.trigger("smoke:dropped-on-stop")
@@ -454,10 +454,20 @@ end)
 harness.test("onPush: a handler is dropped when its owning resource stops", function()
     local received
     QB.events.onPush("smoke:push-dropped-on-stop", function(payload) received = payload end)
-    net.fire("onClientResourceStop", "qblib_test")
+    net.fire("onClientResourceStop", "kora_lib_test")
 
     QB.events.push(mocks.SOURCE, "smoke:push-dropped-on-stop", "should not arrive")
     harness.assertEqual(received, nil, "no push handler should run once it's been swept on resource stop")
+end)
+
+harness.test("the deprecated qblib: gateway and handshake names are still accepted", function()
+    harness.assertEqual(net.netHandlers["qblib:events:invoke"][1], net.netHandlers[GATEWAY][1],
+        "the legacy gateway should share the dispatch handler")
+    _G.source = mocks.SOURCE
+    for _, fn in ipairs(net.netHandlers["qblib:events:handshake"]) do fn() end
+    _G.source = nil
+    harness.assertTrue(mocks.lastEntry(net.triggeredClientEvents, "qblib:events:handshake:response") ~= nil,
+        "a legacy handshake should answer on the legacy response event")
 end)
 
 harness.report("events")

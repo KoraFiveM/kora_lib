@@ -77,7 +77,7 @@ function QB.status.apply(target, name, opts)
     bucket[name] = { expiresAt = expiresAt, severity = severity }
 
     local remainingDuration = expiresAt and math.max(0, expiresAt - now) or nil
-    QB.events.push(target, "qblib:status:apply", name, { duration = remainingDuration, severity = severity })
+    QB.events.push(target, "kora_lib:status:apply", name, { duration = remainingDuration, severity = severity })
 
     return true
 end
@@ -93,7 +93,7 @@ function QB.status.remove(target, name)
     if not bucket or not bucket[name] then return false end
 
     bucket[name] = nil
-    QB.events.push(target, "qblib:status:remove", name)
+    QB.events.push(target, "kora_lib:status:remove", name)
 
     return true
 end

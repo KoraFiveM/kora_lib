@@ -1,5 +1,5 @@
-local APP_ID = 'qblib:blips'
-local TOGGLE_ACTION = 'qblib:blips:toggleCategory'
+local APP_ID = 'kora_lib:blips'
+local TOGGLE_ACTION = 'kora_lib:blips:toggleCategory'
 local BLIP_DOCS_URL = 'https://docs.fivem.net/docs/game-references/blips/'
 local BLIP_ASSET_URL = 'https://docs-backend.fivem.net/blips/'
 
@@ -287,7 +287,7 @@ local function buildNavigation()
             content = { blocks = { {
                 type = 'empty',
                 title = 'No blip categories available',
-                description = 'Registered qblib blips will appear here automatically.',
+                description = 'Registered kora_lib blips will appear here automatically.',
                 icon = 'MapPin',
             } } },
         } }
@@ -370,13 +370,13 @@ RegisterCommand('blips', function()
 
     CreateThread(function()
         local ok, isAdmin = pcall(function()
-            return Citizen.Await(QB.callback.trigger('qblib:blips:isAdmin'))
+            return Citizen.Await(QB.callback.trigger('kora_lib:blips:isAdmin'))
         end)
         viewerIsAdmin = ok and isAdmin == true
         refreshApp()
 
         local opened, err = pcall(QB.nui.openApp, APP_ID)
         opening = false
-        if not opened then print(('[qblib:blips] settings could not open: %s'):format(tostring(err))) end
+        if not opened then print(('[kora_lib:blips] settings could not open: %s'):format(tostring(err))) end
     end)
 end, false)
