@@ -8,6 +8,7 @@ function QB.notify.send(src, payload)
     local ok, err = pcall(function()
         assert(src == -1 or (QB.util.isInteger(src) and src >= 1),
             "Notify target must be -1 or a positive integer server ID.")
+        payload = QB.notify.normalize(payload)
         QB.notify.assert(payload)
 
         if Config.third_party_notify then

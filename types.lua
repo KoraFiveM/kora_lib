@@ -1308,6 +1308,8 @@
 ---@field sendToAll fun(payload: QBNotifyPayload) [server]
 ---@field assert fun(payload: QBNotifyPayload) [shared]
 ---@field withDefaults fun(payload: QBNotifyPayload): QBNotifyPayload [shared]
+---@field normalizeType fun(notifyType: any): any [shared]
+---@field normalize fun(payload: QBNotifyPayload): QBNotifyPayload [shared]
 
 ---@class QBMenuPosition
 ---@field horizontal? 'left'|'center'|'right'

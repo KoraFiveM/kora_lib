@@ -121,6 +121,33 @@ harness.test("assert accepts every documented type and position", function()
     end
 end)
 
+harness.test("assert accepts type aliases and normalize resolves them", function()
+    QB.notify.assert({ message = "hi", type = "inform" })
+    QB.notify.assert({ message = "hi", type = "warn" })
+
+    local original = { message = "hi", type = "inform", duration = 1000 }
+    local normalized = QB.notify.normalize(original)
+    harness.assertEqual(normalized.type, "info")
+    harness.assertEqual(normalized.message, "hi")
+    harness.assertEqual(normalized.duration, 1000)
+    harness.assertEqual(original.type, "inform", "the caller's payload must not be mutated")
+    harness.assertEqual(QB.notify.normalize({ message = "hi", type = "warn" }).type, "warning")
+
+    local canonical = { message = "hi", type = "success" }
+    harness.assertEqual(QB.notify.normalize(canonical), canonical, "canonical types pass through untouched")
+    harness.assertEqual(QB.notify.normalize({ message = "hi" }).type, nil)
+    harness.assertEqual(QB.notify.withDefaults({ message = "hi", type = "inform" }).type, "info")
+end)
+
+harness.test("aliases do not weaken validation of unknown types", function()
+    harness.assertThrows(function()
+        QB.notify.assert(QB.notify.normalize({ message = "hi", type = "catastrophe" }))
+    end)
+    harness.assertThrows(function()
+        QB.notify.assert(QB.notify.normalize({ message = "hi", type = false }))
+    end)
+end)
+
 harness.test("assert rejects an unknown type or position", function()
     harness.assertThrows(function()
         QB.notify.assert({ message = "hi", type = "catastrophe" })

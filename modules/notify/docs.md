@@ -62,6 +62,12 @@ Returns a copy of `payload` with `duration`/`type`/`position` filled in from `Co
 Defaults apply only when those fields are omitted; explicit invalid values are
 rejected by `QB.notify.assert` rather than silently replaced.
 
+### `QB.notify.normalizeType(notifyType)` — shared
+Resolves a type alias onto its canonical type: `inform` → `info` (ox_lib's name) and `warn` → `warning`. Any other value, including `nil`, is returned unchanged so `QB.notify.assert` still rejects genuinely unknown types.
+
+### `QB.notify.normalize(payload)` — shared
+Returns a copy of `payload` with its `type` alias resolved via `normalizeType` (the original table is never mutated; a payload with nothing to resolve is returned as-is). Both `send` paths call this before validating, so `type = 'inform'` is accepted. Prefer the canonical `info`/`warning` in new code.
+
 ## Notes
 - `duration` defaults to `Config.notify.defaultDuration` (5000ms), must be a finite whole number of milliseconds, and must be `<= Config.notify.maxDuration` (120000ms by default).
 - A malformed payload never throws out of `send` — it's caught internally and the notification is silently dropped.

@@ -8,6 +8,7 @@ function QB.notify.send(payload)
     -- in-game, which is exactly the ambiguity that made a real NUI outage
     -- hard to pin down.
     local ok, err = pcall(function()
+        payload = QB.notify.normalize(payload)
         QB.notify.assert(payload)
 
         if Config.third_party_notify then
