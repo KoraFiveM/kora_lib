@@ -28,6 +28,27 @@ consumer resources
 it. Enable this compatibility resource only when an installed dependency uses
 `@ox_lib/...` imports or the ox_lib API.
 
+## Start order and ox_lib identity
+
+Full start order when the compatibility layer and oxmysql shims are in use:
+
+```text
+kora_theme
+kora_lib
+kora_sql
+[compat]/oxmysql
+ox_lib          (the shim; needs kora_lib started)
+consumers       (ox_inventory, ...)
+```
+
+kora_lib never provides `ox_lib`: no `provide 'ox_lib'` in `fxmanifest.lua`, no
+`compat.provideExport('ox_lib', ...)`, and no `ox_lib:*`, `__ox_cb_*`,
+`__ox_notify_*` or `__cfx_export_ox_lib_*` handlers. The `ox_lib` resource owns
+that identity; a second registration would run handlers twice and let
+`dependency 'ox_lib'` resolve without the shim started. The shim reaches kora_lib
+through the allowed `exports.kora_lib:ox_*` forwarding exports.
+`test/smoke/ox_identity_guard.lua` enforces this.
+
 ## Architecture
 
 FiveM resolves `@ox_lib/init.lua` by the resource's actual name, so kora_lib's
