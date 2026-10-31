@@ -23,7 +23,7 @@ local function loadConsumerModule(namespace, name, paths)
     local previous = rawget(namespace, name)
 
     -- Install the table before executing the files: module chunks populate it
-    -- through QB.<name>, which must resolve back here rather than recurse into
+    -- through Kora.<name>, which must resolve back here rather than recurse into
     -- this loader.
     rawset(namespace, name, module)
 
@@ -36,7 +36,7 @@ local function loadConsumerModule(namespace, name, paths)
             chunk()
         end
 
-        assert(next(module), ('Consumer module QB.%s did not register any functions.'):format(name))
+        assert(next(module), ('Consumer module Kora.%s did not register any functions.'):format(name))
     end)
 
     if not ok then
@@ -105,19 +105,19 @@ end
 -- apparently depends on that difference.
 --
 -- Colon sugar only exists for a LITERAL method name at the call site, which
--- is impossible here since QB.<module>.<fn> needs a dynamically *computed*
+-- is impossible here since Kora.<module>.<fn> needs a dynamically *computed*
 -- export name. `load()` works around that: it compiles a fresh chunk from a
 -- source STRING containing a literal `lib:name(...)` call, so the compiler
 -- still emits the real SELF instruction even though `name` was assembled at
 -- runtime -- unlike `library[path](library, ...)`, which never can.
 --
--- Only ever called with `name` built from QB module/function keys (lowercase
+-- Only ever called with `name` built from Kora module/function keys (lowercase
 -- identifiers by this codebase's own naming convention -- see AGENTS.md
 -- "Conventions"), but validated anyway since it's runtime code generation
 -- from property-access keys: a malformed key becoming a Lua injection vector
 -- into `load()`'s source string would be a bad failure mode to leave open.
 local function makeColonCall(name)
-    assert(name:match("^[%a_][%w_]*$"), ("Invalid QB export name: %s"):format(name))
+    assert(name:match("^[%a_][%w_]*$"), ("Invalid Kora export name: %s"):format(name))
 
     -- `...` isn't a valid name to declare a local as (so `local lib, ... = ...`
     -- is a syntax error), and referencing `...` a second time later in the
@@ -134,7 +134,7 @@ local function makeColonCall(name)
 end
 
 ---@type kora_lib
-QB = setmetatable({}, {
+Kora = setmetatable({}, {
     __index = function(t, k)
         if k == 'require' then
             local module = getRequireModule()
@@ -164,17 +164,17 @@ QB = setmetatable({}, {
         -- regardless of what the wrapped function itself expects.
         local moduleCall = makeColonCall(k)
 
-        -- Memoized: the sub-proxy is rawset back into QB so repeated
-        -- QB.<module> accesses reuse one table instead of allocating a fresh
+        -- Memoized: the sub-proxy is rawset back into Kora so repeated
+        -- Kora.<module> accesses reuse one table instead of allocating a fresh
         -- proxy per lookup (__index only fires while the key is absent).
         local proxy = setmetatable({}, {
-            -- A bare function on QB, e.g. a hypothetical QB.foo(...) ->
+            -- A bare function on Kora, e.g. a hypothetical Kora.foo(...) ->
             -- exports.kora_lib:foo(...)
             __call = function(_, ...) return moduleCall(...) end,
-            -- A module function, e.g. QB.notify.send(...) ->
+            -- A module function, e.g. Kora.notify.send(...) ->
             -- exports.kora_lib:notify_send(...). Memoized the same way as the
             -- module-level proxy above: rawset into the sub-proxy so the
-            -- colon-call chunk for a given QB.<module>.<fn> is compiled via
+            -- colon-call chunk for a given Kora.<module>.<fn> is compiled via
             -- load() once, not on every single call.
             __index = function(subProxy, k2)
                 local wrapper = makeColonCall(("%s_%s"):format(k, k2))
@@ -188,18 +188,22 @@ QB = setmetatable({}, {
     end,
 })
 
+-- Keep the original global name so resources written before the Kora rename
+-- (QB.notify.send, QB.sql.query, ...) keep working. It is the same table.
+QB = Kora
+
 -- kora_lib emits this after rebuilding its exports. Refresh only modules this
 -- consumer already touched; untouched modules remain lazy. Copying into the
--- original table also keeps `local stream = QB.stream` references current.
+-- original table also keeps `local stream = Kora.stream` references current.
 AddEventHandler(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated', function()
     for name, paths in pairs(consumerModuleFiles) do
-        local current = rawget(QB, name)
+        local current = rawget(Kora, name)
         if current then
-            local updated = loadConsumerModule(QB, name, paths)
+            local updated = loadConsumerModule(Kora, name, paths)
 
             for key in pairs(current) do current[key] = nil end
             for key, value in pairs(updated) do current[key] = value end
-            rawset(QB, name, current)
+            rawset(Kora, name, current)
         end
     end
 end)

@@ -7,7 +7,7 @@ import type { NotifyPayload, NotifyPosition, NotifyType } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 import { Markdown } from "@/components/ui/markdown"
 
-// Lua's QB.notify.send resolves these from Config.notify before sending, but
+// Lua's Kora.notify.send resolves these from Config.notify before sending, but
 // this component must stay renderable from a bare payload too -- any resource
 // can post straight to the "notify" action.
 const DEFAULT_DURATION = 5000
@@ -102,7 +102,7 @@ function notifyStyles(value: unknown) {
 }
 
 /**
- * Renders QB.notify.send's "notify" messages (see modules/notify/) as
+ * Renders Kora.notify.send's "notify" messages (see modules/notify/) as
  * auto-dismissing toasts, grouped into one stack per requested screen
  * position. Always mounted; stays pointer-events-none the whole time it's
  * visible -- notifications are informational only, never interactive, so they
@@ -129,8 +129,8 @@ export function Toast() {
     )
 
     useNuiEvent<NotifyPayload>("notify", (payload) => {
-        // Normalized on ingestion: QB.notify.assert type-checks these Lua-side,
-        // but this component must not be crashable by a raw QB.nui.send from
+        // Normalized on ingestion: Kora.notify.assert type-checks these Lua-side,
+        // but this component must not be crashable by a raw Kora.nui.send from
         // some other caller -- a non-string field renders as nothing rather
         // than becoming an invalid React child that unmounts the whole root.
         const title = typeof payload.title === "string" ? payload.title : undefined

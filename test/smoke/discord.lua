@@ -75,7 +75,7 @@ harness.test("createEmbed creates a transport-safe embed without mutating its in
         fields = { { name = "Player", value = "Jamie", inline = true } },
     }
 
-    local embed = QB.discord.createEmbed(options)
+    local embed = Kora.discord.createEmbed(options)
 
     harness.assertEqual(embed.color, 0xDC143C, "hex colors should become Discord's integer color")
     harness.assertEqual(embed.timestamp, "1970-01-01T00:00:00Z", "Unix timestamps should become UTC ISO8601")
@@ -86,17 +86,17 @@ harness.test("createEmbed creates a transport-safe embed without mutating its in
 end)
 
 harness.test("createEmbed rejects malformed colors and more than 25 fields", function()
-    harness.assertThrows(function() QB.discord.createEmbed({ color = "red" }) end,
+    harness.assertThrows(function() Kora.discord.createEmbed({ color = "red" }) end,
         "named colors are not valid Discord integer colors")
-    harness.assertThrows(function() QB.discord.createEmbed({ timestamp = math.huge }) end,
+    harness.assertThrows(function() Kora.discord.createEmbed({ timestamp = math.huge }) end,
         "an infinite Unix timestamp must be rejected before formatting")
 
     local fields = {}
     for index = 1, 26 do fields[index] = { name = tostring(index), value = "value" } end
-    harness.assertThrows(function() QB.discord.createEmbed({ fields = fields }) end,
+    harness.assertThrows(function() Kora.discord.createEmbed({ fields = fields }) end,
         "Discord only allows 25 fields")
     harness.assertThrows(function()
-        QB.discord.createEmbed({ fields = { { name = 'first', value = 'one' }, [3] = { name = 'third', value = 'three' } } })
+        Kora.discord.createEmbed({ fields = { { name = 'first', value = 'one' }, [3] = { name = 'third', value = 'three' } } })
     end, 'sparse field lists must not silently drop entries')
 end)
 
@@ -104,9 +104,9 @@ harness.test("webhooks work without the bot convar and accept a single embed", f
     convars = {}
     resetHttp()
     local callbackOk
-    local embed = QB.discord.createEmbed({ title = "Ready", color = 123 })
+    local embed = Kora.discord.createEmbed({ title = "Ready", color = 123 })
 
-    local queued = QB.discord.sendWebhook("https://discord.com/api/webhooks/1/token", embed, function(ok)
+    local queued = Kora.discord.sendWebhook("https://discord.com/api/webhooks/1/token", embed, function(ok)
         callbackOk = ok
     end)
 
@@ -122,14 +122,14 @@ end)
 harness.test("a nil webhook URL uses its convar and missing config fails locally", function()
     convars = { kora_lib_discord_webhook = "https://discord.com/api/webhooks/2/token" }
     resetHttp()
-    harness.assertTrue(QB.discord.sendWebhook(nil, "hello"), "the default webhook should queue")
+    harness.assertTrue(Kora.discord.sendWebhook(nil, "hello"), "the default webhook should queue")
     harness.assertEqual(httpRequests[1].url, convars.kora_lib_discord_webhook, "the webhook convar should be used")
     harness.assertEqual(encodedValues[httpRequests[1].body].content, "hello", "string messages should become content")
 
     convars = {}
     resetHttp()
     local callbackOk, callbackResponse
-    local queued = QB.discord.sendWebhook(nil, "hello", function(ok, response)
+    local queued = Kora.discord.sendWebhook(nil, "hello", function(ok, response)
         callbackOk, callbackResponse = ok, response
     end)
     harness.assertFalse(queued, "a missing default webhook should not queue")
@@ -143,8 +143,8 @@ harness.test("the bot client is disabled and inert without its token convar", fu
     resetHttp()
     local callbackOk, callbackResponse
 
-    harness.assertFalse(QB.discord.botEnabled(), "botEnabled should reflect the missing token")
-    local queued = QB.discord.fetchGuildRoles(nil, function(ok, response)
+    harness.assertFalse(Kora.discord.botEnabled(), "botEnabled should reflect the missing token")
+    local queued = Kora.discord.fetchGuildRoles(nil, function(ok, response)
         callbackOk, callbackResponse = ok, response
     end)
 
@@ -152,7 +152,7 @@ harness.test("the bot client is disabled and inert without its token convar", fu
     harness.assertFalse(callbackOk, "disabled bot helpers should report failure")
     harness.assertTrue(callbackResponse.error:find("disabled", 1, true) ~= nil,
         "the disabled response should explain the gate")
-    local cached, cacheErr = QB.discord.getRoles(USER_ID)
+    local cached, cacheErr = Kora.discord.getRoles(USER_ID)
     harness.assertEqual(cached, nil, "cache lookups should also be disabled without the bot convar")
     harness.assertTrue(cacheErr:find("disabled", 1, true) ~= nil, "the cache lookup should explain its gate")
     harness.assertEqual(#httpRequests, 0, "disabled bot helpers must make no HTTP request")
@@ -168,12 +168,12 @@ harness.test("fetchGuildRoles uses API v10, the default guild, and bot authoriza
     responses = { { status = 200, body = "roles_response" } }
     local result
 
-    harness.assertTrue(QB.discord.fetchGuildRoles(nil, function(ok, response)
+    harness.assertTrue(Kora.discord.fetchGuildRoles(nil, function(ok, response)
         harness.assertTrue(ok, "a 200 response should be successful")
         result = response.data
     end), "enabled bot calls should queue")
 
-    harness.assertTrue(QB.discord.botEnabled(), "botEnabled should reflect the configured token")
+    harness.assertTrue(Kora.discord.botEnabled(), "botEnabled should reflect the configured token")
     harness.assertEqual(httpRequests[1].url,
         "https://discord.com/api/v10/guilds/" .. GUILD_ID .. "/roles", "fetchGuildRoles should use the guild roles route")
     harness.assertEqual(httpRequests[1].headers.Authorization, "Bot secret-token", "the Bot authorization scheme should be used")
@@ -208,17 +208,17 @@ harness.test("the console-only sync caches guild names and online member roles",
     net.commands.kora_lib_discord_sync(0, {}, "kora_lib_discord_sync")
 
     harness.assertEqual(#httpRequests, 2, "the console sync should fetch the guild and one online member")
-    local catalog = QB.discord.getGuildRoles()
+    local catalog = Kora.discord.getGuildRoles()
     harness.assertEqual(catalog[1].name, "Moderator", "the role catalog should be ordered highest first")
-    harness.assertEqual(QB.discord.getRole("police").id, ROLE_ID, "role names should resolve case-insensitively")
+    harness.assertEqual(Kora.discord.getRole("police").id, ROLE_ID, "role names should resolve case-insensitively")
 
-    local roles = QB.discord.getRoles(USER_ID)
+    local roles = Kora.discord.getRoles(USER_ID)
     harness.assertEqual(#roles, 1, "the member should have one cached role")
     harness.assertEqual(roles[1].name, "Police", "member role IDs should resolve to catalog names")
-    harness.assertTrue(QB.discord.hasRole(USER_ID, "Police"), "hasRole should accept a role name")
-    harness.assertTrue(QB.discord.hasRole(7, ROLE_ID), "hasRole should accept an online server ID and role ID")
-    harness.assertTrue(QB.discord.hasAnyRole(USER_ID, { "Moderator", "Police" }), "hasAnyRole should match one role")
-    harness.assertFalse(QB.discord.hasAllRoles(USER_ID, { "Moderator", "Police" }), "hasAllRoles should require both")
+    harness.assertTrue(Kora.discord.hasRole(USER_ID, "Police"), "hasRole should accept a role name")
+    harness.assertTrue(Kora.discord.hasRole(7, ROLE_ID), "hasRole should accept an online server ID and role ID")
+    harness.assertTrue(Kora.discord.hasAnyRole(USER_ID, { "Moderator", "Police" }), "hasAnyRole should match one role")
+    harness.assertFalse(Kora.discord.hasAllRoles(USER_ID, { "Moderator", "Police" }), "hasAllRoles should require both")
 end)
 
 harness.test("sync migrates and persists its role directory when qbsql is available", function()
@@ -256,7 +256,7 @@ harness.test("sync migrates and persists its role directory when qbsql is availa
     end
 
     local syncOk
-    QB.discord.syncRoles(function(ok) syncOk = ok end)
+    Kora.discord.syncRoles(function(ok) syncOk = ok end)
 
     harness.assertTrue(syncOk, "the qbsql-backed sync should complete")
     harness.assertEqual(#sqlCalls.migrations, 1, "the Discord schema should use qbsql's migration runner")
@@ -272,22 +272,22 @@ harness.test("giveRole and removeRole accept names and update the authorization 
     resetHttp()
     local giveOk, removeOk
 
-    QB.discord.giveRole(USER_ID, "Moderator", function(ok) giveOk = ok end, "Admin menu grant")
+    Kora.discord.giveRole(USER_ID, "Moderator", function(ok) giveOk = ok end, "Admin menu grant")
     harness.assertTrue(giveOk, "giveRole should report Discord's successful response")
     harness.assertEqual(httpRequests[1].method, "PUT", "giveRole should add the resolved role")
-    harness.assertTrue(QB.discord.hasRole(USER_ID, "Moderator"), "the granted role should be cached immediately")
+    harness.assertTrue(Kora.discord.hasRole(USER_ID, "Moderator"), "the granted role should be cached immediately")
 
-    QB.discord.removeRole(USER_ID, "Police", function(ok) removeOk = ok end, "Admin menu revoke")
+    Kora.discord.removeRole(USER_ID, "Police", function(ok) removeOk = ok end, "Admin menu revoke")
     harness.assertTrue(removeOk, "removeRole should report Discord's successful response")
     harness.assertEqual(httpRequests[2].method, "DELETE", "removeRole should remove the resolved role")
-    harness.assertFalse(QB.discord.hasRole(USER_ID, "Police"), "the removed role should leave the cache immediately")
+    harness.assertFalse(Kora.discord.hasRole(USER_ID, "Police"), "the removed role should leave the cache immediately")
 end)
 
 harness.test("member role helpers use the correct methods and preserve string snowflakes", function()
     convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
 
-    QB.discord.setMemberRoles(GUILD_ID, USER_ID, { ROLE_ID }, nil, "Role sync / hire")
+    Kora.discord.setMemberRoles(GUILD_ID, USER_ID, { ROLE_ID }, nil, "Role sync / hire")
     local setRequest = httpRequests[#httpRequests]
     harness.assertEqual(setRequest.method, "PATCH", "setMemberRoles should modify the member")
     harness.assertEqual(setRequest.url,
@@ -297,13 +297,13 @@ harness.test("member role helpers use the correct methods and preserve string sn
     harness.assertEqual(setRequest.headers["X-Audit-Log-Reason"], "Role%20sync%20%2F%20hire",
         "audit reasons should be URL encoded")
 
-    QB.discord.addMemberRole(GUILD_ID, USER_ID, ROLE_ID)
+    Kora.discord.addMemberRole(GUILD_ID, USER_ID, ROLE_ID)
     harness.assertEqual(httpRequests[#httpRequests].method, "PUT", "addMemberRole should PUT the role route")
 
-    QB.discord.removeMemberRole(GUILD_ID, USER_ID, ROLE_ID)
+    Kora.discord.removeMemberRole(GUILD_ID, USER_ID, ROLE_ID)
     harness.assertEqual(httpRequests[#httpRequests].method, "DELETE", "removeMemberRole should DELETE the role route")
 
-    harness.assertThrows(function() QB.discord.getMember(GUILD_ID, 223456789012345678) end,
+    harness.assertThrows(function() Kora.discord.getMember(GUILD_ID, 223456789012345678) end,
         "numeric snowflakes should be rejected before precision can be lost")
 end)
 
@@ -311,28 +311,28 @@ harness.test("role, channel, and message helpers map to Discord's REST routes", 
     convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
 
-    QB.discord.createRole(GUILD_ID, { name = "Mechanic" })
+    Kora.discord.createRole(GUILD_ID, { name = "Mechanic" })
     harness.assertEqual(httpRequests[#httpRequests].url,
         "https://discord.com/api/v10/guilds/" .. GUILD_ID .. "/roles", "createRole should target guild roles")
 
-    QB.discord.createChannel(GUILD_ID, { name = "support", type = 0 })
+    Kora.discord.createChannel(GUILD_ID, { name = "support", type = 0 })
     harness.assertEqual(httpRequests[#httpRequests].method, "POST", "createChannel should POST")
     harness.assertEqual(httpRequests[#httpRequests].url,
         "https://discord.com/api/v10/guilds/" .. GUILD_ID .. "/channels", "createChannel should target guild channels")
 
-    QB.discord.updateChannel(CHANNEL_ID, { topic = "Player support" })
+    Kora.discord.updateChannel(CHANNEL_ID, { topic = "Player support" })
     harness.assertEqual(httpRequests[#httpRequests].method, "PATCH", "updateChannel should PATCH")
 
-    QB.discord.sendMessage(CHANNEL_ID, "hello")
+    Kora.discord.sendMessage(CHANNEL_ID, "hello")
     harness.assertEqual(httpRequests[#httpRequests].url,
         "https://discord.com/api/v10/channels/" .. CHANNEL_ID .. "/messages", "sendMessage should target channel messages")
     harness.assertEqual(encodedValues[httpRequests[#httpRequests].body].content, "hello",
         "bot string messages should become content payloads")
 
-    QB.discord.editMessage(CHANNEL_ID, MESSAGE_ID, { content = "edited" })
+    Kora.discord.editMessage(CHANNEL_ID, MESSAGE_ID, { content = "edited" })
     harness.assertEqual(httpRequests[#httpRequests].method, "PATCH", "editMessage should PATCH")
 
-    QB.discord.deleteMessage(CHANNEL_ID, MESSAGE_ID)
+    Kora.discord.deleteMessage(CHANNEL_ID, MESSAGE_ID)
     harness.assertEqual(httpRequests[#httpRequests].method, "DELETE", "deleteMessage should DELETE")
 end)
 
@@ -340,7 +340,7 @@ harness.test("botRequest refuses absolute routes so credentials stay on Discord"
     convars = { kora_lib_discord_bot_token = "secret-token" }
     resetHttp()
     harness.assertThrows(function()
-        QB.discord.botRequest("GET", "https://example.invalid/steal-token")
+        Kora.discord.botRequest("GET", "https://example.invalid/steal-token")
     end, "an absolute bot route should be rejected")
     harness.assertEqual(#httpRequests, 0, "a rejected route must not make a request")
 end)
@@ -356,7 +356,7 @@ harness.test("a Discord 429 is retried once after retry_after", function()
     }
     local callbackCount, callbackOk = 0, nil
 
-    QB.discord.getChannel(CHANNEL_ID, function(ok)
+    Kora.discord.getChannel(CHANNEL_ID, function(ok)
         callbackCount, callbackOk = callbackCount + 1, ok
     end)
 
@@ -376,7 +376,7 @@ harness.test("a Discord 429 with a non-finite retry delay returns normally", fun
     responses = { { status = 429, body = "invalid_rate_limit" } }
     local callbackOk, callbackResponse
 
-    QB.discord.getChannel(CHANNEL_ID, function(ok, response)
+    Kora.discord.getChannel(CHANNEL_ID, function(ok, response)
         callbackOk, callbackResponse = ok, response
     end)
 
@@ -395,26 +395,26 @@ harness.test("exported callback references work for webhook and bot APIs", funct
             calls = calls + 1
         end,
     })
-    QB.discord.sendWebhook('https://example.invalid/webhook', 'test', callback)
-    QB.discord.botRequest('GET', '/users/@me', nil, callback)
-    QB.discord.getGuild(callback)
-    QB.discord.fetchGuildRoles(callback)
-    QB.discord.getChannels(callback)
+    Kora.discord.sendWebhook('https://example.invalid/webhook', 'test', callback)
+    Kora.discord.botRequest('GET', '/users/@me', nil, callback)
+    Kora.discord.getGuild(callback)
+    Kora.discord.fetchGuildRoles(callback)
+    Kora.discord.getChannels(callback)
     harness.assertEqual(calls, 5, 'full and shorthand APIs must invoke callable-table callbacks')
-    harness.assertThrows(function() QB.discord.sendWebhook(nil, 'test', {}) end)
+    harness.assertThrows(function() Kora.discord.sendWebhook(nil, 'test', {}) end)
 end)
 
 harness.test("deprecated qblib_ convars and sync command remain supported as fallbacks", function()
     convars = { qblib_discord_bot_token = "legacy-token", qblib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
     resetHttp()
-    harness.assertTrue(QB.discord.botEnabled(), "the legacy bot token convar should still enable the bot")
-    harness.assertTrue(QB.discord.sendWebhook(nil, "hello"), "the legacy webhook convar should queue")
+    harness.assertTrue(Kora.discord.botEnabled(), "the legacy bot token convar should still enable the bot")
+    harness.assertTrue(Kora.discord.sendWebhook(nil, "hello"), "the legacy webhook convar should queue")
     harness.assertEqual(httpRequests[1].url, convars.qblib_discord_webhook, "the legacy webhook URL should be used")
     harness.assertTrue(net.commands.qblib_discord_sync ~= nil, "the deprecated console command should stay registered")
 
     convars = { kora_lib_discord_webhook = "https://discord.com/api/webhooks/4/token", qblib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
     resetHttp()
-    QB.discord.sendWebhook(nil, "hello")
+    Kora.discord.sendWebhook(nil, "hello")
     harness.assertEqual(httpRequests[1].url, convars.kora_lib_discord_webhook, "the kora_lib_ convar wins over the legacy name")
 end)
 

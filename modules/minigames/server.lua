@@ -16,24 +16,24 @@ local function roundExpiry(now, cfg, overallExpiresAt)
     return math.min(overallExpiresAt, now + roundWindow)
 end
 
-local authorizationOwnership = QB.resources.serverRegistry(function(token)
+local authorizationOwnership = Kora.resources.serverRegistry(function(token)
     authorizations[token] = nil
 end)
 
-local proofOwnership = QB.resources.serverRegistry(function(token)
+local proofOwnership = Kora.resources.serverRegistry(function(token)
     proofs[token] = nil
 end)
 
 -- Only authorized sessions have a resource owner. Legacy sessions are still
 -- player-scoped and cleaned up on cancel, expiry, or playerDropped.
-local authorizedSessionOwnership = QB.resources.serverRegistry(function(sessionId)
+local authorizedSessionOwnership = Kora.resources.serverRegistry(function(sessionId)
     local session = sessions[sessionId]
     if session then endSession(session) end
 end)
 
 local function generateOpaqueToken()
     while true do
-        local token = QB.compat.generateToken()
+        local token = Kora.compat.generateToken()
         if authorizations[token] == nil and proofs[token] == nil then return token end
     end
 end
@@ -56,7 +56,7 @@ local function randomFloat(min, max)
     return min + math.random() * (max - min)
 end
 
-local isFiniteNumber = QB.util.isFiniteNumber
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function isInteger(value)
     return isFiniteNumber(value) and value % 1 == 0
@@ -324,9 +324,9 @@ end
 ---@param gameType string
 ---@param trustedOpts? table
 ---@return string authorization
-function QB.minigames.authorizeProof(src, gameType, trustedOpts)
+function Kora.minigames.authorizeProof(src, gameType, trustedOpts)
     assert(isInteger(src) and src >= 1, "src must be a positive player server ID.")
-    assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
+    assert(type(gameType) == "string" and Kora.minigames.GAME_TYPES[gameType], "invalid minigame type.")
     assert(trustedOpts == nil or type(trustedOpts) == "table", "trusted minigame opts must be a table.")
 
     return issueAuthorization(src, gameType, resolveConfig[gameType](trustedOpts))
@@ -341,14 +341,14 @@ end
 ---@param gameType string
 ---@param trustedOpts? table
 ---@return string authorization
-function QB.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts)
+function Kora.minigames.authorizeSkillCheck(src, skill, gameType, trustedOpts)
     assert(isInteger(src) and src >= 1, 'src must be a positive player server ID.')
     assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
-    assert(type(gameType) == 'string' and QB.minigames.GAME_TYPES[gameType], 'invalid minigame type.')
+    assert(type(gameType) == 'string' and Kora.minigames.GAME_TYPES[gameType], 'invalid minigame type.')
     assert(trustedOpts == nil or type(trustedOpts) == 'table', 'trusted minigame opts must be a table.')
 
     local cfg = resolveConfig[gameType](trustedOpts)
-    local adjusted = QB.skills.adjustMinigame(src, skill, gameType, cfg)
+    local adjusted = Kora.skills.adjustMinigame(src, skill, gameType, cfg)
     return issueAuthorization(src, gameType, adjusted)
 end
 
@@ -375,7 +375,7 @@ end
 ---@param gameType string
 ---@param authorization string
 ---@return boolean
-function QB.minigames.consumeProof(src, token, gameType, authorization)
+function Kora.minigames.consumeProof(src, token, gameType, authorization)
     if not isInteger(src) or src < 1 or not isOpaqueToken(token) or
         type(gameType) ~= "string" or not isOpaqueToken(authorization) then
         return false
@@ -448,7 +448,7 @@ function validate.lockpick(session, attempt)
         assert(press.elapsed >= lastElapsed + floor, "lockpick presses are too close together to be human.")
 
         local pin = solution.pins[press.index]
-        local position = QB.minigames.triangleWave(press.elapsed, solution.speed)
+        local position = Kora.minigames.triangleWave(press.elapsed, solution.speed)
 
         if math.abs(position - pin.target) > solution.tolerance then
             return false
@@ -474,7 +474,7 @@ function validate.skillbar(session, attempt)
     assert(attempt.elapsed >= Config.minigames.skillbar.minReactionTime, "skillbar press too fast to be human.")
 
     local solution = session.solution
-    local position = QB.minigames.triangleWave(attempt.elapsed, solution.speed)
+    local position = Kora.minigames.triangleWave(attempt.elapsed, solution.speed)
 
     return position >= solution.zoneStart and position <= solution.zoneEnd
 end
@@ -607,7 +607,7 @@ function validate.fishing(session, attempt)
         assertElapsed(reel.elapsed, session, "fishing reel")
         assert(reel.elapsed >= lastElapsed + floor, "fishing reels are too close together to be human.")
 
-        local position = QB.minigames.triangleWave(reel.elapsed, solution.speed)
+        local position = Kora.minigames.triangleWave(reel.elapsed, solution.speed)
         if math.abs(position - solution.targets[i]) > solution.zoneSize / 2 then return false end
         lastElapsed = reel.elapsed
     end
@@ -936,12 +936,12 @@ end
 -- Registers the callback under its kora_lib: name and under the deprecated
 -- qblib: alias, so callers that predate the rename keep working.
 local function registerWithLegacyAlias(name, handler, options)
-    QB.callback.register(name, handler, options)
-    QB.callback.register((name:gsub("^kora_lib:", "qblib:")), handler, options)
+    Kora.callback.register(name, handler, options)
+    Kora.callback.register((name:gsub("^kora_lib:", "qblib:")), handler, options)
 end
 
 registerWithLegacyAlias("kora_lib:minigames:start", function(src, gameType, opts, authorizationToken)
-    assert(type(gameType) == "string" and QB.minigames.GAME_TYPES[gameType], "invalid minigame type.")
+    assert(type(gameType) == "string" and Kora.minigames.GAME_TYPES[gameType], "invalid minigame type.")
 
     -- A coarse sweep may not have run since a player's last abandoned round.
     -- Reclaim that player's expired session synchronously before enforcing the

@@ -45,18 +45,18 @@ _G.IsScreenFadedOut = function() return true end
 dofile(repoRoot .. 'local/resources/client.lua')
 dofile(repoRoot .. 'modules/cache/client.lua')
 dofile(repoRoot .. 'modules/visuals/client.lua')
-QB.world.getWaypointCoords = function()
+Kora.world.getWaypointCoords = function()
     if waypoint then return waypoint end
     return false, 'No waypoint is set.'
 end
-QB.world.getGroundCoords = function()
+Kora.world.getGroundCoords = function()
     if ground then return ground end
     return false, 'Ground was not found.'
 end
 dofile(repoRoot .. 'modules/teleport/client.lua')
 
 harness.test('player moves the cached ped behind the default fade and applies vector4 heading', function()
-    QB.teleport.player({ x = 10, y = 20, z = 30, w = 90 })
+    Kora.teleport.player({ x = 10, y = 20, z = 30, w = 90 })
     harness.assertEqual(moved.entity, currentPed, 'player teleport should use the cached ped')
     harness.assertEqual(moved.x, 10, 'player teleport should set x')
     harness.assertEqual(heading.value, 90, 'player teleport should apply heading')
@@ -66,7 +66,7 @@ end)
 
 harness.test('entity can move without a fade', function()
     fadeOut, fadeIn = 0, 0
-    QB.teleport.entity(99, { x = 1, y = 2, z = 3 }, { fade = false })
+    Kora.teleport.entity(99, { x = 1, y = 2, z = 3 }, { fade = false })
     harness.assertEqual(moved.entity, 99, 'entity teleport should move the requested entity')
     harness.assertEqual(fadeOut, 0, 'fade=false should not fade out')
     harness.assertEqual(fadeIn, 0, 'fade=false should not fade in')
@@ -75,33 +75,33 @@ end)
 harness.test('teleport rejects non-finite destinations and waypoint options before movement', function()
     moves, fadeOut, fadeIn = {}, 0, 0
     harness.assertThrows(function()
-        QB.teleport.entity(99, { x = math.huge, y = 2, z = 3 }, { fade = false })
+        Kora.teleport.entity(99, { x = math.huge, y = 2, z = 3 }, { fade = false })
     end, 'infinite teleport coordinates should be rejected')
     harness.assertThrows(function()
-        QB.teleport.entity(99, { x = 1, y = 2, z = 3, w = 0 / 0 }, { fade = false })
+        Kora.teleport.entity(99, { x = 1, y = 2, z = 3, w = 0 / 0 }, { fade = false })
     end, 'NaN teleport headings should be rejected')
     harness.assertThrows(function()
-        QB.teleport.entity(99, { x = 1, y = 2, z = 3, heading = 'east' }, { fade = false })
+        Kora.teleport.entity(99, { x = 1, y = 2, z = 3, heading = 'east' }, { fade = false })
     end, 'non-numeric teleport headings should be rejected')
     harness.assertThrows(function()
-        QB.teleport.entity(math.huge, { x = 1, y = 2, z = 3 }, { fade = false })
+        Kora.teleport.entity(math.huge, { x = 1, y = 2, z = 3 }, { fade = false })
     end, 'non-finite entity handles should be rejected')
     harness.assertThrows(function()
-        QB.teleport.entity(99, { x = 1, y = 2, z = 3 }, false)
+        Kora.teleport.entity(99, { x = 1, y = 2, z = 3 }, false)
     end, 'explicit non-table options should be rejected')
     harness.assertThrows(function()
-        QB.teleport.entity(99, { x = 1, y = 2, z = 3 }, { fade = 'fast' })
+        Kora.teleport.entity(99, { x = 1, y = 2, z = 3 }, { fade = 'fast' })
     end, 'invalid fades should be rejected')
 
     waypoint = { x = 100, y = 200, z = 0 }
     harness.assertThrows(function()
-        QB.teleport.toWaypoint({ collisionTimeout = math.huge })
+        Kora.teleport.toWaypoint({ collisionTimeout = math.huge })
     end, 'infinite waypoint timeouts should be rejected')
     harness.assertThrows(function()
-        QB.teleport.toWaypoint({ groundAttempts = false })
+        Kora.teleport.toWaypoint({ groundAttempts = false })
     end, 'explicit invalid waypoint values must not default')
     harness.assertThrows(function()
-        QB.teleport.toWaypoint({ launchHeight = '500' })
+        Kora.teleport.toWaypoint({ launchHeight = '500' })
     end, 'numeric strings must not silently coerce into waypoint options')
     waypoint = nil
     harness.assertEqual(#moves, 0, 'invalid inputs must not move an entity')
@@ -110,7 +110,7 @@ end)
 
 harness.test('toWaypoint reports a missing waypoint without moving or fading', function()
     waypoint, moves, fadeOut, fadeIn = nil, {}, 0, 0
-    local ok, err = QB.teleport.toWaypoint()
+    local ok, err = Kora.teleport.toWaypoint()
     harness.assertFalse(ok, 'missing waypoint should fail')
     harness.assertTrue(err:find('No waypoint', 1, true) ~= nil, 'failure should explain the missing waypoint')
     harness.assertEqual(#moves, 0, 'missing waypoint should not move the player')
@@ -122,7 +122,7 @@ harness.test('toWaypoint lands on resolved ground and always unfreezes and resto
     moves, freezes, fadeOut, fadeIn, focusCleared = {}, {}, 0, 0, 0
     waitingForCollision = false
 
-    local ok = QB.teleport.toWaypoint({ launchHeight = 500 })
+    local ok = Kora.teleport.toWaypoint({ launchHeight = 500 })
     harness.assertTrue(ok, 'resolved waypoint should succeed')
     harness.assertEqual(moves[1].z, 500, 'entity should first move to the configured launch height')
     harness.assertEqual(moves[#moves].z, 18, 'entity should finish at resolved ground height')
@@ -136,7 +136,7 @@ harness.test('toWaypoint restores the origin after ground resolution fails', fun
     moves, freezes, fadeOut, fadeIn = {}, {}, 0, 0
     waitingForCollision = false
 
-    local ok, err = QB.teleport.toWaypoint()
+    local ok, err = Kora.teleport.toWaypoint()
     harness.assertFalse(ok, 'missing ground should fail')
     harness.assertTrue(err:find('Ground was not found', 1, true) ~= nil, 'ground error should propagate')
     harness.assertEqual(moves[#moves].x, 0, 'failure should restore original x')
@@ -151,7 +151,7 @@ harness.test('toWaypoint treats collision timeout as a failure and restores the 
     moves, freezes, fadeOut, fadeIn = {}, {}, 0, 0
     waitingForCollision = true
 
-    local ok, err = QB.teleport.toWaypoint({ collisionTimeout = 16 })
+    local ok, err = Kora.teleport.toWaypoint({ collisionTimeout = 16 })
     waitingForCollision = false
     harness.assertFalse(ok, 'collision timeout should fail')
     harness.assertTrue(err:find('collision', 1, true) ~= nil, 'timeout should identify collision loading')

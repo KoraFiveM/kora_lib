@@ -5,7 +5,7 @@ A lightweight event log: an in-memory ring buffer plus per-category counters, wi
 
 ## API
 
-### `QB.logging.event(category, src, data)` -- server
+### `Kora.logging.event(category, src, data)` -- server
 Records an event and, if a webhook is configured, forwards it there too.
 
 #### Parameters
@@ -15,7 +15,7 @@ Records an event and, if a webhook is configured, forwards it there too.
 
 #### Example
 ```lua
-QB.logging.event('money', source, { type = 'add', amount = 500, account = 'bank' })
+Kora.logging.event('money', source, { type = 'add', amount = 500, account = 'bank' })
 ```
 
 Called cross-resource via export:
@@ -23,7 +23,7 @@ Called cross-resource via export:
 exports.kora_lib:logging_event('admin', source, { action = 'kick', target = 12 })
 ```
 
-### `QB.logging.getStats()` -- server
+### `Kora.logging.getStats()` -- server
 #### Returns
 - `table` -- `{ counts = { [category] = integer, ... }, ringSize = integer }`.
   `counts` is a snapshot and can be safely changed by the caller. `ringSize` is

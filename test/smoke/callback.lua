@@ -7,11 +7,11 @@ local harness = require("harness")
 local mocks = require("mocks")
 
 -- Client->server and server->client each get their own handshake/token pair
--- and their own request registry, but QB.callback.register/trigger are
+-- and their own request registry, but Kora.callback.register/trigger are
 -- defined on BOTH realms with the same name and arity (server: register(name,
 -- handler) where handler gets src; client: register(name, handler) where it
 -- doesn't). Loading both files into one process for the round-trip trick
--- means the second file's version wins the QB.callback table slot -- so each
+-- means the second file's version wins the Kora.callback table slot -- so each
 -- direction's register/trigger pair is captured by reference right after its
 -- own file loads, before the other file overwrites it.
 local net = mocks.install()
@@ -25,13 +25,13 @@ dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/callback/shared.lua")
 
 dofile(repoRoot .. "local/callback/server.lua")
-local serverRegister = QB.callback.register
-local serverTrigger = QB.callback.trigger
-local serverUnregister = QB.callback.unregister
+local serverRegister = Kora.callback.register
+local serverTrigger = Kora.callback.trigger
+local serverUnregister = Kora.callback.unregister
 
 dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread completes the client->server handshake synchronously
-local clientRegister = QB.callback.register
-local clientTrigger = QB.callback.trigger
+local clientRegister = Kora.callback.register
+local clientTrigger = Kora.callback.trigger
 
 local INVOKE = "kora_lib:callback:invoke"
 
@@ -130,7 +130,7 @@ harness.test('client asks server: the gateway drops oversized names before dispa
     _G.source = nil
 
     harness.assertFalse(ran, 'oversized callback names must not reach a handler')
-    harness.assertThrows(function() QB.callback.assertName(string.rep('x', 129)) end)
+    harness.assertThrows(function() Kora.callback.assertName(string.rep('x', 129)) end)
 end)
 
 harness.test("callback handshake and gateway discard malformed server sources", function()
@@ -529,7 +529,7 @@ end)
 
 harness.test("server asks client: unregister removes the handler immediately", function()
     clientRegister("smoke:manually-unregistered", function() return "should not run" end)
-    QB.callback.unregister("smoke:manually-unregistered")
+    Kora.callback.unregister("smoke:manually-unregistered")
 
     local p = serverTrigger(mocks.SOURCE, "smoke:manually-unregistered")
     harness.assertEqual(p.state, "rejected", "an unregistered handler must reject immediately")
@@ -543,13 +543,13 @@ harness.test("foreign resources cannot unregister callbacks in either realm", fu
     _G.GetInvokingResource = function() return "other_resource" end
     harness.assertFalse(serverUnregister("smoke:owned-server"),
         "another resource must not unregister a server callback")
-    harness.assertFalse(QB.callback.unregister("smoke:owned-client"),
+    harness.assertFalse(Kora.callback.unregister("smoke:owned-client"),
         "another resource must not unregister a client callback")
 
     _G.GetInvokingResource = function() return "callback_owner" end
     harness.assertTrue(serverUnregister("smoke:owned-server"),
         "the server callback owner should still be able to unregister it")
-    harness.assertTrue(QB.callback.unregister("smoke:owned-client"),
+    harness.assertTrue(Kora.callback.unregister("smoke:owned-client"),
         "the client callback owner should still be able to unregister it")
     _G.GetInvokingResource = function() return nil end
 end)
@@ -598,7 +598,7 @@ harness.test("server asks client: a handler is dropped when its owning resource 
 end)
 
 harness.test("cross-resource trigger during in-flight handshake resolves to the real value, not a raw promise", function()
-    -- Regression test for the race in QB.callback.trigger (client.lua): a
+    -- Regression test for the race in Kora.callback.trigger (client.lua): a
     -- genuine cross-resource caller's very first call -- extremely common
     -- right at a consumer resource's startup/player-connect, before the
     -- handshake round trip has completed -- used to get the bare unresolved
@@ -629,10 +629,10 @@ harness.test("cross-resource trigger during in-flight handshake resolves to the 
     function _G.GetInvokingResource() return invokerName end
 
     dofile(repoRoot .. "local/callback/client.lua")
-    local raceClientTrigger = QB.callback.trigger
+    local raceClientTrigger = Kora.callback.trigger
 
     dofile(repoRoot .. "local/callback/server.lua")
-    local raceServerRegister = QB.callback.register
+    local raceServerRegister = Kora.callback.register
 
     raceServerRegister("smoke:race", function() return "resolved-value" end)
 

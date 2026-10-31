@@ -3,10 +3,10 @@ local listeners = {}
 local SERVER_ID_RETRY_INTERVAL = 250
 local refreshInterval = Config.cache.tickInterval
 
-assert(QB.util.isInteger(refreshInterval) and refreshInterval > 0,
+assert(Kora.util.isInteger(refreshInterval) and refreshInterval > 0,
     'Config.cache.tickInterval must be a positive finite integer.')
 
--- Built-in keys this module owns. QB.cache.set rejects writes to
+-- Built-in keys this module owns. Kora.cache.set rejects writes to
 -- any of these outright (see below) rather than merely letting refresh()
 -- overwrite a bogus value back within one tick -- a resource (or a future
 -- ambulance job reading `health` to gate treatment) must never observe even a
@@ -37,7 +37,7 @@ local RESERVED_KEYS = {
 local listenersById = {}
 local nextListenerId = 0
 
--- Forward-declared: QB.cache.onChange (defined below, before the registry
+-- Forward-declared: Kora.cache.onChange (defined below, before the registry
 -- itself is created) needs to reference it as an upvalue.
 local listenerRegistry
 
@@ -48,7 +48,7 @@ end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 -- No-op when the value hasn't actually changed, so setting the same vehicle/
 -- weapon/etc. every tick doesn't spam onChange handlers.
@@ -187,12 +187,12 @@ end)
 ---Returns the cached value for `key`, or nil if nothing has set it yet.
 ---@param key string
 ---@return any
-function QB.cache.get(key)
+function Kora.cache.get(key)
     assertKey(key)
     return cache[key]
 end
 
----Sets a cached value directly, firing any QB.cache.onChange handlers
+---Sets a cached value directly, firing any Kora.cache.onChange handlers
 ---registered for `key` if the value actually changed. Lets other modules (or
 ---other resources, via exports.kora_lib:cache_set) piggyback on the same cache +
 ---change-notification system for their own local state. Writing a built-in
@@ -202,11 +202,11 @@ end
 ---even a transient poisoned value for one of them.
 ---@param key string
 ---@param value any
-function QB.cache.set(key, value)
+function Kora.cache.set(key, value)
     assertKey(key)
 
     if RESERVED_KEYS[key] then
-        print(("[kora_lib:cache] Ignoring QB.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
+        print(("[kora_lib:cache] Ignoring Kora.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
         return
     end
 
@@ -214,14 +214,14 @@ function QB.cache.set(key, value)
 end
 
 ---Registers `handler(newValue, oldValue)` to run whenever `key`'s cached
----value changes, whether via QB.cache.set or the module's own per-tick
+---value changes, whether via Kora.cache.set or the module's own per-tick
 ---refresh. Multiple handlers may be registered for the same key; a handler
 ---that errors is logged and doesn't stop the others. Automatically removed
 ---when the registering resource stops (see the sweep below) -- most callers
----don't need QB.cache.offChange themselves.
+---don't need Kora.cache.offChange themselves.
 ---@param key string
 ---@param handler fun(newValue: any, oldValue: any)
-function QB.cache.onChange(key, handler)
+function Kora.cache.onChange(key, handler)
     assertKey(key)
     assert(isCallable(handler), "onChange handler must be a function.")
 
@@ -239,7 +239,7 @@ function QB.cache.onChange(key, handler)
 end
 
 ---Removes one listener entry, dropping it from `listeners[key]` and the
----ownership registry alike. Shared by QB.cache.offChange and the registry's
+---ownership registry alike. Shared by Kora.cache.offChange and the registry's
 ---own onDispose (a stopped resource's listeners), so there is exactly one
 ---place that keeps `listeners`/`listenersById` consistent.
 ---@param id number
@@ -264,13 +264,13 @@ end
 -- see local/resources/AGENTS.md. A cache listener isn't a single owned
 -- handle, so the id tracked here is the synthetic per-listener id above, not
 -- the key or the resource itself.
-listenerRegistry = QB.resources.registry(removeListener)
+listenerRegistry = Kora.resources.registry(removeListener)
 
 ---Removes every onChange handler the calling resource registered for `key`.
 ---(Handler identity doesn't survive the exports boundary, so removal is
 ---per-resource-per-key rather than per-function.)
 ---@param key string
-function QB.cache.offChange(key)
+function Kora.cache.offChange(key)
     assertKey(key)
 
     local handlers = listeners[key]
@@ -291,20 +291,20 @@ end
 
 ---The local player id (PlayerId()) -- stable for the whole session.
 ---@return integer
-function QB.cache.playerId()
+function Kora.cache.playerId()
     return cache.playerId
 end
 
 ---This player's server id (GetPlayerServerId(PlayerId())) -- stable for the whole session.
 ---@return integer
-function QB.cache.serverId()
+function Kora.cache.serverId()
     return cache.serverId
 end
 
 ---The local player's current ped handle. Refreshed every tick, so this stays
 ---correct across death/respawn without re-fetching PlayerPedId() yourself.
 ---@return integer
-function QB.cache.ped()
+function Kora.cache.ped()
     return cache.ped
 end
 
@@ -312,34 +312,34 @@ end
 ---cache tick; use this for interval/event work, not frame-critical movement,
 ---aiming, or placement where a fresh native read is required.
 ---@return vector3|table
-function QB.cache.coords()
+function Kora.cache.coords()
     return cache.coords
 end
 
 ---The vehicle the local player is currently in, or false if on foot.
 ---@return integer | false
-function QB.cache.vehicle()
+function Kora.cache.vehicle()
     return cache.vehicle
 end
 
 ---The seat the local player currently occupies (-1 = driver, 0+ = passenger),
 ---or false if not in a vehicle.
 ---@return integer | false
-function QB.cache.seat()
+function Kora.cache.seat()
     return cache.seat
 end
 
 ---The vehicle the local player is trying to enter, or false when no entry
 ---animation is active. Use onChange rather than polling this value.
 ---@return integer | false
-function QB.cache.enteringVehicle()
+function Kora.cache.enteringVehicle()
     return cache.enteringVehicle
 end
 
 ---The seat the local player is trying to enter, or false when no entry
 ---animation is active.
 ---@return integer | false
-function QB.cache.enteringSeat()
+function Kora.cache.enteringSeat()
     return cache.enteringSeat
 end
 
@@ -347,7 +347,7 @@ end
 ---GetSelectedPedWeapon reports `WEAPON_UNARMED`'s hash when holding nothing,
 ---never a false/nil sentinel.
 ---@return integer
-function QB.cache.weapon()
+function Kora.cache.weapon()
     return cache.weapon
 end
 
@@ -358,7 +358,7 @@ end
 ---that threshold, or better, hook a death event, rather than assuming 0 is
 ---reachable.
 ---@return integer
-function QB.cache.health()
+function Kora.cache.health()
     return cache.health
 end
 
@@ -366,14 +366,14 @@ end
 ---IsPedFatallyInjured native. Subscribe to onChange('isDead', ...) for the
 ---alive -> dead edge; this is not a health-threshold heuristic.
 ---@return boolean
-function QB.cache.isDead()
+function Kora.cache.isDead()
     return cache.isDead
 end
 
 ---The local player's current armour (GetPedArmour(ped)). 0 when no armour is
 ---equipped.
 ---@return integer
-function QB.cache.armour()
+function Kora.cache.armour()
     return cache.armour
 end
 
@@ -382,6 +382,6 @@ end
 ---Falls while sprinting and regenerates back to 100 at rest, so onChange for
 ---this key fires on most ticks during a sprint and none at all standing still.
 ---@return number
-function QB.cache.stamina()
+function Kora.cache.stamina()
     return cache.stamina
 end

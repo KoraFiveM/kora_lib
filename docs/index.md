@@ -8,7 +8,7 @@ permalink: /
 # Build FiveM resources without rebuilding the basics
 
 {: .tagline }
-kora_lib is the shared utility layer for the qbcore2 resource set. It provides a typed `QB` API for interface components, world interaction, entities, streaming, callbacks, permissions, configuration, and the other foundations most resources need.
+kora_lib is the shared utility layer for the qbcore2 resource set. It provides a typed `Kora` API for interface components, world interaction, entities, streaming, callbacks, permissions, configuration, and the other foundations most resources need.
 
 [Install kora_lib]({{ site.baseurl }}/getting-started/){: .button }
 [Browse the API]({{ site.baseurl }}/reference/){: .button .secondary }
@@ -17,7 +17,7 @@ kora_lib is the shared utility layer for the qbcore2 resource set. It provides a
 
 ## What you get
 
-- **One consistent API.** Consumer resources load `@kora_lib/init.lua` and call namespaced helpers such as `QB.notify.send`, `QB.zones.sphere`, and `QB.callback.trigger`.
+- **One consistent API.** Consumer resources load `@kora_lib/init.lua` and call namespaced helpers such as `Kora.notify.send`, `Kora.zones.sphere`, and `Kora.callback.trigger`.
 - **Client, server, and shared modules.** Every reference page labels the realm where an operation is available.
 - **Resource ownership.** Long-lived registrations are associated with the resource that created them and cleaned up when it stops.
 - **Typed contracts.** [`types.lua`](https://github.com/qbcore2/kora_lib/blob/main/types.lua) describes functions, options, handles, callbacks, and return values for Lua language servers.
@@ -47,25 +47,25 @@ dependency 'kora_lib'
 shared_script '@kora_lib/init.lua'
 ```
 
-Then use the global `QB` proxy in the correct realm:
+Then use the global `Kora` proxy in the correct realm:
 
 ```lua
 -- client.lua
-QB.notify.send({
+Kora.notify.send({
     title = 'Vehicle stored',
     message = 'Your vehicle is now in the garage.',
     type = 'success',
 })
 
 local prompt
-local zone = QB.zones.sphere({
+local zone = Kora.zones.sphere({
     coords = vector3(215.8, -810.1, 30.7),
     radius = 2.0,
     onEnter = function()
-        prompt = QB.textui.show('Open garage', { key = 'E' })
+        prompt = Kora.textui.show('Open garage', { key = 'E' })
     end,
     onExit = function()
-        if prompt then QB.textui.hide(prompt) end
+        if prompt then Kora.textui.hide(prompt) end
         prompt = nil
     end,
 })
@@ -73,7 +73,7 @@ local zone = QB.zones.sphere({
 
 The proxy lazily loads stateless helpers and client streaming functions inside
 the consumer; stateful modules resolve to kora_lib's generated exports. You
-normally use the `QB` form either way. Direct exports remain available when a
+normally use the `Kora` form either way. Direct exports remain available when a
 language cannot load the Lua proxy.
 
 ## Where to go next

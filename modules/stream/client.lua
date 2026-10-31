@@ -1,5 +1,5 @@
 ---Generic request -> poll-until-loaded -> callback -> cleanup driver shared by
----every `QB.stream.load*` function, including `loadModel`. Skips the request
+---every `Kora.stream.load*` function, including `loadModel`. Skips the request
 ---if already loaded, polls once per frame up to a 10s timeout.
 ---Cleanup runs on the failure path and right after a callback returns; when
 ---called WITHOUT a callback the asset is deliberately left loaded and the
@@ -15,13 +15,13 @@
 ---@return any | false identifier `key`, or the value returned by `request` when `identifierFromRequest` is set, or false if it never loaded.
 ---@return string? error
 local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifierFromRequest, options)
-    assert(cb == nil or QB.util.isCallable(cb), "QB.stream callback must be callable.")
-    assert(options == nil or type(options) == "table", "QB.stream load options must be a table.")
+    assert(cb == nil or Kora.util.isCallable(cb), "Kora.stream callback must be callable.")
+    assert(options == nil or type(options) == "table", "Kora.stream load options must be a table.")
     options = options or {}
-    assert(options.timeout == nil or QB.util.isInteger(options.timeout) and options.timeout >= 0,
-        "QB.stream timeout must be a non-negative integer.")
-    assert(options.shouldContinue == nil or QB.util.isCallable(options.shouldContinue),
-        "QB.stream shouldContinue must be callable.")
+    assert(options.timeout == nil or Kora.util.isInteger(options.timeout) and options.timeout >= 0,
+        "Kora.stream timeout must be a non-negative integer.")
+    assert(options.shouldContinue == nil or Kora.util.isCallable(options.shouldContinue),
+        "Kora.stream shouldContinue must be callable.")
 
     local identifier = key
 
@@ -33,7 +33,7 @@ local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifie
 
     if not hasLoaded(identifier) then
         local cancelled = false
-        local ok, err = QB.loops.controlled(function()
+        local ok, err = Kora.loops.controlled(function()
             if options.shouldContinue and not options.shouldContinue() then
                 cancelled = true
                 return true
@@ -65,12 +65,12 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return number | false model The loaded model hash, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadModel(model, cb, options)
+function Kora.stream.loadModel(model, cb, options)
     if type(model) == "string" then
         assertName(model, 'model')
         model = joaat(model)
     end
-    assert(QB.util.isInteger(model), ("Invalid model: %s"):format(model))
+    assert(Kora.util.isInteger(model), ("Invalid model: %s"):format(model))
     assert(IsModelValid(model), ("Invalid model: %s"):format(model))
 
     return loadStreamingAsset(RequestModel, HasModelLoaded, SetModelAsNoLongerNeeded, model, cb, false, options)
@@ -84,7 +84,7 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return string | false fxName The loaded asset name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadPtfx(fxName, cb, options)
+function Kora.stream.loadPtfx(fxName, cb, options)
     assertName(fxName, 'ptfx asset name')
     return loadStreamingAsset(RequestNamedPtfxAsset, HasNamedPtfxAssetLoaded, RemoveNamedPtfxAsset, fxName, cb, false, options)
 end
@@ -97,7 +97,7 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return string | false animDict The loaded dictionary name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadAnimDict(animDict, cb, options)
+function Kora.stream.loadAnimDict(animDict, cb, options)
     assertName(animDict, 'anim dict')
     assert(DoesAnimDictExist(animDict), ("Anim dict does not exist: %s"):format(animDict))
     return loadStreamingAsset(RequestAnimDict, HasAnimDictLoaded, RemoveAnimDict, animDict, cb, false, options)
@@ -111,7 +111,7 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return string | false animSet The loaded set name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadAnimSet(animSet, cb, options)
+function Kora.stream.loadAnimSet(animSet, cb, options)
     assertName(animSet, 'anim set')
     return loadStreamingAsset(RequestAnimSet, HasAnimSetLoaded, RemoveAnimSet, animSet, cb, false, options)
 end
@@ -124,7 +124,7 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return string | false clipSet The loaded clip set name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadClipSet(clipSet, cb, options)
+function Kora.stream.loadClipSet(clipSet, cb, options)
     assertName(clipSet, 'clip set')
     return loadStreamingAsset(RequestClipSet, HasClipSetLoaded, RemoveClipSet, clipSet, cb, false, options)
 end
@@ -138,7 +138,7 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return string | false iplName The loaded IPL name, or false if it never activated.
 ---@return string? error
-function QB.stream.loadIpl(iplName, cb, options)
+function Kora.stream.loadIpl(iplName, cb, options)
     assertName(iplName, 'IPL')
     return loadStreamingAsset(RequestIpl, IsIplActive, RemoveIpl, iplName, cb, false, options)
 end
@@ -151,7 +151,7 @@ end
 ---@param options? QBStreamLoadOptions
 ---@return number | false handle The loaded scaleform handle, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadScaleformMovie(scaleformName, cb, options)
+function Kora.stream.loadScaleformMovie(scaleformName, cb, options)
     assertName(scaleformName, 'scaleform movie')
     return loadStreamingAsset(RequestScaleformMovie, HasScaleformMovieLoaded, SetScaleformMovieAsNoLongerNeeded,
         scaleformName, cb, true, options)
@@ -165,7 +165,7 @@ end
 ---@param isAdditionalTextures? boolean Second argument forwarded to `RequestStreamedTextureDict`; Rockstar/FiveM do not document its exact effect. Defaults to false, matching common usage.
 ---@return string | false textureDict The loaded dictionary name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadTextureDict(textureDict, cb, isAdditionalTextures)
+function Kora.stream.loadTextureDict(textureDict, cb, isAdditionalTextures)
     assertName(textureDict, 'texture dict')
     assert(isAdditionalTextures == nil or type(isAdditionalTextures) == "boolean",
         "Texture dictionary additional-textures flag must be a boolean.")
@@ -186,7 +186,7 @@ end
 ---@param cb? fun(audioBank: string) : nil Optional callback run once loaded; bank is released right after it returns.
 ---@return string | false audioBank The loaded bank name, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadAudioBank(audioBank, cb)
+function Kora.stream.loadAudioBank(audioBank, cb)
     assertName(audioBank, 'audio bank')
 
     local function requestBank(bank)
@@ -210,15 +210,15 @@ end
 ---@param entity? number Entity whose surroundings are checked (`HasCollisionLoadedAroundEntity`). Defaults to the local player's ped -- the usual case, where the ped has just been moved to `coords`.
 ---@return boolean success False if collision never finished loading.
 ---@return string? error
-function QB.stream.loadCollision(coords, cb, entity)
-    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+function Kora.stream.loadCollision(coords, cb, entity)
+    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3 or {x, y, z} table.")
-    assert(cb == nil or QB.util.isCallable(cb), "QB.stream callback must be callable.")
-    assert(entity == nil or QB.util.isInteger(entity), "Collision entity must be a finite integer.")
+    assert(cb == nil or Kora.util.isCallable(cb), "Kora.stream callback must be callable.")
+    assert(entity == nil or Kora.util.isInteger(entity), "Collision entity must be a finite integer.")
 
     if entity == nil then entity = PlayerPedId() end
 
-    local ok, err = QB.loops.controlled(function()
+    local ok, err = Kora.loops.controlled(function()
         RequestCollisionAtCoord(coords.x, coords.y, coords.z)
         return HasCollisionLoadedAroundEntity(entity)
     end, false, 10000, false)
@@ -241,16 +241,16 @@ end
 ---@param extraWeaponComponentFlags? integer Forwarded to `RequestWeaponAsset`; undocumented upstream, almost universally 0 in practice. Defaults to 0.
 ---@return number | false weaponHash The loaded weapon hash, or false if it never loaded.
 ---@return string? error
-function QB.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags, extraWeaponComponentFlags)
+function Kora.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags, extraWeaponComponentFlags)
     if type(weapon) == "string" then
         assertName(weapon, 'weapon')
         weapon = joaat(weapon)
     end
-    assert(QB.util.isInteger(weapon), ("Invalid weapon: %s"):format(weapon))
+    assert(Kora.util.isInteger(weapon), ("Invalid weapon: %s"):format(weapon))
     assert(IsWeaponValid(weapon), ("Invalid weapon: %s"):format(weapon))
-    assert(weaponResourceFlags == nil or QB.util.isInteger(weaponResourceFlags),
+    assert(weaponResourceFlags == nil or Kora.util.isInteger(weaponResourceFlags),
         "Weapon resource flags must be finite integers.")
-    assert(extraWeaponComponentFlags == nil or QB.util.isInteger(extraWeaponComponentFlags),
+    assert(extraWeaponComponentFlags == nil or Kora.util.isInteger(extraWeaponComponentFlags),
         "Weapon component flags must be finite integers.")
 
     return loadStreamingAsset(function(hash)

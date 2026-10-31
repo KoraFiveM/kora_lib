@@ -5,7 +5,7 @@ The entities module spawns local (non-networked) peds, objects, and vehicles for
 
 ## API
 
-### `QB.entities.createVehicle(model, coords, vehicleType)` (server)
+### `Kora.entities.createVehicle(model, coords, vehicleType)` (server)
 
 Creates a networked vehicle with `CreateVehicleServerSetter`, making it
 compatible with OneSync strict entity lockdown. Returns its network ID for
@@ -13,12 +13,12 @@ clients or garage state. `vehicleType` defaults to `automobile`; use `bike`,
 `boat`, `heli`, `plane`, `submarine`, `trailer`, or `train` when appropriate.
 
 ```lua
-local netId, err = QB.entities.createVehicle('sultan', {
+local netId, err = Kora.entities.createVehicle('sultan', {
     x = 100.0, y = 200.0, z = 30.0, w = 90.0,
 })
 ```
 
-### `QB.entities.create(model, coords, options)`
+### `Kora.entities.create(model, coords, options)`
 Creates a local entity.
 
 #### Parameters
@@ -41,7 +41,7 @@ registers a scoped zone.
 
 #### Behavior
 1. The calling resource is captured immediately via `GetInvokingResource()` (falling back to `GetCurrentResourceName()`), before any streaming wait happens.
-2. `model` is streamed with `QB.stream.loadModel`; inside its callback, the now-resolved model hash is classified with `IsModelAPed`/`IsModelAVehicle` (anything else falls back to `object`), the matching entity is created, and the model asset is released automatically right after, exactly as `loadModel` already documents.
+2. `model` is streamed with `Kora.stream.loadModel`; inside its callback, the now-resolved model hash is classified with `IsModelAPed`/`IsModelAVehicle` (anything else falls back to `object`), the matching entity is created, and the model asset is released automatically right after, exactly as `loadModel` already documents.
 3. The entity is created non-networked and is not registered as a script-host mission entity -- it exists only for the local client.
 4. `freeze`/`blockNonTempEvents`/`invincible` (resolved from `preset` + explicit overrides) are applied immediately after creation. `blockNonTempEvents` only takes effect if the model was classified as a ped.
 5. The entity is tracked against the invoking resource and automatically deleted if that resource stops.
@@ -49,7 +49,7 @@ registers a scoped zone.
 #### Example
 ```lua
 -- A frozen, invincible, non-reactive decorative ped -- type is detected from the model
-local entity, err = QB.entities.create('a_m_y_beach_01', GetEntityCoords(PlayerPedId()), {
+local entity, err = Kora.entities.create('a_m_y_beach_01', GetEntityCoords(PlayerPedId()), {
     preset = 'static',
 })
 
@@ -60,14 +60,14 @@ end
 
 ```lua
 -- Heading taken from the vector4's .w, no options.heading needed
-QB.entities.create('a_m_y_beach_01', vector4(100.0, 200.0, 30.0, 90.0), {
+Kora.entities.create('a_m_y_beach_01', vector4(100.0, 200.0, 30.0, 90.0), {
     preset = 'static',
 })
 ```
 
 ```lua
 -- A prop, frozen but without disabling any ped-only behavior (it's not a ped)
-QB.entities.create('prop_bin_08', vector3(100.0, 200.0, 30.0), {
+Kora.entities.create('prop_bin_08', vector3(100.0, 200.0, 30.0), {
     freeze = true,
 })
 ```
@@ -78,7 +78,7 @@ local entity = exports.kora_lib:entities_create('a_m_y_beach_01', coords, { pres
 -- tracked as owned by 'my_script'; deleted automatically if my_script stops
 ```
 
-### `QB.entities.remove(entity)`
+### `Kora.entities.remove(entity)`
 Deletes one of the calling resource's tracked entities on demand. A different
 resource's handle is refused, so the export cannot delete arbitrary local
 entities.
@@ -93,21 +93,21 @@ entities.
 
 #### Example
 ```lua
-local entity = QB.entities.create('a_m_y_beach_01', coords, { preset = 'static' })
+local entity = Kora.entities.create('a_m_y_beach_01', coords, { preset = 'static' })
 
 -- later, before the resource stops
-local ok, err = QB.entities.remove(entity)
+local ok, err = Kora.entities.remove(entity)
 if not ok then print('remove failed:', err) end
 ```
 
-### `QB.entities.createScoped(model, coords, options)`
+### `Kora.entities.createScoped(model, coords, options)`
 Registers a client-local entity that is spawned only while the local player is
 within `options.radius` metres of `coords`. The entity is deleted on exit and
 is created again as a new local handle on a later entry. This is intended for
 decorative props, ambient peds, and similar local-only content spread across a
 large map.
 
-It reuses `QB.zones`' spatial grid, so scopes far from the player do not load a
+It reuses `Kora.zones`' spatial grid, so scopes far from the player do not load a
 model or create a GTA entity. It does not make the entity networked; each
 client independently spawns its own copy when in range.
 
@@ -131,7 +131,7 @@ retry.
 
 #### Example
 ```lua
-local guard = QB.entities.createScoped('a_m_y_beach_01', vector4(100.0, 200.0, 30.0, 90.0), {
+local guard = Kora.entities.createScoped('a_m_y_beach_01', vector4(100.0, 200.0, 30.0, 90.0), {
     radius = 75.0,
     preset = 'static',
 })
@@ -142,8 +142,8 @@ local guard = QB.entities.createScoped('a_m_y_beach_01', vector4(100.0, 200.0, 3
 
 ### Networked entities
 
-`QB.entities.requestControl(entity, timeout?)` requests control of an existing
-networked entity. `QB.entities.delete(entity, timeout?)` obtains control,
+`Kora.entities.requestControl(entity, timeout?)` requests control of an existing
+networked entity. `Kora.entities.delete(entity, timeout?)` obtains control,
 marks it as mission-owned, then deletes it. These functions intentionally do
 not require kora_lib ownership; call them only after your resource's server has
 authorized the operation. `timeout` defaults to `1000` only when omitted and
@@ -155,4 +155,4 @@ must otherwise be a non-negative integer in milliseconds.
 - A real `vector4` only has `.w` for heading, not `.heading` -- `.heading` is read as a fallback for plain tables that use that name by convention instead.
 - `pedType` passed to the underlying `CreatePed` native is functionally inert (confirmed via upstream native reference) -- ped type is assigned automatically by the game.
 - `blockNonTempEvents` only ever affects peds; passing it for an object/vehicle is a harmless no-op, not an error.
-- If a resource stops without ever calling `QB.entities.remove` on its entities, they are still cleaned up automatically via `onClientResourceStop`.
+- If a resource stops without ever calling `Kora.entities.remove` on its entities, they are still cleaned up automatically via `onClientResourceStop`.

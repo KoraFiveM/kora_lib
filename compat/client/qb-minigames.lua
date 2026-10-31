@@ -1,7 +1,7 @@
 -- Drop-in compatibility bridge: translates the real, public qb-minigames API
 -- (github.com/qbcore-fivem/qb-minigames -- exports['qb-minigames']:Hacking/
 -- KeyMinigame/Lockpick/StartPinpad/Quiz/Skillbar/WordGuess/WordScramble) onto
--- QB.minigames.play, kora_lib's own server-authoritative replacement. Unlike
+-- Kora.minigames.play, kora_lib's own server-authoritative replacement. Unlike
 -- upstream (pure client-trust: the NUI itself decides pass/fail and just
 -- posts the result), every call here is validated server-side -- see
 -- modules/minigames/AGENTS.md and this file's "Divergences" note below for
@@ -11,22 +11,22 @@
 -- See modules/minigames/docs.md's "Legacy compat" section for the full
 -- export-by-export mapping table and the caveats flagged below.
 
--- QB.compat.provideExport registers the hidden CFX export event under the
+-- Kora.compat.provideExport registers the hidden CFX export event under the
 -- legacy `qb-minigames` identity; `provide 'qb-minigames'` alone only
 -- satisfies dependency checks.
 
--- QB.minigames.play rejects/errors (never returns a plain falsy value) when
+-- Kora.minigames.play rejects/errors (never returns a plain falsy value) when
 -- a minigame is already in progress, gameType is invalid, or the round trip
 -- fails outright -- upstream has no equivalent failure mode (its exports
 -- always resolve). pcall here so a caller written only against upstream's
 -- "always get a result" contract doesn't crash on the one new failure path;
--- treated the same as a losing round. QB.minigames.play already awaits for an
+-- treated the same as a losing round. Kora.minigames.play already awaits for an
 -- external compatibility-export caller, while an in-resource caller receives
 -- its promise directly. Capture that context before the operation can yield.
 local function playSafely(gameType, opts)
     local calledFromExport = GetInvokingResource() ~= nil
     local ok, result = pcall(function()
-        local response = QB.minigames.play(gameType, opts)
+        local response = Kora.minigames.play(gameType, opts)
         if not calledFromExport then return Citizen.Await(response) end
         return response
     end)
@@ -97,11 +97,11 @@ local function playWordScramble(word, hint, timer)
     return result.success
 end
 
-QB.compat.provideExport("qb-minigames", "Hacking", playHacking)
-QB.compat.provideExport("qb-minigames", "KeyMinigame", playKeyMinigame)
-QB.compat.provideExport("qb-minigames", "Lockpick", playLockpick)
-QB.compat.provideExport("qb-minigames", "StartPinpad", startPinpad)
-QB.compat.provideExport("qb-minigames", "Quiz", playQuiz)
-QB.compat.provideExport("qb-minigames", "Skillbar", playSkillbar)
-QB.compat.provideExport("qb-minigames", "WordGuess", playWordGuess)
-QB.compat.provideExport("qb-minigames", "WordScramble", playWordScramble)
+Kora.compat.provideExport("qb-minigames", "Hacking", playHacking)
+Kora.compat.provideExport("qb-minigames", "KeyMinigame", playKeyMinigame)
+Kora.compat.provideExport("qb-minigames", "Lockpick", playLockpick)
+Kora.compat.provideExport("qb-minigames", "StartPinpad", startPinpad)
+Kora.compat.provideExport("qb-minigames", "Quiz", playQuiz)
+Kora.compat.provideExport("qb-minigames", "Skillbar", playSkillbar)
+Kora.compat.provideExport("qb-minigames", "WordGuess", playWordGuess)
+Kora.compat.provideExport("qb-minigames", "WordScramble", playWordScramble)

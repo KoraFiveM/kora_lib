@@ -35,12 +35,12 @@ local function sourceFiles()
     -- check silently stopped executing -- which is exactly the failure mode it
     -- exists to catch elsewhere.
     local files = discover(('cd %q && rg -l %q local modules --glob %q 2>/dev/null'):format(
-        repoRoot, '^function QB\\.', '*.lua'
+        repoRoot, '^function Kora\\.', '*.lua'
     )) or discover(('cd %q && grep -rlE %q --include=%q local modules 2>/dev/null'):format(
-        repoRoot, '^function QB\\.', '*.lua'
+        repoRoot, '^function Kora\\.', '*.lua'
     ))
 
-    if not files then error('failed to discover public QB functions', 2) end
+    if not files then error('failed to discover public Kora functions', 2) end
 
     table.sort(files)
     return files
@@ -82,9 +82,9 @@ for _, sourcePath in ipairs(sourceFiles()) do
     local docsPath = sourcePath:match('^(.*)/[^/]+$') .. '/docs.md'
     local docs = readFile(repoRoot .. docsPath)
 
-    for moduleName, functionName in source:gmatch('function%s+QB%.([%w_]+)%.([%w_]+)%s*%(') do
+    for moduleName, functionName in source:gmatch('function%s+Kora%.([%w_]+)%.([%w_]+)%s*%(') do
         if moduleName ~= 'compat' then
-            local symbol = ('QB.%s.%s'):format(moduleName, functionName)
+            local symbol = ('Kora.%s.%s'):format(moduleName, functionName)
             local key = symbol .. '\0' .. docsPath
             if not symbols[key] then
                 symbols[key] = true
@@ -100,10 +100,10 @@ for _, sourcePath in ipairs(sourceFiles()) do
         end
     end
 
-    if source:find('function QB.lang(', 1, true) then
-        harness.test('QB.lang is typed and documented', function()
-            harness.assertTrue(classFields.kora_lib and classFields.kora_lib.lang, 'QB.lang is missing from kora_lib')
-            harness.assertTrue(docs:find('QB.lang', 1, true) ~= nil, 'QB.lang is missing from ' .. docsPath)
+    if source:find('function Kora.lang(', 1, true) then
+        harness.test('Kora.lang is typed and documented', function()
+            harness.assertTrue(classFields.kora_lib and classFields.kora_lib.lang, 'Kora.lang is missing from kora_lib')
+            harness.assertTrue(docs:find('Kora.lang', 1, true) ~= nil, 'Kora.lang is missing from ' .. docsPath)
         end)
     end
 end

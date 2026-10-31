@@ -14,24 +14,24 @@ dofile(repoRoot .. 'modules/util/shared.lua')
 
 harness.test('awaitGlobal returns false as a resolved value and times out safely', function()
     GlobalState.ready = false
-    harness.assertEqual(QB.state.awaitGlobal('ready', 10), false)
-    local value, reason = QB.state.awaitGlobal('missing', 10, 5)
+    harness.assertEqual(Kora.state.awaitGlobal('ready', 10), false)
+    local value, reason = Kora.state.awaitGlobal('missing', 10, 5)
     harness.assertEqual(value, nil)
     harness.assertEqual(reason, 'timeout')
 end)
 
 harness.test('awaitGlobal rejects non-finite limits before waiting', function()
     harness.assertThrows(function()
-        QB.state.awaitGlobal('missing', math.huge)
+        Kora.state.awaitGlobal('missing', math.huge)
     end, 'an infinite timeout must not create an unbounded wait')
     harness.assertThrows(function()
-        QB.state.awaitGlobal('missing', 10, math.huge)
+        Kora.state.awaitGlobal('missing', 10, math.huge)
     end, 'an infinite poll interval must not schedule an invalid wait')
     harness.assertThrows(function()
-        QB.state.awaitGlobal('missing', false)
+        Kora.state.awaitGlobal('missing', false)
     end, 'an explicit false timeout must not default')
     harness.assertThrows(function()
-        QB.state.awaitGlobal('missing', 10, false)
+        Kora.state.awaitGlobal('missing', 10, false)
     end, 'an explicit false poll interval must not default')
 end)
 
@@ -60,7 +60,7 @@ dofile(repoRoot .. 'local/resources/client.lua')
 dofile(repoRoot .. 'local/resources/server.lua')
 
 dofile(repoRoot .. 'modules/state/client.lua')
-local clientOnChange, clientOffChange = QB.state.onChange, QB.state.offChange
+local clientOnChange, clientOffChange = Kora.state.onChange, Kora.state.offChange
 
 harness.test('client subscriptions preserve filters and normalize the callback context', function()
     local change
@@ -140,7 +140,7 @@ harness.test('foreign resources cannot remove client state listeners', function(
 end)
 
 dofile(repoRoot .. 'modules/state/server.lua')
-local serverOnChange, serverOffChange = QB.state.onChange, QB.state.offChange
+local serverOnChange, serverOffChange = Kora.state.onChange, Kora.state.offChange
 
 harness.test('server subscriptions expose the same context and explicit teardown', function()
     local entity

@@ -71,7 +71,7 @@ local function render()
     local id = visibleId()
     local entry = id and entries[id] or nil
     if entry then
-        QB.nui.send('textui:set', {
+        Kora.nui.send('textui:set', {
             id = id,
             text = entry.text,
             key = entry.key,
@@ -83,7 +83,7 @@ local function render()
             position = entry.position,
         })
     else
-        QB.nui.send('textui:set', false)
+        Kora.nui.send('textui:set', false)
     end
 end
 
@@ -106,7 +106,7 @@ local function remove(id, untrack)
     return true
 end
 
-registry = QB.resources.registry(function(id)
+registry = Kora.resources.registry(function(id)
     remove(id, false)
 end)
 
@@ -115,7 +115,7 @@ end)
 ---@param opts? QBTextUIOptions
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return integer id
-function QB.textui.show(text, opts, owner)
+function Kora.textui.show(text, opts, owner)
     local entry = normalize(text, opts)
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Text UI owner must be a non-empty string.')
     nextId = nextId + 1
@@ -133,7 +133,7 @@ end
 ---@param text string
 ---@param opts? QBTextUIOptions
 ---@return boolean updated
-function QB.textui.update(id, text, opts)
+function Kora.textui.update(id, text, opts)
     assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')
     if not entries[id] then return false end
     local caller = GetInvokingResource()
@@ -147,7 +147,7 @@ end
 ---Removes a handle; removing the visible handle restores the previous one.
 ---@param id integer
 ---@return boolean removed
-function QB.textui.hide(id)
+function Kora.textui.hide(id)
     assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')
     local caller = GetInvokingResource()
     if caller and registry.owner(id) ~= caller then return false end
@@ -157,7 +157,7 @@ end
 ---Reports whether any handle, or a particular handle, is live.
 ---@param id? integer
 ---@return boolean open
-function QB.textui.isOpen(id)
+function Kora.textui.isOpen(id)
     if id == nil then return #order > 0 end
     return entries[id] ~= nil
 end
@@ -165,6 +165,6 @@ end
 ---Reports whether a handle is the newest live entry currently rendered.
 ---@param id integer
 ---@return boolean visible
-function QB.textui.isVisible(id)
+function Kora.textui.isVisible(id)
     return entries[id] ~= nil and visibleId() == id
 end

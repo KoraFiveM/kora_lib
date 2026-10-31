@@ -1,9 +1,9 @@
 # Instructional buttons
 
-`QB.instructional.show(buttons)` renders GTA's native `INSTRUCTIONAL_BUTTONS` overlay without NUI focus. Each button requires `label` and exactly one input source: `control`, `command`, or a `QB.keybind` handle.
+`Kora.instructional.show(buttons)` renders GTA's native `INSTRUCTIONAL_BUTTONS` overlay without NUI focus. Each button requires `label` and exactly one input source: `control`, `command`, or a `Kora.keybind` handle.
 
 ```lua
-local buttons = QB.instructional.show({
+local buttons = Kora.instructional.show({
     { control = 32, label = 'Move forward' },
     { keybind = modeKeybind, label = 'Movement: Camera' },
 })

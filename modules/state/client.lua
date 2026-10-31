@@ -1,9 +1,9 @@
--- QB.state (client realm) -- owner-tracked wrappers over state-bag change
+-- Kora.state (client realm) -- owner-tracked wrappers over state-bag change
 -- handlers with a normalized context object and entity resolution.
 
 local listeners = {}
 
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local function removeListener(id)
     local listener = listeners[id]
@@ -13,14 +13,14 @@ local function removeListener(id)
     return true
 end
 
-local ownership = QB.resources.registry(removeListener)
+local ownership = Kora.resources.registry(removeListener)
 
 ---Subscribe to state-bag changes in the client realm.
 ---@param keyFilter? string
 ---@param bagFilter? string
 ---@param handler fun(context: QBStateChange)
 ---@return integer listenerId
-function QB.state.onChange(keyFilter, bagFilter, handler)
+function Kora.state.onChange(keyFilter, bagFilter, handler)
     assert(keyFilter == nil or type(keyFilter) == 'string', 'State keyFilter must be a string or nil.')
     assert(bagFilter == nil or type(bagFilter) == 'string', 'State bagFilter must be a string or nil.')
     assert(isCallable(handler), 'State change handler must be callable.')
@@ -57,8 +57,8 @@ end
 
 ---@param listenerId integer
 ---@return boolean removed
-function QB.state.offChange(listenerId)
-    assert(QB.util.isInteger(listenerId) and listenerId > 0, 'State listenerId must be a positive integer.')
+function Kora.state.offChange(listenerId)
+    assert(Kora.util.isInteger(listenerId) and listenerId > 0, 'State listenerId must be a positive integer.')
     local invoker = GetInvokingResource()
     if invoker and ownership.owner(listenerId) ~= invoker then return false end
 

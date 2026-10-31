@@ -9,7 +9,7 @@ claimed until `ReleaseSoundId()`, so a script that allocates one per alert and
 never releases it will silently stop producing audio partway through a session —
 a bug that presents as "the dispatch sound randomly stopped working" and is
 near-impossible to trace. Every id allocated here is auto-released on a timer,
-released early by `QB.sound.stop`, and swept when the owning resource stops.
+released early by `Kora.sound.stop`, and swept when the owning resource stops.
 
 ## API
 
@@ -22,42 +22,42 @@ All three `play*` functions share the same options table:
 | `bank` | `string` | — | Audio bank to request and wait for before playing |
 | `releaseAfter` | `number` | `Config.sound.defaultReleaseAfter` (10000) | Finite non-negative ms before auto-release; `0` opts out |
 
-Each returns `integer | false` (the sound id, for `QB.sound.stop`) plus an error
+Each returns `integer | false` (the sound id, for `Kora.sound.stop`) plus an error
 string on failure.
 
 `options` must be a table when supplied. `network` must be boolean and `bank`
 must be a non-empty string; explicit invalid values are rejected before kora_lib
 claims a sound id or requests an audio bank.
 
-### `QB.sound.playFrontend(name, set, options?)`
+### `Kora.sound.playFrontend(name, set, options?)`
 A 2D UI/frontend sound — notification beeps, dispatch tones, menu clicks.
 
 ```lua
-QB.sound.playFrontend('Lose_1st', 'GTAO_FM_Events_Soundset')
+Kora.sound.playFrontend('Lose_1st', 'GTAO_FM_Events_Soundset')
 ```
 
-### `QB.sound.playFromCoords(coords, name, set, options?)`
+### `Kora.sound.playFromCoords(coords, name, set, options?)`
 A positional sound at finite world coordinates.
 
 ```lua
-QB.sound.playFromCoords(coords, 'Beep_Red', 'DLC_HEIST_HACKING_SNAKE_SOUNDS', { range = 20.0 })
+Kora.sound.playFromCoords(coords, 'Beep_Red', 'DLC_HEIST_HACKING_SNAKE_SOUNDS', { range = 20.0 })
 ```
 
-### `QB.sound.playFromEntity(entity, name, set, options?)`
+### `Kora.sound.playFromEntity(entity, name, set, options?)`
 A sound that follows an entity.
 
-### `QB.sound.stop(soundId)`
+### `Kora.sound.stop(soundId)`
 Stops a sound created by the calling resource and releases its id.
 
 #### Returns
-- `boolean`, `string?` — `false, "Sound id is not tracked by QB.sound."` for an
+- `boolean`, `string?` — `false, "Sound id is not tracked by Kora.sound."` for an
   id this module didn't allocate, or `false, "Sound id is owned by another resource."`
   for a handle belonging to another resource.
 
-`soundId` must be a finite integer. `QB.sound.isLive(soundId)` returns `false`
+`soundId` must be a finite integer. `Kora.sound.isLive(soundId)` returns `false`
 for any other value.
 
-### `QB.sound.isLive(soundId)`
+### `Kora.sound.isLive(soundId)`
 Whether an id allocated by this module is still held.
 
 ## Notes
@@ -68,7 +68,7 @@ Whether an id allocated by this module is still held.
   (passing `-1` as the sound id) needs no bookkeeping but produces a handle you
   can never stop. Managing the id uniformly means no call site can leak and
   every one of them is stoppable.
-- **`options.bank` yields.** It goes through `QB.stream.loadAudioBank` and waits
+- **`options.bank` yields.** It goes through `Kora.stream.loadAudioBank` and waits
   for residency. Playing before the bank loads is a silent no-op rather than an
   error — the other classic "the sound sometimes doesn't play" cause.
 - **Cleanup stops before it releases.** Releasing an id that is still playing

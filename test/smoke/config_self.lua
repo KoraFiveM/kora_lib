@@ -59,7 +59,7 @@ Config = {
 dofile(repoRoot .. 'modules/config/server.lua')
 
 H.test('kora_lib registers its own shared and server-only configuration', function()
-    local entry = QB.config.read('kora_lib')
+    local entry = Kora.config.read('kora_lib')
     H.assertEqual(entry.schema.fields.ui.scope, 'shared')
     H.assertEqual(entry.schema.fields.discord.scope, 'server')
     H.assertEqual(entry.values.discord.roleSyncInterval, 300000)

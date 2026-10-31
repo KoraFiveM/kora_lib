@@ -10,7 +10,7 @@
 
 local active = false
 
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local function isPositiveInteger(value)
     return type(value) == 'number' and value == value and value < math.huge and value > 0 and value % 1 == 0
@@ -23,18 +23,18 @@ end
 ---@param ... any Values forwarded unchanged to `begin` and `complete`.
 ---@return boolean started False when another action is already active or begin declined.
 ---@return any result The value returned by `complete`, or the begin failure reason.
-function QB.actions.run(options, ...)
-    assert(type(options) == 'table', 'QB.actions.run requires an options table.')
-    assert(isCallable(options.begin), 'QB.actions.run requires a begin function.')
-    assert(isCallable(options.complete), 'QB.actions.run requires a complete function.')
-    assert(type(options.label) == 'string' and #options.label > 0, 'QB.actions.run requires a label.')
+function Kora.actions.run(options, ...)
+    assert(type(options) == 'table', 'Kora.actions.run requires an options table.')
+    assert(isCallable(options.begin), 'Kora.actions.run requires a begin function.')
+    assert(isCallable(options.complete), 'Kora.actions.run requires a complete function.')
+    assert(type(options.label) == 'string' and #options.label > 0, 'Kora.actions.run requires a label.')
     assert(options.duration == nil or isPositiveInteger(options.duration),
-        'QB.actions.run duration must be a positive integer.')
+        'Kora.actions.run duration must be a positive integer.')
     assert(options.minigame == nil or type(options.minigame) == 'string'
-        and QB.minigames.GAME_TYPES[options.minigame],
-        'QB.actions.run minigame must be a supported game type.')
+        and Kora.minigames.GAME_TYPES[options.minigame],
+        'Kora.actions.run minigame must be a supported game type.')
     assert(options.canCancel == nil or type(options.canCancel) == 'boolean',
-        'QB.actions.run canCancel must be a boolean.')
+        'Kora.actions.run canCancel must be a boolean.')
 
     local progressPayload
     if not options.minigame then
@@ -45,7 +45,7 @@ function QB.actions.run(options, ...)
             disable = options.disable,
             anim = options.anim,
         }
-        QB.progressbar.validate(progressPayload)
+        Kora.progressbar.validate(progressPayload)
     end
 
     if active then return false, 'Another action is already active.' end
@@ -62,12 +62,12 @@ function QB.actions.run(options, ...)
 
         local uxCompleted, proof
         if options.minigame then
-            local minigame = QB.minigames.play(options.minigame,
+            local minigame = Kora.minigames.play(options.minigame,
                 { duration = options.duration }, authorization)
             uxCompleted = minigame and minigame.success == true
             proof = uxCompleted and minigame.proof or nil
         else
-            uxCompleted = QB.progressbar.start(progressPayload)
+            uxCompleted = Kora.progressbar.start(progressPayload)
         end
 
         completionAttempted = true
@@ -97,6 +97,6 @@ function QB.actions.run(options, ...)
 end
 
 ---@return boolean
-function QB.actions.isActive()
+function Kora.actions.isActive()
     return active
 end

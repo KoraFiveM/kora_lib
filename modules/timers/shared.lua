@@ -1,7 +1,7 @@
--- QB.timers -- owner-tracked repeating/deferred callbacks, plus the two rate
+-- Kora.timers -- owner-tracked repeating/deferred callbacks, plus the two rate
 -- shapers (debounce/throttle) every consumer otherwise hand-rolls.
 --
--- Why this exists next to modules/loops: QB.loops.controlled polls until a
+-- Why this exists next to modules/loops: Kora.loops.controlled polls until a
 -- predicate goes truthy and then STOPS. It has no answer for "run this every
 -- N ms until I say stop", which is what a heartbeat, a decay tick, or a
 -- periodic refresh needs. Bare SetTimeout/CreateThread do that, but nothing
@@ -16,24 +16,24 @@
 
 -- The registry is created LAZILY, not at load time. fxmanifest.lua loads every
 -- modules/**/shared.lua before ANY local/resources/{client,server}.lua, so
--- QB.resources.registry/serverRegistry do not exist yet while this chunk runs
+-- Kora.resources.registry/serverRegistry do not exist yet while this chunk runs
 -- -- calling either here would index a nil. By the time a consumer can reach
--- QB.timers.setInterval, both realms have finished loading.
+-- Kora.timers.setInterval, both realms have finished loading.
 local timerRegistry
 
 local function registry()
     if not timerRegistry then
-        local factory = IsDuplicityVersion() and QB.resources.serverRegistry or QB.resources.registry
+        local factory = IsDuplicityVersion() and Kora.resources.serverRegistry or Kora.resources.registry
 
         -- onDispose only flips the record's flag: the coroutine is parked in a
         -- Wait() and notices on its next wake. There is deliberately no attempt
         -- to kill the coroutine outright -- FiveM has no such native, and a
         -- flag check is both sufficient and cheap.
         timerRegistry = factory(function(id)
-            local record = QB.timers._records[id]
+            local record = Kora.timers._records[id]
             if record then
                 record.cancelled = true
-                QB.timers._records[id] = nil
+                Kora.timers._records[id] = nil
             end
         end)
     end
@@ -49,7 +49,7 @@ end
 -- Underscore-prefixed so build/finalise.lua skips it (it only exports
 -- functions, but keeping the naming convention makes the intent explicit:
 -- this is module state, not API).
-QB.timers._records = {}
+Kora.timers._records = {}
 
 local nextId = 0
 
@@ -59,13 +59,13 @@ local nextId = 0
 ---that accepts a callback carries.
 ---@param value any
 ---@return boolean
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 ---@param interval any
 ---@param label string
 ---@return integer
 local function assertInterval(interval, label)
-    assert(QB.util.isInteger(interval) and interval >= 0,
+    assert(Kora.util.isInteger(interval) and interval >= 0,
         ("%s requires a non-negative integer millisecond interval."):format(label))
     return interval
 end
@@ -73,11 +73,11 @@ end
 local function assertCooldownKey(key)
     local keyType = type(key)
     if keyType == 'number' then
-        assert(QB.util.isFiniteNumber(key), 'QB.timers cooldown keys must be finite scalars.')
+        assert(Kora.util.isFiniteNumber(key), 'Kora.timers cooldown keys must be finite scalars.')
     elseif keyType == 'string' then
-        assert(#key <= 256, 'QB.timers cooldown string keys must be at most 256 bytes.')
+        assert(#key <= 256, 'Kora.timers cooldown string keys must be at most 256 bytes.')
     else
-        assert(keyType == 'boolean', 'QB.timers cooldown keys must be finite scalars.')
+        assert(keyType == 'boolean', 'Kora.timers cooldown keys must be finite scalars.')
     end
     return key
 end
@@ -100,7 +100,7 @@ end
 local function scheduleTimeout(owner, fn, delay)
     local id = allocateId()
     local record = { cancelled = false }
-    QB.timers._records[id] = record
+    Kora.timers._records[id] = record
     registry().track(owner, id)
 
     CreateThread(function()
@@ -110,12 +110,12 @@ local function scheduleTimeout(owner, fn, delay)
         -- Untracked before running, not after: a one-shot has no further
         -- schedule, so leaving it tracked would leak one registry entry per
         -- timeout for the lifetime of the resource.
-        QB.timers._records[id] = nil
+        Kora.timers._records[id] = nil
         registry().untrack(id)
 
         local ok, err = pcall(fn)
         if not ok then
-            print(("[kora_lib] QB.timers timeout %d (%s) errored: %s"):format(id, owner, err))
+            print(("[kora_lib] Kora.timers timeout %d (%s) errored: %s"):format(id, owner, err))
         end
     end)
 
@@ -128,19 +128,19 @@ end
 ---`fn` is pcall'd: an error is printed and the interval KEEPS RUNNING. A
 ---heartbeat that dies permanently because one tick hit a transient nil is a
 ---worse failure than a noisy console, and it's the same containment
----QB.keybind and QB.state already apply to their handlers.
+---Kora.keybind and Kora.state already apply to their handlers.
 ---@param fn fun() Callback invoked on each tick.
 ---@param interval number Milliseconds between ticks.
----@return integer id Pass to QB.timers.clearInterval.
-function QB.timers.setInterval(fn, interval)
+---@return integer id Pass to Kora.timers.clearInterval.
+function Kora.timers.setInterval(fn, interval)
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    assert(isCallable(fn), "QB.timers.setInterval requires a callable.")
-    interval = assertInterval(interval, "QB.timers.setInterval")
+    assert(isCallable(fn), "Kora.timers.setInterval requires a callable.")
+    interval = assertInterval(interval, "Kora.timers.setInterval")
 
     local id = allocateId()
     local record = { cancelled = false }
-    QB.timers._records[id] = record
+    Kora.timers._records[id] = record
     registry().track(owner, id)
 
     CreateThread(function()
@@ -153,7 +153,7 @@ function QB.timers.setInterval(fn, interval)
 
             local ok, err = pcall(fn)
             if not ok then
-                print(("[kora_lib] QB.timers interval %d (%s) errored: %s"):format(id, owner, err))
+                print(("[kora_lib] Kora.timers interval %d (%s) errored: %s"):format(id, owner, err))
             end
         end
     end)
@@ -165,25 +165,25 @@ end
 ---SetTimeout this is cancellable and dies with its owning resource.
 ---@param fn fun()
 ---@param delay number Milliseconds to wait.
----@return integer id Pass to QB.timers.clearTimeout.
-function QB.timers.setTimeout(fn, delay)
+---@return integer id Pass to Kora.timers.clearTimeout.
+function Kora.timers.setTimeout(fn, delay)
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    assert(isCallable(fn), "QB.timers.setTimeout requires a callable.")
+    assert(isCallable(fn), "Kora.timers.setTimeout requires a callable.")
 
-    return scheduleTimeout(owner, fn, assertInterval(delay, "QB.timers.setTimeout"))
+    return scheduleTimeout(owner, fn, assertInterval(delay, "Kora.timers.setTimeout"))
 end
 
 local function clearTimer(id, owner)
-    if not QB.util.isInteger(id) then return false end
-    local record = QB.timers._records[id]
+    if not Kora.util.isInteger(id) then return false end
+    local record = Kora.timers._records[id]
     if not record then return false end
 
     local caller = owner or GetInvokingResource()
     if caller and registry().owner(id) ~= caller then return false end
 
     record.cancelled = true
-    QB.timers._records[id] = nil
+    Kora.timers._records[id] = nil
     registry().untrack(id)
     return true
 end
@@ -192,7 +192,7 @@ end
 ---id that was never live, already cancelled, or already fired.
 ---@param id integer
 ---@return boolean cancelled
-function QB.timers.clearInterval(id)
+function Kora.timers.clearInterval(id)
     return clearTimer(id)
 end
 
@@ -200,8 +200,8 @@ end
 ---`clearTimeout` on a `setTimeout` id reads better at the call site.
 ---@param id integer
 ---@return boolean cancelled
-function QB.timers.clearTimeout(id)
-    return QB.timers.clearInterval(id)
+function Kora.timers.clearTimeout(id)
+    return Kora.timers.clearInterval(id)
 end
 
 ---Wraps `fn` so it only runs once calls have stopped arriving for `wait` ms.
@@ -216,11 +216,11 @@ end
 ---@param fn fun(...) Callback.
 ---@param wait number Milliseconds of quiet required before firing.
 ---@return table debounced In-resource, call it like a function; from another resource use `.run(...)`. `.cancel()` drops a pending run.
-function QB.timers.debounce(fn, wait)
+function Kora.timers.debounce(fn, wait)
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    assert(isCallable(fn), "QB.timers.debounce requires a callable.")
-    wait = assertInterval(wait, "QB.timers.debounce")
+    assert(isCallable(fn), "Kora.timers.debounce requires a callable.")
+    wait = assertInterval(wait, "Kora.timers.debounce")
 
     local pendingId
     local pendingArgs
@@ -245,12 +245,12 @@ function QB.timers.debounce(fn, wait)
     ---Schedules a run, exactly as calling the handle does.
     ---
     ---`.run()` exists because the `__call` metamethod below does NOT survive
-    ---the export boundary: a resource reaching this through the `QB` proxy
+    ---the export boundary: a resource reaching this through the `Kora` proxy
     ---(init.lua -> exports.kora_lib:timers_debounce) receives the table's fields
     ---but not its metatable, so `debounced(...)` there raises "attempt to call
     ---a table value". Plain function fields cross as funcrefs and keep
     ---working, so `.run(...)` is the form every consumer outside kora_lib must
-    ---use. Same reasoning as QB.timers.throttle's `.run`.
+    ---use. Same reasoning as Kora.timers.throttle's `.run`.
     function debounced.run(...)
         pendingArgs = table.pack(...)
 
@@ -281,9 +281,9 @@ end
 ---@param fn fun(...) Callback.
 ---@param interval number Minimum milliseconds between runs.
 ---@return table throttled In-resource, call it like a function; from another resource use `.run(...)`. Either returns whether it ran. `.reset()` clears the cooldown.
-function QB.timers.throttle(fn, interval)
-    assert(isCallable(fn), "QB.timers.throttle requires a callable.")
-    interval = assertInterval(interval, "QB.timers.throttle")
+function Kora.timers.throttle(fn, interval)
+    assert(isCallable(fn), "Kora.timers.throttle requires a callable.")
+    interval = assertInterval(interval, "Kora.timers.throttle")
 
     local lastRun
 
@@ -305,7 +305,7 @@ function QB.timers.throttle(fn, interval)
     ---Runs `fn` if the cooldown has elapsed, exactly as calling the handle does.
     ---
     ---`.run()` exists because the `__call` metamethod below does NOT survive
-    ---the export boundary: a resource reaching this through the `QB` proxy
+    ---the export boundary: a resource reaching this through the `Kora` proxy
     ---(init.lua -> exports.kora_lib:timers_throttle) receives the table's fields
     ---but not its metatable, so `throttled(...)` there raises "attempt to call
     ---a table value" -- which is exactly how kora_police's melee detector
@@ -334,8 +334,8 @@ end
 ---player keys on disconnect when the handle is retained by long-lived code.
 ---@param interval number Minimum milliseconds between accepted uses.
 ---@return table cooldown `.use(key)`, `.remaining(key)`, and `.reset(key?)` survive the export boundary.
-function QB.timers.cooldown(interval)
-    interval = assertInterval(interval, 'QB.timers.cooldown')
+function Kora.timers.cooldown(interval)
+    interval = assertInterval(interval, 'Kora.timers.cooldown')
     local usedAt = {}
     local cooldown = {}
 
@@ -370,8 +370,8 @@ end
 ---Live timer count, for diagnostics and tests. Debounce/throttle wrappers are
 ---not timers themselves; a debouncer with a pending run contributes one.
 ---@return integer
-function QB.timers.count()
+function Kora.timers.count()
     local n = 0
-    for _ in pairs(QB.timers._records) do n = n + 1 end
+    for _ in pairs(Kora.timers._records) do n = n + 1 end
     return n
 end

@@ -10,10 +10,10 @@ permalink: /using-the-api/
 The recommended call form is:
 
 ```lua
-QB.<module>.<function>(...)
+Kora.<module>.<function>(...)
 ```
 
-For example, a stateful call such as `QB.entities.create(...)` resolves to
+For example, a stateful call such as `Kora.entities.create(...)` resolves to
 kora_lib's `entities_create` export. A non-Lua consumer can call generated exports
 directly:
 
@@ -21,15 +21,15 @@ directly:
 local entity = exports.kora_lib:entities_create(model, coords)
 ```
 
-Use the documented `QB` form in Lua. It provides language-server types and keeps consumer code consistent when an implementation changes behind the proxy.
+Use the documented `Kora` form in Lua. It provides language-server types and keeps consumer code consistent when an implementation changes behind the proxy.
 
-`QB.require`, `QB.config`, `QB.compat`, `QB.util`, and `QB.loops` are loaded
-lazily inside the consuming resource. `QB.stream` is loaded the same way on
+`Kora.require`, `Kora.config`, `Kora.compat`, `Kora.util`, and `Kora.loops` are loaded
+lazily inside the consuming resource. `Kora.stream` is loaded the same way on
 the client, so model and asset streaming natives execute in the resource that
 requested them. These modules are cached for the lifetime of that consumer.
 After kora_lib restarts, an update notification reloads already-used stateless
-helpers (`QB.util`, `QB.loops`, and client-side `QB.stream`) in place;
-untouched modules remain lazy. `QB.require`, `QB.config`, and `QB.compat`
+helpers (`Kora.util`, `Kora.loops`, and client-side `Kora.stream`) in place;
+untouched modules remain lazy. `Kora.require`, `Kora.config`, and `Kora.compat`
 deliberately retain their consumer-local caches, registrations, and
 configuration state until that consumer restarts. Existing references to a
 refreshed module table stay valid.
@@ -57,7 +57,7 @@ Calling a function from the wrong realm requests an export that was never regist
 kora_lib uses assertions for programmer errors such as an invalid argument type or an impossible internal state. Recoverable runtime failures normally return `false, reason` or `nil, reason`, as documented by the individual function.
 
 ```lua
-local entity, reason = QB.entities.create(model, coords)
+local entity, reason = Kora.entities.create(model, coords)
 if not entity then
     print(('Could not create entity: %s'):format(reason))
     return
@@ -73,7 +73,7 @@ negative infinity are invalid even when Lua classifies them as numbers. Values
 documented as IDs, counts, durations, delays, sizes, or limits must also be
 whole numbers. kora_lib rejects invalid values before they can reach timers,
 loops, native calls, or server-side state; validate consumer-owned input with
-`QB.util.isFiniteNumber(value)` or `QB.util.isInteger(value)` when useful.
+`Kora.util.isFiniteNumber(value)` or `Kora.util.isInteger(value)` when useful.
 
 ## Promises and coroutine-aware calls
 
@@ -102,7 +102,7 @@ instead of passing its raw handle around.
 Keep the returned handle when you need to remove or update something before resource shutdown:
 
 ```lua
-local bind = QB.keybind.add({
+local bind = Kora.keybind.add({
     name = 'garage_menu',
     description = 'Open the garage',
     defaultKey = 'G',
@@ -125,4 +125,4 @@ grant a reward.
 
 ## Configuration
 
-kora_lib's own defaults live in `config.lua`, with server-only values in `server/config.lua`. Consumers can use `QB.config` to define typed, owner-editable settings while retaining a normal authored Lua `Config` table. See the [configuration module]({{ site.baseurl }}/reference/config/) for scopes, validation, persistence, and live-change handlers.
+kora_lib's own defaults live in `config.lua`, with server-only values in `server/config.lua`. Consumers can use `Kora.config` to define typed, owner-editable settings while retaining a normal authored Lua `Config` table. See the [configuration module]({{ site.baseurl }}/reference/config/) for scopes, validation, persistence, and live-change handlers.

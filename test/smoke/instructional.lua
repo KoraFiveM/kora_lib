@@ -34,7 +34,7 @@ dofile(repoRoot .. 'local/resources/client.lua')
 dofile(arg[1] or repoRoot .. 'modules/instructional/client.lua')
 
 harness.test('instructional buttons draw and replace their labels', function()
-    local display = QB.instructional.show({ { control = 32, label = 'Movement: Camera' } })
+    local display = Kora.instructional.show({ { control = 32, label = 'Movement: Camera' } })
     harness.assertTrue(display.isVisible())
     harness.assertEqual(methods[#methods], 'DRAW_INSTRUCTIONAL_BUTTONS')
     display.setButtons({ { command = 'freecam_grid', label = 'Movement: Grid' } })
@@ -46,8 +46,8 @@ harness.test('instructional buttons draw and replace their labels', function()
 end)
 
 harness.test('instructional displays validate and clean up with their owner', function()
-    harness.assertThrows(function() QB.instructional.show({ { label = 'Bad' } }) end)
-    local display = QB.instructional.show({ { control = 32, label = 'Move' } })
+    harness.assertThrows(function() Kora.instructional.show({ { label = 'Bad' } }) end)
+    local display = Kora.instructional.show({ { control = 32, label = 'Move' } })
     net.fire('onClientResourceStop', 'kora_lib_test')
     harness.assertFalse(display.isVisible())
 end)
@@ -56,7 +56,7 @@ harness.test('draw work follows active displays while gaps and replacements keep
     net.step()
     local removed
     for _ = 1, 1000 do
-        removed = QB.instructional.show({ { control = 1, label = 'Temporary' } })
+        removed = Kora.instructional.show({ { control = 1, label = 'Temporary' } })
         harness.assertTrue(removed.hide())
     end
     harness.assertFalse(removed.isVisible())
@@ -65,11 +65,11 @@ harness.test('draw work follows active displays while gaps and replacements keep
 
     local invoking = GetInvokingResource
     GetInvokingResource = function() return 'first_owner' end
-    local first = QB.instructional.show({ { control = 1, label = 'First' } })
-    local middle = QB.instructional.show({ { control = 2, label = 'Middle' } })
-    local third = QB.instructional.show({ { control = 3, label = 'Third' } })
+    local first = Kora.instructional.show({ { control = 1, label = 'First' } })
+    local middle = Kora.instructional.show({ { control = 2, label = 'Middle' } })
+    local third = Kora.instructional.show({ { control = 3, label = 'Third' } })
     GetInvokingResource = function() return 'other_owner' end
-    local last = QB.instructional.show({ { control = 4, label = 'Last' } })
+    local last = Kora.instructional.show({ { control = 4, label = 'Last' } })
     GetInvokingResource = invoking
     harness.assertTrue(middle.hide())
     harness.assertTrue(first.setButtons({ { control = 5, label = 'First replacement' }, { control = 6, label = 'First extra' } }))

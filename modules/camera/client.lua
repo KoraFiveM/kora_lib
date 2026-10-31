@@ -20,7 +20,7 @@ local CAMERA_MODES = {
     operator = true,
 }
 
-local isFiniteNumber = QB.util.isFiniteNumber
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function isCoords(value)
     return type(value) == 'table' or type(value) == 'vector3' or type(value) == 'vector4'
@@ -112,11 +112,11 @@ local function showInstructions()
         buttons[#buttons + 1] = { control = 11, label = 'Previous camera' }
     end
     buttons[#buttons + 1] = { control = 177, label = 'Exit camera' }
-    state.instructions = QB.instructional.show(buttons)
+    state.instructions = Kora.instructional.show(buttons)
 end
 
 local function sendUpdate()
-    QB.nui.send('camera:update', hudPayload())
+    Kora.nui.send('camera:update', hudPayload())
 end
 
 local function createCamera(camera)
@@ -164,17 +164,17 @@ local function startLoop()
     CreateThread(function()
         while state.active and loopId == id do
             if IsControlJustPressed(0, 177) or IsControlJustPressed(0, 322) then
-                QB.camera.close('escape')
+                Kora.camera.close('escape')
             elseif IsControlJustPressed(0, 10) then
-                QB.camera.next()
+                Kora.camera.next()
             elseif IsControlJustPressed(0, 11) then
-                QB.camera.previous()
+                Kora.camera.previous()
             end
 
             local now = GetGameTimer()
             if now - state.lastTick >= 1000 then
                 state.lastTick = now
-                QB.nui.send('camera:tick', { elapsed = math.max(0, now - state.startedAt) })
+                Kora.nui.send('camera:tick', { elapsed = math.max(0, now - state.startedAt) })
             end
             Wait(0)
         end
@@ -185,9 +185,9 @@ end
 ---helicam, and operator modes can omit it to keep the player's native view.
 ---@param options QBCameraOptions
 ---@return boolean opened
-function QB.camera.open(options)
+function Kora.camera.open(options)
     local normalized, cameras = normalizedOptions(options)
-    if state.active then QB.camera.close('replaced') end
+    if state.active then Kora.camera.close('replaced') end
 
     state.active, state.options, state.cameras = true, normalized, cameras
     state.index, state.startedAt, state.lastTick = 0, GetGameTimer(), 0
@@ -198,7 +198,7 @@ function QB.camera.open(options)
 
     if #cameras > 0 then activateCamera(1) end
     showInstructions()
-    QB.nui.send('camera:open', hudPayload())
+    Kora.nui.send('camera:open', hudPayload())
     startLoop()
     return true
 end
@@ -206,7 +206,7 @@ end
 ---Closes the active camera and restores the player's previous view.
 ---@param reason? string
 ---@return boolean closed
-function QB.camera.close(reason)
+function Kora.camera.close(reason)
     if not state.active then return false end
 
     restorePlayerCamera()
@@ -215,18 +215,18 @@ function QB.camera.close(reason)
         state.instructions = nil
     end
     state.active, state.options, state.cameras, state.index = false, nil, {}, 0
-    QB.nui.send('camera:close', { reason = reason or 'closed' })
+    Kora.nui.send('camera:close', { reason = reason or 'closed' })
     return true
 end
 
 ---@return boolean open
-function QB.camera.isOpen()
+function Kora.camera.isOpen()
     return state.active
 end
 
 ---Switches to the next camera in the current camera network.
 ---@return boolean changed
-function QB.camera.next()
+function Kora.camera.next()
     if not state.active or #state.cameras < 2 then return false end
     activateCamera(state.index + 1)
     return true
@@ -234,7 +234,7 @@ end
 
 ---Switches to the previous camera in the current camera network.
 ---@return boolean changed
-function QB.camera.previous()
+function Kora.camera.previous()
     if not state.active or #state.cameras < 2 then return false end
     activateCamera(state.index - 1)
     return true
@@ -243,7 +243,7 @@ end
 ---Changes the recording indicator without changing the live camera.
 ---@param recording boolean
 ---@return boolean updated
-function QB.camera.setRecording(recording)
+function Kora.camera.setRecording(recording)
     assert(type(recording) == 'boolean', 'Camera setRecording requires a boolean.')
     if not state.active then return false end
     state.options.recording = recording

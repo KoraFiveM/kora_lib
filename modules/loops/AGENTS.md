@@ -4,7 +4,7 @@
 This module provides a generic polling/retry loop for waiting on a condition to become true, without hand-rolling a `while`/`Wait` loop at every call site.
 
 ## Public API
-- `QB.loops.controlled(call, tries, timeout, backoff)`
+- `Kora.loops.controlled(call, tries, timeout, backoff)`
   - Repeatedly invokes `call` until it returns a truthy value, or the try count / timeout is exhausted.
   - Returns the truthy value from `call`, or `false, error` on failure.
 

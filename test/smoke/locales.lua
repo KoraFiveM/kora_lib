@@ -30,48 +30,48 @@ dofile(repoRoot .. 'modules/locales/shared.lua')
 dofile(repoRoot .. 'modules/locales/client.lua')
 
 harness.test('uses the configured fallback before a player preference exists', function()
-    harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hello Ada')
+    harness.assertEqual(Kora.lang('greeting', { name = 'Ada' }), 'Hello Ada')
 end)
 
 harness.test('treats named placeholders and replacements as literal text', function()
-    harness.assertEqual(QB.lang('literal', { ['a.b'] = '50% complete' }), 'Value: 50% complete')
+    harness.assertEqual(Kora.lang('literal', { ['a.b'] = '50% complete' }), 'Value: 50% complete')
 end)
 
 harness.test('falls back to English when the configured language is invalid', function()
     local configured = convars.qb_locale
     convars.qb_locale = '../outside'
-    QB.locale._language = nil
+    Kora.locale._language = nil
 
-    harness.assertEqual(QB.locale.getLanguage(), 'en')
-    harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hello Ada')
+    harness.assertEqual(Kora.locale.getLanguage(), 'en')
+    harness.assertEqual(Kora.lang('greeting', { name = 'Ada' }), 'Hello Ada')
 
     convars.qb_locale = configured
 end)
 
 harness.test('rejects malformed explicit resource names before locale file lookup', function()
-    harness.assertThrows(function() QB.locale.translate('../legacy', 'greeting') end)
+    harness.assertThrows(function() Kora.locale.translate('../legacy', 'greeting') end)
 end)
 
 harness.test('stores a player language in client KVP and switches lookup immediately', function()
-    local ok, err = QB.locale.setLanguage('de')
+    local ok, err = Kora.locale.setLanguage('de')
     harness.assertTrue(ok, err)
     harness.assertEqual(kvps.locale, 'de', 'language should be stored in kora_lib client KVP')
-    harness.assertEqual(QB.locale.getLanguage(), 'de')
-    harness.assertEqual(QB.lang('greeting', { name = 'Ada' }), 'Hallo Ada')
-    harness.assertEqual(QB.lang('positional', 'Ada'), 'Hallo Ada')
-    harness.assertEqual(QB.lang('fallback'), 'English', 'missing selected-language keys should fall back to English')
+    harness.assertEqual(Kora.locale.getLanguage(), 'de')
+    harness.assertEqual(Kora.lang('greeting', { name = 'Ada' }), 'Hallo Ada')
+    harness.assertEqual(Kora.lang('positional', 'Ada'), 'Hallo Ada')
+    harness.assertEqual(Kora.lang('fallback'), 'English', 'missing selected-language keys should fall back to English')
     harness.assertEqual(events[#events - 1].name, 'kora_lib:client:localeChanged')
     harness.assertEqual(events[#events].name, 'qblib:client:localeChanged', 'deprecated alias for older listeners')
 end)
 
 harness.test('rejects a language the server has not offered', function()
-    local ok = QB.locale.setLanguage('fr')
+    local ok = Kora.locale.setLanguage('fr')
     harness.assertFalse(ok)
-    harness.assertEqual(QB.locale.getLanguage(), 'de', 'a rejected choice must not overwrite the preference')
+    harness.assertEqual(Kora.locale.getLanguage(), 'de', 'a rejected choice must not overwrite the preference')
 end)
 
 harness.test('loads compatibility locale tables without executing their side effects', function()
-    harness.assertEqual(QB.locale.translate('legacy', 'greeting'), 'Legacy English')
+    harness.assertEqual(Kora.locale.translate('legacy', 'greeting'), 'Legacy English')
 end)
 
 harness.report('locales')

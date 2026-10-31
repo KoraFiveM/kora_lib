@@ -43,12 +43,12 @@ end
 -- closes that gap the same way local/callback's per-player token does for the
 -- client<->server boundary.
 --
-local generateToken = QB.compat.generateToken
+local generateToken = Kora.compat.generateToken
 
 -- FXServer represents a function passed through an exports boundary as a
 -- callable table rather than a plain Lua function. App action handlers are
 -- registered by consumer resources, so accept both shapes.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local function assertAppId(id)
     assert(type(id) == "string" and id ~= "" and id:match("^[%w_:%.%-]+$"),
@@ -56,7 +56,7 @@ local function assertAppId(id)
 end
 
 local function translateAppLabel(key)
-    if QB.locale and QB.locale.translate then return QB.locale.translate('kora_lib', 'app.' .. key) end
+    if Kora.locale and Kora.locale.translate then return Kora.locale.translate('kora_lib', 'app.' .. key) end
     return APP_LABEL_FALLBACKS[key]
 end
 
@@ -141,7 +141,7 @@ local function assertCollectionOptions(block, location)
 end
 
 local function assertPoint(point, location)
-    assert(type(point) == "table" and QB.util.isFiniteNumber(point.x) and QB.util.isFiniteNumber(point.y),
+    assert(type(point) == "table" and Kora.util.isFiniteNumber(point.x) and Kora.util.isFiniteNumber(point.y),
         location .. " requires finite x and y values.")
 end
 
@@ -159,17 +159,17 @@ local function assertInputFields(fields, location)
         assert(field.description == nil or type(field.description) == "string", fieldLocation .. " description must be a string.")
         assert(field.required == nil or type(field.required) == "boolean", fieldLocation .. " required must be a boolean.")
         assert(field.disabled == nil or type(field.disabled) == "boolean", fieldLocation .. " disabled must be a boolean.")
-        assert(field.min == nil or QB.util.isFiniteNumber(field.min), fieldLocation .. " min must be a finite number.")
-        assert(field.max == nil or QB.util.isFiniteNumber(field.max), fieldLocation .. " max must be a finite number.")
+        assert(field.min == nil or Kora.util.isFiniteNumber(field.min), fieldLocation .. " min must be a finite number.")
+        assert(field.max == nil or Kora.util.isFiniteNumber(field.max), fieldLocation .. " max must be a finite number.")
         assert(field.minLength == nil or (type(field.minLength) == "number" and field.minLength >= 0 and field.minLength % 1 == 0), fieldLocation .. " minLength must be a non-negative integer.")
         assert(field.maxLength == nil or (type(field.maxLength) == "number" and field.maxLength >= 0 and field.maxLength % 1 == 0), fieldLocation .. " maxLength must be a non-negative integer.")
         assert(field.min == nil or field.max == nil or field.min <= field.max, fieldLocation .. " min cannot exceed max.")
         assert(field.minLength == nil or field.maxLength == nil or field.minLength <= field.maxLength,
             fieldLocation .. " minLength cannot exceed maxLength.")
         assert(field.pattern == nil or type(field.pattern) == "string", fieldLocation .. " pattern must be a string.")
-        assert(field.dateMin == nil or type(field.dateMin) == "string" or QB.util.isFiniteNumber(field.dateMin),
+        assert(field.dateMin == nil or type(field.dateMin) == "string" or Kora.util.isFiniteNumber(field.dateMin),
             fieldLocation .. " dateMin must be a string or finite timestamp.")
-        assert(field.dateMax == nil or type(field.dateMax) == "string" or QB.util.isFiniteNumber(field.dateMax),
+        assert(field.dateMax == nil or type(field.dateMax) == "string" or Kora.util.isFiniteNumber(field.dateMax),
             fieldLocation .. " dateMax must be a string or finite timestamp.")
         assert(field.returnString == nil or type(field.returnString) == "boolean", fieldLocation .. " returnString must be a boolean.")
         assert(field.dateFormat == nil or type(field.dateFormat) == "string", fieldLocation .. " dateFormat must be a string.")
@@ -193,7 +193,7 @@ local function assertInputFields(fields, location)
         assert(field.iconColor == nil or type(field.iconColor) == "string", fieldLocation .. " iconColor must be a string.")
         assert(field.rows == nil or (type(field.rows) == "number" and field.rows > 0 and field.rows % 1 == 0),
             fieldLocation .. " rows must be a positive integer.")
-        assert(field.step == nil or (QB.util.isFiniteNumber(field.step) and field.step > 0),
+        assert(field.step == nil or (Kora.util.isFiniteNumber(field.step) and field.step > 0),
             fieldLocation .. " step must be a positive finite number.")
         assert(field.dependsOn == nil or type(field.dependsOn) == "string", fieldLocation .. " dependsOn must be a string.")
         assert(field.optionsByValue == nil or type(field.optionsByValue) == "table", fieldLocation .. " optionsByValue must be a table.")
@@ -238,7 +238,7 @@ local function assertInputFields(fields, location)
             assert(type(field.presets) == "table", fieldLocation .. " presets must be a table.")
             for presetIndex = 1, #field.presets do
                 local preset = field.presets[presetIndex]
-                assert(type(preset) == "table" and QB.util.isFiniteNumber(preset.value),
+                assert(type(preset) == "table" and Kora.util.isFiniteNumber(preset.value),
                     ("%s preset %d requires a finite numeric value."):format(fieldLocation, presetIndex))
                 assert(preset.label == nil or type(preset.label) == "string",
                     ("%s preset %d label must be a string."):format(fieldLocation, presetIndex))
@@ -251,12 +251,12 @@ local function assertInputFields(fields, location)
             if field.type == "checkbox" then
                 assert(type(field.default) == "boolean", fieldLocation .. " checkbox default must be a boolean.")
             elseif field.type == "number" or field.type == "range" then
-                assert(QB.util.isFiniteNumber(field.default), fieldLocation .. " numeric default must be a finite number.")
+                assert(Kora.util.isFiniteNumber(field.default), fieldLocation .. " numeric default must be a finite number.")
             elseif field.type == "multiselect" or field.type == "date-range" then
                 assert(type(field.default) == "table", fieldLocation .. " multiselect default must be an array.")
                 for defaultIndex = 1, #field.default do
                     local value = field.default[defaultIndex]
-                    assert(type(value) == "string" or QB.util.isFiniteNumber(value),
+                    assert(type(value) == "string" or Kora.util.isFiniteNumber(value),
                         ("%s default item %d must be a string or number."):format(fieldLocation, defaultIndex))
                 end
             elseif field.type == "key-value" then
@@ -270,7 +270,7 @@ local function assertInputFields(fields, location)
                 assert(type(field.default) == "table", fieldLocation .. " vector default must be a component table.")
                 local axes = { "x", "y", "z", "w" }
                 for axisIndex = 1, field.dimensions do
-                    assert(QB.util.isFiniteNumber(field.default[axes[axisIndex]]),
+                    assert(Kora.util.isFiniteNumber(field.default[axes[axisIndex]]),
                         ("%s vector default %s must be a finite number."):format(fieldLocation, axes[axisIndex]))
                 end
             else
@@ -390,7 +390,7 @@ local function assertAppContent(content, location, actionIds)
             for itemIndex = 1, #block.items do
                 local item = block.items[itemIndex]
                 assert(type(item) == "table" and type(item.label) == "string" and item.label ~= ""
-                    and QB.util.isFiniteNumber(item.value) and QB.util.isFiniteNumber(item.max) and item.max > 0,
+                    and Kora.util.isFiniteNumber(item.value) and Kora.util.isFiniteNumber(item.max) and item.max > 0,
                     ("%s item %d requires a label, finite numeric value, and positive max."):format(blockLocation, itemIndex))
                 assert(item.value >= 0 and item.value <= item.max,
                     ("%s item %d value must be between zero and max."):format(blockLocation, itemIndex))
@@ -490,16 +490,16 @@ local function assertAppContent(content, location, actionIds)
                 blockLocation .. " requires a tile URL template.")
             assert(type(block.markers) == "table", blockLocation .. " requires a markers table.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
-            assert(block.tiles.tileSize == nil or (QB.util.isFiniteNumber(block.tiles.tileSize) and block.tiles.tileSize > 0),
+            assert(block.tiles.tileSize == nil or (Kora.util.isFiniteNumber(block.tiles.tileSize) and block.tiles.tileSize > 0),
                 blockLocation .. " tileSize must be a positive finite number.")
             assert(block.follow == nil or type(block.follow) == "boolean", blockLocation .. " follow must be a boolean.")
-            assert(block.fadeDuration == nil or (QB.util.isFiniteNumber(block.fadeDuration) and block.fadeDuration >= 0),
+            assert(block.fadeDuration == nil or (Kora.util.isFiniteNumber(block.fadeDuration) and block.fadeDuration >= 0),
                 blockLocation .. " fadeDuration must be a non-negative finite number.")
-            assert(block.minZoom == nil or QB.util.isFiniteNumber(block.minZoom), blockLocation .. " minZoom must be a finite number.")
-            assert(block.maxZoom == nil or QB.util.isFiniteNumber(block.maxZoom), blockLocation .. " maxZoom must be a finite number.")
+            assert(block.minZoom == nil or Kora.util.isFiniteNumber(block.minZoom), blockLocation .. " minZoom must be a finite number.")
+            assert(block.maxZoom == nil or Kora.util.isFiniteNumber(block.maxZoom), blockLocation .. " maxZoom must be a finite number.")
             assert(block.minZoom == nil or block.maxZoom == nil or block.minZoom <= block.maxZoom,
                 blockLocation .. " minZoom cannot exceed maxZoom.")
-            assert(block.initialZoom == nil or QB.util.isFiniteNumber(block.initialZoom),
+            assert(block.initialZoom == nil or Kora.util.isFiniteNumber(block.initialZoom),
                 blockLocation .. " initialZoom must be a finite number.")
             if block.tiles.grid ~= nil then
                 assertPoint(block.tiles.grid, blockLocation .. " tile grid")
@@ -516,23 +516,23 @@ local function assertAppContent(content, location, actionIds)
             if block.recenter ~= nil then
                 assertPoint(block.recenter, blockLocation .. " recenter")
             end
-            assert(block.now == nil or QB.util.isFiniteNumber(block.now), blockLocation .. " now must be a finite number.")
+            assert(block.now == nil or Kora.util.isFiniteNumber(block.now), blockLocation .. " now must be a finite number.")
             assert(block.selectedId == nil or type(block.selectedId) == "string", blockLocation .. " selectedId must be a string.")
             if block.action ~= nil then declareAction(actionIds, block.action, false, blockLocation) end
             local markerIds = {}
             for markerIndex = 1, #block.markers do
                 local marker = block.markers[markerIndex]
                 assert(type(marker) == "table" and type(marker.id) == "string" and marker.id ~= ""
-                    and QB.util.isFiniteNumber(marker.x) and QB.util.isFiniteNumber(marker.y) and type(marker.label) == "string",
+                    and Kora.util.isFiniteNumber(marker.x) and Kora.util.isFiniteNumber(marker.y) and type(marker.label) == "string",
                     ("%s marker %d is invalid."):format(blockLocation, markerIndex))
                 assert(not markerIds[marker.id], ("%s marker id '%s' is duplicated."):format(blockLocation, marker.id))
                 assert(marker.description == nil or type(marker.description) == "string",
                     ("%s marker %d description must be a string."):format(blockLocation, markerIndex))
-                assert(marker.heading == nil or QB.util.isFiniteNumber(marker.heading),
+                assert(marker.heading == nil or Kora.util.isFiniteNumber(marker.heading),
                     ("%s marker %d heading must be a finite number."):format(blockLocation, markerIndex))
-                assert(marker.expiresAt == nil or QB.util.isFiniteNumber(marker.expiresAt),
+                assert(marker.expiresAt == nil or Kora.util.isFiniteNumber(marker.expiresAt),
                     ("%s marker %d expiresAt must be a finite number."):format(blockLocation, markerIndex))
-                assert(marker.fadeDuration == nil or (QB.util.isFiniteNumber(marker.fadeDuration) and marker.fadeDuration >= 0),
+                assert(marker.fadeDuration == nil or (Kora.util.isFiniteNumber(marker.fadeDuration) and marker.fadeDuration >= 0),
                     ("%s marker %d fadeDuration must be a non-negative finite number."):format(blockLocation, markerIndex))
                 assert(marker.tone == nil or VALID_TONES[marker.tone], ("%s marker %d has an invalid tone."):format(blockLocation, markerIndex))
                 if marker.action ~= nil then declareAction(actionIds, marker.action, false, blockLocation) end
@@ -625,7 +625,7 @@ end
 ---directly, so the message contract stays in one place.
 ---@param action string
 ---@param data any
-function QB.nui.send(action, data)
+function Kora.nui.send(action, data)
     -- SendNUIMessage (capital NUI) is the runtime wrapper that takes a table
     -- and json-encodes it; the similarly-named SendNuiMessage native takes a
     -- pre-encoded JSON *string* and would stringify a table into garbage.
@@ -633,12 +633,12 @@ function QB.nui.send(action, data)
     SendNUIMessage({ action = action, data = data })
 end
 
----Sets NUI focus directly. Prefer `QB.nui.withFocus` when the caller can scope
+---Sets NUI focus directly. Prefer `Kora.nui.withFocus` when the caller can scope
 ---focus to a single operation -- this exists for the rarer case (e.g. a HUD
 ---that needs to hold focus across several unrelated calls) where that doesn't fit.
 ---@param mouse boolean
 ---@param keyboard boolean
-function QB.nui.setFocus(mouse, keyboard)
+function Kora.nui.setFocus(mouse, keyboard)
     SetNuiFocus(mouse, keyboard)
 end
 
@@ -691,16 +691,16 @@ end
 ---@param keepInput? boolean
 ---@param owner? string
 ---@return function release
-function QB.nui.acquireFocus(mouse, keyboard, keepInput, owner)
+function Kora.nui.acquireFocus(mouse, keyboard, keepInput, owner)
     assert(type(mouse) == 'boolean' and type(keyboard) == 'boolean', 'acquireFocus requires boolean mouse and keyboard values.')
     assert(keepInput == nil or type(keepInput) == 'boolean', 'acquireFocus keepInput must be a boolean.')
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'acquireFocus owner must be a non-empty string.')
     return acquireFocus(mouse, keyboard, owner, keepInput)
 end
 
----Releases a lease returned by QB.nui.acquireFocus.
+---Releases a lease returned by Kora.nui.acquireFocus.
 ---@param release function
-function QB.nui.releaseFocus(release)
+function Kora.nui.releaseFocus(release)
     assert(isCallable(release), 'releaseFocus requires a focus release function.')
     release()
 end
@@ -714,7 +714,7 @@ end
 ---@param fn fun(): any
 ---@param owner? string Internal owner override for kora_lib modules whose operation continues in a new coroutine.
 ---@return any
-function QB.nui.withFocus(mouse, keyboard, fn, owner)
+function Kora.nui.withFocus(mouse, keyboard, fn, owner)
     assert(type(mouse) == 'boolean' and type(keyboard) == 'boolean', 'withFocus requires boolean mouse and keyboard values.')
     assert(isCallable(fn), 'withFocus requires a callable function.')
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'withFocus owner must be a non-empty string.')
@@ -745,7 +745,7 @@ local LEGACY_ALIASED_CALLBACKS = {
 ---leaving the NUI's fetch promise hanging.
 ---@param name string
 ---@param handler fun(data: any): any
-function QB.nui.registerCallback(name, handler)
+function Kora.nui.registerCallback(name, handler)
     assert(type(name) == 'string' and name ~= '', 'registerCallback requires a non-empty callback name.')
     assert(isCallable(handler), 'registerCallback requires a callable handler.')
     local function register(callbackName)
@@ -770,16 +770,16 @@ end
 
 local feedPayload = false
 local feedUpdatedAt = 0
-local feedOwnership = QB.resources.registry(function()
+local feedOwnership = Kora.resources.registry(function()
     feedPayload = false
-    QB.nui.send('qbdispatch:feed', false)
+    Kora.nui.send('qbdispatch:feed', false)
 end)
 
 ---Updates kora_dispatch's display-only feed without taking focus.
 ---@param payload table|false false clears the caller-owned surface.
 ---@return boolean accepted
-function QB.nui.setDispatchFeed(payload)
-    assert(payload == false or (type(payload) == 'table' and QB.util.isFiniteNumber(payload.now)),
+function Kora.nui.setDispatchFeed(payload)
+    assert(payload == false or (type(payload) == 'table' and Kora.util.isFiniteNumber(payload.now)),
         'Dispatch feed requires a payload with a finite now timestamp or false.')
     local caller = GetInvokingResource() or GetCurrentResourceName()
     local owner = feedOwnership.owner('feed')
@@ -790,29 +790,29 @@ function QB.nui.setDispatchFeed(payload)
         feedUpdatedAt = GetGameTimer()
     end
     feedPayload = payload
-    QB.nui.send('qbdispatch:feed', payload)
+    Kora.nui.send('qbdispatch:feed', payload)
     return true
 end
 
 -- Persistent state may arrive before the shared browser subscribes. Re-emit
 -- into this frame instead of returning dispatch data to callback fetchers.
-QB.nui.registerCallback('kora_lib:dispatchfeed:ready', function()
+Kora.nui.registerCallback('kora_lib:dispatchfeed:ready', function()
     local payload = feedPayload
     if payload then
         payload = {}
         for key, value in pairs(feedPayload) do payload[key] = value end
         payload.now = feedPayload.now + (GetGameTimer() - feedUpdatedAt)
     end
-    QB.nui.send('qbdispatch:feed', payload)
+    Kora.nui.send('qbdispatch:feed', payload)
     return true
 end)
 
----The single shared response channel every `QB.nui.request` call resolves
+---The single shared response channel every `Kora.nui.request` call resolves
 ---through, keyed by requestId -- one registered callback rather than a
 ---dynamically-named one per request. `data.token` must match the token this
 ---request was issued with (see generateToken above); a mismatched or missing
 ---token is silently ignored rather than resolving/rejecting anything.
-QB.nui.registerCallback("kora_lib:nui:response", function(data)
+Kora.nui.registerCallback("kora_lib:nui:response", function(data)
     if type(data) ~= "table" then return {} end
 
     local pending = pendingRequests[data.requestId]
@@ -835,7 +835,7 @@ end)
 -- an ox_lib menu changing its selected row, checkbox, or side-scroll value)
 -- without resolving the request. The same per-request token used by the final
 -- response validates these messages against the live request.
-QB.nui.registerCallback("kora_lib:nui:event", function(data)
+Kora.nui.registerCallback("kora_lib:nui:event", function(data)
     if type(data) ~= "table" then return {} end
 
     local pending = pendingRequests[data.requestId]
@@ -860,7 +860,7 @@ end)
 -- genuine cross-resource exports() call (same signal modules/zones already
 -- relies on for ownership tracking -- see its AGENTS.md's "Resource
 -- ownership" note) -- exactly the distinction that matters here. Same-VM
--- callers get the real promise back unchanged, so `Citizen.Await(QB.nui.X(...))`
+-- callers get the real promise back unchanged, so `Citizen.Await(Kora.nui.X(...))`
 -- keeps working exactly as before for internal callers and every smoke test.
 -- A genuine cross-resource caller gets the already-awaited plain value (or a
 -- raised error on rejection/timeout, which -- like every other kora_lib error --
@@ -878,7 +878,7 @@ end
 ---Sends `action` to the NUI and returns a promise that resolves with whatever
 ---the NUI eventually posts back to the shared `kora_lib:nui:response` callback
 ---for this request's id (carrying the matching token). This is the core
----primitive menus, input dialogs, and `QB.nui.copyToClipboard` are all built on.
+---primitive menus, input dialogs, and `Kora.nui.copyToClipboard` are all built on.
 ---@param action string
 ---@param data any
 ---@param timeout? integer | false Milliseconds before the promise rejects. Defaults to 30000; pass false to disable.
@@ -887,7 +887,7 @@ end
 local function requestPromise(action, data, timeout, owner, onEvent)
     if timeout ~= false then
         timeout = timeout or 30000
-        assert(QB.util.isInteger(timeout) and timeout >= 0,
+        assert(Kora.util.isInteger(timeout) and timeout >= 0,
             "NUI request timeout must be a non-negative finite integer or false.")
     end
 
@@ -897,14 +897,14 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     owner = owner or GetInvokingResource() or GetCurrentResourceName()
     -- Private metadata used by the long-lived app shell callbacks. Keeping it
     -- on the local promise avoids changing the public wire envelope or return
-    -- value of QB.nui.request.
+    -- value of Kora.nui.request.
     p.koraLibNuiRequestId = requestId
     p.koraLibNuiToken = token
     p.koraLibNuiOwner = owner
     pendingRequests[requestId] = { promise = p, token = token, onEvent = onEvent }
     requestOwnership.track(owner, requestId)
 
-    QB.nui.send(action, { requestId = requestId, token = token, payload = data })
+    Kora.nui.send(action, { requestId = requestId, token = token, payload = data })
 
     if timeout ~= false then
         -- A one-shot native timer rather than a CreateThread+Wait coroutine --
@@ -947,7 +947,7 @@ end
 ---@param owner? string Internal owner override for kora_lib operations that continue in a new coroutine.
 ---@return promise|any result A promise for a same-VM caller (unchanged, awaitable as before); the
 ---already-settled result value directly for a genuine cross-resource caller (see settleForExport above).
-function QB.nui.request(action, data, timeout, owner)
+function Kora.nui.request(action, data, timeout, owner)
     return settleForExport(requestPromise(action, data, timeout, owner))
 end
 
@@ -956,7 +956,7 @@ local focusUntilSettled
 ---Starts a request without awaiting it across an enclosing export call.
 ---This is an internal composition primitive for kora_lib modules that need to
 ---retain a cancellable request handle while preserving the original consumer
----as owner. Ordinary resources should use QB.nui.request/open* instead.
+---as owner. Ordinary resources should use Kora.nui.request/open* instead.
 ---@param action string
 ---@param data any
 ---@param timeout? integer | false
@@ -964,7 +964,7 @@ local focusUntilSettled
 ---@param focused? boolean
 ---@param onEvent? fun(event: string, data: any) Internal handler for token-validated, non-terminal browser events.
 ---@return promise request
-function QB.nui.requestAsync(action, data, timeout, owner, focused, onEvent)
+function Kora.nui.requestAsync(action, data, timeout, owner, focused, onEvent)
     assert(type(action) == 'string' and action ~= '', 'requestAsync action must be a non-empty string.')
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'requestAsync owner must be a non-empty string.')
     assert(focused == nil or type(focused) == 'boolean', 'requestAsync focused must be a boolean.')
@@ -986,14 +986,14 @@ function focusUntilSettled(p)
     return p
 end
 
----Settles and dismisses a request created by QB.nui.requestAsync. The token is
+---Settles and dismisses a request created by Kora.nui.requestAsync. The token is
 ---sent to the browser before the local promise is settled, so the component
 ---cannot answer the abandoned request afterward.
 ---@param request promise
 ---@param result? any
 ---@param rejection? string
 ---@return boolean cancelled
-function QB.nui.cancelRequest(request, result, rejection)
+function Kora.nui.cancelRequest(request, result, rejection)
     assert(type(request) == 'table', 'cancelRequest requires a kora_lib NUI request.')
     assert(rejection == nil or type(rejection) == 'string', 'cancelRequest rejection must be a string.')
 
@@ -1002,7 +1002,7 @@ function QB.nui.cancelRequest(request, result, rejection)
     local pending = requestId and pendingRequests[requestId]
     if not pending or pending.promise ~= request then return false end
 
-    QB.nui.send('cancelNuiRequest', { requestId = requestId, token = token })
+    Kora.nui.send('cancelNuiRequest', { requestId = requestId, token = token })
     return settlePendingRequest(request, rejection == nil, rejection or result)
 end
 
@@ -1012,14 +1012,14 @@ end
 ---@param action string
 ---@param data any
 ---@return boolean updated
-function QB.nui.updateRequest(request, action, data)
+function Kora.nui.updateRequest(request, action, data)
     assert(type(request) == 'table', 'updateRequest requires a kora_lib NUI request.')
     assert(type(action) == 'string' and action ~= '', 'updateRequest action must be a non-empty string.')
     local requestId = request.koraLibNuiRequestId
     local pending = requestId and pendingRequests[requestId]
     if not pending or pending.promise ~= request then return false end
 
-    QB.nui.send(action, { requestId = requestId, token = request.koraLibNuiToken, payload = data })
+    Kora.nui.send(action, { requestId = requestId, token = request.koraLibNuiToken, payload = data })
     return true
 end
 
@@ -1027,13 +1027,13 @@ end
 ---access to a real clipboard API). Never takes focus -- the operation is
 ---invisible.
 ---@param text string
----@return promise|any result See QB.nui.request's return doc.
-function QB.nui.copyToClipboard(text)
+---@return promise|any result See Kora.nui.request's return doc.
+function Kora.nui.copyToClipboard(text)
     assert(type(text) == "string", "copyToClipboard requires a string.")
     return settleForExport(requestPromise("copyToClipboard", { text = text }))
 end
 
-local isFiniteNumber = QB.util.isFiniteNumber
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function assertMenuItems(items, context, visited)
     assert(type(items) == "table", ("%s requires an items table."):format(context))
@@ -1134,8 +1134,8 @@ end
 ---@param items table[] `{ id: string, label: string, description?: string, icon?: string, disabled?: boolean, submenu?: { title?: string, items: table[] } }[]`
 ---@param title? string
 ---@param opts? table `{ position?: { horizontal?: 'left'|'center'|'right', vertical?: 'top'|'center'|'bottom', offsetX?: positive number, offsetY?: positive number }, maxWidth?: positive number, maxHeight?: positive number }` Geometry in screen pixels; defaults to the existing centred menu.
----@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
-function QB.nui.openMenu(items, title, opts)
+---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See Kora.nui.request's return doc.
+function Kora.nui.openMenu(items, title, opts)
     assertMenuItems(items, "openMenu")
     assertMenuGeometry(title, opts)
     -- timeout = false: these three wait on a HUMAN, and there's no sensible
@@ -1162,8 +1162,8 @@ end
 ---@param items table[] Same shape as openMenu's `items`; submenus are ignored because a context menu is one level only.
 ---@param x? number
 ---@param y? number
----@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
-function QB.nui.openContextMenu(items, x, y)
+---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See Kora.nui.request's return doc.
+function Kora.nui.openContextMenu(items, x, y)
     assertMenuItems(items, "openContextMenu")
     assert(x == nil or isFiniteNumber(x), "openContextMenu x must be a finite number.")
     assert(y == nil or isFiniteNumber(y), "openContextMenu y must be a finite number.")
@@ -1176,8 +1176,8 @@ end
 ---one MenuResult.
 ---@param items table[] Same shape as openMenu's `items`.
 ---@param opts? table `{ radius?: number }`
----@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See QB.nui.request's return doc.
-function QB.nui.openRadialMenu(items, opts)
+---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See Kora.nui.request's return doc.
+function Kora.nui.openRadialMenu(items, opts)
     assertMenuItems(items, "openRadialMenu")
     assert(opts == nil or type(opts) == "table", "openRadialMenu options must be a table.")
 
@@ -1199,8 +1199,8 @@ end
 ---@return promise|any result Resolves/returns `{ confirmed: boolean }` -- `confirmed = false` covers
 ---the cancel button, Escape and the backdrop alike. With `cancellable = false` there is no cancel
 ---button and neither Escape nor the backdrop dismisses it, so it can only resolve `true`.
----See QB.nui.request's return doc for the promise-vs-value distinction.
-function QB.nui.openAlert(opts)
+---See Kora.nui.request's return doc for the promise-vs-value distinction.
+function Kora.nui.openAlert(opts)
     assert(type(opts) == "table", "openAlert requires an options table.")
     assert(type(opts.message) == "string" and #opts.message > 0, "openAlert requires a message string.")
     for i = 1, #ALERT_STRING_FIELDS do
@@ -1227,8 +1227,8 @@ end
 ---@param fields table[] QBInputField[] -- see modules/nui/docs.md for the full shared field contract.
 ---@param title? string
 ---@param description? string
----@return promise|any result Resolves/returns `{ values: table<string, any> }` or `{ cancelled: true }`. See QB.nui.request's return doc.
-function QB.nui.openInputDialog(fields, title, description)
+---@return promise|any result Resolves/returns `{ values: table<string, any> }` or `{ cancelled: true }`. See Kora.nui.request's return doc.
+function Kora.nui.openInputDialog(fields, title, description)
     assertInputFields(fields, "openInputDialog")
     assert(title == nil or type(title) == "string", "openInputDialog title must be a string.")
     assert(description == nil or type(description) == "string", "openInputDialog description must be a string.")
@@ -1254,10 +1254,10 @@ local function applyAppAccent(registration)
     QBTheme.apply(registration and registration.browser.accent or nil)
 end
 
-appOwnership = QB.resources.registry(function(id)
+appOwnership = Kora.resources.registry(function(id)
     local current = activeApp
     if current and current.id == id then
-        QB.nui.send("closeApp", {
+        Kora.nui.send("closeApp", {
             appId = id,
             token = current.token,
             reason = "resourceStop",
@@ -1271,19 +1271,19 @@ end)
 -- caller owns their lifetime instead. If that resource stops, reject the Lua
 -- promise and tell the shared browser hook to unmount the matching surface;
 -- the promise's focus callback then releases only this request's lease.
-requestOwnership = QB.resources.registry(function(requestId)
+requestOwnership = Kora.resources.registry(function(requestId)
     local pending = pendingRequests[requestId]
     if not pending then return end
 
     pendingRequests[requestId] = nil
-    QB.nui.send("cancelNuiRequest", { requestId = requestId, token = pending.token })
+    Kora.nui.send("cancelNuiRequest", { requestId = requestId, token = pending.token })
     pending.promise:reject("The resource that opened this NUI request stopped.")
 end)
 
 -- withFocus is also used around multi-step module operations (minigames and
 -- editors), not only request promises. Owner tracking guarantees an abandoned
 -- coroutine cannot leave a stale aggregate focus lease behind.
-focusOwnership = QB.resources.registry(function(id)
+focusOwnership = Kora.resources.registry(function(id)
     if not focusLeases[id] then return end
     focusLeases[id] = nil
     refreshFocus()
@@ -1294,7 +1294,7 @@ end)
 ---handler. Registrations are automatically removed when their owner stops.
 ---@param definition table QBAppDefinition
 ---@return string id
-function QB.nui.registerApp(definition)
+function Kora.nui.registerApp(definition)
     assert(type(definition) == "table", "registerApp requires a definition table.")
     assert(definition.onAction == nil or isCallable(definition.onAction), "App onAction must be callable.")
     assert(definition.onChange == nil or isCallable(definition.onChange), "App onChange must be callable.")
@@ -1319,7 +1319,7 @@ function QB.nui.registerApp(definition)
     local current = activeApp
     if current and current.id == definition.id then
         applyAppAccent(registeredApps[definition.id])
-        QB.nui.send("updateApp", {
+        Kora.nui.send("updateApp", {
             appId = definition.id,
             token = current.token,
             app = publicDefinition,
@@ -1332,7 +1332,7 @@ end
 ---definition is removed so the awaiting openApp call and NUI focus settle.
 ---@param id string
 ---@return boolean removed
-function QB.nui.unregisterApp(id)
+function Kora.nui.unregisterApp(id)
     assertAppId(id)
     local registration = registeredApps[id]
     if not registration then return false end
@@ -1343,7 +1343,7 @@ function QB.nui.unregisterApp(id)
 
     local current = activeApp
     if current and current.id == id then
-        QB.nui.send("closeApp", { appId = id, token = current.token, reason = "unregister" })
+        Kora.nui.send("closeApp", { appId = id, token = current.token, reason = "unregister" })
         settlePendingRequest(current.promise, true, { closed = true, reason = "unregister" })
     end
 
@@ -1358,7 +1358,7 @@ end
 ---@param id string
 ---@param opts? table `{ data?: any, viewId?: string, tabId?: string }`
 ---@return promise|any result `{ closed: true, reason: string, viewId?: string, tabId?: string }`
-function QB.nui.openApp(id, opts)
+function Kora.nui.openApp(id, opts)
     assertAppId(id)
     assert(opts == nil or type(opts) == "table", "openApp options must be a table.")
     assert(opts == nil or opts.viewId == nil or type(opts.viewId) == 'string', 'openApp viewId must be a string.')
@@ -1413,7 +1413,7 @@ end
 ---@param id string
 ---@param update table Partial QBAppDefinition (id/onAction/onChange excluded).
 ---@return boolean updated
-function QB.nui.updateApp(id, update)
+function Kora.nui.updateApp(id, update)
     assertAppId(id)
     local registration = registeredApps[id]
     if not registration then return false end
@@ -1427,7 +1427,7 @@ function QB.nui.updateApp(id, update)
     local current = activeApp
     if current and current.id == id then
         applyAppAccent(registration)
-        QB.nui.send("updateApp", {
+        Kora.nui.send("updateApp", {
             appId = id,
             token = current.token,
             app = registration.browser,
@@ -1441,7 +1441,7 @@ end
 ---normal focus-until-settled path releases NUI focus.
 ---@param id? string Omit to close whichever registered app is active.
 ---@return boolean closing
-function QB.nui.closeApp(id)
+function Kora.nui.closeApp(id)
     if id ~= nil then assertAppId(id) end
     local current = activeApp
     if not current or (id and current.id ~= id) then return false end
@@ -1451,7 +1451,7 @@ function QB.nui.closeApp(id)
     assert(not invoker or (registration and invoker == registration.owner),
         ("App '%s' is owned by resource '%s'."):format(current.id, registration and registration.owner or "unknown"))
 
-    QB.nui.send("closeApp", {
+    Kora.nui.send("closeApp", {
         appId = current.id,
         token = current.token,
         reason = "api",
@@ -1461,14 +1461,14 @@ end
 
 ---@param id? string
 ---@return boolean open
-function QB.nui.isAppOpen(id)
+function Kora.nui.isAppOpen(id)
     if id ~= nil then assertAppId(id) end
     return activeApp ~= nil and (id == nil or activeApp.id == id)
 end
 
 -- Form edits update the visible definition without submitting, closing, or
 -- taking another focus lease. Yielding handlers must not overwrite newer edits.
-QB.nui.registerCallback("kora_lib:app:change", function(data)
+Kora.nui.registerCallback("kora_lib:app:change", function(data)
     local current = activeApp
     if not current or type(data) ~= "table" then
         return { ok = false, error = "No app is open." }
@@ -1510,7 +1510,7 @@ QB.nui.registerCallback("kora_lib:app:change", function(data)
 end)
 
 local function notifyClosedAppError(message)
-    if QB.notify and QB.notify.send then QB.notify.send({ type = "error", message = message }) end
+    if Kora.notify and Kora.notify.send then Kora.notify.send({ type = "error", message = message }) end
 end
 
 local function validateActionResult(registration, result)
@@ -1552,7 +1552,7 @@ end
 -- One token-validated route for every button/list/table action emitted by the
 -- AppShell. The per-open token prevents another NUI page from invoking a
 -- registered application's privileged action handler by guessing its id.
-QB.nui.registerCallback("kora_lib:app:action", function(data)
+Kora.nui.registerCallback("kora_lib:app:action", function(data)
     local current = activeApp
     if not current or type(data) ~= "table" then
         return { ok = false, error = "No app is open." }
@@ -1578,7 +1578,7 @@ QB.nui.registerCallback("kora_lib:app:action", function(data)
     -- shell. Settle its request first so its focus lease is gone before the
     -- owning handler starts the next interaction.
     if declared.closeBeforeAction then
-        QB.nui.send("closeApp", {
+        Kora.nui.send("closeApp", {
             appId = current.id,
             token = current.token,
             reason = "action",
@@ -1639,11 +1639,11 @@ QB.nui.registerCallback("kora_lib:app:action", function(data)
         result.update = nil
     end
 
-    if (declared.closeBeforeAction or result.close) and result.notice and QB.notify and QB.notify.send then
+    if (declared.closeBeforeAction or result.close) and result.notice and Kora.notify and Kora.notify.send then
         local notifyType = result.notice.tone
         if notifyType == "destructive" then notifyType = "error" end
         if notifyType == "primary" or notifyType == "neutral" then notifyType = "info" end
-        QB.notify.send({
+        Kora.notify.send({
             type = notifyType,
             message = result.notice.message,
         })

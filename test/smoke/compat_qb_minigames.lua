@@ -12,7 +12,7 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/minigames/shared.lua")
 
--- compat/client/qb-minigames.lua only ever calls QB.minigames.play -- mocked
+-- compat/client/qb-minigames.lua only ever calls Kora.minigames.play -- mocked
 -- directly here (same "resolve synchronously" trick test/smoke/minigames.lua
 -- and compat_qb_menu.lua both use) rather than loading the real
 -- server-authoritative implementation, since this file is exercising the
@@ -21,7 +21,7 @@ dofile(repoRoot .. "modules/minigames/shared.lua")
 local lastCall = nil
 local nextResult = nil
 
-QB.minigames.play = function(gameType, opts)
+Kora.minigames.play = function(gameType, opts)
     lastCall = { gameType = gameType, opts = opts }
     local p = promise.new()
     p:resolve(nextResult)
@@ -148,17 +148,17 @@ harness.test("WordScramble maps word/hint/timer straight through", function()
     harness.assertTrue(ok, "should return the plain success boolean")
 end)
 
-harness.test("a QB.minigames.play rejection is treated as a losing round, not a crash", function()
-    QB.minigames.play = function() error("A minigame is already in progress.") end
+harness.test("a Kora.minigames.play rejection is treated as a losing round, not a crash", function()
+    Kora.minigames.play = function() error("A minigame is already in progress.") end
     local ok = Hacking(5, 30)
     harness.assertFalse(ok, "a rejected play() call should surface as success = false, not error the caller")
 end)
 
--- QB.minigames.play already waits when reached through a compatibility export.
+-- Kora.minigames.play already waits when reached through a compatibility export.
 -- A second Citizen.Await on its plain result would yield nil under CfxLua.
-harness.test("the export path consumes QB.minigames.play's plain result directly", function()
+harness.test("the export path consumes Kora.minigames.play's plain result directly", function()
     _G.GetInvokingResource = function() return "consumer-resource" end
-    QB.minigames.play = function()
+    Kora.minigames.play = function()
         return { success = true, attempts = 1 }
     end
 

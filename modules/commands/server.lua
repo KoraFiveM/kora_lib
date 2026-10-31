@@ -1,6 +1,6 @@
--- QB.commands (server realm) -- a registration wrapper over RegisterCommand
+-- Kora.commands (server realm) -- a registration wrapper over RegisterCommand
 -- with pluggable permission gating and chat-suggestion support.
--- OWNER-TRACKED via QB.resources.serverRegistry, keyed by command name, so a
+-- OWNER-TRACKED via Kora.resources.serverRegistry, keyed by command name, so a
 -- resource that restarts doesn't leave dead command handlers behind.
 
 -- name -> { help, args, argsRequired, handler, permission, resource, checkPermission, notify }
@@ -15,8 +15,8 @@ local keybindEvents = {
     execute = 'kora_lib:commands:keybind:execute',
 }
 
-local isCallable = QB.compat.isCallable
-local isInteger = QB.util.isInteger
+local isCallable = Kora.compat.isCallable
+local isInteger = Kora.util.isInteger
 
 local function isPlayerSource(src)
     return isInteger(src) and src >= 1
@@ -145,13 +145,13 @@ local function removeCommand(name)
     if definition.keybind then TriggerClientEvent(keybindEvents.remove, -1, name) end
 end
 
--- Registry id == command name (a name-keyed registry, per QB.resources'
+-- Registry id == command name (a name-keyed registry, per Kora.resources'
 -- own documented use case): re-registering an existing name just transfers
 -- ownership, and a resource stop disposes exactly the names it still owns.
-local cmdRegistry = QB.resources.serverRegistry(removeCommand)
+local cmdRegistry = Kora.resources.serverRegistry(removeCommand)
 
 local function defaultNotify(src, message, type_)
-    QB.notify.send(src, { message = message, type = type_ })
+    Kora.notify.send(src, { message = message, type = type_ })
 end
 
 ---Register a command. handler(source, args, rawCommand).
@@ -163,9 +163,9 @@ end
 ---@param opts table|nil
 ---  - permission: string|nil -- default 'user'; anything else requires checkPermission to pass
 ---  - checkPermission: fun(source:integer, permission:string):boolean|nil
----  - notify: fun(source:integer, message:string, type:string)|nil -- defaults to QB.notify.send
+---  - notify: fun(source:integer, message:string, type:string)|nil -- defaults to Kora.notify.send
 ---  - resource: string|nil -- owning resource; defaults to the invoking resource
-function QB.commands.add(name, help, args, argsRequired, handler, opts)
+function Kora.commands.add(name, help, args, argsRequired, handler, opts)
     assert(type(name) == 'string' and name:match('^[%w_:%.%-]+$'),
         'Command name must be a non-empty command name without whitespace.')
     assert(help == nil or type(help) == 'string', 'Command help must be a string or nil.')
@@ -223,7 +223,7 @@ end
 
 ---@param name string
 ---@return boolean removed
-function QB.commands.remove(name)
+function Kora.commands.remove(name)
     if cmdRegistry.owner(name) ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     cmdRegistry.untrack(name)
     removeCommand(name)
@@ -239,7 +239,7 @@ end
 
 ---Re-send all chat suggestions to one source (on (re)connect).
 ---@param src integer
-function QB.commands.refresh(src)
+function Kora.commands.refresh(src)
     assert(isPlayerSource(src), 'Command refresh source must be a positive integer player ID.')
     for _, name in ipairs(sortedCommandNames()) do
         local def = commands[name]
@@ -248,7 +248,7 @@ function QB.commands.refresh(src)
 end
 
 ---@return table[]  -- {name, help, permission, keybind?} for each command
-function QB.commands.list()
+function Kora.commands.list()
     local out = {}
     for _, name in ipairs(sortedCommandNames()) do
         local def = commands[name]
@@ -290,7 +290,7 @@ end)
 ---@param query string|nil Current value prefix.
 ---@param parsedArgs string[]|nil Current parsed argument values.
 ---@return table[] suggestions Normalized {value,label?,help?} entries.
-function QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)
+function Kora.commands.suggest(src, name, argumentIndex, query, parsedArgs)
     if not isPlayerSource(src) or type(name) ~= 'string'
         or not isInteger(argumentIndex) or argumentIndex < 1 then
         return {}

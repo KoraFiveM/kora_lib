@@ -1,5 +1,5 @@
-local isCallable = QB.compat.isCallable
-local isInteger = QB.util.isInteger
+local isCallable = Kora.compat.isCallable
+local isInteger = Kora.util.isInteger
 
 local validEncodings = {
     jpg = true,
@@ -71,7 +71,7 @@ local function beginCapture(options, timeout)
 
     CreateThread(function()
         local ok, result = pcall(function()
-            return Citizen.Await(QB.nui.request('screenshot:capture', normalized, timeout))
+            return Citizen.Await(Kora.nui.request('screenshot:capture', normalized, timeout))
         end)
 
         if ok then
@@ -85,7 +85,7 @@ local function beginCapture(options, timeout)
 end
 
 -- A promise object does not survive a real cross-resource exports call, so
--- match QB.nui's public convention: internal callers receive an awaitable
+-- match Kora.nui's public convention: internal callers receive an awaitable
 -- promise and external callers receive its settled value.
 local function settleForExport(p)
     if GetInvokingResource() then return Citizen.Await(p) end
@@ -96,7 +96,7 @@ end
 ---@param options? table `{ encoding?: 'jpg'|'png'|'webp', quality?: number, maxWidth?: integer|false, maxHeight?: integer|false, includeNui?: boolean }`
 ---@param timeout? integer
 ---@return promise|any dataUri
-function QB.screenshot.capture(options, timeout)
+function Kora.screenshot.capture(options, timeout)
     return settleForExport(beginCapture(options, timeout))
 end
 
@@ -121,7 +121,7 @@ local function beginUpload(url, field, options, timeout)
 
     CreateThread(function()
         local ok, result = pcall(function()
-            return Citizen.Await(QB.nui.request('screenshot:upload', {
+            return Citizen.Await(Kora.nui.request('screenshot:upload', {
                 url = url,
                 field = field,
                 encoding = normalized.encoding,
@@ -146,11 +146,11 @@ end
 ---@param options? table
 ---@param timeout? integer
 ---@return promise|any responseBody
-function QB.screenshot.upload(url, field, options, timeout)
+function Kora.screenshot.upload(url, field, options, timeout)
     return settleForExport(beginUpload(url, field, options, timeout))
 end
 
-function QB.screenshot.requestScreenshot(options, callback)
+function Kora.screenshot.requestScreenshot(options, callback)
     if callback == nil then
         callback = options
         options = { encoding = 'jpg' }
@@ -165,7 +165,7 @@ function QB.screenshot.requestScreenshot(options, callback)
     end)
 end
 
-function QB.screenshot.requestScreenshotUpload(url, field, options, callback)
+function Kora.screenshot.requestScreenshotUpload(url, field, options, callback)
     if callback == nil then
         callback = options
         options = { headers = {}, encoding = 'jpg' }
@@ -184,8 +184,8 @@ end
 -- kora_lib a dependency, while the provided-resource hooks preserve the normal
 -- exports['screenshot-basic']:requestScreenshot(...) call shape.
 if exports then
-    exports('requestScreenshot', QB.screenshot.requestScreenshot)
-    exports('requestScreenshotUpload', QB.screenshot.requestScreenshotUpload)
+    exports('requestScreenshot', Kora.screenshot.requestScreenshot)
+    exports('requestScreenshotUpload', Kora.screenshot.requestScreenshotUpload)
 end
 
 local function sendLatentScreenshot(token, options, timeout)
@@ -233,7 +233,7 @@ RegisterNetEvent('kora_lib:client:screenshotRequested', function(payload)
         options.headers = {}
 
         TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'sending')
-        QB.nui.request('screenshot:upload', options, captureTimeout):next(function()
+        Kora.nui.request('screenshot:upload', options, captureTimeout):next(function()
             -- The HTTP handler owns successful completion; there is no large
             -- Lua/event payload to acknowledge here.
         end, function()

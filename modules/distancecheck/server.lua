@@ -1,6 +1,6 @@
 
-local isFiniteNumber = QB.util.isFiniteNumber
-local isInteger = QB.util.isInteger
+local isFiniteNumber = Kora.util.isFiniteNumber
+local isInteger = Kora.util.isInteger
 
 local function assertPlayerSource(src)
     assert(isInteger(src) and src >= 1, 'Source must be a positive integer server ID.')
@@ -8,7 +8,7 @@ end
 
 local function assertRadius(distance)
     if distance == nil then distance = 5.0 end
-    assert(QB.util.isFiniteNumber(distance) and distance >= 0,
+    assert(Kora.util.isFiniteNumber(distance) and distance >= 0,
         'Distance must be a finite non-negative number.')
     return distance
 end
@@ -38,7 +38,7 @@ end
 ---@param coords QBCoords
 ---@param distance? number
 ---@return boolean
-function QB.distance.player(src, coords, distance)
+function Kora.distance.player(src, coords, distance)
     assertPlayerSource(src)
     assertCoords(coords, 'Coordinates')
     local playerCoords = getPlayerCoords(src)
@@ -49,7 +49,7 @@ end
 ---@param coords2 QBCoords
 ---@param distance? number
 ---@return boolean
-function QB.distance.coords(coords1, coords2, distance)
+function Kora.distance.coords(coords1, coords2, distance)
     assertCoords(coords1, 'First set of coordinates')
     assertCoords(coords2, 'Second set of coordinates')
     return withinRadius(coords1.x - coords2.x, coords1.y - coords2.y, coords1.z - coords2.z, distance)
@@ -59,7 +59,7 @@ end
 ---@param entity integer
 ---@param distance? number
 ---@return boolean
-function QB.distance.entity(src, entity, distance)
+function Kora.distance.entity(src, entity, distance)
     assertPlayerSource(src)
     assertEntity(entity)
     local playerCoords = getPlayerCoords(src)
@@ -72,7 +72,7 @@ end
 ---@param point {x: number}
 ---@param distance? number
 ---@return boolean
-function QB.distance.x(src, point, distance)
+function Kora.distance.x(src, point, distance)
     assertPlayerSource(src)
     assert(point and isFiniteNumber(point.x), 'Point must include a finite x value.')
     local playerCoords = getPlayerCoords(src)
@@ -83,7 +83,7 @@ end
 ---@param point {y: number}
 ---@param distance? number
 ---@return boolean
-function QB.distance.y(src, point, distance)
+function Kora.distance.y(src, point, distance)
     assertPlayerSource(src)
     assert(point and isFiniteNumber(point.y), 'Point must include a finite y value.')
     local playerCoords = getPlayerCoords(src)
@@ -94,7 +94,7 @@ end
 ---@param point QBCoords
 ---@param distance? number
 ---@return boolean
-function QB.distance.xy(src, point, distance)
+function Kora.distance.xy(src, point, distance)
     assertPlayerSource(src)
     assertCoords(point, 'Point')
 

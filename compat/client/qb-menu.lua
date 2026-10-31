@@ -1,8 +1,8 @@
 -- Drop-in compatibility bridge: translates the real, public qb-menu API
 -- (exports['qb-menu']:openMenu/closeMenu, the 'qb-menu:client:openMenu' /
--- 'qb-menu:client:closeMenu' net events) onto QB.nui.openMenu, kora_lib's own
+-- 'qb-menu:client:closeMenu' net events) onto Kora.nui.openMenu, kora_lib's own
 -- native replacement. qb-menu itself is being deprecated in favour of
--- QB.nui.openMenu/openContextMenu/openRadialMenu -- this file exists so a
+-- Kora.nui.openMenu/openContextMenu/openRadialMenu -- this file exists so a
 -- script written against exports['qb-menu']:... keeps working unmodified
 -- while it migrates, exactly the same shape of shim as
 -- kora_target/client/compat/ox-target.lua and kora_core/compat/*.
@@ -10,19 +10,19 @@
 -- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
 -- mapping table and the caveats flagged below.
 
--- QB.compat.provideExport registers the hidden CFX export event under the
+-- Kora.compat.provideExport registers the hidden CFX export event under the
 -- legacy `qb-menu` identity; `provide 'qb-menu'` alone only satisfies
 -- dependency checks.
 
 -- Warned once per resource run (not per menu/item) -- real qb-menu items
--- carry a Font Awesome class string (e.g. "fas fa-car"); QB.nui.openMenu's
+-- carry a Font Awesome class string (e.g. "fas fa-car"); Kora.nui.openMenu's
 -- `icon` expects a lucide-react name (web/src/lib/icon.ts) instead, and the
 -- two vocabularies don't overlap. Rather than guess a translation that could
 -- render the wrong glyph (or none), the icon is simply dropped -- one loud
 -- warning is enough to point whoever's porting the script at the gap without
 -- spamming the console for every item of every menu.
 -- Real qb-menu items have no stable `id` field at all (`{header, txt, icon,
--- isMenuHeader, disabled, params}`) -- QB.nui's MenuItem requires one, so the
+-- isMenuHeader, disabled, params}`) -- Kora.nui's MenuItem requires one, so the
 -- 1-based position in the array is used. `isMenuHeader` rows (real qb-menu's
 -- unselectable section labels) map onto `disabled = true`, the closest thing
 -- the new menu has to a non-interactive row.
@@ -107,7 +107,7 @@ end
 -- shared, like all of those. See the kora_inventory funcref bug in
 -- qbcore-compat-parity/inventory-compat-identities memory for the live crash
 -- this pattern was discovered from.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 -- Selecting an item in real qb-menu fires `params.event` (TriggerServerEvent
 -- if `params.isServer`, TriggerEvent otherwise) with `params.args` unpacked
@@ -138,8 +138,8 @@ end
 -- Real qb-menu's openMenu is fire-and-forget from the caller's point of view
 -- (nothing reads its return value; selection is entirely event-driven) -- so
 -- this doesn't return anything either, matching that shape. It still has to
--- consume QB.nui.openMenu's result itself to know which event to fire. When
--- reached through this compatibility export, QB.nui.openMenu already awaits
+-- consume Kora.nui.openMenu's result itself to know which event to fire. When
+-- reached through this compatibility export, Kora.nui.openMenu already awaits
 -- its promise for the external caller; a second Citizen.Await would turn that
 -- plain result table into nil. The legacy net-event path has no external
 -- caller, so it receives the pending promise and must await it here instead.
@@ -149,13 +149,13 @@ local headerMenu
 local function openMenu(menu, sort, skipFirst)
     local items, byId = translateItems(menu, sort, skipFirst)
     if #items == 0 then return end
-    if headerShown then QB.nui.send('hideMenuHeader', {}); headerShown = false end
+    if headerShown then Kora.nui.send('hideMenuHeader', {}); headerShown = false end
 
-    -- Capture this before QB.nui.openMenu can yield. Once the coroutine resumes,
+    -- Capture this before Kora.nui.openMenu can yield. Once the coroutine resumes,
     -- the original export runtime is no longer necessarily on FiveM's runtime
     -- stack, so querying GetInvokingResource afterwards is not reliable.
     local calledFromExport = GetInvokingResource() ~= nil
-    local result = QB.nui.openMenu(items)
+    local result = Kora.nui.openMenu(items)
     if not calledFromExport then result = Citizen.Await(result) end
     if not result or result.cancelled then
         TriggerEvent('qb-menu:client:menuClosed')
@@ -169,11 +169,11 @@ end
 -- Lua call are settled through the same path as Escape/backdrop dismissal.
 local function closeMenu()
     if headerShown then
-        QB.nui.send('hideMenuHeader', {})
+        Kora.nui.send('hideMenuHeader', {})
         headerShown = false
     end
     headerMenu = nil
-    QB.nui.send("closeMenu", {})
+    Kora.nui.send("closeMenu", {})
 end
 
 local function showHeader(menu)
@@ -181,10 +181,10 @@ local function showHeader(menu)
     if #items == 0 then return end
     headerShown = true
     headerMenu = menu
-    QB.nui.send('showMenuHeader', items)
+    Kora.nui.send('showMenuHeader', items)
 end
 
-QB.keybind.add({
+Kora.keybind.add({
     name = 'playerfocus',
     description = 'Give Menu Focus',
     defaultMapper = 'keyboard',
@@ -198,9 +198,9 @@ QB.keybind.add({
     end,
 })
 
-QB.compat.provideExport("qb-menu", "openMenu", openMenu)
-QB.compat.provideExport("qb-menu", "closeMenu", closeMenu)
-QB.compat.provideExport("qb-menu", "showHeader", showHeader)
+Kora.compat.provideExport("qb-menu", "openMenu", openMenu)
+Kora.compat.provideExport("qb-menu", "closeMenu", closeMenu)
+Kora.compat.provideExport("qb-menu", "showHeader", showHeader)
 
 RegisterNetEvent("qb-menu:client:openMenu", openMenu)
 RegisterNetEvent("qb-menu:client:closeMenu", closeMenu)

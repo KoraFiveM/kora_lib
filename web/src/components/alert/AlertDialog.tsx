@@ -17,7 +17,7 @@ import { cn } from "@/lib/cn"
 import { dialogSizeClass } from "@/lib/dialogSize"
 
 /**
- * Confirmation dialog for the "openAlert" request (QB.nui.openAlert, see
+ * Confirmation dialog for the "openAlert" request (Kora.nui.openAlert, see
  * modules/nui/client.lua). Always mounted alongside every other top-level NUI
  * component; renders nothing until Lua asks for it.
  *

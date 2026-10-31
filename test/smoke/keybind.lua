@@ -30,7 +30,7 @@ end)
 harness.test('options API registers a protected press handler and mapper', function()
     local calls = 0
     invokingResource = 'kora_chat'
-    local handle = QB.keybind.add({
+    local handle = Kora.keybind.add({
         name = 'qbchat_open',
         description = 'Open chat',
         defaultKey = 'T',
@@ -54,7 +54,7 @@ harness.test('add registers primary and secondary press/release mappings', funct
     local phases = {}
     local mappingCount = #mappings
     invokingResource = 'chat_a'
-    local handle = QB.keybind.add({
+    local handle = Kora.keybind.add({
         name = 'chat_open',
         description = 'Open chat',
         defaultKey = 'T',
@@ -82,7 +82,7 @@ end)
 harness.test('disabled state suppresses callbacks and disabling while held clears state', function()
     local presses, releases = 0, 0
     invokingResource = 'disabled_owner'
-    local handle = QB.keybind.add({
+    local handle = Kora.keybind.add({
         name = 'disabled_action', description = 'Disabled action', defaultKey = 'D',
         onPressed = function() presses = presses + 1 end,
         onReleased = function() releases = releases + 1 end,
@@ -108,7 +108,7 @@ end)
 
 harness.test('pause menu suppresses new keybind presses', function()
     local presses = 0
-    local handle = QB.keybind.add({
+    local handle = Kora.keybind.add({
         name = 'pause_safe_action', description = 'Pause safe', defaultKey = 'P',
         onPressed = function() presses = presses + 1 end,
     })
@@ -122,7 +122,7 @@ harness.test('pause menu suppresses new keybind presses', function()
 end)
 
 harness.test('getCurrentBinding returns FiveM current primary display token', function()
-    local handle = QB.keybind.add({
+    local handle = Kora.keybind.add({
         name = 'current_binding', description = 'Current', defaultKey = 'K', onPressed = function() end,
     })
     harness.assertEqual(handle.getCurrentBinding(), 'K')
@@ -131,12 +131,12 @@ end)
 harness.test('replacement reuses native wrappers and stale handles cannot remove it', function()
     local firstCalls, secondCalls = 0, 0
     invokingResource = 'first_owner'
-    local first = QB.keybind.add({
+    local first = Kora.keybind.add({
         name = 'replace_me', description = 'Replace', defaultKey = 'R',
         onPressed = function() firstCalls = firstCalls + 1 end,
     })
     invokingResource = 'second_owner'
-    local second = QB.keybind.add({
+    local second = Kora.keybind.add({
         name = 'replace_me', description = 'Replace', defaultKey = 'R',
         onPressed = function() secondCalls = secondCalls + 1 end,
     })
@@ -154,28 +154,28 @@ end)
 
 harness.test('a resource cannot remove another resource\'s keybind by name', function()
     invokingResource = 'keybind_owner'
-    QB.keybind.add({ name = 'owned_action', description = 'Owned', defaultKey = 'O', onPressed = function() end })
+    Kora.keybind.add({ name = 'owned_action', description = 'Owned', defaultKey = 'O', onPressed = function() end })
 
     invokingResource = 'other_resource'
-    harness.assertFalse(QB.keybind.remove('owned_action'), 'a foreign resource must not remove the binding')
+    harness.assertFalse(Kora.keybind.remove('owned_action'), 'a foreign resource must not remove the binding')
 
     invokingResource = 'keybind_owner'
-    harness.assertTrue(QB.keybind.remove('owned_action'), 'the owner should remove its binding')
+    harness.assertTrue(Kora.keybind.remove('owned_action'), 'the owner should remove its binding')
     invokingResource = nil
 end)
 
 harness.test('resource stop disposes only bindings still owned by that resource', function()
     invokingResource = 'stopping_resource'
-    QB.keybind.add({ name = 'stopping_action', description = 'Stop', defaultKey = 'S', onPressed = function() error('inert') end })
+    Kora.keybind.add({ name = 'stopping_action', description = 'Stop', defaultKey = 'S', onPressed = function() error('inert') end })
     invokingResource = 'surviving_resource'
-    QB.keybind.add({ name = 'surviving_action', description = 'Stay', defaultKey = 'A', onPressed = function() end })
+    Kora.keybind.add({ name = 'surviving_action', description = 'Stay', defaultKey = 'A', onPressed = function() end })
     invokingResource = nil
 
     net.fire('onClientResourceStop', 'stopping_resource')
     net.commands['+stopping_action']()
 
     local names = {}
-    for _, entry in ipairs(QB.keybind.list()) do names[entry.name] = true end
+    for _, entry in ipairs(Kora.keybind.list()) do names[entry.name] = true end
     harness.assertFalse(names.stopping_action)
     harness.assertTrue(names.surviving_action)
 end)
@@ -184,7 +184,7 @@ harness.test('an owner restart reactivates the stable wrapper without duplicate 
     local firstCalls, restartedCalls = 0, 0
     local beforeMappings = #mappings
     invokingResource = 'restarting_resource'
-    QB.keybind.add({
+    Kora.keybind.add({
         name = 'restart_action', description = 'Restart action', defaultKey = 'F6',
         onPressed = function() firstCalls = firstCalls + 1 end,
     })
@@ -195,7 +195,7 @@ harness.test('an owner restart reactivates the stable wrapper without duplicate 
     harness.assertEqual(firstCalls, 0, 'the stale wrapper must be inert while its owner is stopped')
 
     invokingResource = 'restarting_resource'
-    QB.keybind.add({
+    Kora.keybind.add({
         name = 'restart_action', description = 'Restart action', defaultKey = 'F6',
         onPressed = function() restartedCalls = restartedCalls + 1 end,
     })
@@ -208,7 +208,7 @@ harness.test('an owner restart reactivates the stable wrapper without duplicate 
 end)
 
 harness.test('callback errors are contained', function()
-    QB.keybind.add({ name = 'broken_action', description = 'Broken', defaultKey = 'B', onPressed = function() error('boom') end })
+    Kora.keybind.add({ name = 'broken_action', description = 'Broken', defaultKey = 'B', onPressed = function() error('boom') end })
     harness.assertTrue(pcall(net.commands['+broken_action']))
 end)
 
@@ -228,10 +228,10 @@ harness.test('server command mappings use the same registry and transport', func
 end)
 
 harness.test('malformed options are rejected', function()
-    harness.assertFalse(pcall(QB.keybind.add, { name = 'bad name', description = 'Bad', onPressed = function() end }))
-    harness.assertFalse(pcall(QB.keybind.add, { name = 'bad', description = 'Bad' }))
-    harness.assertFalse(pcall(QB.keybind.add, 'not an options table'))
-    harness.assertFalse(pcall(QB.keybind.add, { name = 'bad_handler', description = 'Bad', onPressed = 'not callable' }))
+    harness.assertFalse(pcall(Kora.keybind.add, { name = 'bad name', description = 'Bad', onPressed = function() end }))
+    harness.assertFalse(pcall(Kora.keybind.add, { name = 'bad', description = 'Bad' }))
+    harness.assertFalse(pcall(Kora.keybind.add, 'not an options table'))
+    harness.assertFalse(pcall(Kora.keybind.add, { name = 'bad_handler', description = 'Bad', onPressed = 'not callable' }))
 end)
 
 harness.report('keybind')

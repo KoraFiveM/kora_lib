@@ -21,13 +21,13 @@ kora_lib's manifest also declares `kora_theme` as a dependency, so FiveM will re
 ## Optional legacy manifest imports
 
 New kora_lib resources need neither `ox_lib` nor `PolyZone`; use the public
-`QB.nui` and `QB.zones` APIs directly. `QB.ox` is the private bridge behind
+`Kora.nui` and `Kora.zones` APIs directly. `Kora.ox` is the private bridge behind
 the optional `ox_lib` resource. Do not ensure either compatibility resource by
 default.
 
 | Consumer situation | Start |
 | --- | --- |
-| New resource using `QB.*` | `kora_theme`, then `kora_lib` |
+| New resource using `Kora.*` | `kora_theme`, then `kora_lib` |
 | Legacy resource with a normal `dependency 'qb-menu'`-style dependency | `kora_theme`, then `kora_lib`; its `provide` identity is enough |
 | Legacy manifest imports `@ox_lib/...` | `kora_theme`, `kora_lib`, then the optional resource named `ox_lib` |
 | Legacy manifest imports `@PolyZone/...` | `kora_theme`, `kora_lib`, then the optional resource named `PolyZone` |
@@ -71,7 +71,7 @@ client_script 'client.lua'
 server_script 'server.lua'
 ```
 
-Loading the proxy as a shared script makes `QB` available to the consumer's shared, client, and server scripts. Individual functions are still limited to the realms stated on their reference pages.
+Loading the proxy as a shared script makes `Kora` available to the consumer's shared, client, and server scripts. Individual functions are still limited to the realms stated on their reference pages.
 
 ## Choose the native API
 
@@ -80,13 +80,13 @@ unchanged legacy contract.
 
 | Need | Native API |
 | --- | --- |
-| Menus, forms, alerts, or radial selections | [`QB.nui`]({{ site.baseurl }}/reference/nui/) — `openMenu`, `openContextMenu`, `openInputDialog`, `openAlert`, or `openRadialMenu` |
-| Prompts, notifications, or progress | [`QB.textui`]({{ site.baseurl }}/reference/textui/), [`QB.notify`]({{ site.baseurl }}/reference/notify/), and [`QB.progressbar`]({{ site.baseurl }}/reference/progressbar/) |
-| A static area trigger | [`QB.zones`]({{ site.baseurl }}/reference/zones/) — `box`, `sphere`, `circle`, or `poly` |
-| Client/server request-response | [`QB.callback`]({{ site.baseurl }}/reference/callback/) |
-| A valuable server-side action | [`QB.actions`]({{ site.baseurl }}/reference/actions/) or a server-validated callback |
+| Menus, forms, alerts, or radial selections | [`Kora.nui`]({{ site.baseurl }}/reference/nui/) — `openMenu`, `openContextMenu`, `openInputDialog`, `openAlert`, or `openRadialMenu` |
+| Prompts, notifications, or progress | [`Kora.textui`]({{ site.baseurl }}/reference/textui/), [`Kora.notify`]({{ site.baseurl }}/reference/notify/), and [`Kora.progressbar`]({{ site.baseurl }}/reference/progressbar/) |
+| A static area trigger | [`Kora.zones`]({{ site.baseurl }}/reference/zones/) — `box`, `sphere`, `circle`, or `poly` |
+| Client/server request-response | [`Kora.callback`]({{ site.baseurl }}/reference/callback/) |
+| A valuable server-side action | [`Kora.actions`]({{ site.baseurl }}/reference/actions/) or a server-validated callback |
 
-`QB.ox` is not a native UI API: it is the owner-aware internal provider used
+`Kora.ox` is not a native UI API: it is the owner-aware internal provider used
 only by the optional `ox_lib` compatibility resource.
 
 ## Verify the installation
@@ -95,9 +95,9 @@ Add a temporary client command to a consumer resource:
 
 ```lua
 RegisterCommand('kora_lib_check', function()
-    QB.notify.send({
+    Kora.notify.send({
         title = 'kora_lib is ready',
-        message = ('Player %s is connected.'):format(QB.cache.serverId()),
+        message = ('Player %s is connected.'):format(Kora.cache.serverId()),
         type = 'success',
     })
 end, false)
@@ -113,7 +113,7 @@ client minigame result is never authorization by itself:
 
 ```lua
 -- server.lua
-QB.callback.register('my-resource:server:claimReward', function(src, rewardId)
+Kora.callback.register('my-resource:server:claimReward', function(src, rewardId)
     if not isValidReward(rewardId) or not isPlayerAtReward(src, rewardId) then
         return false, 'Not available.'
     end
@@ -123,8 +123,8 @@ QB.callback.register('my-resource:server:claimReward', function(src, rewardId)
 end, { rateLimit = { max = 3, window = 10000 } })
 
 -- client.lua
-local claimed, reason = QB.callback.trigger('my-resource:server:claimReward', rewardId)
-if not claimed then QB.notify.send({ message = reason, type = 'error' }) end
+local claimed, reason = Kora.callback.trigger('my-resource:server:claimReward', rewardId)
+if not claimed then Kora.notify.send({ message = reason, type = 'error' }) end
 ```
 
 Validate the player's identity, permission, distance, cooldown, and live

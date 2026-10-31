@@ -15,10 +15,10 @@ local controlCounts = {}
 local firingCount = 0
 local weaponWheelCount = 0
 local threadRunning = false
-local isInteger = QB.util.isInteger
+local isInteger = Kora.util.isInteger
 
 local releaseLease
-local leaseRegistry = QB.resources.registry(function(leaseId)
+local leaseRegistry = Kora.resources.registry(function(leaseId)
     releaseLease(leaseId, true)
 end)
 
@@ -166,17 +166,17 @@ end
 ---@param controlIds integer[]
 ---@param options? QBControlsOptions
 ---@return integer leaseId
-function QB.controls.acquire(controlIds, options)
+function Kora.controls.acquire(controlIds, options)
     return acquire(controlIds, options)
 end
 
 ---Internal captured-owner bridge for kora_lib's asynchronous UI flows. Kept in
----QB.compat so it is never published as a consumer-facing export.
+---Kora.compat so it is never published as a consumer-facing export.
 ---@param controlIds integer[]
 ---@param options QBControlsOptions?
 ---@param owner string
 ---@return integer leaseId
-function QB.compat.acquireControls(controlIds, options, owner)
+function Kora.compat.acquireControls(controlIds, options, owner)
     assert(type(owner) == 'string' and owner ~= '', 'Control lease owner must be a non-empty string.')
     return acquire(controlIds, options, owner)
 end
@@ -185,7 +185,7 @@ end
 ---repeatedly during idempotent cleanup.
 ---@param leaseId integer
 ---@return boolean released False when the lease was unknown or already released.
-function QB.controls.release(leaseId)
+function Kora.controls.release(leaseId)
     if not isInteger(leaseId) or leaseId < 1 then return false end
     if leaseRegistry.owner(leaseId) ~= (GetInvokingResource() or GetCurrentResourceName()) then
         return false
@@ -196,7 +196,7 @@ end
 ---@param leaseId integer
 ---@param owner string
 ---@return boolean released
-function QB.compat.releaseControlLease(leaseId, owner)
+function Kora.compat.releaseControlLease(leaseId, owner)
     assert(type(owner) == 'string' and owner ~= '', 'Control lease owner must be a non-empty string.')
     if not isInteger(leaseId) or leaseId < 1 or leaseRegistry.owner(leaseId) ~= owner then return false end
     return releaseLease(leaseId)

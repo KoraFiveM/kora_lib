@@ -1,7 +1,7 @@
 return function()
     local compat = {}
 
-    -- Consumer-local QB.util uses the same callable rules as kora_lib's own VM.
+    -- Consumer-local Kora.util uses the same callable rules as kora_lib's own VM.
     -- Keep this here to avoid routing callback validation back through an
     -- export when the surrounding module is deliberately local.
     local function isCallable(value, seen)
@@ -23,10 +23,10 @@ return function()
     ---@param func function|table
     function compat.provideExport(providedResource, exportName, func)
         assert(type(providedResource) == 'string' and providedResource ~= '',
-            'QB.compat.provideExport requires a resource name.')
+            'Kora.compat.provideExport requires a resource name.')
         assert(type(exportName) == 'string' and exportName ~= '',
-            'QB.compat.provideExport requires an export name.')
-        assert(isCallable(func), 'QB.compat.provideExport requires a callable value.')
+            'Kora.compat.provideExport requires an export name.')
+        assert(isCallable(func), 'Kora.compat.provideExport requires a callable value.')
 
         AddEventHandler(('__cfx_export_%s_%s'):format(providedResource, exportName), function(setCallback)
             setCallback(func)

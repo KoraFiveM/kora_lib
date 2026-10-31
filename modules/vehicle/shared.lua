@@ -8,20 +8,20 @@
 ---@param options? QBVehicleNormalizePlateOptions
 ---@return string|nil plate
 ---@return string|nil reason
-function QB.vehicle.normalizePlate(value, options)
-    assert(options == nil or type(options) == "table", "QB.vehicle.normalizePlate options must be a table.")
+function Kora.vehicle.normalizePlate(value, options)
+    assert(options == nil or type(options) == "table", "Kora.vehicle.normalizePlate options must be a table.")
     options = options or {}
-    assert(options.maxLength == nil or QB.util.isInteger(options.maxLength) and options.maxLength > 0,
-        "QB.vehicle.normalizePlate maxLength must be a positive integer.")
+    assert(options.maxLength == nil or Kora.util.isInteger(options.maxLength) and options.maxLength > 0,
+        "Kora.vehicle.normalizePlate maxLength must be a positive integer.")
     assert(options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "remove"
         or options.whitespace == "preserve",
-        "QB.vehicle.normalizePlate whitespace must be 'collapse', 'remove', or 'preserve'.")
+        "Kora.vehicle.normalizePlate whitespace must be 'collapse', 'remove', or 'preserve'.")
     assert(options.characters == nil or options.characters == "alphanumeric" or options.characters == "any",
-        "QB.vehicle.normalizePlate characters must be 'alphanumeric' or 'any'.")
+        "Kora.vehicle.normalizePlate characters must be 'alphanumeric' or 'any'.")
 
     if type(value) ~= "string" then return nil, "invalid_type" end
 
-    local plate = QB.util.trim(value):upper()
+    local plate = Kora.util.trim(value):upper()
     if options.whitespace == "remove" then
         plate = plate:gsub("%s+", "")
     elseif options.whitespace ~= "preserve" then

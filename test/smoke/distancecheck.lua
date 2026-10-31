@@ -1,23 +1,23 @@
--- Smoke test for the distancecheck module (QB.distance.*), both realms. Client
--- functions measure from the local player (QB.cache.get('coords')); server
+-- Smoke test for the distancecheck module (Kora.distance.*), both realms. Client
+-- functions measure from the local player (Kora.cache.get('coords')); server
 -- functions take `src` first and measure from that player's ped. Plain
 -- coordinate tables prove the hot path does not need temporary vectors.
 --
--- Client and server both define QB.distance.*, so -- per kora_lib's
+-- Client and server both define Kora.distance.*, so -- per kora_lib's
 -- same-name-across-realms rule -- the client functions are captured before the
 -- server file overwrites them.
 
 local h = dofile('test/harness.lua')
 
--- Auto-vivifying QB, as build/initiate.lua creates it.
-_G.QB = setmetatable({}, { __index = function(t, k) local m = {}; rawset(t, k, m); return m end })
+-- Auto-vivifying Kora, as build/initiate.lua creates it.
+_G.Kora = setmetatable({}, { __index = function(t, k) local m = {}; rawset(t, k, m); return m end })
 dofile('modules/util/shared.lua')
 
 -- Local player sits at the origin for the client tests.
-QB.cache.get = function(key) if key == 'coords' then return { x = 0, y = 0, z = 0 } end end
+Kora.cache.get = function(key) if key == 'coords' then return { x = 0, y = 0, z = 0 } end end
 
 dofile('modules/distancecheck/client.lua')
-local cPlayer, cCoords, cEntity, cXY = QB.distance.player, QB.distance.coords, QB.distance.entity, QB.distance.xy
+local cPlayer, cCoords, cEntity, cXY = Kora.distance.player, Kora.distance.coords, Kora.distance.entity, Kora.distance.xy
 
 h.test('client player(): true within radius, false beyond', function()
     h.assertTrue(cPlayer({ x = 3, y = 0, z = 0 }, 5), 'dist 3 <= 5')
@@ -72,29 +72,29 @@ _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
 dofile('modules/distancecheck/server.lua')
 
 h.test('server player(): uses the source ped position', function()
-    h.assertTrue(QB.distance.player(1, { x = 3, y = 0, z = 0 }, 5))
-    h.assertFalse(QB.distance.player(1, { x = 9, y = 0, z = 0 }, 5))
+    h.assertTrue(Kora.distance.player(1, { x = 3, y = 0, z = 0 }, 5))
+    h.assertFalse(Kora.distance.player(1, { x = 9, y = 0, z = 0 }, 5))
 end)
 
 h.test('server entity(): requires src and entity', function()
     _G.GetEntityCoords = function(e) return e == 99 and { x = 0, y = 0, z = 2 } or { x = 0, y = 0, z = 0 } end
-    h.assertTrue(QB.distance.entity(1, 99, 5))
-    h.assertThrows(function() QB.distance.entity(nil, 99) end)
+    h.assertTrue(Kora.distance.entity(1, 99, 5))
+    h.assertThrows(function() Kora.distance.entity(nil, 99) end)
 end)
 
 h.test('server source/entity checks reject missing live handles', function()
-    h.assertThrows(function() QB.distance.entity(1, 0, 5) end)
-    h.assertThrows(function() QB.distance.entity(1, -1, 5) end)
+    h.assertThrows(function() Kora.distance.entity(1, 0, 5) end)
+    h.assertThrows(function() Kora.distance.entity(1, -1, 5) end)
 
     local originalGetPlayerPed = GetPlayerPed
     _G.GetPlayerPed = function() return 0 end
-    h.assertThrows(function() QB.distance.player(1, { x = 0, y = 0, z = 0 }, 5) end)
+    h.assertThrows(function() Kora.distance.player(1, { x = 0, y = 0, z = 0 }, 5) end)
     _G.GetPlayerPed = originalGetPlayerPed
 end)
 
 h.test('server source-based checks reject malformed player IDs', function()
     local point = { x = 0, y = 0, z = 0 }
-    for _, operation in ipairs({ QB.distance.player, QB.distance.entity, QB.distance.x, QB.distance.y, QB.distance.xy }) do
+    for _, operation in ipairs({ Kora.distance.player, Kora.distance.entity, Kora.distance.x, Kora.distance.y, Kora.distance.xy }) do
         h.assertThrows(function()
             operation(1.5, point, 5)
         end)
@@ -102,12 +102,12 @@ h.test('server source-based checks reject malformed player IDs', function()
 end)
 
 h.test('server rejects a non-finite radius before it can authorize proximity', function()
-    h.assertThrows(function() QB.distance.player(1, { x = 0, y = 0, z = 0 }, math.huge) end)
-    h.assertThrows(function() QB.distance.player(1, { x = 0, y = 0, z = 0 }, false) end)
+    h.assertThrows(function() Kora.distance.player(1, { x = 0, y = 0, z = 0 }, math.huge) end)
+    h.assertThrows(function() Kora.distance.player(1, { x = 0, y = 0, z = 0 }, false) end)
 end)
 
 h.test('server coordinates reject non-finite values before distance arithmetic', function()
-    h.assertThrows(function() QB.distance.player(1, { x = 0, y = math.huge, z = 0 }, 5) end)
+    h.assertThrows(function() Kora.distance.player(1, { x = 0, y = math.huge, z = 0 }, 5) end)
 end)
 
 h.report('distancecheck')

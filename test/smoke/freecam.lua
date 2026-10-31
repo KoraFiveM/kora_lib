@@ -35,7 +35,7 @@ dofile(arg[1] or repoRoot .. 'modules/freecam/client.lua')
 
 harness.test('freecam moves, rejects boundary steps, changes mode/focus, and restores state', function()
     input[31] = -1.0
-    local cam = assert(QB.freecam.start({ maxDistance = 1.0 }))
+    local cam = assert(Kora.freecam.start({ maxDistance = 1.0 }))
     harness.assertTrue(frozen)
     harness.assertTrue(rendered)
     harness.assertTrue(math.abs(cam.getCoords().y - 0.6) < 0.0001)
@@ -46,15 +46,15 @@ harness.test('freecam moves, rejects boundary steps, changes mode/focus, and res
     harness.assertEqual(cam.getMovementMode(), 'grid')
     harness.assertTrue(cam.setFocus({ x = 1, y = 1, z = 0 }))
     harness.assertTrue(cam.stop())
-    harness.assertFalse(QB.freecam.isActive())
+    harness.assertFalse(Kora.freecam.isActive())
     harness.assertFalse(frozen)
     input[31] = nil
 end)
 
 harness.test('freecam validates zones and cleans up when its owner stops', function()
-    harness.assertThrows(function() QB.freecam.start({ zone = {} }) end)
-    local cam = assert(QB.freecam.start({ zone = { contains = function() return true end } }))
-    harness.assertFalse(QB.freecam.start())
+    harness.assertThrows(function() Kora.freecam.start({ zone = {} }) end)
+    local cam = assert(Kora.freecam.start({ zone = { contains = function() return true end } }))
+    harness.assertFalse(Kora.freecam.start())
     net.fire('onClientResourceStop', 'kora_lib_test')
     harness.assertFalse(cam.isActive())
     harness.assertFalse(frozen)
@@ -62,7 +62,7 @@ end)
 
 harness.test('focus can be cleared and reacquired without changing handle contracts', function()
     input[1], input[2] = 0.5, 0.2
-    local cam = assert(QB.freecam.start({
+    local cam = assert(Kora.freecam.start({
         focusCoords = { x = 0, y = 1, z = 0 }, lookSensitivity = 10,
     }))
     harness.assertEqual(cam.getRotation().yaw, 0)

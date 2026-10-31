@@ -5,11 +5,11 @@ Shared infrastructure for tracking which resource created/registered a given id,
 
 ## API
 
-### `QB.resources.isStarted(resourceName)` (shared)
+### `Kora.resources.isStarted(resourceName)` (shared)
 
 Returns `true` only when `GetResourceState(resourceName)` is `started`.
 
-### `QB.resources.awaitStarted(resourceName, options?)` (shared)
+### `Kora.resources.awaitStarted(resourceName, options?)` (shared)
 
 Waits for a dependency without creating an unbounded startup loop. Options are
 `timeout` (default `10000`) and `interval` (default `100`), both milliseconds.
@@ -21,15 +21,15 @@ Returns `true` when ready, `false, "missing"` for an unknown resource, or
 `false, "timeout"` when the deadline expires.
 
 ```lua
-local ready, reason = QB.resources.awaitStarted('qbinventory', {
+local ready, reason = Kora.resources.awaitStarted('qbinventory', {
     timeout = 30000,
     interval = 200,
 })
 if not ready then print(('qbinventory unavailable: %s'):format(reason)) end
 ```
 
-### `QB.resources.registry(onDispose)` (client)
-### `QB.resources.serverRegistry(onDispose)` (server)
+### `Kora.resources.registry(onDispose)` (client)
+### `Kora.resources.serverRegistry(onDispose)` (server)
 Creates a new, isolated ownership registry. Identical shape on both realms — swept on `onClientResourceStop` (client) or `onResourceStop` (server).
 
 #### Parameters
@@ -52,20 +52,20 @@ Creates a new, isolated ownership registry. Identical shape on both realms — s
 
 #### Example
 ```lua
-local blipRegistry = QB.resources.registry(function(blip)
+local blipRegistry = Kora.resources.registry(function(blip)
     if DoesBlipExist(blip) then RemoveBlip(blip) end
 end)
 
-function QB.blips.create(coords, options)
+function Kora.blips.create(coords, options)
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
     local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
     blipRegistry.track(invokingResource, blip)
     return blip
 end
 
-function QB.blips.remove(blip)
+function Kora.blips.remove(blip)
     local owner = blipRegistry.untrack(blip)
-    if not owner then return false, "Blip is not tracked by QB.blips." end
+    if not owner then return false, "Blip is not tracked by Kora.blips." end
     RemoveBlip(blip)
     return true
 end

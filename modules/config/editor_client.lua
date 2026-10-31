@@ -21,7 +21,7 @@ end
 -- Calls made from kora_lib itself receive the raw callback promise. Consumer
 -- resources get the auto-awaited export result, so normalize both paths here.
 local function triggerCallback(name, ...)
-    local direct = table.pack(QB.callback.trigger(name, ...))
+    local direct = table.pack(Kora.callback.trigger(name, ...))
     local response = direct[1]
     if type(response) ~= 'table' or response.state == nil then
         return table.unpack(direct, 1, direct.n)
@@ -710,7 +710,7 @@ end
 local function openEditor(resource)
     local result, err = triggerCallback('kora_lib:configCatalog')
     if not result then
-        return QB.notify.send({ type = 'error', message = err or 'You do not have access to configuration.' })
+        return Kora.notify.send({ type = 'error', message = err or 'You do not have access to configuration.' })
     end
 
     activeEdit = nil
@@ -722,7 +722,7 @@ local function openEditor(resource)
         if not entry or not entry.loaded or entry.unavailable then
             local refreshed, readError = readResource(resource)
             if not refreshed then
-                QB.notify.send({ type = 'error', message = readError or 'Could not read resource configuration.' })
+                Kora.notify.send({ type = 'error', message = readError or 'Could not read resource configuration.' })
             end
             entry = refreshed
         end
@@ -732,17 +732,17 @@ local function openEditor(resource)
     activeResource = viewId and resource or nil
     local definition = buildDefinition()
     definition.onAction = handleAction
-    QB.nui.registerApp(definition)
-    QB.nui.openApp('kora_lib:config', { viewId = viewId })
+    Kora.nui.registerApp(definition)
+    Kora.nui.openApp('kora_lib:config', { viewId = viewId })
 end
 
-function QB.config.open(resource)
+function Kora.config.open(resource)
     assert(resource == nil or type(resource) == 'string', 'Configuration resource must be a string.')
     openEditor(resource)
 end
 
 local function onConfigOpened(resource)
-    QB.config.open(resource)
+    Kora.config.open(resource)
 end
 
 RegisterNetEvent('kora_lib:client:configOpened', onConfigOpened)

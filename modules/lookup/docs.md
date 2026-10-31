@@ -2,7 +2,7 @@
 
 ## Overview
 
-`QB.lookup` resolves GTA hash values to canonical vehicle, ped, object, weapon,
+`Kora.lookup` resolves GTA hash values to canonical vehicle, ped, object, weapon,
 weapon-component, and pickup names on both the client and server. Base records
 come from compact generated Lua indexes and each namespace is loaded only on
 its first use. Loaded indexes and materialized records remain cached for the
@@ -17,18 +17,18 @@ Exact provenance and counts live in `modules/lookup/data/source.json`.
 ## API
 
 ```lua
-local record, reason, candidates = QB.lookup.get('vehicle', hash)
+local record, reason, candidates = Kora.lookup.get('vehicle', hash)
 
-QB.lookup.model(value, kind)       -- kind: vehicle, ped, or object
-QB.lookup.model(value)             -- searches all three model namespaces
-QB.lookup.weapon(value)
-QB.lookup.weaponComponent(value)
-QB.lookup.pickup(value)
+Kora.lookup.model(value, kind)       -- kind: vehicle, ped, or object
+Kora.lookup.model(value)             -- searches all three model namespaces
+Kora.lookup.weapon(value)
+Kora.lookup.weaponComponent(value)
+Kora.lookup.pickup(value)
 
-QB.lookup.preload()                -- every base namespace
-QB.lookup.preload({ 'vehicle', 'weapon' })
-QB.lookup.ready()
-QB.lookup.awaitReady(10000)       -- finite, non-negative timeout in ms
+Kora.lookup.preload()                -- every base namespace
+Kora.lookup.preload({ 'vehicle', 'weapon' })
+Kora.lookup.ready()
+Kora.lookup.awaitReady(10000)       -- finite, non-negative timeout in ms
 ```
 
 `awaitReady` defaults to 10 seconds only when its timeout is omitted; an

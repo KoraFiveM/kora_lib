@@ -146,7 +146,7 @@ return function(library)
         end
         if kind == 'vector2' or kind == 'vector3' or kind == 'vector4' then return kind end
         if kind == 'table' then return isArray(value) and 'list' or 'object' end
-        error(('Unsupported configuration value type %q. Use an explicit QB.config field or keep it out of the editor.'):format(kind))
+        error(('Unsupported configuration value type %q. Use an explicit Kora.config field or keep it out of the editor.'):format(kind))
     end
 
     local function humanizeLabel(value)
@@ -905,15 +905,15 @@ return function(library)
     end
 
     local function declare(values, options)
-        assert(type(values) == 'table', 'QB.config.define expects a table.')
+        assert(type(values) == 'table', 'Kora.config.define expects a table.')
         options = options or {}
-        assert(type(options) == 'table', 'QB.config.define options must be a table.')
+        assert(type(options) == 'table', 'Kora.config.define options must be a table.')
         local schema, plain = makeSchema(values, {}, options.scope or 'shared', options.skipUnsupported == true)
         if options.descriptions ~= nil then
-            assert(type(options.descriptions) == 'table', 'QB.config.define descriptions must be a table.')
+            assert(type(options.descriptions) == 'table', 'Kora.config.define descriptions must be a table.')
             for key, description in pairs(options.descriptions) do
                 assert(type(key) == 'string' and type(description) == 'string',
-                    'QB.config.define descriptions must contain strings keyed by configuration path.')
+                    'Kora.config.define descriptions must contain strings keyed by configuration path.')
             end
             local function applyDescriptions(branch)
                 local description = options.descriptions[displayPath(branch.path)]
@@ -996,7 +996,7 @@ return function(library)
     end
 
     ---Registers an existing plain Config table. This is the migration bridge
-    ---for first-party resources; explicit QB.config.* fields can replace any
+    ---for first-party resources; explicit Kora.config.* fields can replace any
     ---inferred field over time without changing the Config shape.
     function config.adopt(values, options)
         options = options or {}
@@ -1010,11 +1010,11 @@ return function(library)
     ---the public Config table stays whole, while the catalog keeps the new
     ---branch out of the opposite realm.
     function config.extend(values, options)
-        assert(state, 'QB.config.extend requires QB.config.define/adopt first.')
-        assert(type(values) == 'table', 'QB.config.extend expects a table.')
+        assert(state, 'Kora.config.extend requires Kora.config.define/adopt first.')
+        assert(type(values) == 'table', 'Kora.config.extend expects a table.')
         options = options or {}
         local extensionSchema, extensionDefaults = makeSchema(values, {}, options.scope or 'shared', options.skipUnsupported == true)
-        assert(extensionSchema.kind == 'object', 'QB.config.extend expects an object.')
+        assert(extensionSchema.kind == 'object', 'Kora.config.extend expects an object.')
         local valid, validationError = validate(extensionSchema, extensionDefaults)
         assert(valid, ('Invalid authored configuration extension: %s.'):format(validationError))
         local extensionConfigured = copy(extensionDefaults)
@@ -1060,14 +1060,14 @@ return function(library)
 
     ---Registers server-side validation for a complete desired snapshot.
     function config.onValidate(handler)
-        assert(isServer, 'QB.config.onValidate is server-only.')
+        assert(isServer, 'Kora.config.onValidate is server-only.')
         assert(type(handler) == 'function', 'Configuration validation handler must be a function.')
         validateHandlers[#validateHandlers + 1] = handler
     end
 
     ---Registers a server-side reconfiguration hook for eligible live changes.
     function config.onApply(handler)
-        assert(isServer, 'QB.config.onApply is server-only.')
+        assert(isServer, 'Kora.config.onApply is server-only.')
         assert(type(handler) == 'function', 'Configuration apply handler must be a function.')
         applyHandlers[#applyHandlers + 1] = handler
     end
@@ -1122,8 +1122,8 @@ return function(library)
     end
 
     function config.whenReady(resources, handler)
-        assert(type(resources) == 'table', 'QB.config.whenReady needs a resource list.')
-        assert(type(handler) == 'function', 'QB.config.whenReady needs a handler.')
+        assert(type(resources) == 'table', 'Kora.config.whenReady needs a resource list.')
+        assert(type(handler) == 'function', 'Kora.config.whenReady needs a handler.')
         local completed = false
         local function runIfReady()
             if completed then return true end
@@ -1149,27 +1149,27 @@ return function(library)
         end
     end
 
-    -- Server-side consumers such as kora_admin use the same QB.config namespace
+    -- Server-side consumers such as kora_admin use the same Kora.config namespace
     -- to reach kora_lib's catalog. Individual resources still cannot write one
     -- another's files: kora_lib sends every mutation back through the target's
     -- own bridge export below.
     function config.catalog()
-        assert(isServer, 'QB.config.catalog is server-only.')
+        assert(isServer, 'Kora.config.catalog is server-only.')
         return library:config_catalog()
     end
 
     function config.read(resource)
-        assert(isServer, 'QB.config.read is server-only.')
+        assert(isServer, 'Kora.config.read is server-only.')
         return library:config_read(resource)
     end
 
     function config.commit(resource, request)
-        assert(isServer, 'QB.config.commit is server-only.')
+        assert(isServer, 'Kora.config.commit is server-only.')
         return library:config_commit(resource, request)
     end
 
     function config.reset(resource, request)
-        assert(isServer, 'QB.config.reset is server-only.')
+        assert(isServer, 'Kora.config.reset is server-only.')
         return library:config_reset(resource, request)
     end
 
@@ -1425,7 +1425,7 @@ return function(library)
             if (resource == RESOURCE or resource == 'kora_lib') and state then requestSnapshot() end
         end)
 
-        -- `QB.config` is consumer-local so resource-owned Config tables stay
+        -- `Kora.config` is consumer-local so resource-owned Config tables stay
         -- local. Keep the standalone editor reachable from that same API by
         -- forwarding this one client convenience call to kora_lib's export.
         function config.open(resource)

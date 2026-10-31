@@ -1,4 +1,4 @@
-local state = QB.lookup._state
+local state = Kora.lookup._state
 local SYNC_REQUEST = 'kora_lib:lookup:sync'
 local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
 local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
@@ -160,13 +160,13 @@ local function receiveBatch(version, index, total, records)
 end
 
 state.receiveBatch = receiveBatch
-QB.events.onPush(SYNC_PUSH, receiveBatch)
+Kora.events.onPush(SYNC_PUSH, receiveBatch)
 
--- QB.events.trigger waits for the secure handshake. If the server is still
+-- Kora.events.trigger waits for the secure handshake. If the server is still
 -- scanning, request again periodically until an atomic snapshot is published.
 CreateThread(function()
     while not state.overlayReady do
-        QB.events.trigger(SYNC_REQUEST)
+        Kora.events.trigger(SYNC_REQUEST)
         if not state.overlayReady then Wait(4000) end
     end
 end)

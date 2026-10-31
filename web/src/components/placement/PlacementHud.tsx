@@ -13,7 +13,7 @@ function NumberValue({ value, suffix = "" }: { value: number; suffix?: string })
     return <span className="font-mono tabular-nums text-foreground">{value.toFixed(3)}{suffix}</span>
 }
 
-/** Pointer-transparent live state for QB.placement's free-camera editor. */
+/** Pointer-transparent live state for Kora.placement's free-camera editor. */
 export function PlacementHud() {
     const [state, setState] = useState<PlacementHudState | null>(null)
 

@@ -10,7 +10,7 @@ interface InteractState {
 }
 
 /**
- * Visual half of QB.interact. Lua owns all controls and selection dispatch;
+ * Visual half of Kora.interact. Lua owns all controls and selection dispatch;
  * this component is deliberately pointer-transparent so it cannot take mouse
  * look or NUI focus from gameplay.
  */

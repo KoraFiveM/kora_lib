@@ -30,7 +30,7 @@ _G.DrawMarker = function() drawMarkerCalls = drawMarkerCalls + 1 end
 _G.DrawPoly = function() drawPolyCalls = drawPolyCalls + 1 end
 
 -- The zone creator's own natives. Placement now goes through the real
--- QB.raycast.fromCamera (modules/raycast), so these are dofile'd here too --
+-- Kora.raycast.fromCamera (modules/raycast), so these are dofile'd here too --
 -- the mock player/camera never moves and nothing is ever aimed at, so the
 -- ray consistently misses (hit = 0), enough for the creator's startup/guard
 -- behavior below without needing a real hit-testing simulation.
@@ -40,14 +40,14 @@ _G.DrawPoly = function() drawPolyCalls = drawPolyCalls + 1 end
 local registeredCommands = {}
 _G.RegisterCommand = function(name, handler) registeredCommands[name] = handler end
 _G.RegisterKeyMapping = function() end
-QB.keybind = {
+Kora.keybind = {
     add = function(options)
         registeredCommands[options.name] = options.onPressed
         return { name = options.name, remove = function() return true end }
     end,
 }
 local placementActive = false
-QB.placement = {
+Kora.placement = {
     isActive = function() return placementActive end,
 }
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
@@ -104,22 +104,22 @@ dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/freecam/client.lua")
 dofile(repoRoot .. "modules/instructional/client.lua")
--- QB.theme isn't otherwise loaded by this test file -- the debug/creator-preview
--- draw path now reads QB.theme.accentColor() (see zoneDebugColor in
--- modules/zones/client.lua), and without this the QB proxy in build/initiate.lua
--- would auto-vivify QB.theme as an empty table, leaving accentColor nil.
+-- Kora.theme isn't otherwise loaded by this test file -- the debug/creator-preview
+-- draw path now reads Kora.theme.accentColor() (see zoneDebugColor in
+-- modules/zones/client.lua), and without this the Kora proxy in build/initiate.lua
+-- would auto-vivify Kora.theme as an empty table, leaving accentColor nil.
 _G.exports = { kora_theme = { getPrimaryColor = function() return "#DC143C" end } }
 dofile(repoRoot .. "modules/theme/shared.lua")
 dofile(repoRoot .. "modules/zones/client.lua")
 
--- Real QB.nui isn't loaded here (that's modules/nui's own smoke test) -- the
+-- Real Kora.nui isn't loaded here (that's modules/nui's own smoke test) -- the
 -- creator only needs somewhere to send/request against, so this is a minimal
 -- stand-in rather than the full request/response bridge. `nextNuiResponse`
 -- lets a test drive the confirm dialog to a specific outcome: since the mock
 -- Citizen.Await only supports an already-settled promise (see mocks.lua), the
--- response has to be resolved synchronously, before QB.nui.request returns.
+-- response has to be resolved synchronously, before Kora.nui.request returns.
 local nextNuiResponse = nil
-QB.nui = {
+Kora.nui = {
     send = function() end,
     request = function()
         local p = promise.new()
@@ -131,11 +131,11 @@ QB.nui = {
 
 harness.test("box zone contains points inside it and is entered by the first tick", function()
     local insideFromEnter
-    local zone = QB.zones.box({
+    local zone = Kora.zones.box({
         coords = { x = 0, y = 0, z = 0 },
         size = { x = 10, y = 10, z = 10 },
         onEnter = function()
-            insideFromEnter = QB.zones.getInside()[1]
+            insideFromEnter = Kora.zones.getInside()[1]
         end,
     })
 
@@ -150,7 +150,7 @@ end)
 harness.test("box zone can intentionally ignore elevation", function()
     local entered = 0
     playerCoords = { x = 100, y = 100, z = 99999 }
-    local zone = QB.zones.box({
+    local zone = Kora.zones.box({
         coords = { x = 100, y = 100, z = 0 },
         size = { x = 10, y = 10, z = 2 },
         ignoreZ = true,
@@ -167,7 +167,7 @@ harness.test("box zone can intentionally ignore elevation", function()
 end)
 
 harness.test("sphere zone contains points within its radius", function()
-    local zone = QB.zones.sphere({ coords = { x = 100, y = 100, z = 0 }, radius = 5 })
+    local zone = Kora.zones.sphere({ coords = { x = 100, y = 100, z = 0 }, radius = 5 })
 
     harness.assertTrue(zone.contains({ x = 100, y = 100, z = 0 }), "the sphere's center should be inside it")
     harness.assertFalse(zone.contains({ x = 200, y = 200, z = 0 }), "a far point should be outside the sphere")
@@ -178,7 +178,7 @@ end)
 harness.test("circle zone has an exact 2D boundary and ignores elevation", function()
     local entered = 0
     playerCoords = { x = 100, y = 100, z = 99999 }
-    local zone = QB.zones.circle({
+    local zone = Kora.zones.circle({
         coords = { x = 100, y = 100, z = 0 },
         radius = 5,
         onEnter = function() entered = entered + 1 end,
@@ -196,8 +196,8 @@ harness.test("circle zone has an exact 2D boundary and ignores elevation", funct
 end)
 
 harness.test("circle and sphere zones can exclude their boundary", function()
-    local circle = QB.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 5, includeBoundary = false })
-    local sphere = QB.zones.sphere({ coords = { x = 20, y = 0, z = 0 }, radius = 5, includeBoundary = false })
+    local circle = Kora.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 5, includeBoundary = false })
+    local sphere = Kora.zones.sphere({ coords = { x = 20, y = 0, z = 0 }, radius = 5, includeBoundary = false })
 
     harness.assertFalse(circle.contains({ x = 5, y = 0, z = 99999 }), "an exclusive circle must reject its exact radius")
     harness.assertTrue(circle.contains({ x = 4.99, y = 0, z = 0 }), "an exclusive circle must retain points inside its radius")
@@ -209,7 +209,7 @@ end)
 
 harness.test("predicate-only zones retain contains without entering the player tracker", function()
     local entered = 0
-    local zone = QB.zones.box({
+    local zone = Kora.zones.box({
         coords = { x = 0, y = 0, z = 0 },
         size = { x = 4, y = 4, z = 4 },
         trackPlayer = false,
@@ -226,12 +226,12 @@ end)
 
 harness.test("trackPlayer requires a boolean", function()
     harness.assertThrows(function()
-        QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 2, trackPlayer = "no" })
+        Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 2, trackPlayer = "no" })
     end, "invalid trackPlayer values should be rejected")
 end)
 
 harness.test("poly zone respects both its footprint and its height band", function()
-    local zone = QB.zones.poly({
+    local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
             { x = 10, y = 0,  z = 0 },
@@ -247,7 +247,7 @@ harness.test("poly zone respects both its footprint and its height band", functi
 end)
 
 harness.test("poly zone can intentionally ignore elevation", function()
-    local zone = QB.zones.poly({
+    local zone = Kora.zones.poly({
         points = {
             { x = 100, y = 100, z = 0 },
             { x = 110, y = 100, z = 0 },
@@ -263,7 +263,7 @@ end)
 
 harness.test("poly zone rejects sparse point arrays before creation", function()
     harness.assertThrows(function()
-        QB.zones.poly({
+        Kora.zones.poly({
             points = {
                 { x = 0, y = 0, z = 0 },
                 { x = 1, y = 0, z = 0 },
@@ -278,7 +278,7 @@ harness.test("poly thickness extends upward from the lowest point, not centred o
     -- so an average-centred band (the old behaviour) would have run from z=1
     -- to z=5 -- leaving the ground at the lowest corner OUTSIDE its own zone,
     -- and burying the bottom half of the zone under the hill at the high end.
-    local zone = QB.zones.poly({
+    local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
             { x = 10, y = 0,  z = 3 },
@@ -300,7 +300,7 @@ harness.test("poly thickness extends upward from the lowest point, not centred o
 end)
 
 harness.test("explicit minZ/maxZ still override thickness anchoring", function()
-    local zone = QB.zones.poly({
+    local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
             { x = 10, y = 0,  z = 0 },
@@ -319,7 +319,7 @@ end)
 
 harness.test("point zone is a small-radius sphere", function()
     local opts = { coords = { x = 50, y = 50, z = 0 } }
-    local zone = QB.zones.point(opts)
+    local zone = Kora.zones.point(opts)
 
     harness.assertEqual(zone.type, "sphere", "a point zone should be a sphere under the hood")
     harness.assertTrue(zone.contains({ x = 50.5, y = 50, z = 0 }), "a point just inside the default radius should be contained")
@@ -331,13 +331,13 @@ end)
 
 harness.test("point zone only defaults an omitted radius", function()
     harness.assertThrows(function()
-        QB.zones.point({ coords = { x = 0, y = 0, z = 0 }, radius = false })
+        Kora.zones.point({ coords = { x = 0, y = 0, z = 0 }, radius = false })
     end)
 end)
 
 harness.test("zones get unique ids", function()
-    local a = QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 1 })
-    local b = QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 1 })
+    local a = Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 1 })
+    local b = Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 1 })
 
     harness.assertTrue(a.id ~= b.id, "two zones should never share an id")
 
@@ -347,89 +347,89 @@ end)
 
 harness.test("box zone requires coords and size", function()
     harness.assertThrows(function()
-        QB.zones.box({})
+        Kora.zones.box({})
     end, "a box zone with no coords/size should raise")
 end)
 
 harness.test("zone geometry rejects non-finite values before entering the spatial grid", function()
     harness.assertThrows(function()
-        QB.zones.box({ coords = "not coordinates", size = { x = 1, y = 1, z = 1 } })
+        Kora.zones.box({ coords = "not coordinates", size = { x = 1, y = 1, z = 1 } })
     end, "non-vector coordinates should raise kora_lib's public contract error")
     harness.assertThrows(function()
-        QB.zones.box({ coords = { x = math.huge, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 } })
+        Kora.zones.box({ coords = { x = math.huge, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 } })
     end)
     harness.assertThrows(function()
-        QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = math.huge })
+        Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = math.huge })
     end)
     harness.assertThrows(function()
-        QB.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 0 })
+        Kora.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 0 })
     end)
     harness.assertThrows(function()
-        QB.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 1, includeBoundary = "no" })
+        Kora.zones.circle({ coords = { x = 0, y = 0, z = 0 }, radius = 1, includeBoundary = "no" })
     end)
     harness.assertThrows(function()
-        QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 }, ignoreZ = "no" })
+        Kora.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 1, y = 1, z = 1 }, ignoreZ = "no" })
     end)
     harness.assertThrows(function()
-        QB.zones.poly({ points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } }, ignoreZ = "no" })
+        Kora.zones.poly({ points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } }, ignoreZ = "no" })
     end)
     harness.assertThrows(function()
-        QB.zones.poly({
+        Kora.zones.poly({
             points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } },
             minZ = 0 / 0, maxZ = 2,
         })
     end)
 
-    local zone = QB.zones.sphere({ coords = { x = 50, y = 50, z = 0 }, radius = 1 })
+    local zone = Kora.zones.sphere({ coords = { x = 50, y = 50, z = 0 }, radius = 1 })
     harness.assertThrows(function() zone.contains(false) end,
         "contains should reject malformed coordinates with the same contract")
     zone.remove()
 end)
 
 harness.test("removing a zone twice is a harmless no-op", function()
-    local zone = QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 1 })
+    local zone = Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 1 })
     zone.remove()
     zone.remove()
 end)
 
 harness.test("getInside reports the zones the player is currently standing in", function()
-    harness.assertEqual(#QB.zones.getInside(), 0, "nothing should be inside before any zone exists here")
+    harness.assertEqual(#Kora.zones.getInside(), 0, "nothing should be inside before any zone exists here")
 
     -- The mock player sits at the origin: the box contains it, the sphere is
     -- far away. net.step() advances the (already-running) tick loop one more
     -- iteration so enter/exit tracking sees these newly created zones.
-    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
-    local far = QB.zones.sphere({ coords = { x = 500, y = 500, z = 0 }, radius = 2 })
+    local zone = Kora.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+    local far = Kora.zones.sphere({ coords = { x = 500, y = 500, z = 0 }, radius = 2 })
     net.step()
 
-    local inside = QB.zones.getInside()
+    local inside = Kora.zones.getInside()
     harness.assertEqual(#inside, 1, "only the zone containing the player should be reported")
     harness.assertEqual(inside[1], zone, "getInside should hand back the very same handle the constructor returned")
 
-    harness.assertEqual(#QB.zones.getInside("kora_lib_test"), 1, "filtering by the owning resource should still match")
-    harness.assertEqual(#QB.zones.getInside("some_other_resource"), 0, "filtering by a different resource should match nothing")
+    harness.assertEqual(#Kora.zones.getInside("kora_lib_test"), 1, "filtering by the owning resource should still match")
+    harness.assertEqual(#Kora.zones.getInside("some_other_resource"), 0, "filtering by a different resource should match nothing")
 
     zone.remove()
     far.remove()
-    harness.assertEqual(#QB.zones.getInside(), 0, "a removed zone should drop out of getInside")
+    harness.assertEqual(#Kora.zones.getInside(), 0, "a removed zone should drop out of getInside")
 end)
 
 harness.test("getInside rejects a non-string resource filter", function()
-    harness.assertThrows(function() QB.zones.getInside(42) end, "a numeric resource filter should raise")
+    harness.assertThrows(function() Kora.zones.getInside(42) end, "a numeric resource filter should raise")
 end)
 
 harness.test("setDebug requires a finite integer zone id", function()
-    harness.assertThrows(function() QB.zones.setDebug(1.5, true) end)
-    harness.assertThrows(function() QB.zones.setDebug(math.huge, true) end)
+    harness.assertThrows(function() Kora.zones.setDebug(1.5, true) end)
+    harness.assertThrows(function() Kora.zones.setDebug(math.huge, true) end)
 end)
 
-harness.test("QB.zones.edit moves a box zone's coords, updating containment and the grid", function()
-    local zone = QB.zones.box({ coords = { x = 300, y = 300, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+harness.test("Kora.zones.edit moves a box zone's coords, updating containment and the grid", function()
+    local zone = Kora.zones.box({ coords = { x = 300, y = 300, z = 0 }, size = { x = 10, y = 10, z = 10 } })
 
     harness.assertTrue(zone.contains({ x = 300, y = 300, z = 0 }), "the zone should start at its original coords")
     harness.assertFalse(zone.contains({ x = 0, y = 0, z = 0 }), "the zone should not yet contain the origin")
 
-    local result = QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
+    local result = Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
     harness.assertEqual(result, zone, "edit should return the same handle it was given")
 
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "contains() should reflect the new coords")
@@ -445,8 +445,8 @@ harness.test("QB.zones.edit moves a box zone's coords, updating containment and 
     zone.remove()
 end)
 
-harness.test("QB.zones.edit rejects poly zone coords edits", function()
-    local zone = QB.zones.poly({
+harness.test("Kora.zones.edit rejects poly zone coords edits", function()
+    local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
             { x = 10, y = 0,  z = 0 },
@@ -454,7 +454,7 @@ harness.test("QB.zones.edit rejects poly zone coords edits", function()
         },
     })
 
-    harness.assertThrows(function() QB.zones.edit(zone, { coords = { x = 1, y = 1, z = 0 } }) end,
+    harness.assertThrows(function() Kora.zones.edit(zone, { coords = { x = 1, y = 1, z = 0 } }) end,
         "poly zones should reject a coords edit")
 
     harness.assertTrue(zone.contains({ x = 2, y = 2, z = 0 }), "the poly's containment should be unaffected by the rejected edit")
@@ -462,24 +462,24 @@ harness.test("QB.zones.edit rejects poly zone coords edits", function()
     zone.remove()
 end)
 
-harness.test("QB.zones.edit can attach onEnter/onExit to a zone, and false detaches them", function()
-    local zone = QB.zones.sphere({ coords = { x = 300, y = 300, z = 0 }, radius = 5 })
+harness.test("Kora.zones.edit can attach onEnter/onExit to a zone, and false detaches them", function()
+    local zone = Kora.zones.sphere({ coords = { x = 300, y = 300, z = 0 }, radius = 5 })
     local enterCount, exitCount = 0, 0
 
-    QB.zones.edit(zone, {
+    Kora.zones.edit(zone, {
         onEnter = function() enterCount = enterCount + 1 end,
         onExit = function() exitCount = exitCount + 1 end,
     })
 
-    QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } }) -- move it onto the player
+    Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } }) -- move it onto the player
     net.step()
     harness.assertEqual(enterCount, 1, "the newly attached onEnter should fire once the player is inside")
 
-    QB.zones.edit(zone, { onExit = false }) -- detach onExit while still inside
+    Kora.zones.edit(zone, { onExit = false }) -- detach onExit while still inside
 
     -- Move it just outside its own radius, but still within the same grid
     -- cell as the player so this specifically covers detaching the callback.
-    QB.zones.edit(zone, { coords = { x = 20, y = 0, z = 0 } })
+    Kora.zones.edit(zone, { coords = { x = 20, y = 0, z = 0 } })
     net.step()
     harness.assertFalse(zone.isInside(), "the zone should be tracked as exited even with no onExit callback attached")
     harness.assertEqual(exitCount, 0, "onExit was detached, so it must not fire")
@@ -490,7 +490,7 @@ end)
 
 harness.test("leaving a grid neighbourhood still fires onExit and clears isInside", function()
     local exits = 0
-    local zone = QB.zones.sphere({
+    local zone = Kora.zones.sphere({
         coords = { x = 0, y = 0, z = 0 }, radius = 5,
         onExit = function() exits = exits + 1 end,
     })
@@ -514,11 +514,11 @@ end)
 -- Get the invalidation wrong and a newly created zone is invisible until the
 -- player happens to walk into a different cell and back.
 harness.test("a zone created after the candidate cache was warmed is still seen", function()
-    local warm = QB.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 5 })
+    local warm = Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 5 })
     net.step() -- warms the candidate cache for the player's cell
 
     local entered = 0
-    local late = QB.zones.sphere({
+    local late = Kora.zones.sphere({
         coords = { x = 0, y = 0, z = 0 },
         radius = 5,
         onEnter = function() entered = entered + 1 end,
@@ -554,11 +554,11 @@ harness.test("a zone destroyed mid-tick is skipped by the rest of that same tick
         end
     end
 
-    first = QB.zones.sphere({
+    first = Kora.zones.sphere({
         coords = { x = 0, y = 0, z = 0 }, radius = 5,
         onEnter = onEnter(function() return second end),
     })
-    second = QB.zones.sphere({
+    second = Kora.zones.sphere({
         coords = { x = 0, y = 0, z = 0 }, radius = 5,
         onEnter = onEnter(function() return first end),
     })
@@ -570,13 +570,13 @@ harness.test("a zone destroyed mid-tick is skipped by the rest of that same tick
     second.remove()
 end)
 
-harness.test("QB.zones.edit rejects an invalid onEnter and leaves coords unchanged", function()
-    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+harness.test("Kora.zones.edit rejects an invalid onEnter and leaves coords unchanged", function()
+    local zone = Kora.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
     net.step()
     harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
 
     harness.assertThrows(function()
-        QB.zones.edit(zone, { coords = { x = 500, y = 500, z = 0 }, onEnter = "not-a-function" })
+        Kora.zones.edit(zone, { coords = { x = 500, y = 500, z = 0 }, onEnter = "not-a-function" })
     end, "an invalid onEnter should reject the whole edit, including the coords change")
 
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "coords must not have moved just because the call ultimately threw")
@@ -588,13 +588,13 @@ harness.test("QB.zones.edit rejects an invalid onEnter and leaves coords unchang
     zone.remove()
 end)
 
-harness.test("QB.zones.edit rejects an invalid onExit and leaves coords unchanged", function()
-    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+harness.test("Kora.zones.edit rejects an invalid onExit and leaves coords unchanged", function()
+    local zone = Kora.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
     net.step()
     harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
 
     harness.assertThrows(function()
-        QB.zones.edit(zone, { coords = { x = 500, y = 500, z = 0 }, onExit = 42 })
+        Kora.zones.edit(zone, { coords = { x = 500, y = 500, z = 0 }, onExit = 42 })
     end, "an invalid onExit should reject the whole edit, including the coords change")
 
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "coords must not have moved just because the call ultimately threw")
@@ -606,15 +606,15 @@ harness.test("QB.zones.edit rejects an invalid onExit and leaves coords unchange
     zone.remove()
 end)
 
-harness.test("QB.zones.edit with unchanged coords is a no-op that doesn't disturb grid tracking", function()
-    local zone = QB.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
+harness.test("Kora.zones.edit with unchanged coords is a no-op that doesn't disturb grid tracking", function()
+    local zone = Kora.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
     net.step()
     harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
 
     -- A fresh table with the same numeric values, not the same Lua object --
     -- exercises the value-equality short-circuit rather than trivially
     -- skipping via reference equality.
-    QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
+    Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
 
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "the zone should still contain the origin")
     net.step()
@@ -623,8 +623,8 @@ harness.test("QB.zones.edit with unchanged coords is a no-op that doesn't distur
     zone.remove()
 end)
 
-harness.test("QB.zones.edit allows onEnter/onExit edits on a poly zone", function()
-    local zone = QB.zones.poly({
+harness.test("Kora.zones.edit allows onEnter/onExit edits on a poly zone", function()
+    local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
             { x = 10, y = 0,  z = 0 },
@@ -632,7 +632,7 @@ harness.test("QB.zones.edit allows onEnter/onExit edits on a poly zone", functio
         },
     })
 
-    QB.zones.edit(zone, { onEnter = function() end })
+    Kora.zones.edit(zone, { onEnter = function() end })
 
     zone.remove()
 end)
@@ -640,15 +640,15 @@ end)
 harness.test("foreign resources cannot mutate or remove owned zones", function()
     local invokingResource = "zone_owner"
     _G.GetInvokingResource = function() return invokingResource end
-    local zone = QB.zones.sphere({ coords = { x = 300, y = 300, z = 0 }, radius = 5 })
+    local zone = Kora.zones.sphere({ coords = { x = 300, y = 300, z = 0 }, radius = 5 })
 
     invokingResource = "other_resource"
-    local edited, reason = QB.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
+    local edited, reason = Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
     harness.assertEqual(edited, nil, "a foreign resource must not edit the zone")
     harness.assertEqual(reason, "Zone is owned by another resource.", "the refusal should explain ownership")
     harness.assertFalse(zone.setDebug(true), "a foreign resource must not enable debug drawing")
-    harness.assertFalse(QB.zones.setDebug(zone.id, true), "a foreign resource must not mutate debug by id")
-    harness.assertFalse(QB.zones.setDebug(nil, true), "a foreign resource must not mutate every zone's debug state")
+    harness.assertFalse(Kora.zones.setDebug(zone.id, true), "a foreign resource must not mutate debug by id")
+    harness.assertFalse(Kora.zones.setDebug(nil, true), "a foreign resource must not mutate every zone's debug state")
     harness.assertFalse(zone.remove(), "a foreign resource must not remove the zone")
     harness.assertTrue(zone.contains({ x = 300, y = 300, z = 0 }), "the foreign edits must leave geometry intact")
 
@@ -658,26 +658,26 @@ harness.test("foreign resources cannot mutate or remove owned zones", function()
 end)
 
 harness.test("generateSnippet formats a box zone", function()
-    local snippet = QB.zones.generateSnippet("box", {
+    local snippet = Kora.zones.generateSnippet("box", {
         coords = { x = 100, y = 200, z = 30 },
         size = { x = 4, y = 4, z = 3 },
         rotation = 45,
     })
 
-    harness.assertTrue(snippet:find("QB.zones.box(", 1, true) ~= nil, "should generate a QB.zones.box call")
+    harness.assertTrue(snippet:find("Kora.zones.box(", 1, true) ~= nil, "should generate a Kora.zones.box call")
     harness.assertTrue(snippet:find("vector3(100.00, 200.00, 30.00)", 1, true) ~= nil, "coords should be formatted as vector3(...)")
     harness.assertTrue(snippet:find("rotation = 45.00", 1, true) ~= nil, "rotation should be included")
 end)
 
 harness.test("generateSnippet formats a sphere zone", function()
-    local snippet = QB.zones.generateSnippet("sphere", { coords = { x = 1, y = 2, z = 3 }, radius = 5 })
+    local snippet = Kora.zones.generateSnippet("sphere", { coords = { x = 1, y = 2, z = 3 }, radius = 5 })
 
-    harness.assertTrue(snippet:find("QB.zones.sphere(", 1, true) ~= nil, "should generate a QB.zones.sphere call")
+    harness.assertTrue(snippet:find("Kora.zones.sphere(", 1, true) ~= nil, "should generate a Kora.zones.sphere call")
     harness.assertTrue(snippet:find("radius = 5.00", 1, true) ~= nil, "radius should be included")
 end)
 
 harness.test("generateSnippet formats a poly zone with one line per point", function()
-    local snippet = QB.zones.generateSnippet("poly", {
+    local snippet = Kora.zones.generateSnippet("poly", {
         points = {
             { x = 0,  y = 0,  z = 0 },
             { x = 10, y = 0,  z = 0 },
@@ -686,13 +686,13 @@ harness.test("generateSnippet formats a poly zone with one line per point", func
         thickness = 4,
     })
 
-    harness.assertTrue(snippet:find("QB.zones.poly(", 1, true) ~= nil, "should generate a QB.zones.poly call")
+    harness.assertTrue(snippet:find("Kora.zones.poly(", 1, true) ~= nil, "should generate a Kora.zones.poly call")
     local _, count = snippet:gsub("vector3%(", "")
     harness.assertEqual(count, 3, "should emit one vector3(...) per point")
 end)
 
 harness.test("generateSnippet preserves a poly's explicit height band and rejects non-finite values", function()
-    local snippet = QB.zones.generateSnippet("poly", {
+    local snippet = Kora.zones.generateSnippet("poly", {
         points = {
             { x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 }, { x = 0, y = 10, z = 0 },
         },
@@ -702,21 +702,21 @@ harness.test("generateSnippet preserves a poly's explicit height band and reject
     harness.assertTrue(snippet:find("minZ = 20.00", 1, true) ~= nil, "explicit minZ should be retained")
     harness.assertTrue(snippet:find("maxZ = 24.00", 1, true) ~= nil, "explicit maxZ should be retained")
     harness.assertThrows(function()
-        QB.zones.generateSnippet("sphere", { coords = { x = 0, y = 0, z = 0 }, radius = math.huge })
+        Kora.zones.generateSnippet("sphere", { coords = { x = 0, y = 0, z = 0 }, radius = math.huge })
     end)
 end)
 
 harness.test("generateSnippet rejects an unknown zone type", function()
     harness.assertThrows(function()
-        QB.zones.generateSnippet("cylinder", {})
+        Kora.zones.generateSnippet("cylinder", {})
     end, "an unsupported zone type should raise")
 end)
 
 harness.test("startCreator rejects a second call while a creator is already running", function()
-    local first = QB.zones.startCreator("box")
+    local first = Kora.zones.startCreator("box")
     harness.assertEqual(first.state, "pending", "the first creator should still be running")
 
-    local second = QB.zones.startCreator("box")
+    local second = Kora.zones.startCreator("box")
     harness.assertEqual(second.state, "rejected", "a second concurrent creator should be rejected immediately")
 
     -- Cancel the first via the same handler its keybind would call, so it
@@ -728,28 +728,28 @@ end)
 
 harness.test("startCreator rejects while entity placement is active", function()
     placementActive = true
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     placementActive = false
 
     harness.assertEqual(p.state, "rejected", "zone creation must not overlap entity placement")
 end)
 
 harness.test("isCreatorActive reflects whether a creator session is running", function()
-    harness.assertFalse(QB.zones.isCreatorActive(), "no creator has been started yet")
+    harness.assertFalse(Kora.zones.isCreatorActive(), "no creator has been started yet")
 
-    local p = QB.zones.startCreator("box")
-    harness.assertTrue(QB.zones.isCreatorActive(), "a creator is now pending")
+    local p = Kora.zones.startCreator("box")
+    harness.assertTrue(Kora.zones.isCreatorActive(), "a creator is now pending")
 
     registeredCommands["qblib_zonecreator_cancel"]()
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
-    harness.assertFalse(QB.zones.isCreatorActive(), "cancelling should clear the active session")
+    harness.assertFalse(Kora.zones.isCreatorActive(), "cancelling should clear the active session")
 end)
 
 harness.test("the creator restores the minimap when it ends", function()
     radarHidden = false
     radarCalls = {}
 
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     net.step() -- run one iteration of the creator's per-frame thread
 
     harness.assertTrue(radarCalls[1] == false, "the minimap should be hidden while placing")
@@ -766,7 +766,7 @@ harness.test("the creator preserves a minimap that was already hidden", function
     radarHidden = true
     radarCalls = {}
 
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     registeredCommands["qblib_zonecreator_cancel"]()
     net.step()
 
@@ -777,7 +777,7 @@ end)
 
 harness.test("the creator holds and releases its camera control lease", function()
     disabledControls = {}
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
 
     harness.assertTrue(disabledControls["0:1"] == true and disabledControls["0:31"] == true,
         "creator camera controls should be disabled before startCreator returns")
@@ -793,7 +793,7 @@ end)
 harness.test("creator controls release when the owning resource stops", function()
     local currentResource = "creator_consumer"
     _G.GetCurrentResourceName = function() return currentResource end
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     currentResource = "kora_lib_test"
 
     net.fire("onClientResourceStop", "creator_consumer")
@@ -808,7 +808,7 @@ end)
 
 harness.test("a creator loop crash releases its control lease", function()
     local originalGetFrameTime = GetFrameTime
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     _G.GetFrameTime = function() error("simulated camera failure") end
 
     net.step()
@@ -822,14 +822,14 @@ end)
 
 harness.test("startCreator rejects an invalid zone type", function()
     harness.assertThrows(function()
-        QB.zones.startCreator("cylinder")
+        Kora.zones.startCreator("cylinder")
     end, "an unsupported zone type should raise")
 end)
 
 harness.test("startCreator rejects when the creator is disabled via config", function()
     Config.zones.creator.enabled = false
 
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     harness.assertEqual(p.state, "rejected", "startCreator should reject immediately when disabled")
 
     Config.zones.creator.enabled = true
@@ -837,7 +837,7 @@ end)
 
 harness.test("startCreator raises synchronously on malformed seed opts", function()
     harness.assertThrows(function()
-        QB.zones.startCreator("sphere", { radius = -5 })
+        Kora.zones.startCreator("sphere", { radius = -5 })
     end, "a negative seeded radius should raise before the creator starts")
 
     harness.assertThrows(function()
@@ -845,21 +845,21 @@ harness.test("startCreator raises synchronously on malformed seed opts", functio
         for i = 1, Config.zones.creator.maxPolyPoints + 1 do
             tooMany[i] = { x = i, y = i, z = 0 }
         end
-        QB.zones.startCreator("poly", { points = tooMany })
+        Kora.zones.startCreator("poly", { points = tooMany })
     end, "seeding past the poly point cap should raise")
 
     harness.assertThrows(function()
-        QB.zones.startCreator("box", { rotation = math.huge })
+        Kora.zones.startCreator("box", { rotation = math.huge })
     end, "a non-finite seeded rotation should raise before the creator starts")
 
     -- Neither failed seed may leave a half-started creator behind.
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     harness.assertEqual(p.state, "pending", "a fresh creator should start cleanly after failed seeds")
     registeredCommands["qblib_zonecreator_cancel"]()
 end)
 
 harness.test("startCreator preserves a zero-based explicit poly height band", function()
-    local p = QB.zones.startCreator("poly", {
+    local p = Kora.zones.startCreator("poly", {
         points = { { x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, { x = 0, y = 1, z = 0 } },
         minZ = 0, maxZ = 4,
     })
@@ -878,7 +878,7 @@ harness.test("startCreator(type, existingOpts) seeds the creator from an existin
         rotation = 90,
     }
 
-    local p = QB.zones.startCreator("box", existing)
+    local p = Kora.zones.startCreator("box", existing)
     harness.assertEqual(p.state, "pending", "the creator should be running, seeded from the existing zone")
 
     -- Confirming works immediately (no placement keypress first) precisely
@@ -896,7 +896,7 @@ harness.test("startCreator(type, existingOpts) seeds the creator from an existin
 end)
 
 harness.test("confirming a poly creator returns its coordinates without registering a live zone", function()
-    local p = QB.zones.startCreator("poly", {
+    local p = Kora.zones.startCreator("poly", {
         points = {
             { x = -10, y = -10, z = 0 },
             { x = 10,  y = -10, z = 0 },
@@ -916,7 +916,7 @@ harness.test("confirming a poly creator returns its coordinates without register
     -- regression was fixed, confirmation registered that polygon and the next
     -- zone tick reported it here even though the creator is only a builder.
     net.step()
-    harness.assertEqual(#QB.zones.getInside(), 0,
+    harness.assertEqual(#Kora.zones.getInside(), 0,
         "the creator preview must disappear without leaving a registered zone behind")
 end)
 
@@ -927,7 +927,7 @@ harness.test("a debug box zone draws one wireframe line per edge plus wall faces
     -- Creating the zone starts the debug thread, and the mock CreateThread
     -- resumes it once immediately -- one draw pass happens synchronously,
     -- no net.step() needed.
-    local zone = QB.zones.box({ coords = { x = 100, y = 100, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = true })
+    local zone = Kora.zones.box({ coords = { x = 100, y = 100, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = true })
 
     -- 12 box edges, one line each -- no thickness faking, the wall fill
     -- below is what carries visibility.
@@ -939,7 +939,7 @@ harness.test("a debug box zone draws one wireframe line per edge plus wall faces
 end)
 
 harness.test("a debug poly zone draws a wall face per edge", function()
-    local zone = QB.zones.poly({
+    local zone = Kora.zones.poly({
         points = {
             { x = 200, y = 200, z = 30 },
             { x = 204, y = 200, z = 30 },
@@ -962,7 +962,7 @@ harness.test("a debug poly zone draws a wall face per edge", function()
     zone.remove()
 end)
 
-harness.test("QB.zones.setDebug(id, true) makes an already-created zone start drawing", function()
+harness.test("Kora.zones.setDebug(id, true) makes an already-created zone start drawing", function()
     -- Drain the debug thread the poly test above left running (suspended at
     -- its Wait(0)): that test's zone is already removed, so this resumed
     -- iteration finds debugZones empty and the thread quietly stops itself
@@ -970,7 +970,7 @@ harness.test("QB.zones.setDebug(id, true) makes an already-created zone start dr
     -- setDebug starting a fresh one.
     net.step()
 
-    local zone = QB.zones.box({ coords = { x = 300, y = 300, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = false })
+    local zone = Kora.zones.box({ coords = { x = 300, y = 300, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = false })
 
     drawLineCalls = 0
     zone.setDebug(true)
@@ -985,21 +985,21 @@ harness.test("QB.zones.setDebug(id, true) makes an already-created zone start dr
     zone.remove()
 end)
 
-harness.test("QB.zones.setDebug(nil, true) flips every registered zone at once", function()
+harness.test("Kora.zones.setDebug(nil, true) flips every registered zone at once", function()
     net.step() -- drain the previous test's now-empty debug thread, same as above
 
     -- Measure the existing registry's drawing baseline before adding this
     -- test's two zones. The assertions then check the delta they contribute
     -- rather than depending on global test state.
-    QB.zones.setDebug(nil, true)
+    Kora.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
     local baseline = drawLineCalls
-    QB.zones.setDebug(nil, false)
+    Kora.zones.setDebug(nil, false)
     net.step()
 
-    local a = QB.zones.box({ coords = { x = 320, y = 320, z = 30 }, size = { x = 4, y = 4, z = 3 } })
-    local b = QB.zones.box({ coords = { x = 340, y = 340, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+    local a = Kora.zones.box({ coords = { x = 320, y = 320, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+    local b = Kora.zones.box({ coords = { x = 340, y = 340, z = 30 }, size = { x = 4, y = 4, z = 3 } })
 
     -- setDebug(nil, true) starts a fresh debug thread mid-loop, over
     -- whichever zone it had already flipped into debugZones at that exact
@@ -1008,14 +1008,14 @@ harness.test("QB.zones.setDebug(nil, true) flips every registered zone at once",
     -- the call returns though, so resetting the counter and letting the
     -- now-running thread's next resumed iteration draw is what actually
     -- proves "every zone".
-    QB.zones.setDebug(nil, true)
+    Kora.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
 
     harness.assertEqual(drawLineCalls - baseline, 24,
         "both new zones' 12 edges each should draw once debug is flipped on globally, on top of whatever else is already registered")
 
-    QB.zones.setDebug(nil, false)
+    Kora.zones.setDebug(nil, false)
     drawLineCalls = 0
     net.step()
 
@@ -1032,7 +1032,7 @@ harness.test("Config.zones.debug defaults new zones into debug drawing without o
     Config.zones.debug = true
 
     drawLineCalls = 0
-    local zone = QB.zones.box({ coords = { x = 360, y = 360, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+    local zone = Kora.zones.box({ coords = { x = 360, y = 360, z = 30 }, size = { x = 4, y = 4, z = 3 } })
 
     harness.assertEqual(drawLineCalls, 12,
         "Config.zones.debug = true should enable debug drawing on a newly created zone even without opts.debug")
@@ -1044,16 +1044,16 @@ end)
 harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", function()
     net.step() -- drain again, same reasoning as above
 
-    -- Same reasoning as the QB.zones.setDebug(nil, ...) test above: capture
+    -- Same reasoning as the Kora.zones.setDebug(nil, ...) test above: capture
     -- the current baseline, then assert the delta from this test's own zone.
-    QB.zones.setDebug(nil, true)
+    Kora.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
     local baseline = drawLineCalls
-    QB.zones.setDebug(nil, false)
+    Kora.zones.setDebug(nil, false)
     net.step()
 
-    local zone = QB.zones.box({ coords = { x = 380, y = 380, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+    local zone = Kora.zones.box({ coords = { x = 380, y = 380, z = 30 }, size = { x = 4, y = 4, z = 3 } })
 
     registeredCommands["qb_zonedebug"](nil, {})
     drawLineCalls = 0
@@ -1083,7 +1083,7 @@ harness.test("starting the creator activates a scripted camera with an eased tra
     local originalRender = RenderScriptCams
     _G.RenderScriptCams = function(...) table.insert(renderCalls, { ... }) end
 
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     net.step()
 
     harness.assertTrue(#renderCalls >= 1, "starting the creator should activate its scripted camera")
@@ -1110,7 +1110,7 @@ harness.test("cancelling the creator eventually destroys its scripted camera", f
     local originalDestroy = DestroyCam
     _G.DestroyCam = function(cam) table.insert(destroyedCams, cam) end
 
-    local p = QB.zones.startCreator("box")
+    local p = Kora.zones.startCreator("box")
     net.step()
 
     registeredCommands["qblib_zonecreator_cancel"]()

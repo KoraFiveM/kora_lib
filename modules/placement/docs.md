@@ -1,15 +1,15 @@
 # Entity placement module
 
-`QB.placement` is a client-side developer tool for positioning any valid ped,
+`Kora.placement` is a client-side developer tool for positioning any valid ped,
 vehicle, or object model and copying its transform. It creates one temporary,
 non-networked preview and always deletes it when the session finishes.
 
-## `QB.placement.start(model, options?)`
+## `Kora.placement.start(model, options?)`
 
 Optional gameplay settings preserve the default developer tool:
 
 ```lua
-local result = QB.placement.start(model, {
+local result = Kora.placement.start(model, {
     coords = saved.coords,
     rotation = saved.rotation,
     bounds = { points = boundary, minZ = floor, maxZ = ceiling },
@@ -31,15 +31,15 @@ scripted free camera then lets the player inspect the placement from any angle.
 `model` is a non-empty model name or a finite integer model hash.
 
 ```lua
-local result = QB.placement.start('prop_bin_08')
+local result = Kora.placement.start('prop_bin_08')
 if not result then return print('placement cancelled') end
 
-print(QB.placement.generateSnippet(result))
+print(Kora.placement.generateSnippet(result))
 ```
 
 Same-resource calls return an awaitable promise. Calls made through
 `@kora_lib/init.lua` cross the kora_lib export boundary and return the settled result
-directly, matching `QB.zones.startCreator`.
+directly, matching `Kora.zones.startCreator`.
 
 The confirmed result is:
 
@@ -80,18 +80,18 @@ networked entity.
 - Enter: open the copy/finish summary.
 - X: cancel.
 
-All actions use `QB.keybind`, so players may rebind them in FiveM's key
-settings. `QB.instructional` renders the live bindings and updates the movement
+All actions use `Kora.keybind`, so players may rebind them in FiveM's key
+settings. `Kora.instructional` renders the live bindings and updates the movement
 mode and active rotation axis; the NUI HUD is reserved for transform state.
 
 ## Other API
 
-- `QB.placement.isActive()` reports startup, active editing, and camera
+- `Kora.placement.isActive()` reports startup, active editing, and camera
   transition teardown. It is exported as `placement_isActive` automatically.
-- `QB.placement.cancel()` releases the invoking resource's active preview,
+- `Kora.placement.cancel()` releases the invoking resource's active preview,
   camera, controls and dialogs, and returns its pending placement result as
   `nil`. It returns `false, reason` when another resource owns the placement.
-- `QB.placement.generateSnippet(result)` formats a ready-to-paste Lua table at
+- `Kora.placement.generateSnippet(result)` formats a ready-to-paste Lua table at
   four decimal places without rounding the returned result itself. Every
   coordinate, heading, and rotation component must be finite.
 - `/qb_place <model>` starts the same flow without writing Lua. A numeric

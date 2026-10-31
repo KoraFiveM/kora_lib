@@ -1,6 +1,6 @@
 # State module
 
-## `QB.state.awaitGlobal(key, timeoutMs?, pollIntervalMs?)` — shared
+## `Kora.state.awaitGlobal(key, timeoutMs?, pollIntervalMs?)` — shared
 
 Waits for a `GlobalState` key to become non-nil without allowing an unbounded
 startup loop. The timeout defaults to 5000 ms and polling defaults to 50 ms;
@@ -10,19 +10,19 @@ or `nil, "timeout"`. A `pollIntervalMs` of `0` polls once per game frame; use
 the default or another positive interval for ordinary startup state.
 
 ```lua
-local jewellery, reason = QB.state.awaitGlobal('Jewellery', 10000)
+local jewellery, reason = Kora.state.awaitGlobal('Jewellery', 10000)
 if not jewellery then
     print(('Jewellery state unavailable: %s'):format(reason))
 end
 ```
 
-## `QB.state.onChange(keyFilter?, bagFilter?, handler)` — client/server
+## `Kora.state.onChange(keyFilter?, bagFilter?, handler)` — client/server
 
 Registers a state-bag subscription. Either filter may be `nil` to match every
 key or bag. The handler receives one normalized context table:
 
 ```lua
-local listener = QB.state.onChange('locked', nil, function(change)
+local listener = Kora.state.onChange('locked', nil, function(change)
     print(change.bagName, change.entity, change.value, change.replicated)
 end)
 ```
@@ -33,7 +33,7 @@ The context contains `entity`, `bagName`, `key`, `value`, `reserved`, and
 contained and logged. Registration does not replay an existing value. A callback
 already queued when its listener is removed is ignored.
 
-## `QB.state.offChange(listenerId)` — client/server
+## `Kora.state.offChange(listenerId)` — client/server
 
 Removes the native handler for a positive finite integer listener ID and
 returns whether it was live. A listener ID does not transfer mutation

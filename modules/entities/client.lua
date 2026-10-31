@@ -15,7 +15,7 @@ local presets = {
         invincible = true,
     },
 }
-local isFiniteNumber = QB.util.isFiniteNumber
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 -- Per-type creation dispatch. Each entry spawns a non-networked (isNetwork =
 -- false), non-mission entity (netMissionEntity/bScriptHostPed = false) at the
@@ -65,7 +65,7 @@ end
 -- Ownership tracking (which resource created a given entity, and bulk
 -- cleanup when that resource stops) is delegated to the shared registry --
 -- see local/resources/AGENTS.md.
-local entityRegistry = QB.resources.registry(function(entity)
+local entityRegistry = Kora.resources.registry(function(entity)
     if DoesEntityExist(entity) then DeleteEntity(entity) end
 end)
 
@@ -113,7 +113,7 @@ local function assertCreateOptions(options)
 end
 
 ---Spawns a local, non-networked entity visible only to the calling client,
----streaming its model with `QB.stream.loadModel` first. Whether the result
+---streaming its model with `Kora.stream.loadModel` first. Whether the result
 ---is a ped, vehicle, or object is auto-detected from `model` itself (see
 ---`detectEntityType`) -- callers never specify a type. The entity is created
 ---inside `loadModel`'s callback so it's built before the model is released,
@@ -144,7 +144,7 @@ local function createForResource(model, coords, options, invokingResource)
 
     local entity
 
-    local loadedModel, loadErr = QB.stream.loadModel(model, function(loadedModelHash)
+    local loadedModel, loadErr = Kora.stream.loadModel(model, function(loadedModelHash)
         local entityType = detectEntityType(loadedModelHash)
         local created = creators[entityType](loadedModelHash, coords.x, coords.y, coords.z, heading)
         if created == 0 or not DoesEntityExist(created) then return end
@@ -170,7 +170,7 @@ local function createForResource(model, coords, options, invokingResource)
     return entity
 end
 
-function QB.entities.create(model, coords, options)
+function Kora.entities.create(model, coords, options)
     -- Must be captured before any Wait()/polling happens inside loadModel --
     -- the invoking-resource context is only valid at this call boundary.
     return createForResource(model, coords, options, GetInvokingResource() or GetCurrentResourceName())
@@ -197,7 +197,7 @@ local function destroyScope(scope)
     if scope.zone then scope.zone.remove() end
 end
 
-scopeRegistry = QB.resources.registry(function(scopeId)
+scopeRegistry = Kora.resources.registry(function(scopeId)
     local scope = scopes[scopeId]
     if scope then destroyScope(scope) end
 end)
@@ -211,7 +211,7 @@ end)
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number} World coordinates to spawn at.
 ---@param options QBEntitiesScopedOptions Options accepted by `create`, plus a required `radius` in metres.
 ---@return QBScopedEntityHandle scope A persistent scope handle. Read `scope.entity` for the current entity handle, or nil while outside the radius.
-function QB.entities.createScoped(model, coords, options)
+function Kora.entities.createScoped(model, coords, options)
     -- Capture ownership at the export boundary. The zone callbacks run later,
     -- when GetInvokingResource() no longer identifies the original caller.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
@@ -254,7 +254,7 @@ function QB.entities.createScoped(model, coords, options)
         return scope.entity ~= nil and DoesEntityExist(scope.entity)
     end
 
-    scope.zone = QB.zones.sphere({
+    scope.zone = Kora.zones.sphere({
         coords = coords,
         radius = options.radius,
         onEnter = function()
@@ -320,11 +320,11 @@ end
 ---@param entity number The entity handle to remove.
 ---@return boolean success
 ---@return string? error
-function QB.entities.remove(entity)
+function Kora.entities.remove(entity)
     assert(type(entity) == "number", ("Invalid entity: %s"):format(entity))
 
     if not entityRegistry.owner(entity) then
-        return false, "Entity is not tracked by QB.entities."
+        return false, "Entity is not tracked by Kora.entities."
     end
     if entityRegistry.owner(entity) ~= (GetInvokingResource() or GetCurrentResourceName()) then
         return false, "Entity is not owned by the calling resource."
@@ -348,14 +348,14 @@ end
 ---@param timeout? integer Defaults to 1000ms.
 ---@return boolean controlled
 ---@return string? error
-function QB.entities.requestControl(entity, timeout)
+function Kora.entities.requestControl(entity, timeout)
     assert(type(entity) == 'number' and entity ~= 0, ('Invalid entity: %s'):format(entity))
     if timeout == nil then timeout = 1000 end
-    assert(QB.util.isInteger(timeout) and timeout >= 0, 'Entity control timeout must be a non-negative integer.')
+    assert(Kora.util.isInteger(timeout) and timeout >= 0, 'Entity control timeout must be a non-negative integer.')
     if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
     if NetworkHasControlOfEntity(entity) then return true end
 
-    local controlled, err = QB.loops.controlled(function()
+    local controlled, err = Kora.loops.controlled(function()
         NetworkRequestControlOfEntity(entity)
         return NetworkHasControlOfEntity(entity)
     end, false, timeout, true)
@@ -369,8 +369,8 @@ end
 ---@param timeout? integer
 ---@return boolean deleted
 ---@return string? error
-function QB.entities.delete(entity, timeout)
-    local controlled, err = QB.entities.requestControl(entity, timeout)
+function Kora.entities.delete(entity, timeout)
+    local controlled, err = Kora.entities.requestControl(entity, timeout)
     if not controlled then return false, err or 'Could not acquire entity control.' end
     SetEntityAsMissionEntity(entity, true, true)
     DeleteEntity(entity)

@@ -60,8 +60,8 @@
 
 local busy = false
 local activeSession = nil
-local isInteger = QB.util.isInteger
-local isFiniteNumber = QB.util.isFiniteNumber
+local isInteger = Kora.util.isInteger
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 local COMBAT_CONTROLS = { 24, 25, 47, 58, 140, 141, 142, 143 }
 local CAR_CONTROLS = { 63, 64, 71, 72 }
@@ -81,7 +81,7 @@ local function deleteProgressProp(entity)
     DeleteEntity(entity)
 end
 
-local propRegistry = QB.resources.registry(function(entity)
+local propRegistry = Kora.resources.registry(function(entity)
     local ok, err = pcall(deleteProgressProp, entity)
     if not ok then
         print(("[kora_lib:progressbar] failed to clean up prop %s: %s"):format(tostring(entity), tostring(err)))
@@ -227,7 +227,7 @@ end
 ---Validates a progress-bar payload without starting a bar.
 ---@param payload QBProgressBarPayload
 ---@return true
-function QB.progressbar.validate(payload)
+function Kora.progressbar.validate(payload)
     assertPayload(payload)
     return true
 end
@@ -235,7 +235,7 @@ end
 ---@param dict string
 ---@return boolean loaded
 local function ensureAnimDict(dict)
-    local ok, loaded = pcall(QB.stream.loadAnimDict, dict)
+    local ok, loaded = pcall(Kora.stream.loadAnimDict, dict)
     return ok and loaded ~= false
 end
 
@@ -254,23 +254,23 @@ local function cleanupSession(session, cancelled)
     busy = false
 
     if session.carLease then
-        QB.compat.releaseControlLease(session.carLease, session.owner)
+        Kora.compat.releaseControlLease(session.carLease, session.owner)
         session.carLease = nil
     end
     if session.combatLease then
-        QB.compat.releaseControlLease(session.combatLease, session.owner)
+        Kora.compat.releaseControlLease(session.combatLease, session.owner)
         session.combatLease = nil
     end
     if session.sprintLease then
-        QB.compat.releaseControlLease(session.sprintLease, session.owner)
+        Kora.compat.releaseControlLease(session.sprintLease, session.owner)
         session.sprintLease = nil
     end
     if session.mouseLease then
-        QB.compat.releaseControlLease(session.mouseLease, session.owner)
+        Kora.compat.releaseControlLease(session.mouseLease, session.owner)
         session.mouseLease = nil
     end
     if session.movementLease then
-        QB.compat.releaseControlLease(session.movementLease, session.owner)
+        Kora.compat.releaseControlLease(session.movementLease, session.owner)
         session.movementLease = nil
     end
 
@@ -307,7 +307,7 @@ local function cleanupSession(session, cancelled)
     session.props = {}
 
     if cancelled and session.nuiStarted then
-        safeCleanup("NUI", function() QB.nui.send("progressCancel") end)
+        safeCleanup("NUI", function() Kora.nui.send("progressCancel") end)
     end
 end
 
@@ -328,7 +328,7 @@ end
 local function prepareProp(session, definition, index)
     local entity
     local ok, err = pcall(function()
-        local loaded, loadErr = QB.stream.loadModel(definition.model, function(hash)
+        local loaded, loadErr = Kora.stream.loadModel(definition.model, function(hash)
             if session.cleaned then return end
 
             local coords = GetEntityCoords(session.ped)
@@ -383,9 +383,9 @@ local function updateVehicleControls(session, enabled, profile)
     local shouldHold = enabled and IsPedInAnyVehicle(session.ped, false)
 
     if shouldHold and not session.carLease then
-        session.carLease = QB.compat.acquireControls(profile == 'ox' and OX_CAR_CONTROLS or CAR_CONTROLS, nil, session.owner)
+        session.carLease = Kora.compat.acquireControls(profile == 'ox' and OX_CAR_CONTROLS or CAR_CONTROLS, nil, session.owner)
     elseif not shouldHold and session.carLease then
-        QB.compat.releaseControlLease(session.carLease, session.owner)
+        Kora.compat.releaseControlLease(session.carLease, session.owner)
         session.carLease = nil
     end
 end
@@ -395,13 +395,13 @@ end
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean completed
 ---@return string? error
-function QB.progressbar.start(payload, owner, hooks)
-    QB.progressbar.validate(payload)
+function Kora.progressbar.start(payload, owner, hooks)
+    Kora.progressbar.validate(payload)
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
     if hooks then
         assert(hooks.networkedProps == nil or type(hooks.networkedProps) == 'boolean', 'Networked props flag must be boolean.')
         for _, name in ipairs({ 'onStart', 'onTick', 'isFinished' }) do
-            assert(hooks[name] == nil or QB.compat.isCallable(hooks[name]), 'Progress hook must be callable.')
+            assert(hooks[name] == nil or Kora.compat.isCallable(hooks[name]), 'Progress hook must be callable.')
         end
     end
     local cancelControls = payload.cancelControls == nil and Config.progressbar.cancelControls or payload.cancelControls
@@ -464,7 +464,7 @@ function QB.progressbar.start(payload, owner, hooks)
 
         if payload.disable and payload.disable.move then
             if payload.disable.moveMode == 'controls' then
-                session.movementLease = QB.compat.acquireControls(MOVEMENT_CONTROLS, nil, session.owner)
+                session.movementLease = Kora.compat.acquireControls(MOVEMENT_CONTROLS, nil, session.owner)
             else
                 FreezeEntityPosition(session.ped, true)
                 session.frozen = true
@@ -472,14 +472,14 @@ function QB.progressbar.start(payload, owner, hooks)
         end
 
         if payload.disable and payload.disable.combat then
-            session.combatLease = QB.compat.acquireControls(payload.disable.controlProfile == 'ox' and OX_COMBAT_CONTROLS or COMBAT_CONTROLS,
+            session.combatLease = Kora.compat.acquireControls(payload.disable.controlProfile == 'ox' and OX_COMBAT_CONTROLS or COMBAT_CONTROLS,
                 { disablePlayerFiring = true }, session.owner)
         end
         if payload.disable and payload.disable.sprint then
-            session.sprintLease = QB.compat.acquireControls(SPRINT_CONTROLS, nil, session.owner)
+            session.sprintLease = Kora.compat.acquireControls(SPRINT_CONTROLS, nil, session.owner)
         end
         if payload.disable and payload.disable.mouse then
-            session.mouseLease = QB.compat.acquireControls(MOUSE_CONTROLS, nil, session.owner)
+            session.mouseLease = Kora.compat.acquireControls(MOUSE_CONTROLS, nil, session.owner)
         end
         updateVehicleControls(session, payload.disable and payload.disable.car == true,
             payload.disable and payload.disable.controlProfile)
@@ -487,7 +487,7 @@ function QB.progressbar.start(payload, owner, hooks)
         if session.cleaned then return false end
 
         session.nuiStarted = true
-        QB.nui.send("progressStart", {
+        Kora.nui.send("progressStart", {
             label = payload.label,
             duration = payload.duration,
             presentation = payload.presentation or 'bar',
@@ -496,7 +496,7 @@ function QB.progressbar.start(payload, owner, hooks)
 
         if hooks and hooks.onStart then hooks.onStart() end
         local finishedEarly = false
-        local cancelled = QB.loops.controlled(function()
+        local cancelled = Kora.loops.controlled(function()
             if session.cleaned or activeSession ~= session then return true end
             if hooks and hooks.onTick then hooks.onTick() end
             if hooks and hooks.isFinished and hooks.isFinished() then
@@ -539,7 +539,7 @@ end
 ---Requests cancellation of the caller's active progress bar.
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean cancelled
-function QB.progressbar.cancel(owner)
+function Kora.progressbar.cancel(owner)
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
     local session = activeSession
     if not session or session.cleaned then return false end
@@ -550,7 +550,7 @@ function QB.progressbar.cancel(owner)
 end
 
 ---@return boolean
-function QB.progressbar.isActive()
+function Kora.progressbar.isActive()
     return busy
 end
 

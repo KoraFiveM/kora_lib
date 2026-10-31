@@ -14,7 +14,7 @@ for resourceIndex = 1, 60 do
         schema = { kind = 'object', fields = fields }, configured = values, values = values,
         revision = 1, loaded = true }
 end
-QB = { config = {}, callback = { trigger = function(name)
+Kora = { config = {}, callback = { trigger = function(name)
     if name == 'kora_lib:configCatalog' then return entries end
     error('Unexpected callback: ' .. name)
 end }, nui = {
@@ -24,7 +24,7 @@ end }, nui = {
 function RegisterNetEvent() end
 dofile('modules/config/editor_client.lua')
 local started = os.clock()
-QB.config.open('resource01')
+Kora.config.open('resource01')
 local initialMs = (os.clock() - started) * 1000
 local result
 started = os.clock()

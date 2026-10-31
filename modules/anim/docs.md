@@ -4,9 +4,9 @@ Client-side, resource-owned animation and attached-prop helpers. Animation dicti
 
 Only one kora_lib animation is tracked per entity. The owning resource may replace
 its own tracked handle; another resource cannot replace or stop it.
-`QB.anim.stopHandle` prevents an older system from stopping a newer animation.
+`Kora.anim.stopHandle` prevents an older system from stopping a newer animation.
 
-## `QB.anim.play(entity, dict, clip, opts?)`
+## `Kora.anim.play(entity, dict, clip, opts?)`
 
 Streams `dict`, starts `clip` on `entity`, and returns an animation handle. It returns `false, reason` when the dictionary cannot be loaded. An invalid entity, dictionary, or clip is a programmer error and raises an assertion.
 
@@ -29,7 +29,7 @@ after kora_lib has stopped and released the animation; an error is logged withou
 leaving the animation active.
 
 ```lua
-local handle, reason = QB.anim.play(PlayerPedId(), 'amb@world_human_hang_out_street@male_c@idle_a', 'idle_b', {
+local handle, reason = Kora.anim.play(PlayerPedId(), 'amb@world_human_hang_out_street@male_c@idle_a', 'idle_b', {
     duration = 3000,
     flag = 49,
 })
@@ -41,18 +41,18 @@ end
 
 ## Stopping and inspecting
 
-- `QB.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active. `blendOutSpeed`, when supplied, must be finite. A resource can stop only an animation it started; kora_lib's own delayed cleanup remains internal.
-- `QB.anim.stopHandle(handle, blendOutSpeed?)` stops only when `handle` is still current for its entity. It returns `false` for a stale or invalid handle.
-- `QB.anim.isPlaying(entity)` returns whether the tracked dictionary and clip are currently playing according to the native state.
-- `QB.anim.clear(entity, immediate?)` stops kora_lib's tracked animation and clears all ped tasks. `immediate = true` uses immediate task clearing.
+- `Kora.anim.stop(entity, blendOutSpeed?)` stops the currently tracked animation, releases its dictionary, and returns whether one was active. `blendOutSpeed`, when supplied, must be finite. A resource can stop only an animation it started; kora_lib's own delayed cleanup remains internal.
+- `Kora.anim.stopHandle(handle, blendOutSpeed?)` stops only when `handle` is still current for its entity. It returns `false` for a stale or invalid handle.
+- `Kora.anim.isPlaying(entity)` returns whether the tracked dictionary and clip are currently playing according to the native state.
+- `Kora.anim.clear(entity, immediate?)` stops kora_lib's tracked animation and clears all ped tasks. `immediate = true` uses immediate task clearing.
 
 ## Scenarios
 
-`QB.anim.playScenario(entity, scenario, enterVehicle?)` starts a named scenario. When `enterVehicle` is true it uses the vehicle-entry scenario task; otherwise it starts the scenario in place.
+`Kora.anim.playScenario(entity, scenario, enterVehicle?)` starts a named scenario. When `enterVehicle` is true it uses the vehicle-entry scenario task; otherwise it starts the scenario in place.
 
 ## Attached props
 
-`QB.anim.attachProp(entity, model, bone, offset?, rotation?, opts?)` creates a local, non-networked object and attaches it to the named bone. It returns the prop entity, or `false, reason` if the model cannot load, the bone is absent, or object creation fails.
+`Kora.anim.attachProp(entity, model, bone, offset?, rotation?, opts?)` creates a local, non-networked object and attaches it to the named bone. It returns the prop entity, or `false, reason` if the model cannot load, the bone is absent, or object creation fails.
 
 `offset` and `rotation` default to zero vectors. Options map to `AttachEntityToEntity`:
 
@@ -66,9 +66,9 @@ must be booleans and `vertexIndex` is an integer from `0` to `5`; kora_lib check
 all of them before streaming a model or creating a local prop.
 
 ```lua
-local prop, reason = QB.anim.attachProp(PlayerPedId(), 'prop_cs_tablet', 'IK_R_Hand',
+local prop, reason = Kora.anim.attachProp(PlayerPedId(), 'prop_cs_tablet', 'IK_R_Hand',
     vector3(0.03, 0.002, -0.01),
     vector3(10.0, 160.0, 0.0))
 ```
 
-`QB.anim.detachProp(prop)` only accepts a prop created by this module and owned by its caller. It detaches, deletes, and untracks the object, returning `true`; an unowned, foreign, or missing prop returns `false, reason`.
+`Kora.anim.detachProp(prop)` only accepts a prop created by this module and owned by its caller. It detaches, deletes, and untracks the object, returning `true`; an unowned, foreign, or missing prop returns `false, reason`.

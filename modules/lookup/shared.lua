@@ -38,10 +38,10 @@ end
 
 -- Realm-specific lookup files share state through this deliberately non-exported
 -- table. build/finalise.lua only exports direct function values, so consumers
--- cannot reach it through the QB proxy.
-QB.lookup._state = state
+-- cannot reach it through the Kora proxy.
+Kora.lookup._state = state
 
-local trim = QB.util.trim
+local trim = Kora.util.trim
 
 ---@param value integer|string
 ---@return integer hash
@@ -49,7 +49,7 @@ local function normalize(value)
     local valueType = type(value)
 
     if valueType == 'number' then
-        assert(QB.util.isFiniteNumber(value),
+        assert(Kora.util.isFiniteNumber(value),
             'Lookup hash must be a finite number.')
         assert(value % 1 == 0, 'Lookup hash must be an integer.')
         assert(value >= INT32_MIN and value <= UINT32_MAX,
@@ -274,7 +274,7 @@ state.setOverlay = setOverlay
 ---@return table? record
 ---@return string? reason
 ---@return table[]? candidates
-function QB.lookup.get(namespace, value)
+function Kora.lookup.get(namespace, value)
     assert(NAMESPACES[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
     return lookupHash(namespace, normalize(value))
 end
@@ -286,11 +286,11 @@ end
 ---@return table? record
 ---@return string? reason
 ---@return table[]? candidates
-function QB.lookup.model(value, kind)
+function Kora.lookup.model(value, kind)
     if kind ~= nil then
         assert(kind == 'vehicle' or kind == 'ped' or kind == 'object',
             'Model lookup kind must be vehicle, ped, or object.')
-        return QB.lookup.get(kind, value)
+        return Kora.lookup.get(kind, value)
     end
 
     local hash = normalize(value)
@@ -314,30 +314,30 @@ end
 ---@return table? record
 ---@return string? reason
 ---@return table[]? candidates
-function QB.lookup.weapon(value)
-    return QB.lookup.get('weapon', value)
+function Kora.lookup.weapon(value)
+    return Kora.lookup.get('weapon', value)
 end
 
 ---@param value integer|string
 ---@return table? record
 ---@return string? reason
 ---@return table[]? candidates
-function QB.lookup.weaponComponent(value)
-    return QB.lookup.get('weapon_component', value)
+function Kora.lookup.weaponComponent(value)
+    return Kora.lookup.get('weapon_component', value)
 end
 
 ---@param value integer|string
 ---@return table? record
 ---@return string? reason
 ---@return table[]? candidates
-function QB.lookup.pickup(value)
-    return QB.lookup.get('pickup', value)
+function Kora.lookup.pickup(value)
+    return Kora.lookup.get('pickup', value)
 end
 
 ---Loads selected base namespaces, or all namespaces when omitted.
 ---@param selected? QBLookupNamespace|QBLookupNamespace[]
 ---@return boolean
-function QB.lookup.preload(selected)
+function Kora.lookup.preload(selected)
     if selected == nil then
         selected = NAMESPACE_ORDER
     elseif type(selected) == 'string' then
@@ -346,7 +346,7 @@ function QB.lookup.preload(selected)
         assert(type(selected) == 'table', 'Lookup preload expects a namespace or array of namespaces.')
         local count = 0
         for index, namespace in pairs(selected) do
-            assert(QB.util.isInteger(index) and index >= 1 and NAMESPACES[namespace],
+            assert(Kora.util.isInteger(index) and index >= 1 and NAMESPACES[namespace],
                 ('Unknown lookup namespace: %s'):format(tostring(namespace)))
             count = count + 1
         end
@@ -362,20 +362,20 @@ function QB.lookup.preload(selected)
 end
 
 ---@return boolean
-function QB.lookup.ready()
+function Kora.lookup.ready()
     return state.overlayReady
 end
 
 ---@param timeout? integer Defaults to 10000ms.
 ---@return boolean ready
 ---@return string? error
-function QB.lookup.awaitReady(timeout)
+function Kora.lookup.awaitReady(timeout)
     if timeout == nil then timeout = 10000 end
-    assert(QB.util.isInteger(timeout) and timeout >= 0,
+    assert(Kora.util.isInteger(timeout) and timeout >= 0,
         'Lookup readiness timeout must be a non-negative integer.')
     if state.overlayReady then return true end
 
-    local ready = QB.loops.controlled(function() return state.overlayReady end, false, timeout, 25)
+    local ready = Kora.loops.controlled(function() return state.overlayReady end, false, timeout, 25)
     if ready then return true end
     return false, 'Lookup catalog synchronization timed out.'
 end

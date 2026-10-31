@@ -187,14 +187,14 @@ end
 
 local function categoryVisible(category, target)
     if type(category.visible) == 'boolean' then return category.visible end
-    if type(QB.blips.isCategoryVisible) ~= 'function' then return true end
-    local ok, visible = pcall(QB.blips.isCategoryVisible, target)
+    if type(Kora.blips.isCategoryVisible) ~= 'function' then return true end
+    local ok, visible = pcall(Kora.blips.isCategoryVisible, target)
     return not ok or visible ~= false
 end
 
 local function buildNavigation()
-    local categories = readArray(QB.blips.getCategories)
-    local registered = readArray(QB.blips.getRegistered)
+    local categories = readArray(Kora.blips.getCategories)
+    local registered = readArray(Kora.blips.getRegistered)
     local categoryById, categoryByName, childrenByCategory = {}, {}, {}
     categoryTargetByItem = {}
 
@@ -313,7 +313,7 @@ local function buildNavigation()
 end
 
 local function refreshApp()
-    return QB.nui.updateApp(APP_ID, { navigation = buildNavigation() })
+    return Kora.nui.updateApp(APP_ID, { navigation = buildNavigation() })
 end
 
 local function actionError(message)
@@ -325,9 +325,9 @@ local function onAction(actionId, context)
     local target = type(context) == 'table' and categoryTargetByItem[context.itemId] or nil
     if target == nil then return actionError('That blip category is no longer available.') end
 
-    local visibleOk, visible = pcall(QB.blips.isCategoryVisible, target)
+    local visibleOk, visible = pcall(Kora.blips.isCategoryVisible, target)
     if not visibleOk then return actionError('The category state could not be read.') end
-    local operation = visible and QB.blips.hideCategory or QB.blips.showCategory
+    local operation = visible and Kora.blips.hideCategory or Kora.blips.showCategory
     if type(operation) ~= 'function' then return actionError('Category visibility is not available.') end
 
     local changedOk, _, err = pcall(operation, target)
@@ -335,7 +335,7 @@ local function onAction(actionId, context)
     if err ~= nil then return actionError(tostring(err)) end
 
     refreshApp()
-    local categoryOk, category = pcall(QB.blips.getCategory, target)
+    local categoryOk, category = pcall(Kora.blips.getCategory, target)
     local label = categoryOk and category and (category.label or category.name or category.key) or tostring(target)
     return {
         notice = {
@@ -345,7 +345,7 @@ local function onAction(actionId, context)
     }
 end
 
-QB.nui.registerApp({
+Kora.nui.registerApp({
     id = APP_ID,
     title = 'Blip settings',
     description = 'Personalise the map without affecting other players.',
@@ -361,8 +361,8 @@ QB.nui.registerApp({
 
 local opening = false
 RegisterCommand('blips', function()
-    if QB.nui.isAppOpen(APP_ID) then
-        QB.nui.closeApp(APP_ID)
+    if Kora.nui.isAppOpen(APP_ID) then
+        Kora.nui.closeApp(APP_ID)
         return
     end
     if opening then return end
@@ -370,12 +370,12 @@ RegisterCommand('blips', function()
 
     CreateThread(function()
         local ok, isAdmin = pcall(function()
-            return Citizen.Await(QB.callback.trigger('kora_lib:blips:isAdmin'))
+            return Citizen.Await(Kora.callback.trigger('kora_lib:blips:isAdmin'))
         end)
         viewerIsAdmin = ok and isAdmin == true
         refreshApp()
 
-        local opened, err = pcall(QB.nui.openApp, APP_ID)
+        local opened, err = pcall(Kora.nui.openApp, APP_ID)
         opening = false
         if not opened then print(('[kora_lib:blips] settings could not open: %s'):format(tostring(err))) end
     end)

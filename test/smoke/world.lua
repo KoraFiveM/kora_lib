@@ -55,7 +55,7 @@ harness.test("getNearbyEntities sorts matches ascending by distance", function()
     addToPool("CPed", 11, 1, 0, 0)
     addToPool("CPed", 12, 3, 0, 0)
 
-    local matches = QB.world.getNearbyEntities("ped", ORIGIN, 50.0)
+    local matches = Kora.world.getNearbyEntities("ped", ORIGIN, 50.0)
 
     harness.assertEqual(#matches, 3, "all three peds should be within radius")
     harness.assertEqual(matches[1].entity, 11, "closest ped should be first")
@@ -68,7 +68,7 @@ harness.test("getNearbyEntities excludes matches beyond radius", function()
     addToPool("CPed", 10, 5, 0, 0)
     addToPool("CPed", 11, 100, 0, 0)
 
-    local matches = QB.world.getNearbyEntities("ped", ORIGIN, 10.0)
+    local matches = Kora.world.getNearbyEntities("ped", ORIGIN, 10.0)
 
     harness.assertEqual(#matches, 1, "only the in-range ped should match")
     harness.assertEqual(matches[1].entity, 10, "the in-range ped should be entity 10")
@@ -76,7 +76,7 @@ end)
 
 harness.test("getNearbyEntities on an empty pool returns an empty list, not nil", function()
     reset()
-    local matches = QB.world.getNearbyEntities("vehicle", ORIGIN, 50.0)
+    local matches = Kora.world.getNearbyEntities("vehicle", ORIGIN, 50.0)
 
     harness.assertTrue(matches ~= nil, "result should never be nil")
     harness.assertEqual(#matches, 0, "an empty pool should produce zero matches")
@@ -84,25 +84,25 @@ end)
 
 harness.test("client world queries reject non-finite coordinates and radii", function()
     harness.assertThrows(function()
-        QB.world.getNearbyEntities("ped", { x = math.huge, y = 0, z = 0 }, 10)
+        Kora.world.getNearbyEntities("ped", { x = math.huge, y = 0, z = 0 }, 10)
     end, "non-finite query coordinates must be rejected")
     harness.assertThrows(function()
-        QB.world.getClosestEntity("ped", ORIGIN, { radius = 0 / 0 })
+        Kora.world.getClosestEntity("ped", ORIGIN, { radius = 0 / 0 })
     end, "non-finite closest-query radii must be rejected")
     harness.assertThrows(function()
-        QB.world.isSpawnClear(ORIGIN, math.huge)
+        Kora.world.isSpawnClear(ORIGIN, math.huge)
     end, "infinite spawn radii must be rejected")
     harness.assertThrows(function()
-        QB.world.getNearbyEntities("ped", ORIGIN, 10, false)
+        Kora.world.getNearbyEntities("ped", ORIGIN, 10, false)
     end, "explicit non-table query options must be rejected")
     harness.assertThrows(function()
-        QB.world.getNearbyEntities("ped", ORIGIN, 10, { predicate = false })
+        Kora.world.getNearbyEntities("ped", ORIGIN, 10, { predicate = false })
     end, "a non-callable predicate must be rejected")
     harness.assertThrows(function()
-        QB.world.getNearbyEntities("ped", ORIGIN, 10, { models = { false } })
+        Kora.world.getNearbyEntities("ped", ORIGIN, 10, { models = { false } })
     end, "invalid model entries must be rejected")
     harness.assertThrows(function()
-        QB.world.getNearbyEntities("ped", ORIGIN, 10, { excludeEntities = { -1 } })
+        Kora.world.getNearbyEntities("ped", ORIGIN, 10, { excludeEntities = { -1 } })
     end, "negative excluded handles must be rejected")
 end)
 
@@ -111,7 +111,7 @@ harness.test("models filter accepts numeric hashes", function()
     addToPool("CObject", 20, 5, 0, 0, 111)
     addToPool("CObject", 21, 6, 0, 0, 222)
 
-    local matches = QB.world.getNearbyEntities("object", ORIGIN, 50.0, { models = { 111 } })
+    local matches = Kora.world.getNearbyEntities("object", ORIGIN, 50.0, { models = { 111 } })
 
     harness.assertEqual(#matches, 1, "only the matching model should be returned")
     harness.assertEqual(matches[1].entity, 20, "entity 20 has the requested model")
@@ -122,7 +122,7 @@ harness.test("models filter accepts strings hashed with joaat", function()
     addToPool("CObject", 20, 5, 0, 0, joaat("prop_bin_08"))
     addToPool("CObject", 21, 6, 0, 0, joaat("prop_bin_09"))
 
-    local matches = QB.world.getNearbyEntities("object", ORIGIN, 50.0, { models = { "prop_bin_08" } })
+    local matches = Kora.world.getNearbyEntities("object", ORIGIN, 50.0, { models = { "prop_bin_08" } })
 
     harness.assertEqual(#matches, 1, "string models should be joaat-hashed before comparing")
     harness.assertEqual(matches[1].entity, 20, "entity 20 has the requested model")
@@ -133,7 +133,7 @@ harness.test("the local player's own ped is excluded from ped queries by default
     addToPool("CPed", 1, 0, 0, 0) -- PlayerPedId() == 1
     addToPool("CPed", 10, 5, 0, 0)
 
-    local matches = QB.world.getNearbyEntities("ped", ORIGIN, 50.0)
+    local matches = Kora.world.getNearbyEntities("ped", ORIGIN, 50.0)
 
     harness.assertEqual(#matches, 1, "the own ped should be excluded")
     harness.assertEqual(matches[1].entity, 10, "only the other ped should remain")
@@ -144,7 +144,7 @@ harness.test("includeOwnPed includes the local player's own ped", function()
     addToPool("CPed", 1, 0, 0, 0)
     addToPool("CPed", 10, 5, 0, 0)
 
-    local matches = QB.world.getNearbyEntities("ped", ORIGIN, 50.0, { includeOwnPed = true })
+    local matches = Kora.world.getNearbyEntities("ped", ORIGIN, 50.0, { includeOwnPed = true })
 
     harness.assertEqual(#matches, 2, "the own ped should now be included")
 end)
@@ -154,7 +154,7 @@ harness.test("excludeEntities filters explicit handles", function()
     addToPool("CVehicle", 30, 5, 0, 0)
     addToPool("CVehicle", 31, 6, 0, 0)
 
-    local matches = QB.world.getNearbyEntities("vehicle", ORIGIN, 50.0, { excludeEntities = { 30 } })
+    local matches = Kora.world.getNearbyEntities("vehicle", ORIGIN, 50.0, { excludeEntities = { 30 } })
 
     harness.assertEqual(#matches, 1, "the excluded entity should be dropped")
     harness.assertEqual(matches[1].entity, 31, "only the non-excluded vehicle should remain")
@@ -165,11 +165,11 @@ harness.test("invisible entities are excluded by default, included with includeI
     addToPool("CObject", 40, 5, 0, 0, 1, false)
     addToPool("CObject", 41, 6, 0, 0, 1, true)
 
-    local defaultMatches = QB.world.getNearbyEntities("object", ORIGIN, 50.0)
+    local defaultMatches = Kora.world.getNearbyEntities("object", ORIGIN, 50.0)
     harness.assertEqual(#defaultMatches, 1, "the invisible object should be excluded by default")
     harness.assertEqual(defaultMatches[1].entity, 41, "only the visible object should remain")
 
-    local allMatches = QB.world.getNearbyEntities("object", ORIGIN, 50.0, { includeInvisible = true })
+    local allMatches = Kora.world.getNearbyEntities("object", ORIGIN, 50.0, { includeInvisible = true })
     harness.assertEqual(#allMatches, 2, "includeInvisible should include both objects")
 end)
 
@@ -179,7 +179,7 @@ harness.test("predicate runs last and can reject a candidate that passed every o
     addToPool("CPed", 11, 6, 0, 0)
 
     local seen = {}
-    local matches = QB.world.getNearbyEntities("ped", ORIGIN, 50.0, {
+    local matches = Kora.world.getNearbyEntities("ped", ORIGIN, 50.0, {
         predicate = function(entity, coords, distance)
             table.insert(seen, entity)
             return entity == 10
@@ -195,7 +195,7 @@ harness.test("getClosestEntity returns false when nothing is within range", func
     reset()
     addToPool("CPed", 10, 100, 0, 0)
 
-    local entity = QB.world.getClosestEntity("ped", ORIGIN, { radius = 10.0 })
+    local entity = Kora.world.getClosestEntity("ped", ORIGIN, { radius = 10.0 })
 
     harness.assertFalse(entity, "no ped is within the given radius")
 end)
@@ -205,7 +205,7 @@ harness.test("getClosestEntity returns the nearest entity, its coords, and its d
     addToPool("CPed", 10, 5, 0, 0)
     addToPool("CPed", 11, 1, 0, 0)
 
-    local entity, coords, distance = QB.world.getClosestEntity("ped", ORIGIN, { radius = 50.0 })
+    local entity, coords, distance = Kora.world.getClosestEntity("ped", ORIGIN, { radius = 50.0 })
 
     harness.assertEqual(entity, 11, "the nearest ped should be returned")
     harness.assertEqual(coords.x, 1, "the returned coords should belong to the nearest ped")
@@ -217,7 +217,7 @@ harness.test("getClosestEntity falls back to Config.world.defaultRadius when rad
     addToPool("CPed", 10, Config.world.defaultRadius + 10, 0, 0)
     addToPool("CPed", 11, Config.world.defaultRadius - 1, 0, 0)
 
-    local entity = QB.world.getClosestEntity("ped", ORIGIN)
+    local entity = Kora.world.getClosestEntity("ped", ORIGIN)
 
     harness.assertEqual(entity, 11, "only the ped within the default radius should match")
 end)
@@ -229,7 +229,7 @@ harness.test("player type enumerates via GetActivePlayers/GetPlayerPed, not GetG
     entityData[50] = { coords = { x = 5, y = 0, z = 0 }, model = 1 }
     entityData[51] = { coords = { x = 1, y = 0, z = 0 }, model = 1 }
 
-    local matches = QB.world.getNearbyEntities("player", ORIGIN, 50.0)
+    local matches = Kora.world.getNearbyEntities("player", ORIGIN, 50.0)
 
     harness.assertEqual(#matches, 2, "both player peds should be returned")
     harness.assertEqual(matches[1].entity, 51, "the closer player ped should be first")
@@ -242,7 +242,7 @@ harness.test('getGroundCoords retries collision probes and returns a plain coord
         return probes >= 2, 27.5
     end
 
-    local coords = QB.world.getGroundCoords({ x = 10, y = 20, z = 5 }, {
+    local coords = Kora.world.getGroundCoords({ x = 10, y = 20, z = 5 }, {
         height = 100,
         attempts = 3,
         retryDelay = 0,
@@ -258,7 +258,7 @@ harness.test('getGroundCoords reports a bounded failure', function()
     _G.RequestCollisionAtCoord = function() probes = probes + 1 end
     _G.GetGroundZFor_3dCoord = function() return false, 0 end
 
-    local coords, err = QB.world.getGroundCoords(ORIGIN, { attempts = 2, retryDelay = 0 })
+    local coords, err = Kora.world.getGroundCoords(ORIGIN, { attempts = 2, retryDelay = 0 })
     harness.assertFalse(coords, 'failed ground resolution should return false')
     harness.assertEqual(probes, 2, 'ground resolution should stop at the configured bound')
     harness.assertTrue(err:find('2 attempts', 1, true) ~= nil, 'failure should explain the attempted bound')
@@ -269,22 +269,22 @@ harness.test('getGroundCoords rejects unsafe probe options before requesting col
     _G.RequestCollisionAtCoord = function() probes = probes + 1 end
 
     harness.assertThrows(function()
-        QB.world.getGroundCoords(ORIGIN, { attempts = math.huge })
+        Kora.world.getGroundCoords(ORIGIN, { attempts = math.huge })
     end, 'infinite probe counts must be rejected')
     harness.assertThrows(function()
-        QB.world.getGroundCoords(ORIGIN, { height = 0 / 0 })
+        Kora.world.getGroundCoords(ORIGIN, { height = 0 / 0 })
     end, 'NaN probe heights must be rejected')
     harness.assertThrows(function()
-        QB.world.getGroundCoords(ORIGIN, false)
+        Kora.world.getGroundCoords(ORIGIN, false)
     end, 'explicit non-table ground options must be rejected')
     harness.assertThrows(function()
-        QB.world.getGroundCoords(ORIGIN, { attempts = false })
+        Kora.world.getGroundCoords(ORIGIN, { attempts = false })
     end, 'explicit invalid probe values must not default')
     harness.assertThrows(function()
-        QB.world.getGroundCoords(ORIGIN, { attempts = 1.5 })
+        Kora.world.getGroundCoords(ORIGIN, { attempts = 1.5 })
     end, 'fractional probe counts must not be rounded')
     harness.assertThrows(function()
-        QB.world.getGroundCoords(ORIGIN, { retryDelay = '50' })
+        Kora.world.getGroundCoords(ORIGIN, { retryDelay = '50' })
     end, 'numeric strings must not silently coerce into ground options')
     harness.assertEqual(probes, 0, 'unsafe probe options must not request collision')
 end)
@@ -295,8 +295,8 @@ harness.test('street and zone helpers resolve engine labels', function()
     _G.GetNameOfZone = function() return 'DOWNT' end
     _G.GetLabelText = function(code) return code == 'DOWNT' and 'Downtown' or 'NULL' end
 
-    local street, crossing = QB.world.getStreetNames(ORIGIN)
-    local zone, code = QB.world.getZoneName(ORIGIN)
+    local street, crossing = Kora.world.getStreetNames(ORIGIN)
+    local zone, code = Kora.world.getZoneName(ORIGIN)
     harness.assertEqual(street, 'Alta Street', 'street should be localized from its hash')
     harness.assertEqual(crossing, 'Vespucci Boulevard', 'crossing street should be returned when present')
     harness.assertEqual(zone, 'Downtown', 'zone should return its localized label')
@@ -304,20 +304,20 @@ harness.test('street and zone helpers resolve engine labels', function()
 end)
 
 harness.test('world location helpers reject explicit invalid optional values', function()
-    harness.assertThrows(function() QB.world.getStreetNames(false) end)
-    harness.assertThrows(function() QB.world.getZoneName(false) end)
-    harness.assertThrows(function() QB.world.getCardinalDirection(0, false) end)
-    harness.assertThrows(function() QB.world.getCardinalDirection(0, { entity = 'yes' }) end)
+    harness.assertThrows(function() Kora.world.getStreetNames(false) end)
+    harness.assertThrows(function() Kora.world.getZoneName(false) end)
+    harness.assertThrows(function() Kora.world.getCardinalDirection(0, false) end)
+    harness.assertThrows(function() Kora.world.getCardinalDirection(0, { entity = 'yes' }) end)
 end)
 
 harness.test('getCardinalDirection covers all eight GTA heading sectors', function()
     local expected = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
     for i, direction in ipairs(expected) do
-        harness.assertEqual(QB.world.getCardinalDirection((i - 1) * 45), direction,
+        harness.assertEqual(Kora.world.getCardinalDirection((i - 1) * 45), direction,
             ('heading sector %d should resolve correctly'):format(i))
     end
-    harness.assertEqual(QB.world.getCardinalDirection(359), 'N', 'heading should wrap around north')
-    harness.assertThrows(function() QB.world.getCardinalDirection(0 / 0) end,
+    harness.assertEqual(Kora.world.getCardinalDirection(359), 'N', 'heading should wrap around north')
+    harness.assertThrows(function() Kora.world.getCardinalDirection(0 / 0) end,
         'a non-finite heading should be rejected before normalization')
 end)
 
@@ -327,23 +327,23 @@ harness.test('getWaypointCoords distinguishes missing and active waypoints', fun
     _G.DoesBlipExist = function(value) return value == blip and value ~= 0 end
     _G.GetBlipInfoIdCoord = function() return { x = 4, y = 5, z = 6 } end
 
-    harness.assertFalse(QB.world.getWaypointCoords(), 'no waypoint should return false')
+    harness.assertFalse(Kora.world.getWaypointCoords(), 'no waypoint should return false')
     blip = 7
-    local coords = QB.world.getWaypointCoords()
+    local coords = Kora.world.getWaypointCoords()
     harness.assertEqual(coords.y, 5, 'active waypoint coordinates should be returned')
 end)
 
 harness.test('isSpawnClear sees invisible vehicles and honours exclusions', function()
     reset()
     addToPool('CVehicle', 80, 1, 0, 0, 1, false)
-    harness.assertFalse(QB.world.isSpawnClear(ORIGIN, 3), 'an invisible streamed vehicle still blocks spawning')
-    harness.assertTrue(QB.world.isSpawnClear(ORIGIN, 3, { excludeEntities = { 80 } }),
+    harness.assertFalse(Kora.world.isSpawnClear(ORIGIN, 3), 'an invisible streamed vehicle still blocks spawning')
+    harness.assertTrue(Kora.world.isSpawnClear(ORIGIN, 3, { excludeEntities = { 80 } }),
         'explicitly excluded vehicles should not block spawning')
 end)
 
 -- Every client-realm test above has already run and reported its own
 -- assertions, so dofile-ing server.lua below overwriting
--- QB.world.getNearbyEntities/getClosestEntity with the server realm's
+-- Kora.world.getNearbyEntities/getClosestEntity with the server realm's
 -- definitions of the same names (see AGENTS.md's note on this exact
 -- collision) is safe -- nothing after this point needs the client versions.
 
@@ -388,11 +388,11 @@ end
 
 dofile(repoRoot .. "modules/world/server.lua")
 
-local serverGetNearbyEntities = QB.world.getNearbyEntities
-local serverGetClosestEntity = QB.world.getClosestEntity
-local serverIsSpawnClear = QB.world.isSpawnClear
-local resolveNetworkEntity = QB.world.resolveNetworkEntity
-local resolveNearbyPlayer = QB.world.resolveNearbyPlayer
+local serverGetNearbyEntities = Kora.world.getNearbyEntities
+local serverGetClosestEntity = Kora.world.getClosestEntity
+local serverIsSpawnClear = Kora.world.isSpawnClear
+local resolveNetworkEntity = Kora.world.resolveNetworkEntity
+local resolveNearbyPlayer = Kora.world.resolveNearbyPlayer
 
 harness.test("[server] getNearbyEntities sorts matches ascending by distance", function()
     serverReset()

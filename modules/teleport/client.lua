@@ -11,13 +11,13 @@
 local function assertCoords(coords)
     assert(type(coords) == 'table' or type(coords) == 'vector3' or type(coords) == 'vector4',
         'Teleport coordinates must be vector-like.')
-    assert(QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+    assert(Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
         'Teleport coordinates require finite x, y, and z.')
 end
 
 local function finiteOrDefault(value, default, label)
     if value == nil then return default end
-    assert(QB.util.isFiniteNumber(value), ('%s must be a finite number.'):format(label))
+    assert(Kora.util.isFiniteNumber(value), ('%s must be a finite number.'):format(label))
     return value
 end
 
@@ -26,17 +26,17 @@ end
 ---@param coords vector3|vector4|{x:number,y:number,z:number,w?:number,heading?:number}
 ---@param opts? QBTeleportOptions
 ---@return boolean success
-function QB.teleport.entity(entity, coords, opts)
-    assert(QB.util.isInteger(entity) and entity > 0 and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
+function Kora.teleport.entity(entity, coords, opts)
+    assert(Kora.util.isInteger(entity) and entity > 0 and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
     assertCoords(coords)
     assert(opts == nil or type(opts) == 'table', 'Teleport options must be a table.')
     opts = opts or {}
-    assert(opts.fade == nil or opts.fade == false or opts.fade == true or QB.util.isFiniteNumber(opts.fade),
+    assert(opts.fade == nil or opts.fade == false or opts.fade == true or Kora.util.isFiniteNumber(opts.fade),
         'Teleport fade must be false, true, or a finite number.')
     local heading = coords.w
     if heading == nil then heading = coords.heading end
     if heading ~= nil then
-        assert(QB.util.isFiniteNumber(heading), 'Teleport heading must be a finite number.')
+        assert(Kora.util.isFiniteNumber(heading), 'Teleport heading must be a finite number.')
     end
 
     local function move()
@@ -46,26 +46,26 @@ function QB.teleport.entity(entity, coords, opts)
 
     local fade = opts.fade
     if fade ~= false then
-        QB.visuals.fade(type(fade) == 'number' and fade or 500, move)
+        Kora.visuals.fade(type(fade) == 'number' and fade or 500, move)
     else
         move()
     end
     return true
 end
 
----Moves the local player ped. Equivalent to `QB.teleport.entity(QB.cache.ped(), ...)`.
+---Moves the local player ped. Equivalent to `Kora.teleport.entity(Kora.cache.ped(), ...)`.
 ---@param coords vector3|vector4|{x:number,y:number,z:number,w?:number,heading?:number}
 ---@param opts? QBTeleportOptions
 ---@return boolean success
-function QB.teleport.player(coords, opts)
-    return QB.teleport.entity(QB.cache.ped(), coords, opts)
+function Kora.teleport.player(coords, opts)
+    return Kora.teleport.entity(Kora.cache.ped(), coords, opts)
 end
 
 local function waypointEntity(options)
     if options.entity ~= nil then return options.entity end
-    local vehicle = QB.cache.vehicle()
-    if vehicle and QB.cache.seat() == -1 then return vehicle end
-    return QB.cache.ped()
+    local vehicle = Kora.cache.vehicle()
+    if vehicle and Kora.cache.seat() == -1 then return vehicle end
+    return Kora.cache.ped()
 end
 
 ---Moves the player (or their driven vehicle) to the active map waypoint.
@@ -74,17 +74,17 @@ end
 ---@param opts? QBWaypointTeleportOptions
 ---@return boolean success
 ---@return string? error
-function QB.teleport.toWaypoint(opts)
+function Kora.teleport.toWaypoint(opts)
     assert(opts == nil or type(opts) == 'table', 'Waypoint teleport options must be a table.')
     opts = opts or {}
-    assert(opts.fade == nil or opts.fade == false or opts.fade == true or QB.util.isFiniteNumber(opts.fade),
+    assert(opts.fade == nil or opts.fade == false or opts.fade == true or Kora.util.isFiniteNumber(opts.fade),
         'Waypoint teleport fade must be false, true, or a finite number.')
 
-    local waypoint, waypointError = QB.world.getWaypointCoords()
+    local waypoint, waypointError = Kora.world.getWaypointCoords()
     if not waypoint then return false, waypointError end
 
     local entity = waypointEntity(opts)
-    if not QB.util.isInteger(entity) or entity <= 0 or not DoesEntityExist(entity) then
+    if not Kora.util.isInteger(entity) or entity <= 0 or not DoesEntityExist(entity) then
         return false, ('Invalid teleport entity: %s'):format(tostring(entity))
     end
 
@@ -139,7 +139,7 @@ function QB.teleport.toWaypoint(opts)
             return
         end
 
-        local ground, groundError = QB.world.getGroundCoords(waypoint, {
+        local ground, groundError = Kora.world.getGroundCoords(waypoint, {
             height = launchHeight,
             attempts = groundAttempts,
             retryDelay = groundRetryDelay,

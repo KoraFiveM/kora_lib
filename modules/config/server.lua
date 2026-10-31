@@ -111,12 +111,12 @@ local function register(definition, caller)
 end
 
 ---@param definition table `{resource, schema, configured, client, revision}`
-function QB.config.register(definition)
+function Kora.config.register(definition)
     return register(definition, GetInvokingResource())
 end
 
 ---@return table[]
-function QB.config.catalog()
+function Kora.config.catalog()
     discoverRegistrations()
     local out = {}
     for resource, entry in pairs(registry) do
@@ -128,7 +128,7 @@ end
 
 ---@param resource string
 ---@return table|nil
-function QB.config.read(resource)
+function Kora.config.read(resource)
     local entry = assertRegistered(resource)
     local fresh = callResource(resource, 'kora_lib_configRead')
     if type(fresh) == 'table' then
@@ -145,7 +145,7 @@ end
 ---@param resource string
 ---@param request table `{path: string[], value: any, revision: integer}`
 ---@return table
-function QB.config.commit(resource, request)
+function Kora.config.commit(resource, request)
     local entry = assertRegistered(resource)
     assert(type(request) == 'table', 'Configuration commit must be a table.')
     local result = callResource(resource, 'kora_lib_configCommit', request)
@@ -172,7 +172,7 @@ end
 ---@param resource string
 ---@param request table `{path: string[], revision: integer}`
 ---@return table
-function QB.config.reset(resource, request)
+function Kora.config.reset(resource, request)
     local entry = assertRegistered(resource)
     assert(type(request) == 'table', 'Configuration reset must be a table.')
     local result = callResource(resource, 'kora_lib_configReset', request)

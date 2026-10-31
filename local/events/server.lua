@@ -19,7 +19,7 @@ local legacyEvents = {
 local tokens = {}
 local registry = {}
 local rateBuckets = {}
-local isInteger = QB.util.isInteger
+local isInteger = Kora.util.isInteger
 local MAX_RATE_LIMIT = 10000
 local MAX_RATE_WINDOW = 86400000
 -- A client handshakes once per session; anything faster is abuse of the
@@ -100,33 +100,33 @@ end
 -- Ownership tracking (which resource registered a given event name, and bulk
 -- cleanup when that resource stops) is delegated to the shared registry --
 -- see local/resources/AGENTS.md.
-local eventOwnership = QB.resources.serverRegistry(function(name)
+local eventOwnership = Kora.resources.serverRegistry(function(name)
     registry[name] = nil
     clearRateLimit(name)
 end)
 
-local generateToken = QB.compat.generateToken
+local generateToken = Kora.compat.generateToken
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
----Registers a handler callable from the client via QB.events.trigger.
+---Registers a handler callable from the client via Kora.events.trigger.
 ---Requests carrying a missing or invalid per-player token are dropped silently.
 ---Automatically unregistered if the calling resource stops (see onResourceStop below) --
----most callers don't need to call QB.events.unregister themselves.
+---most callers don't need to call Kora.events.unregister themselves.
 ---@param name string
 ---@param handler fun(src: integer, ...: any)
 ---@param opts? QBRegistrationOptions
-function QB.events.register(name, handler, opts)
-    QB.events.assertName(name)
+function Kora.events.register(name, handler, opts)
+    Kora.events.assertName(name)
     assert(isCallable(handler), "Event handler must be a function.")
     local rateLimit = normalizeRateLimit(opts)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
     -- One name, one handler: a second registration silently replaces the
-    -- first, and QB.resources.serverRegistry's track() moves ownership to
+    -- first, and Kora.resources.serverRegistry's track() moves ownership to
     -- match. Cross-resource collisions are almost always a namespacing
     -- mistake, so say so loudly rather than failing mysteriously later.
     -- (Re-registering your own name -- a resource restart -- is normal.)
@@ -141,11 +141,11 @@ function QB.events.register(name, handler, opts)
     eventOwnership.track(owner, name)
 end
 
----Unregisters an event handler registered with QB.events.register.
+---Unregisters an event handler registered with Kora.events.register.
 ---@param name string
 ---@return boolean removed
-function QB.events.unregister(name)
-    QB.events.assertName(name)
+function Kora.events.unregister(name)
+    Kora.events.assertName(name)
     local invoker = GetInvokingResource()
     if invoker and eventOwnership.owner(name) ~= invoker then return false end
     registry[name] = nil
@@ -205,14 +205,14 @@ AddEventHandler('playerDropped', function()
     end
 end)
 
----Pushes a named action to a client's QB.events.onPush handler.
+---Pushes a named action to a client's Kora.events.onPush handler.
 ---Server-authoritative, like any other TriggerClientEvent — there's no client to
 ---authenticate against, since the server is always the trusted party here.
 ---@param target integer Server ID of the target player, or -1 for every connected player.
 ---@param name string
 ---@param ... any
-function QB.events.push(target, name, ...)
-    QB.events.assertName(name)
+function Kora.events.push(target, name, ...)
+    Kora.events.assertName(name)
     assert(target == -1 or (isInteger(target) and target >= 1),
         'target must be -1 or a positive finite player server ID.')
 

@@ -6,7 +6,7 @@
 local C = Config.editor or {}
 
 local function notify(src, message)
-    QB.notify.send(src, {
+    Kora.notify.send(src, {
         title = 'kora_lib editor',
         message = message,
         type = 'error',
@@ -18,8 +18,8 @@ local function allowed(src)
     local permission = C.permission or 'editor'
     local prefix = C.permissionPrefix or 'kora_lib'
     -- Servers that granted the deprecated qblib.editor ACE keep working.
-    return QB.permissions.hasPermission(src, permission, prefix)
-        or (prefix == 'kora_lib' and QB.permissions.hasPermission(src, permission, 'qblib'))
+    return Kora.permissions.hasPermission(src, permission, prefix)
+        or (prefix == 'kora_lib' and Kora.permissions.hasPermission(src, permission, 'qblib'))
 end
 
 local function register(name, eventName, resolve)

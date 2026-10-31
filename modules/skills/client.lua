@@ -12,20 +12,20 @@ local function assertSkill(skill)
 end
 
 ---@return boolean
-function QB.skills.isAvailable()
+function Kora.skills.isAvailable()
     return isStarted()
 end
 
 ---@param skill? string
 ---@return table|nil
-function QB.skills.get(skill)
+function Kora.skills.get(skill)
     if skill ~= nil then assertSkill(skill) end
     if not isStarted() then return nil end
     return exports[RESOURCE]:getRep(skill)
 end
 
 ---@return table|nil
-function QB.skills.getAll()
+function Kora.skills.getAll()
     if not isStarted() then return nil end
     return exports[RESOURCE]:getAllRep()
 end
@@ -33,9 +33,9 @@ end
 ---@param skill string
 ---@param level integer
 ---@return boolean
-function QB.skills.hasLevel(skill, level)
+function Kora.skills.hasLevel(skill, level)
     assertSkill(skill)
-    assert(QB.util.isInteger(level) and level > 0, 'level must be a positive integer.')
+    assert(Kora.util.isInteger(level) and level > 0, 'level must be a positive integer.')
     if not isStarted() then return false end
     return exports[RESOURCE]:isLevel(skill, level) == true
 end
@@ -44,7 +44,7 @@ end
 ---@param gameType string
 ---@param opts? table
 ---@return table|nil
-function QB.skills.adjustMinigame(skill, gameType, opts)
+function Kora.skills.adjustMinigame(skill, gameType, opts)
     assertSkill(skill)
     assert(type(gameType) == 'string' and gameType ~= '', 'gameType must be a non-empty string.')
     assert(opts == nil or type(opts) == 'table', 'opts must be a table.')

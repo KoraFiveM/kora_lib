@@ -31,7 +31,7 @@ import { HackingGame } from "./HackingGame"
 import { FishingGame } from "./FishingGame"
 
 /**
- * Headless dispatcher for QB.minigames.play (modules/minigames/client.lua).
+ * Headless dispatcher for Kora.minigames.play (modules/minigames/client.lua).
  * One `useNuiRequest("minigames:round")` subscription drives every round of a
  * session through the SAME mounted overlay -- Lua never closes and reopens it
  * between attempts, it just sends the next round's payload once the previous

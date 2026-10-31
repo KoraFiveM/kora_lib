@@ -9,7 +9,7 @@ calling resources.
 
 ## API
 
-### `QB.blips.create(coords, options)`
+### `Kora.blips.create(coords, options)`
 Creates a map blip.
 
 #### Parameters
@@ -45,7 +45,7 @@ and `shortRange` and `route` are booleans. Values default only when omitted.
 
 #### Example
 ```lua
-local blip, err = QB.blips.create(GetEntityCoords(PlayerPedId()), {
+local blip, err = Kora.blips.create(GetEntityCoords(PlayerPedId()), {
     sprite = 1,
     color = 2,
     category = 'Business',
@@ -91,7 +91,7 @@ Legacy aliases remain accepted: `Ammu-Nation` → `Weapons`, `Clothing Store` �
 
 ```lua
 for _, store in ipairs(Config.shops) do
-    QB.blips.create(store.coords, {
+    Kora.blips.create(store.coords, {
         sprite = 73,
         color = 47,
         category = 'Clothing',
@@ -100,23 +100,23 @@ for _, store in ipairs(Config.shops) do
 end
 ```
 
-`QB.blips.getCategoryIds()` returns a fresh canonical name-to-id table in both
+`Kora.blips.getCategoryIds()` returns a fresh canonical name-to-id table in both
 client and server realms. Mutating the returned table does not alter kora_lib's
 catalogue.
 
 ### Registry and player visibility
 
-- `QB.blips.getCategories()` returns categories ordered by native id. Each
+- `Kora.blips.getCategories()` returns categories ordered by native id. Each
   record contains `key`, `name`, `label`, `id`, `visible`, and `count`.
-- `QB.blips.getCategory(category)` returns one category record. Names, aliases,
+- `Kora.blips.getCategory(category)` returns one category record. Names, aliases,
   and numeric native ids are accepted.
-- `QB.blips.getRegistered()` returns snapshots containing `handle`, `resource`,
+- `Kora.blips.getRegistered()` returns snapshots containing `handle`, `resource`,
   numeric `category`, `categoryKey`, `name`, `label`, `sprite`, `color`,
   `display`, `route`, and effective `visible` state.
-- `QB.blips.isCategoryVisible(category)` reads the player's current preference.
-- `QB.blips.hideCategory(category)` and `QB.blips.showCategory(category)` persist
+- `Kora.blips.isCategoryVisible(category)` reads the player's current preference.
+- `Kora.blips.hideCategory(category)` and `Kora.blips.showCategory(category)` persist
   the preference locally and return whether it changed.
-- `QB.blips.hide(blip)` and `QB.blips.show(blip)` change one tracked native blip
+- `Kora.blips.hide(blip)` and `Kora.blips.show(blip)` change one tracked native blip
   owned by the calling resource and return `true`, or `false, error` when the
   handle is invalid, untracked, or owned by another resource.
 
@@ -125,12 +125,12 @@ mode. Hiding also disables an active route line; showing restores the route and
 its configured color. `show(blip)` never overrides a hidden category.
 
 ```lua
-for _, category in ipairs(QB.blips.getCategories()) do
+for _, category in ipairs(Kora.blips.getCategories()) do
     print(category.label, category.count, category.visible)
 end
 
-QB.blips.hideCategory('Fuel')
-QB.blips.showCategory('Fuel')
+Kora.blips.hideCategory('Fuel')
+Kora.blips.showCategory('Fuel')
 ```
 
 ### Player settings UI
@@ -158,7 +158,7 @@ calls, contracts, and tracked evidence; a label and category remain the better
 choice for large groups of identical locations.
 
 ```lua
-local blip = QB.blips.create(contract.coords, {
+local blip = Kora.blips.create(contract.coords, {
     sprite = 68,
     color = 5,
     label = 'Tow Contract',
@@ -176,23 +176,23 @@ local blip = QB.blips.create(contract.coords, {
 
 `image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Shared dictionaries are retained once and released after the final panel using them is cleared or removed. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`. While a detailed blip is highlighted, kora_lib refreshes the frontend column every frame because GTA rebuilds pause-map columns continuously; the renderer returns to its low-frequency idle poll as soon as the highlight ends.
 
-### `QB.blips.setInfo(blip, info)`
+### `Kora.blips.setInfo(blip, info)`
 
 Replaces a detail panel for a blip created by the calling resource. This also
 refreshes the panel when that blip is currently highlighted. It returns `false,
 error` if the blip no longer exists or belongs to another resource.
 
-### `QB.blips.clearInfo(blip)`
+### `Kora.blips.clearInfo(blip)`
 
 Removes the calling resource's detail panel from one of its tracked blips.
 Returns the same success/error shape as `setInfo`.
 
-### `QB.blips.remove(blip)`
+### `Kora.blips.remove(blip)`
 Removes one of the calling resource's tracked blips immediately. It cannot
 remove blips created by another resource.
 
 #### Parameters
-- `blip: number` — The blip handle returned by `QB.blips.create`.
+- `blip: number` — The blip handle returned by `Kora.blips.create`.
 
 #### Returns
 - `boolean` — `true` on success.
@@ -201,7 +201,7 @@ remove blips created by another resource.
 
 #### Example
 ```lua
-local ok, err = QB.blips.remove(blip)
+local ok, err = Kora.blips.remove(blip)
 if not ok then
     print('failed to remove blip:', err)
 end

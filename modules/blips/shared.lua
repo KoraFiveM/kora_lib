@@ -92,7 +92,7 @@ local function resolve(category)
     assert(type(category) == 'string', 'Blip category must be a name or numeric native id.')
     local normalised = normaliseLabel(category)
     local definition = byLookup[normalised:lower()]
-    assert(definition, ("Unknown blip category '%s'. Use a category from QB.blips.getCategories().")
+    assert(definition, ("Unknown blip category '%s'. Use a category from Kora.blips.getCategories().")
         :format(normalised))
     return definition
 end
@@ -100,7 +100,7 @@ end
 -- Nested internal table: build/finalise exports only direct module functions,
 -- so this shared catalogue is available to the client implementation without
 -- accidentally publishing mutable internals as exports.
-QB.blips._categoryCatalog = {
+Kora.blips._categoryCatalog = {
     definitions = DEFINITIONS,
     byId = byId,
     normaliseLabel = normaliseLabel,
@@ -111,7 +111,7 @@ QB.blips._categoryCatalog = {
 ---available in both realms so server config/validation can share the same ids
 ---without reaching into client state.
 ---@return table<string, integer> categoryIds
-function QB.blips.getCategoryIds()
+function Kora.blips.getCategoryIds()
     local result = {}
     for index = 1, #DEFINITIONS do
         local definition = DEFINITIONS[index]

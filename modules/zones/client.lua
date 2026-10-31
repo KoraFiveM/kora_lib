@@ -18,7 +18,7 @@ end
 
 -- setZoneDebug (below ensureDebugThread, since it needs to call it) is
 -- likewise forward-declared: both the handle's setDebug method (buildHandle,
--- right below) and QB.zones.setDebug need to call it, and buildHandle runs
+-- right below) and Kora.zones.setDebug need to call it, and buildHandle runs
 -- long before ensureDebugThread is defined.
 local setZoneDebug
 
@@ -36,14 +36,14 @@ local function toVec3(v)
     -- Read through pcall so malformed non-table values produce the documented
     -- contract error instead of Lua's unhelpful "attempt to index" failure.
     local ok, x, y, z = pcall(function() return v.x, v.y, v.z end)
-    assert(ok and QB.util.isFiniteNumber(x) and QB.util.isFiniteNumber(y) and QB.util.isFiniteNumber(z),
+    assert(ok and Kora.util.isFiniteNumber(x) and Kora.util.isFiniteNumber(y) and Kora.util.isFiniteNumber(z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
     return { x = x, y = y, z = z }
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
@@ -174,7 +174,7 @@ local function worldToCell(x, y)
 end
 
 -- Bumped by every grid mutation (create, destroy, and the re-insert behind
--- QB.zones.edit). The tick's candidate cache below keys off it, so a stale
+-- Kora.zones.edit). The tick's candidate cache below keys off it, so a stale
 -- candidate list can never outlive the grid it was built from.
 local gridEpoch = 0
 
@@ -233,9 +233,9 @@ end
 -- Ownership tracking (which resource created a given zone, and bulk cleanup
 -- when that resource stops) is delegated to the shared registry -- see
 -- local/resources/AGENTS.md. destroyZone above already handles the full
--- teardown a manual QB.zones.remove()/handle.remove() needs, so onDispose
+-- teardown a manual Kora.zones.remove()/handle.remove() needs, so onDispose
 -- just routes a still-owned zone id back through it.
-zoneOwnership = QB.resources.registry(function(zoneId)
+zoneOwnership = Kora.resources.registry(function(zoneId)
     local zone = zoneRegistry[zoneId]
     if zone then destroyZone(zone) end
 end)
@@ -378,7 +378,7 @@ end
 local function initBox(zone, opts)
     assert(opts.coords, "Box zone requires coords.")
     assert(opts.size, "Box zone requires size.")
-    assert(opts.rotation == nil or QB.util.isFiniteNumber(opts.rotation), "rotation must be a finite number.")
+    assert(opts.rotation == nil or Kora.util.isFiniteNumber(opts.rotation), "rotation must be a finite number.")
     assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", "ignoreZ must be a boolean.")
 
     local coords = toVec3(opts.coords)
@@ -409,7 +409,7 @@ end
 
 local function initSphere(zone, opts)
     assert(opts.coords, "Sphere zone requires coords.")
-    assert(QB.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Sphere zone requires a positive finite radius.")
+    assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Sphere zone requires a positive finite radius.")
     assert(opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean", "includeBoundary must be a boolean.")
 
     local coords = toVec3(opts.coords)
@@ -428,7 +428,7 @@ end
 
 local function initCircle(zone, opts)
     assert(opts.coords, "Circle zone requires coords.")
-    assert(QB.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Circle zone requires a positive finite radius.")
+    assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Circle zone requires a positive finite radius.")
     assert(opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean", "includeBoundary must be a boolean.")
 
     local coords = toVec3(opts.coords)
@@ -449,11 +449,11 @@ local function initPoly(zone, opts)
     assert(type(opts.points) == "table", "Poly zone points must be a dense array.")
     local pointCount = 0
     for index in pairs(opts.points) do
-        assert(QB.util.isInteger(index) and index >= 1, "Poly zone points must be a dense array.")
+        assert(Kora.util.isInteger(index) and index >= 1, "Poly zone points must be a dense array.")
         pointCount = pointCount + 1
     end
     assert(pointCount >= 3 and pointCount == #opts.points, "Poly zone requires at least 3 dense points.")
-    assert(opts.thickness == nil or QB.util.isFiniteNumber(opts.thickness), "thickness must be a finite number.")
+    assert(opts.thickness == nil or Kora.util.isFiniteNumber(opts.thickness), "thickness must be a finite number.")
     assert((opts.minZ == nil) == (opts.maxZ == nil), "minZ and maxZ must both be given, or neither.")
     assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", "ignoreZ must be a boolean.")
 
@@ -473,8 +473,8 @@ local function initPoly(zone, opts)
 
     local minZ, maxZ = opts.minZ, opts.maxZ
 
-    assert(minZ == nil or QB.util.isFiniteNumber(minZ), "minZ must be a finite number.")
-    assert(maxZ == nil or QB.util.isFiniteNumber(maxZ), "maxZ must be a finite number.")
+    assert(minZ == nil or Kora.util.isFiniteNumber(minZ), "minZ must be a finite number.")
+    assert(maxZ == nil or Kora.util.isFiniteNumber(maxZ), "maxZ must be a finite number.")
 
     if minZ == nil then
         -- `thickness` is measured UPWARD FROM THE LOWEST POINT, not centred on
@@ -563,10 +563,10 @@ end
 
 -- Debug zones and the creator's live preview should look like the rest of
 -- kora_lib's UI, not carry their own hardcoded colour -- so the colour tracks
--- QB.theme.accentColor() live (a config change takes effect on the very next
+-- Kora.theme.accentColor() live (a config change takes effect on the very next
 -- draw) instead of being baked into Config.zones at load time.
 local function zoneDebugColor()
-    local r, g, b = hexToRgb(QB.theme.accentColor())
+    local r, g, b = hexToRgb(Kora.theme.accentColor())
     return { r = r, g = g, b = b, a = Config.zones.debugAlpha }
 end
 
@@ -655,7 +655,7 @@ local function ensureDebugThread()
     end)
 end
 
--- Shared by the handle's own setDebug method and QB.zones.setDebug (both a
+-- Shared by the handle's own setDebug method and Kora.zones.setDebug (both a
 -- single-id call and the nil-id "every zone" fan-out) -- one place that keeps
 -- zone.debug, debugZones, and the debug thread's running-or-not state
 -- consistent, rather than three copies of the same add/remove-from-set logic.
@@ -700,7 +700,7 @@ local function createZone(zoneType, opts, initShape)
 
     -- The tracker can run its first tick as soon as it is started below. Build
     -- the public handle before then, so an onEnter callback can safely call
-    -- QB.zones.getInside() during that first tick.
+    -- Kora.zones.getInside() during that first tick.
     zone.handle = buildHandle(zone)
 
     zoneRegistry[zone.id] = zone
@@ -768,21 +768,21 @@ end
 ---Creates a rotatable box zone.
 ---@param opts QBZoneBoxOptions
 ---@return QBZoneHandle zone
-function QB.zones.box(opts)
+function Kora.zones.box(opts)
     return createZone("box", opts, initBox)
 end
 
 ---Creates a sphere zone.
 ---@param opts QBZoneSphereOptions
 ---@return QBZoneHandle zone
-function QB.zones.sphere(opts)
+function Kora.zones.sphere(opts)
     return createZone("sphere", opts, initSphere)
 end
 
 ---Creates a flat 2D circle zone. Its containment test ignores the point's Z coordinate.
 ---@param opts QBZoneCircleOptions
 ---@return QBZoneHandle zone
-function QB.zones.circle(opts)
+function Kora.zones.circle(opts)
     return createZone("circle", opts, initCircle)
 end
 
@@ -790,15 +790,15 @@ end
 ---band (opts.minZ/opts.maxZ, or opts.thickness upward from the lowest point's Z).
 ---@param opts QBZonePolyOptions
 ---@return QBZoneHandle zone
-function QB.zones.poly(opts)
+function Kora.zones.poly(opts)
     return createZone("poly", opts, initPoly)
 end
 
 ---Creates a point zone. Not a separate shape: this is a sphere zone with a small default
----radius, and returns the exact same zone handle QB.zones.sphere does.
+---radius, and returns the exact same zone handle Kora.zones.sphere does.
 ---@param opts QBZoneSphereOptions `radius` defaults to Config.zones.defaultPointRadius.
 ---@return QBZoneHandle zone
-function QB.zones.point(opts)
+function Kora.zones.point(opts)
     assert(type(opts) == "table", "Point zone options must be a table.")
     if opts.radius == nil then
         local pointOpts = {}
@@ -819,7 +819,7 @@ end
 ---way to see zones another resource created.
 ---@param resource? string Only return zones owned by this resource. Omit for all of them.
 ---@return QBZoneHandle[] zones Unordered -- the registry is a hash, not a list.
-function QB.zones.getInside(resource)
+function Kora.zones.getInside(resource)
     assert(resource == nil or type(resource) == "string", "resource filter must be a string.")
 
     local inside = {}
@@ -841,8 +841,8 @@ end
 ---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
 ---@param enabled boolean
 ---@return boolean changed
-function QB.zones.setDebug(id, enabled)
-    assert(id == nil or QB.util.isInteger(id), "id must be a zone id or nil.")
+function Kora.zones.setDebug(id, enabled)
+    assert(id == nil or Kora.util.isInteger(id), "id must be a zone id or nil.")
     assert(type(enabled) == "boolean", "enabled must be a boolean.")
 
     if id ~= nil then
@@ -992,7 +992,7 @@ tickLoop = function()
 end
 
 ------------------------------------------------------------------------------
--- Zone creator: aim, place points, and copy the finished QB.zones.* call.
+-- Zone creator: aim, place points, and copy the finished Kora.zones.* call.
 -- See modules/zones/AGENTS.md for the design notes behind this section.
 ------------------------------------------------------------------------------
 
@@ -1060,7 +1060,7 @@ local function creatorLog(msg)
 end
 
 local function formatNumber(n)
-    assert(QB.util.isFiniteNumber(n), "Zone snippets require finite numeric values.")
+    assert(Kora.util.isFiniteNumber(n), "Zone snippets require finite numeric values.")
     return ("%.2f"):format(n)
 end
 
@@ -1068,24 +1068,24 @@ local function formatCoords(v)
     return ("vector3(%s, %s, %s)"):format(formatNumber(v.x), formatNumber(v.y), formatNumber(v.z))
 end
 
----Formats `opts` (as returned by QB.zones.startCreator's promise, or hand-built
----in the same shape) into the QB.zones.<type>({...}) Lua snippet the creator's
+---Formats `opts` (as returned by Kora.zones.startCreator's promise, or hand-built
+---in the same shape) into the Kora.zones.<type>({...}) Lua snippet the creator's
 ---confirm dialog shows and copies to the clipboard. Pure and deterministic --
 ---no side effects, so it doesn't need the creator running to be useful/testable.
 ---@param zoneType "box" | "sphere" | "poly"
 ---@param opts table
 ---@return string
-function QB.zones.generateSnippet(zoneType, opts)
+function Kora.zones.generateSnippet(zoneType, opts)
     assert(ZONE_TYPES[zoneType], "generateSnippet type must be 'box', 'sphere', or 'poly'.")
     assert(type(opts) == "table", "generateSnippet options must be a table.")
 
     if zoneType == "box" then
-        return ("QB.zones.box({\n    coords = %s,\n    size = %s,\n    rotation = %s,\n})")
+        return ("Kora.zones.box({\n    coords = %s,\n    size = %s,\n    rotation = %s,\n})")
             :format(formatCoords(opts.coords), formatCoords(opts.size), formatNumber(opts.rotation or 0))
     end
 
     if zoneType == "sphere" then
-        return ("QB.zones.sphere({\n    coords = %s,\n    radius = %s,\n})")
+        return ("Kora.zones.sphere({\n    coords = %s,\n    radius = %s,\n})")
             :format(formatCoords(opts.coords), formatNumber(opts.radius))
     end
 
@@ -1097,11 +1097,11 @@ function QB.zones.generateSnippet(zoneType, opts)
 
     if opts.minZ ~= nil or opts.maxZ ~= nil then
         assert(opts.minZ ~= nil and opts.maxZ ~= nil, "Poly snippets require both minZ and maxZ.")
-        return ("QB.zones.poly({\n    points = {\n%s\n    },\n    minZ = %s,\n    maxZ = %s,\n})")
+        return ("Kora.zones.poly({\n    points = {\n%s\n    },\n    minZ = %s,\n    maxZ = %s,\n})")
             :format(table.concat(pointLines, "\n"), formatNumber(opts.minZ), formatNumber(opts.maxZ))
     end
 
-    return ("QB.zones.poly({\n    points = {\n%s\n    },\n    thickness = %s,\n})")
+    return ("Kora.zones.poly({\n    points = {\n%s\n    },\n    thickness = %s,\n})")
         :format(table.concat(pointLines, "\n"), formatNumber(opts.thickness))
 end
 
@@ -1153,8 +1153,8 @@ local function newCreatorState(zoneType, resource)
 end
 
 ---Pre-populates a freshly created creator state from an existing zone's opts
----(the same shape QB.zones.<type>() takes, and QB.zones.startCreator's own
----resolved promise returns) -- lets QB.zones.startCreator(type, existingOpts)
+---(the same shape Kora.zones.<type>() takes, and Kora.zones.startCreator's own
+---resolved promise returns) -- lets Kora.zones.startCreator(type, existingOpts)
 ---reposition/resize an already-built zone instead of only ever starting fresh.
 ---Any field `opts` doesn't provide is left at newCreatorState's default.
 ---@param state table
@@ -1179,13 +1179,13 @@ local function seedCreatorState(state, opts)
             state.height = size.z
         end
         if opts.rotation ~= nil then
-            assert(QB.util.isFiniteNumber(opts.rotation), "Seeded rotation must be a finite number.")
+            assert(Kora.util.isFiniteNumber(opts.rotation), "Seeded rotation must be a finite number.")
             state.rotation = opts.rotation % 360
         end
     elseif state.type == "sphere" then
         if opts.coords then state.center = toVec3(opts.coords) end
         if opts.radius ~= nil then
-            assert(QB.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Seeded radius must be a positive finite number.")
+            assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Seeded radius must be a positive finite number.")
             state.radius = opts.radius
         end
     elseif state.type == "poly" then
@@ -1203,12 +1203,12 @@ local function seedCreatorState(state, opts)
 
         assert((opts.minZ == nil) == (opts.maxZ == nil), "Seeded minZ and maxZ must both be given, or neither.")
         if opts.minZ ~= nil then
-            assert(QB.util.isFiniteNumber(opts.minZ) and QB.util.isFiniteNumber(opts.maxZ),
+            assert(Kora.util.isFiniteNumber(opts.minZ) and Kora.util.isFiniteNumber(opts.maxZ),
                 "Seeded minZ and maxZ must be finite numbers.")
             assert(opts.maxZ > opts.minZ, "Seeded maxZ must be greater than minZ.")
             state.thickness = opts.maxZ - opts.minZ
         elseif opts.thickness ~= nil then
-            assert(QB.util.isFiniteNumber(opts.thickness) and opts.thickness > 0,
+            assert(Kora.util.isFiniteNumber(opts.thickness) and opts.thickness > 0,
                 "Seeded thickness must be a positive finite number.")
             state.thickness = opts.thickness
         end
@@ -1421,15 +1421,15 @@ local function hudSnapshotsEqual(a, b)
 end
 
 -- Runs inside a RegisterCommand handler's own coroutine, so Citizen.Await
--- inside QB.nui.withFocus's fn suspends this call until the dialog responds
+-- inside Kora.nui.withFocus's fn suspends this call until the dialog responds
 -- without blocking the creator's separate per-frame preview thread.
 local function openConfirmDialog(state)
     local opts = creatorOpts(state)
-    local snippet = QB.zones.generateSnippet(state.type, opts)
+    local snippet = Kora.zones.generateSnippet(state.type, opts)
 
     local ok, response = pcall(function()
-        return QB.nui.withFocus(true, true, function()
-            return Citizen.Await(QB.nui.request("zoneCreator:confirm",
+        return Kora.nui.withFocus(true, true, function()
+            return Citizen.Await(Kora.nui.request("zoneCreator:confirm",
                 { type = state.type, snippet = snippet }, Config.zones.creator.confirmTimeout, state.resource))
         end, state.resource)
     end)
@@ -1458,7 +1458,7 @@ end
 -- its own aim.
 local function creatorPlaceEditPoint(state)
     if state.grabbing then
-        local hit, coords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
+        local hit, coords = Kora.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
         if not hit then
             creatorLog("nothing to drop the point on -- aim at solid ground/geometry.")
             return
@@ -1495,7 +1495,7 @@ local function creatorPlace(state)
         return
     end
 
-    local hit, coords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
+    local hit, coords = Kora.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
     if not hit then
         creatorLog("nothing to place a point on -- aim at solid ground/geometry.")
         return
@@ -1561,7 +1561,7 @@ end
 local creatorBindings = {}
 
 local function registerCreatorKeybind(command, label, key, handler)
-    local handle = QB.keybind.add({
+    local handle = Kora.keybind.add({
         name = command,
         description = label,
         defaultMapper = 'keyboard',
@@ -1627,7 +1627,7 @@ local function ensureCreatorThread(state)
         local ok, err = pcall(function()
         while creatorState == state do
             assert(state.freecam and state.freecam.isActive(), "The zone creator freecam stopped unexpectedly.")
-            local hit, aimCoords = QB.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
+            local hit, aimCoords = Kora.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
 
             if IsControlJustPressed(0, 14) then adjustActiveParam(state, 1) end
             if IsControlJustPressed(0, 15) then adjustActiveParam(state, -1) end
@@ -1702,7 +1702,7 @@ local function ensureCreatorThread(state)
             local snapshot = creatorHudSnapshot(state, hit)
             if not hudSnapshotsEqual(snapshot, state.lastHud) then
                 state.lastHud = snapshot
-                QB.nui.send("zoneCreator:hud", snapshot)
+                Kora.nui.send("zoneCreator:hud", snapshot)
                 updateCreatorInstructions(state)
             end
 
@@ -1724,7 +1724,7 @@ local function ensureCreatorThread(state)
             creatorLog(("zone creator crashed and was cleaned up: %s"):format(tostring(err)))
 
             -- A crash left creatorState pointing at this now-dead session --
-            -- clear it so a fresh QB.zones.startCreator isn't rejected as
+            -- clear it so a fresh Kora.zones.startCreator isn't rejected as
             -- "already running" forever, and reject the dangling promise
             -- rather than leaving a caller's Await suspended indefinitely.
             if creatorState == state then
@@ -1741,13 +1741,13 @@ local function ensureCreatorThread(state)
         -- state) when it was already hidden before the creator opened.
         restoreCreatorRadar(state)
 
-        QB.nui.send("zoneCreator:hud", nil)
+        Kora.nui.send("zoneCreator:hud", nil)
 
     end)
 end
 
 -- A restart of THIS resource (kora_lib itself, not whichever resource called
--- QB.zones.startCreator) kills the creator's thread outright -- no pcall, no
+-- Kora.zones.startCreator) kills the creator's thread outright -- no pcall, no
 -- loop-exit path, and no cleanup below either runs for that, since the
 -- coroutine is simply gone. Without this, a player mid-session when kora_lib
 -- restarts is left frozen in place with a scripted camera stuck on screen
@@ -1770,7 +1770,7 @@ end)
 -- The shared freecam starts from the gameplay view and owns camera/control/
 -- player restoration. The creator only retains its native handle for raycasts.
 local function startCreatorCamera()
-    local freecam, err = QB.freecam.start({
+    local freecam, err = Kora.freecam.start({
         moveSpeed = Config.zones.creator.cameraMoveSpeed,
         lookSensitivity = Config.zones.creator.cameraLookSensitivity,
         fastMultiplier = Config.zones.creator.shiftMultiplier,
@@ -1791,7 +1791,7 @@ local function beginCreator(zoneType, resource, existingOpts)
         error(freecam, 0)
     end
     state.freecam, state.cam = freecam, cam
-    state.instructions = QB.instructional.show({
+    state.instructions = Kora.instructional.show({
         { control = 32, label = "Move forward" },
     })
     updateCreatorInstructions(state)
@@ -1802,7 +1802,7 @@ local function beginCreator(zoneType, resource, existingOpts)
     end
 
     ensureCreatorThread(state)
-    QB.nui.send("zoneCreator:start", { type = zoneType })
+    Kora.nui.send("zoneCreator:start", { type = zoneType })
 
     return state.promise
 end
@@ -1810,16 +1810,16 @@ end
 ---Starts the in-world zone creator: aim and press the placement key to mark
 ---points, adjust size/rotation/radius/thickness with the scroll wheel (the
 ---cycle key switches which parameter scroll adjusts), then confirm to open a
----summary dialog with the generated QB.zones.<type>({...}) snippet and a
+---summary dialog with the generated Kora.zones.<type>({...}) snippet and a
 ---copy-to-clipboard button.
 ---@param zoneType "box" | "sphere" | "poly"
----@param existingOpts? table Seeds the creator from an existing zone's opts (same shape QB.zones.<type>() takes) -- e.g. `QB.zones.startCreator("box", myZoneOpts)` to reposition/resize `myZoneOpts` instead of starting empty. Validated like the real constructors; malformed values raise synchronously.
+---@param existingOpts? table Seeds the creator from an existing zone's opts (same shape Kora.zones.<type>() takes) -- e.g. `Kora.zones.startCreator("box", myZoneOpts)` to reposition/resize `myZoneOpts` instead of starting empty. Validated like the real constructors; malformed values raise synchronously.
 ---@return promise|any result Resolves/returns { type, opts } once confirmed, or nil if cancelled, for a same-VM
 ---caller (unchanged, awaitable as before) or a genuine cross-resource caller respectively. Rejects/errors if a
 ---creator is already running or the creator is disabled (Config.zones.creator.enabled) -- see settleForExport
 ---above for the same-VM-vs-cross-resource distinction. An invalid zoneType or malformed existingOpts raises a
 ---synchronous error instead (like the zone constructors themselves), same for both kinds of caller.
-function QB.zones.startCreator(zoneType, existingOpts)
+function Kora.zones.startCreator(zoneType, existingOpts)
     assert(ZONE_TYPES[zoneType], "startCreator type must be 'box', 'sphere', or 'poly'.")
 
     if Config.zones.creator.enabled == false then
@@ -1828,7 +1828,7 @@ function QB.zones.startCreator(zoneType, existingOpts)
         return settleForExport(p)
     end
 
-    local placement = rawget(QB, "placement")
+    local placement = rawget(Kora, "placement")
     if placement and type(placement.isActive) == "function" and placement.isActive() then
         local p = promise.new()
         p:reject("Entity placement is already active.")
@@ -1854,14 +1854,14 @@ end
 ---TAB-bound inventory toggle vs. qblib_zonecreator_cycle -- so the second
 ---handler can bail instead of firing alongside the creator's.
 ---@return boolean
-function QB.zones.isCreatorActive()
+function Kora.zones.isCreatorActive()
     return creatorState ~= nil
 end
 
 -- No-args toggle direction: "any zone currently drawing debug" flips
 -- everything off, otherwise flips everything on. Reads debugZones directly
 -- (rather than tracking a separate on/off flag of its own) so it stays
--- correct even after a resource has been calling QB.zones.setDebug per-zone
+-- correct even after a resource has been calling Kora.zones.setDebug per-zone
 -- behind this command's back -- there's no separate piece of state that
 -- could drift out of sync with what's actually drawing.
 RegisterCommand("qb_zonedebug", function(_, args)
@@ -1879,7 +1879,7 @@ RegisterCommand("qb_zonedebug", function(_, args)
         return
     end
 
-    QB.zones.setDebug(nil, enabled)
+    Kora.zones.setDebug(nil, enabled)
     creatorLog(("zone debug drawing %s for every registered zone."):format(enabled and "enabled" or "disabled"))
 end, false)
 
@@ -1899,13 +1899,13 @@ end, false)
 ---@param opts QBZoneEditOptions
 ---@return QBZoneHandle? handle The same handle passed to the function, or nil for a foreign zone.
 ---@return string? error
-function QB.zones.edit(handle, opts)
+function Kora.zones.edit(handle, opts)
     return editZone(handle, opts)
 end
 
 local function onStartZoneCreator(zoneType)
     if type(zoneType) ~= "string" then return end
-    local ok, result = pcall(function() return Citizen.Await(QB.zones.startCreator(zoneType)) end)
+    local ok, result = pcall(function() return Citizen.Await(Kora.zones.startCreator(zoneType)) end)
 
     if not ok then
         creatorLog(("zone creator failed: %s"):format(tostring(result)))

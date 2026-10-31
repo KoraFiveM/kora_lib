@@ -1,22 +1,22 @@
 # NUI module
 
 ## Overview
-The NUI module is the bridge between Lua and the React app in `web/`. Every other module that needs to show something in the browser (a menu, an input dialog) or reach a browser-only capability (the clipboard) goes through `QB.nui.*` rather than calling `SendNUIMessage`/`RegisterNUICallback` directly.
+The NUI module is the bridge between Lua and the React app in `web/`. Every other module that needs to show something in the browser (a menu, an input dialog) or reach a browser-only capability (the clipboard) goes through `Kora.nui.*` rather than calling `SendNUIMessage`/`RegisterNUICallback` directly.
 
 The NUI is **headless**: it renders nothing and holds no focus until a message from Lua tells it to, and gives focus back up the moment that interaction ends.
 
 ## UI branding configuration
 
 Set the shared colours in `kora_theme/config.lua`. kora_lib imports kora_theme's browser
-loader and bridge, while the permanent `QB.theme` functions forward to kora_theme
+loader and bridge, while the permanent `Kora.theme` functions forward to kora_theme
 for older Lua consumers. See [modules/theme/docs.md](../theme/docs.md).
 
 ## API
 
-### `QB.nui.send(action, data)`
-Sends `{ action, data }` to the NUI. Fire-and-forget — use `QB.nui.request` when you need a response back.
+### `Kora.nui.send(action, data)`
+Sends `{ action, data }` to the NUI. Fire-and-forget — use `Kora.nui.request` when you need a response back.
 
-### `QB.nui.setDispatchFeed(payload)`
+### `Kora.nui.setDispatchFeed(payload)`
 
 Updates the persistent, pointer-transparent dispatch feed without acquiring
 focus or replacing Text UI prompts. Pass `false` to clear it. A payload contains
@@ -33,41 +33,41 @@ with `now` advanced by the time since publication;
 the ready callback acknowledges with `true` rather than returning call data.
 `nil` and other non-table values are invalid; clearing requires explicit `false`.
 
-### `QB.nui.setFocus(mouse, keyboard)`
+### `Kora.nui.setFocus(mouse, keyboard)`
 Sets NUI focus directly.
 
 #### Parameters
 - `mouse: boolean`
 - `keyboard: boolean`
 
-### `QB.nui.withFocus(mouse, keyboard, fn)`
+### `Kora.nui.withFocus(mouse, keyboard, fn)`
 Requires boolean `mouse`/`keyboard` values and a callable `fn`, then sets focus, runs `fn`, and always clears focus afterward — including when `fn` raises an error or the calling resource stops (the error is re-raised once cleanup runs). Invalid inputs fail before focus is acquired. It returns every value `fn` returns, preserving interior `nil` values. Prefer this over `setFocus` whenever the interaction is scoped to one call. Note the built-in `openMenu`/`openContextMenu`/`openInputDialog` wrappers below already manage focus themselves — `withFocus` is for custom interactive requests of your own.
 
 #### Example
 ```lua
-local result = QB.nui.withFocus(true, true, function()
-    return QB.nui.request("myCustomDialog", { foo = "bar" })
+local result = Kora.nui.withFocus(true, true, function()
+    return Kora.nui.request("myCustomDialog", { foo = "bar" })
 end)
 ```
 
-### `QB.nui.registerCallback(name, handler)`
+### `Kora.nui.registerCallback(name, handler)`
 
 `name` must be a non-empty string and `handler` must be callable. Registration
 fails immediately for invalid values rather than leaving a browser request to
 fail later at dispatch time.
 Registers an NUI callback. `handler(data)` returns a plain value (or nil); the raw `RegisterNUICallback` `(data, cb)` plumbing is handled for you, including catching and logging errors so a broken handler can't leave the NUI's fetch hanging.
 
-### `QB.nui.request(action, data, timeout)`
+### `Kora.nui.request(action, data, timeout)`
 Sends `action` to the NUI and returns its response, once available. Requests are owned by the calling resource: stopping that resource rejects its outstanding requests, removes only its focus leases, and dismisses the matching browser surfaces without posting stale responses.
 
-`QB.nui.requestAsync`, `QB.nui.cancelRequest`, and `QB.nui.updateRequest` are lower-level composition
+`Kora.nui.requestAsync`, `Kora.nui.cancelRequest`, and `Kora.nui.updateRequest` are lower-level composition
 primitives used by kora_lib's compatibility modules. They retain a tokenized
 request handle so an API such as ox_lib's programmatic dialog close can both
 update or dismiss the browser surface while retaining one promise and focus
 lease. Gameplay
 resources should continue to use `request` and the `open*` helpers.
 
-`QB.nui.acquireFocus` / `QB.nui.releaseFocus` are the matching owner-tracked focus
+`Kora.nui.acquireFocus` / `Kora.nui.releaseFocus` are the matching owner-tracked focus
 lease primitives for compatibility APIs whose focus lifetime spans several
 calls. They are internal building blocks; normal callers should prefer
 `withFocus` or an `open*` helper.
@@ -78,17 +78,17 @@ calls. They are internal building blocks; normal callers should prefer
 - `timeout: non-negative finite integer | false | nil` — milliseconds before the request times out. Defaults to `30000`. Pass `false` to disable.
 
 #### Returns
-- The NUI's result value, or (from your own resource, calling this like any other `QB.*` export) `nil` on timeout/error — check kora_lib's own console for why. Must run inside a coroutine (`CreateThread`, a command handler, an NUI callback — anywhere `Citizen.Await` is legal), since it suspends until the NUI responds.
+- The NUI's result value, or (from your own resource, calling this like any other `Kora.*` export) `nil` on timeout/error — check kora_lib's own console for why. Must run inside a coroutine (`CreateThread`, a command handler, an NUI callback — anywhere `Citizen.Await` is legal), since it suspends until the NUI responds.
 
 #### Example
 ```lua
-local result = QB.nui.request("someAction", { foo = "bar" })
+local result = Kora.nui.request("someAction", { foo = "bar" })
 if result ~= nil then
     print("NUI responded:", json.encode(result))
 end
 ```
 
-### `QB.nui.copyToClipboard(text)`
+### `Kora.nui.copyToClipboard(text)`
 Copies `text` to the system clipboard via the NUI — the browser is the only part of this stack with real clipboard access.
 
 #### Parameters
@@ -99,10 +99,10 @@ Copies `text` to the system clipboard via the NUI — the browser is the only pa
 
 #### Example
 ```lua
-QB.nui.copyToClipboard("QB.zones.box({ ... })")
+Kora.nui.copyToClipboard("Kora.zones.box({ ... })")
 ```
 
-### `QB.nui.openAlert(opts)`
+### `Kora.nui.openAlert(opts)`
 Opens a confirmation or acknowledgement dialog. It manages mouse and keyboard focus for its lifetime.
 
 #### Parameters
@@ -127,7 +127,7 @@ ignored and alert Markdown images are constrained to the dialog.
 
 #### Example
 ```lua
-local result = QB.nui.openAlert({
+local result = Kora.nui.openAlert({
     title = "Replace artwork?",
     message = "This change cannot be undone.",
     image = "nui://my-resource/web/images/preview.png",
@@ -139,7 +139,7 @@ if result and result.confirmed then
 end
 ```
 
-### `QB.nui.openMenu(items, title, opts)`
+### `Kora.nui.openMenu(items, title, opts)`
 Opens a searchable list menu. Grants mouse+keyboard NUI focus while open and releases it as soon as the menu closes (selection, cancel, or timeout) — no `withFocus` wrap needed.
 
 #### Parameters
@@ -159,14 +159,14 @@ Awesome names through lazy prefix chunks, and safe HTTP/NUI image URLs.
 
 ```lua
 -- A compact menu, vertically centred on the right with a comfortable inset.
-QB.nui.openMenu(items, "Admin Menu", {
+Kora.nui.openMenu(items, "Admin Menu", {
     position = { horizontal = "right", vertical = "center", offsetX = 48 },
     maxWidth = 400,
     maxHeight = 680,
 })
 ```
 
-### `QB.nui.openContextMenu(items, x, y)`
+### `Kora.nui.openContextMenu(items, x, y)`
 Opens a context menu anchored at `(x, y)`, or centered if omitted. Manages focus the same way `openMenu` does.
 
 #### Parameters
@@ -176,7 +176,7 @@ Opens a context menu anchored at `(x, y)`, or centered if omitted. Manages focus
 #### Returns
 - Same as `openMenu`: `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
 
-### `QB.nui.openRadialMenu(items, opts)`
+### `Kora.nui.openRadialMenu(items, opts)`
 Opens a radial menu, always centred on screen. It uses the same recursive item tree and result shape as `openMenu`, so a caller can reuse its item-building logic. It manages NUI focus for its entire lifetime.
 
 #### Parameters
@@ -190,7 +190,7 @@ Items sit clockwise from the top. A submenu replaces the ring locally and adds a
 
 #### Example
 ```lua
-local result = QB.nui.openRadialMenu({
+local result = Kora.nui.openRadialMenu({
     { id = "engine", label = "Engine", icon = "Wrench" },
     {
         id = "doors",
@@ -210,7 +210,7 @@ if result and not result.cancelled then
 end
 ```
 
-### `QB.nui.openInputDialog(fields, title, description)`
+### `Kora.nui.openInputDialog(fields, title, description)`
 Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 
 #### Parameters
@@ -251,7 +251,7 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
 
 #### Example
 ```lua
-local result = QB.nui.openInputDialog({
+local result = Kora.nui.openInputDialog({
     { id = "amount", label = "Amount", type = "number", default = 1, min = 1 },
 }, "Withdraw")
 
@@ -272,7 +272,7 @@ registering resource remains the owner of its data, permissions, validation,
 and every action handler in Lua.
 
 ```lua
-QB.nui.registerApp({
+Kora.nui.registerApp({
     id = 'qbmdt:police',
     title = 'Mobile Data Terminal',
     description = 'Los Santos Police Department',
@@ -319,7 +319,7 @@ QB.nui.registerApp({
     end,
 })
 
-local result = QB.nui.openApp('qbmdt:police', {
+local result = Kora.nui.openApp('qbmdt:police', {
     viewId = 'dashboard',
     data = { characterId = citizenid }, -- private; returned to onAction/onChange
 })
@@ -327,7 +327,7 @@ local result = QB.nui.openApp('qbmdt:police', {
 
 #### Lifecycle API
 
-- `QB.nui.registerApp(definition)` registers or replaces its own owner-tracked
+- `Kora.nui.registerApp(definition)` registers or replaces its own owner-tracked
   app. A different resource cannot replace that id. The id should be namespaced
   (`resource:app`). A registration is removed
   automatically if its resource stops. An optional `accent = '#RRGGBB'`
@@ -344,18 +344,18 @@ local result = QB.nui.openApp('qbmdt:police', {
   in `context.itemId`. This supports lazy data loading without making an app
   transfer every record when it opens; returning `update` plus `navigate` can
   replace the loading content with the fresh view atomically.
-- `QB.nui.openApp(id, opts?)` opens it and returns after X/Escape, an action
+- `Kora.nui.openApp(id, opts?)` opens it and returns after X/Escape, an action
   requests closure, the owner calls `closeApp`, the app is superseded, or its
   resource stops. The result is
   `{ closed = true, reason, viewId?, tabId? }`.
-- `QB.nui.updateApp(id, update)` shallow-merges definition fields. Supplying
+- `Kora.nui.updateApp(id, update)` shallow-merges definition fields. Supplying
   `navigation` replaces the navigation tree as a whole. An open instance
   refreshes immediately and keeps its view/tab if they still exist. Only the
   registering resource can update it.
-- `QB.nui.closeApp(id?)` closes the registered owner's matching app, or its
-  currently open app when id is omitted. `QB.nui.isAppOpen(id?)` reports its
+- `Kora.nui.closeApp(id?)` closes the registered owner's matching app, or its
+  currently open app when id is omitted. `Kora.nui.isAppOpen(id?)` reports its
   state.
-- `QB.nui.unregisterApp(id)` closes an open instance and removes its
+- `Kora.nui.unregisterApp(id)` closes an open instance and removes its
   registration. Only the registering resource can unregister or close it;
   other resources cannot replace, update, close, or remove its app id.
 
@@ -504,10 +504,10 @@ strings use the same curated Lucide resolver as menus.
 
 ## Legacy compat: `qb-menu` / `qb-input` / `qb-radialmenu`
 
-`qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `QB.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `QB.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `kora_target/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.
+`qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `Kora.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `Kora.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `kora_target/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.
 
 ### `exports['qb-menu']:openMenu(menu)`
-Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, fires the item's legacy `params.event` the same way real qb-menu does.
+Translates each `menu` entry onto one `Kora.nui.openMenu` item and, on selection, fires the item's legacy `params.event` the same way real qb-menu does.
 
 | qb-menu field | Mapped to | Notes |
 |---|---|---|
@@ -523,7 +523,7 @@ Translates each `menu` entry onto one `QB.nui.openMenu` item and, on selection, 
 `exports['qb-menu']:closeMenu()` and the `qb-menu:client:openMenu`/`qb-menu:client:closeMenu` net events are also registered. `closeMenu` dismisses the active list menu through its normal cancellation response, which also releases focus and settles the awaiting request.
 
 ### `exports['qb-input']:ShowInput(data)`
-Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the calling coroutine until the player answers, returning either a `{ [name]: value }` table (submit) or `false` (cancel) — exactly real qb-input's own return shape, never a promise.
+Translates `data.inputs[]` onto `Kora.nui.openInputDialog` fields and blocks the calling coroutine until the player answers, returning either a `{ [name]: value }` table (submit) or `false` (cancel) — exactly real qb-input's own return shape, never a promise.
 
 | qb-input `inputs[]` field | Mapped to | Notes |
 |---|---|---|
@@ -545,9 +545,9 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 
 ### `exports['qb-radialmenu']:AddOption(option, id_or_shouldClose)` / `RemoveOption(id)`
 
-**Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `QB.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no QB.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `QB.nui.openRadialMenu` when its own keybind (`qblib_radialmenu_open`, default `F1`, matching qbcore-framework/qb-radialmenu's own `config.lua` default; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
-- There is no script-triggered "open now" call — matching real qb-radialmenu's own keybind-driven UX, but unlike every other `QB.nui.open*` wrapper, which is always caller-initiated.
-- `option.shouldClose == false` is approximated by immediately re-issuing a fresh `QB.nui.openRadialMenu` request after dispatch, rather than a truly persistent NUI state staying open across the selection.
+**Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `Kora.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no Kora.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `Kora.nui.openRadialMenu` when its own keybind (`qblib_radialmenu_open`, default `F1`, matching qbcore-framework/qb-radialmenu's own `config.lua` default; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
+- There is no script-triggered "open now" call — matching real qb-radialmenu's own keybind-driven UX, but unlike every other `Kora.nui.open*` wrapper, which is always caller-initiated.
+- `option.shouldClose == false` is approximated by immediately re-issuing a fresh `Kora.nui.openRadialMenu` request after dispatch, rather than a truly persistent NUI state staying open across the selection.
 - **Built-in default content is reproduced**, the same way real qb-radialmenu's own `main.lua` injects it fresh every time the wheel opens: a **Vehicle** submenu (doors, extras, a flip option once the vehicle is off its wheels, and a seats submenu while occupying it — built from live vehicle-native state, ported from upstream's `SetupVehicleMenu`) and a per-job **Work** submenu (`Config.radialmenuCompat.jobInteractions`, ported from upstream's `SetupJobMenu` and `Config.JobInteractions`), both registered through this file's own `AddOption` at a stable slot so repeated opens update the entry instead of duplicating it. A **downed police/EMS player** sees the wheel wholesale replaced with a single emergency-button option, matching upstream's own downed override, and the wheel is blocked outright (matching upstream) for anyone else while downed, or for anyone while handcuffed. `PlayerData`/job-registry lookups go through `exports.kora_core:getPlayerData`/`getShared`, pcall-guarded the same way qb-menu compat's `imageFor` reads item images — without kora_core running, this content simply doesn't appear rather than erroring.
   - **Not reproduced**: most of real qb-radialmenu's *default* `Config.JobInteractions` content (tow/taxi/mechanic/hotdog jobs, and most of the police entries — search/escort/jail/seize-license/the objects submenu) fires events owned by companion job resources this environment doesn't run, or needs an aimed-at/nearby **target** player the wheel's own event payload never carries; only entries with a real, self-contained, verified-working handler in this server's own resources are wired up (see `config.lua`'s `Config.radialmenuCompat` comment for the exact list and reasoning). `stretcher.lua`/`trunk.lua`/`clothing.lua` — features bundled into the real resource, not part of the generic `AddOption`/`RemoveOption` API surface — aren't ported either; this server's `kora_ambulance`/`kora_clothing` already own equivalent functionality through their own mechanisms.
 
@@ -555,7 +555,7 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 |---|---|---|
 | `id` | `id` | Kept if supplied; auto-generated (`radial_<n>`) and returned from `AddOption` otherwise, same as most real forks. Also assigned recursively to nested `items[]` entries that don't already have one — see `items` below. |
 | `title` / `label` | `label` | `title` wins if both are set. |
-| `items` (nested array of the same option shape) | `submenu = { title, items }` | Real qb-radialmenu options can carry their own nested `items[]` to form a submenu (upstream's own "Work"/"Vehicle" branches, above). `QB.nui.openRadialMenu` natively supports arbitrary submenu depth via `item.submenu` (`web/src/components/menu/RadialMenu.tsx`), so this translates directly and recursively — a registered option's nested leaves dispatch correctly via their own id regardless of depth, using the NUI result's `selectedId` (its `path` isn't needed since ids are unique across the whole registry). |
+| `items` (nested array of the same option shape) | `submenu = { title, items }` | Real qb-radialmenu options can carry their own nested `items[]` to form a submenu (upstream's own "Work"/"Vehicle" branches, above). `Kora.nui.openRadialMenu` natively supports arbitrary submenu depth via `item.submenu` (`web/src/components/menu/RadialMenu.tsx`), so this translates directly and recursively — a registered option's nested leaves dispatch correctly via their own id regardless of depth, using the NUI result's `selectedId` (its `path` isn't needed since ids are unique across the whole registry). |
 | `top` | *(ordering)* | `top` options are moved to the front of the translated items list, stable within each group — the closest flat-list equivalent of "pin near the top of the wheel". **Not a real qb-radialmenu field at all** — upstream has no such concept and would simply ignore it; this is an additive convenience only. |
 | `icon` | *(dropped)* | Same reasoning as qb-menu/qb-input's `icon` above — Font Awesome vs. lucide vocabularies don't overlap. One warning per resource run. |
 | `iconAnimation` | *(dropped)* | Purely decorative on top of the already-dropped icon; no equivalent field exists at all, and it doesn't get its own warning on top of the icon one. |
@@ -568,9 +568,9 @@ Translates `data.inputs[]` onto `QB.nui.openInputDialog` fields and blocks the c
 `exports['qb-radialmenu']:RemoveOption(id)` and the `qb-radialmenu:client:AddOption`/`qb-radialmenu:client:RemoveOption` net events are also registered, mirroring `AddOption`/`RemoveOption` 1:1.
 
 ## Notes
-- `QB.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`kora_lib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
+- `Kora.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`kora_lib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
 - The invoking resource owns its pending requests and focus leases. If it stops, kora_lib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
 - Releasing the final focus lease restores the keep-input state that existed before kora_lib acquired focus, so compatibility surfaces do not interfere with another overlay's input policy.
 - A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.
-- `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `QB.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
-- These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `QB.nui.*` from **within kora_lib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.
+- `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `Kora.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
+- These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `Kora.nui.*` from **within kora_lib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.

@@ -1,6 +1,6 @@
 ---Sends a notification to the local player.
 ---@param payload QBNotifyPayload
-function QB.notify.send(payload)
+function Kora.notify.send(payload)
     -- pcall'd because a notification is incidental to whatever the caller was
     -- actually doing -- a malformed payload shouldn't take that down with it.
     -- The failure is LOGGED rather than swallowed, though: a silent return
@@ -8,8 +8,8 @@ function QB.notify.send(payload)
     -- in-game, which is exactly the ambiguity that made a real NUI outage
     -- hard to pin down.
     local ok, err = pcall(function()
-        payload = QB.notify.normalize(payload)
-        QB.notify.assert(payload)
+        payload = Kora.notify.normalize(payload)
+        Kora.notify.assert(payload)
 
         if Config.third_party_notify then
             -- Forwarded as given: a third-party notify resource has its own
@@ -20,7 +20,7 @@ function QB.notify.send(payload)
             return
         end
 
-        QB.nui.send("notify", QB.notify.withDefaults(payload))
+        Kora.nui.send("notify", Kora.notify.withDefaults(payload))
     end)
 
     if not ok then
@@ -28,4 +28,4 @@ function QB.notify.send(payload)
     end
 end
 
-QB.events.onPush('notify', QB.notify.send)
+Kora.events.onPush('notify', Kora.notify.send)

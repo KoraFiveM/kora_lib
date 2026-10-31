@@ -1,7 +1,7 @@
 -- qbcore-framework/progressbar @ 6e9381de6637bd443a8eaf1a6da0d339d8cebb15.
 -- Keep callbacks in the native bar's loop so there is only one timer/owner.
 local active, manuallyBusy
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 local controls = {
     disableMovement = { 30, 31, 36, 21, 75 },
     disableCarMovement = { 63, 64, 71, 72 },
@@ -12,14 +12,14 @@ local controls = {
 local function release(session)
     if session.released then return end
     session.released = true
-    for _, lease in ipairs(session.leases) do QB.compat.releaseControlLease(lease, session.owner) end
+    for _, lease in ipairs(session.leases) do Kora.compat.releaseControlLease(lease, session.owner) end
     LocalPlayer.state:set('inv_busy', session.previousBusy == true, true)
     if active == session then active = nil end
 end
 
 local function start(action, onStart, onTick, onFinish, owner)
     onStart, onTick, onFinish = onStart or nil, onTick or nil, onFinish or nil
-    if active or manuallyBusy or QB.progressbar.isActive() then return end
+    if active or manuallyBusy or Kora.progressbar.isActive() then return end
     if type(action) ~= 'table' or (IsEntityDead(PlayerPedId()) and not action.useWhileDead) then return end
     for _, callback in pairs({ onStart = onStart, onTick = onTick, onFinish = onFinish }) do
         assert(isCallable(callback), 'Progressbar callbacks must be callable.')
@@ -46,7 +46,7 @@ local function start(action, onStart, onTick, onFinish, owner)
                 collision = false, rotationOrder = 0, syncRotation = true }
         end
     end
-    QB.progressbar.validate(payload)
+    Kora.progressbar.validate(payload)
     local invoker = GetInvokingResource() or GetCurrentResourceName()
     -- Only the core may forward ownership across its additional export boundary.
     owner = invoker == 'kora_core' and owner or nil
@@ -65,11 +65,11 @@ local function start(action, onStart, onTick, onFinish, owner)
         local ok, completed = pcall(function()
             for name, list in pairs(controls) do
                 if action.controlDisables and action.controlDisables[name] then
-                    session.leases[#session.leases + 1] = QB.compat.acquireControls(list,
+                    session.leases[#session.leases + 1] = Kora.compat.acquireControls(list,
                         name == 'disableCombat' and { disablePlayerFiring = true } or nil, session.owner)
                 end
             end
-            return QB.progressbar.start(payload, session.owner, {
+            return Kora.progressbar.start(payload, session.owner, {
                 networkedProps = true,
                 onStart = onStart,
                 onTick = onTick,
@@ -86,12 +86,12 @@ local function progress(action, finish, owner) start(action, nil, nil, finish, o
 local function withStart(action, begin, finish) start(action, begin, nil, finish) end
 local function withTick(action, tick, finish) start(action, nil, tick, finish) end
 local function withStartAndTick(action, begin, tick, finish) start(action, begin, tick, finish) end
-local function isDoingSomething() return active ~= nil or manuallyBusy == true or QB.progressbar.isActive() end
+local function isDoingSomething() return active ~= nil or manuallyBusy == true or Kora.progressbar.isActive() end
 
 for name, callback in pairs({ Progress = progress, ProgressWithStartEvent = withStart,
     ProgressWithTickEvent = withTick, ProgressWithStartAndTick = withStartAndTick,
     isDoingSomething = isDoingSomething }) do
-    QB.compat.provideExport('progressbar', name, callback)
+    Kora.compat.provideExport('progressbar', name, callback)
 end
 RegisterNetEvent('progressbar:client:progress', progress)
 RegisterNetEvent('progressbar:client:ProgressWithStartEvent', withStart)
@@ -101,7 +101,7 @@ RegisterNetEvent('progressbar:client:cancel', function()
     manuallyBusy = false
     if active then
         active.cancelRequested = true
-        QB.progressbar.cancel(active.owner)
+        Kora.progressbar.cancel(active.owner)
     end
 end)
 RegisterNetEvent('progressbar:client:ToggleBusyness', function(value)

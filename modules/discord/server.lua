@@ -1,4 +1,4 @@
--- QB.discord (server realm) -- Discord webhook delivery and a small REST bot
+-- Kora.discord (server realm) -- Discord webhook delivery and a small REST bot
 -- client. Webhooks do not need the bot token; every bot operation is gated by
 -- kora_lib_discord_bot_token (or the deprecated qblib_discord_bot_token) and
 -- fails locally when that convar is empty.
@@ -21,7 +21,7 @@ local AUTHOR_FIELDS = { 'name', 'url', 'icon_url' }
 local URL_FIELDS = { 'url' }
 
 local function assertCallback(callback)
-    assert(callback == nil or QB.compat.isCallable(callback), 'Discord callback must be callable or nil.')
+    assert(callback == nil or Kora.compat.isCallable(callback), 'Discord callback must be callable or nil.')
 end
 
 local function decodeResponse(statusCode, body, headers, errorData)
@@ -58,7 +58,7 @@ local function performJsonRequest(url, method, payload, headers, callback)
             -- second 429 normally so callers retain control of persistent load.
             local retryAfter = response.status == 429 and type(response.data) == 'table'
                 and tonumber(response.data.retry_after) or nil
-            if QB.util.isFiniteNumber(retryAfter) and retryAfter >= 0 and attempt < MAX_RATE_LIMIT_RETRIES then
+            if Kora.util.isFiniteNumber(retryAfter) and retryAfter >= 0 and attempt < MAX_RATE_LIMIT_RETRIES then
                 SetTimeout(math.ceil(retryAfter * 1000), function()
                     perform(attempt + 1)
                 end)
@@ -107,7 +107,7 @@ end
 ---methods, so it can cross FiveM's export boundary and be JSON-encoded safely.
 ---@param options table
 ---@return table embed
-function QB.discord.createEmbed(options)
+function Kora.discord.createEmbed(options)
     assert(type(options) == 'table', 'Discord embed options must be a table.')
 
     local embed = {}
@@ -121,7 +121,7 @@ function QB.discord.createEmbed(options)
     if options.color ~= nil then embed.color = normaliseColor(options.color) end
 
     if options.timestamp ~= nil then
-        assert(options.timestamp == true or type(options.timestamp) == 'string' or QB.util.isFiniteNumber(options.timestamp),
+        assert(options.timestamp == true or type(options.timestamp) == 'string' or Kora.util.isFiniteNumber(options.timestamp),
             'Discord embed timestamp must be true, a finite Unix timestamp, or an ISO8601 string.')
         if options.timestamp == true then
             embed.timestamp = os.date('!%Y-%m-%dT%H:%M:%SZ')
@@ -196,7 +196,7 @@ end
 ---@param payload string|table
 ---@param callback fun(ok:boolean, response:table)|nil
 ---@return boolean queued
-function QB.discord.sendWebhook(url, payload, callback)
+function Kora.discord.sendWebhook(url, payload, callback)
     assertCallback(callback)
     assert(url == nil or type(url) == 'string', 'Discord webhook URL must be a string or nil.')
 
@@ -225,7 +225,7 @@ end
 
 ---Return whether the REST bot client is enabled by its token convar.
 ---@return boolean
-function QB.discord.botEnabled()
+function Kora.discord.botEnabled()
     return botToken() ~= ''
 end
 
@@ -276,7 +276,7 @@ local BOT_METHODS = { GET = true, POST = true, PUT = true, PATCH = true, DELETE 
 ---@param callback fun(ok:boolean, response:table)|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.botRequest(method, route, payload, callback, auditReason)
+function Kora.discord.botRequest(method, route, payload, callback, auditReason)
     assertCallback(callback)
     local token = botToken()
     if token == '' then return botDisabled(callback) end
@@ -301,7 +301,7 @@ function QB.discord.botRequest(method, route, payload, callback, auditReason)
 end
 
 local function requireBot(callback)
-    if QB.discord.botEnabled() then return true end
+    if Kora.discord.botEnabled() then return true end
     botDisabled(callback)
     return false
 end
@@ -309,20 +309,20 @@ end
 ---@param guildId string|nil Defaults to kora_lib_discord_guild_id.
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.getGuild(guildId, callback)
-    if QB.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
+function Kora.discord.getGuild(guildId, callback)
+    if Kora.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
     if not requireBot(callback) then return false end
-    return QB.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId), nil, callback)
+    return Kora.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId), nil, callback)
 end
 
 ---@param guildId string|nil
 ---@param userId string
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.getMember(guildId, userId, callback)
+function Kora.discord.getMember(guildId, userId, callback)
     if not requireBot(callback) then return false end
     local route = ('/guilds/%s/members/%s'):format(resolveGuildId(guildId), requireSnowflake(userId, 'user ID'))
-    return QB.discord.botRequest('GET', route, nil, callback)
+    return Kora.discord.botRequest('GET', route, nil, callback)
 end
 
 ---@param guildId string|nil
@@ -331,20 +331,20 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.updateMember(guildId, userId, attributes, callback, auditReason)
+function Kora.discord.updateMember(guildId, userId, attributes, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(attributes) == 'table', 'Discord member attributes must be a table.')
     local route = ('/guilds/%s/members/%s'):format(resolveGuildId(guildId), requireSnowflake(userId, 'user ID'))
-    return QB.discord.botRequest('PATCH', route, attributes, callback, auditReason)
+    return Kora.discord.botRequest('PATCH', route, attributes, callback, auditReason)
 end
 
 ---@param guildId string|nil
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.fetchGuildRoles(guildId, callback)
-    if QB.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
+function Kora.discord.fetchGuildRoles(guildId, callback)
+    if Kora.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
     if not requireBot(callback) then return false end
-    return QB.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId) .. '/roles', nil, callback)
+    return Kora.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId) .. '/roles', nil, callback)
 end
 
 ---@param guildId string|nil
@@ -353,12 +353,12 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.setMemberRoles(guildId, userId, roleIds, callback, auditReason)
+function Kora.discord.setMemberRoles(guildId, userId, roleIds, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(roleIds) == 'table', 'Discord role IDs must be an array.')
     local roles = {}
     for index = 1, #roleIds do roles[index] = requireSnowflake(roleIds[index], 'role ID') end
-    return QB.discord.updateMember(guildId, userId, { roles = roles }, callback, auditReason)
+    return Kora.discord.updateMember(guildId, userId, { roles = roles }, callback, auditReason)
 end
 
 ---@param guildId string|nil
@@ -367,11 +367,11 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.addMemberRole(guildId, userId, roleId, callback, auditReason)
+function Kora.discord.addMemberRole(guildId, userId, roleId, callback, auditReason)
     if not requireBot(callback) then return false end
     local route = ('/guilds/%s/members/%s/roles/%s'):format(
         resolveGuildId(guildId), requireSnowflake(userId, 'user ID'), requireSnowflake(roleId, 'role ID'))
-    return QB.discord.botRequest('PUT', route, nil, callback, auditReason)
+    return Kora.discord.botRequest('PUT', route, nil, callback, auditReason)
 end
 
 ---@param guildId string|nil
@@ -380,11 +380,11 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.removeMemberRole(guildId, userId, roleId, callback, auditReason)
+function Kora.discord.removeMemberRole(guildId, userId, roleId, callback, auditReason)
     if not requireBot(callback) then return false end
     local route = ('/guilds/%s/members/%s/roles/%s'):format(
         resolveGuildId(guildId), requireSnowflake(userId, 'user ID'), requireSnowflake(roleId, 'role ID'))
-    return QB.discord.botRequest('DELETE', route, nil, callback, auditReason)
+    return Kora.discord.botRequest('DELETE', route, nil, callback, auditReason)
 end
 
 ---@param guildId string|nil
@@ -392,10 +392,10 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.createRole(guildId, role, callback, auditReason)
+function Kora.discord.createRole(guildId, role, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(role) == 'table', 'Discord role must be a table.')
-    return QB.discord.botRequest('POST', '/guilds/' .. resolveGuildId(guildId) .. '/roles', role, callback, auditReason)
+    return Kora.discord.botRequest('POST', '/guilds/' .. resolveGuildId(guildId) .. '/roles', role, callback, auditReason)
 end
 
 ---@param guildId string|nil
@@ -404,11 +404,11 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.updateRole(guildId, roleId, role, callback, auditReason)
+function Kora.discord.updateRole(guildId, roleId, role, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(role) == 'table', 'Discord role must be a table.')
     local route = ('/guilds/%s/roles/%s'):format(resolveGuildId(guildId), requireSnowflake(roleId, 'role ID'))
-    return QB.discord.botRequest('PATCH', route, role, callback, auditReason)
+    return Kora.discord.botRequest('PATCH', route, role, callback, auditReason)
 end
 
 ---@param guildId string|nil
@@ -416,27 +416,27 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.deleteRole(guildId, roleId, callback, auditReason)
+function Kora.discord.deleteRole(guildId, roleId, callback, auditReason)
     if not requireBot(callback) then return false end
     local route = ('/guilds/%s/roles/%s'):format(resolveGuildId(guildId), requireSnowflake(roleId, 'role ID'))
-    return QB.discord.botRequest('DELETE', route, nil, callback, auditReason)
+    return Kora.discord.botRequest('DELETE', route, nil, callback, auditReason)
 end
 
 ---@param guildId string|nil
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.getChannels(guildId, callback)
-    if QB.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
+function Kora.discord.getChannels(guildId, callback)
+    if Kora.compat.isCallable(guildId) and callback == nil then callback, guildId = guildId, nil end
     if not requireBot(callback) then return false end
-    return QB.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId) .. '/channels', nil, callback)
+    return Kora.discord.botRequest('GET', '/guilds/' .. resolveGuildId(guildId) .. '/channels', nil, callback)
 end
 
 ---@param channelId string
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.getChannel(channelId, callback)
+function Kora.discord.getChannel(channelId, callback)
     if not requireBot(callback) then return false end
-    return QB.discord.botRequest('GET', '/channels/' .. requireSnowflake(channelId, 'channel ID'), nil, callback)
+    return Kora.discord.botRequest('GET', '/channels/' .. requireSnowflake(channelId, 'channel ID'), nil, callback)
 end
 
 ---@param guildId string|nil
@@ -444,11 +444,11 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.createChannel(guildId, channel, callback, auditReason)
+function Kora.discord.createChannel(guildId, channel, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(channel) == 'table' and type(channel.name) == 'string',
         'Discord channel must be a table with a string name.')
-    return QB.discord.botRequest('POST', '/guilds/' .. resolveGuildId(guildId) .. '/channels', channel, callback, auditReason)
+    return Kora.discord.botRequest('POST', '/guilds/' .. resolveGuildId(guildId) .. '/channels', channel, callback, auditReason)
 end
 
 ---@param channelId string
@@ -456,10 +456,10 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.updateChannel(channelId, attributes, callback, auditReason)
+function Kora.discord.updateChannel(channelId, attributes, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(attributes) == 'table', 'Discord channel attributes must be a table.')
-    return QB.discord.botRequest('PATCH', '/channels/' .. requireSnowflake(channelId, 'channel ID'), attributes,
+    return Kora.discord.botRequest('PATCH', '/channels/' .. requireSnowflake(channelId, 'channel ID'), attributes,
         callback, auditReason)
 end
 
@@ -467,9 +467,9 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.deleteChannel(channelId, callback, auditReason)
+function Kora.discord.deleteChannel(channelId, callback, auditReason)
     if not requireBot(callback) then return false end
-    return QB.discord.botRequest('DELETE', '/channels/' .. requireSnowflake(channelId, 'channel ID'), nil,
+    return Kora.discord.botRequest('DELETE', '/channels/' .. requireSnowflake(channelId, 'channel ID'), nil,
         callback, auditReason)
 end
 
@@ -477,9 +477,9 @@ end
 ---@param payload string|table Discord Create Message fields.
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.sendMessage(channelId, payload, callback)
+function Kora.discord.sendMessage(channelId, payload, callback)
     if not requireBot(callback) then return false end
-    return QB.discord.botRequest('POST', '/channels/' .. requireSnowflake(channelId, 'channel ID') .. '/messages',
+    return Kora.discord.botRequest('POST', '/channels/' .. requireSnowflake(channelId, 'channel ID') .. '/messages',
         normaliseMessagePayload(payload), callback)
 end
 
@@ -488,11 +488,11 @@ end
 ---@param payload string|table Discord Edit Message fields.
 ---@param callback function|nil
 ---@return boolean queued
-function QB.discord.editMessage(channelId, messageId, payload, callback)
+function Kora.discord.editMessage(channelId, messageId, payload, callback)
     if not requireBot(callback) then return false end
     local route = ('/channels/%s/messages/%s'):format(
         requireSnowflake(channelId, 'channel ID'), requireSnowflake(messageId, 'message ID'))
-    return QB.discord.botRequest('PATCH', route, normaliseMessagePayload(payload), callback)
+    return Kora.discord.botRequest('PATCH', route, normaliseMessagePayload(payload), callback)
 end
 
 ---@param channelId string
@@ -500,11 +500,11 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.deleteMessage(channelId, messageId, callback, auditReason)
+function Kora.discord.deleteMessage(channelId, messageId, callback, auditReason)
     if not requireBot(callback) then return false end
     local route = ('/channels/%s/messages/%s'):format(
         requireSnowflake(channelId, 'channel ID'), requireSnowflake(messageId, 'message ID'))
-    return QB.discord.botRequest('DELETE', route, nil, callback, auditReason)
+    return Kora.discord.botRequest('DELETE', route, nil, callback, auditReason)
 end
 
 -- Cached/persisted role directory -------------------------------------------------
@@ -886,8 +886,8 @@ end
 ---@param guildId string|nil Defaults to kora_lib_discord_guild_id.
 ---@return table[]|nil roles
 ---@return string|nil error
-function QB.discord.getGuildRoles(guildId)
-    if not QB.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
+function Kora.discord.getGuildRoles(guildId)
+    if not Kora.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
     local ok, resolved = pcall(resolveGuildId, guildId)
     if not ok then return nil, tostring(resolved) end
     local cache = guildRoleCache[resolved]
@@ -902,8 +902,8 @@ end
 ---@param guildId string|nil
 ---@return table|nil role
 ---@return string|nil error
-function QB.discord.getRole(role, guildId)
-    if not QB.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
+function Kora.discord.getRole(role, guildId)
+    if not Kora.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
     local ok, resolved = pcall(resolveGuildId, guildId)
     if not ok then return nil, tostring(resolved) end
     local _, cachedOrErr = resolveCachedRole(resolved, role)
@@ -916,14 +916,14 @@ end
 ---@param id string|integer
 ---@param callback fun(ok:boolean, response:table)|nil
 ---@return boolean queued
-function QB.discord.refreshMember(id, callback)
+function Kora.discord.refreshMember(id, callback)
     if not requireBot(callback) then return false end
     local userId, userErr = resolveUserId(id)
     if not userId then return localFailure(callback, userErr) end
     local ok, guildId = pcall(resolveGuildId, nil)
     if not ok then return localFailure(callback, tostring(guildId)) end
 
-    return QB.discord.getMember(guildId, userId, function(requestOk, response)
+    return Kora.discord.getMember(guildId, userId, function(requestOk, response)
         if requestOk and type(response.data) == 'table' and type(response.data.roles) == 'table' then
             local entry = cacheMemberRoles(guildId, userId, response.data.roles)
             persistMemberSoon(guildId, userId, entry)
@@ -944,8 +944,8 @@ end
 ---@param id string|integer
 ---@return table[]|nil roles
 ---@return string|nil error
-function QB.discord.getRoles(id)
-    if not QB.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
+function Kora.discord.getRoles(id)
+    if not Kora.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
     local userId, userErr = resolveUserId(id)
     if not userId then return nil, userErr end
     local ok, guildId = pcall(resolveGuildId, nil)
@@ -971,8 +971,8 @@ end
 ---@param role string Role ID or name.
 ---@return boolean hasRole
 ---@return string|nil error
-function QB.discord.hasRole(id, role)
-    if not QB.discord.botEnabled() then return false, 'Discord bot is disabled.' end
+function Kora.discord.hasRole(id, role)
+    if not Kora.discord.botEnabled() then return false, 'Discord bot is disabled.' end
     local userId, userErr = resolveUserId(id)
     if not userId then return false, userErr end
     local ok, guildId = pcall(resolveGuildId, nil)
@@ -990,14 +990,14 @@ end
 ---@param requireAll boolean|nil
 ---@return boolean matches
 ---@return string|nil error
-function QB.discord.hasRoles(id, roles, requireAll)
+function Kora.discord.hasRoles(id, roles, requireAll)
     if type(roles) == 'string' then roles = { roles } end
     if type(roles) ~= 'table' or #roles == 0 then return false, 'Discord roles must be a non-empty array or string.' end
     requireAll = requireAll ~= false
 
     for roleIndex = 1, #roles do
         local role = roles[roleIndex]
-        local has, err = QB.discord.hasRole(id, role)
+        local has, err = Kora.discord.hasRole(id, role)
         if err then return false, err end
         if requireAll and not has then return false end
         if not requireAll and has then return true end
@@ -1009,16 +1009,16 @@ end
 ---@param roles string[]|string
 ---@return boolean matches
 ---@return string|nil error
-function QB.discord.hasAnyRole(id, roles)
-    return QB.discord.hasRoles(id, roles, false)
+function Kora.discord.hasAnyRole(id, roles)
+    return Kora.discord.hasRoles(id, roles, false)
 end
 
 ---@param id string|integer
 ---@param roles string[]|string
 ---@return boolean matches
 ---@return string|nil error
-function QB.discord.hasAllRoles(id, roles)
-    return QB.discord.hasRoles(id, roles, true)
+function Kora.discord.hasAllRoles(id, roles)
+    return Kora.discord.hasRoles(id, roles, true)
 end
 
 local function mutateCachedRole(action, id, role, callback, auditReason)
@@ -1030,7 +1030,7 @@ local function mutateCachedRole(action, id, role, callback, auditReason)
     local roleId, roleErr = resolveCachedRole(guildId, role)
     if not roleId then return localFailure(callback, roleErr) end
 
-    local operation = action == 'give' and QB.discord.addMemberRole or QB.discord.removeMemberRole
+    local operation = action == 'give' and Kora.discord.addMemberRole or Kora.discord.removeMemberRole
     return operation(guildId, userId, roleId, function(requestOk, response)
         if not requestOk then
             if callback then callback(false, response) end
@@ -1048,7 +1048,7 @@ local function mutateCachedRole(action, id, role, callback, auditReason)
 
         -- A delta cannot make an absent/stale snapshot complete. Re-fetch the
         -- whole member before declaring the local authorization cache current.
-        QB.discord.refreshMember(userId, function(refreshOk, refreshResponse)
+        Kora.discord.refreshMember(userId, function(refreshOk, refreshResponse)
             response.cacheRefreshed = refreshOk
             if not refreshOk then response.cacheError = refreshResponse and refreshResponse.error end
             if callback then callback(true, response) end
@@ -1062,7 +1062,7 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.giveRole(id, role, callback, auditReason)
+function Kora.discord.giveRole(id, role, callback, auditReason)
     return mutateCachedRole('give', id, role, callback, auditReason)
 end
 
@@ -1072,7 +1072,7 @@ end
 ---@param callback function|nil
 ---@param auditReason string|nil
 ---@return boolean queued
-function QB.discord.removeRole(id, role, callback, auditReason)
+function Kora.discord.removeRole(id, role, callback, auditReason)
     return mutateCachedRole('remove', id, role, callback, auditReason)
 end
 
@@ -1094,7 +1094,7 @@ local function runFullRoleSync()
     summary.databaseError = dbErr
 
     local rolesOk, rolesResponse = awaitRest(function(callback)
-        QB.discord.fetchGuildRoles(guildId, callback)
+        Kora.discord.fetchGuildRoles(guildId, callback)
     end)
     if not rolesOk or type(rolesResponse.data) ~= 'table' then
         return false, rolesResponse.error or 'Discord did not return a guild role array.'
@@ -1118,7 +1118,7 @@ local function runFullRoleSync()
         else
             seen[userId] = true
             local memberOk, memberResponse = awaitRest(function(callback)
-                QB.discord.getMember(guildId, userId, callback)
+                Kora.discord.getMember(guildId, userId, callback)
             end)
 
             local entry
@@ -1150,9 +1150,9 @@ end
 ---replace the in-memory cache and kora_sql snapshots. Only one sync may run at once.
 ---@param callback fun(ok:boolean, response:table)|nil
 ---@return boolean queued
-function QB.discord.syncRoles(callback)
+function Kora.discord.syncRoles(callback)
     assertCallback(callback)
-    if not QB.discord.botEnabled() then return botDisabled(callback) end
+    if not Kora.discord.botEnabled() then return botDisabled(callback) end
     if syncInProgress then return localFailure(callback, 'A Discord role sync is already running.') end
     syncInProgress = true
 
@@ -1178,12 +1178,12 @@ end
 -- exposed through a player command merely because an ACE wildcard permits it.
 local function discordSyncCommand(source)
     if source ~= 0 then return end
-    if not QB.discord.botEnabled() then
+    if not Kora.discord.botEnabled() then
         print('^3[kora_lib:discord]^7 bot disabled; set kora_lib_discord_bot_token and restart kora_lib.')
         return
     end
 
-    local queued = QB.discord.syncRoles(function(ok, response)
+    local queued = Kora.discord.syncRoles(function(ok, response)
         if not ok then
             print(('^1[kora_lib:discord]^7 role sync failed: %s'):format(tostring(response.error)))
             return
@@ -1205,12 +1205,12 @@ RegisterCommand('kora_lib_discord_sync', discordSyncCommand, false)
 RegisterCommand('qblib_discord_sync', discordSyncCommand, false)
 
 AddEventHandler('playerJoining', function()
-    if not QB.discord.botEnabled() then return end
+    if not Kora.discord.botEnabled() then return end
     local joiningSource = source
     SetTimeout(1000, function()
         local userId = discordIdForPlayer(joiningSource)
         if userId then
-            QB.discord.refreshMember(userId, function(ok, response)
+            Kora.discord.refreshMember(userId, function(ok, response)
                 if not ok and response.status ~= 404 then
                     print(('^3[kora_lib:discord]^7 could not refresh joining player %s: %s'):format(
                         tostring(joiningSource), tostring(response.error)))
@@ -1224,9 +1224,9 @@ end)
 -- work. Explicit bot functions still read it per call, but enabling the bot's
 -- heartbeat requires a kora_lib restart after setting the convar.
 CreateThread(function()
-    if not QB.discord.botEnabled() then return end
+    if not Kora.discord.botEnabled() then return end
 
-    QB.discord.syncRoles(function(ok, response)
+    Kora.discord.syncRoles(function(ok, response)
         if not ok then
             print(('^3[kora_lib:discord]^7 initial role sync failed: %s'):format(tostring(response.error)))
         elseif response.data.databaseError then
@@ -1237,7 +1237,7 @@ CreateThread(function()
 
     while true do
         Wait(discordConfig('roleSyncInterval', 300000))
-        QB.discord.syncRoles(function(ok, response)
+        Kora.discord.syncRoles(function(ok, response)
             if not ok then
                 print(('^3[kora_lib:discord]^7 heartbeat role sync failed: %s'):format(tostring(response.error)))
             elseif response.data.databaseError then

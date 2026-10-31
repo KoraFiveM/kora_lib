@@ -5,7 +5,7 @@ Shows a title/message notification (a toast) to one player, every connected play
 
 ## API
 
-### `QB.notify.send(payload)` — client
+### `Kora.notify.send(payload)` — client
 Shows a notification on the local player.
 
 #### Parameters
@@ -31,9 +31,9 @@ ignored and unsafe URL protocols are rejected.
 
 #### Example
 ```lua
-QB.notify.send({ title = "Saved", message = "Your changes were saved.", duration = 4000 })
+Kora.notify.send({ title = "Saved", message = "Your changes were saved.", duration = 4000 })
 
-QB.notify.send({
+Kora.notify.send({
     title = "Payment failed",
     message = "Not enough cash on hand.",
     type = "error",
@@ -41,7 +41,7 @@ QB.notify.send({
 })
 ```
 
-### `QB.notify.send(src, payload)` — server
+### `Kora.notify.send(src, payload)` — server
 Sends a notification to a specific player.
 
 #### Parameters
@@ -51,21 +51,21 @@ Sends a notification to a specific player.
 `src` must be `-1` or a positive integer server ID. Invalid recipients are
 logged and dropped, just like malformed payloads.
 
-### `QB.notify.sendToAll(payload)` — server
-Shorthand for `QB.notify.send(-1, payload)`.
+### `Kora.notify.sendToAll(payload)` — server
+Shorthand for `Kora.notify.send(-1, payload)`.
 
-### `QB.notify.assert(payload)` — shared
+### `Kora.notify.assert(payload)` — shared
 Validates a payload, raising an assertion error if it's malformed (used internally by `send`, exported in case you want to validate before sending). Checks the *types* of `title`/`message`, not just their presence, and that `type`/`position` are recognised values.
 
-### `QB.notify.withDefaults(payload)` — shared
+### `Kora.notify.withDefaults(payload)` — shared
 Returns a copy of `payload` with `duration`/`type`/`position` filled in from `Config.notify`. `send` applies this before handing the payload to the NUI, so the browser never has to know Lua-side config values that aren't transmitted. The caller's own table is never mutated.
 Defaults apply only when those fields are omitted; explicit invalid values are
-rejected by `QB.notify.assert` rather than silently replaced.
+rejected by `Kora.notify.assert` rather than silently replaced.
 
-### `QB.notify.normalizeType(notifyType)` — shared
-Resolves a type alias onto its canonical type: `inform` → `info` (ox_lib's name) and `warn` → `warning`. Any other value, including `nil`, is returned unchanged so `QB.notify.assert` still rejects genuinely unknown types.
+### `Kora.notify.normalizeType(notifyType)` — shared
+Resolves a type alias onto its canonical type: `inform` → `info` (ox_lib's name) and `warn` → `warning`. Any other value, including `nil`, is returned unchanged so `Kora.notify.assert` still rejects genuinely unknown types.
 
-### `QB.notify.normalize(payload)` — shared
+### `Kora.notify.normalize(payload)` — shared
 Returns a copy of `payload` with its `type` alias resolved via `normalizeType` (the original table is never mutated; a payload with nothing to resolve is returned as-is). Both `send` paths call this before validating, so `type = 'inform'` is accepted. Prefer the canonical `info`/`warning` in new code.
 
 ## Notes

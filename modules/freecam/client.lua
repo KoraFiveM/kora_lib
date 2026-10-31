@@ -1,7 +1,7 @@
 local active
 local ownership
 
-local isFinite = QB.util.isFiniteNumber
+local isFinite = Kora.util.isFiniteNumber
 
 local function copyCoords(value, label)
     assert((type(value) == 'table' or type(value) == 'vector3' or type(value) == 'vector4')
@@ -33,7 +33,7 @@ local function stop(state, immediate)
     if active ~= state then return false end
     active = nil
     ownership.untrack(state)
-    QB.compat.releaseControlLease(state.lease, state.owner)
+    Kora.compat.releaseControlLease(state.lease, state.owner)
     if state.freezePlayer then
         FreezeEntityPosition(state.ped, false)
         local currentPed = PlayerPedId()
@@ -52,7 +52,7 @@ local function stop(state, immediate)
     return true
 end
 
-ownership = QB.resources.registry(function(state)
+ownership = Kora.resources.registry(function(state)
     stop(state, true)
 end)
 
@@ -127,16 +127,16 @@ end
 
 ---@param options? QBFreecamOptions
 ---@return QBFreecamHandle|false, string?
-function QB.freecam.start(options)
+function Kora.freecam.start(options)
     if active then return false, 'A freecam session is already active.' end
     options = options or {}
     assert(type(options) == 'table', 'Freecam options must be a table.')
     assert(options.maxDistance == nil or (isFinite(options.maxDistance) and options.maxDistance > 0), 'Freecam maxDistance must be a positive finite number.')
     assert(options.movementMode == nil or options.movementMode == 'camera' or options.movementMode == 'grid', 'Freecam movementMode must be camera or grid.')
-    assert(options.zone == nil or (type(options.zone) == 'table' and QB.compat.isCallable(options.zone.contains)), 'Freecam zone must be a QB.zones handle.')
+    assert(options.zone == nil or (type(options.zone) == 'table' and Kora.compat.isCallable(options.zone.contains)), 'Freecam zone must be a Kora.zones handle.')
     assert(options.freezePlayer == nil or type(options.freezePlayer) == 'boolean', 'Freecam freezePlayer must be a boolean.')
-    assert(options.upControl == nil or QB.util.isInteger(options.upControl) and options.upControl >= 0, 'Freecam upControl must be a non-negative integer.')
-    assert(options.downControl == nil or QB.util.isInteger(options.downControl) and options.downControl >= 0, 'Freecam downControl must be a non-negative integer.')
+    assert(options.upControl == nil or Kora.util.isInteger(options.upControl) and options.upControl >= 0, 'Freecam upControl must be a non-negative integer.')
+    assert(options.downControl == nil or Kora.util.isInteger(options.downControl) and options.downControl >= 0, 'Freecam downControl must be a non-negative integer.')
     local gameplayCoords, gameplayRot = GetGameplayCamCoord(), GetGameplayCamRot(2)
     local coords = options.coords and copyCoords(options.coords, 'coords') or copyCoords(gameplayCoords, 'gameplay coords')
     local rotation = options.rotation and copyCoords(options.rotation, 'rotation') or copyCoords(gameplayRot, 'gameplay rotation')
@@ -160,7 +160,7 @@ function QB.freecam.start(options)
     local controls = { 1, 2, 30, 31 }
     if state.upControl then controls[#controls + 1] = state.upControl end
     if state.downControl then controls[#controls + 1] = state.downControl end
-    state.lease = QB.compat.acquireControls(controls, nil, state.owner)
+    state.lease = Kora.compat.acquireControls(controls, nil, state.owner)
     if state.freezePlayer then FreezeEntityPosition(state.ped, true) end
     SetCamActive(state.cam, true)
     RenderScriptCams(true, true, state.transitionMs, true, true)
@@ -171,7 +171,7 @@ function QB.freecam.start(options)
 end
 
 ---@return boolean
-function QB.freecam.isActive()
+function Kora.freecam.isActive()
     return active ~= nil
 end
 

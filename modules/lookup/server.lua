@@ -1,4 +1,4 @@
-local state = QB.lookup._state
+local state = Kora.lookup._state
 local SYNC_REQUEST = 'kora_lib:lookup:sync'
 local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
 -- Leave framing headroom so the complete encoded event payload remains below
@@ -622,11 +622,11 @@ local function sendSnapshot(target)
     snapshotBatches = snapshotBatches or buildBatches()
     for index = 1, #snapshotBatches do
         local batch = snapshotBatches[index]
-        QB.events.push(target, SYNC_PUSH, state.overlayVersion, index, #snapshotBatches, batch)
+        Kora.events.push(target, SYNC_PUSH, state.overlayVersion, index, #snapshotBatches, batch)
     end
 end
 
-QB.events.register(SYNC_REQUEST, function(src)
+Kora.events.register(SYNC_REQUEST, function(src)
     if not state.overlayReady then
         pendingClients[src] = true
         return

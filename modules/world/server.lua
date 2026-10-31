@@ -8,7 +8,7 @@
 
 -- Plain { x, y, z } tables, not glm.vec3 -- see the identical note in
 -- modules/world/client.lua.
-local isFiniteNumber = QB.util.isFiniteNumber
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function toVec3(v)
     assert(v and isFiniteNumber(v.x) and isFiniteNumber(v.y) and isFiniteNumber(v.z),
@@ -27,7 +27,7 @@ end
 
 local ENTITY_TYPES = { ped = true, vehicle = true, object = true, player = true }
 local ENTITY_TYPE_IDS = { ped = 1, vehicle = 2, object = 3 }
-local isInteger = QB.util.isInteger
+local isInteger = Kora.util.isInteger
 
 -- GetGamePool is client-only -- the server-side equivalents are one native
 -- per entity kind rather than a single pool-name-keyed native.
@@ -102,7 +102,7 @@ local function assertQueryOptions(options)
         end
         assert(count == #options.excludeEntities, 'World query excludeEntities must be a dense array.')
     end
-    assert(options.predicate == nil or QB.compat.isCallable(options.predicate),
+    assert(options.predicate == nil or Kora.compat.isCallable(options.predicate),
         'World query predicate must be callable.')
 end
 
@@ -163,7 +163,7 @@ end
 ---@param radius number
 ---@param options? QBWorldQueryOptions
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
-function QB.world.getNearbyEntities(entityType, coords, radius, options)
+function Kora.world.getNearbyEntities(entityType, coords, radius, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
     assertRadius(radius)
 
@@ -179,7 +179,7 @@ end
 ---@return number|false entity `false` if nothing matched within range.
 ---@return table? coords Only present when an entity was found.
 ---@return number? distance Only present when an entity was found.
-function QB.world.getClosestEntity(entityType, coords, options)
+function Kora.world.getClosestEntity(entityType, coords, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
     assertQueryOptions(options)
 
@@ -202,7 +202,7 @@ end
 ---@param radius number
 ---@param options? QBWorldQueryOptions
 ---@return boolean clear
-function QB.world.isSpawnClear(coords, radius, options)
+function Kora.world.isSpawnClear(coords, radius, options)
     assertRadius(radius)
     local occupied = visitCandidates('vehicle', coords, radius * radius, options, function() return true end)
     return occupied ~= true
@@ -222,12 +222,12 @@ end
 ---@param options? QBWorldNetworkEntityOptions
 ---@return integer|nil entity
 ---@return string|nil reason
-function QB.world.resolveNetworkEntity(src, networkId, options)
+function Kora.world.resolveNetworkEntity(src, networkId, options)
     assert(options == nil or type(options) == "table", "Network entity options must be a table.")
     options = options or {}
 
     assert(isInteger(src) and src > 0,
-        "QB.world.resolveNetworkEntity requires a player source.")
+        "Kora.world.resolveNetworkEntity requires a player source.")
     assert(options.entityType == nil or ENTITY_TYPE_IDS[options.entityType],
         "entityType must be 'ped', 'vehicle', or 'object'.")
     assert(options.maxDistance == nil or (type(options.maxDistance) == "number"
@@ -282,10 +282,10 @@ end
 ---@param options QBWorldNearbyPlayerOptions
 ---@return integer|nil targetPed
 ---@return number|string reasonOrDistance Distance on success; stable reason code on failure.
-function QB.world.resolveNearbyPlayer(src, targetSrc, options)
+function Kora.world.resolveNearbyPlayer(src, targetSrc, options)
     assert(isInteger(src) and src > 0,
-        "QB.world.resolveNearbyPlayer requires a player source.")
-    assert(type(options) == "table", "QB.world.resolveNearbyPlayer requires an options table.")
+        "Kora.world.resolveNearbyPlayer requires a player source.")
+    assert(type(options) == "table", "Kora.world.resolveNearbyPlayer requires an options table.")
     assert(type(options.maxDistance) == "number" and options.maxDistance >= 0
         and options.maxDistance < math.huge,
         "maxDistance must be a non-negative finite number.")

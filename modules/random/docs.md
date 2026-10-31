@@ -2,13 +2,13 @@
 
 Small shared helpers for choosing random values from arrays.
 
-## `QB.random.pick(list, options?)`
+## `Kora.random.pick(list, options?)`
 
 Picks from a non-empty array. With the default `count = 1`, it returns the
 selected value directly:
 
 ```lua
-local ped = QB.random.pick(Config.Peds)
+local ped = Kora.random.pick(Config.Peds)
 ```
 
 Options:
@@ -20,11 +20,11 @@ Options:
   useful when only the first part of an array should be considered.
 
 ```lua
-local commonPed = QB.random.pick(Config.Peds, { maxIndex = 5 })
-local threePeds = QB.random.pick(Config.Peds, { count = 3 })
+local commonPed = Kora.random.pick(Config.Peds, { maxIndex = 5 })
+local threePeds = Kora.random.pick(Config.Peds, { count = 3 })
 ```
 
-This also suits an unweighted reward pool. Use `QB.rewards.generate` instead
+This also suits an unweighted reward pool. Use `Kora.rewards.generate` instead
 when rewards have relative weights, percentage chances, or amount ranges.
 
 The list must be a non-empty dense array. `count` and `maxIndex` default only when omitted;

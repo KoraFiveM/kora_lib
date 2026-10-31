@@ -34,7 +34,7 @@ const PARAM_LABELS: Record<string, string> = {
 }
 
 /**
- * Small always-mounted HUD for QB.zones.startCreator (see
+ * Small always-mounted HUD for Kora.zones.startCreator (see
  * modules/zones/client.lua). Deliberately stays pointer-events-none the whole
  * time it's visible -- unlike every other top-level NUI component, this one
  * must never intercept the mouse look/aiming the creator is built around.

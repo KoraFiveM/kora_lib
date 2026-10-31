@@ -5,7 +5,7 @@ The streaming module centralizes model loading operations. It is intended for ca
 
 ## API
 
-### `QB.stream.loadModel(model, cb, options?)`
+### `Kora.stream.loadModel(model, cb, options?)`
 Loads a model and optionally executes a callback once it is ready.
 
 #### Parameters
@@ -34,7 +34,7 @@ Loads a model and optionally executes a callback once it is ready.
 
 #### Example
 ```lua
-QB.stream.loadModel('a_m_y_beach_01', function(model)
+Kora.stream.loadModel('a_m_y_beach_01', function(model)
     print('Loaded model:', model)
 end)
 ```
@@ -42,7 +42,7 @@ end)
 Handling a failed load:
 
 ```lua
-local model, err = QB.stream.loadModel('a_m_y_beach_01')
+local model, err = Kora.stream.loadModel('a_m_y_beach_01')
 if not model then return print('load failed:', err) end
 
 -- caller owns cleanup when no callback is passed
@@ -54,17 +54,17 @@ All follow the same request → poll-until-loaded → run callback → release l
 
 | Function | Loads | Returns |
 |---|---|---|
-| `QB.stream.loadPtfx(fxName, cb, options?)` | A named particle effect (ptfx) asset. | `fxName \| false`, `error?` |
-| `QB.stream.loadAnimDict(animDict, cb, options?)` | An animation dictionary (validated with `DoesAnimDictExist`). | `animDict \| false`, `error?` |
-| `QB.stream.loadAnimSet(animSet, cb, options?)` | An animation set. | `animSet \| false`, `error?` |
-| `QB.stream.loadClipSet(clipSet, cb, options?)` | A clip set. | `clipSet \| false`, `error?` |
-| `QB.stream.loadIpl(iplName, cb, options?)` | An interior proplist (checked via `IsIplActive`, not `Has...Loaded`). | `iplName \| false`, `error?` |
-| `QB.stream.loadScaleformMovie(scaleformName, cb, options?)` | A scaleform movie. `cb` and the return value receive the **scaleform handle**, not the name — `HasScaleformMovieLoaded`/`SetScaleformMovieAsNoLongerNeeded` are keyed by that handle. | `handle \| false`, `error?` |
-| `QB.stream.loadTextureDict(textureDict, cb, isAdditionalTextures?)` | A streamed texture dictionary. `isAdditionalTextures` must be boolean and is forwarded as `RequestStreamedTextureDict`'s undocumented second argument (defaults `false`). | `textureDict \| false`, `error?` |
-| `QB.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags?, extraWeaponComponentFlags?)` | A weapon's streaming asset (model/anims/etc). `weapon` accepts a name or finite integer hash (joaat-converted like `loadModel`), validated with `IsWeaponValid`. Flags are finite integers and default to `31`/`0`, the common values seen in practice (undocumented upstream). | `weaponHash \| false`, `error?` |
-| `QB.stream.loadAudioBank(audioBank, cb)` | A script audio bank. Unlike every other type there's no separate `Has...Loaded` native — `RequestScriptAudioBank` itself reports readiness, so it serves as both request and poll. Released with `ReleaseNamedScriptAudioBank`. | `audioBank \| false`, `error?` |
+| `Kora.stream.loadPtfx(fxName, cb, options?)` | A named particle effect (ptfx) asset. | `fxName \| false`, `error?` |
+| `Kora.stream.loadAnimDict(animDict, cb, options?)` | An animation dictionary (validated with `DoesAnimDictExist`). | `animDict \| false`, `error?` |
+| `Kora.stream.loadAnimSet(animSet, cb, options?)` | An animation set. | `animSet \| false`, `error?` |
+| `Kora.stream.loadClipSet(clipSet, cb, options?)` | A clip set. | `clipSet \| false`, `error?` |
+| `Kora.stream.loadIpl(iplName, cb, options?)` | An interior proplist (checked via `IsIplActive`, not `Has...Loaded`). | `iplName \| false`, `error?` |
+| `Kora.stream.loadScaleformMovie(scaleformName, cb, options?)` | A scaleform movie. `cb` and the return value receive the **scaleform handle**, not the name — `HasScaleformMovieLoaded`/`SetScaleformMovieAsNoLongerNeeded` are keyed by that handle. | `handle \| false`, `error?` |
+| `Kora.stream.loadTextureDict(textureDict, cb, isAdditionalTextures?)` | A streamed texture dictionary. `isAdditionalTextures` must be boolean and is forwarded as `RequestStreamedTextureDict`'s undocumented second argument (defaults `false`). | `textureDict \| false`, `error?` |
+| `Kora.stream.loadWeaponAsset(weapon, cb, weaponResourceFlags?, extraWeaponComponentFlags?)` | A weapon's streaming asset (model/anims/etc). `weapon` accepts a name or finite integer hash (joaat-converted like `loadModel`), validated with `IsWeaponValid`. Flags are finite integers and default to `31`/`0`, the common values seen in practice (undocumented upstream). | `weaponHash \| false`, `error?` |
+| `Kora.stream.loadAudioBank(audioBank, cb)` | A script audio bank. Unlike every other type there's no separate `Has...Loaded` native — `RequestScriptAudioBank` itself reports readiness, so it serves as both request and poll. Released with `ReleaseNamedScriptAudioBank`. | `audioBank \| false`, `error?` |
 
-### `QB.stream.loadCollision(coords, cb, entity)`
+### `Kora.stream.loadCollision(coords, cb, entity)`
 Waits for world collision to stream in around `coords`, so a freshly teleported or spawned entity doesn't fall through unloaded map geometry.
 
 #### Parameters
@@ -82,20 +82,20 @@ This one is **not** built on the shared request → poll → release driver, bec
 ```lua
 SetEntityCoords(PlayerPedId(), x, y, z, false, false, false, false)
 
-QB.stream.loadCollision(vector3(x, y, z), function()
+Kora.stream.loadCollision(vector3(x, y, z), function()
     FreezeEntityPosition(PlayerPedId(), false) -- safe to drop now, ground exists
 end)
 ```
 
 #### Example
 ```lua
-QB.stream.loadAnimDict('missfbi3_party', function(dict)
+Kora.stream.loadAnimDict('missfbi3_party', function(dict)
     TaskPlayAnim(PlayerPedId(), dict, 'dance_solo', 8.0, -8.0, -1, 1, 0, false, false, false)
 end)
 ```
 
 ```lua
-local handle, err = QB.stream.loadScaleformMovie('mp_big_message_freemode')
+local handle, err = Kora.stream.loadScaleformMovie('mp_big_message_freemode')
 if not handle then return print('scaleform failed:', err) end
 ```
 

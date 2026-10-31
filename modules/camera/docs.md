@@ -1,9 +1,9 @@
 # Camera overlay
 
-`QB.camera` owns the scripted camera lifecycle and the reusable, pointer-transparent camera HUD. It supports fixed CCTV networks and live player views for news recording or helicopter optics. It never takes NUI focus, so the game retains camera and movement input.
+`Kora.camera` owns the scripted camera lifecycle and the reusable, pointer-transparent camera HUD. It supports fixed CCTV networks and live player views for news recording or helicopter optics. It never takes NUI focus, so the game retains camera and movement input.
 
 ```lua
-QB.camera.open({
+Kora.camera.open({
     mode = 'cctv',
     title = 'SECURITY NETWORK 202',
     cameras = {
@@ -17,13 +17,13 @@ QB.camera.open({
     },
 })
 
-QB.camera.next()
-QB.camera.previous()
-QB.camera.close('finished')
+Kora.camera.next()
+Kora.camera.previous()
+Kora.camera.close('finished')
 ```
 
-`QB.camera.isOpen()` reports whether the overlay is active. `QB.camera.setRecording(true)` updates the REC indicator while leaving the current view in place.
+`Kora.camera.isOpen()` reports whether the overlay is active. `Kora.camera.setRecording(true)` updates the REC indicator while leaving the current view in place.
 
-Unless `controls = false`, `QB.instructional` shows the live exit and camera-switch controls. The NUI overlay is reserved for camera status and telemetry.
+Unless `controls = false`, `Kora.instructional` shows the live exit and camera-switch controls. The NUI overlay is reserved for camera status and telemetry.
 
 For a player-operated view, omit `cameras` and use `mode = 'recording'`, `mode = 'helicam'`, or `mode = 'operator'`. `viewMode` can temporarily set the GTA follow-camera mode and is restored when the overlay closes.

@@ -1,6 +1,6 @@
 # Configuration
 
-`QB.config` lets a resource keep a normal authored Lua `Config` table while
+`Kora.config` lets a resource keep a normal authored Lua `Config` table while
 registering typed, owner-editable settings. kora_lib never rewrites `config.lua`:
 the owning resource saves only changes to `config.local.lua`.
 
@@ -11,16 +11,16 @@ schema exists on both server and client:
 
 ```lua
 -- config.lua
-Config = QB.config.define({
+Config = Kora.config.define({
     chat = {
-        localRange = QB.config.number(20.0, {
+        localRange = Kora.config.number(20.0, {
             label = 'Local chat range', min = 1, max = 100, live = true,
         }),
-        showDistance = QB.config.boolean(true, { scope = 'client' }),
+        showDistance = Kora.config.boolean(true, { scope = 'client' }),
     },
 })
 
-QB.config.onChange('chat.localRange', function(value, previous)
+Kora.config.onChange('chat.localRange', function(value, previous)
     -- Reconfigure the running resource and return false to refuse the change.
 end)
 ```
@@ -81,10 +81,10 @@ child in the everyday view. Lists, maps, and coordinates default to advanced
 unless explicitly overridden. Ordinary scalar fields default to everyday.
 
 ```lua
-Config = QB.config.define({
-    enabled = QB.config.boolean(true, { label = 'Enable fuel consumption' }),
-    polling = QB.config.object({
-        interval = QB.config.integer(1000, { min = 100, label = 'Update interval (milliseconds)' }),
+Config = Kora.config.define({
+    enabled = Kora.config.boolean(true, { label = 'Enable fuel consumption' }),
+    polling = Kora.config.object({
+        interval = Kora.config.integer(1000, { min = 100, label = 'Update interval (milliseconds)' }),
     }, { advanced = true }),
 })
 ```
@@ -120,7 +120,7 @@ not run for client-scoped settings.
 
 ## Migrating an existing table
 
-Use `QB.config.adopt(Config)` at the end of an existing `config.lua` to retain
+Use `Kora.config.adopt(Config)` at the end of an existing `config.lua` to retain
 its public shape and comments. The bridge infers safe scalar, vector, list,
 map, and object fields. It deliberately omits functions and untyped empty
 tables, since legacy configs commonly use them as callbacks or resource-filled
@@ -135,7 +135,7 @@ Pass `{ descriptions = { ['feature.setting'] = '...' } }` to `define` or
 Common abbreviations such as API, ID, MDT, NPC, TTL, and UI remain capitalised
 in generated labels.
 
-Use `QB.config.extend(values, { scope = 'server' })` from a later
+Use `Kora.config.extend(values, { scope = 'server' })` from a later
 `server/config.lua` to add a server-only branch without putting it in a
 client-downloaded config file. `scope = 'client'` is supported for an
 equivalent client-only branch when the server also declares the schema.
@@ -176,7 +176,7 @@ Every registered resource remains in the sidebar while a setting is edited;
 the overview also shows its editable-setting count and availability. Sensitive
 fields are removed before they reach the workspace. Grant access explicitly
 with `add_ace <principal> kora_lib.config.edit allow` (the deprecated `qblib.config.edit` ACE is still honoured); kora_admin may optionally open
-the workspace through `QB.config.open()` but is not required.
+the workspace through `Kora.config.open()` but is not required.
 
 The initial catalog transfers only sanitized schemas. Saved and running values
 are fetched when a resource is opened from either the overview or sidebar,
@@ -196,15 +196,15 @@ must be applied from the server console or during a normal server restart.
 The following server API is primarily for privileged integration points such
 as kora_admin; ordinary resources use the consumer API above:
 
-- `QB.config.catalog()` lists registered resource schemas.
-- `QB.config.read(resource)` returns schema, saved values, running values, and
+- `Kora.config.catalog()` lists registered resource schemas.
+- `Kora.config.read(resource)` returns schema, saved values, running values, and
   revision.
-- `QB.config.commit(resource, request)` validates and delegates a save to the
+- `Kora.config.commit(resource, request)` validates and delegates a save to the
   resource-local bridge.
-- `QB.config.reset(resource, request)` removes one override through that
+- `Kora.config.reset(resource, request)` removes one override through that
   bridge.
 
-`QB.config.register(definition)` is kora_lib’s internal bridge registration API.
+`Kora.config.register(definition)` is kora_lib’s internal bridge registration API.
 It only accepts a registration from the resource it names. Its `revision` is a
 positive integer: the consumer begins at `1` and increments it after every
 accepted edit, allowing stale editor saves to be refused deterministically.
@@ -220,22 +220,22 @@ through `bind`, rather than repeatedly calling an export in gameplay code:
 
 ```lua
 local targetSettings
-QB.config.bind('qbtarget', { 'target' }, function(value)
+Kora.config.bind('qbtarget', { 'target' }, function(value)
     targetSettings = value
     rebuildTargeting(value)
 end)
 ```
 
-`QB.config.get(resource, path)` returns a copied active value, or
-`nil, 'not_ready'` before its snapshot arrives. `QB.config.whenReady({
+`Kora.config.get(resource, path)` returns a copied active value, or
+`nil, 'not_ready'` before its snapshot arrives. `Kora.config.whenReady({
 'qbtarget', 'qbhud' }, handler)` runs once the listed active snapshots are
 available. Bindings receive an initial callback and subsequent live active
 changes. They are process-local: kora_lib distributes network snapshots to each
 client resource and broadcasts server changes locally, so no gameplay read
 performs database or export work.
 
-Owners can use `QB.config.register(values, options)` as the named alias of
-`define`, `QB.config.onValidate(handler)` to reject a complete proposed server
-snapshot, and `QB.config.onApply(handler)` to reconfigure server behavior for
+Owners can use `Kora.config.register(values, options)` as the named alias of
+`define`, `Kora.config.onValidate(handler)` to reject a complete proposed server
+snapshot, and `Kora.config.onApply(handler)` to reconfigure server behavior for
 eligible live changes. Validation and apply hooks run only on the owning
 server; client-scoped fields do not invoke server apply hooks.

@@ -5,18 +5,18 @@ also be tracked and authorized server-side.
 
 ## Definitions (shared)
 
-`QB.status.registerEffect(name, def) -> boolean, error?` registers duration, stacking
+`Kora.status.registerEffect(name, def) -> boolean, error?` registers duration, stacking
 (`replace`, `extend`, or `stack`), severity levels, screen/particle effects,
-animation, and movement multiplier. `QB.status.getEffectDef(name)` returns the
+animation, and movement multiplier. `Kora.status.getEffectDef(name)` returns the
 definition or `nil`. Register definitions from a shared script so both realms
 see them.
 
-### `QB.status.assertName(name)`
+### `Kora.status.assertName(name)`
 
 Validates an effect name as a non-empty string of at most 128 bytes. This is
 also called by every status operation before it reads or changes state.
 
-### `QB.status.registerEffect(name, def)`
+### `Kora.status.registerEffect(name, def)`
 
 `name` is a non-empty string of at most 128 bytes. Every public operation that
 accepts an effect name validates this contract before reading or changing state.
@@ -38,7 +38,7 @@ resource receives `false, error` rather than silently replacing it. Definitions
 are removed when their owning resource stops, so restartable resources do not
 leave stale effects behind.
 
-### `QB.status.getEffectDef(name) -> def|nil`
+### `Kora.status.getEffectDef(name) -> def|nil`
 
 Returns a deep copy of the registered definition. Registration also stores a
 deep copy, so neither later mutations to the caller's table nor mutations to a
@@ -46,12 +46,12 @@ returned definition can change the live effect configuration.
 
 ## Application (client/server)
 
-### `QB.status.apply`
+### `Kora.status.apply`
 
 | Realm | Signature | Result |
 | --- | --- | --- |
-| client | `QB.status.apply(name, opts?)` | `true` after local state and presentation are applied. |
-| server | `QB.status.apply(target, name, opts?)` | `true`, or `false, reason` for an unknown effect. `target` must be a positive integer server ID. |
+| client | `Kora.status.apply(name, opts?)` | `true` after local state and presentation are applied. |
+| server | `Kora.status.apply(target, name, opts?)` | `true`, or `false, reason` for an unknown effect. `target` must be a positive integer server ID. |
 
 Apply options are `duration` (a finite, non-negative integer milliseconds) and
 `severity` (a finite, positive integer). Both realms validate the options before
@@ -65,8 +65,8 @@ cosmetic state and use the same stacking rules.
 
 | Realm | Remove | Query one | Query all |
 | --- | --- | --- | --- |
-| client | `QB.status.remove(name) -> boolean` | `QB.status.isActive(name) -> boolean` | `QB.status.getActive() -> entries` |
-| server | `QB.status.remove(target, name) -> boolean` | `QB.status.isActive(target, name) -> boolean` | `QB.status.getActive(target) -> entries` |
+| client | `Kora.status.remove(name) -> boolean` | `Kora.status.isActive(name) -> boolean` | `Kora.status.getActive() -> entries` |
+| server | `Kora.status.remove(target, name) -> boolean` | `Kora.status.isActive(target, name) -> boolean` | `Kora.status.getActive(target) -> entries` |
 
 Each active entry contains `name`, optional `severity`, and optional
 `expiresAt` (the game-timer deadline in milliseconds). Removing an absent
@@ -85,9 +85,9 @@ effect is removed.
 
 ## Client changes
 
-`QB.status.onChange(handler)` returns a listener ID and calls
+`Kora.status.onChange(handler)` returns a listener ID and calls
 `handler(name, applied)` on every local apply/remove. Remove it with
-`QB.status.offChange(listenerId) -> boolean`; another resource cannot remove
+`Kora.status.offChange(listenerId) -> boolean`; another resource cannot remove
 the listener. Listeners and active render state also clean up with their owning
 resource.
 
@@ -101,7 +101,7 @@ proof that the client applied or completed an effect.
 
 ```lua
 -- server.lua
-local ok, reason = QB.status.apply(source, 'bleeding', {
+local ok, reason = Kora.status.apply(source, 'bleeding', {
     duration = 30000,
     severity = 2,
 })

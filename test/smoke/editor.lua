@@ -13,7 +13,7 @@ dofile(repoRoot .. 'build/initiate.lua')
 local granted = false
 local legacyGranted = false
 local notices = {}
-QB.permissions = {
+Kora.permissions = {
     hasPermission = function(src, permission, prefix)
         harness.assertEqual(src, mocks.SOURCE)
         harness.assertEqual(permission, Config.editor.permission)
@@ -23,7 +23,7 @@ QB.permissions = {
         return granted
     end,
 }
-QB.notify = {
+Kora.notify = {
     send = function(src, payload) notices[#notices + 1] = { src = src, payload = payload } end,
 }
 

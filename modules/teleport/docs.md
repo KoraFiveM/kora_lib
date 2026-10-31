@@ -1,14 +1,14 @@
 # Teleport module
 
 Moves local entities or the local player, with a screen fade by default. The
-module owns movement; `QB.visuals.fade` is only the visual transition.
+module owns movement; `Kora.visuals.fade` is only the visual transition.
 
-## `QB.teleport.player(coords, opts?)`
+## `Kora.teleport.player(coords, opts?)`
 
-Moves `QB.cache.ped()` to finite `coords`. A vector4's finite `.w` (or a
+Moves `Kora.cache.ped()` to finite `coords`. A vector4's finite `.w` (or a
 table's finite `.heading`) is applied after the move.
 
-## `QB.teleport.entity(entity, coords, opts?)`
+## `Kora.teleport.entity(entity, coords, opts?)`
 
 Moves any existing local entity with the same finite-coordinate and heading behavior.
 `entity` must be a positive finite integer handle.
@@ -18,11 +18,11 @@ or `false` to move immediately without fading. Options must be a table; fade
 must be `false`, `true`, or a finite number.
 
 ```lua
-QB.teleport.player(vector4(1073.0, -3102.49, -39.0, 266.61))
-QB.teleport.entity(vehicle, destination, { fade = false })
+Kora.teleport.player(vector4(1073.0, -3102.49, -39.0, 266.61))
+Kora.teleport.entity(vehicle, destination, { fade = false })
 ```
 
-## `QB.teleport.toWaypoint(opts?)`
+## `Kora.teleport.toWaypoint(opts?)`
 
 Moves the current vehicle when the local player is its driver, otherwise the
 player ped, to the active map waypoint. It launches the entity above the

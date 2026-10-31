@@ -39,7 +39,7 @@ upstream implementation.
 
 The browser-facing alert, context, input, list menu, notification, progress,
 radial, skill-check, TextUI, clipboard, and focus contracts are forwarded to
-`QB.ox` in kora_lib. This preserves a single NUI document, composable focus
+`Kora.ox` in kora_lib. This preserves a single NUI document, composable focus
 leases, and owner-scoped cleanup instead of running a second permanent UI.
 The bridge retains the original consuming resource name so stopping one script
 only removes that script's registrations and active interactions.

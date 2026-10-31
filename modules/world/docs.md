@@ -5,7 +5,7 @@ The world module answers "what already exists near me right now" by reading the 
 
 ## API
 
-### `QB.world.getNearbyEntities(entityType, coords, radius, options)`
+### `Kora.world.getNearbyEntities(entityType, coords, radius, options)`
 Finds every entity of `entityType` within `radius` meters of `coords`.
 
 #### Parameters
@@ -22,7 +22,7 @@ Finds every entity of `entityType` within `radius` meters of `coords`.
 #### Returns
 - `{entity: number, coords: table, distance: number}[]` — sorted ascending by distance.
 
-### `QB.world.getClosestEntity(entityType, coords, options)`
+### `Kora.world.getClosestEntity(entityType, coords, options)`
 Finds the single nearest entity of `entityType` to `coords`.
 
 #### Parameters
@@ -38,7 +38,7 @@ Finds the single nearest entity of `entityType` to `coords`.
 
 #### Example
 ```lua
-local nearest, coords, distance = QB.world.getClosestEntity("vehicle", GetEntityCoords(PlayerPedId()), { radius = 15.0 })
+local nearest, coords, distance = Kora.world.getClosestEntity("vehicle", GetEntityCoords(PlayerPedId()), { radius = 15.0 })
 if nearest then
     print(("nearest vehicle is %.1fm away"):format(distance))
 end
@@ -68,7 +68,7 @@ end
 
 ## Small helpers
 
-### `QB.world.getGroundCoords(coords, options?)` (client)
+### `Kora.world.getGroundCoords(coords, options?)` (client)
 
 Requests collision and performs a bounded ground search. `height` must be
 finite; `attempts` must be a positive finite integer and `retryDelay` a
@@ -76,34 +76,34 @@ non-negative finite integer. Defaults come from `Config.world`. Returns the
 resolved `{x, y, z}`, or `false, error`. A default applies only when its option
 is omitted; explicit invalid values are rejected.
 
-### `QB.world.getStreetNames(coords?)` (client)
+### `Kora.world.getStreetNames(coords?)` (client)
 
 Returns `street, crossing?` using the cached player coordinates when omitted;
 an explicit coordinate value must be valid.
 
-### `QB.world.getZoneName(coords?)` (client)
+### `Kora.world.getZoneName(coords?)` (client)
 
 Returns `localizedLabel, zoneCode` for the given or cached coordinates. An
 explicit coordinate value must be valid.
 
-### `QB.world.getCardinalDirection(value?, options?)` (client)
+### `Kora.world.getCardinalDirection(value?, options?)` (client)
 
 Returns one of `N`, `NW`, `W`, `SW`, `S`, `SE`, `E`, or `NE`. `value` is a
 finite heading in degrees. With `{ entity = true }`, it is treated as an entity
 handle; when omitted the cached player ped is used. When supplied, `options`
 must be a table and `entity` must be boolean.
 
-### `QB.world.getWaypointCoords()` (client)
+### `Kora.world.getWaypointCoords()` (client)
 
 Returns the active waypoint as `{x, y, z}`, or `false, error` when none is set.
 
-### `QB.world.isSpawnClear(coords, radius, options?)` (client/server)
+### `Kora.world.isSpawnClear(coords, radius, options?)` (client/server)
 
 Returns whether no vehicle is within the finite positive radius. It accepts the normal world
 query filters; the client intentionally includes invisible streamed vehicles
 because they still occupy the spawn point.
 
-### `QB.world.resolveNetworkEntity(source, networkId, options?)` (server)
+### `Kora.world.resolveNetworkEntity(source, networkId, options?)` (server)
 
 Resolves a client-supplied finite network ID and validates the live entity before
 server code acts on it. Options are `entityType` (`ped`, `vehicle`, or
@@ -113,7 +113,7 @@ is a stable code such as `invalid_network_id`, `entity_unavailable`,
 `wrong_entity_type`, `player_unavailable`, `routing_bucket_mismatch`,
 `too_far`, or `driver_required`.
 
-### `QB.world.resolveNearbyPlayer(source, targetSource, options)` (server)
+### `Kora.world.resolveNearbyPlayer(source, targetSource, options)` (server)
 
 Validates two live player peds using server-authoritative coordinates. Source
 and target IDs must be positive finite integers. The
@@ -124,7 +124,7 @@ and distance. On failure it returns `nil` with a stable code:
 `target_unavailable`, `routing_bucket_mismatch`, or `too_far`.
 
 ```lua
-local targetPed, distanceOrReason = QB.world.resolveNearbyPlayer(source, targetSource, {
+local targetPed, distanceOrReason = Kora.world.resolveNearbyPlayer(source, targetSource, {
     maxDistance = 3.0,
 })
 if not targetPed then return false, distanceOrReason end

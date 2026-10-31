@@ -4,12 +4,12 @@
 Client-side, owner-tracked FiveM `+command`/`-command` mappings with press and
 release callbacks, live disabled/pressed state, primary and secondary defaults,
 and resource-stop cleanup. The same registry hosts server-owned command
-keybindings synchronized by `QB.commands.add(..., { keybind = ... })`.
+keybindings synchronized by `Kora.commands.add(..., { keybind = ... })`.
 
 ## Public API
-- `QB.keybind.add(name, label, defaultKey, handler, mapper?) -> handle`
-- `QB.keybind.remove(name)`
-- `QB.keybind.list()`
+- `Kora.keybind.add(name, label, defaultKey, handler, mapper?) -> handle`
+- `Kora.keybind.remove(name)`
+- `Kora.keybind.list()`
 
 The handle exposes `disable(toggle)`, `isDisabled()`, `isPressed()`,
 `getCurrentBinding()`, and `remove()`. Callback errors are contained and logged.

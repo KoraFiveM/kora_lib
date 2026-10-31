@@ -1,4 +1,4 @@
--- QB.config's consumer bridge is deliberately plain-Lua testable: config
+-- Kora.config's consumer bridge is deliberately plain-Lua testable: config
 -- ownership and persistence happen in the consuming VM, rather than through a
 -- kora_lib export with hidden cross-resource filesystem access.
 

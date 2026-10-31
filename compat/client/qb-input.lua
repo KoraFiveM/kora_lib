@@ -1,7 +1,7 @@
 -- Drop-in compatibility bridge: translates the real, public qb-input API
--- (exports['qb-input']:ShowInput) onto QB.nui.openInputDialog, kora_lib's own
+-- (exports['qb-input']:ShowInput) onto Kora.nui.openInputDialog, kora_lib's own
 -- native replacement. qb-input itself is being deprecated in favour of
--- QB.nui.openInputDialog -- this file exists so a script written against
+-- Kora.nui.openInputDialog -- this file exists so a script written against
 -- exports['qb-input']:ShowInput(...) keeps working unmodified while it
 -- migrates, exactly the same shape of shim as
 -- kora_target/client/compat/ox-target.lua and kora_core/compat/*.
@@ -9,20 +9,20 @@
 -- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
 -- mapping table and the caveats flagged below.
 
--- QB.compat.provideExport registers the hidden CFX export event under the
+-- Kora.compat.provideExport registers the hidden CFX export event under the
 -- legacy `qb-input` identity; `provide 'qb-input'` alone only satisfies
 -- dependency checks.
 
 -- Warned once per resource run -- same reasoning as qb-menu compat's
 -- warnIconOnce: real qb-input inputs carry a Font Awesome `icon` class that
--- QB.nui.openInputDialog's InputField has no equivalent field for at all, so
+-- Kora.nui.openInputDialog's InputField has no equivalent field for at all, so
 -- it's dropped rather than guessed at.
 local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
     warnedIcon = true
     print("[qb-input-bridge] WARNING: input 'icon' fields (Font Awesome classes) have no equivalent on "
-        .. "QB.nui.openInputDialog's fields -- icons are dropped. Only shown once per session.")
+        .. "Kora.nui.openInputDialog's fields -- icons are dropped. Only shown once per session.")
 end
 
 -- Warned once per (unrecognized) type name rather than globally -- unlike
@@ -40,7 +40,7 @@ local function warnUnknownTypeOnce(inputType)
 end
 
 -- radio/select options carry {value, text} in real qb-input (some forks use
--- `label` instead of `text`); QB.nui's field expects {value, label} with
+-- `label` instead of `text`); Kora.nui's field expects {value, label} with
 -- both stringified -- Select's value plumbing (web/src/components/ui/select.tsx)
 -- is string-keyed throughout.
 local function translateOptions(options)
@@ -66,7 +66,7 @@ end
 -- html/script.js: `renderCheckboxInput` sets `formInputs[option.value] =
 -- option.checked and "true" or "false"` for every option, and `name` is
 -- only used to group the `<input>` elements in the DOM, not as a result key.
--- QB.nui.openInputDialog's `checkbox` field type is a single boolean keyed
+-- Kora.nui.openInputDialog's `checkbox` field type is a single boolean keyed
 -- by its own `id` -- there is no multi-option checkbox-group widget to route
 -- to -- so one real checkbox input with options expands into N separate
 -- boolean fields here, one per option, each keyed by that option's OWN
@@ -90,7 +90,7 @@ local function translateCheckboxOptions(input, fields)
 end
 
 -- Maps one real qb-input `inputs[]` entry onto an InputField. `name` becomes
--- `id` directly -- QB.nui.openInputDialog's result is `{ values = { [id] = value } }`,
+-- `id` directly -- Kora.nui.openInputDialog's result is `{ values = { [id] = value } }`,
 -- so keeping id == name means the legacy `result[name]` lookup keeps working
 -- with zero reshaping once ShowInput gets the response back.
 local function translateField(input)
@@ -123,7 +123,7 @@ local function translateField(input)
         -- whichever is actually set.
         if input.checked ~= nil then field.default = input.checked end
     elseif inputType == "radio" or inputType == "select" then
-        -- QB.nui.openInputDialog has no dedicated radio-group widget --
+        -- Kora.nui.openInputDialog has no dedicated radio-group widget --
         -- `select` is the closest equivalent (single value from a fixed
         -- option list), so `radio` collapses onto it rather than being
         -- refused outright.
@@ -145,7 +145,7 @@ end
 
 -- Real ShowInput blocks the calling coroutine and returns either a table of
 -- `{ [name]: value }` (submit) or `false` (cancel) -- never a promise the
--- caller has to unwrap. QB.nui.openInputDialog already performs that wait when
+-- caller has to unwrap. Kora.nui.openInputDialog already performs that wait when
 -- this compatibility export was invoked by another resource. A direct kora_lib
 -- invocation still returns a promise, so retain the await for that path.
 local function showInput(data)
@@ -170,7 +170,7 @@ local function showInput(data)
 
     inputOpen = true
     local ok, result = pcall(function()
-        local response = QB.nui.openInputDialog(fields, data.header)
+        local response = Kora.nui.openInputDialog(fields, data.header)
         if not calledFromExport then return Citizen.Await(response) end
         return response
     end)
@@ -181,4 +181,4 @@ local function showInput(data)
     return result.values
 end
 
-QB.compat.provideExport("qb-input", "ShowInput", showInput)
+Kora.compat.provideExport("qb-input", "ShowInput", showInput)

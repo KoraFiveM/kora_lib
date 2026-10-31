@@ -6,11 +6,11 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
--- QB.status.apply/remove are defined on BOTH realms with the same name --
+-- Kora.status.apply/remove are defined on BOTH realms with the same name --
 -- server: apply(target, name, opts), client: apply(name, opts). Same
 -- capture-by-reference-before-overwrite trick test/smoke/callback.lua uses
--- for QB.callback.register/trigger: grab the server versions right after
--- server.lua loads, before client.lua's load overwrites the same QB.status
+-- for Kora.callback.register/trigger: grab the server versions right after
+-- server.lua loads, before client.lua's load overwrites the same Kora.status
 -- table slots.
 local net = mocks.install()
 local clock = 0
@@ -31,12 +31,12 @@ dofile(repoRoot .. "local/events/client.lua") -- its startup CreateThread comple
 dofile(repoRoot .. "modules/status/shared.lua")
 
 dofile(repoRoot .. "modules/status/server.lua")
-local serverApply = QB.status.apply
-local serverRemove = QB.status.remove
-local serverIsActive = QB.status.isActive
-local serverGetActive = QB.status.getActive
+local serverApply = Kora.status.apply
+local serverRemove = Kora.status.remove
+local serverIsActive = Kora.status.isActive
+local serverGetActive = Kora.status.getActive
 
--- Fakes for QB.fx/QB.anim, standing in for their real modules (each has its
+-- Fakes for Kora.fx/Kora.anim, standing in for their real modules (each has its
 -- own smoke test already) -- status/client.lua only needs their public shape.
 local ptfxStarts, ptfxStops = {}, {}
 local screenStarts, screenStops = {}, {}
@@ -44,7 +44,7 @@ local animStarts, animStops = {}, {}
 local nextHandle = 0
 local moveRateCalls = 0
 
-QB.fx = {
+Kora.fx = {
     playPtfx = function(def)
         nextHandle = nextHandle + 1
         ptfxStarts[#ptfxStarts + 1] = def
@@ -58,7 +58,7 @@ QB.fx = {
     stopScreenEffect = function(handle) screenStops[#screenStops + 1] = handle.name; return true end,
 }
 
-QB.anim = {
+Kora.anim = {
     play = function(entity, dict, clip)
         animStarts[#animStarts + 1] = { entity = entity, dict = dict, clip = clip }
         return { entity = entity, dict = dict, clip = clip }
@@ -73,73 +73,73 @@ function _G.SetPedMoveRateOverride(ped, mult)
 end
 
 dofile(repoRoot .. "modules/status/client.lua")
-local clientApply = QB.status.apply
-local clientRemove = QB.status.remove
-local clientIsActive = QB.status.isActive
-local clientGetActive = QB.status.getActive
+local clientApply = Kora.status.apply
+local clientRemove = Kora.status.remove
+local clientIsActive = Kora.status.isActive
+local clientGetActive = Kora.status.getActive
 
-QB.status.registerEffect("bleeding", { duration = 1000, severityLevels = 4, movement = { speedMultiplier = 0.95 } })
-QB.status.registerEffect("injured_leg", { movement = { speedMultiplier = 0.8 } })
-QB.status.registerEffect("high_weed", { duration = 500, fx = { screen = "DrugsMichaelAliensFightIn", ptfx = { dict = "weed_fx", name = "weed_smoke" } }, anim = { dict = "weed@smoke", clip = "loop" } })
-QB.status.registerEffect("stackable", { severityLevels = 10, stacking = "stack" })
-QB.status.registerEffect("extendable", { duration = 1000, stacking = "extend" })
+Kora.status.registerEffect("bleeding", { duration = 1000, severityLevels = 4, movement = { speedMultiplier = 0.95 } })
+Kora.status.registerEffect("injured_leg", { movement = { speedMultiplier = 0.8 } })
+Kora.status.registerEffect("high_weed", { duration = 500, fx = { screen = "DrugsMichaelAliensFightIn", ptfx = { dict = "weed_fx", name = "weed_smoke" } }, anim = { dict = "weed@smoke", clip = "loop" } })
+Kora.status.registerEffect("stackable", { severityLevels = 10, stacking = "stack" })
+Kora.status.registerEffect("extendable", { duration = 1000, stacking = "extend" })
 
 harness.test("registerEffect rejects an invalid stacking mode", function()
     harness.assertThrows(function()
-        QB.status.registerEffect("bad", { stacking = "nonsense" })
+        Kora.status.registerEffect("bad", { stacking = "nonsense" })
     end, "an unknown stacking mode should be rejected")
 end)
 
 harness.test("registerEffect validates duration and severity definitions", function()
     harness.assertThrows(function()
-        QB.status.registerEffect("bad_duration", { duration = -1 })
+        Kora.status.registerEffect("bad_duration", { duration = -1 })
     end, "a negative definition duration should be rejected")
     harness.assertThrows(function()
-        QB.status.registerEffect("bad_levels", { severityLevels = 1.5 })
+        Kora.status.registerEffect("bad_levels", { severityLevels = 1.5 })
     end, "fractional severity levels should be rejected")
     harness.assertThrows(function()
-        QB.status.registerEffect("bad_movement", { movement = { speedMultiplier = math.huge } })
+        Kora.status.registerEffect("bad_movement", { movement = { speedMultiplier = math.huge } })
     end, "an infinite movement multiplier must fail before the per-frame loop")
     harness.assertThrows(function()
-        QB.status.registerEffect('bad_ptfx', { fx = { ptfx = { dict = 'smoke' } } })
+        Kora.status.registerEffect('bad_ptfx', { fx = { ptfx = { dict = 'smoke' } } })
     end, 'a particle definition without a name must fail before application')
     harness.assertThrows(function()
-        QB.status.registerEffect('bad_anim', { anim = { dict = 'anim' } })
+        Kora.status.registerEffect('bad_anim', { anim = { dict = 'anim' } })
     end, 'an animation definition without a clip must fail before application')
 end)
 
 harness.test("status definitions are owner-scoped and cleaned up on resource stop", function()
     _G.GetInvokingResource = function() return "definition_owner" end
-    harness.assertTrue(QB.status.registerEffect("owned_definition", { duration = 100 }),
+    harness.assertTrue(Kora.status.registerEffect("owned_definition", { duration = 100 }),
         "the owner should register its definition")
 
     _G.GetInvokingResource = function() return "other_resource" end
-    local registered, reason = QB.status.registerEffect("owned_definition", { duration = 200 })
+    local registered, reason = Kora.status.registerEffect("owned_definition", { duration = 200 })
     harness.assertFalse(registered, "another resource must not replace the definition")
     harness.assertTrue(reason ~= nil, "the ownership refusal should explain why")
-    harness.assertEqual(QB.status.getEffectDef("owned_definition").duration, 100,
+    harness.assertEqual(Kora.status.getEffectDef("owned_definition").duration, 100,
         "the foreign replacement must leave the original definition intact")
 
     net.fire("onClientResourceStop", "definition_owner")
-    harness.assertEqual(QB.status.getEffectDef("owned_definition"), nil,
+    harness.assertEqual(Kora.status.getEffectDef("owned_definition"), nil,
         "stopping the owner should remove its definition")
-    harness.assertTrue(QB.status.registerEffect("owned_definition", { duration = 200 }),
+    harness.assertTrue(Kora.status.registerEffect("owned_definition", { duration = 200 }),
         "the name should become available after cleanup")
     _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("status definitions cannot be mutated through caller tables or reads", function()
     local definition = { duration = 100, movement = { speedMultiplier = 0.8 } }
-    harness.assertTrue(QB.status.registerEffect("immutable_definition", definition),
+    harness.assertTrue(Kora.status.registerEffect("immutable_definition", definition),
         "the definition should register")
 
     definition.duration = 200
     definition.movement.speedMultiplier = 0.5
-    local read = QB.status.getEffectDef("immutable_definition")
+    local read = Kora.status.getEffectDef("immutable_definition")
     read.duration = 300
     read.movement.speedMultiplier = 0.2
 
-    local stored = QB.status.getEffectDef("immutable_definition")
+    local stored = Kora.status.getEffectDef("immutable_definition")
     harness.assertEqual(stored.duration, 100, "caller mutations must not change the stored duration")
     harness.assertEqual(stored.movement.speedMultiplier, 0.8,
         "returned definitions must not expose nested live tables")
@@ -183,8 +183,8 @@ end)
 -- "server apply pushes..." test above already covered honestly. The
 -- previously captured `clientApply`/`clientRemove`/`clientIsActive` locals
 -- are unaffected -- they still call the real client implementation directly.
-QB.status.apply = function() end
-QB.status.remove = function() end
+Kora.status.apply = function() end
+Kora.status.remove = function() end
 
 harness.test("client-local apply/remove renders and tears down fx/anim/movement", function()
     clientApply("bleeding", { severity = 2 })
@@ -199,15 +199,15 @@ harness.test("client-local apply/remove renders and tears down fx/anim/movement"
 end)
 
 harness.test('a failed visual setup rolls back earlier status visuals', function()
-    QB.status.registerEffect('rollback_visual', {
+    Kora.status.registerEffect('rollback_visual', {
         fx = { screen = 'DrugsMichaelAliensFightIn', ptfx = { dict = 'broken_fx', name = 'broken' } },
     })
-    local originalPlayPtfx = QB.fx.playPtfx
+    local originalPlayPtfx = Kora.fx.playPtfx
     local stoppedBefore = #screenStops
-    QB.fx.playPtfx = function() error('ptfx setup failed') end
+    Kora.fx.playPtfx = function() error('ptfx setup failed') end
 
     harness.assertThrows(function() clientApply('rollback_visual') end)
-    QB.fx.playPtfx = originalPlayPtfx
+    Kora.fx.playPtfx = originalPlayPtfx
 
     harness.assertEqual(#screenStops, stoppedBefore + 1,
         'a later visual failure must stop the screen effect that already started')
@@ -258,7 +258,7 @@ harness.test("status application validates public input before state changes", f
         serverApply(mocks.SOURCE, "bleeding", { duration = math.huge })
     end, "an infinite server duration should be rejected")
     harness.assertThrows(function()
-        QB.status.registerEffect("infinite_duration", { duration = math.huge })
+        Kora.status.registerEffect("infinite_duration", { duration = math.huge })
     end, "an infinite definition duration should be rejected")
     harness.assertThrows(function()
         clientApply("bleeding", { severity = 1.5 })
@@ -279,7 +279,7 @@ harness.test("status application validates public input before state changes", f
         clientRemove(false)
     end, "client removal should validate effect names")
     harness.assertThrows(function()
-        QB.status.getEffectDef(false)
+        Kora.status.getEffectDef(false)
     end, "definition lookups should validate effect names")
 end)
 
@@ -392,16 +392,16 @@ end)
 harness.test("foreign resources cannot remove status change listeners", function()
     _G.GetInvokingResource = function() return "status_listener_owner" end
     local calls = 0
-    local listenerId = QB.status.onChange(function() calls = calls + 1 end)
+    local listenerId = Kora.status.onChange(function() calls = calls + 1 end)
 
     _G.GetInvokingResource = function() return "other_resource" end
-    harness.assertFalse(QB.status.offChange(listenerId), "a foreign resource must not remove the listener")
+    harness.assertFalse(Kora.status.offChange(listenerId), "a foreign resource must not remove the listener")
     clientApply("injured_leg")
     clientRemove("injured_leg")
     harness.assertEqual(calls, 2, "the foreign removal must leave the listener active")
 
     _G.GetInvokingResource = function() return "status_listener_owner" end
-    harness.assertTrue(QB.status.offChange(listenerId), "the owner should remove the listener")
+    harness.assertTrue(Kora.status.offChange(listenerId), "the owner should remove the listener")
     _G.GetInvokingResource = function() return nil end
 end)
 

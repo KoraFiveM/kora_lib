@@ -3,7 +3,7 @@
 Client-side vehicle helpers. Persistent garage, ownership, impound, and payment
 rules remain in kora_core or the resource that owns them.
 
-`QB.vehicle.normalizePlate(value, options?)` is shared across client and server.
+`Kora.vehicle.normalizePlate(value, options?)` is shared across client and server.
 It trims and uppercases plates, collapses internal whitespace, validates
 alphanumeric characters, and enforces an eight-character default maximum.
 Use `whitespace = 'remove'`/`'preserve'`, `characters = 'any'`, or `maxLength`
@@ -15,21 +15,21 @@ options are rejected before kora_lib requests entity control or calls a vehicle
 native. Vehicle handles must be positive finite integers; inspection helpers
 return `false` for an invalid handle, while `delete` rejects one.
 
-- `QB.vehicle.requestControl(entity, timeout?)` requests network control.
-- `QB.vehicle.delete(vehicle, { timeout? })` obtains control and deletes it.
-- `QB.vehicle.isDriver(vehicle)` checks the local driver seat.
-- `QB.vehicle.model(vehicle)` returns its model hash or `false`.
-- `QB.vehicle.plate(vehicle)` returns a whitespace-trimmed plate or `false`.
-- `QB.vehicle.label(vehicle)` returns its localized label with display-name fallback.
+- `Kora.vehicle.requestControl(entity, timeout?)` requests network control.
+- `Kora.vehicle.delete(vehicle, { timeout? })` obtains control and deletes it.
+- `Kora.vehicle.isDriver(vehicle)` checks the local driver seat.
+- `Kora.vehicle.model(vehicle)` returns its model hash or `false`.
+- `Kora.vehicle.plate(vehicle)` returns a whitespace-trimmed plate or `false`.
+- `Kora.vehicle.label(vehicle)` returns its localized label with display-name fallback.
 
-## `QB.vehicle.getProperties(vehicle)`
+## `Kora.vehicle.getProperties(vehicle)`
 
 Returns a QBCore-compatible property snapshot, or `false, error` for an invalid
 vehicle. It includes health/fuel, numeric or custom colors, wheel configuration,
 tyre/window/door damage, neon/xenon/smoke settings, extras `0–20`, all standard
 mod slots, toggle mods, and livery fields.
 
-## `QB.vehicle.setProperties(vehicle, properties, opts?)`
+## `Kora.vehicle.setProperties(vehicle, properties, opts?)`
 
 Obtains network control before applying any change (`opts.timeout`, default
 1000ms), then applies the same QBCore-compatible schema. It returns

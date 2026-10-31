@@ -20,7 +20,7 @@ dofile(repoRoot .. 'modules/util/shared.lua')
 
 -- Client module fixtures: NUI requests resolve immediately so this plain Lua
 -- test can verify the capture wrapper without a browser or native texture.
-QB.nui = {
+Kora.nui = {
     request = function(action, payload)
         nuiRequests[#nuiRequests + 1] = { action = action, payload = payload }
         local p = promise.new()
@@ -61,34 +61,34 @@ dofile(repoRoot .. 'compat/shared.lua')
 dofile(repoRoot .. 'compat/client/screenshot-basic.lua')
 
 harness.test('client capture resolves the NUI data URI', function()
-    local result = Citizen.Await(QB.screenshot.capture({ encoding = 'jpg', maxWidth = 1280 }))
+    local result = Citizen.Await(Kora.screenshot.capture({ encoding = 'jpg', maxWidth = 1280 }))
     harness.assertEqual(result, 'data:image/jpeg;base64,/9j/c21va2U=', 'capture should pass the browser data URI through')
 end)
 
 harness.test('client capture rejects an unsupported image format', function()
     harness.assertThrows(function()
-        QB.screenshot.capture({ encoding = 'gif' })
+        Kora.screenshot.capture({ encoding = 'gif' })
     end, 'invalid encodings must not reach the NUI')
 end)
 
 harness.test('client capture and upload reject non-finite dimensions and timeouts', function()
     harness.assertThrows(function()
-        QB.screenshot.capture({ maxWidth = math.huge })
+        Kora.screenshot.capture({ maxWidth = math.huge })
     end, 'infinite dimensions must not reach the NUI')
     harness.assertThrows(function()
-        QB.screenshot.capture({}, math.huge)
+        Kora.screenshot.capture({}, math.huge)
     end, 'infinite capture timeouts must not reach the NUI')
     harness.assertThrows(function()
-        QB.screenshot.upload('https://example.invalid', nil, {}, math.huge)
+        Kora.screenshot.upload('https://example.invalid', nil, {}, math.huge)
     end, 'infinite upload timeouts must not reach the NUI')
     harness.assertThrows(function()
-        QB.screenshot.capture(false)
+        Kora.screenshot.capture(false)
     end, 'false capture options must not silently default')
     harness.assertThrows(function()
-        QB.screenshot.capture({ encoding = false })
+        Kora.screenshot.capture({ encoding = false })
     end, 'false encoding must not silently default')
     harness.assertThrows(function()
-        QB.screenshot.capture({}, false)
+        Kora.screenshot.capture({}, false)
     end, 'false capture timeout must not silently default')
 end)
 
@@ -123,23 +123,23 @@ end)
 harness.test('invalid request values do not reserve the player capture slot', function()
     for _, timeout in ipairs({ 0, 1000, 1500.5, math.huge, 'invalid' }) do
         harness.assertThrows(function()
-            QB.screenshot.requestClient(mocks.SOURCE, { timeout = timeout })
+            Kora.screenshot.requestClient(mocks.SOURCE, { timeout = timeout })
         end)
     end
     harness.assertThrows(function()
-        QB.screenshot.requestClient(math.huge, { timeout = 30000 })
+        Kora.screenshot.requestClient(math.huge, { timeout = 30000 })
     end, 'infinite player IDs should fail before session allocation')
     harness.assertThrows(function()
-        QB.screenshot.requestClient(mocks.SOURCE, { maxHeight = math.huge, timeout = 30000 })
+        Kora.screenshot.requestClient(mocks.SOURCE, { maxHeight = math.huge, timeout = 30000 })
     end, 'infinite dimensions should fail before session allocation')
     harness.assertThrows(function()
-        QB.screenshot.requestClient(mocks.SOURCE, false)
+        Kora.screenshot.requestClient(mocks.SOURCE, false)
     end, 'false server options should fail before session allocation')
     harness.assertThrows(function()
-        QB.screenshot.requestClient(mocks.SOURCE, { encoding = false, timeout = 30000 })
+        Kora.screenshot.requestClient(mocks.SOURCE, { encoding = false, timeout = 30000 })
     end, 'false server encoding should fail before session allocation')
     local completed = false
-    QB.screenshot.requestClient(mocks.SOURCE, { timeout = 30000 }, function(err)
+    Kora.screenshot.requestClient(mocks.SOURCE, { timeout = 30000 }, function(err)
         harness.assertEqual(err, false)
         completed = true
     end)
@@ -148,7 +148,7 @@ end)
 
 harness.test('server capture accepts omitted options and uses its defaults', function()
     local callbackErr
-    local token = QB.screenshot.requestClient(mocks.SOURCE, nil, function(err)
+    local token = Kora.screenshot.requestClient(mocks.SOURCE, nil, function(err)
         callbackErr = err
     end)
 
@@ -158,7 +158,7 @@ end)
 
 harness.test('server capture uses one tokenized raw browser upload', function()
     local callbackErr, callbackResult
-    local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function(err, result)
+    local token = Kora.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function(err, result)
         callbackErr, callbackResult = err, result
     end)
     harness.assertTrue(type(token) == 'string' and #token == 48, 'server capture should return a long opaque token')
@@ -182,7 +182,7 @@ harness.test('server capture falls back when the browser cannot reach the HTTP u
     local destination = os.tmpname()
     local callbackErr, callbackResult
     rejectRawUpload = true
-    QB.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)
+    Kora.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)
         callbackErr, callbackResult = err, result
     end)
     rejectRawUpload = false
@@ -204,7 +204,7 @@ harness.test('server capture avoids mixed-content fetches for a plain HTTP endpo
     local destination = os.tmpname()
     local callbackErr
     _G.GetCurrentServerEndpoint = function() return 'zap.ssite.co.uk:30121' end
-    QB.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err)
+    Kora.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err)
         callbackErr = err
     end)
     _G.GetCurrentServerEndpoint = function() return 'https://127.0.0.1:30120' end
@@ -219,32 +219,32 @@ harness.test('server capture avoids mixed-content fetches for a plain HTTP endpo
 end)
 
 harness.test('server capture fails promptly when the client NUI rejects capture', function()
-    local request = QB.nui.request
-    QB.nui.request = function()
+    local request = Kora.nui.request
+    Kora.nui.request = function()
         local p = promise.new()
         p:reject('simulated NUI capture failure')
         return p
     end
     local callbackErr
-    local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function(err)
+    local token = Kora.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function(err)
         callbackErr = err
     end)
-    QB.nui.request = request
+    Kora.nui.request = request
 
     harness.assertTrue(type(token) == 'string', 'the server should still create a one-time capture token')
     harness.assertEqual(callbackErr, 'The client could not capture or return the screenshot.',
         'the owning player should end a rejected capture immediately')
 
-    local nextToken = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
+    local nextToken = Kora.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
     harness.assertTrue(type(nextToken) == 'string', 'a rejected capture must release the player capture slot')
 end)
 
 harness.test('server progress ignores malformed byte counts even when debug logging is enabled', function()
-    local request, triggerClientEvent, getConvarInt = QB.nui.request, TriggerClientEvent, GetConvarInt
-    QB.nui.request = function() return promise.new() end
+    local request, triggerClientEvent, getConvarInt = Kora.nui.request, TriggerClientEvent, GetConvarInt
+    Kora.nui.request = function() return promise.new() end
     _G.TriggerClientEvent = function() end
-    local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
-    QB.nui.request, _G.TriggerClientEvent = request, triggerClientEvent
+    local token = Kora.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
+    Kora.nui.request, _G.TriggerClientEvent = request, triggerClientEvent
 
     _G.GetConvarInt = function() return 1 end
     _G.source = mocks.SOURCE
@@ -259,14 +259,14 @@ end)
 
 harness.test('server capture rejects a mismatched image type and releases the player slot', function()
     local callbackErr
-    local token = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'png' }, function(err)
+    local token = Kora.screenshot.requestClient(mocks.SOURCE, { encoding = 'png' }, function(err)
         callbackErr = err
     end)
 
     harness.assertTrue(type(token) == 'string', 'the mismatched request should still issue a token')
     harness.assertTrue(type(callbackErr) == 'string', 'the callback should receive a useful error')
 
-    local nextToken = QB.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
+    local nextToken = Kora.screenshot.requestClient(mocks.SOURCE, { encoding = 'jpg' }, function() end)
     harness.assertTrue(type(nextToken) == 'string', 'a rejected upload must release the per-player capture slot')
 end)
 
@@ -274,7 +274,7 @@ harness.test('server capture retains its safe upload limit when maxBytes is malf
     local maxBytes = Config.screenshot.maxBytes
     Config.screenshot.maxBytes = false
 
-    local ok = pcall(QB.screenshot.requestClient, mocks.SOURCE, { encoding = 'jpg' }, function() end)
+    local ok = pcall(Kora.screenshot.requestClient, mocks.SOURCE, { encoding = 'jpg' }, function() end)
     Config.screenshot.maxBytes = maxBytes
 
     harness.assertTrue(ok, 'an invalid server cap must not turn an upload into a request-time error')
@@ -286,7 +286,7 @@ harness.test('server capture writes a caller-controlled server path when request
     -- path proves kora_lib-playground's PDF attachment flow receives real bytes.
     local destination = os.tmpname()
     local callbackErr, callbackResult
-    QB.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)
+    Kora.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)
         callbackErr, callbackResult = err, result
     end)
 

@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 /**
- * Summary dialog for QB.zones.startCreator's confirm step (see
+ * Summary dialog for Kora.zones.startCreator's confirm step (see
  * modules/zones/client.lua's openConfirmDialog). Always mounted alongside
  * every other top-level NUI component; renders nothing until Lua sends
  * "zoneCreator:confirm". DialogOverlay/DialogContent already carry
@@ -36,7 +36,7 @@ export function ZoneConfirmDialog() {
 
     // The snippet IS the output of the creator, so copying it is the primary
     // action -- but it still confirms, because `confirmed: true` is what
-    // resolves QB.zones.startCreator's promise (and builds the real zone).
+    // resolves Kora.zones.startCreator's promise (and builds the real zone).
     // Splitting those apart would mean a player who clicked the obvious button
     // got their text and silently threw the zone away.
     const copySnippet = useCallback(async () => {

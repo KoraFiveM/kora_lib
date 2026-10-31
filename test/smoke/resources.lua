@@ -16,9 +16,9 @@ dofile(repoRoot .. "local/resources/server.lua")
 
 harness.test("isStarted reports only the started state", function()
     _G.GetResourceState = function(name) return name == "ready" and "started" or "stopped" end
-    harness.assertTrue(QB.resources.isStarted("ready"))
-    harness.assertFalse(QB.resources.isStarted("waiting"))
-    harness.assertThrows(function() QB.resources.isStarted(string.rep('x', 257)) end)
+    harness.assertTrue(Kora.resources.isStarted("ready"))
+    harness.assertFalse(Kora.resources.isStarted("waiting"))
+    harness.assertThrows(function() Kora.resources.isStarted(string.rep('x', 257)) end)
 end)
 
 harness.test("awaitStarted distinguishes started, missing, and timeout", function()
@@ -28,11 +28,11 @@ harness.test("awaitStarted distinguishes started, missing, and timeout", functio
         return "stopped"
     end
 
-    harness.assertTrue(QB.resources.awaitStarted("ready"))
-    local absent, absentReason = QB.resources.awaitStarted("absent")
+    harness.assertTrue(Kora.resources.awaitStarted("ready"))
+    local absent, absentReason = Kora.resources.awaitStarted("absent")
     harness.assertFalse(absent)
     harness.assertEqual(absentReason, "missing")
-    local waiting, waitingReason = QB.resources.awaitStarted("waiting", { timeout = 10, interval = 5 })
+    local waiting, waitingReason = Kora.resources.awaitStarted("waiting", { timeout = 10, interval = 5 })
     harness.assertFalse(waiting)
     harness.assertEqual(waitingReason, "timeout")
 end)
@@ -46,7 +46,7 @@ harness.test('awaitStarted honors explicit zero timeout and interval values', fu
     end
     _G.Wait = function(ms) waited = ms end
 
-    local ready, reason = QB.resources.awaitStarted('waiting', { timeout = 0, interval = 0 })
+    local ready, reason = Kora.resources.awaitStarted('waiting', { timeout = 0, interval = 0 })
     harness.assertFalse(ready)
     harness.assertEqual(reason, 'timeout')
     harness.assertEqual(calls, 1, 'a zero timeout should make exactly one immediate state check')
@@ -57,7 +57,7 @@ harness.test('awaitStarted honors explicit zero timeout and interval values', fu
         calls = calls + 1
         return calls == 1 and 'stopped' or 'started'
     end
-    ready = QB.resources.awaitStarted('starting', { timeout = 100, interval = 0 })
+    ready = Kora.resources.awaitStarted('starting', { timeout = 100, interval = 0 })
     _G.GetResourceState, _G.Wait = getResourceState, wait
 
     harness.assertTrue(ready)
@@ -66,13 +66,13 @@ end)
 
 harness.test('awaitStarted rejects an explicit non-table options value', function()
     harness.assertThrows(function()
-        QB.resources.awaitStarted('waiting', false)
+        Kora.resources.awaitStarted('waiting', false)
     end)
 end)
 
 harness.test("track then owner reports the tracking resource", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)
+    local registry = Kora.resources.registry(function(id) table.insert(disposed, id) end)
 
     registry.track("resource_a", 1)
 
@@ -84,20 +84,20 @@ harness.test("registry accepts a callable-table disposer like a FiveM funcref", 
     local callable = setmetatable({}, {
         __call = function(_, id) disposed[#disposed + 1] = id end,
     })
-    local registry = QB.resources.registry(callable)
+    local registry = Kora.resources.registry(callable)
     registry.track("resource_a", 7)
     net.fire("onClientResourceStop", "resource_a")
     harness.assertEqual(disposed[1], 7)
 end)
 
 harness.test('registry factories reject invalid disposers immediately', function()
-    harness.assertThrows(function() QB.resources.registry(false) end)
-    harness.assertThrows(function() QB.resources.serverRegistry(nil) end)
+    harness.assertThrows(function() Kora.resources.registry(false) end)
+    harness.assertThrows(function() Kora.resources.serverRegistry(nil) end)
 end)
 
 harness.test('registry methods reject invalid owners and ids immediately', function()
-    local client = QB.resources.registry(function() end)
-    local server = QB.resources.serverRegistry(function() end)
+    local client = Kora.resources.registry(function() end)
+    local server = Kora.resources.serverRegistry(function() end)
     for _, registry in ipairs({ client, server }) do
         harness.assertThrows(function() registry.track('', 1) end)
         harness.assertThrows(function() registry.track(string.rep('x', 257), 1) end)
@@ -109,7 +109,7 @@ end)
 
 harness.test("untrack drops tracking and returns the prior owner, without calling onDispose", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)
+    local registry = Kora.resources.registry(function(id) table.insert(disposed, id) end)
 
     registry.track("resource_a", 1)
     local owner = registry.untrack(1)
@@ -120,14 +120,14 @@ harness.test("untrack drops tracking and returns the prior owner, without callin
 end)
 
 harness.test("untrack on an untracked id returns nil", function()
-    local registry = QB.resources.registry(function() end)
+    local registry = Kora.resources.registry(function() end)
     local owner = registry.untrack(999)
     harness.assertEqual(owner, nil, "untrack on an id that was never tracked should return nil")
 end)
 
 harness.test("re-tracking an id under a different resource transfers ownership, not just adds it", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)
+    local registry = Kora.resources.registry(function(id) table.insert(disposed, id) end)
 
     registry.track("resource_a", "shared_name")
     registry.track("resource_b", "shared_name")
@@ -145,7 +145,7 @@ end)
 
 harness.test("re-tracking an id under its own resource is a harmless no-op", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)
+    local registry = Kora.resources.registry(function(id) table.insert(disposed, id) end)
 
     registry.track("resource_a", 1)
     registry.track("resource_a", 1)
@@ -156,7 +156,7 @@ end)
 
 harness.test("onDispose fires for everything a resource still owns when it stops", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)
+    local registry = Kora.resources.registry(function(id) table.insert(disposed, id) end)
 
     registry.track("resource_a", 1)
     registry.track("resource_a", 2)
@@ -173,7 +173,7 @@ end)
 
 harness.test("onDispose does not fire for ids already untracked before their resource stops", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) table.insert(disposed, id) end)
+    local registry = Kora.resources.registry(function(id) table.insert(disposed, id) end)
 
     registry.track("resource_a", 1)
     registry.untrack(1)
@@ -185,8 +185,8 @@ end)
 
 harness.test('a disposer cannot recreate ownership for its stopping resource', function()
     for _, realm in ipairs({
-        { create = QB.resources.registry, event = 'onClientResourceStop' },
-        { create = QB.resources.serverRegistry, event = 'onResourceStop' },
+        { create = Kora.resources.registry, event = 'onClientResourceStop' },
+        { create = Kora.resources.serverRegistry, event = 'onResourceStop' },
     }) do
         local registry
         registry = realm.create(function()
@@ -203,8 +203,8 @@ end)
 
 harness.test("two registries track independent id spaces", function()
     local disposedA, disposedB = {}, {}
-    local registryA = QB.resources.registry(function(id) table.insert(disposedA, id) end)
-    local registryB = QB.resources.registry(function(id) table.insert(disposedB, id) end)
+    local registryA = Kora.resources.registry(function(id) table.insert(disposedA, id) end)
+    local registryB = Kora.resources.registry(function(id) table.insert(disposedB, id) end)
 
     registryA.track("resource_a", 1)
     registryB.track("resource_a", 1)
@@ -217,7 +217,7 @@ end)
 
 harness.test("a client registry disposes tracked state when its creating resource stops", function()
     local disposed = {}
-    local registry = QB.resources.registry(function(id) disposed[#disposed + 1] = id end)
+    local registry = Kora.resources.registry(function(id) disposed[#disposed + 1] = id end)
 
     registry.track("resource_a", 1)
     net.fire("onClientResourceStop", "kora_lib_test")
@@ -229,7 +229,7 @@ end)
 
 harness.test("a server registry disposes tracked state when its creating resource stops", function()
     local disposed = {}
-    local registry = QB.resources.serverRegistry(function(id) disposed[#disposed + 1] = id end)
+    local registry = Kora.resources.serverRegistry(function(id) disposed[#disposed + 1] = id end)
 
     registry.track("resource_a", 1)
     net.fire("onResourceStop", "kora_lib_test")
@@ -241,7 +241,7 @@ end)
 
 harness.test("a disposal failure cannot abort the rest of a server registry sweep", function()
     local attempted = {}
-    local registry = QB.resources.serverRegistry(function(id)
+    local registry = Kora.resources.serverRegistry(function(id)
         attempted[id] = true
         if id == "bad" then error("simulated cleanup failure") end
     end)

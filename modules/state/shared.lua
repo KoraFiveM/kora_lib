@@ -5,13 +5,13 @@
 ---@param pollIntervalMs? integer Defaults to 50.
 ---@return any value
 ---@return string|nil reason
-function QB.state.awaitGlobal(key, timeoutMs, pollIntervalMs)
-    assert(type(key) == "string" and key ~= "", "QB.state.awaitGlobal requires a state key.")
+function Kora.state.awaitGlobal(key, timeoutMs, pollIntervalMs)
+    assert(type(key) == "string" and key ~= "", "Kora.state.awaitGlobal requires a state key.")
     if timeoutMs == nil then timeoutMs = 5000 end
     if pollIntervalMs == nil then pollIntervalMs = 50 end
-    assert(QB.util.isInteger(timeoutMs) and timeoutMs >= 0,
+    assert(Kora.util.isInteger(timeoutMs) and timeoutMs >= 0,
         "timeoutMs must be a non-negative integer.")
-    assert(QB.util.isInteger(pollIntervalMs) and pollIntervalMs >= 0,
+    assert(Kora.util.isInteger(pollIntervalMs) and pollIntervalMs >= 0,
         "pollIntervalMs must be a non-negative integer.")
 
     local startedAt = GetGameTimer()

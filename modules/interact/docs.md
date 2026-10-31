@@ -1,15 +1,15 @@
 # Interact module
 
-`QB.interact` provides a compact, game-input-driven option selector for kora_lib zones. It is entirely client-side, remains click-through, and never grants NUI focus.
+`Kora.interact` provides a compact, game-input-driven option selector for kora_lib zones. It is entirely client-side, remains click-through, and never grants NUI focus.
 
 ## Zone API
 
-The zone helpers return normal `QB.zones` handles. Zone names are unique within
+The zone helpers return normal `Kora.zones` handles. Zone names are unique within
 this module; the creating resource can replace its own duplicate, while another
 resource's duplicate is refused.
 
 ```lua
-QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
+Kora.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
     options = {
         {
             label = "Open locker",
@@ -22,10 +22,10 @@ QB.interact.addCircleZone("locker", vector3(100.0, 200.0, 30.0), 2.0, {
 
 The current signatures are:
 
-- `QB.interact.addCircleZone(name, coords, radius, targetOptions, debug?)`
-- `QB.interact.addBoxZone(name, coords, size, targetOptions, debug?)`
-- `QB.interact.addTargetEntity(entity, size, targetOptions, debug?)`
-- `QB.interact.addTargetModel(models, size, targetOptions, debug?)`
+- `Kora.interact.addCircleZone(name, coords, radius, targetOptions, debug?)`
+- `Kora.interact.addBoxZone(name, coords, size, targetOptions, debug?)`
+- `Kora.interact.addTargetEntity(entity, size, targetOptions, debug?)`
+- `Kora.interact.addTargetModel(models, size, targetOptions, debug?)`
 
 `size` is a vector-like `{x, y, z}` table. The target helpers create static
 zones around the current entity/model positions. They do not follow moving
@@ -36,12 +36,12 @@ Zone coordinates must be finite; circle radii and box dimensions must be
 positive finite numbers. Invalid replacement geometry is rejected before an
 existing zone of the same name is removed. `addCircleZone` defaults its radius
 to `5.0` only when the argument is omitted; explicit invalid values reject.
-`QB.interact.removeZone(name)` returns `true` only when the calling resource
+`Kora.interact.removeZone(name)` returns `true` only when the calling resource
 owns a named zone with that name. Named zones are also removed automatically
 when their invoking resource stops.
 
-`QB.interact.open(options)` opens the selector without a zone.
-`QB.interact.close()` closes it, and `QB.interact.isActive()` reports whether a
+`Kora.interact.open(options)` opens the selector without a zone.
+`Kora.interact.close()` closes it, and `Kora.interact.isActive()` reports whether a
 selector is currently open.
 
 ## Options
@@ -63,12 +63,12 @@ state again in the event handler before making a persistent change.
 
 ## Aim targets
 
-`QB.interact.addEntity(entity, options, distance?)` and
-`QB.interact.addModel(model, options, distance?)` are kora_lib's facade over
+`Kora.interact.addEntity(entity, options, distance?)` and
+`Kora.interact.addModel(model, options, distance?)` are kora_lib's facade over
 kora_target. They use the same `label`, `action`, `event`, `args`, and restriction
 fields as zones, follow moving entities, and clean up automatically when the
-invoking resource stops. Use `QB.interact.removeEntity(entity, id?)` or
-`QB.interact.removeModel(model, id?)` for early teardown; they remove only
+invoking resource stops. Use `Kora.interact.removeEntity(entity, id?)` or
+`Kora.interact.removeModel(model, id?)` for early teardown; they remove only
 registrations owned by the calling resource. Manual teardown also clears the
 ownership record so resource-stop cleanup never removes it twice.
 When supplied, `distance` must be a positive finite number.
@@ -77,7 +77,7 @@ positive finite constraint.
 
 While the selector is visible, E or left-click confirms the highlighted option. Space and Enter do not confirm it. Up/Down or the mouse wheel changes the highlighted option, and Escape/Backspace/Pause closes the selector.
 
-These inputs are held through one reference-counted `QB.controls` lease for the selector's lifetime. Closing, replacing, selecting from, or losing the owning resource releases that lease without disturbing another kora_lib system that disabled the same control.
+These inputs are held through one reference-counted `Kora.controls` lease for the selector's lifetime. Closing, replacing, selecting from, or losing the owning resource releases that lease without disturbing another kora_lib system that disabled the same control.
 
 ## UI contract
 

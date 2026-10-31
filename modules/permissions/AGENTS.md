@@ -2,7 +2,7 @@
 
 ## Purpose
 The central, generic server-side wrapper over FiveM's ace/principal system and
-optional `QB.discord` role authorization. It remains independent of kora_core's
+optional `Kora.discord` role authorization. It remains independent of kora_core's
 player/identity model; runtime principal mutation belongs to consumers such as
 kora_core.
 
@@ -14,7 +14,7 @@ kora_core's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its a
 - **Both `group.<level>` and `<prefix>.<level>`/`<prefix>.<permission>` are checked** -- `group.*` lets a server reuse ace groups already granted for other purposes (e.g. a `group.admin` set up for a different resource) without redeclaring them under this prefix too.
 - **`hasPermission` additionally checks `command.<permission>`** -- a narrower principal for granting one specific command/permission string without granting the whole level it would otherwise imply.
 - **Discord is additive and fail-closed.** Only explicitly mapped levels or
-  permissions consult `QB.discord.hasAnyRole`. Bot/cache/identifier errors do
+  permissions consult `Kora.discord.hasAnyRole`. Bot/cache/identifier errors do
   not grant access and never suppress an ACE result. Keep ACE checks first so
   `group.admin` never depends on Discord availability.
 - **`hasLevel` owns cascading.** The supplied level array is ordered highest
@@ -27,6 +27,6 @@ kora_core's permission vocabulary (`'user'`/`'mod'`/`'admin'`/`'god'`) and its a
 
 ## Testing
 `test/smoke/permissions.lua` mocks `IsPlayerAceAllowed` and
-`QB.discord.hasAnyRole`. It covers ACE precedence (including `group.admin`),
+`Kora.discord.hasAnyRole`. It covers ACE precedence (including `group.admin`),
 Discord mapping/cascading/fail-closed behavior, optional prefixes, and exact
 `command.<permission>` checks.

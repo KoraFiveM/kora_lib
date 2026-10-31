@@ -1,6 +1,6 @@
-local isCallable = QB.compat.isCallable
-local generateToken = QB.compat.generateToken
-local isInteger = QB.util.isInteger
+local isCallable = Kora.compat.isCallable
+local generateToken = Kora.compat.generateToken
+local isInteger = Kora.util.isInteger
 local pendingUploads = {}
 local playerUploads = {}
 local DEFAULT_MAX_UPLOAD_BYTES = 12 * 1024 * 1024
@@ -149,7 +149,7 @@ end
 ---@param options? table `{ fileName?: string, encoding?: 'jpg'|'png'|'webp', quality?: number, maxWidth?: integer|false, maxHeight?: integer|false, includeNui?: boolean, timeout?: integer }`
 ---@param callback? fun(err: string|false, result?: string)
 ---@return string token
-function QB.screenshot.requestClient(player, options, callback)
+function Kora.screenshot.requestClient(player, options, callback)
     assert(isInteger(player) and player >= 1,
         'Screenshot player must be a positive server ID.')
     assert(callback == nil or isCallable(callback), 'Screenshot callback must be callable.')
@@ -352,7 +352,7 @@ AddEventHandler('playerDropped', function()
 end)
 
 local function legacyRequestClientScreenshot(player, options, callback)
-    return QB.screenshot.requestClient(tonumber(player), options, callback)
+    return Kora.screenshot.requestClient(tonumber(player), options, callback)
 end
 
 if exports then exports('requestClientScreenshot', legacyRequestClientScreenshot) end

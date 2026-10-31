@@ -12,7 +12,7 @@ state when the resource stops.
 
 ## Choose the direct API first
 
-Use `QB.<module>.<function>` in new resources. The consumer-side proxy loads
+Use `Kora.<module>.<function>` in new resources. The consumer-side proxy loads
 stateless helpers lazily, while kora_lib keeps shared registries and active
 handles in one place. This avoids copying implementations and avoids a
 separate scheduler in every resource.
@@ -27,29 +27,29 @@ the [ox_lib migration guide]({{ site.baseurl }}/migration/ox-lib/).
 
 | Need | Use | Cost model |
 | --- | --- | --- |
-| React to the local player entering a fixed area | `QB.zones.box`, `.sphere`, `.circle`, or `.poly` | One shared spatial-grid pass; no loop per zone. |
-| Read a local-player value such as vehicle, weapon, or coords | `QB.cache` / `QB.cache.onChange` | One shared cache sampler; handlers run only on changes. |
-| Find what exists near a point right now | `QB.world.getClosestEntity` or `.getNearbyEntities` | Scans the live entity pool for that call; use on an event or sensible interval, not every frame. |
-| Check where the camera is aimed | `QB.raycast.fromCamera` or `QB.raycast.start` + `.poll` | A shape test only while the feature is active; start related rays together before awaiting them. |
-| Populate decorative local entities over a large map | `QB.entities.createScoped` | Uses the zone grid and streams/spawns only while the player is nearby. |
+| React to the local player entering a fixed area | `Kora.zones.box`, `.sphere`, `.circle`, or `.poly` | One shared spatial-grid pass; no loop per zone. |
+| Read a local-player value such as vehicle, weapon, or coords | `Kora.cache` / `Kora.cache.onChange` | One shared cache sampler; handlers run only on changes. |
+| Find what exists near a point right now | `Kora.world.getClosestEntity` or `.getNearbyEntities` | Scans the live entity pool for that call; use on an event or sensible interval, not every frame. |
+| Check where the camera is aimed | `Kora.raycast.fromCamera` or `Kora.raycast.start` + `.poll` | A shape test only while the feature is active; start related rays together before awaiting them. |
+| Populate decorative local entities over a large map | `Kora.entities.createScoped` | Uses the zone grid and streams/spawns only while the player is nearby. |
 | Need a moving entity's bounds | The optional `PolyZone` `EntityZone` shim, only for legacy imports | Explicit polling; set the slowest acceptable `waitInMS`. |
 
 ## Zones and interaction checks
 
-For a normal static area, use `QB.zones.box`, `QB.zones.sphere`,
-`QB.zones.circle`, or `QB.zones.poly` with `onEnter` and `onExit`. kora_lib indexes these zones in its
+For a normal static area, use `Kora.zones.box`, `Kora.zones.sphere`,
+`Kora.zones.circle`, or `Kora.zones.poly` with `onEnter` and `onExit`. kora_lib indexes these zones in its
 shared spatial grid, so it does not run one player-position loop per zone.
 
 ```lua
 local prompt
-local garageZone = QB.zones.box({
+local garageZone = Kora.zones.box({
     coords = vector3(215.8, -810.1, 30.7),
     size = vector3(6.0, 6.0, 3.0),
     onEnter = function()
-        prompt = QB.textui.show('Press E to use the garage')
+        prompt = Kora.textui.show('Press E to use the garage')
     end,
     onExit = function()
-        if prompt then QB.textui.hide(prompt) end
+        if prompt then Kora.textui.hide(prompt) end
         prompt = nil
     end,
 })
@@ -73,7 +73,7 @@ session, effect, or debug zone is gone. Calling the ordinary APIs while those
 features are inactive does not create a permanent client loop.
 
 Do not add a second loop to reapply controls, redraw zones, or poll a static
-zone. Acquire a `QB.controls` lease, use a zone callback, or enable debug
+zone. Acquire a `Kora.controls` lease, use a zone callback, or enable debug
 drawing instead; kora_lib composes those users into the existing shared loop.
 
 ## Observe state changes instead of polling
@@ -83,7 +83,7 @@ instead of starting another loop. Handlers run only when the value changes;
 they are also removed automatically when the registering resource stops.
 
 ```lua
-QB.cache.onChange('vehicle', function(vehicle, previousVehicle)
+Kora.cache.onChange('vehicle', function(vehicle, previousVehicle)
     if vehicle then
         -- entered a vehicle
     elseif previousVehicle then
@@ -92,7 +92,7 @@ QB.cache.onChange('vehicle', function(vehicle, previousVehicle)
 end)
 ```
 
-Use `QB.cache.coords()` for ordinary interval or event work. It is sampled on
+Use `Kora.cache.coords()` for ordinary interval or event work. It is sampled on
 kora_lib's shared 200ms cache tick; read the native directly only when an engine
 feature genuinely needs the current frame's position.
 

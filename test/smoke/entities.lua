@@ -78,7 +78,7 @@ dofile(repoRoot .. "local/resources/client.lua")
 -- on the entity lifecycle by using a tiny zone double and triggering its
 -- enter/exit callbacks explicitly; zones.lua covers the real spatial grid.
 local scopedZones = {}
-QB.zones = {
+Kora.zones = {
     sphere = function(opts)
         local zone = { removed = false, opts = opts }
         function zone.remove() zone.removed = true end
@@ -90,7 +90,7 @@ QB.zones = {
 dofile(repoRoot .. "modules/entities/client.lua")
 
 harness.test("creates a ped with the static preset frozen, blocked, and invincible", function()
-    local entity, err = QB.entities.create(PED_MODEL, { x = 1, y = 2, z = 3 }, { preset = "static" })
+    local entity, err = Kora.entities.create(PED_MODEL, { x = 1, y = 2, z = 3 }, { preset = "static" })
     harness.assertTrue(entity ~= false, "expected a real entity handle, got error: " .. tostring(err))
     harness.assertTrue(_G.DoesEntityExist(entity), "the created entity should exist")
     harness.assertEqual(entityCalls[entity].freeze, true, "the static preset should freeze the ped")
@@ -99,94 +99,94 @@ harness.test("creates a ped with the static preset frozen, blocked, and invincib
 end)
 
 harness.test("creates an object without freezing it by default", function()
-    local entity = QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
+    local entity = Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
     harness.assertTrue(entity ~= false, "expected the object to be created")
     harness.assertTrue(entityCalls[entity] == nil or entityCalls[entity].freeze == nil, "an object should not be frozen without an explicit option")
 end)
 
 harness.test("entity creation rejects non-finite spatial inputs", function()
     harness.assertThrows(function()
-        QB.entities.create(OBJECT_MODEL, { x = math.huge, y = 0, z = 0 })
+        Kora.entities.create(OBJECT_MODEL, { x = math.huge, y = 0, z = 0 })
     end, "infinite coordinates must not reach entity natives")
     harness.assertThrows(function()
-        QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { heading = 0 / 0 })
+        Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { heading = 0 / 0 })
     end, "NaN headings must not reach entity natives")
     harness.assertThrows(function()
-        QB.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { radius = math.huge })
+        Kora.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { radius = math.huge })
     end, "infinite scoped radii must not create zones")
     harness.assertThrows(function()
-        QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, false)
+        Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, false)
     end, "non-table create options must be rejected")
     harness.assertThrows(function()
-        QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { freeze = "yes" })
+        Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { freeze = "yes" })
     end, "non-boolean entity options must be rejected")
     harness.assertThrows(function()
-        QB.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, false)
+        Kora.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, false)
     end, "non-table scoped options must be rejected")
 end)
 
 harness.test("an explicit freeze overrides having no preset", function()
-    local entity = QB.entities.create(VEHICLE_MODEL, { x = 0, y = 0, z = 0 }, { freeze = true })
+    local entity = Kora.entities.create(VEHICLE_MODEL, { x = 0, y = 0, z = 0 }, { freeze = true })
     harness.assertEqual(entityCalls[entity].freeze, true, "explicit freeze=true should apply even without a preset")
 end)
 
 harness.test("an explicit invincible=false overrides the static preset", function()
-    local entity = QB.entities.create(PED_MODEL, { x = 0, y = 0, z = 0 }, { preset = "static", invincible = false })
+    local entity = Kora.entities.create(PED_MODEL, { x = 0, y = 0, z = 0 }, { preset = "static", invincible = false })
     harness.assertTrue(entityCalls[entity].invincible == nil, "explicit invincible=false should prevent the static preset applying it")
 end)
 
 harness.test("remove deletes a tracked entity", function()
-    local entity = QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
-    local ok = QB.entities.remove(entity)
+    local entity = Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
+    local ok = Kora.entities.remove(entity)
     harness.assertTrue(ok, "remove should report success")
     harness.assertFalse(_G.DoesEntityExist(entity), "the entity should no longer exist after remove")
 end)
 
 harness.test("only the owner can remove a tracked entity", function()
     _G.GetInvokingResource = function() return "entity_owner" end
-    local entity = QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
+    local entity = Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
 
     _G.GetInvokingResource = function() return "other_resource" end
-    local ok, err = QB.entities.remove(entity)
+    local ok, err = Kora.entities.remove(entity)
     harness.assertFalse(ok, "a different resource should not remove the entity")
     harness.assertEqual(err, "Entity is not owned by the calling resource.")
     harness.assertTrue(_G.DoesEntityExist(entity), "a refused removal must leave the entity intact")
 
     _G.GetInvokingResource = function() return "entity_owner" end
-    harness.assertTrue(QB.entities.remove(entity), "the owner should be able to remove the entity")
+    harness.assertTrue(Kora.entities.remove(entity), "the owner should be able to remove the entity")
     _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("remove reports failure for an already-removed entity", function()
-    local entity = QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
-    QB.entities.remove(entity)
-    local ok, err = QB.entities.remove(entity)
+    local entity = Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
+    Kora.entities.remove(entity)
+    local ok, err = Kora.entities.remove(entity)
     harness.assertFalse(ok, "removing twice should fail the second time")
-    harness.assertEqual(err, "Entity is not tracked by QB.entities.", "should explain why removal failed")
+    harness.assertEqual(err, "Entity is not tracked by Kora.entities.", "should explain why removal failed")
 end)
 
 harness.test("remove refuses an entity this module never created", function()
     local foreignEntity = 424242
     existingEntities[foreignEntity] = true
 
-    local ok, err = QB.entities.remove(foreignEntity)
+    local ok, err = Kora.entities.remove(foreignEntity)
 
     harness.assertFalse(ok, "an untracked entity must be refused, not deleted")
-    harness.assertEqual(err, "Entity is not tracked by QB.entities.", "should explain the refusal")
+    harness.assertEqual(err, "Entity is not tracked by Kora.entities.", "should explain the refusal")
     harness.assertTrue(_G.DoesEntityExist(foreignEntity), "the foreign entity must still exist")
 
     existingEntities[foreignEntity] = nil
 end)
 
 harness.test("create propagates a streaming failure for a model that never loads", function()
-    local entity, err = QB.entities.create(STUCK_MODEL, { x = 0, y = 0, z = 0 })
+    local entity, err = Kora.entities.create(STUCK_MODEL, { x = 0, y = 0, z = 0 })
     harness.assertFalse(entity, "entity creation should fail when the model never streams in")
     harness.assertTrue(err ~= nil, "a streaming failure should come with an error message")
 end)
 
 harness.test("entities are auto-deleted when their owning resource stops", function()
     _G.GetInvokingResource = function() return "some_other_resource" end
-    local entity = QB.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
+    local entity = Kora.entities.create(OBJECT_MODEL, { x = 0, y = 0, z = 0 })
     _G.GetInvokingResource = function() return nil end
 
     harness.assertTrue(_G.DoesEntityExist(entity), "the entity should exist before its resource stops")
@@ -197,7 +197,7 @@ harness.test("entities are auto-deleted when their owning resource stops", funct
 end)
 
 harness.test("scoped entities spawn on entry, despawn on exit, and respawn with a fresh handle", function()
-    local scope = QB.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 75.0, freeze = true })
+    local scope = Kora.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 75.0, freeze = true })
     local zone = scopedZones[#scopedZones]
 
     harness.assertTrue(scope.entity == nil, "scoped entities should not exist before entering their radius")
@@ -223,7 +223,7 @@ end)
 
 harness.test("scoped entities and their zones are removed when their owner stops", function()
     _G.GetInvokingResource = function() return "some_scoped_resource" end
-    local scope = QB.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local scope = Kora.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
     _G.GetInvokingResource = function() return nil end
     local zone = scopedZones[#scopedZones]
 
@@ -240,7 +240,7 @@ end)
 
 harness.test("only the owner can remove a scoped entity registration", function()
     _G.GetInvokingResource = function() return "scoped_owner" end
-    local scope = QB.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local scope = Kora.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
     _G.GetInvokingResource = function() return "other_resource" end
 
     harness.assertFalse(scope.remove(), "a different resource must not remove the scope")
@@ -252,12 +252,12 @@ harness.test("only the owner can remove a scoped entity registration", function(
 end)
 
 harness.test("scoped entities require a positive radius", function()
-    local ok = pcall(QB.entities.createScoped, OBJECT_MODEL, { x = 0, y = 0, z = 0 }, {})
+    local ok = pcall(Kora.entities.createScoped, OBJECT_MODEL, { x = 0, y = 0, z = 0 }, {})
     harness.assertFalse(ok, "a scoped entity without a radius must be rejected")
 end)
 
 harness.test("a scope exit while streaming never leaves a late entity behind", function()
-    local scope = QB.entities.createScoped(DELAYED_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local scope = Kora.entities.createScoped(DELAYED_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
     local zone = scopedZones[#scopedZones]
 
     zone.opts.onEnter()
@@ -273,7 +273,7 @@ end)
 
 harness.test("re-entering while a model streams retains the completed entity", function()
     delayedLoads[DELAYED_MODEL] = true
-    local scope = QB.entities.createScoped(DELAYED_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local scope = Kora.entities.createScoped(DELAYED_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
     local zone = scopedZones[#scopedZones]
 
     zone.opts.onEnter()
@@ -289,7 +289,7 @@ end)
 
 harness.test("a scoped spawn exception clears its guard so a later entry can retry", function()
     throwSpawn = true
-    local scope = QB.entities.createScoped(THROW_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
+    local scope = Kora.entities.createScoped(THROW_MODEL, { x = 20, y = 30, z = 40 }, { radius = 10.0 })
     local zone = scopedZones[#scopedZones]
 
     zone.opts.onEnter()
@@ -306,7 +306,7 @@ end)
 harness.test('delete removes an authorized networked entity', function()
     local foreignEntity = 424243
     existingEntities[foreignEntity] = true
-    local ok, err = QB.entities.delete(foreignEntity)
+    local ok, err = Kora.entities.delete(foreignEntity)
     harness.assertTrue(ok, tostring(err))
     harness.assertFalse(_G.DoesEntityExist(foreignEntity), 'the authorized entity should be deleted')
 end)
@@ -318,7 +318,7 @@ harness.test('network control rejects an invalid timeout before requesting contr
         requests = requests + 1
     end
 
-    harness.assertThrows(function() QB.entities.requestControl(424243, false) end)
+    harness.assertThrows(function() Kora.entities.requestControl(424243, false) end)
     harness.assertEqual(requests, 0, 'an invalid timeout should not request network control')
 
     _G.NetworkRequestControlOfEntity = originalRequestControl
@@ -329,7 +329,7 @@ harness.test('requestControl acquires control for any existing entity type', fun
     existingEntities[foreignEntity] = true
     hasNetworkControl = false
 
-    local controlled, err = QB.entities.requestControl(foreignEntity, 100)
+    local controlled, err = Kora.entities.requestControl(foreignEntity, 100)
     harness.assertTrue(controlled, tostring(err))
     harness.assertTrue(hasNetworkControl, 'the network control should be acquired')
 end)

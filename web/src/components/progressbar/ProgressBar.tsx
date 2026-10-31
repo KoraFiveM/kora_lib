@@ -14,7 +14,7 @@ interface ProgressState {
 let nextProgressId = 0
 
 /**
- * Renders QB.progressbar.start's "progressStart"/"progressCancel" messages
+ * Renders Kora.progressbar.start's "progressStart"/"progressCancel" messages
  * (see modules/progressbar/) as a bottom-center filling bar. Lua owns the
  * real timing -- disabling controls, detecting cancellation, deciding
  * completed vs cancelled -- entirely on its own per-frame poll; this

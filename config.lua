@@ -32,7 +32,7 @@ Config.interact = {
 }
 
 Config.callback = {
-    -- ms a QB.callback.trigger() request (either direction) waits before
+    -- ms a Kora.callback.trigger() request (either direction) waits before
     -- rejecting. This has to cover the WORST client, not the average one: a
     -- cold machine still finishing its join answers its first few round trips
     -- far slower than a settled one, and a rejection here is indistinguishable
@@ -53,20 +53,20 @@ Config.cache = {
 
 Config.notify = {
     defaultDuration = 5000,       -- ms a notification stays visible when `duration` isn't given
-    maxDuration = 120000,         -- ms; the hard ceiling QB.notify.assert() enforces
+    maxDuration = 120000,         -- ms; the hard ceiling Kora.notify.assert() enforces
     defaultType = "info",         -- "info" | "success" | "warning" | "error"
     defaultPosition = "top-right",-- "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"
 }
 
 Config.sound = {
-    -- ms before a sound id allocated by QB.sound is automatically released.
+    -- ms before a sound id allocated by Kora.sound is automatically released.
     -- GTA's sound-id pool is small and finite, so an id that is never released
     -- permanently reduces how many sounds the client can play at once. Ten
     -- seconds comfortably outlives every alert tone and UI blip; a longer
     -- looping sound should pass an explicit `releaseAfter` (or 0 to opt out
-    -- and call QB.sound.stop itself).
+    -- and call Kora.sound.stop itself).
     defaultReleaseAfter = 10000,
-    defaultRange = 30.0, -- metres; audible range for QB.sound.playFromCoords when `range` is omitted
+    defaultRange = 30.0, -- metres; audible range for Kora.sound.playFromCoords when `range` is omitted
 }
 
 Config.blips = {
@@ -79,7 +79,7 @@ Config.blips = {
     -- Category 2 displays every blip as its own distance-bearing row in the
     -- pause-map legend; it does not group repeated locations. It remains as a
     -- numeric compatibility value. New code should pass a fixed catalogue name
-    -- to QB.blips.create; omission now uses Other (12).
+    -- to Kora.blips.create; omission now uses Other (12).
     listedCategory = 2,
     -- Backwards-compatible alias. Despite the old name, category 2 is a list,
     -- not a collapsible group.
@@ -92,7 +92,7 @@ Config.blips = {
 }
 
 Config.progressbar = {
-    maxDuration = 600000, -- ms; the hard ceiling QB.progressbar.start() enforces (10 minutes)
+    maxDuration = 600000, -- ms; the hard ceiling Kora.progressbar.start() enforces (10 minutes)
     maxProps = 2,         -- maximum number of local cosmetic props one progress bar may attach
     cancelControls = { 73, 322 }, -- checked when payload.canCancel is true -- X and Escape by default
 }
@@ -145,8 +145,8 @@ Config.radialmenuCompat = {
 }
 
 Config.world = {
-    defaultRadius = 50.0, -- meters; QB.world.getClosestEntity's search radius when options.radius is omitted
-    groundHeight = 1000.0, -- starting Z used by QB.world.getGroundCoords when no explicit options.height is supplied
+    defaultRadius = 50.0, -- meters; Kora.world.getClosestEntity's search radius when options.radius is omitted
+    groundHeight = 1000.0, -- starting Z used by Kora.world.getGroundCoords when no explicit options.height is supplied
     groundAttempts = 20, -- bounded collision/ground probes before getGroundCoords reports failure
     groundRetryDelay = 50, -- milliseconds between ground probes
 }
@@ -164,7 +164,7 @@ Config.drawing = {
         font = 4,
         scale = 0.35,
         color = { r = 255, g = 255, b = 255, a = 215 },
-        maxDistance = 10.0, -- meters from PlayerPedId(); beyond this QB.drawing.text3d skips every native call
+        maxDistance = 10.0, -- meters from PlayerPedId(); beyond this Kora.drawing.text3d skips every native call
         outline = true,
     },
 }
@@ -212,11 +212,11 @@ Config.zones = {
     tickFar = 1000,              -- ms Wait() when nothing is near
     tickNear = 200,              -- ms Wait() when near/inside without an active `inside` callback
     tickInside = 0,              -- ms Wait() while inside a zone with an `inside` callback
-    defaultPointRadius = 1.0,    -- meters; QB.zones.point() default
-    defaultPolyThickness = 4.0,  -- meters; QB.zones.poly() default height band
-    debugAlpha = 200, -- 0-255; colour follows kora_theme's configured primary through QB.theme.accentColor()
+    defaultPointRadius = 1.0,    -- meters; Kora.zones.point() default
+    defaultPolyThickness = 4.0,  -- meters; Kora.zones.poly() default height band
+    debugAlpha = 200, -- 0-255; colour follows kora_theme's configured primary through Kora.theme.accentColor()
     debugWallAlpha = 40,         -- 0-255; translucent fill for box/poly walls, deliberately lower than debugAlpha so it doesn't bury the wireframe it complements
-    debug = false, -- global default OR'd into every zone's own opts.debug at creation (QB.zones.setDebug can still flip debug on/off for already-created zones at runtime)
+    debug = false, -- global default OR'd into every zone's own opts.debug at creation (Kora.zones.setDebug can still flip debug on/off for already-created zones at runtime)
 
     creator = {
         raycastDistance = 50.0,  -- meters; max distance a placement raycast will reach
@@ -233,7 +233,7 @@ Config.zones = {
         maxPolyPoints = 64,      -- hard cap so placement can't run away
         confirmTimeout = 120000, -- ms the confirm dialog waits for a response before the promise rejects
         hideRadar = true,        -- hide the minimap while placing, so it can't cover the shape you're drawing
-        enabled = true,          -- set false to disable QB.zones.startCreator()/`/qb_zonecreator` server-wide
+        enabled = true,          -- set false to disable Kora.zones.startCreator()/`/qb_zonecreator` server-wide
     },
 }
 
@@ -241,7 +241,7 @@ Config.minigames = {
     sessionTTL = 60000,          -- ms; minimum abandoned-round lifetime and bounded overall-session cleanup grace
     authorizationTTL = 60000,    -- ms a server-issued, resource-owned proof authorization remains usable to start a session
     proofTTL = 15000,            -- ms a successful single-use proof remains consumable by a server gameplay resource
-    maxConcurrentPerPlayer = 1,  -- max simultaneous QB.minigames.play() sessions per player, server-enforced
+    maxConcurrentPerPlayer = 1,  -- max simultaneous Kora.minigames.play() sessions per player, server-enforced
     maxAttemptsCap = 10,         -- hard ceiling on opts.attempts, regardless of per-type default or client override
     roundTimeoutBuffer = 5000,   -- ms added to a round's timeLimit for the client-side NUI request timeout (safety net -- the NUI is expected to auto-submit on its own clock well before this)
 

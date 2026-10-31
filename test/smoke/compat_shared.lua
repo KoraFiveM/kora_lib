@@ -13,7 +13,7 @@ dofile(repoRoot .. 'compat/shared.lua')
 
 harness.test('provideExport registers callable values under another identity', function()
     local expected = function() return true end
-    QB.compat.provideExport('legacy-resource', 'action', expected)
+    Kora.compat.provideExport('legacy-resource', 'action', expected)
     local provided
     handlers['__cfx_export_legacy-resource_action'](function(value) provided = value end)
     harness.assertEqual(provided, expected)

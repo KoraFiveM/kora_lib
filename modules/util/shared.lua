@@ -3,7 +3,7 @@
 ---preserved; metatables and function values are not copied specially.
 ---@param value any
 ---@return any
-function QB.util.deepClone(value)
+function Kora.util.deepClone(value)
     local seen = {}
 
     local function clone(item)
@@ -25,8 +25,8 @@ end
 ---string. This is a compact change detector, not a cryptographic hash.
 ---@param value string
 ---@return string checksum
-function QB.util.fnv1a(value)
-    assert(type(value) == "string", "QB.util.fnv1a requires a string.")
+function Kora.util.fnv1a(value)
+    assert(type(value) == "string", "Kora.util.fnv1a requires a string.")
 
     local hash = 2166136261
     for index = 1, #value do
@@ -40,14 +40,14 @@ end
 ---this accepts tables with a callable metatable and raw FiveM funcrefs.
 ---@param value any
 ---@return boolean
-QB.util.isCallable = QB.compat.isCallable
+Kora.util.isCallable = Kora.compat.isCallable
 
 ---Removes leading and trailing whitespace from a string. Non-string values
 ---are returned unchanged so normalisers can preserve their own type policy.
 ---@generic T
 ---@param value T
 ---@return T
-function QB.util.trim(value)
+function Kora.util.trim(value)
     if type(value) ~= "string" then return value end
     return value:match("^%s*(.-)%s*$")
 end
@@ -63,19 +63,19 @@ end
 ---@param options? QBCleanTextOptions
 ---@return string|nil text
 ---@return string|nil reason
-function QB.util.cleanText(value, options)
+function Kora.util.cleanText(value, options)
     if options == nil then options = {} end
 
-    assert(type(options) == "table", "QB.util.cleanText options must be a table.")
-    assert(options.maxLength == nil or QB.util.isInteger(options.maxLength) and options.maxLength >= 0,
-        "QB.util.cleanText maxLength must be a non-negative integer.")
+    assert(type(options) == "table", "Kora.util.cleanText options must be a table.")
+    assert(options.maxLength == nil or Kora.util.isInteger(options.maxLength) and options.maxLength >= 0,
+        "Kora.util.cleanText maxLength must be a non-negative integer.")
     assert(options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "preserve",
-        "QB.util.cleanText whitespace must be 'collapse' or 'preserve'.")
+        "Kora.util.cleanText whitespace must be 'collapse' or 'preserve'.")
     assert(options.controlCharacters == nil or options.controlCharacters == "remove"
         or options.controlCharacters == "preserve",
-        "QB.util.cleanText controlCharacters must be 'remove' or 'preserve'.")
+        "Kora.util.cleanText controlCharacters must be 'remove' or 'preserve'.")
     assert(options.empty == nil or options.empty == "nil" or options.empty == "allow",
-        "QB.util.cleanText empty must be 'nil' or 'allow'.")
+        "Kora.util.cleanText empty must be 'nil' or 'allow'.")
 
     if type(value) ~= "string" then return nil, "invalid_type" end
 
@@ -86,12 +86,12 @@ function QB.util.cleanText(value, options)
     if (options.whitespace or "collapse") == "collapse" then
         text = text:gsub("%s+", " ")
     end
-    text = QB.util.trim(text)
+    text = Kora.util.trim(text)
 
     local valid, length = pcall(utf8.len, text)
     if not valid or not length then return nil, "invalid_utf8" end
     if options.maxLength and length > options.maxLength then
-        text = assert(QB.util.truncateUtf8(text, options.maxLength))
+        text = assert(Kora.util.truncateUtf8(text, options.maxLength))
     end
     if text == "" and (options.empty or "nil") == "nil" then return nil, "empty" end
 
@@ -104,10 +104,10 @@ end
 ---@param maximum integer
 ---@return string|nil value
 ---@return string|nil reason
-function QB.util.truncateUtf8(value, maximum)
-    assert(type(value) == "string", "QB.util.truncateUtf8 requires a string.")
+function Kora.util.truncateUtf8(value, maximum)
+    assert(type(value) == "string", "Kora.util.truncateUtf8 requires a string.")
     assert(type(maximum) == "number" and maximum >= 0 and maximum % 1 == 0,
-        "QB.util.truncateUtf8 requires a non-negative integer maximum.")
+        "Kora.util.truncateUtf8 requires a non-negative integer maximum.")
 
     local valid, length = pcall(utf8.len, value)
     if not valid or not length then return nil, "invalid_utf8" end
@@ -120,23 +120,23 @@ end
 ---Returns whether `value` is a real finite number (not NaN or either infinity).
 ---@param value any
 ---@return boolean
-function QB.util.isFiniteNumber(value)
+function Kora.util.isFiniteNumber(value)
     return type(value) == "number" and value == value and value > -math.huge and value < math.huge
 end
 
 ---Returns whether a value is a finite integer.
 ---@param value any
 ---@return boolean
-function QB.util.isInteger(value)
-    return QB.util.isFiniteNumber(value) and value % 1 == 0
+function Kora.util.isInteger(value)
+    return Kora.util.isFiniteNumber(value) and value % 1 == 0
 end
 
 ---Decodes JSON without throwing on malformed external data.
 ---@param value string
 ---@return any decoded
 ---@return string? reason
-function QB.util.decodeJson(value)
-    assert(type(value) == 'string', 'QB.util.decodeJson requires a string.')
+function Kora.util.decodeJson(value)
+    assert(type(value) == 'string', 'Kora.util.decodeJson requires a string.')
     local ok, decoded = pcall(json.decode, value)
     if not ok then return nil, 'invalid_json' end
     return decoded
@@ -146,9 +146,9 @@ end
 ---@param min number
 ---@param max number
 ---@return number
-function QB.util.clamp(value, min, max)
-    assert(QB.util.isFiniteNumber(value) and QB.util.isFiniteNumber(min) and QB.util.isFiniteNumber(max) and min <= max,
-        "QB.util.clamp requires finite bounds where min is at most max.")
+function Kora.util.clamp(value, min, max)
+    assert(Kora.util.isFiniteNumber(value) and Kora.util.isFiniteNumber(min) and Kora.util.isFiniteNumber(max) and min <= max,
+        "Kora.util.clamp requires finite bounds where min is at most max.")
     if value < min then return min end
     if value > max then return max end
     return value
@@ -157,24 +157,24 @@ end
 ---@param value number
 ---@param decimals? integer Defaults to 0.
 ---@return number
-function QB.util.round(value, decimals)
+function Kora.util.round(value, decimals)
     if decimals == nil then decimals = 0 end
-    assert(QB.util.isFiniteNumber(value) and QB.util.isInteger(decimals),
-        "QB.util.round requires a finite value and integer decimal places.")
+    assert(Kora.util.isFiniteNumber(value) and Kora.util.isInteger(decimals),
+        "Kora.util.round requires a finite value and integer decimal places.")
     local mult = 10 ^ decimals
-    assert(QB.util.isFiniteNumber(mult) and mult > 0,
-        "QB.util.round decimal places must produce finite precision.")
+    assert(Kora.util.isFiniteNumber(mult) and mult > 0,
+        "Kora.util.round decimal places must produce finite precision.")
     local scaled = value * mult
-    assert(QB.util.isFiniteNumber(scaled), "QB.util.round value and decimal places must stay finite.")
+    assert(Kora.util.isFiniteNumber(scaled), "Kora.util.round value and decimal places must stay finite.")
     return math.floor(scaled + 0.5) / mult
 end
 
 ---@param min number
 ---@param max number
 ---@return number
-function QB.util.randomFloat(min, max)
-    assert(QB.util.isFiniteNumber(min) and QB.util.isFiniteNumber(max) and min <= max,
-        "QB.util.randomFloat requires finite bounds where min is at most max.")
+function Kora.util.randomFloat(min, max)
+    assert(Kora.util.isFiniteNumber(min) and Kora.util.isFiniteNumber(max) and min <= max,
+        "Kora.util.randomFloat requires finite bounds where min is at most max.")
     local ratio = math.random()
     return min * (1 - ratio) + max * ratio
 end
@@ -183,25 +183,25 @@ end
 ---particular total -- each is just relative to the others.
 ---@param list {[1]: any, [2]: number}[] Array of `{value, weight}` pairs. Every weight must be > 0.
 ---@return any value
-function QB.util.weightedChoice(list)
-    assert(type(list) == "table", "QB.util.weightedChoice requires a non-empty dense array.")
+function Kora.util.weightedChoice(list)
+    assert(type(list) == "table", "Kora.util.weightedChoice requires a non-empty dense array.")
     local entryCount = 0
     for index, entry in pairs(list) do
-        assert(QB.util.isInteger(index) and index >= 1 and type(entry) == 'table',
-            'QB.util.weightedChoice requires a dense array of pairs.')
+        assert(Kora.util.isInteger(index) and index >= 1 and type(entry) == 'table',
+            'Kora.util.weightedChoice requires a dense array of pairs.')
         entryCount = entryCount + 1
     end
     assert(entryCount > 0 and entryCount == #list,
-        'QB.util.weightedChoice requires a non-empty dense array of pairs.')
+        'Kora.util.weightedChoice requires a non-empty dense array of pairs.')
 
     local total = 0
     for entryIndex = 1, #list do
         local entry = list[entryIndex]
-        assert(QB.util.isFiniteNumber(entry[2]) and entry[2] > 0,
+        assert(Kora.util.isFiniteNumber(entry[2]) and entry[2] > 0,
             "Every weightedChoice entry needs a positive finite weight.")
         total = total + entry[2]
     end
-    assert(QB.util.isFiniteNumber(total), "weightedChoice total must be finite.")
+    assert(Kora.util.isFiniteNumber(total), "weightedChoice total must be finite.")
 
     local roll = math.random() * total
     local cumulative = 0
@@ -218,7 +218,7 @@ end
 ---@param t table
 ---@param value any
 ---@return boolean
-function QB.util.tableContains(t, value)
+function Kora.util.tableContains(t, value)
     for _, v in pairs(t) do
         if v == value then return true end
     end
@@ -243,8 +243,8 @@ end
 ---@return number x, number y, number z
 local function xyz(v, label)
     local z = v and (type(v) == "vector2" and 0.0 or v.z or 0.0)
-    assert(v and QB.util.isFiniteNumber(v.x) and QB.util.isFiniteNumber(v.y) and QB.util.isFiniteNumber(z),
-        ("%s expects finite vector2/vector3/vector4 or coordinate-table values."):format(label or "QB.util"))
+    assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(z),
+        ("%s expects finite vector2/vector3/vector4 or coordinate-table values."):format(label or "Kora.util"))
 
     return v.x, v.y, z
 end
@@ -254,7 +254,7 @@ local function magnitude(x, y, z, label)
     if scale == 0 then return 0 end
 
     local value = scale * math.sqrt((x / scale) ^ 2 + (y / scale) ^ 2 + (z / scale) ^ 2)
-    assert(QB.util.isFiniteNumber(value), ("%s result must be finite."):format(label))
+    assert(Kora.util.isFiniteNumber(value), ("%s result must be finite."):format(label))
     return value
 end
 
@@ -271,48 +271,48 @@ end
 ---@param b number
 ---@param t number
 ---@return number
-function QB.util.lerp(a, b, t)
-    assert(QB.util.isFiniteNumber(a) and QB.util.isFiniteNumber(b) and QB.util.isFiniteNumber(t),
-        "QB.util.lerp requires finite numbers.")
+function Kora.util.lerp(a, b, t)
+    assert(Kora.util.isFiniteNumber(a) and Kora.util.isFiniteNumber(b) and Kora.util.isFiniteNumber(t),
+        "Kora.util.lerp requires finite numbers.")
     if t >= 0 and t <= 1 then return a * (1 - t) + b * t end
 
     local value = a + (b - a) * t
-    assert(QB.util.isFiniteNumber(value), "QB.util.lerp result must be finite.")
+    assert(Kora.util.isFiniteNumber(value), "Kora.util.lerp result must be finite.")
     return value
 end
 
 ---@param a vector3 | {x: number, y: number, z: number}
 ---@param b vector3 | {x: number, y: number, z: number}
 ---@return {x: number, y: number, z: number}
-function QB.util.vecAdd(a, b)
-    local ax, ay, az = xyz(a, "QB.util.vecAdd")
-    local bx, by, bz = xyz(b, "QB.util.vecAdd")
+function Kora.util.vecAdd(a, b)
+    local ax, ay, az = xyz(a, "Kora.util.vecAdd")
+    local bx, by, bz = xyz(b, "Kora.util.vecAdd")
     return { x = ax + bx, y = ay + by, z = az + bz }
 end
 
 ---@param a vector3 | {x: number, y: number, z: number}
 ---@param b vector3 | {x: number, y: number, z: number}
 ---@return {x: number, y: number, z: number} a minus b
-function QB.util.vecSub(a, b)
-    local ax, ay, az = xyz(a, "QB.util.vecSub")
-    local bx, by, bz = xyz(b, "QB.util.vecSub")
+function Kora.util.vecSub(a, b)
+    local ax, ay, az = xyz(a, "Kora.util.vecSub")
+    local bx, by, bz = xyz(b, "Kora.util.vecSub")
     return { x = ax - bx, y = ay - by, z = az - bz }
 end
 
 ---@param v vector3 | {x: number, y: number, z: number}
 ---@param scalar number
 ---@return {x: number, y: number, z: number}
-function QB.util.vecScale(v, scalar)
-    local x, y, z = xyz(v, "QB.util.vecScale")
-    assert(QB.util.isFiniteNumber(scalar), "QB.util.vecScale requires a finite scalar.")
+function Kora.util.vecScale(v, scalar)
+    local x, y, z = xyz(v, "Kora.util.vecScale")
+    assert(Kora.util.isFiniteNumber(scalar), "Kora.util.vecScale requires a finite scalar.")
     return { x = x * scalar, y = y * scalar, z = z * scalar }
 end
 
 ---@param v vector3 | {x: number, y: number, z: number}
 ---@return number
-function QB.util.vecLength(v)
-    local x, y, z = xyz(v, "QB.util.vecLength")
-    return magnitude(x, y, z, "QB.util.vecLength")
+function Kora.util.vecLength(v)
+    local x, y, z = xyz(v, "Kora.util.vecLength")
+    return magnitude(x, y, z, "Kora.util.vecLength")
 end
 
 ---Distance between two points using the dimensions available on both. This is
@@ -321,17 +321,17 @@ end
 ---@param a vector2 | vector3 | vector4 | {x: number, y: number, z?: number, w?: number}
 ---@param b vector2 | vector3 | vector4 | {x: number, y: number, z?: number, w?: number}
 ---@return number
-function QB.util.vecDistance(a, b)
-    local ax, ay, az = xyz(a, "QB.util.vecDistance")
-    local bx, by, bz = xyz(b, "QB.util.vecDistance")
+function Kora.util.vecDistance(a, b)
+    local ax, ay, az = xyz(a, "Kora.util.vecDistance")
+    local bx, by, bz = xyz(b, "Kora.util.vecDistance")
     local dx, dy = ax - bx, ay - by
 
     if not hasZ(a) or not hasZ(b) then
-        return magnitude(dx, dy, 0, "QB.util.vecDistance")
+        return magnitude(dx, dy, 0, "Kora.util.vecDistance")
     end
 
     local dz = az - bz
-    return magnitude(dx, dy, dz, "QB.util.vecDistance")
+    return magnitude(dx, dy, dz, "Kora.util.vecDistance")
 end
 
 ---2D (ground-plane) distance, ignoring z. This is the right measure for
@@ -340,29 +340,29 @@ end
 ---@param a vector3 | {x: number, y: number, z: number}
 ---@param b vector3 | {x: number, y: number, z: number}
 ---@return number
-function QB.util.vecDistance2d(a, b)
-    local ax, ay = xyz(a, "QB.util.vecDistance2d")
-    local bx, by = xyz(b, "QB.util.vecDistance2d")
+function Kora.util.vecDistance2d(a, b)
+    local ax, ay = xyz(a, "Kora.util.vecDistance2d")
+    local bx, by = xyz(b, "Kora.util.vecDistance2d")
     local dx, dy = ax - bx, ay - by
-    return magnitude(dx, dy, 0, "QB.util.vecDistance2d")
+    return magnitude(dx, dy, 0, "Kora.util.vecDistance2d")
 end
 
 ---Unit vector in the same direction. A zero-length vector is returned as
 ---`{0, 0, 0}` rather than producing NaNs.
 ---@param v vector3 | {x: number, y: number, z: number}
 ---@return {x: number, y: number, z: number}
-function QB.util.vecNormalize(v)
-    local length = QB.util.vecLength(v)
+function Kora.util.vecNormalize(v)
+    local length = Kora.util.vecLength(v)
     if length == 0 then return { x = 0.0, y = 0.0, z = 0.0 } end
-    return QB.util.vecScale(v, 1 / length)
+    return Kora.util.vecScale(v, 1 / length)
 end
 
 ---GTA heading (degrees, 0 = north / +Y, increasing counter-clockwise) to a
 ---unit direction vector on the ground plane.
 ---@param heading number
 ---@return {x: number, y: number, z: number}
-function QB.util.headingToDirection(heading)
-    assert(QB.util.isFiniteNumber(heading), "QB.util.headingToDirection requires a finite heading.")
+function Kora.util.headingToDirection(heading)
+    assert(Kora.util.isFiniteNumber(heading), "Kora.util.headingToDirection requires a finite heading.")
     local radians = math.rad(heading)
     return { x = -math.sin(radians), y = math.cos(radians), z = 0.0 }
 end
@@ -371,8 +371,8 @@ end
 ---normalised into [0, 360).
 ---@param v vector3 | {x: number, y: number, z: number}
 ---@return number heading
-function QB.util.directionToHeading(v)
-    local x, y = xyz(v, "QB.util.directionToHeading")
+function Kora.util.directionToHeading(v)
+    local x, y = xyz(v, "Kora.util.directionToHeading")
     local heading = math.deg(math.atan(-x, y))
     return (heading + 360) % 360
 end
@@ -382,12 +382,12 @@ end
 ---@param origin vector3 | {x: number, y: number, z: number}
 ---@param target vector3 | {x: number, y: number, z: number}
 ---@return number heading
-function QB.util.bearing(origin, target)
-    return QB.util.directionToHeading(QB.util.vecSub(target, origin))
+function Kora.util.bearing(origin, target)
+    return Kora.util.directionToHeading(Kora.util.vecSub(target, origin))
 end
 
--- There is deliberately no compass-point helper here: QB.world.getCardinalDirection
+-- There is deliberately no compass-point helper here: Kora.world.getCardinalDirection
 -- already turns a heading (or an entity, or the cached player ped) into
--- "N"/"NE"/"E"/... with exactly these semantics. Pair it with QB.util.bearing
+-- "N"/"NE"/"E"/... with exactly these semantics. Pair it with Kora.util.bearing
 -- when you need the direction TO something rather than the direction something
 -- is facing.

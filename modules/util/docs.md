@@ -2,40 +2,40 @@
 
 Small shared, dependency-free helpers:
 
-- `QB.util.deepClone(value)` recursively copies plain tables, including shared
+- `Kora.util.deepClone(value)` recursively copies plain tables, including shared
   references and cycles. It intentionally does not copy metatables.
-- `QB.util.fnv1a(value)` returns a stable eight-character hexadecimal FNV-1a
+- `Kora.util.fnv1a(value)` returns a stable eight-character hexadecimal FNV-1a
   checksum for change detection and migration fingerprints.
-- `QB.util.isCallable(value)` recognizes functions and tables with callable
+- `Kora.util.isCallable(value)` recognizes functions and tables with callable
   metatables, including FiveM funcrefs.
-- `QB.util.trim(value)` removes leading and trailing whitespace from strings;
+- `Kora.util.trim(value)` removes leading and trailing whitespace from strings;
   non-strings pass through unchanged.
-- `QB.util.cleanText(value, options?)` validates and cleans external text. By
+- `Kora.util.cleanText(value, options?)` validates and cleans external text. By
   default it removes ASCII control characters, collapses whitespace, trims,
   and rejects empty or invalid UTF-8 values. `maxLength`, `whitespace`,
   `controlCharacters`, and `empty` make deviations explicit. Options default
   only when omitted; an explicit non-table value is rejected.
-- `QB.util.truncateUtf8(value, maximum)` bounds text by Unicode characters
+- `Kora.util.truncateUtf8(value, maximum)` bounds text by Unicode characters
   without splitting a codepoint. Invalid UTF-8 returns `nil, "invalid_utf8"`.
-- `QB.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
+- `Kora.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
   strings, NaN, and positive/negative infinity.
-- `QB.util.isInteger(value)` accepts only finite whole numbers.
-- `QB.util.decodeJson(value)` decodes JSON without throwing on malformed
+- `Kora.util.isInteger(value)` accepts only finite whole numbers.
+- `Kora.util.decodeJson(value)` decodes JSON without throwing on malformed
   external data; failures return `nil, "invalid_json"`. It deliberately does
   not choose a fallback value or log policy for the caller.
-- `QB.util.clamp(value, min, max)` bounds a finite number between finite,
+- `Kora.util.clamp(value, min, max)` bounds a finite number between finite,
   ordered bounds.
-- `QB.util.round(value, decimals?)` rounds a finite value to integer decimal
+- `Kora.util.round(value, decimals?)` rounds a finite value to integer decimal
   places when the calculation is representable. `decimals` defaults to `0`
   only when omitted; explicit values must be integers.
-- `QB.util.randomFloat(min, max)` returns a uniform float in the inclusive
+- `Kora.util.randomFloat(min, max)` returns a uniform float in the inclusive
   finite range, including finite bounds whose difference would overflow; `min`
   must not exceed `max`.
-- `QB.util.weightedChoice(list)` selects from `{ value, positiveWeight }`
+- `Kora.util.weightedChoice(list)` selects from `{ value, positiveWeight }`
   pairs in a non-empty dense array; each weight and their accumulated total
   must be finite. Weights are relative and need not sum to 1 or 100.
-- `QB.util.tableContains(table, value)` scans values for equality.
-- `QB.util.lerp(a, b, t)` finite-number linear interpolation; `t` is **not**
+- `Kora.util.tableContains(table, value)` scans values for equality.
+- `Kora.util.lerp(a, b, t)` finite-number linear interpolation; `t` is **not**
   clamped, but an extrapolation that cannot stay finite is rejected.
 
 ## Vector helpers (shared)
@@ -51,29 +51,29 @@ Names are flat (`vecAdd`, not `vec.add`) because `build/finalise.lua` only
 exports functions sitting directly on the module table — a nested sub-table
 would be invisible to every other resource.
 
-- `QB.util.vecAdd(a, b)`, `QB.util.vecSub(a, b)`, `QB.util.vecScale(v, scalar)`
-- `QB.util.vecLength(v)` — uses stable arithmetic for large finite coordinates.
-- `QB.util.vecDistance(a, b)` — compares every spatial component available on
+- `Kora.util.vecAdd(a, b)`, `Kora.util.vecSub(a, b)`, `Kora.util.vecScale(v, scalar)`
+- `Kora.util.vecLength(v)` — uses stable arithmetic for large finite coordinates.
+- `Kora.util.vecDistance(a, b)` — compares every spatial component available on
   both inputs. It is 2D when either input is a `vector2`, otherwise 3D; a
   `vector4`'s `w` heading is always ignored.
-- `QB.util.vecDistance2d(a, b)` — ground-plane, ignoring `z`. The right measure
+- `Kora.util.vecDistance2d(a, b)` — ground-plane, ignoring `z`. The right measure
   for "how far away is that call": a caller three storeys up isn't 30 metres of
   driving away.
-- `QB.util.vecNormalize(v)` — a zero-length vector returns `{0, 0, 0}` rather
+- `Kora.util.vecNormalize(v)` — a zero-length vector returns `{0, 0, 0}` rather
   than producing NaNs.
-- `QB.util.headingToDirection(heading)` / `QB.util.directionToHeading(v)` — GTA
+- `Kora.util.headingToDirection(heading)` / `Kora.util.directionToHeading(v)` — GTA
   heading convention (degrees, `0` = north, increasing counter-clockwise).
-- `QB.util.bearing(origin, target)` — compass bearing from one point to another.
-  Pair it with `QB.world.getCardinalDirection(heading)` for an `"N"`/`"NE"`/…
+- `Kora.util.bearing(origin, target)` — compass bearing from one point to another.
+  Pair it with `Kora.world.getCardinalDirection(heading)` for an `"N"`/`"NE"`/…
   label; there is no compass-point helper here because that one already exists.
 
 ## Screen projection (client only)
 
-Lives in `modules/util/client.lua`; both files populate the same `QB.util`
+Lives in `modules/util/client.lua`; both files populate the same `Kora.util`
 table.
 
-- `QB.util.worldToScreen(coords)` → `x, y, onScreen`. Normalised `0..1`, the
+- `Kora.util.worldToScreen(coords)` → `x, y, onScreen`. Normalised `0..1`, the
   range FiveM's own draw natives use — **not** pixels. `x`/`y` are meaningless
   when `onScreen` is false, so always gate on it.
-- `QB.util.worldToScreenPixels(coords)` → `x, y, onScreen`, using the client's
+- `Kora.util.worldToScreenPixels(coords)` → `x, y, onScreen`, using the client's
   current resolution.

@@ -418,14 +418,14 @@ const actions: { label: string; run: () => void }[] = [
         run: () =>
             postRequest<ZoneCreatorConfirmPayload>("zoneCreator:confirm", {
                 type: "box",
-                snippet: "QB.zones.box({\n    coords = vector3(100.00, 200.00, 30.00),\n    size = vector3(4.00, 4.00, 3.00),\n    rotation = 45.00,\n})",
+                snippet: "Kora.zones.box({\n    coords = vector3(100.00, 200.00, 30.00),\n    size = vector3(4.00, 4.00, 3.00),\n    rotation = 45.00,\n})",
             }),
     },
     {
         label: "Zone confirm (overflow)",
         run: () => postRequest<ZoneCreatorConfirmPayload>("zoneCreator:confirm", {
             type: "poly",
-            snippet: `QB.zones.poly({
+            snippet: `Kora.zones.poly({
     points = {
         vector3(100.00, 200.00, 30.00),
         vector3(140.00, 200.00, 30.00),

@@ -5,7 +5,7 @@ Registers a chat command with owner-tracking (dead handlers are cleaned up autom
 
 ## API
 
-### `QB.commands.add(name, help, args, argsRequired, handler, opts)` -- server
+### `Kora.commands.add(name, help, args, argsRequired, handler, opts)` -- server
 Registers a command via `RegisterCommand`.
 
 #### Parameters
@@ -17,7 +17,7 @@ Registers a command via `RegisterCommand`.
 - `opts: table | nil`
   - `permission: string | nil` -- defaults to `'user'`. Anything else requires `checkPermission` to pass, or the command is denied.
   - `checkPermission: fun(source: integer, permission: string): boolean | nil`
-  - `notify: fun(source: integer, message: string, type: string) | nil` -- called for the "no permission" / "missing arguments" messages. Defaults to `QB.notify.send(source, {message=, type=})`.
+  - `notify: fun(source: integer, message: string, type: string) | nil` -- called for the "no permission" / "missing arguments" messages. Defaults to `Kora.notify.send(source, {message=, type=})`.
   - `resource: string | nil` -- owning resource for cleanup purposes. Defaults to `GetInvokingResource() or GetCurrentResourceName()`.
   - `keybind: table | nil` -- mirrors the server command into a client key mapping:
     - `description?: string` -- defaults to command help/name.
@@ -26,7 +26,7 @@ Registers a command via `RegisterCommand`.
 
 #### Example
 ```lua
-QB.commands.add('heal', 'Heal yourself', nil, false, function(source)
+Kora.commands.add('heal', 'Heal yourself', nil, false, function(source)
     -- ...
 end, {
     permission = 'admin',
@@ -52,22 +52,22 @@ table when supplied. `args`, when supplied, must be a dense array of tables
 with a non-empty string `name` and optional string `help`. Handlers, permission
 checks, and notification callbacks must be callable.
 
-### `QB.commands.remove(name)` -- server
+### `Kora.commands.remove(name)` -- server
 Unregisters the calling resource's command bookkeeping and chat suggestion, and
 returns whether it existed. Does not un-register the underlying `RegisterCommand`
 handler (FXServer has no API for that) -- the handler checks `commands[name]`
 on every invocation and becomes a no-op once removed.
 
-### `QB.commands.refresh(src)` -- server
+### `Kora.commands.refresh(src)` -- server
 Re-sends every registered command's chat suggestion to one positive finite
 integer player ID (e.g. on connect/reconnect), alphabetically by command name.
 
-### `QB.commands.list()` -- server
+### `Kora.commands.list()` -- server
 #### Returns
 - `{name: string, help: string, permission: string, keybind?: table}[]`, sorted
   alphabetically by command name.
 
-### `QB.commands.suggest(src, name, argumentIndex, query, parsedArgs)` -- server
+### `Kora.commands.suggest(src, name, argumentIndex, query, parsedArgs)` -- server
 
 Resolves an argument's static `values` and synchronous `provider`, after applying
 the same permission check as command execution. Providers receive
@@ -81,7 +81,7 @@ at most 16 strings, each at most 128 bytes. Invalid requests return an empty
 list before command permissions or provider code are evaluated.
 
 ## Notes
-- Owner-tracked via `QB.resources.serverRegistry`, keyed by command name: if the resource that registered a command stops (crash or restart) without calling `remove` itself, the command and its chat suggestion are cleaned up automatically.
+- Owner-tracked via `Kora.resources.serverRegistry`, keyed by command name: if the resource that registered a command stops (crash or restart) without calling `remove` itself, the command and its chat suggestion are cleaned up automatically.
 - Registering an existing command name replaces its handler and transfers ownership to the new resource. This supports deliberate overrides, but command names are server-global: namespace names such as `myresource:heal` where a collision would be unsafe or confusing.
 - Keybind sync and execution events accept only a positive finite integer player
   source before they read command state. The normal server console command path

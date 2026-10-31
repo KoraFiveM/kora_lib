@@ -70,7 +70,7 @@ local function newZone(options)
     }
 end
 
-QB.zones = {
+Kora.zones = {
     sphere = function(options)
         sphereOptions[#sphereOptions + 1] = options
         return newZone(options)
@@ -94,7 +94,7 @@ dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/interact/client.lua")
 
 local function reset()
-    QB.interact.close()
+    Kora.interact.close()
     Config.ui.interact = true
     nuiMessages = {}
     focusCalls = {}
@@ -116,7 +116,7 @@ end
 harness.test("open sends compact labels without taking NUI focus", function()
     reset()
 
-    local opened = QB.interact.open({
+    local opened = Kora.interact.open({
         { label = "Inspect", event = "ignored", args = { "private" } },
         { label = "Open", action = function() end },
     })
@@ -141,7 +141,7 @@ harness.test('opening options with the same item checks inventory once', functio
         return hasItem(_, item)
     end
 
-    QB.interact.open({
+    Kora.interact.open({
         { label = 'First key action', item = 'key' },
         { label = 'Second key action', item = 'key' },
     })
@@ -155,7 +155,7 @@ harness.test('keyed restriction maps honor grades and citizen IDs', function()
     player.job.grade = { level = 2 }
     player.gang.grade = { level = 0 }
 
-    QB.interact.open({
+    Kora.interact.open({
         { label = 'Police', job = { police = 2 } },
         { label = 'Ballas', gang = { ballas = 0 } },
         { label = 'Personal', citizenid = { ['CID-1'] = true } },
@@ -170,15 +170,15 @@ harness.test('keyed restrictions fail closed when player data omits the group', 
     reset()
     player.job = nil
 
-    local ok = pcall(QB.interact.open, { { label = 'Police', job = { police = 0 } } })
+    local ok = pcall(Kora.interact.open, { { label = 'Police', job = { police = 0 } } })
     harness.assertTrue(ok, 'missing group data must not raise while filtering an option')
-    harness.assertFalse(QB.interact.isActive(), 'missing group data must not satisfy a keyed restriction')
+    harness.assertFalse(Kora.interact.isActive(), 'missing group data must not satisfy a keyed restriction')
 end)
 
 harness.test('aim-target facade translates kora_lib actions and restrictions', function()
     reset()
     local selected = 0
-    local id = QB.interact.addEntity(202, {
+    local id = Kora.interact.addEntity(202, {
         { label = 'Use', job = 'police', action = function() selected = selected + 1 end },
     }, 2.0)
     local registration = targetRegistrations[id]
@@ -192,13 +192,13 @@ end)
 harness.test('aim-target facade rejects unsafe distances before registration', function()
     reset()
     harness.assertThrows(function()
-        QB.interact.addEntity(202, { { label = 'Use' } }, math.huge)
+        Kora.interact.addEntity(202, { { label = 'Use' } }, math.huge)
     end)
     harness.assertThrows(function()
-        QB.interact.addModel('prop_locker', { { label = 'Use' } }, 0)
+        Kora.interact.addModel('prop_locker', { { label = 'Use' } }, 0)
     end)
     harness.assertThrows(function()
-        QB.interact.addEntity(202, { { label = 'Use', distance = 0 / 0 } })
+        Kora.interact.addEntity(202, { { label = 'Use', distance = 0 / 0 } })
     end)
     harness.assertEqual(next(targetRegistrations), nil, 'an invalid distance must not reach qbtarget')
 end)
@@ -206,9 +206,9 @@ end)
 harness.test('manual aim-target removal clears resource-stop ownership', function()
     reset()
     _G.GetInvokingResource = function() return 'manual_target_owner' end
-    local id = QB.interact.addEntity(202, { { label = 'Use' } }, 2.0)
+    local id = Kora.interact.addEntity(202, { { label = 'Use' } }, 2.0)
 
-    harness.assertTrue(QB.interact.removeEntity(202, id), 'manual removal should succeed')
+    harness.assertTrue(Kora.interact.removeEntity(202, id), 'manual removal should succeed')
     _G.GetInvokingResource = function() return nil end
     mockHandle.fire('onClientResourceStop', 'manual_target_owner')
 
@@ -219,18 +219,18 @@ end)
 harness.test('foreign resources cannot replace or remove owned interaction registrations', function()
     reset()
     _G.GetInvokingResource = function() return 'interact_owner' end
-    QB.interact.addCircleZone('owned-zone', { x = 0, y = 0, z = 0 }, 1, { options = { { label = 'Use' } } })
-    local entityId = QB.interact.addEntity(202, { { label = 'Use' } })
+    Kora.interact.addCircleZone('owned-zone', { x = 0, y = 0, z = 0 }, 1, { options = { { label = 'Use' } } })
+    local entityId = Kora.interact.addEntity(202, { { label = 'Use' } })
 
     _G.GetInvokingResource = function() return 'other_resource' end
-    harness.assertEqual(QB.interact.addCircleZone('owned-zone', { x = 1, y = 1, z = 1 }, 1,
+    harness.assertEqual(Kora.interact.addCircleZone('owned-zone', { x = 1, y = 1, z = 1 }, 1,
         { options = { { label = 'Replace' } } }), nil, 'a foreign duplicate must not replace the zone')
-    harness.assertFalse(QB.interact.removeZone('owned-zone'), 'a foreign resource must not remove the zone')
-    harness.assertFalse(QB.interact.removeEntity(202, entityId), 'a foreign resource must not remove the aim target')
+    harness.assertFalse(Kora.interact.removeZone('owned-zone'), 'a foreign resource must not remove the zone')
+    harness.assertFalse(Kora.interact.removeEntity(202, entityId), 'a foreign resource must not remove the aim target')
 
     _G.GetInvokingResource = function() return 'interact_owner' end
-    harness.assertTrue(QB.interact.removeZone('owned-zone'), 'the owner should remove the zone')
-    harness.assertTrue(QB.interact.removeEntity(202, entityId), 'the owner should remove the aim target')
+    harness.assertTrue(Kora.interact.removeZone('owned-zone'), 'the owner should remove the zone')
+    harness.assertTrue(Kora.interact.removeEntity(202, entityId), 'the owner should remove the aim target')
     _G.GetInvokingResource = function() return nil end
 end)
 
@@ -241,7 +241,7 @@ harness.test("selectOption dispatches the selected client event once and hides",
         if value == "hello" then dispatches = dispatches + 1 end
     end)
 
-    QB.interact.open({
+    Kora.interact.open({
         { label = "First" },
         { label = "Second", event = "interact:client", args = { "hello" } },
     })
@@ -250,7 +250,7 @@ harness.test("selectOption dispatches the selected client event once and hides",
     nuiCallbacks.selectOption(2, function(value) response = value end)
 
     harness.assertEqual(dispatches, 1, "the selected option should dispatch its client event")
-    harness.assertFalse(QB.interact.isActive(), "selection should settle the active session")
+    harness.assertFalse(Kora.interact.isActive(), "selection should settle the active session")
     harness.assertEqual(lastMessage().action, "hideInteract", "selection should close the selector before dispatch")
     harness.assertTrue(type(response) == "table", "the NUI callback should always respond")
 end)
@@ -267,7 +267,7 @@ harness.test("dispatch still invokes a masked cross-resource function action", f
     local fired = 0
     local maskedAction = setmetatable({}, { __call = function(_) fired = fired + 1 end })
 
-    QB.interact.open({ { label = "Only", action = maskedAction } })
+    Kora.interact.open({ { label = "Only", action = maskedAction } })
     nuiCallbacks.selectOption(1, function() end)
 
     harness.assertEqual(fired, 1, "a masked cross-resource function action should still be invoked")
@@ -278,7 +278,7 @@ harness.test("isAvailable still honours a masked cross-resource canInteract", fu
     local maskedAllow = setmetatable({}, { __call = function(_) return true end })
     local maskedDeny = setmetatable({}, { __call = function(_) return false end })
 
-    QB.interact.open({
+    Kora.interact.open({
         { label = "Allowed", canInteract = maskedAllow },
         { label = "Denied", canInteract = maskedDeny },
     })
@@ -289,7 +289,7 @@ end)
 
 harness.test("game controls and mouse scroll/select without NUI focus", function()
     reset()
-    QB.interact.open({ { label = "First" }, { label = "Second" } })
+    Kora.interact.open({ { label = "First" }, { label = "Second" } })
 
     pressedControls[22] = true -- INPUT_JUMP / Space
     mockHandle.step()
@@ -321,15 +321,15 @@ harness.test("game controls and mouse scroll/select without NUI focus", function
     pressedControls = { [Config.interact.cancelControls[1]] = true }
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "hideInteract", "cancel should hide the selector")
-    harness.assertFalse(QB.interact.isActive(), "cancel should clear the session")
+    harness.assertFalse(Kora.interact.isActive(), "cancel should clear the session")
     harness.assertEqual(#focusCalls, 0, "control handling must remain focus-free")
 end)
 
 harness.test("closing and replacing a selector release its control lease", function()
     reset()
-    QB.interact.open({ { label = "First" } })
-    QB.interact.open({ { label = "Replacement" } })
-    QB.interact.close()
+    Kora.interact.open({ { label = "First" } })
+    Kora.interact.open({ { label = "Replacement" } })
+    Kora.interact.close()
 
     disabledControls = {}
     mockHandle.step()
@@ -340,11 +340,11 @@ end)
 harness.test("the invoking resource stopping closes its selector and releases controls", function()
     reset()
     _G.GetInvokingResource = function() return "consumer_resource" end
-    QB.interact.open({ { label = "Owned" } })
+    Kora.interact.open({ { label = "Owned" } })
     _G.GetInvokingResource = function() return nil end
 
     mockHandle.fire("onClientResourceStop", "consumer_resource")
-    harness.assertFalse(QB.interact.isActive(), "the stopped resource's selector should close")
+    harness.assertFalse(Kora.interact.isActive(), "the stopped resource's selector should close")
 
     disabledControls = {}
     mockHandle.step()
@@ -353,7 +353,7 @@ end)
 
 harness.test("circle zones filter unavailable options and close only their own session", function()
     reset()
-    local zone = QB.interact.addCircleZone("locker", { x = 0, y = 0, z = 0 }, 2, {
+    local zone = Kora.interact.addCircleZone("locker", { x = 0, y = 0, z = 0 }, 2, {
         options = {
             { label = "Police locker", job = "police", item = "key" },
             { label = "Ballas locker", gang = "lostmc" },
@@ -361,7 +361,7 @@ harness.test("circle zones filter unavailable options and close only their own s
         },
     }, false)
 
-    harness.assertTrue(zone ~= nil, "circle zone should be created through QB.zones")
+    harness.assertTrue(zone ~= nil, "circle zone should be created through Kora.zones")
     sphereOptions[1].onEnter()
     harness.assertEqual(lastMessage().action, "openInteract", "zone entry should open the selector")
     harness.assertEqual(#lastMessage().data, 1, "unavailable options must be omitted without sparse-array holes")
@@ -373,7 +373,7 @@ end)
 
 harness.test("box zones pass coords, size, and rotation straight through", function()
     reset()
-    QB.interact.addBoxZone("counter", { x = 10, y = 20, z = 30 }, { x = 4, y = 6, z = 10, w = 90 },
+    Kora.interact.addBoxZone("counter", { x = 10, y = 20, z = 30 }, { x = 4, y = 6, z = 10, w = 90 },
         { { label = "Use" } }, false)
 
     local box = boxOptions[1]
@@ -388,59 +388,59 @@ end)
 
 harness.test("named zones replace and remove cleanly", function()
     reset()
-    QB.interact.addCircleZone("replace-me", { x = 0, y = 0, z = 0 }, 1, { options = { { label = "One" } } })
-    QB.interact.addCircleZone("replace-me", { x = 1, y = 1, z = 1 }, 1, { options = { { label = "Two" } } })
+    Kora.interact.addCircleZone("replace-me", { x = 0, y = 0, z = 0 }, 1, { options = { { label = "One" } } })
+    Kora.interact.addCircleZone("replace-me", { x = 1, y = 1, z = 1 }, 1, { options = { { label = "Two" } } })
 
     harness.assertEqual(removedZones, 1, "replacing a name should remove its prior zone")
-    harness.assertTrue(QB.interact.removeZone("replace-me"), "removing an existing name should succeed")
+    harness.assertTrue(Kora.interact.removeZone("replace-me"), "removing an existing name should succeed")
     harness.assertEqual(removedZones, 2, "removeZone should call the underlying handle")
-    harness.assertFalse(QB.interact.removeZone("replace-me"), "removed names should not be removed twice")
+    harness.assertFalse(Kora.interact.removeZone("replace-me"), "removed names should not be removed twice")
 end)
 
 harness.test("invalid replacement geometry preserves the existing named zone", function()
     reset()
-    QB.interact.addCircleZone("stable", { x = 0, y = 0, z = 0 }, 1, { options = { { label = "Use" } } })
+    Kora.interact.addCircleZone("stable", { x = 0, y = 0, z = 0 }, 1, { options = { { label = "Use" } } })
 
     harness.assertThrows(function()
-        QB.interact.addCircleZone("stable", { x = math.huge, y = 0, z = 0 }, 1, { options = { { label = "Broken" } } })
+        Kora.interact.addCircleZone("stable", { x = math.huge, y = 0, z = 0 }, 1, { options = { { label = "Broken" } } })
     end, "non-finite replacement coordinates should be rejected")
     harness.assertThrows(function()
-        QB.interact.addCircleZone("stable", { x = 0, y = 0, z = 0 }, false, { options = { { label = "Broken" } } })
+        Kora.interact.addCircleZone("stable", { x = 0, y = 0, z = 0 }, false, { options = { { label = "Broken" } } })
     end, "an explicit invalid radius must not default")
     harness.assertEqual(removedZones, 0, "an invalid replacement must not remove the active zone")
-    harness.assertTrue(QB.interact.removeZone("stable"), "the original zone should still be registered")
+    harness.assertTrue(Kora.interact.removeZone("stable"), "the original zone should still be registered")
 end)
 
 harness.test('invalid option wrappers preserve the existing named zone', function()
     reset()
-    QB.interact.addCircleZone('stable-options', { x = 0, y = 0, z = 0 }, 1,
+    Kora.interact.addCircleZone('stable-options', { x = 0, y = 0, z = 0 }, 1,
         { options = { { label = 'Use' } } })
 
     harness.assertThrows(function()
-        QB.interact.addCircleZone('stable-options', { x = 1, y = 1, z = 1 }, 1, { options = {} })
+        Kora.interact.addCircleZone('stable-options', { x = 1, y = 1, z = 1 }, 1, { options = {} })
     end, 'an empty wrapped option list must be rejected before replacement')
     harness.assertEqual(removedZones, 0, 'an invalid replacement must not remove the active zone')
-    harness.assertTrue(QB.interact.removeZone('stable-options'), 'the original zone should still be registered')
+    harness.assertTrue(Kora.interact.removeZone('stable-options'), 'the original zone should still be registered')
 end)
 
 harness.test("named zones are removed when their invoking resource stops", function()
     reset()
     _G.GetInvokingResource = function() return "zone_owner" end
-    QB.interact.addCircleZone("owned-zone", { x = 0, y = 0, z = 0 }, 1,
+    Kora.interact.addCircleZone("owned-zone", { x = 0, y = 0, z = 0 }, 1,
         { options = { { label = "Owned" } } }, false)
     _G.GetInvokingResource = function() return nil end
 
     mockHandle.fire("onClientResourceStop", "zone_owner")
 
     harness.assertEqual(removedZones, 1, "resource cleanup should remove the owner's named zone")
-    harness.assertFalse(QB.interact.removeZone("owned-zone"), "resource cleanup should clear the name registry")
+    harness.assertFalse(Kora.interact.removeZone("owned-zone"), "resource cleanup should clear the name registry")
 end)
 
 harness.test("target model and entity helpers create static box zones", function()
     reset()
-    local modelZones = QB.interact.addTargetModel("prop_locker", { x = 2, y = 4, z = 6, w = 45 },
+    local modelZones = Kora.interact.addTargetModel("prop_locker", { x = 2, y = 4, z = 6, w = 45 },
         { { label = "Open" } }, false)
-    local entityZone = QB.interact.addTargetEntity(202, { x = 3, y = 3, z = 4, w = 45 },
+    local entityZone = Kora.interact.addTargetEntity(202, { x = 3, y = 3, z = 4, w = 45 },
         { { label = "Use" } }, false)
 
     harness.assertEqual(#modelZones, 1, "a streamed matching object should receive a zone")
@@ -454,8 +454,8 @@ harness.test("disabled interact mode creates no zones or UI", function()
     reset()
     Config.ui.interact = false
 
-    harness.assertFalse(QB.interact.open({ { label = "Nope" } }), "open should no-op while disabled")
-    harness.assertTrue(QB.interact.addCircleZone("off", { x = 0, y = 0, z = 0 }, 1, {}, { options = { { label = "Nope" } } }) == nil,
+    harness.assertFalse(Kora.interact.open({ { label = "Nope" } }), "open should no-op while disabled")
+    harness.assertTrue(Kora.interact.addCircleZone("off", { x = 0, y = 0, z = 0 }, 1, {}, { options = { { label = "Nope" } } }) == nil,
         "zones should not be created while disabled")
     harness.assertEqual(#nuiMessages, 0, "disabled mode should leave the NUI untouched")
 end)

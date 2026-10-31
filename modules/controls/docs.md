@@ -1,11 +1,11 @@
 # Controls
 
-`QB.controls` owns the every-frame native calls required to suppress game input. Its leases are reference-counted, so independent systems can disable the same control without one system's cleanup re-enabling it for another.
+`Kora.controls` owns the every-frame native calls required to suppress game input. Its leases are reference-counted, so independent systems can disable the same control without one system's cleanup re-enabling it for another.
 
-## `QB.controls.acquire(controlIds, options?)`
+## `Kora.controls.acquire(controlIds, options?)`
 
 ```lua
-local lease = QB.controls.acquire({ 24, 25 }, {
+local lease = Kora.controls.acquire({ 24, 25 }, {
     inputGroup = 0,
     disablePlayerFiring = true,
     ignoreWeaponWheel = true,
@@ -26,7 +26,7 @@ finishes an asynchronous progress bar, menu, placement tool, raycast tool, or
 zone creator on that resource's behalf. kora_lib uses that captured ownership only
 for its own cleanup; it does not make a lease transferable between resources.
 
-## `QB.controls.release(leaseId)`
+## `Kora.controls.release(leaseId)`
 
 Releases one of the calling resource's leases and returns `true`. Unknown,
 already-released, or another resource's IDs return `false`, making cleanup safe

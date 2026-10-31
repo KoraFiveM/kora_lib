@@ -24,7 +24,7 @@ _G.QBTheme = { apply = function() end }
 
 dofile(repoRoot .. 'modules/nui/client.lua')
 
-QB.blips = {
+Kora.blips = {
     getCategories = function()
         return { { id = 14, name = 'Bar', label = 'Bars', visible = true, count = 1 } }
     end,
@@ -47,7 +47,7 @@ QB.blips = {
     hideCategory = function() return true end,
     showCategory = function() return true end,
 }
-QB.callback.trigger = function()
+Kora.callback.trigger = function()
     local result = promise.new()
     result:resolve(true)
     return result
@@ -64,7 +64,7 @@ harness.test('settings definition passes the production AppShell validator', fun
     harness.assertTrue(openMessage ~= nil, 'validated settings app should open through the real NUI module')
     harness.assertEqual(openMessage.data.payload.app.id, 'kora_lib:blips', 'browser should receive the settings app')
     harness.assertTrue(focused, 'the opened settings app should acquire input focus')
-    harness.assertTrue(QB.nui.isAppOpen('kora_lib:blips'), 'the settings app should remain active until the browser closes it')
+    harness.assertTrue(Kora.nui.isAppOpen('kora_lib:blips'), 'the settings app should remain active until the browser closes it')
 
     nuiCallbacks['kora_lib:nui:response']({
         requestId = openMessage.data.requestId, token = openMessage.data.token,
@@ -72,7 +72,7 @@ harness.test('settings definition passes the production AppShell validator', fun
     }, function() end)
     harness.assertFalse(focused, 'closing the settings app should release input focus')
     harness.assertFalse(keepInput, 'closing the settings app should restore game input state')
-    harness.assertFalse(QB.nui.isAppOpen('kora_lib:blips'), 'closing should clear the settings app session')
+    harness.assertFalse(Kora.nui.isAppOpen('kora_lib:blips'), 'closing should clear the settings app session')
 end)
 
 harness.report('blips settings AppShell smoke')

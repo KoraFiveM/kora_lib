@@ -7,12 +7,12 @@ local harness = require("harness")
 local mocks = require("mocks")
 
 -- Same dual-realm-in-one-process trick test/smoke/callback.lua uses: load the
--- server half of local/callback while QB.callback.register/trigger still
+-- server half of local/callback while Kora.callback.register/trigger still
 -- resolve to the server versions (so modules/minigames/server.lua's
--- QB.callback.register(...) calls, made at load time, bind into the SERVER's
+-- Kora.callback.register(...) calls, made at load time, bind into the SERVER's
 -- own registry), then load the client half (which overwrites the same table
--- slot) before modules/minigames/client.lua loads, so QB.minigames.play's
--- QB.callback.trigger calls -- made later, at CALL time -- resolve to the
+-- slot) before modules/minigames/client.lua loads, so Kora.minigames.play's
+-- Kora.callback.trigger calls -- made later, at CALL time -- resolve to the
 -- CLIENT version instead.
 local net = mocks.install()
 local browserElapsed = 0
@@ -29,7 +29,7 @@ dofile(repoRoot .. "local/callback/shared.lua")
 dofile(repoRoot .. "local/callback/server.lua")
 dofile(repoRoot .. "modules/minigames/shared.lua")
 local skillAdjustment = nil
-QB.skills = {
+Kora.skills = {
     adjustMinigame = function(...)
         if skillAdjustment then return skillAdjustment(...) end
         local options = select(select('#', ...), ...)
@@ -40,18 +40,18 @@ dofile(repoRoot .. "modules/minigames/server.lua")
 
 dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread completes the client->server handshake synchronously
 
--- Real QB.nui isn't loaded here (that's modules/nui's own smoke test) --
+-- Real Kora.nui isn't loaded here (that's modules/nui's own smoke test) --
 -- minigames only needs somewhere to send/request against. `roundResponder`,
 -- when set, is called synchronously with the "minigames:round" request data
 -- and its return value settles the request immediately -- since every
--- QB.callback.trigger call in this mock environment ALSO resolves
--- synchronously (see mocks.lua), an entire multi-round QB.minigames.playAsync()
+-- Kora.callback.trigger call in this mock environment ALSO resolves
+-- synchronously (see mocks.lua), an entire multi-round Kora.minigames.playAsync()
 -- flow runs to completion within one CreateThread resume, with no need for
 -- net.step(). Left nil, a "minigames:round" request is simply never answered.
 local sentMessages = {}
 local roundResponder = nil
 
-QB.nui = {
+Kora.nui = {
     send = function(action, data) table.insert(sentMessages, { action = action, data = data }) end,
     request = function(action, data)
         local p = promise.new()
@@ -65,7 +65,7 @@ QB.nui = {
         return p
     end,
     requestAsync = function(action, data)
-        return QB.nui.request(action, data)
+        return Kora.nui.request(action, data)
     end,
     cancelRequest = function(request, result, rejection)
         if request.state ~= 'pending' then return false end
@@ -125,7 +125,7 @@ local function mashAttempt(required)
     return { pressTimestamps = timestamps }
 end
 
--- Inverts QB.minigames.triangleWave for a known target: pos = phase*2 for
+-- Inverts Kora.minigames.triangleWave for a known target: pos = phase*2 for
 -- phase < 0.5, so phase = target/2 always lands on the rising branch (target
 -- is always < 1, so phase is always < 0.5) -- lets a test hit an exact,
 -- server-generated random target without needing to predict or mock the RNG.
@@ -134,24 +134,24 @@ local function elapsedForTarget(target, speed)
 end
 
 harness.test("triangleWave is a symmetric triangle over one full cycle", function()
-    harness.assertEqual(QB.minigames.triangleWave(0, 1), 0, "phase 0 should be at the bottom")
-    harness.assertEqual(QB.minigames.triangleWave(250, 1), 0.5, "phase 0.25 should be at the midpoint, rising")
-    harness.assertEqual(QB.minigames.triangleWave(500, 1), 1, "phase 0.5 should be at the top")
-    harness.assertEqual(QB.minigames.triangleWave(750, 1), 0.5, "phase 0.75 should be at the midpoint, falling")
+    harness.assertEqual(Kora.minigames.triangleWave(0, 1), 0, "phase 0 should be at the bottom")
+    harness.assertEqual(Kora.minigames.triangleWave(250, 1), 0.5, "phase 0.25 should be at the midpoint, rising")
+    harness.assertEqual(Kora.minigames.triangleWave(500, 1), 1, "phase 0.5 should be at the top")
+    harness.assertEqual(Kora.minigames.triangleWave(750, 1), 0.5, "phase 0.75 should be at the midpoint, falling")
 end)
 
 harness.test("play rejects an invalid game type", function()
-    harness.assertThrows(function() QB.minigames.playAsync("cardgame", {}) end, "an unsupported game type should raise")
+    harness.assertThrows(function() Kora.minigames.playAsync("cardgame", {}) end, "an unsupported game type should raise")
 end)
 
 harness.test("play rejects non-table opts", function()
-    harness.assertThrows(function() QB.minigames.playAsync("mash", "fast") end, "a non-table opts should raise")
+    harness.assertThrows(function() Kora.minigames.playAsync("mash", "fast") end, "a non-table opts should raise")
 end)
 
 harness.test("play returns the resolved result without exposing a promise", function()
     roundResponder = function() return { pressTimestamps = { 0, 1000, 2000 } } end
 
-    local result = QB.minigames.play("mash", { attempts = 1, requiredPresses = 3 })
+    local result = Kora.minigames.play("mash", { attempts = 1, requiredPresses = 3 })
     roundResponder = nil
 
     harness.assertTrue(result.success, "the public play function should return the completed result directly")
@@ -171,14 +171,14 @@ harness.test("skill checks capture the server-adjusted difficulty in their autho
     end
 
     local authorization = asResource('mining-resource', function()
-        return QB.minigames.authorizeSkillCheck(1, 'mining', 'skillbar', { zoneSize = 0.1, attempts = 1 })
+        return Kora.minigames.authorizeSkillCheck(1, 'mining', 'skillbar', { zoneSize = 0.1, attempts = 1 })
     end)
     local started = serverCall('kora_lib:minigames:start', 1, 'skillbar', { zoneSize = 0.05 }, authorization)
     skillAdjustment = nil
 
     harness.assertTrue(math.abs((started.public.zoneEnd - started.public.zoneStart) - 0.6) < 1e-9,
         'the client options must not replace the skill-adjusted authorized configuration')
-    Citizen.Await(QB.callback.trigger('kora_lib:minigames:cancel', started.sessionId))
+    Citizen.Await(Kora.callback.trigger('kora_lib:minigames:cancel', started.sessionId))
 end)
 
 harness.test("lockpick: succeeds on the first correct attempt", function()
@@ -187,7 +187,7 @@ harness.test("lockpick: succeeds on the first correct attempt", function()
         return { presses = { { index = 1, elapsed = elapsedForTarget(pin.target, data.puzzle.speed) } } }
     end
 
-    local p = QB.minigames.playAsync("lockpick", { pinCount = 1 })
+    local p = Kora.minigames.playAsync("lockpick", { pinCount = 1 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "the promise should resolve within the mocked synchronous flow")
@@ -208,7 +208,7 @@ harness.test("lockpick: a malformed first attempt fails gracefully and a correct
     end
 
     sentMessages = {}
-    local p = QB.minigames.playAsync("lockpick", { pinCount = 1, attempts = 3 })
+    local p = Kora.minigames.playAsync("lockpick", { pinCount = 1, attempts = 3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "a malformed attempt must not error the whole play() call")
@@ -225,7 +225,7 @@ end)
 harness.test("mash: fails and exhausts every attempt when never enough presses are reported", function()
     roundResponder = function() return { pressTimestamps = {} } end
 
-    local p = QB.minigames.playAsync("mash", { attempts = 2, requiredPresses = 5 })
+    local p = Kora.minigames.playAsync("mash", { attempts = 2, requiredPresses = 5 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "running out of attempts should still resolve, not reject")
@@ -237,7 +237,7 @@ harness.test("cancelling a round ends the session immediately without consuming 
     sentMessages = {}
     roundResponder = function() return { cancelled = true } end
 
-    local p = QB.minigames.playAsync("mash", { attempts = 3 })
+    local p = Kora.minigames.playAsync("mash", { attempts = 3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "a cancel should resolve cleanly, not reject")
@@ -256,9 +256,9 @@ harness.test("cancelling a round ends the session immediately without consuming 
     -- Proves the SERVER session was actually freed right away rather than
     -- left for expiresAt/the 30s sweep -- a fresh session must be obtainable
     -- immediately, not rejected by the per-player concurrency guard.
-    local fresh = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
+    local fresh = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
     harness.assertTrue(fresh.sessionId ~= nil, "a fresh session should start immediately after cancelling, proving the old one was freed")
-    Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", fresh.sessionId, { pressTimestamps = {} }))
+    Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", fresh.sessionId, { pressTimestamps = {} }))
 end)
 
 harness.test("skillbar: succeeds when the reported elapsed lands in the target zone", function()
@@ -270,7 +270,7 @@ harness.test("skillbar: succeeds when the reported elapsed lands in the target z
         return { elapsed = elapsedForTarget(mid, data.puzzle.speed) }
     end
 
-    local p = QB.minigames.playAsync("skillbar", { speed = 0.3 })
+    local p = Kora.minigames.playAsync("skillbar", { speed = 0.3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -280,7 +280,7 @@ end)
 harness.test("fishing: malformed timing fails cleanly", function()
     roundResponder = function() return { reels = {} } end
 
-    local p = QB.minigames.playAsync("fishing", { games = 3, speed = "hard" })
+    local p = Kora.minigames.playAsync("fishing", { games = 3, speed = "hard" })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -306,7 +306,7 @@ harness.test("circuit: succeeds by connecting every matching color pair", functi
         return { connections = connections }
     end
 
-    local p = QB.minigames.playAsync("circuit", { nodeCount = 3 })
+    local p = Kora.minigames.playAsync("circuit", { nodeCount = 3 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -314,43 +314,43 @@ harness.test("circuit: succeeds by connecting every matching color pair", functi
 end)
 
 harness.test("submit treats an expired session as a clean failure", function()
-    local round = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", "mash", {}))
+    local round = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", {}))
     _G.Wait(Config.minigames.sessionTTL + 5000)
 
-    local result = Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", round.sessionId, { pressTimestamps = {} }))
+    local result = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", round.sessionId, { pressTimestamps = {} }))
 
     harness.assertTrue(result.done, "an expired session must end the play() call")
     harness.assertFalse(result.success, "an expired session cannot succeed")
 end)
 
 harness.test("long rounds and retries outlive the minimum abandoned-session TTL", function()
-    local round = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", "lockpick", {
+    local round = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "lockpick", {
         attempts = 2,
         pinCount = 1,
         timeLimit = 60000,
     }))
 
     _G.Wait(Config.minigames.sessionTTL + 1)
-    local retry = Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", round.sessionId, { presses = {} }))
+    local retry = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", round.sessionId, { presses = {} }))
     harness.assertFalse(retry.done, "the first long round should be processed rather than expired")
     harness.assertEqual(retry.attempt, 2, "a failed long round should issue the next attempt")
 
     _G.Wait(Config.minigames.sessionTTL + 1)
-    local result = Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", round.sessionId, { presses = {} }))
+    local result = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", round.sessionId, { presses = {} }))
     harness.assertTrue(result.done, "the final retry should finish normally")
     harness.assertEqual(result.attemptsUsed, 2, "the refreshed retry deadline should preserve both attempts")
 end)
 
 harness.test("a rejected NUI round cancels its server session before rejecting play", function()
-    local originalRequest = QB.nui.request
-    QB.nui.request = function()
+    local originalRequest = Kora.nui.request
+    Kora.nui.request = function()
         local rejected = promise.new()
         rejected:reject("simulated NUI failure")
         return rejected
     end
 
-    local result = QB.minigames.playAsync("mash", { attempts = 1 })
-    QB.nui.request = originalRequest
+    local result = Kora.minigames.playAsync("mash", { attempts = 1 })
+    Kora.nui.request = originalRequest
     harness.assertEqual(result.state, "rejected", "the NUI error should reject play")
 
     local fresh = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
@@ -370,7 +370,7 @@ end)
 harness.test("submit rejects a request from a player who doesn't own the session", function()
     -- attempts = 1 so the cleanup submit below unconditionally ends the
     -- session (pass or fail) rather than leaking it into later tests.
-    local round = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
+    local round = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
 
     -- Register a second simulated player with its own real handshake token,
     -- then drive the server's raw invoke handler directly as that player --
@@ -399,7 +399,7 @@ harness.test("submit rejects a request from a player who doesn't own the session
     -- The mock's TriggerClientEvent doesn't filter by target (only one
     -- simulated client exists), so the second player's handshake response
     -- above just overwrote the shared client's own cached token -- replay
-    -- mocks.SOURCE's handshake to resync before using QB.callback.trigger
+    -- mocks.SOURCE's handshake to resync before using Kora.callback.trigger
     -- normally again, exactly like test/smoke/callback.lua's own
     -- "playerDropped clears the token" test does after the same kind of
     -- token-clobbering.
@@ -407,7 +407,7 @@ harness.test("submit rejects a request from a player who doesn't own the session
     for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
     _G.source = nil
 
-    Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", round.sessionId, { pressTimestamps = {} }))
+    Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", round.sessionId, { pressTimestamps = {} }))
 end)
 
 harness.test("submit and cancel reject malformed session IDs before lookup", function()
@@ -423,13 +423,13 @@ end)
 harness.test("server rejects a second concurrent session for the same player, independent of the client-side guard", function()
     -- attempts = 1 so the cleanup submit below unconditionally ends the
     -- session (pass or fail) rather than leaking it into later tests.
-    local first = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
+    local first = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
     harness.assertTrue(first.sessionId ~= nil, "sanity check: the first session should start")
 
-    local p = QB.callback.trigger("kora_lib:minigames:start", "mash", {})
+    local p = Kora.callback.trigger("kora_lib:minigames:start", "mash", {})
     harness.assertEqual(p.state, "rejected", "the server must reject a second concurrent session for the same player")
 
-    Citizen.Await(QB.callback.trigger("kora_lib:minigames:submit", first.sessionId, { pressTimestamps = {} }))
+    Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", first.sessionId, { pressTimestamps = {} }))
 end)
 
 harness.test("play rejects a concurrent call while one is already in flight", function()
@@ -440,11 +440,11 @@ harness.test("play rejects a concurrent call while one is already in flight", fu
     -- play() call's CreateThread is still executing, before it has cleared
     -- its own activeSession guard.
     roundResponder = function()
-        innerP = QB.minigames.playAsync("mash", {})
+        innerP = Kora.minigames.playAsync("mash", {})
         return { pressTimestamps = {} }
     end
 
-    local outerP = QB.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
+    local outerP = Kora.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
     roundResponder = nil
 
     harness.assertTrue(innerP ~= nil, "the responder should have attempted a concurrent call")
@@ -458,13 +458,13 @@ harness.test("only the initiating resource can cancel an active minigame", funct
     local ownerCancelled
     Citizen.Await = function(request)
         if request.state == "pending" then
-            foreignCancelled = asResource("other_resource", function() return QB.minigames.cancel() end)
-            ownerCancelled = QB.minigames.cancel("minigame_owner")
+            foreignCancelled = asResource("other_resource", function() return Kora.minigames.cancel() end)
+            ownerCancelled = Kora.minigames.cancel("minigame_owner")
         end
         return originalAwait(request)
     end
 
-    local result = QB.minigames.playAsync("mash", { attempts = 1 }, nil, "minigame_owner")
+    local result = Kora.minigames.playAsync("mash", { attempts = 1 }, nil, "minigame_owner")
     Citizen.Await = originalAwait
 
     harness.assertFalse(foreignCancelled,
@@ -484,17 +484,17 @@ harness.test("resource-stop cleanup clears the client-side guard and closes the 
 
         -- Swap in a plain (non-reentrant) responder for the inner call's own
         -- round -- reusing the outer responder here would have it fire
-        -- onClientResourceStop and recurse into QB.minigames.play again,
+        -- onClientResourceStop and recurse into Kora.minigames.play again,
         -- unboundedly, since the mock resolves everything synchronously.
         local outerResponder = roundResponder
         roundResponder = function() return { pressTimestamps = {} } end
-        innerP = QB.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
+        innerP = Kora.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
         roundResponder = outerResponder
 
         return { pressTimestamps = {} }
     end
 
-    QB.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
+    Kora.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
     roundResponder = nil
 
     harness.assertTrue(innerP ~= nil, "the responder should have attempted a fresh call")
@@ -525,7 +525,7 @@ harness.test("pinpad: succeeds when the submitted digits match, with human-plaus
         return { digits = digits }
     end
 
-    local p = QB.minigames.playAsync("pinpad", { numbers = 1222 })
+    local p = Kora.minigames.playAsync("pinpad", { numbers = 1222 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -541,7 +541,7 @@ harness.test("pinpad: fails when a digit is wrong", function()
         return { digits = digits }
     end
 
-    local p = QB.minigames.playAsync("pinpad", { numbers = 1234, attempts = 1 })
+    local p = Kora.minigames.playAsync("pinpad", { numbers = 1234, attempts = 1 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -561,7 +561,7 @@ harness.test("quiz: succeeds once enough answers are correct", function()
         return { answers = answers }
     end
 
-    local p = QB.minigames.playAsync("quiz", { questions = questions, correctRequired = 2, timer = 10 })
+    local p = Kora.minigames.playAsync("quiz", { questions = questions, correctRequired = 2, timer = 10 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -578,7 +578,7 @@ harness.test("wordguess: succeeds once every letter of the word is found", funct
         return { guesses = guesses }
     end
 
-    local p = QB.minigames.playAsync("wordguess", { word = "cat", hint = "an animal", guesses = 5 })
+    local p = Kora.minigames.playAsync("wordguess", { word = "cat", hint = "an animal", guesses = 5 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -595,7 +595,7 @@ harness.test("wordguess: fails once wrong guesses exceed the allowance", functio
         return { guesses = guesses }
     end
 
-    local p = QB.minigames.playAsync("wordguess", { word = "cat", hint = "an animal", guesses = 2, attempts = 1 })
+    local p = Kora.minigames.playAsync("wordguess", { word = "cat", hint = "an animal", guesses = 2, attempts = 1 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -607,7 +607,7 @@ harness.test("wordscramble: succeeds when the submitted guess matches the origin
         return { guess = "fivem", elapsed = Config.minigames.wordscramble.minSubmitTime + 10 }
     end
 
-    local p = QB.minigames.playAsync("wordscramble", { word = "fivem", hint = "the game modification", timer = 30 })
+    local p = Kora.minigames.playAsync("wordscramble", { word = "fivem", hint = "the game modification", timer = 30 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -625,7 +625,7 @@ harness.test("keys: always succeeds and reports a faults count", function()
         return { presses = presses }
     end
 
-    local p = QB.minigames.playAsync("keys", { amount = 4 })
+    local p = Kora.minigames.playAsync("keys", { amount = 4 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -638,7 +638,7 @@ harness.test("hacking: succeeds when the submitted code matches the generated on
         return { submitted = data.puzzle.code, elapsed = Config.minigames.hacking.minTimePerFind + 10 }
     end
 
-    local p = QB.minigames.playAsync("hacking", { solutionsize = 5, timeout = 30 })
+    local p = Kora.minigames.playAsync("hacking", { solutionsize = 5, timeout = 30 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -650,7 +650,7 @@ harness.test("hacking: fails when the submitted code is wrong", function()
         return { submitted = "ZZZZZ", elapsed = Config.minigames.hacking.minTimePerFind + 10 }
     end
 
-    local p = QB.minigames.playAsync("hacking", { solutionsize = 5, timeout = 30 })
+    local p = Kora.minigames.playAsync("hacking", { solutionsize = 5, timeout = 30 })
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "should resolve")
@@ -666,10 +666,10 @@ harness.test("minigame callbacks retain their configured per-player rate limits"
     end
 
     for _ = 1, Config.minigames.callbackRateLimits.start.max do
-        local round = Citizen.Await(QB.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
-        Citizen.Await(QB.callback.trigger("kora_lib:minigames:cancel", round.sessionId))
+        local round = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
+        Citizen.Await(Kora.callback.trigger("kora_lib:minigames:cancel", round.sessionId))
     end
-    local rejected = QB.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 })
+    local rejected = Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 })
     harness.assertEqual(rejected.state, "rejected", "the next start inside the same window should be rate-limited")
     harness.assertTrue(tostring(rejected.value):find("rate limit exceeded", 1, true) ~= nil,
         "the rejection should identify the callback quota")
@@ -677,7 +677,7 @@ end)
 
 harness.test("authorized play ignores client opts and returns a bound opaque proof", function()
     local authorization = asResource("consumer_a", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", {
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", {
             attempts = 1,
             requiredPresses = 6,
             timeLimit = 4000,
@@ -689,7 +689,7 @@ harness.test("authorized play ignores client opts and returns a bound opaque pro
         seen = data
         return mashAttempt(data.puzzle.requiredPresses)
     end
-    local p = QB.minigames.playAsync("mash", { attempts = 10, requiredPresses = 3, timeLimit = 1000 }, authorization)
+    local p = Kora.minigames.playAsync("mash", { attempts = 10, requiredPresses = 3, timeLimit = 1000 }, authorization)
     roundResponder = nil
 
     harness.assertEqual(p.state, "resolved", "the authorized play should resolve")
@@ -702,28 +702,28 @@ harness.test("authorized play ignores client opts and returns a bound opaque pro
 
     local proof = p.value.proof
     harness.assertFalse(asResource("consumer_a", function()
-        return QB.minigames.consumeProof(mocks.SOURCE + 1, proof, "mash", authorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE + 1, proof, "mash", authorization)
     end), "a player mismatch must fail")
     harness.assertFalse(asResource("consumer_a", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proof, "lockpick", authorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, proof, "lockpick", authorization)
     end), "a game-type mismatch must fail")
     harness.assertFalse(asResource("consumer_a", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", "wrong-authorization")
+        return Kora.minigames.consumeProof(mocks.SOURCE, proof, "mash", "wrong-authorization")
     end), "an authorization mismatch must fail")
     harness.assertFalse(asResource("consumer_b", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
     end), "an issuer mismatch must fail")
     harness.assertTrue(asResource("consumer_a", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
     end), "mismatches must not burn the valid proof")
     harness.assertFalse(asResource("consumer_a", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, proof, "mash", authorization)
     end), "a proof must be single-use")
 end)
 
 harness.test("authorization mismatches do not burn a valid single-start capability", function()
     local authorization = asResource("consumer_auth", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
 
     harness.assertFalse(pcall(function()
@@ -747,7 +747,7 @@ end)
 
 harness.test("failed and cancelled authorized sessions never return a proof", function()
     local failedAuthorization = asResource("consumer_outcomes", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local failedRound = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, failedAuthorization)
     local failed = serverCall("kora_lib:minigames:submit", mocks.SOURCE, failedRound.sessionId, { pressTimestamps = {} })
@@ -755,10 +755,10 @@ harness.test("failed and cancelled authorized sessions never return a proof", fu
     harness.assertTrue(failed.proof == nil, "a failed authorized session must not mint a proof")
 
     local cancelledAuthorization = asResource("consumer_outcomes", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     roundResponder = function() return { cancelled = true } end
-    local cancelled = QB.minigames.playAsync("mash", nil, cancelledAuthorization)
+    local cancelled = Kora.minigames.playAsync("mash", nil, cancelledAuthorization)
     roundResponder = nil
     harness.assertTrue(cancelled.value.cancelled, "the session should report cancellation")
     harness.assertTrue(cancelled.value.proof == nil, "a cancelled authorized session must not mint a proof")
@@ -766,17 +766,17 @@ end)
 
 harness.test("resource stop removes pending authorizations, live sessions, and proofs", function()
     local pendingAuthorization = asResource("consumer_cleanup", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local proofAuthorization = asResource("consumer_cleanup", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local proofRound = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
     Wait(2 * Config.minigames.mash.minPressInterval)
     local proofResult = serverCall("kora_lib:minigames:submit", mocks.SOURCE, proofRound.sessionId, mashAttempt(3))
 
     local activeAuthorization = asResource("consumer_cleanup", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, activeAuthorization)
 
@@ -786,7 +786,7 @@ harness.test("resource stop removes pending authorizations, live sessions, and p
         serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, pendingAuthorization)
     end), "a stopped resource's pending authorization must be removed")
     harness.assertFalse(asResource("consumer_cleanup", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proofResult.proof, "mash", proofAuthorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, proofResult.proof, "mash", proofAuthorization)
     end), "a stopped resource's proof must be removed")
 
     local fresh = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
@@ -796,7 +796,7 @@ end)
 
 harness.test("authorization and proof TTLs are enforced", function()
     local expiredAuthorization = asResource("consumer_ttl", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     Wait(Config.minigames.authorizationTTL + 1)
     harness.assertFalse(pcall(function()
@@ -804,20 +804,20 @@ harness.test("authorization and proof TTLs are enforced", function()
     end), "an expired authorization must not start a session")
 
     local proofAuthorization = asResource("consumer_ttl", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local round = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
     Wait(2 * Config.minigames.mash.minPressInterval)
     local result = serverCall("kora_lib:minigames:submit", mocks.SOURCE, round.sessionId, mashAttempt(3))
     Wait(Config.minigames.proofTTL + 1)
     harness.assertFalse(asResource("consumer_ttl", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, result.proof, "mash", proofAuthorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, result.proof, "mash", proofAuthorization)
     end), "an expired proof must not be consumable")
 end)
 
 harness.test("numeric, string, and dense-array bounds reject pathological input", function()
     local finiteAuthorization = asResource("consumer_limits", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "skillbar", {
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "skillbar", {
             speed = 0 / 0,
             timeLimit = math.huge,
         })
@@ -831,12 +831,12 @@ harness.test("numeric, string, and dense-array bounds reject pathological input"
 
     harness.assertFalse(pcall(function()
         asResource("consumer_limits", function()
-            QB.minigames.authorizeProof(mocks.SOURCE, "pinpad", { numbers = "123456789" })
+            Kora.minigames.authorizeProof(mocks.SOURCE, "pinpad", { numbers = "123456789" })
         end)
     end), "PIN content beyond the digit cap must be rejected")
     harness.assertFalse(pcall(function()
         asResource("consumer_limits", function()
-            QB.minigames.authorizeProof(mocks.SOURCE, "wordguess", {
+            Kora.minigames.authorizeProof(mocks.SOURCE, "wordguess", {
                 word = string.rep("a", Config.minigames.inputLimits.wordGuessBytes + 1),
             })
         end)
@@ -848,7 +848,7 @@ harness.test("numeric, string, and dense-array bounds reject pathological input"
     end
     harness.assertFalse(pcall(function()
         asResource("consumer_limits", function()
-            QB.minigames.authorizeProof(mocks.SOURCE, "quiz", { questions = questions })
+            Kora.minigames.authorizeProof(mocks.SOURCE, "quiz", { questions = questions })
         end)
     end), "oversized question arrays must be rejected")
 
@@ -869,16 +869,16 @@ end)
 
 harness.test("playerDropped removes every minigame capability and active session", function()
     local pendingAuthorization = asResource("consumer_player", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local proofAuthorization = asResource("consumer_player", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     local proofRound = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, proofAuthorization)
     Wait(2 * Config.minigames.mash.minPressInterval)
     local proofResult = serverCall("kora_lib:minigames:submit", mocks.SOURCE, proofRound.sessionId, mashAttempt(3))
     local activeAuthorization = asResource("consumer_player", function()
-        return QB.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
+        return Kora.minigames.authorizeProof(mocks.SOURCE, "mash", { attempts = 1, requiredPresses = 3 })
     end)
     serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, activeAuthorization)
 
@@ -890,7 +890,7 @@ harness.test("playerDropped removes every minigame capability and active session
         serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", nil, pendingAuthorization)
     end), "disconnect must remove pending authorizations")
     harness.assertFalse(asResource("consumer_player", function()
-        return QB.minigames.consumeProof(mocks.SOURCE, proofResult.proof, "mash", proofAuthorization)
+        return Kora.minigames.consumeProof(mocks.SOURCE, proofResult.proof, "mash", proofAuthorization)
     end), "disconnect must remove proofs")
     local fresh = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
     serverCall("kora_lib:minigames:cancel", mocks.SOURCE, fresh.sessionId)
@@ -903,7 +903,7 @@ harness.test("playerDropped removes every minigame capability and active session
 end)
 
 harness.test("authorized proofs reject future input timestamps and reset timing on retry", function()
-    local authorization = QB.minigames.authorizeProof(mocks.SOURCE, 'mash', { attempts = 3, requiredPresses = 20 })
+    local authorization = Kora.minigames.authorizeProof(mocks.SOURCE, 'mash', { attempts = 3, requiredPresses = 20 })
     local round = serverCall('kora_lib:minigames:start', mocks.SOURCE, 'mash', nil, authorization)
     local attempt = mashAttempt(20)
     local first = serverCall('kora_lib:minigames:submit', mocks.SOURCE, round.sessionId, attempt)
@@ -918,18 +918,18 @@ harness.test("authorized proofs reject future input timestamps and reset timing 
     harness.assertFalse(third.success, 'a retry cannot reuse time spent in the previous round')
     harness.assertEqual(third.proof, nil)
 
-    authorization = QB.minigames.authorizeProof(mocks.SOURCE, 'mash', { attempts = 1, requiredPresses = 20 })
+    authorization = Kora.minigames.authorizeProof(mocks.SOURCE, 'mash', { attempts = 1, requiredPresses = 20 })
     round = serverCall('kora_lib:minigames:start', mocks.SOURCE, 'mash', nil, authorization)
     Wait(attempt.pressTimestamps[20])
     local valid = serverCall('kora_lib:minigames:submit', mocks.SOURCE, round.sessionId, attempt)
     harness.assertTrue(valid.success)
-    harness.assertTrue(QB.minigames.consumeProof(mocks.SOURCE, valid.proof, 'mash', authorization))
+    harness.assertTrue(Kora.minigames.consumeProof(mocks.SOURCE, valid.proof, 'mash', authorization))
 end)
 
 harness.test("single-input rounds enforce the server clock with a bounded margin", function()
     local elapsed = Config.minigames.hacking.minTimePerFind
     for _, margin in ipairs({ 51, 50 }) do
-        local authorization = QB.minigames.authorizeProof(mocks.SOURCE, 'hacking')
+        local authorization = Kora.minigames.authorizeProof(mocks.SOURCE, 'hacking')
         local round = serverCall('kora_lib:minigames:start', mocks.SOURCE, 'hacking', nil, authorization)
         Wait(elapsed - margin)
         local result = serverCall('kora_lib:minigames:submit', mocks.SOURCE, round.sessionId,

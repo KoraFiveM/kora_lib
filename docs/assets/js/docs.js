@@ -27,7 +27,7 @@ search?.addEventListener('input', () => {
 });
 
 const methodHeadings = [...(content?.querySelectorAll('h2, h3') ?? [])].filter((heading) =>
-  heading.textContent.trim().startsWith('QB.')
+  heading.textContent.trim().startsWith('Kora.')
 );
 
 if (methodsSidebar && methodsNav && methodHeadings.length > 0) {

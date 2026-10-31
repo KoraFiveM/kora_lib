@@ -1,5 +1,5 @@
 /**
- * JS mirror of QB.minigames.triangleWave (modules/minigames/shared.lua) --
+ * JS mirror of Kora.minigames.triangleWave (modules/minigames/shared.lua) --
  * MUST stay byte-for-byte identical to that formula. The server independently
  * recomputes a submitted attempt's position from the exact same formula, so
  * this is purely for rendering the moving indicator; it is never sent back

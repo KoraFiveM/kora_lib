@@ -73,7 +73,7 @@ callback normally.
 
 ## Webhook API
 
-### `QB.discord.createEmbed(options)`
+### `Kora.discord.createEmbed(options)`
 
 Returns a plain Discord embed table safe to pass through a FiveM export.
 Supported fields are `title`, `description`, `url`, `color`, `timestamp`,
@@ -86,7 +86,7 @@ Supported fields are `title`, `description`, `url`, `color`, `timestamp`,
   object; `image` and `thumbnail` accept a URL string or `{ url = ... }`.
 
 ```lua
-local embed = QB.discord.createEmbed({
+local embed = Kora.discord.createEmbed({
     title = 'Server started',
     description = 'The server is ready for players.',
     color = '#DC143C',
@@ -99,19 +99,19 @@ local embed = QB.discord.createEmbed({
 })
 ```
 
-### `QB.discord.sendWebhook(url, payload, callback?)`
+### `Kora.discord.sendWebhook(url, payload, callback?)`
 
 Posts a webhook message. `url = nil` uses `kora_lib_discord_webhook`. `payload`
 may be a content string, a complete Discord webhook payload, or a single embed
 table (which is wrapped in `embeds`). This works without the bot token.
 
 ```lua
-QB.discord.sendWebhook(nil, { embeds = { embed } }, function(ok, response)
+Kora.discord.sendWebhook(nil, { embeds = { embed } }, function(ok, response)
     if not ok then print(('Webhook failed: %s'):format(response.error)) end
 end)
 
 -- An explicit webhook and a simple content message:
-QB.discord.sendWebhook(myWebhookUrl, 'Maintenance starts in ten minutes.')
+Kora.discord.sendWebhook(myWebhookUrl, 'Maintenance starts in ten minutes.')
 ```
 
 ## Bot API
@@ -119,8 +119,8 @@ QB.discord.sendWebhook(myWebhookUrl, 'Maintenance starts in ten minutes.')
 ### State and generic escape hatch
 
 ```lua
-QB.discord.botEnabled()
-QB.discord.botRequest(method, relativeRoute, payload?, callback?, auditReason?)
+Kora.discord.botEnabled()
+Kora.discord.botRequest(method, relativeRoute, payload?, callback?, auditReason?)
 ```
 
 `botRequest` supports `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`. Routes must
@@ -130,30 +130,30 @@ token is never attached to an arbitrary host.
 ### Guild members and roles
 
 ```lua
-QB.discord.getGuild(guildId, callback)
-QB.discord.getMember(guildId, userId, callback)
-QB.discord.updateMember(guildId, userId, attributes, callback?, auditReason?)
-QB.discord.fetchGuildRoles(guildId, callback)
-QB.discord.setMemberRoles(guildId, userId, roleIds, callback?, auditReason?)
-QB.discord.addMemberRole(guildId, userId, roleId, callback?, auditReason?)
-QB.discord.removeMemberRole(guildId, userId, roleId, callback?, auditReason?)
-QB.discord.createRole(guildId, role, callback?, auditReason?)
-QB.discord.updateRole(guildId, roleId, role, callback?, auditReason?)
-QB.discord.deleteRole(guildId, roleId, callback?, auditReason?)
+Kora.discord.getGuild(guildId, callback)
+Kora.discord.getMember(guildId, userId, callback)
+Kora.discord.updateMember(guildId, userId, attributes, callback?, auditReason?)
+Kora.discord.fetchGuildRoles(guildId, callback)
+Kora.discord.setMemberRoles(guildId, userId, roleIds, callback?, auditReason?)
+Kora.discord.addMemberRole(guildId, userId, roleId, callback?, auditReason?)
+Kora.discord.removeMemberRole(guildId, userId, roleId, callback?, auditReason?)
+Kora.discord.createRole(guildId, role, callback?, auditReason?)
+Kora.discord.updateRole(guildId, roleId, role, callback?, auditReason?)
+Kora.discord.deleteRole(guildId, roleId, callback?, auditReason?)
 ```
 
 `setMemberRoles` replaces the member's full role list. Use `addMemberRole` or
 `removeMemberRole` when changing just one role.
 
 ```lua
-QB.discord.fetchGuildRoles(nil, function(ok, response)
+Kora.discord.fetchGuildRoles(nil, function(ok, response)
     if not ok then return print(response.error) end
     for _, role in ipairs(response.data) do
         print(role.id, role.name)
     end
 end)
 
-QB.discord.addMemberRole(nil, discordUserId, policeRoleId, nil,
+Kora.discord.addMemberRole(nil, discordUserId, policeRoleId, nil,
     'Player was hired as police in-game')
 ```
 
@@ -180,19 +180,19 @@ skipped players (normally those without a Discord identifier), API failures,
 and database status.
 
 ```lua
-QB.discord.syncRoles(callback?)
-QB.discord.refreshMember(id, callback?)
+Kora.discord.syncRoles(callback?)
+Kora.discord.refreshMember(id, callback?)
 
-QB.discord.getGuildRoles(guildId?)
-QB.discord.getRole(roleNameOrId, guildId?)
-QB.discord.getRoles(id)
-QB.discord.hasRole(id, roleNameOrId)
-QB.discord.hasRoles(id, roleNamesOrIds, requireAll?) -- requireAll defaults true
-QB.discord.hasAnyRole(id, roleNamesOrIds)
-QB.discord.hasAllRoles(id, roleNamesOrIds)
+Kora.discord.getGuildRoles(guildId?)
+Kora.discord.getRole(roleNameOrId, guildId?)
+Kora.discord.getRoles(id)
+Kora.discord.hasRole(id, roleNameOrId)
+Kora.discord.hasRoles(id, roleNamesOrIds, requireAll?) -- requireAll defaults true
+Kora.discord.hasAnyRole(id, roleNamesOrIds)
+Kora.discord.hasAllRoles(id, roleNamesOrIds)
 
-QB.discord.giveRole(id, roleNameOrId, callback?, auditReason?)
-QB.discord.removeRole(id, roleNameOrId, callback?, auditReason?)
+Kora.discord.giveRole(id, roleNameOrId, callback?, auditReason?)
+Kora.discord.removeRole(id, roleNameOrId, callback?, auditReason?)
 ```
 
 For member methods, `id` may be:
@@ -210,13 +210,13 @@ refresh, or older than `Config.discord.cacheMaxAge`.
 
 ```lua
 -- Permission check for an online FiveM player.
-local allowed, err = QB.discord.hasAnyRole(source, { 'Administrator', 'Moderator' })
+local allowed, err = Kora.discord.hasAnyRole(source, { 'Administrator', 'Moderator' })
 if not allowed then
     return false, err or 'You do not have the required Discord role.'
 end
 
 -- Admin menu operation; changes Discord, then updates cache + database.
-QB.discord.giveRole(targetSource, 'Moderator', function(ok, response)
+Kora.discord.giveRole(targetSource, 'Moderator', function(ok, response)
     if not ok then print(('Could not grant role: %s'):format(response.error)) end
 end, 'Granted from the in-game admin menu')
 ```
@@ -224,18 +224,18 @@ end, 'Granted from the in-game admin menu')
 ### Channels and messages
 
 ```lua
-QB.discord.getChannels(guildId, callback)
-QB.discord.getChannel(channelId, callback)
-QB.discord.createChannel(guildId, channel, callback?, auditReason?)
-QB.discord.updateChannel(channelId, attributes, callback?, auditReason?)
-QB.discord.deleteChannel(channelId, callback?, auditReason?)
-QB.discord.sendMessage(channelId, payload, callback?)
-QB.discord.editMessage(channelId, messageId, payload, callback?)
-QB.discord.deleteMessage(channelId, messageId, callback?, auditReason?)
+Kora.discord.getChannels(guildId, callback)
+Kora.discord.getChannel(channelId, callback)
+Kora.discord.createChannel(guildId, channel, callback?, auditReason?)
+Kora.discord.updateChannel(channelId, attributes, callback?, auditReason?)
+Kora.discord.deleteChannel(channelId, callback?, auditReason?)
+Kora.discord.sendMessage(channelId, payload, callback?)
+Kora.discord.editMessage(channelId, messageId, payload, callback?)
+Kora.discord.deleteMessage(channelId, messageId, callback?, auditReason?)
 ```
 
 ```lua
-QB.discord.createChannel(nil, {
+Kora.discord.createChannel(nil, {
     name = 'support-tickets',
     type = 0, -- guild text channel
     topic = 'Player support',
@@ -243,7 +243,7 @@ QB.discord.createChannel(nil, {
     if ok then print('Created channel', response.data.id) end
 end, 'Created by the FiveM server')
 
-QB.discord.sendMessage(channelId, {
+Kora.discord.sendMessage(channelId, {
     content = 'The FiveM server is online.',
     allowed_mentions = { parse = {} },
 })

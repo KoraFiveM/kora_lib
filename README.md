@@ -2,7 +2,7 @@
 
 Lightweight, typed building blocks for FiveM resources in the qbcore2 ecosystem.
 
-kora_lib exposes interface components, callbacks, events, configuration, permissions, world queries, entities, zones, streaming, and other shared utilities through a single `QB.<module>.<function>` API.
+kora_lib exposes interface components, callbacks, events, configuration, permissions, world queries, entities, zones, streaming, and other shared utilities through a single `Kora.<module>.<function>` API.
 
 ## Install
 

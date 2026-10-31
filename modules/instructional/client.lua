@@ -70,11 +70,11 @@ local function hide(id)
     return true
 end
 
-ownership = QB.resources.registry(hide)
+ownership = Kora.resources.registry(hide)
 
 ---@param buttons QBInstructionalButton[]
 ---@return QBInstructionalHandle
-function QB.instructional.show(buttons)
+function Kora.instructional.show(buttons)
     validate(buttons)
     nextId = nextId + 1
     local id, display = nextId, { buttons = buttons }

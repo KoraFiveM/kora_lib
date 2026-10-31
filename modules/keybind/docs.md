@@ -1,11 +1,11 @@
 # Keybind module
 
-## `QB.keybind.add(options) -> handle` — client
+## `Kora.keybind.add(options) -> handle` — client
 
 Registers a stable FiveM press/release command pair and user-rebindable mapping.
 
 ```lua
-local bind = QB.keybind.add({
+local bind = Kora.keybind.add({
     name = 'inventory',
     description = 'Open inventory',
     defaultKey = 'TAB',
@@ -43,11 +43,11 @@ its callbacks. A stopped owning resource is cleaned up automatically. FiveM
 cannot unregister a native mapping individually, so removed settings entries
 remain inert until kora_lib stops or the stable name is re-added.
 
-## `QB.keybind.remove(name)` — client
+## `Kora.keybind.remove(name)` — client
 
 Removes the calling resource's current live definition and returns whether it
 existed. Another resource's binding returns `false` unchanged.
 
-## `QB.keybind.list()` — client
+## `Kora.keybind.list()` — client
 
 Returns sorted registration/state metadata without exposing callback functions.

@@ -5,13 +5,13 @@ Shows a filling progress bar to the local player for a fixed duration, optionall
 
 ## API
 
-### `QB.progressbar.validate(payload)`
+### `Kora.progressbar.validate(payload)`
 Validates the same payload accepted by `start` without displaying a bar or
 changing active state. It returns `true` or raises for invalid input. Use it
 when a resource must validate a future progress payload before beginning a
-server-authorized flow; `QB.actions.run` uses it for that purpose.
+server-authorized flow; `Kora.actions.run` uses it for that purpose.
 
-### `QB.progressbar.start(payload)`
+### `Kora.progressbar.start(payload)`
 Runs a progress bar for `payload.duration` ms.
 
 #### Parameters
@@ -51,12 +51,12 @@ Runs a progress bar for `payload.duration` ms.
     - `syncRotation?: boolean` — Defaults to `true`.
 
 #### Returns
-- `boolean completed` — `false` if the bar never started, or was cancelled (death, the cancel key, `QB.progressbar.cancel()`, or an internal error) before `duration` elapsed.
+- `boolean completed` — `false` if the bar never started, or was cancelled (death, the cancel key, `Kora.progressbar.cancel()`, or an internal error) before `duration` elapsed.
 - `string | nil error` — Set only when the bar never started at all (another one is already active).
 
 #### Example
 ```lua
-local completed = QB.progressbar.start({
+local completed = Kora.progressbar.start({
     label = "Picking lock...",
     duration = 8000,
     canCancel = true,
@@ -79,17 +79,17 @@ else
 end
 ```
 
-### `QB.progressbar.cancel()`
+### `Kora.progressbar.cancel()`
 Cancels the caller's currently active progress bar, if any. A resource cannot
 cancel a bar started by another resource; compatibility providers may pass
-their captured internal owner. The active `QB.progressbar.start` call notices
+their captured internal owner. The active `Kora.progressbar.start` call notices
 on its next tick (at most one frame later) and returns `completed = false` —
 this does not interrupt it synchronously.
 
 #### Returns
 - `boolean` — `true` if a bar was actually running and got cancelled; `false` if none was active.
 
-### `QB.progressbar.isActive()`
+### `Kora.progressbar.isActive()`
 Returns `true` while a progress bar started by this module is currently running.
 
 ## Notes
@@ -98,8 +98,8 @@ Returns `true` while a progress bar started by this module is currently running.
 - If `anim.dict` fails to load within 5 seconds, the bar still runs (and can still complete) — it just runs without the animation, and a warning is printed to the client console.
 - Prop models are streamed before the progress timer and NUI animation start. A malformed descriptor is rejected up front; a runtime streaming/object/attachment failure logs a warning and lets the action continue without that prop.
 - Props are non-networked local entities, so they work under strict entity lockdown and cannot become shared world state. They are detached and deleted on completion, cancellation, internal errors, or resource shutdown. If nearby players must see a gameplay prop, its owning server resource must create and lifecycle-manage it separately.
-- Combat and vehicle suppression use reference-counted `QB.controls` leases, so they can overlap other kora_lib input owners without releasing those owners' controls.
-- The NUI side (`web/src/components/progressbar/ProgressBar.tsx`) is fire-and-forget: `QB.nui.send("progressStart", { label, duration })` starts its own CSS fill animation timed to `duration` and hides itself when that finishes; `QB.nui.send("progressCancel")` (no payload) hides it immediately for every early-exit path. Lua's own timing is authoritative either way — the NUI never reports back.
+- Combat and vehicle suppression use reference-counted `Kora.controls` leases, so they can overlap other kora_lib input owners without releasing those owners' controls.
+- The NUI side (`web/src/components/progressbar/ProgressBar.tsx`) is fire-and-forget: `Kora.nui.send("progressStart", { label, duration })` starts its own CSS fill animation timed to `duration` and hides itself when that finishes; `Kora.nui.send("progressCancel")` (no payload) hides it immediately for every early-exit path. Lua's own timing is authoritative either way — the NUI never reports back.
 
 
 ## Legacy `progressbar` resource
@@ -123,7 +123,7 @@ owner migration; the same session owns deletion on completion, cancellation,
 failure and resource stop. Native calls still create local props by default.
 Do not run the original progressbar resource alongside kora_lib's provider.
 
-`QB.progressbar.start(payload, owner?, hooks?)` accepts internal compatibility
+`Kora.progressbar.start(payload, owner?, hooks?)` accepts internal compatibility
 hooks `onStart`, `onTick`, and `isFinished`, plus `networkedProps`; hooks run in the existing native
 session and all cleanup/error handling remains in that session.
 

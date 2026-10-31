@@ -26,8 +26,8 @@ local SCALAR_NUMBER_FIELDS = {
 }
 for field in pairs(MOD_FIELDS) do SCALAR_NUMBER_FIELDS[#SCALAR_NUMBER_FIELDS + 1] = field end
 
-local isFiniteNumber = QB.util.isFiniteNumber
-local isInteger = QB.util.isInteger
+local isFiniteNumber = Kora.util.isFiniteNumber
+local isInteger = Kora.util.isInteger
 
 local function validVehicle(vehicle)
     return isInteger(vehicle) and vehicle > 0
@@ -133,8 +133,8 @@ end
 ---@param timeout? integer
 ---@return boolean controlled
 ---@return string? error
-function QB.vehicle.requestControl(entity, timeout)
-    return QB.entities.requestControl(entity, timeout)
+function Kora.vehicle.requestControl(entity, timeout)
+    return Kora.entities.requestControl(entity, timeout)
 end
 
 ---Safely deletes a vehicle after obtaining control. Call this only after the
@@ -143,14 +143,14 @@ end
 ---@param options? QBVehicleDeleteOptions
 ---@return boolean deleted
 ---@return string? error
-function QB.vehicle.delete(vehicle, options)
-    assert(isInteger(vehicle) and vehicle > 0, 'QB.vehicle.delete requires a positive integer vehicle handle.')
-    assert(options == nil or type(options) == 'table', 'QB.vehicle.delete options must be a table.')
+function Kora.vehicle.delete(vehicle, options)
+    assert(isInteger(vehicle) and vehicle > 0, 'Kora.vehicle.delete requires a positive integer vehicle handle.')
+    assert(options == nil or type(options) == 'table', 'Kora.vehicle.delete options must be a table.')
     options = options or {}
     if not DoesEntityExist(vehicle) then return false, 'Vehicle does not exist.' end
     if not IsEntityAVehicle(vehicle) then return false, 'Entity is not a vehicle.' end
 
-    local controlled, err = QB.vehicle.requestControl(vehicle, options.timeout)
+    local controlled, err = Kora.vehicle.requestControl(vehicle, options.timeout)
     if not controlled then return false, err or 'Could not acquire vehicle control.' end
 
     SetEntityAsMissionEntity(vehicle, true, true)
@@ -160,13 +160,13 @@ end
 
 ---@param vehicle number
 ---@return boolean
-function QB.vehicle.isDriver(vehicle)
+function Kora.vehicle.isDriver(vehicle)
     return validVehicle(vehicle) and GetPedInVehicleSeat(vehicle, -1) == PlayerPedId()
 end
 
 ---@param vehicle number
 ---@return number|false modelHash
-function QB.vehicle.model(vehicle)
+function Kora.vehicle.model(vehicle)
     if not validVehicle(vehicle) then return false end
     return GetEntityModel(vehicle)
 end
@@ -174,7 +174,7 @@ end
 ---Returns the trimmed number plate for a valid vehicle.
 ---@param vehicle number
 ---@return string|false plate
-function QB.vehicle.plate(vehicle)
+function Kora.vehicle.plate(vehicle)
     if not validVehicle(vehicle) then return false end
     local value = GetVehicleNumberPlateText(vehicle)
     if type(value) ~= 'string' then return false end
@@ -184,7 +184,7 @@ end
 ---Returns the localized vehicle label, falling back to its display name.
 ---@param vehicle number
 ---@return string|false label
-function QB.vehicle.label(vehicle)
+function Kora.vehicle.label(vehicle)
     if not validVehicle(vehicle) then return false end
     local display = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
     local label = GetLabelText(display)
@@ -196,7 +196,7 @@ end
 ---@param vehicle number
 ---@return table|false properties
 ---@return string? error
-function QB.vehicle.getProperties(vehicle)
+function Kora.vehicle.getProperties(vehicle)
     if not validVehicle(vehicle) then return false, 'Entity is not a vehicle.' end
 
     local pearlescentColor, wheelColor = GetVehicleExtraColours(vehicle)
@@ -235,7 +235,7 @@ function QB.vehicle.getProperties(vehicle)
 
     local properties = {
         model = GetEntityModel(vehicle),
-        plate = QB.vehicle.plate(vehicle),
+        plate = Kora.vehicle.plate(vehicle),
         plateIndex = GetVehicleNumberPlateTextIndex(vehicle),
         bodyHealth = rounded(GetVehicleBodyHealth(vehicle)),
         engineHealth = rounded(GetVehicleEngineHealth(vehicle)),
@@ -287,14 +287,14 @@ end
 ---@param opts? QBVehicleSetPropertiesOptions
 ---@return boolean success
 ---@return string? error
-function QB.vehicle.setProperties(vehicle, props, opts)
+function Kora.vehicle.setProperties(vehicle, props, opts)
     if not validVehicle(vehicle) then return false, 'Entity is not a vehicle.' end
     assert(type(props) == 'table', 'Vehicle properties must be a table.')
     assert(opts == nil or type(opts) == 'table', 'Vehicle property options must be a table.')
     opts = opts or {}
     assertProperties(props)
 
-    local controlled, err = QB.vehicle.requestControl(vehicle, opts.timeout)
+    local controlled, err = Kora.vehicle.requestControl(vehicle, opts.timeout)
     if not controlled then return false, err or 'Could not acquire vehicle control.' end
 
     local colorPrimary, colorSecondary = GetVehicleColours(vehicle)

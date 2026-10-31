@@ -1,6 +1,6 @@
--- QB.logging (server realm) -- a lightweight ring-buffered event log with an
+-- Kora.logging (server realm) -- a lightweight ring-buffered event log with an
 -- optional Discord webhook, plus aggregate counters other tooling can read.
--- Framework-agnostic: any resource can call QB.logging.event(...), and
+-- Framework-agnostic: any resource can call Kora.logging.event(...), and
 -- webhook messages are attributed to whichever resource actually logged the
 -- event rather than to a hardcoded name.
 
@@ -12,7 +12,7 @@ local counts = {}   -- category -> count
 local function assertEvent(category, src, data)
     assert(type(category) == 'string' and category ~= '' and #category <= 64,
         'Log category must be a non-empty string of at most 64 bytes.')
-    assert(QB.util.isInteger(src) and src >= 0, 'Log source must be zero or a positive integer player ID.')
+    assert(Kora.util.isInteger(src) and src >= 0, 'Log source must be zero or a positive integer player ID.')
     assert(data == nil or type(data) == 'table', 'Log data must be a table or nil.')
 end
 
@@ -21,7 +21,7 @@ end
 ---@param category string
 ---@param src integer
 ---@param data table|nil
-function QB.logging.event(category, src, data)
+function Kora.logging.event(category, src, data)
     assertEvent(category, src, data)
     local entry = {
         category = category, source = src, data = data,
@@ -60,7 +60,7 @@ function QB.logging.event(category, src, data)
 end
 
 ---@return table  -- { counts = {category=n}, ringSize = n }
-function QB.logging.getStats()
+function Kora.logging.getStats()
     local snapshot = {}
     for category, count in pairs(counts) do snapshot[category] = count end
     return { counts = snapshot, ringSize = #ring }

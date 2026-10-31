@@ -31,8 +31,8 @@ end
 ---module should create its own registry once at load time.
 ---@param onDispose fun(id: any) Called for each id still owned when its resource stops.
 ---@return QBResourcesRegistry
-function QB.resources.registry(onDispose)
-    assert(QB.compat.isCallable(onDispose), 'QB.resources.registry requires a callable disposer.')
+function Kora.resources.registry(onDispose)
+    assert(Kora.compat.isCallable(onDispose), 'Kora.resources.registry requires a callable disposer.')
     local byResource = {}
     local ownerOf = {}
     local sweeping = {}

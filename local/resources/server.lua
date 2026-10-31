@@ -25,8 +25,8 @@ end
 ---under a resource when that resource stops.
 ---@param onDispose fun(id: any) Called for each id still owned when its resource stops.
 ---@return QBResourcesRegistry
-function QB.resources.serverRegistry(onDispose)
-    assert(QB.compat.isCallable(onDispose), 'QB.resources.serverRegistry requires a callable disposer.')
+function Kora.resources.serverRegistry(onDispose)
+    assert(Kora.compat.isCallable(onDispose), 'Kora.resources.serverRegistry requires a callable disposer.')
     local byResource = {}
     local ownerOf = {}
     local sweeping = {}

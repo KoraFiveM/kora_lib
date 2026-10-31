@@ -1,11 +1,11 @@
 # Zones module
 
 ## Overview
-The zones module gives you box, sphere, circle, and poly trigger zones for the local player, with `onEnter`/`onExit`/`inside` callbacks — similar to ox_lib's zones. Points aren't a separate feature: `QB.zones.point()` is just a sphere with a small default radius, returning the same handle every other shape returns.
+The zones module gives you box, sphere, circle, and poly trigger zones for the local player, with `onEnter`/`onExit`/`inside` callbacks — similar to ox_lib's zones. Points aren't a separate feature: `Kora.zones.point()` is just a sphere with a small default radius, returning the same handle every other shape returns.
 
 ## API
 
-### `QB.zones.box(opts)`
+### `Kora.zones.box(opts)`
 Creates a rotatable box zone.
 
 #### Parameters
@@ -23,7 +23,7 @@ Creates a rotatable box zone.
 
 #### Example
 ```lua
-local zone = QB.zones.box({
+local zone = Kora.zones.box({
     coords = vector3(100.0, 200.0, 30.0),
     size = vector3(4.0, 4.0, 3.0),
     rotation = 45.0,
@@ -32,7 +32,7 @@ local zone = QB.zones.box({
 })
 ```
 
-### `QB.zones.sphere(opts)`
+### `Kora.zones.sphere(opts)`
 Creates a sphere zone.
 
 #### Parameters
@@ -43,14 +43,14 @@ Creates a sphere zone.
 
 #### Example
 ```lua
-QB.zones.sphere({
+Kora.zones.sphere({
     coords = vector3(100.0, 200.0, 30.0),
     radius = 3.0,
     inside = function(zone, coords) DrawText('Press E to interact') end,
 })
 ```
 
-### `QB.zones.circle(opts)`
+### `Kora.zones.circle(opts)`
 Creates an exact flat 2D circle zone. It tests the XY radius only, so the
 point's Z coordinate is always ignored. This is useful for map areas that span
 several elevations and for migrating a legacy `CircleZone` with `useZ = false`.
@@ -63,14 +63,14 @@ several elevations and for migrating a legacy `CircleZone` with `useZ = false`.
 
 #### Example
 ```lua
-QB.zones.circle({
+Kora.zones.circle({
     coords = vector3(100.0, 200.0, 30.0),
     radius = 12.0,
     onEnter = function() print('entered the map area') end,
 })
 ```
 
-### `QB.zones.poly(opts)`
+### `Kora.zones.poly(opts)`
 Creates a polygon zone: a 2D footprint extruded across a vertical height band.
 
 #### Parameters
@@ -85,7 +85,7 @@ This is a **2D footprint plus a height range**, not an arbitrary 3D-oriented vol
 
 #### Example
 ```lua
-QB.zones.poly({
+Kora.zones.poly({
     points = {
         vector3(100.0, 200.0, 30.0),
         vector3(110.0, 200.0, 30.0),
@@ -96,8 +96,8 @@ QB.zones.poly({
 })
 ```
 
-### `QB.zones.point(opts)`
-Creates a point zone. Not a separate shape — a sphere with a small default radius, returning the exact same kind of handle `QB.zones.sphere` does.
+### `Kora.zones.point(opts)`
+Creates a point zone. Not a separate shape — a sphere with a small default radius, returning the exact same kind of handle `Kora.zones.sphere` does.
 When its radius is omitted, the default is applied without mutating your `opts` table.
 
 #### Parameters
@@ -107,19 +107,19 @@ When its radius is omitted, the default is applied without mutating your `opts` 
 
 #### Example
 ```lua
-QB.zones.point({ coords = vector3(100.0, 200.0, 30.0) })
+Kora.zones.point({ coords = vector3(100.0, 200.0, 30.0) })
 ```
 
-### `QB.zones.startCreator(zoneType, existingOpts)`
-Starts the in-world zone creator: fly its own scripted camera to survey the build site, aim and press the placement key to mark points against the world (no coordinate typing), adjust size/rotation/radius/thickness with the scroll wheel, then confirm to open a summary dialog with the generated `QB.zones.<type>({...})` snippet and a copy-to-clipboard button.
+### `Kora.zones.startCreator(zoneType, existingOpts)`
+Starts the in-world zone creator: fly its own scripted camera to survey the build site, aim and press the placement key to mark points against the world (no coordinate typing), adjust size/rotation/radius/thickness with the scroll wheel, then confirm to open a summary dialog with the generated `Kora.zones.<type>({...})` snippet and a copy-to-clipboard button.
 
-The creator is a coordinate/configuration builder only. Confirming removes its preview and returns the generated options; it does **not** register a live zone. Create one explicitly with `QB.zones[result.type](result.opts)` if the calling resource needs it at runtime.
+The creator is a coordinate/configuration builder only. Confirming removes its preview and returns the generated options; it does **not** register a live zone. Create one explicitly with `Kora.zones[result.type](result.opts)` if the calling resource needs it at runtime.
 
-The creator starts `QB.freecam` without a distance limit rather than using your normal view, so you can survey a build site from angles walking wouldn't reach. It blends in smoothly from wherever the gameplay camera already was, and blends back out the same way when the creator ends (cancel or confirm) — both eased over `Config.zones.creator.cameraTransitionMs`.
+The creator starts `Kora.freecam` without a distance limit rather than using your normal view, so you can survey a build site from angles walking wouldn't reach. It blends in smoothly from wherever the gameplay camera already was, and blends back out the same way when the creator ends (cancel or confirm) — both eased over `Config.zones.creator.cameraTransitionMs`.
 
 #### Parameters
 - `zoneType: "box" | "sphere" | "poly"`
-- `existingOpts?: table` — Seeds the creator from an existing zone's opts (same shape `QB.zones.<type>()` takes), so you can reposition/resize an already-built zone instead of starting empty: `QB.zones.startCreator("box", myZoneOpts)`. Any field it doesn't provide falls back to the usual default. Seed values are validated like the real constructors (finite coordinates/numbers, positive sizes/radius, paired poly height bounds, point cap) and raise synchronously when malformed.
+- `existingOpts?: table` — Seeds the creator from an existing zone's opts (same shape `Kora.zones.<type>()` takes), so you can reposition/resize an already-built zone instead of starting empty: `Kora.zones.startCreator("box", myZoneOpts)`. Any field it doesn't provide falls back to the usual default. Seed values are validated like the real constructors (finite coordinates/numbers, positive sizes/radius, paired poly height bounds, point cap) and raise synchronously when malformed.
 
 #### Default controls
 | Key | Action |
@@ -136,31 +136,31 @@ The creator starts `QB.freecam` without a distance limit rather than using your 
 | `Enter` | Confirm (once placement is valid) and open the summary dialog |
 | `X` | Cancel |
 
-All discrete actions above are registered through `QB.keybind`, so they're
+All discrete actions above are registered through `Kora.keybind`, so they're
 rebindable through FiveM's own keybind settings. Mouse-look/WASD, Shift, and
 the scroll wheel still drive the freecam directly and aren't independent
 key mappings. The live bindings and current movement/placement mode are shown
-through `QB.instructional`; the NUI editor card is reserved for shape state.
+through `Kora.instructional`; the NUI editor card is reserved for shape state.
 
-Mouse-look and movement are suppressed through a `QB.controls` lease while the creator is active. Confirm, cancel, an internal error, or either owning resource stopping releases the lease.
+Mouse-look and movement are suppressed through a `Kora.controls` lease while the creator is active. Confirm, cancel, an internal error, or either owning resource stopping releases the lease.
 
 #### Returns
-- `{ type, opts }` once confirmed (`opts` matches that shape's own constructor options, so `QB.zones.<type>(result.opts)` recreates it), or `nil` if cancelled, if a creator was already running, or if the creator is disabled (`Config.zones.creator.enabled = false`) -- check kora_lib's own console to tell which, since that detail doesn't cross the exports boundary. An invalid `zoneType` (or malformed `existingOpts`) raises a synchronous error instead, exactly like the zone constructors themselves. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the player confirms or cancels.
+- `{ type, opts }` once confirmed (`opts` matches that shape's own constructor options, so `Kora.zones.<type>(result.opts)` recreates it), or `nil` if cancelled, if a creator was already running, or if the creator is disabled (`Config.zones.creator.enabled = false`) -- check kora_lib's own console to tell which, since that detail doesn't cross the exports boundary. An invalid `zoneType` (or malformed `existingOpts`) raises a synchronous error instead, exactly like the zone constructors themselves. Must run inside a coroutine (`CreateThread`, a command handler, ...), since this suspends until the player confirms or cancels.
 
 #### Example
 ```lua
 RegisterCommand('my_zone_tool', function()
-    local result = QB.zones.startCreator("box")
+    local result = Kora.zones.startCreator("box")
     if not result then return print("cancelled (or failed -- see kora_lib's own console)") end
 
-    print("captured:", QB.zones.generateSnippet(result.type, result.opts))
+    print("captured:", Kora.zones.generateSnippet(result.type, result.opts))
 end, false)
 ```
 
 An equivalent `/qb_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `kora_lib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
 
-### `QB.zones.generateSnippet(zoneType, opts)`
-Formats zone options into the `QB.zones.<type>({...})` Lua snippet the creator's confirm dialog shows and copies to the clipboard. Pure and deterministic — useful on its own if you already have `opts` (from `startCreator`, or hand-built) and just want the text.
+### `Kora.zones.generateSnippet(zoneType, opts)`
+Formats zone options into the `Kora.zones.<type>({...})` Lua snippet the creator's confirm dialog shows and copies to the clipboard. Pure and deterministic — useful on its own if you already have `opts` (from `startCreator`, or hand-built) and just want the text.
 
 #### Parameters
 - `zoneType: "box" | "sphere" | "poly"`
@@ -171,14 +171,14 @@ Formats zone options into the `QB.zones.<type>({...})` Lua snippet the creator's
 
 #### Example
 ```lua
-print(QB.zones.generateSnippet("sphere", { coords = vector3(100.0, 200.0, 30.0), radius = 3.0 }))
--- QB.zones.sphere({
+print(Kora.zones.generateSnippet("sphere", { coords = vector3(100.0, 200.0, 30.0), radius = 3.0 }))
+-- Kora.zones.sphere({
 --     coords = vector3(100.00, 200.00, 30.00),
 --     radius = 3.00,
 -- })
 ```
 
-### `QB.zones.getInside(resource)`
+### `Kora.zones.getInside(resource)`
 Every zone the local player is currently standing in, across every resource — including zones you didn't create yourself, which is otherwise impossible to see.
 
 #### Parameters
@@ -192,12 +192,12 @@ Read straight off the enter/exit state the tick loop already maintains, so this 
 
 #### Example
 ```lua
-for _, zone in ipairs(QB.zones.getInside()) do
+for _, zone in ipairs(Kora.zones.getInside()) do
     print(('inside %s zone %d (owned by %s)'):format(zone.type, zone.id, zone.resource))
 end
 ```
 
-### `QB.zones.setDebug(id, enabled)`
+### `Kora.zones.setDebug(id, enabled)`
 Changes debug rendering without recreating a zone.
 
 #### Parameters
@@ -208,19 +208,19 @@ Changes debug rendering without recreating a zone.
 return `false` when a foreign resource attempts to change a zone. Debug drawing
 is intended for development: it runs every frame while enabled.
 
-### `QB.zones.edit(handle, opts)`
+### `Kora.zones.edit(handle, opts)`
 Updates a live box, sphere, or circle zone in place and returns the **same** handle. This is deliberately narrow: it supports `coords`, `onEnter`, and `onExit` only. Pass `false` for either callback to detach it. A polygon cannot move this way because its location is its points; shape dimensions, rotation, points, and height ranges require replacing the zone.
 
 All requested fields are validated before any mutation, so an invalid mixed edit leaves the zone unchanged. It returns `nil, "Zone is owned by another resource."` rather than mutating a foreign zone.
 
 ```lua
-QB.zones.edit(zone, {
+Kora.zones.edit(zone, {
     coords = vector3(120.0, 200.0, 30.0),
     onExit = false,
 })
 ```
 
-### `QB.zones.isCreatorActive()`
+### `Kora.zones.isCreatorActive()`
 Returns `true` while the in-world creator owns player input. Use it when a consumer has a conflicting keybind and should temporarily yield to the creator. It does not indicate whether any ordinary runtime zones exist.
 
 ### Zone handle
@@ -232,7 +232,7 @@ Every constructor above returns the same shape:
 - `remove(): boolean` — Tears the zone down. Returns `false` for a foreign or already removed zone.
 - `contains(coords): boolean` — Runs the zone's exact containment test against an arbitrary point.
 - `isInside(): boolean` — Whether the local player is currently inside, read live (not a snapshot from creation time).
-- `setDebug(enabled): boolean` — Enables or disables this zone's debug rendering. Returns `false` for a foreign zone. Equivalent to `QB.zones.setDebug(zone.id, enabled)`.
+- `setDebug(enabled): boolean` — Enables or disables this zone's debug rendering. Returns `false` for a foreign zone. Equivalent to `Kora.zones.setDebug(zone.id, enabled)`.
 
 ## Performance
 Zones aren't checked one-by-one against every player position every tick. A shared spatial grid (cell size `Config.zones.gridSize`, 50m by default) buckets zones by horizontal location; each tick only looks at the 3×3 neighborhood of cells around the player, and only runs a zone's real containment test after a cheap bounding-box check confirms the player could plausibly be inside it. Flat circles and any box/poly with `ignoreZ = true` skip the vertical AABB term before their exact XY test, so elevation-free containment is exact rather than a very tall approximation. The small set of zones already entered is also checked for exit, so a teleport or fast vehicle move cannot leave `isInside()` stale after it moves outside that neighborhood.
@@ -244,4 +244,4 @@ The check rate itself adapts: `Config.zones.tickFar` (1000ms) when nothing is ne
 - `onExit` does not fire when a zone is torn down while you're inside it (via `remove()` or because its owning resource stopped) — there's nothing left to call back into at that point.
 - Each zone remembers which resource created it (`GetInvokingResource()`), and is automatically removed when that resource stops — you don't need to track/clean up your own zones on resource restart.
 - A callback that errors is logged and skipped; it won't break enter/exit tracking for other zones, including ones owned by other resources.
-- `QB.zones.startCreator`'s confirm dialog goes through `QB.nui.*` (`modules/nui/`) and needs the NUI page loaded to work — see its docs for the headless-UI conventions this follows.
+- `Kora.zones.startCreator`'s confirm dialog goes through `Kora.nui.*` (`modules/nui/`) and needs the NUI page loaded to work — see its docs for the headless-UI conventions this follows.

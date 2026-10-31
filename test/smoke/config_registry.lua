@@ -30,11 +30,11 @@ dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/config/server.lua')
 
 H.test('catalog records a resource only from its own bridge', function()
-    H.assertTrue(QB.config.register({
+    H.assertTrue(Kora.config.register({
         resource = 'sample', schema = { kind = 'object', fields = {} }, configured = { enabled = true },
         client = { enabled = true }, revision = 1,
     }))
-    local catalog = QB.config.catalog()
+    local catalog = Kora.config.catalog()
     H.assertEqual(#catalog, 1)
     H.assertEqual(catalog[1].resource, 'sample')
 end)
@@ -42,7 +42,7 @@ end)
 H.test('catalog rejects malformed registration revisions', function()
     for _, revision in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
         H.assertThrows(function()
-            QB.config.register({
+            Kora.config.register({
                 resource = 'sample', schema = {}, configured = {}, client = {}, revision = revision,
             })
         end)
@@ -72,12 +72,12 @@ H.test('commit and reset are delegated to the target resource bridge', function(
     AddEventHandler('kora_lib:server:configChanged', function(resource, values, revision)
         changes[#changes + 1] = { resource = resource, values = values, revision = revision }
     end)
-    local read = QB.config.read('sample')
+    local read = Kora.config.read('sample')
     H.assertFalse(read.values.enabled)
-    local committed = QB.config.commit('sample', { path = { 'enabled' }, value = false, revision = 1 })
+    local committed = Kora.config.commit('sample', { path = { 'enabled' }, value = false, revision = 1 })
     H.assertTrue(committed.ok)
     H.assertEqual(committed.revision, 2)
-    local reset = QB.config.reset('sample', { path = { 'enabled' }, revision = 2 })
+    local reset = Kora.config.reset('sample', { path = { 'enabled' }, revision = 2 })
     H.assertTrue(reset.ok)
     H.assertEqual(reset.configured.enabled, true)
     H.assertEqual(#changes, 2)
@@ -89,7 +89,7 @@ end)
 H.test('another resource cannot register a forged catalog entry', function()
     invoker = 'other'
     H.assertThrows(function()
-        QB.config.register({
+        Kora.config.register({
             resource = 'sample', schema = {}, configured = {}, client = {}, revision = 1,
         })
     end)
@@ -111,14 +111,14 @@ H.test('catalog discovers a started kora_lib consumer that missed its startup an
     _G.GetResourceByFindIndex = function(index) return index == 0 and 'late' or nil end
     _G.GetResourceState = function() return 'started' end
 
-    local catalog = QB.config.catalog()
+    local catalog = Kora.config.catalog()
     local discovered
     for _, entry in ipairs(catalog) do
         if entry.resource == 'late' then discovered = entry break end
     end
     H.assertTrue(discovered ~= nil)
     H.assertEqual(discovered.schema.kind, 'object')
-    QB.config.catalog()
+    Kora.config.catalog()
     H.assertEqual(reads, 1, 'registered resources should not be probed again on every catalog read')
 end)
 
@@ -133,34 +133,34 @@ H.test('catalog discovery and refresh preserve the revision invariant', function
     _G.GetNumResources = function() return 1 end
     _G.GetResourceByFindIndex = function(index) return index == 0 and 'invalid_revision' or nil end
     _G.GetResourceState = function() return 'started' end
-    for _, entry in ipairs(QB.config.catalog()) do
+    for _, entry in ipairs(Kora.config.catalog()) do
         H.assertFalse(entry.resource == 'invalid_revision')
     end
 
     local revision
-    for _, entry in ipairs(QB.config.catalog()) do
+    for _, entry in ipairs(Kora.config.catalog()) do
         if entry.resource == 'sample' then revision = entry.revision break end
     end
     local read = bridge.kora_lib_configRead
     bridge.kora_lib_configRead = function()
         return { configured = {}, values = {}, client = {}, revision = math.huge }
     end
-    H.assertEqual(QB.config.read('sample').revision, revision)
+    H.assertEqual(Kora.config.read('sample').revision, revision)
     bridge.kora_lib_configRead = read
 end)
 
 H.test('invalid successful bridge revisions do not update the catalog', function()
     local revision
-    for _, entry in ipairs(QB.config.catalog()) do
+    for _, entry in ipairs(Kora.config.catalog()) do
         if entry.resource == 'sample' then revision = entry.revision break end
     end
     local commit, reset = bridge.kora_lib_configCommit, bridge.kora_lib_configReset
     bridge.kora_lib_configCommit = function() return { ok = true, revision = math.huge } end
     bridge.kora_lib_configReset = function() return { ok = true, revision = 1.5 } end
-    H.assertFalse(QB.config.commit('sample', {}).ok)
-    H.assertFalse(QB.config.reset('sample', {}).ok)
+    H.assertFalse(Kora.config.commit('sample', {}).ok)
+    H.assertFalse(Kora.config.reset('sample', {}).ok)
     bridge.kora_lib_configCommit, bridge.kora_lib_configReset = commit, reset
-    for _, entry in ipairs(QB.config.catalog()) do
+    for _, entry in ipairs(Kora.config.catalog()) do
         if entry.resource == 'sample' then H.assertEqual(entry.revision, revision) end
     end
 end)
@@ -179,7 +179,7 @@ H.test('an on-demand read discovers a resource whose announcement raced startup'
     _G.GetResourceByFindIndex = function(index) return index == 0 and 'on_demand' or nil end
     _G.GetResourceState = function() return 'started' end
 
-    local entry = QB.config.read('on_demand')
+    local entry = Kora.config.read('on_demand')
     H.assertEqual(entry.resource, 'on_demand')
     H.assertEqual(entry.revision, 4)
     H.assertTrue(entry.values.enabled)
@@ -202,7 +202,7 @@ H.test('own bootstrap survives a resource-driven restart without granting caller
     _G.exports = setmetatable({}, { __call = function(_, name, fn) owned[name] = fn end })
     _G.Config = { enabled = true, discord = { secret = 'server-only' } }
     dofile(repoRoot .. 'modules/config/server.lua')
-    local catalog = QB.config.catalog()
+    local catalog = Kora.config.catalog()
     H.assertEqual(#catalog, 1)
     H.assertEqual(catalog[1].resource, 'kora_lib')
     H.assertTrue(Config.enabled)
@@ -210,9 +210,9 @@ H.test('own bootstrap survives a resource-driven restart without granting caller
     H.assertEqual(snapshot.client.discord, nil)
     H.assertEqual(snapshot.configured.discord.secret, 'server-only')
     H.assertThrows(function()
-        QB.config.register({ resource = 'kora_lib', schema = {}, configured = {}, client = {}, revision = 1 })
+        Kora.config.register({ resource = 'kora_lib', schema = {}, configured = {}, client = {}, revision = 1 })
     end)
-    H.assertTrue(QB.config.register({
+    H.assertTrue(Kora.config.register({
         resource = 'qbcompat-control', schema = {}, configured = {}, client = {}, revision = 1,
     }))
 end)

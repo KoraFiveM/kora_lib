@@ -84,11 +84,11 @@ _G.LoadResourceFile = function(_, path)
 end
 
 dofile(repoRoot .. 'modules/lookup/shared.lua')
-local coreState = QB.lookup._state
+local coreState = Kora.lookup._state
 
 harness.test('base hits work while the custom catalog is pending and load lazily', function()
-    harness.assertFalse(QB.lookup.ready(), 'the client overlay starts pending')
-    local record = QB.lookup.get('vehicle', 'TEST_VEHICLE')
+    harness.assertFalse(Kora.lookup.ready(), 'the client overlay starts pending')
+    local record = Kora.lookup.get('vehicle', 'TEST_VEHICLE')
     harness.assertEqual(record.name, 'test_vehicle')
     harness.assertEqual(record.hash, hashes.vehicle)
     harness.assertEqual(record.metadata.class, 'sports')
@@ -96,15 +96,15 @@ harness.test('base hits work while the custom catalog is pending and load lazily
     harness.assertEqual(loadCounts['modules/lookup/data/vehicle.lua'], 1)
     harness.assertEqual(loadCounts['modules/lookup/data/ped.lua'], nil, 'unused namespaces must remain unloaded')
 
-    local missing, reason = QB.lookup.get('vehicle', 'not_in_fixture')
+    local missing, reason = Kora.lookup.get('vehicle', 'not_in_fixture')
     harness.assertEqual(missing, nil)
     harness.assertEqual(reason, 'catalog_pending')
 end)
 
 harness.test('signed, unsigned, decimal, and hexadecimal inputs normalize to one cached record', function()
-    local first = QB.lookup.get('vehicle', -1)
+    local first = Kora.lookup.get('vehicle', -1)
     for _, value in ipairs({ 4294967295, '4294967295', '-1', '0xFFFFFFFF' }) do
-        local record = QB.lookup.get('vehicle', value)
+        local record = Kora.lookup.get('vehicle', value)
         harness.assertTrue(rawequal(record, first), 'materialized records should be permanently cached')
     end
     harness.assertEqual(first.signedHash, -1)
@@ -113,11 +113,11 @@ harness.test('signed, unsigned, decimal, and hexadecimal inputs normalize to one
 end)
 
 harness.test('every namespace and convenience helper returns curated metadata', function()
-    local ped = QB.lookup.model('test_ped', 'ped')
-    local object = QB.lookup.model('test_object', 'object')
-    local weapon = QB.lookup.weapon('weapon_test')
-    local component = QB.lookup.weaponComponent('component_test')
-    local pickup = QB.lookup.pickup('pickup_test')
+    local ped = Kora.lookup.model('test_ped', 'ped')
+    local object = Kora.lookup.model('test_object', 'object')
+    local weapon = Kora.lookup.weapon('weapon_test')
+    local component = Kora.lookup.weaponComponent('component_test')
+    local pickup = Kora.lookup.pickup('pickup_test')
     harness.assertEqual(ped.metadata.pedType, 'CIVMALE')
     harness.assertEqual(object.namespace, 'object')
     harness.assertEqual(weapon.metadata.damageType, 'BULLET')
@@ -127,9 +127,9 @@ harness.test('every namespace and convenience helper returns curated metadata', 
 end)
 
 harness.test('preload accepts one namespace or all and never reloads a bundle', function()
-    QB.lookup.preload('ped')
-    QB.lookup.preload()
-    QB.lookup.preload({ 'vehicle', 'weapon' })
+    Kora.lookup.preload('ped')
+    Kora.lookup.preload()
+    Kora.lookup.preload({ 'vehicle', 'weapon' })
     for _, namespace in ipairs(coreState.namespaceOrder) do
         local path = ('modules/lookup/data/%s.lua'):format(namespace)
         harness.assertEqual(loadCounts[path], 1, namespace .. ' should load exactly once')
@@ -137,14 +137,14 @@ harness.test('preload accepts one namespace or all and never reloads a bundle', 
 end)
 
 harness.test('model and hash collisions return sorted candidates', function()
-    local record, reason, candidates = QB.lookup.model('shared_model')
+    local record, reason, candidates = Kora.lookup.model('shared_model')
     harness.assertEqual(record, nil)
     harness.assertEqual(reason, 'ambiguous')
     harness.assertEqual(#candidates, 2)
     harness.assertEqual(candidates[1].namespace, 'vehicle')
     harness.assertEqual(candidates[2].namespace, 'ped')
 
-    record, reason, candidates = QB.lookup.get('object', hashes.collision)
+    record, reason, candidates = Kora.lookup.get('object', hashes.collision)
     harness.assertEqual(record, nil)
     harness.assertEqual(reason, 'ambiguous')
     harness.assertEqual(candidates[1].name, 'collision_one')
@@ -152,16 +152,16 @@ harness.test('model and hash collisions return sorted candidates', function()
 end)
 
 harness.test('invalid inputs assert instead of becoming accidental names', function()
-    harness.assertThrows(function() QB.lookup.get('unknown', 1) end)
-    harness.assertThrows(function() QB.lookup.get('vehicle', '') end)
-    harness.assertThrows(function() QB.lookup.get('vehicle', '0xZZ') end)
-    harness.assertThrows(function() QB.lookup.get('vehicle', '1.5') end)
-    harness.assertThrows(function() QB.lookup.get('vehicle', 1.5) end)
-    harness.assertThrows(function() QB.lookup.get('vehicle', 4294967296) end)
-    harness.assertThrows(function() QB.lookup.model('x', 'weapon') end)
-    harness.assertThrows(function() QB.lookup.preload('unknown') end)
-    harness.assertThrows(function() QB.lookup.preload({ [2] = 'vehicle' }) end)
-    harness.assertThrows(function() QB.lookup.preload({ vehicle = true }) end)
+    harness.assertThrows(function() Kora.lookup.get('unknown', 1) end)
+    harness.assertThrows(function() Kora.lookup.get('vehicle', '') end)
+    harness.assertThrows(function() Kora.lookup.get('vehicle', '0xZZ') end)
+    harness.assertThrows(function() Kora.lookup.get('vehicle', '1.5') end)
+    harness.assertThrows(function() Kora.lookup.get('vehicle', 1.5) end)
+    harness.assertThrows(function() Kora.lookup.get('vehicle', 4294967296) end)
+    harness.assertThrows(function() Kora.lookup.model('x', 'weapon') end)
+    harness.assertThrows(function() Kora.lookup.preload('unknown') end)
+    harness.assertThrows(function() Kora.lookup.preload({ [2] = 'vehicle' }) end)
+    harness.assertThrows(function() Kora.lookup.preload({ vehicle = true }) end)
 end)
 
 harness.test('overlay publication changes pending misses to not_found and enriches base records', function()
@@ -176,30 +176,30 @@ harness.test('overlay publication changes pending misses to not_found and enrich
         },
     }
     coreState.setOverlay(custom, 1)
-    harness.assertTrue(QB.lookup.ready())
-    local record = QB.lookup.model('test_vehicle', 'vehicle')
+    harness.assertTrue(Kora.lookup.ready())
+    local record = Kora.lookup.model('test_vehicle', 'vehicle')
     harness.assertEqual(record.source, 'base+custom')
     harness.assertEqual(record.label, 'Overridden Vehicle')
     harness.assertEqual(record.metadata.manufacturer, 'TEST')
     harness.assertEqual(record.metadata.seats, 4)
     harness.assertEqual(record.resources[1], 'fixture_resource')
 
-    local missing, reason = QB.lookup.get('vehicle', 'not_in_fixture')
+    local missing, reason = Kora.lookup.get('vehicle', 'not_in_fixture')
     harness.assertEqual(missing, nil)
     harness.assertEqual(reason, 'not_found')
 end)
 
 harness.test('awaitReady succeeds immediately when ready and reports bounded timeouts', function()
-    harness.assertTrue(QB.lookup.awaitReady())
+    harness.assertTrue(Kora.lookup.awaitReady())
     coreState.overlayReady = false
-    local ready, reason = QB.lookup.awaitReady(0)
+    local ready, reason = Kora.lookup.awaitReady(0)
     harness.assertFalse(ready)
     harness.assertTrue(reason:find('timed out', 1, true) ~= nil)
     harness.assertThrows(function()
-        QB.lookup.awaitReady(math.huge)
+        Kora.lookup.awaitReady(math.huge)
     end, 'an infinite readiness timeout should be rejected')
     harness.assertThrows(function()
-        QB.lookup.awaitReady(false)
+        Kora.lookup.awaitReady(false)
     end, 'an explicit non-integer timeout should not become the default')
     coreState.setOverlay({}, 2)
 end)
@@ -264,13 +264,13 @@ _G.GetNumResources = function() return 2 end
 _G.GetResourceByFindIndex = function(index) return ({ 'fixture_a', 'fixture_b' })[index + 1] end
 
 local registeredRequest
-QB.events.register = function(_, handler) registeredRequest = handler end
-QB.events.push = function() end
+Kora.events.register = function(_, handler) registeredRequest = handler end
+Kora.events.push = function() end
 
 local warnings, realPrint = {}, print
 _G.print = function(message) warnings[#warnings + 1] = tostring(message) end
 dofile(repoRoot .. 'modules/lookup/server.lua')
-local scannerState = QB.lookup._state
+local scannerState = Kora.lookup._state
 local scannedOverlay, scannedTotal = scannerState.scanAll()
 scannerState.setOverlay(scannedOverlay, 3)
 _G.print = realPrint
@@ -295,7 +295,7 @@ harness.test('the deprecated qblib.lookup.json override name is still read', fun
 end)
 
 harness.test('scanner combines metadata inference with explicit enrichment', function()
-    local car = QB.lookup.model('custom_car', 'vehicle')
+    local car = Kora.lookup.model('custom_car', 'vehicle')
     harness.assertEqual(car.label, 'Custom Car')
     harness.assertEqual(car.category, 'sport')
     harness.assertEqual(car.metadata.class, 'sport')
@@ -304,10 +304,10 @@ harness.test('scanner combines metadata inference with explicit enrichment', fun
     harness.assertEqual(car.metadata.seats, 4)
     harness.assertEqual(car.resources[1], 'fixture_a')
 
-    local ped = QB.lookup.model('custom_ped', 'ped')
-    local weapon = QB.lookup.weapon('WEAPON_CUSTOM')
-    local component = QB.lookup.weaponComponent('COMPONENT_CUSTOM_CLIP')
-    local pickup = QB.lookup.pickup('PICKUP_CUSTOM')
+    local ped = Kora.lookup.model('custom_ped', 'ped')
+    local weapon = Kora.lookup.weapon('WEAPON_CUSTOM')
+    local component = Kora.lookup.weaponComponent('COMPONENT_CUSTOM_CLIP')
+    local pickup = Kora.lookup.pickup('PICKUP_CUSTOM')
     harness.assertEqual(ped.metadata.pedType, 'CIVFEMALE')
     harness.assertEqual(weapon.source, 'custom')
     harness.assertEqual(component.source, 'custom')
@@ -315,7 +315,7 @@ harness.test('scanner combines metadata inference with explicit enrichment', fun
 end)
 
 harness.test('scanner merges duplicate streamed/text names and contributing resources', function()
-    local shared = QB.lookup.model('shared_prop', 'object')
+    local shared = Kora.lookup.model('shared_prop', 'object')
     harness.assertEqual(shared.name, 'shared_prop')
     harness.assertEqual(#shared.resources, 2)
     harness.assertEqual(shared.resources[1], 'fixture_a')
@@ -324,14 +324,14 @@ harness.test('scanner merges duplicate streamed/text names and contributing reso
 end)
 
 harness.test('scanner honors exclusions, rejects bad hashes, and keeps true collision candidates', function()
-    local excluded, excludedReason = QB.lookup.model('excluded', 'object')
-    local bad, badReason = QB.lookup.model('bad_hash', 'object')
+    local excluded, excludedReason = Kora.lookup.model('excluded', 'object')
+    local bad, badReason = Kora.lookup.model('bad_hash', 'object')
     harness.assertEqual(excluded, nil)
     harness.assertEqual(excludedReason, 'not_found')
     harness.assertEqual(bad, nil)
     harness.assertEqual(badReason, 'not_found')
 
-    local collision, reason, candidates = QB.lookup.get('object', actualJoaat('collision_10a4'))
+    local collision, reason, candidates = Kora.lookup.get('object', actualJoaat('collision_10a4'))
     harness.assertEqual(collision, nil)
     harness.assertEqual(reason, 'ambiguous')
     harness.assertEqual(#candidates, 2)
@@ -422,11 +422,11 @@ clientBundles['modules/lookup/data/object.lua'] = ('return {[%d]={"client_base"}
 _G.LoadResourceFile = function(_, path) return clientBundles[path] end
 
 local pushHandler, requests = nil, 0
-QB.events.onPush = function(_, handler) pushHandler = handler end
-QB.events.trigger = function() requests = requests + 1; return true end
+Kora.events.onPush = function(_, handler) pushHandler = handler end
+Kora.events.trigger = function() requests = requests + 1; return true end
 dofile(repoRoot .. 'modules/lookup/shared.lua')
 dofile(repoRoot .. 'modules/lookup/client.lua')
-local clientState = QB.lookup._state
+local clientState = Kora.lookup._state
 
 local function customRecord(namespace, name, label)
     local modelHash = joaat(name:lower()) % 4294967296
@@ -438,8 +438,8 @@ end
 
 harness.test('client requests and retries the overlay while base hits stay available', function()
     harness.assertEqual(requests, 1, 'the first request should follow module startup')
-    harness.assertFalse(QB.lookup.ready())
-    harness.assertEqual(QB.lookup.model('client_base', 'object').name, 'client_base')
+    harness.assertFalse(Kora.lookup.ready())
+    harness.assertEqual(Kora.lookup.model('client_base', 'object').name, 'client_base')
     net.step()
     harness.assertEqual(requests, 2, 'a pending client should retry')
 end)
@@ -451,30 +451,30 @@ harness.test('out-of-order and duplicate batches publish atomically only when co
     firstFragment.resources = { 'server_fixture_2' }
     pushHandler(2, 2, 2, { second, firstFragment })
     pushHandler(2, 2, 2, { second, firstFragment })
-    harness.assertFalse(QB.lookup.ready(), 'a partial snapshot must remain invisible')
-    local missing, pending = QB.lookup.model('custom_second', 'vehicle')
+    harness.assertFalse(Kora.lookup.ready(), 'a partial snapshot must remain invisible')
+    local missing, pending = Kora.lookup.model('custom_second', 'vehicle')
     harness.assertEqual(missing, nil)
     harness.assertEqual(pending, 'catalog_pending')
 
     pushHandler(2, 1, 2, { first })
-    harness.assertTrue(QB.lookup.ready())
-    local merged = QB.lookup.model('custom_first', 'object')
+    harness.assertTrue(Kora.lookup.ready())
+    local merged = Kora.lookup.model('custom_first', 'object')
     harness.assertEqual(merged.label, 'First')
     harness.assertEqual(#merged.resources, 2, 'wire fragments should merge resource attribution')
-    harness.assertEqual(QB.lookup.model('custom_second', 'vehicle').label, 'Second')
+    harness.assertEqual(Kora.lookup.model('custom_second', 'vehicle').label, 'Second')
 end)
 
 harness.test('stale batches are ignored and a newer server snapshot replaces atomically', function()
     pushHandler(1, 1, 1, { customRecord('object', 'stale_entry', 'Stale') })
-    local stale, staleReason = QB.lookup.model('stale_entry', 'object')
+    local stale, staleReason = Kora.lookup.model('stale_entry', 'object')
     harness.assertEqual(stale, nil)
     harness.assertEqual(staleReason, 'not_found')
 
     local replacement = customRecord('ped', 'replacement_ped', 'Replacement')
     pushHandler(3, 1, 1, { replacement })
     harness.assertEqual(clientState.overlayVersion, 3)
-    harness.assertEqual(QB.lookup.model('replacement_ped', 'ped').label, 'Replacement')
-    local removed, removedReason = QB.lookup.model('custom_first', 'object')
+    harness.assertEqual(Kora.lookup.model('replacement_ped', 'ped').label, 'Replacement')
+    local removed, removedReason = Kora.lookup.model('custom_first', 'object')
     harness.assertEqual(removed, nil)
     harness.assertEqual(removedReason, 'not_found')
 end)
@@ -484,7 +484,7 @@ harness.test('conflicting framing and invalid records never replace the live sna
     pushHandler(4, 2, 3, { customRecord('object', 'bad_frame', 'Bad') })
     pushHandler(4, 2, 2, {{ namespace = 'object', name = 'wrong_hash', hash = 1 }})
     harness.assertEqual(clientState.overlayVersion, 3)
-    harness.assertEqual(QB.lookup.model('replacement_ped', 'ped').label, 'Replacement')
+    harness.assertEqual(Kora.lookup.model('replacement_ped', 'ped').label, 'Replacement')
 end)
 
 harness.report('lookup')

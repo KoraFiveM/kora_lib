@@ -9,7 +9,7 @@ require('mocks').install()
 dofile(repoRoot .. 'build/initiate.lua')
 
 local progressPayload
-QB.progressbar = {
+Kora.progressbar = {
     validate = function() return true end,
     start = function(payload)
         progressPayload = payload
@@ -18,7 +18,7 @@ QB.progressbar = {
 }
 
 local minigameAuthorization
-QB.minigames = {
+Kora.minigames = {
     GAME_TYPES = { mash = true },
     play = function(_, _, authorization)
         minigameAuthorization = authorization
@@ -30,7 +30,7 @@ dofile(repoRoot .. 'modules/actions/client.lua')
 
 harness.test('actions run begin, progress, then complete with an opaque token', function()
     local completed
-    local started = QB.actions.run({
+    local started = Kora.actions.run({
         label = 'Test action',
         duration = 2000,
         disable = { move = true },
@@ -43,12 +43,12 @@ harness.test('actions run begin, progress, then complete with an opaque token', 
     harness.assertEqual(completed.result.token, 'token:station', 'completion should receive the begin token')
     harness.assertTrue(completed.result.completed, 'completion should receive progress success')
     harness.assertEqual(completed.value, 'station', 'arguments should be forwarded')
-    harness.assertFalse(QB.actions.isActive(), 'the action lock should clear after completion')
+    harness.assertFalse(Kora.actions.isActive(), 'the action lock should clear after completion')
 end)
 
 harness.test('actions preserve trailing nil arguments for begin and complete', function()
     local beginCount, completeCount
-    local started = QB.actions.run({
+    local started = Kora.actions.run({
         label = 'Nil-safe action',
         begin = function(...)
             beginCount = select('#', ...)
@@ -67,7 +67,7 @@ end)
 harness.test('actions do not run progress or complete when begin declines', function()
     progressPayload = nil
     local completeCalled = false
-    local started, reason = QB.actions.run({
+    local started, reason = Kora.actions.run({
         label = 'Denied action',
         begin = function() return nil, 'too far away' end,
         complete = function() completeCalled = true end,
@@ -87,32 +87,32 @@ harness.test('invalid action configuration fails before server authorization beg
     }
 
     options.duration = 0
-    harness.assertThrows(function() QB.actions.run(options) end,
+    harness.assertThrows(function() Kora.actions.run(options) end,
         'a non-positive duration must fail before begin')
     options.duration = nil
     options.minigame = ''
-    harness.assertThrows(function() QB.actions.run(options) end,
+    harness.assertThrows(function() Kora.actions.run(options) end,
         'an empty minigame name must fail before begin')
     options.minigame = 'unknown'
-    harness.assertThrows(function() QB.actions.run(options) end,
+    harness.assertThrows(function() Kora.actions.run(options) end,
         'an unsupported minigame name must fail before begin')
     options.minigame = nil
     options.canCancel = 'yes'
-    harness.assertThrows(function() QB.actions.run(options) end,
+    harness.assertThrows(function() Kora.actions.run(options) end,
         'a non-boolean canCancel flag must fail before begin')
     options.canCancel = nil
-    local validate = QB.progressbar.validate
-    QB.progressbar.validate = function() error('invalid progress payload') end
-    harness.assertThrows(function() QB.actions.run(options) end,
+    local validate = Kora.progressbar.validate
+    Kora.progressbar.validate = function() error('invalid progress payload') end
+    harness.assertThrows(function() Kora.actions.run(options) end,
         'an invalid progress payload must fail before begin')
-    QB.progressbar.validate = validate
+    Kora.progressbar.validate = validate
     harness.assertEqual(beginCalls, 0, 'invalid UI configuration must not issue a server token')
 end)
 
 harness.test('actions forward begin proof authorization into the minigame', function()
     minigameAuthorization = nil
     local completed
-    local started = QB.actions.run({
+    local started = Kora.actions.run({
         label = 'Authorized action',
         minigame = 'mash',
         begin = function() return 'action:token', nil, 'authorization:value' end,
@@ -130,12 +130,12 @@ end)
 harness.test('cross-resource actions accept an already-settled minigame result', function()
     local originalInvokingResource = GetInvokingResource
     _G.GetInvokingResource = function() return 'consumer_resource' end
-    QB.minigames.play = function()
+    Kora.minigames.play = function()
         return { success = true, proof = 'proof:cross-resource' }
     end
 
     local completed
-    local ok, started = pcall(QB.actions.run, {
+    local ok, started = pcall(Kora.actions.run, {
         label = 'Cross-resource action',
         minigame = 'mash',
         begin = function() return 'action:cross-resource', nil, 'authorization:cross-resource' end,
@@ -149,12 +149,12 @@ harness.test('cross-resource actions accept an already-settled minigame result',
 end)
 
 harness.test('actions abort an issued server token when the UX throws', function()
-    local original = QB.progressbar.start
-    QB.progressbar.start = function() error('progress exploded') end
+    local original = Kora.progressbar.start
+    Kora.progressbar.start = function() error('progress exploded') end
     local completionCalls, abort
     completionCalls = 0
 
-    local ok, err = pcall(QB.actions.run, {
+    local ok, err = pcall(Kora.actions.run, {
         label = 'Exploding action',
         begin = function() return 'action:abort' end,
         complete = function(result)
@@ -162,7 +162,7 @@ harness.test('actions abort an issued server token when the UX throws', function
             abort = result
         end,
     })
-    QB.progressbar.start = original
+    Kora.progressbar.start = original
 
     harness.assertFalse(ok, 'the original UX error should still be raised')
     harness.assertTrue(tostring(err):find('progress exploded', 1, true) ~= nil,
@@ -170,35 +170,35 @@ harness.test('actions abort an issued server token when the UX throws', function
     harness.assertEqual(completionCalls, 1, 'the issued token should be completed exactly once')
     harness.assertFalse(abort.completed, 'the cleanup completion must be an abort')
     harness.assertEqual(abort.token, 'action:abort', 'the abort must carry the issued token')
-    harness.assertFalse(QB.actions.isActive(), 'the local action lock should still clear')
+    harness.assertFalse(Kora.actions.isActive(), 'the local action lock should still clear')
 end)
 
 harness.test('actions report a cancelled progress bar as incomplete', function()
-    local original = QB.progressbar.start
-    QB.progressbar.start = function() return false end
+    local original = Kora.progressbar.start
+    Kora.progressbar.start = function() return false end
     local completion
-    local started = QB.actions.run({
+    local started = Kora.actions.run({
         label = 'Cancelled action',
         begin = function() return 'action:cancelled' end,
         complete = function(result) completion = result end,
     })
-    QB.progressbar.start = original
+    Kora.progressbar.start = original
 
     harness.assertTrue(started, 'the server-authorized action did start')
     harness.assertFalse(completion.completed, 'a cancelled progress bar must not become success')
 end)
 
 harness.test('actions report a failed minigame as incomplete', function()
-    local original = QB.minigames.play
-    QB.minigames.play = function() return { success = false } end
+    local original = Kora.minigames.play
+    Kora.minigames.play = function() return { success = false } end
     local completion
-    local started = QB.actions.run({
+    local started = Kora.actions.run({
         label = 'Failed minigame action',
         minigame = 'mash',
         begin = function() return 'action:failed-game' end,
         complete = function(result) completion = result end,
     })
-    QB.minigames.play = original
+    Kora.minigames.play = original
 
     harness.assertTrue(started, 'the server-authorized minigame action did start')
     harness.assertFalse(completion.completed, 'a failed minigame must not become success')
@@ -206,7 +206,7 @@ end)
 
 harness.test('a throwing completion callback is never invoked twice', function()
     local calls = 0
-    local ok, err = pcall(QB.actions.run, {
+    local ok, err = pcall(Kora.actions.run, {
         label = 'Throwing completion',
         begin = function() return 'action:complete-error' end,
         complete = function()
@@ -218,7 +218,7 @@ harness.test('a throwing completion callback is never invoked twice', function()
     harness.assertFalse(ok, 'the completion error should reach the caller')
     harness.assertTrue(tostring(err):find('completion exploded', 1, true) ~= nil)
     harness.assertEqual(calls, 1, 'completion must be attempted exactly once')
-    harness.assertFalse(QB.actions.isActive(), 'the action lock should clear after completion failure')
+    harness.assertFalse(Kora.actions.isActive(), 'the action lock should clear after completion failure')
 end)
 
 harness.report('actions')

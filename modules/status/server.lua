@@ -6,11 +6,11 @@
 local active = {}
 local expirySweepRunning = false
 local ensureExpirySweep
-local isInteger = QB.util.isInteger
+local isInteger = Kora.util.isInteger
 
 local function assertPlayerTarget(target, operation)
     assert(isInteger(target) and target >= 1,
-        ("QB.status.%s requires a positive integer target server id."):format(operation))
+        ("Kora.status.%s requires a positive integer target server id."):format(operation))
 end
 
 local function bucketFor(target)
@@ -27,17 +27,17 @@ end
 ---@param opts? QBStatusApplyOptions
 ---@return boolean success
 ---@return string? error
-function QB.status.apply(target, name, opts)
+function Kora.status.apply(target, name, opts)
     assertPlayerTarget(target, "apply")
-    QB.status.assertName(name)
-    assert(opts == nil or type(opts) == "table", "QB.status.apply options must be a table.")
+    Kora.status.assertName(name)
+    assert(opts == nil or type(opts) == "table", "Kora.status.apply options must be a table.")
     opts = opts or {}
     assert(opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
         "duration must be a non-negative integer.")
     assert(opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
         "severity must be a positive integer.")
 
-    local def = QB.status.getEffectDef(name)
+    local def = Kora.status.getEffectDef(name)
     if not def then
         return false, ("Unknown status effect: %s"):format(name)
     end
@@ -77,7 +77,7 @@ function QB.status.apply(target, name, opts)
     bucket[name] = { expiresAt = expiresAt, severity = severity }
 
     local remainingDuration = expiresAt and math.max(0, expiresAt - now) or nil
-    QB.events.push(target, "kora_lib:status:apply", name, { duration = remainingDuration, severity = severity })
+    Kora.events.push(target, "kora_lib:status:apply", name, { duration = remainingDuration, severity = severity })
 
     return true
 end
@@ -85,15 +85,15 @@ end
 ---@param target integer
 ---@param name string
 ---@return boolean removed False if `name` wasn't active for `target`.
-function QB.status.remove(target, name)
+function Kora.status.remove(target, name)
     assertPlayerTarget(target, "remove")
-    QB.status.assertName(name)
+    Kora.status.assertName(name)
 
     local bucket = active[target]
     if not bucket or not bucket[name] then return false end
 
     bucket[name] = nil
-    QB.events.push(target, "kora_lib:status:remove", name)
+    Kora.events.push(target, "kora_lib:status:remove", name)
 
     return true
 end
@@ -101,9 +101,9 @@ end
 ---@param target integer
 ---@param name string
 ---@return boolean
-function QB.status.isActive(target, name)
+function Kora.status.isActive(target, name)
     assertPlayerTarget(target, "isActive")
-    QB.status.assertName(name)
+    Kora.status.assertName(name)
 
     local bucket = active[target]
     local entry = bucket and bucket[name]
@@ -124,7 +124,7 @@ end
 
 ---@param target integer
 ---@return QBStatusActiveEntry[]
-function QB.status.getActive(target)
+function Kora.status.getActive(target)
     assertPlayerTarget(target, "getActive")
 
     local bucket = active[target]

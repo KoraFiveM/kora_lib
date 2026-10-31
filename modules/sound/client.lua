@@ -1,4 +1,4 @@
--- QB.sound -- frontend/world/entity sound playback with managed sound ids.
+-- Kora.sound -- frontend/world/entity sound playback with managed sound ids.
 --
 -- The reason this is a module and not three inlined natives: GTA's sound-id
 -- pool is small and finite. GetSoundId() hands out a slot that stays claimed
@@ -6,7 +6,7 @@
 -- ever releasing will silently stop producing audio partway through a session
 -- -- a bug that looks like "the dispatch sound randomly stopped working" and
 -- is near-impossible to trace back. Every id allocated here is auto-released
--- on a timer, released early by QB.sound.stop, and swept when the owning
+-- on a timer, released early by Kora.sound.stop, and swept when the owning
 -- resource stops.
 --
 -- The alternative (passing -1 as the sound id, the usual fire-and-forget
@@ -49,15 +49,15 @@ end
 -- soundId -> claim metadata. The registry sweeps ids still held when their owning
 -- resource stops; StopSound before ReleaseSoundId because releasing an id
 -- that is still playing leaves the audio running with no handle to stop it.
-local soundRegistry = QB.resources.registry(function(soundId)
+local soundRegistry = Kora.resources.registry(function(soundId)
     disposeSound(soundId)
 end)
 
 ---@param name any
 ---@param set any
 local function assertSound(name, set)
-    assert(type(name) == "string" and name ~= "", "QB.sound requires a non-empty sound name.")
-    assert(type(set) == "string" and set ~= "", "QB.sound requires a non-empty sound set/ref.")
+    assert(type(name) == "string" and name ~= "", "Kora.sound requires a non-empty sound name.")
+    assert(type(set) == "string" and set ~= "", "Kora.sound requires a non-empty sound set/ref.")
 end
 
 ---@param options any
@@ -78,17 +78,17 @@ end
 local function claim(owner, options)
     local releaseAfter = options.releaseAfter
     if releaseAfter == nil then releaseAfter = Config.sound.defaultReleaseAfter end
-    assert(QB.util.isFiniteNumber(releaseAfter) and releaseAfter >= 0,
+    assert(Kora.util.isFiniteNumber(releaseAfter) and releaseAfter >= 0,
         'Sound releaseAfter must be a finite non-negative number.')
 
     if options.bank then
-        -- QB.stream.loadAudioBank yields until the bank is resident. Playing
+        -- Kora.stream.loadAudioBank yields until the bank is resident. Playing
         -- before it loads is a silent no-op, not an error, which is the other
         -- classic "the sound sometimes doesn't play" cause.
         if bankRefs[options.bank] then
             bankRefs[options.bank] = bankRefs[options.bank] + 1
         else
-            local loaded = QB.stream.loadAudioBank(options.bank)
+            local loaded = Kora.stream.loadAudioBank(options.bank)
             if not loaded then return false, ("Failed to load audio bank '%s'."):format(options.bank) end
             bankRefs[options.bank] = 1
         end
@@ -106,9 +106,9 @@ local function claim(owner, options)
     soundRegistry.track(owner, soundId)
 
     if releaseAfter > 0 then
-        QB.timers.setTimeout(function()
+        Kora.timers.setTimeout(function()
             local current = live[soundId]
-            if current and current.generation == generation then QB.sound.stop(soundId) end
+            if current and current.generation == generation then Kora.sound.stop(soundId) end
         end, releaseAfter)
     end
 
@@ -120,9 +120,9 @@ end
 ---@param name string Sound name, e.g. `"Lose_1st"`.
 ---@param set string Sound set/ref, e.g. `"GTAO_FM_Events_Soundset"`.
 ---@param options? QBSoundOptions
----@return number|false soundId Pass to QB.sound.stop.
+---@return number|false soundId Pass to Kora.sound.stop.
 ---@return string? error
-function QB.sound.playFrontend(name, set, options)
+function Kora.sound.playFrontend(name, set, options)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     if options == nil then options = {} end
     assertSound(name, set)
@@ -143,16 +143,16 @@ end
 ---@param options? QBSoundOptions
 ---@return number|false soundId
 ---@return string? error
-function QB.sound.playFromCoords(coords, name, set, options)
+function Kora.sound.playFromCoords(coords, name, set, options)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     if options == nil then options = {} end
     assertSound(name, set)
     assertOptions(options)
-    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3 or {x, y, z} table.")
     local range = options.range
     if range == nil then range = Config.sound.defaultRange end
-    assert(QB.util.isFiniteNumber(range) and range >= 0,
+    assert(Kora.util.isFiniteNumber(range) and range >= 0,
         'Sound range must be a finite non-negative number.')
 
     local soundId, err = claim(owner, options)
@@ -171,12 +171,12 @@ end
 ---@param options? QBSoundOptions
 ---@return number|false soundId
 ---@return string? error
-function QB.sound.playFromEntity(entity, name, set, options)
+function Kora.sound.playFromEntity(entity, name, set, options)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     if options == nil then options = {} end
     assertSound(name, set)
     assertOptions(options)
-    assert(QB.util.isInteger(entity) and entity ~= 0 and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
+    assert(Kora.util.isInteger(entity) and entity ~= 0 and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
 
     local soundId, err = claim(owner, options)
     if not soundId then return false, err end
@@ -189,13 +189,13 @@ end
 ---Stops a sound and releases its id. Refuses ids this module didn't allocate
 ----- exports.kora_lib:sound_stop is callable from any resource, and the
 ---untracked-id gate is what stops it doubling as a stop-anything primitive
----against another resource's audio (same rule QB.blips.remove enforces).
+---against another resource's audio (same rule Kora.blips.remove enforces).
 ---@param soundId number
 ---@return boolean success
 ---@return string? error
-function QB.sound.stop(soundId)
-    if not QB.util.isInteger(soundId) or not live[soundId] then
-        return false, "Sound id is not tracked by QB.sound."
+function Kora.sound.stop(soundId)
+    if not Kora.util.isInteger(soundId) or not live[soundId] then
+        return false, "Sound id is not tracked by Kora.sound."
     end
 
     local caller = GetInvokingResource()
@@ -212,6 +212,6 @@ end
 ---Whether a sound id allocated by this module is still held.
 ---@param soundId number
 ---@return boolean
-function QB.sound.isLive(soundId)
-    return QB.util.isInteger(soundId) and live[soundId] ~= nil
+function Kora.sound.isLive(soundId)
+    return Kora.util.isInteger(soundId) and live[soundId] ~= nil
 end

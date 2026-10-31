@@ -56,7 +56,7 @@ function rebuildStack(items: MenuItem[], path: string[], previous: Level[]): Lev
 }
 
 /**
- * The visual half of QB.nui.openRadialMenu. The whole nested tree is delivered
+ * The visual half of Kora.nui.openRadialMenu. The whole nested tree is delivered
  * once; changing levels/pages is local React state and only a terminal choice
  * or cancellation settles the original tokenised NUI request.
  */

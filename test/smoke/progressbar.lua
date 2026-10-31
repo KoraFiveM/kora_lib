@@ -14,7 +14,7 @@ dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 
--- progressbar talks to the NUI through QB.nui.send only (see AGENTS.md "UI
+-- progressbar talks to the NUI through Kora.nui.send only (see AGENTS.md "UI
 -- conventions"), so modules/nui/client.lua needs to be loaded too.
 -- RegisterNUICallback/SetNuiFocus are unused by anything exercised here.
 local nuiMessages = {}
@@ -192,21 +192,21 @@ end
 harness.test("start rejects a missing label", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ duration = 1000 })
+        Kora.progressbar.start({ duration = 1000 })
     end, "a payload with no label should be rejected")
 end)
 
 harness.test("start rejects a non-positive duration", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "hi", duration = 0 })
+        Kora.progressbar.start({ label = "hi", duration = 0 })
     end, "a zero duration should be rejected")
 end)
 
 harness.test("start rejects a duration over Config.progressbar.maxDuration", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "hi", duration = Config.progressbar.maxDuration + 1 })
+        Kora.progressbar.start({ label = "hi", duration = Config.progressbar.maxDuration + 1 })
     end, "a duration over the configured max should be rejected")
 end)
 
@@ -214,7 +214,7 @@ harness.test("start can opt out of the duration cap for compatibility providers"
     reset()
     local duration = Config.progressbar.maxDuration + 1
 
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "long compatibility action",
         duration = duration,
         maxDuration = false,
@@ -226,22 +226,22 @@ end)
 harness.test("start rejects non-finite duration values before creating a session", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "invalid", duration = math.huge, maxDuration = false })
+        Kora.progressbar.start({ label = "invalid", duration = math.huge, maxDuration = false })
     end, "an uncapped infinite duration should be rejected")
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "invalid", duration = 100, maxDuration = math.huge })
+        Kora.progressbar.start({ label = "invalid", duration = 100, maxDuration = math.huge })
     end, "an infinite duration cap should be rejected")
 end)
 
 harness.test("start rejects non-finite animation and prop transform values", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "invalid", duration = 100, anim = {
+        Kora.progressbar.start({ label = "invalid", duration = 100, anim = {
             dict = "anim@test", clip = "loop", playbackRate = math.huge,
         } })
     end)
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "invalid", duration = 100, props = {
+        Kora.progressbar.start({ label = "invalid", duration = 100, props = {
             { model = "valid", offset = { x = 0 / 0, y = 0, z = 0 } },
         } })
     end)
@@ -250,29 +250,29 @@ end)
 harness.test("start rejects a malformed anim table", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "hi", duration = 1000, anim = { dict = "missing_clip" } })
+        Kora.progressbar.start({ label = "hi", duration = 1000, anim = { dict = "missing_clip" } })
     end, "an anim with no clip should be rejected")
 end)
 
 harness.test("start validates prop descriptors and the configured maximum", function()
     reset()
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "hi", duration = 1000, props = { { model = "valid", offset = { x = 0 } } } })
+        Kora.progressbar.start({ label = "hi", duration = 1000, props = { { model = "valid", offset = { x = 0 } } } })
     end, "a malformed prop offset should be rejected")
 
     local props = {}
     for index = 1, Config.progressbar.maxProps + 1 do props[index] = { model = "valid" } end
     harness.assertThrows(function()
-        QB.progressbar.start({ label = "hi", duration = 1000, props = props })
+        Kora.progressbar.start({ label = "hi", duration = 1000, props = props })
     end, "too many props should be rejected before the bar starts")
 end)
 
 harness.test("start runs to completion and reports it", function()
     reset()
-    local completed = QB.progressbar.start({ label = "Working...", duration = 500 })
+    local completed = Kora.progressbar.start({ label = "Working...", duration = 500 })
 
     harness.assertTrue(completed, "an uninterrupted bar should complete")
-    harness.assertFalse(QB.progressbar.isActive(), "the bar should no longer be active once start returns")
+    harness.assertFalse(Kora.progressbar.isActive(), "the bar should no longer be active once start returns")
 
     harness.assertEqual(#nuiMessages, 1, "only the start message should have been sent (no cancel)")
     harness.assertEqual(nuiMessages[1].action, "progressStart", "the NUI should receive a progressStart action")
@@ -283,7 +283,7 @@ end)
 harness.test("dying cancels the bar immediately", function()
     reset()
     dead = true
-    local completed = QB.progressbar.start({ label = "Working...", duration = 5000 })
+    local completed = Kora.progressbar.start({ label = "Working...", duration = 5000 })
 
     harness.assertFalse(completed, "a dead ped should never complete a bar")
     harness.assertEqual(nuiMessages[2].action, "progressCancel", "a cancelled bar should hide the NUI bar early")
@@ -292,7 +292,7 @@ end)
 harness.test("ox interruption flags allow or reject ped states", function()
     reset()
     dead, ragdoll, cuffed, falling, swimming = true, true, true, true, true
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...", duration = 100,
         useWhileDead = true, allowRagdoll = true, allowCuffed = true,
         allowFalling = true, allowSwimming = true,
@@ -301,14 +301,14 @@ harness.test("ox interruption flags allow or reject ped states", function()
 
     reset()
     ragdoll = true
-    harness.assertFalse(QB.progressbar.start({ label = "Working...", duration = 100 }),
+    harness.assertFalse(Kora.progressbar.start({ label = "Working...", duration = 100 }),
         "ragdoll should interrupt by default")
 end)
 
 harness.test("canCancel lets X abort the bar", function()
     reset()
     pressedControls[73] = true
-    local completed = QB.progressbar.start({ label = "Working...", duration = 5000, canCancel = true })
+    local completed = Kora.progressbar.start({ label = "Working...", duration = 5000, canCancel = true })
 
     harness.assertFalse(completed, "pressing X should cancel the bar")
 end)
@@ -316,7 +316,7 @@ end)
 harness.test("canCancel lets Escape abort the bar", function()
     reset()
     pressedControls[322] = true
-    local completed = QB.progressbar.start({ label = "Working...", duration = 5000, canCancel = true })
+    local completed = Kora.progressbar.start({ label = "Working...", duration = 5000, canCancel = true })
 
     harness.assertFalse(completed, "pressing Escape should cancel the bar")
 end)
@@ -324,7 +324,7 @@ end)
 harness.test("cancel controls are ignored unless canCancel is set", function()
     reset()
     pressedControls[322] = true
-    local completed = QB.progressbar.start({ label = "Working...", duration = 500, canCancel = false })
+    local completed = Kora.progressbar.start({ label = "Working...", duration = 500, canCancel = false })
 
     harness.assertTrue(completed, "cancel controls should be inert without canCancel = true")
 end)
@@ -334,7 +334,7 @@ harness.test("cancel controls can be delegated to a compatibility command", func
     pressedControls[73] = true
     pressedControls[322] = true
 
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Command-owned cancellation",
         duration = 100,
         canCancel = true,
@@ -347,7 +347,7 @@ end)
 harness.test("disable.combat and disable.car disable the expected controls", function()
     reset()
     inVehicle = true
-    QB.progressbar.start({ label = "Working...", duration = 500, disable = { combat = true, car = true } })
+    Kora.progressbar.start({ label = "Working...", duration = 500, disable = { combat = true, car = true } })
 
     harness.assertTrue(disabledControls[24] == true, "attack should be disabled")
     harness.assertTrue(disabledControls[71] == true, "vehicle accelerate should be disabled while in a vehicle")
@@ -356,7 +356,7 @@ end)
 
 harness.test("disable.sprint and disable.mouse use the expected control leases", function()
     reset()
-    QB.progressbar.start({ label = "Working...", duration = 100, disable = { sprint = true, mouse = true } })
+    Kora.progressbar.start({ label = "Working...", duration = 100, disable = { sprint = true, mouse = true } })
     harness.assertTrue(disabledControls[21], "sprint should be disabled")
     harness.assertTrue(disabledControls[1] and disabledControls[2] and disabledControls[106], "look controls should be disabled")
 end)
@@ -364,7 +364,7 @@ end)
 harness.test("disable.car is a no-op while not in a vehicle", function()
     reset()
     inVehicle = false
-    QB.progressbar.start({ label = "Working...", duration = 500, disable = { car = true } })
+    Kora.progressbar.start({ label = "Working...", duration = 500, disable = { car = true } })
 
     harness.assertTrue(disabledControls[71] == nil, "vehicle controls should not be touched while on foot")
 end)
@@ -373,7 +373,7 @@ harness.test("disable.car follows entering and leaving a vehicle", function()
     reset()
     local result
     CreateThread(function()
-        result = QB.progressbar.start({ label = "Working...", duration = 5000, disable = { car = true } })
+        result = Kora.progressbar.start({ label = "Working...", duration = 5000, disable = { car = true } })
     end)
 
     harness.assertTrue(disabledControls[71] == nil, "vehicle controls should start untouched on foot")
@@ -387,7 +387,7 @@ harness.test("disable.car follows entering and leaving a vehicle", function()
     mockHandle.step()
     harness.assertTrue(disabledControls[71] == nil, "leaving the vehicle should release the driving controls")
 
-    QB.progressbar.cancel()
+    Kora.progressbar.cancel()
     mockHandle.step()
     harness.assertEqual(result, false, "the test bar should settle after cancellation")
 end)
@@ -395,7 +395,7 @@ end)
 harness.test("an anim is played for the duration and cleaned up afterward", function()
     reset()
     animDictsLoaded["anim@test"] = true
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 500,
         anim = { dict = "anim@test", clip = "loop" },
@@ -411,7 +411,7 @@ end)
 harness.test("animation timing and lock flags are forwarded", function()
     reset()
     animDictsLoaded["anim@test"] = true
-    QB.progressbar.start({
+    Kora.progressbar.start({
         label = "Working...", duration = 100,
         anim = { dict = "anim@test", clip = "loop", duration = 250, playbackRate = 0.75,
             lockX = true, lockY = false, lockZ = true, stopBlendOut = 1.0 },
@@ -426,7 +426,7 @@ end)
 harness.test("a bar still completes if its anim dict never loads", function()
     reset()
     -- animDictsLoaded left empty: HasAnimDictLoaded stays false the whole poll.
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 500,
         anim = { dict = "anim@missing", clip = "loop" },
@@ -441,21 +441,21 @@ harness.test("strict animation loading raises for compatibility providers", func
     reset()
 
     harness.assertThrows(function()
-        QB.progressbar.start({
+        Kora.progressbar.start({
             label = "Strict animation",
             duration = 1000,
             anim = { dict = "anim@missing", clip = "idle" },
             strictAnim = true,
         })
     end, "strict animation loading should preserve ox_lib's error contract")
-    harness.assertFalse(QB.progressbar.isActive(), "strict animation failure must still clean up the active session")
+    harness.assertFalse(Kora.progressbar.isActive(), "strict animation failure must still clean up the active session")
 end)
 
 harness.test("an invalid anim dict degrades without making a streaming request", function()
     reset()
     invalidAnimDicts["anim@invalid"] = true
 
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Invalid animation",
         duration = 100,
         anim = { dict = "anim@invalid", clip = "loop" },
@@ -468,7 +468,7 @@ end)
 
 harness.test("a scenario is started and cleared when the bar ends", function()
     reset()
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 500,
         scenario = { name = "WORLD_HUMAN_HAMMERING", playEnter = false },
@@ -482,7 +482,7 @@ end)
 
 harness.test("local props use defaults, custom attachment fields, and clean up", function()
     reset()
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 500,
         props = {
@@ -523,7 +523,7 @@ end)
 
 harness.test("legacy prop and proptwo attach with coords and clean up", function()
     reset()
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 100,
         prop = { model = "prop_one", coords = { x = 1.0, y = 2.0, z = 3.0 }, bone = 57005,
@@ -543,20 +543,20 @@ end)
 
 harness.test("emotes are cleaned up and animation takes priority", function()
     reset()
-    harness.assertTrue(QB.progressbar.start({ label = "Reading", duration = 100, emote = "clipboard" }))
+    harness.assertTrue(Kora.progressbar.start({ label = "Reading", duration = 100, emote = "clipboard" }))
     harness.assertEqual(playedEmotes[1], "clipboard", "an emote-only bar should play its emote")
     harness.assertTrue(cancelledEmotes[1], "the active emote should be cancelled at completion")
 
     reset()
     pressedControls[73] = true
-    harness.assertFalse(QB.progressbar.start({ label = "Reading", duration = 5000, canCancel = true, emote = "clipboard" }),
+    harness.assertFalse(Kora.progressbar.start({ label = "Reading", duration = 5000, canCancel = true, emote = "clipboard" }),
         "X should use the normal cancellation path")
     harness.assertEqual(playedEmotes[1], "clipboard", "a cancellable emote-only bar should play its emote")
     harness.assertTrue(cancelledEmotes[1], "cancellation should stop the active emote")
 
     reset()
     animDictsLoaded["anim@test"] = true
-    harness.assertTrue(QB.progressbar.start({
+    harness.assertTrue(Kora.progressbar.start({
         label = "Working", duration = 100, emote = "clipboard",
         anim = { dict = "anim@test", clip = "loop" },
     }), "an animation-backed bar should complete")
@@ -567,7 +567,7 @@ end)
 harness.test("a prop creation failure is cosmetic and cleans up earlier props", function()
     reset()
     failCreateAt[2] = true
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 500,
         props = { { model = "prop_one" }, { model = "prop_two" } },
@@ -584,7 +584,7 @@ harness.test("an internal error still tears down props, controls, animation, and
     deadError = true
 
     harness.assertThrows(function()
-        QB.progressbar.start({
+        Kora.progressbar.start({
             label = "Working...",
             duration = 500,
             disable = { move = true, combat = true },
@@ -593,7 +593,7 @@ harness.test("an internal error still tears down props, controls, animation, and
         })
     end, "the simulated native error should escape after cleanup")
 
-    harness.assertFalse(QB.progressbar.isActive(), "the busy flag should always clear")
+    harness.assertFalse(Kora.progressbar.isActive(), "the busy flag should always clear")
     harness.assertEqual(freezeCalls[#freezeCalls].frozen, false, "the ped should be unfrozen")
     harness.assertEqual(#stoppedAnims, 1, "the animation should be stopped")
     harness.assertEqual(#deletedEntities, 1, "the attached prop should be deleted")
@@ -609,7 +609,7 @@ harness.test("the owning resource stopping cancels and tears down an active bar"
     _G.GetInvokingResource = function() return "progress_consumer" end
     local result
     CreateThread(function()
-        result = QB.progressbar.start({
+        result = Kora.progressbar.start({
             label = "Working...",
             duration = 5000,
             disable = { move = true, combat = true },
@@ -618,9 +618,9 @@ harness.test("the owning resource stopping cancels and tears down an active bar"
     end)
     _G.GetInvokingResource = function() return nil end
 
-    harness.assertTrue(QB.progressbar.isActive(), "the bar should be running before its owner stops")
+    harness.assertTrue(Kora.progressbar.isActive(), "the bar should be running before its owner stops")
     mockHandle.fire("onClientResourceStop", "progress_consumer")
-    harness.assertFalse(QB.progressbar.isActive(), "resource cleanup should clear the active bar immediately")
+    harness.assertFalse(Kora.progressbar.isActive(), "resource cleanup should clear the active bar immediately")
     harness.assertEqual(#deletedEntities, 1, "resource cleanup should delete the prop")
     harness.assertEqual(freezeCalls[#freezeCalls].frozen, false, "resource cleanup should unfreeze the ped")
 
@@ -633,24 +633,24 @@ harness.test("start refuses to run a second bar while one is active, then recove
 
     local firstResult
     CreateThread(function()
-        firstResult = QB.progressbar.start({ label = "First", duration = 5000 })
+        firstResult = Kora.progressbar.start({ label = "First", duration = 5000 })
     end)
 
-    harness.assertTrue(QB.progressbar.isActive(), "the first bar should be active after CreateThread's first resume")
+    harness.assertTrue(Kora.progressbar.isActive(), "the first bar should be active after CreateThread's first resume")
 
-    local completed, err = QB.progressbar.start({ label = "Second", duration = 500 })
+    local completed, err = Kora.progressbar.start({ label = "Second", duration = 500 })
     harness.assertFalse(completed, "a second bar should be refused while the first is active")
     harness.assertTrue(err ~= nil, "the refusal should include a reason")
 
-    local cancelled = QB.progressbar.cancel()
+    local cancelled = Kora.progressbar.cancel()
     harness.assertTrue(cancelled, "cancel() should report that a bar was actually running")
 
     mockHandle.step()
 
     harness.assertEqual(firstResult, false, "the first bar should resolve as cancelled once resumed")
-    harness.assertFalse(QB.progressbar.isActive(), "the module should be free for a new bar once the first one ends")
+    harness.assertFalse(Kora.progressbar.isActive(), "the module should be free for a new bar once the first one ends")
 
-    local recovered = QB.progressbar.start({ label = "Third", duration = 500 })
+    local recovered = Kora.progressbar.start({ label = "Third", duration = 500 })
     harness.assertTrue(recovered, "a fresh bar should be able to run once the previous one finished")
 end)
 
@@ -659,19 +659,19 @@ harness.test("only the initiating resource can cancel an active bar", function()
 
     local result
     CreateThread(function()
-        result = QB.progressbar.start({ label = "Owned", duration = 5000 }, "progress_owner")
+        result = Kora.progressbar.start({ label = "Owned", duration = 5000 }, "progress_owner")
     end)
 
-    harness.assertFalse(QB.progressbar.cancel("other_resource"),
+    harness.assertFalse(Kora.progressbar.cancel("other_resource"),
         "another resource must not be able to cancel the active bar")
-    harness.assertTrue(QB.progressbar.cancel("progress_owner"),
+    harness.assertTrue(Kora.progressbar.cancel("progress_owner"),
         "the initiating resource should be able to cancel its bar")
     mockHandle.step()
     harness.assertFalse(result, "the owner's cancellation should settle the bar as incomplete")
 end)
 
 local legacyExports = {}
-QB.compat.provideExport = function(identity, name, callback)
+Kora.compat.provideExport = function(identity, name, callback)
     harness.assertEqual(identity, 'progressbar')
     legacyExports[name] = callback
 end
@@ -789,7 +789,7 @@ harness.test('a queued legacy bar cannot start after its owner stops', function(
     harness.assertFalse(legacyExports.isDoingSomething())
     for _, callback in ipairs(queued) do createThread(callback) end
     mockHandle.step()
-    harness.assertFalse(QB.progressbar.isActive(), 'a stopped owner cannot acquire a new native bar')
+    harness.assertFalse(Kora.progressbar.isActive(), 'a stopped owner cannot acquire a new native bar')
     harness.assertFalse(legacyExports.isDoingSomething())
     harness.assertFalse(LocalPlayer.state.inv_busy)
     harness.assertEqual(#createdObjects, 0, 'a stopped owner cannot spawn props')
@@ -813,7 +813,7 @@ harness.test('cancelling a queued legacy bar settles without starting it', funct
     mockHandle.step()
     harness.assertEqual(finishes, 1)
     harness.assertTrue(cancelled)
-    harness.assertFalse(QB.progressbar.isActive())
+    harness.assertFalse(Kora.progressbar.isActive())
     harness.assertFalse(legacyExports.isDoingSomething())
     harness.assertFalse(LocalPlayer.state.inv_busy)
     harness.assertEqual(#createdObjects, 0)

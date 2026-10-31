@@ -12,7 +12,7 @@ dofile(repoRoot .. 'build/initiate.lua')
 
 local callbackName, callbackHandler, callbackOptions
 local registeredNames = {}
-QB.callback = {
+Kora.callback = {
     register = function(name, handler, options)
         callbackName = callbackName or name
         registeredNames[#registeredNames + 1] = name
@@ -22,7 +22,7 @@ QB.callback = {
 }
 
 local adminSource
-QB.permissions = {
+Kora.permissions = {
     hasPermission = function(src, permission)
         adminSource = src
         return src == 42 and permission == 'admin'

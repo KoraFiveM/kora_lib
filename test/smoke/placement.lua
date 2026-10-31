@@ -178,7 +178,7 @@ dofile(repoRoot .. "modules/raycast/client.lua")
 local nuiMessages = {}
 local nuiRequests = {}
 local nextNuiResponse = nil
-QB.nui = {
+Kora.nui = {
     send = function(action, data) nuiMessages[#nuiMessages + 1] = { action = action, data = data } end,
     request = function(action, data)
         nuiRequests[#nuiRequests + 1] = { action = action, data = data }
@@ -188,16 +188,16 @@ QB.nui = {
     end,
     withFocus = function(_, _, fn) return fn() end,
 }
-QB.nui.requestAsync = function(action, data) return QB.nui.request(action, data) end
-QB.nui.cancelRequest = function(request, response) request:resolve(response); return true end
+Kora.nui.requestAsync = function(action, data) return Kora.nui.request(action, data) end
+Kora.nui.cancelRequest = function(request, response) request:resolve(response); return true end
 
 local notifications = {}
-QB.notify = {
+Kora.notify = {
     send = function(payload) notifications[#notifications + 1] = payload end,
 }
 
 local zoneCreatorActive = false
-QB.zones = {
+Kora.zones = {
     isCreatorActive = function() return zoneCreatorActive end,
 }
 
@@ -235,7 +235,7 @@ local function assertNear(actual, expected, message)
 end
 
 harness.test("generateSnippet returns a four-decimal Lua table with named Euler axes", function()
-    local snippet = QB.placement.generateSnippet({
+    local snippet = Kora.placement.generateSnippet({
         model = "prop_o'hare",
         coords = { x = 1.23456, y = -2.0, z = 3.5 },
         heading = 270,
@@ -258,53 +258,53 @@ harness.test("generateSnippet rejects non-finite transform values", function()
         rotation = { pitch = 0, roll = 0, yaw = 0 },
     }
     valid.coords.x = math.huge
-    harness.assertThrows(function() QB.placement.generateSnippet(valid) end,
+    harness.assertThrows(function() Kora.placement.generateSnippet(valid) end,
         "infinite coordinates must not produce a snippet")
 
     valid.coords.x = 1
     valid.rotation.yaw = 0 / 0
-    harness.assertThrows(function() QB.placement.generateSnippet(valid) end,
+    harness.assertThrows(function() Kora.placement.generateSnippet(valid) end,
         "NaN rotations must not produce a snippet")
 end)
 
 harness.test("start rejects invalid models before spawning or taking controls", function()
     local before = #createdKinds
-    local p = QB.placement.start(INVALID_MODEL)
+    local p = Kora.placement.start(INVALID_MODEL)
     harness.assertEqual(p.state, "rejected", "invalid models should reject immediately")
     harness.assertEqual(#createdKinds, before, "invalid models must not spawn a preview")
-    harness.assertFalse(QB.placement.isActive(), "a rejected start must not leak active state")
+    harness.assertFalse(Kora.placement.isActive(), "a rejected start must not leak active state")
 end)
 
 harness.test("start rejects non-finite model hashes before spawning or taking controls", function()
     local before = #createdKinds
-    local p = QB.placement.start(math.huge)
+    local p = Kora.placement.start(math.huge)
     harness.assertEqual(p.state, "rejected", "non-finite hashes should reject immediately")
     harness.assertEqual(#createdKinds, before, "non-finite hashes must not spawn a preview")
-    harness.assertFalse(QB.placement.isActive(), "a rejected hash must not leak active state")
+    harness.assertFalse(Kora.placement.isActive(), "a rejected hash must not leak active state")
 end)
 
 harness.test("start rejects when placement is disabled", function()
     Config.placement.enabled = false
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     Config.placement.enabled = true
 
     harness.assertEqual(p.state, "rejected", "disabled placement should reject immediately")
-    harness.assertFalse(QB.placement.isActive(), "a disabled start must not leak active state")
+    harness.assertFalse(Kora.placement.isActive(), "a disabled start must not leak active state")
 end)
 
 harness.test("start rejects when the initial camera raycast misses", function()
     rayHit = false
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     rayHit = true
 
     harness.assertEqual(p.state, "rejected", "a surface hit is required")
-    harness.assertFalse(QB.placement.isActive(), "a missed raycast must clean up immediately")
+    harness.assertFalse(Kora.placement.isActive(), "a missed raycast must clean up immediately")
 end)
 
 harness.test("start propagates a model streaming timeout", function()
-    local p = QB.placement.start(STUCK_MODEL)
+    local p = Kora.placement.start(STUCK_MODEL)
     harness.assertEqual(p.state, "rejected", "unloadable models should reject")
-    harness.assertFalse(QB.placement.isActive(), "a streaming timeout must not leak active state")
+    harness.assertFalse(Kora.placement.isActive(), "a streaming timeout must not leak active state")
 end)
 
 harness.test("ped, vehicle, and object previews use the existing auto-detected entity creation", function()
@@ -315,13 +315,13 @@ harness.test("ped, vehicle, and object previews use the existing auto-detected e
     }
 
     for _, case in ipairs(cases) do
-        local p = QB.placement.start(case[1])
+        local p = Kora.placement.start(case[1])
         harness.assertEqual(p.state, "pending", "placement should remain pending while editing")
         harness.assertEqual(createdKinds[#createdKinds], case[2], "entity type should be auto-detected")
         harness.assertEqual(entities[lastEntity].collision, false, "preview collision should be disabled")
         harness.assertEqual(entities[lastEntity].alpha, Config.placement.previewAlpha, "preview should be translucent")
         harness.assertEqual(entities[lastEntity].invincible, true, "preview should use the static preset")
-        harness.assertTrue(QB.placement.isActive(), "placement should report active")
+        harness.assertTrue(Kora.placement.isActive(), "placement should report active")
         cancelPlacement()
         harness.assertEqual(p.state, "resolved", "cancel should settle the placement")
         harness.assertEqual(p.value, nil, "cancel should resolve nil")
@@ -329,21 +329,21 @@ harness.test("ped, vehicle, and object previews use the existing auto-detected e
 end)
 
 harness.test("a second placement and the zone creator are mutually exclusive", function()
-    local first = QB.placement.start(OBJECT_MODEL)
-    local second = QB.placement.start(OBJECT_MODEL)
+    local first = Kora.placement.start(OBJECT_MODEL)
+    local second = Kora.placement.start(OBJECT_MODEL)
     harness.assertEqual(second.state, "rejected", "a second placement should reject")
     cancelPlacement()
     harness.assertEqual(first.state, "resolved", "the first placement should still cancel normally")
 
     zoneCreatorActive = true
-    local blocked = QB.placement.start(OBJECT_MODEL)
+    local blocked = Kora.placement.start(OBJECT_MODEL)
     zoneCreatorActive = false
     harness.assertEqual(blocked.state, "rejected", "placement must reject while the zone creator is active")
 end)
 
 harness.test("arrow and Page keys move relative to camera yaw with frame-time scaling", function()
     gameplayCamRotation.z = 0.0
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity
 
     press("forward")
@@ -374,7 +374,7 @@ end)
 
 harness.test("Tab cycles yaw, pitch, and roll while brackets rotate the active axis", function()
     gameplayCamRotation.z = 0.0
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity
 
     press("rotateRight")
@@ -399,7 +399,7 @@ harness.test("Tab cycles yaw, pitch, and roll while brackets rotate the active a
 end)
 
 harness.test("Keep Editing leaves the preview and promise pending", function()
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity
     nextNuiResponse = { confirmed = false }
     tap("confirm")
@@ -414,7 +414,7 @@ harness.test("placement hides the radar once for its lifetime", function()
     radarCalls = {}
     radarHidden = false
 
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     net.step()
     net.step()
 
@@ -430,7 +430,7 @@ end)
 
 harness.test("confirmation returns full transform data and deletes the preview", function()
     gameplayCamRotation.z = -90.0
-    local p = QB.placement.start("prop_bin_08")
+    local p = Kora.placement.start("prop_bin_08")
     local entity = lastEntity
     nextNuiResponse = { confirmed = true }
     tap("confirm")
@@ -446,7 +446,7 @@ harness.test("confirmation returns full transform data and deletes the preview",
         "the popup should receive copyable full transform data")
 
     finishCameraTransition()
-    harness.assertFalse(QB.placement.isActive(), "placement should be inactive after camera teardown")
+    harness.assertFalse(Kora.placement.isActive(), "placement should be inactive after camera teardown")
     harness.assertEqual(frozen[1], false, "the player should be unfrozen after camera teardown")
     harness.assertTrue(radarCalls[#radarCalls] == true, "the radar should be restored")
 end)
@@ -455,7 +455,7 @@ harness.test("placement preserves a radar that was already hidden", function()
     radarHidden = true
     radarCalls = {}
 
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     cancelPlacement()
 
     harness.assertEqual(p.state, "resolved", "cancel should still settle placement")
@@ -464,18 +464,18 @@ harness.test("placement preserves a radar that was already hidden", function()
 end)
 
 harness.test("an unexpectedly deleted preview rejects and cleans up", function()
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     entities[lastEntity] = nil
     net.step()
 
     harness.assertEqual(p.state, "rejected", "a vanished preview should reject the session")
     finishCameraTransition()
-    harness.assertFalse(QB.placement.isActive(), "crash cleanup should release placement state")
+    harness.assertFalse(Kora.placement.isActive(), "crash cleanup should release placement state")
 end)
 
 harness.test("stopping the owning resource cancels and deletes its preview", function()
     currentResource = "placement_consumer"
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity
     currentResource = "kora_lib_test"
 
@@ -492,10 +492,10 @@ end)
 
 harness.test("gameplay placement uses an initial transform, shared numeric fields, bounds and confirmation without clipboard", function()
     local removedBounds = false
-    QB.zones.poly = function()
+    Kora.zones.poly = function()
         return { contains = function(coords) return coords.x >= 0 and coords.x <= 20 end, remove = function() removedBounds = true end }
     end
-    local p = QB.placement.start(OBJECT_MODEL, { coords = { x = 2, y = 3, z = 4 }, rotation = { pitch = 1, roll = 2, yaw = 3 },
+    local p = Kora.placement.start(OBJECT_MODEL, { coords = { x = 2, y = 3, z = 4 }, rotation = { pitch = 1, roll = 2, yaw = 3 },
         bounds = { points = {}, minZ = 0, maxZ = 100 }, numericInput = true, copy = false })
     local entity = lastEntity
     harness.assertEqual(entities[entity].coords.x, 2, "existing furniture starts at its saved position")
@@ -519,13 +519,13 @@ end)
 
 harness.test('only the placement owner may cancel a delegated workflow', function()
     currentResource = 'housing_consumer'
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity
     currentResource = 'unrelated_consumer'
-    harness.assertFalse(QB.placement.cancel(), 'another resource cannot cancel the active placement')
+    harness.assertFalse(Kora.placement.cancel(), 'another resource cannot cancel the active placement')
     harness.assertEqual(p.state, 'pending')
     currentResource = 'housing_consumer'
-    harness.assertTrue(QB.placement.cancel())
+    harness.assertTrue(Kora.placement.cancel())
     harness.assertEqual(p.state, 'resolved')
     harness.assertEqual(p.value, nil)
     harness.assertEqual(entities[entity], nil, 'owner cancellation removes the preview immediately')
@@ -534,7 +534,7 @@ harness.test('only the placement owner may cancel a delegated workflow', functio
 end)
 
 harness.test("surface placement follows the scripted camera and stays bounded", function()
-    local p = QB.placement.start(OBJECT_MODEL, { coords = { x = 2, y = 3, z = 4 }, raycast = true,
+    local p = Kora.placement.start(OBJECT_MODEL, { coords = { x = 2, y = 3, z = 4 }, raycast = true,
         bounds = { points = {}, minZ = 0, maxZ = 100 } })
     local entity = lastEntity
     harness.assertEqual(entities[entity].coords.x, rayCoords.x, "surface placement uses the scripted camera hit")
@@ -549,7 +549,7 @@ harness.test("surface placement follows the scripted camera and stays bounded", 
 end)
 
 harness.test("kora_lib stop performs immediate camera, entity, HUD, radar, and freeze cleanup", function()
-    local p = QB.placement.start(OBJECT_MODEL)
+    local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity
     local activeCamera
     for cam in pairs(cameras) do activeCamera = cam end

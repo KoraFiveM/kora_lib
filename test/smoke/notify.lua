@@ -21,10 +21,10 @@ dofile(repoRoot .. "local/events/client.lua")
 local lastNui
 local thirdPartyClientPayloads = {}
 
--- The table-accepting wrapper (capital NUI), matching what QB.nui.send calls.
+-- The table-accepting wrapper (capital NUI), matching what Kora.nui.send calls.
 function _G.SendNUIMessage(msg) lastNui = msg end
 
--- notify sends through QB.nui.send (not SendNuiMessage directly -- see the
+-- notify sends through Kora.nui.send (not SendNuiMessage directly -- see the
 -- root AGENTS.md "UI conventions"), so modules/nui/client.lua needs to be
 -- loaded too. RegisterNUICallback/SetNuiFocus are specific to that module and
 -- unused by anything notify exercises here, so they're harmless no-ops.
@@ -46,49 +46,49 @@ end)
 dofile(repoRoot .. "modules/notify/shared.lua")
 dofile(repoRoot .. "modules/notify/client.lua")
 
--- client.lua's `QB.events.onPush('notify', QB.notify.send)` already captured
--- the client version by value, but QB.notify.send itself is about to be
+-- client.lua's `Kora.events.onPush('notify', Kora.notify.send)` already captured
+-- the client version by value, but Kora.notify.send itself is about to be
 -- overwritten by server.lua (same module, same table slot) -- so grab a
 -- direct reference to the client function before that happens.
-local clientNotifySend = QB.notify.send
+local clientNotifySend = Kora.notify.send
 
 dofile(repoRoot .. "modules/notify/server.lua")
 
 harness.test("assert accepts a minimal valid payload", function()
-    QB.notify.assert({ message = "hello" })
+    Kora.notify.assert({ message = "hello" })
 end)
 
 harness.test("assert accepts and forwards icon presentation options", function()
-    local resolved = QB.notify.withDefaults({
+    local resolved = Kora.notify.withDefaults({
         message = "hello",
         iconAnimation = "pulse",
         alignIcon = "top",
     })
     harness.assertEqual(resolved.iconAnimation, "pulse", "animation should be preserved")
     harness.assertEqual(resolved.alignIcon, "top", "alignment should be preserved")
-    QB.notify.assert(resolved)
+    Kora.notify.assert(resolved)
 
     harness.assertThrows(function()
-        QB.notify.assert({ message = "bad", iconAnimation = "flash" })
+        Kora.notify.assert({ message = "bad", iconAnimation = "flash" })
     end, "unknown icon animation should fail")
 end)
 
 harness.test("assert rejects a payload with neither title nor message", function()
     harness.assertThrows(function()
-        QB.notify.assert({})
+        Kora.notify.assert({})
     end, "a payload with no title or message should be rejected")
 end)
 
 harness.test("assert rejects an out-of-range duration", function()
     harness.assertThrows(function()
-        QB.notify.assert({ message = "hi", duration = 999999 })
+        Kora.notify.assert({ message = "hi", duration = 999999 })
     end, "a duration over 2 minutes should be rejected")
 end)
 
 harness.test("assert rejects non-finite numeric IDs", function()
     for _, id in ipairs({ math.huge, -math.huge, 0 / 0 }) do
         harness.assertThrows(function()
-            QB.notify.assert({ message = "hi", id = id })
+            Kora.notify.assert({ message = "hi", id = id })
         end, "numeric toast IDs must be finite")
     end
 end)
@@ -96,7 +96,7 @@ end)
 harness.test("assert rejects fractional and non-finite durations", function()
     for _, duration in ipairs({ 1.5, math.huge, -math.huge, 0 / 0 }) do
         harness.assertThrows(function()
-            QB.notify.assert({ message = "hi", duration = duration })
+            Kora.notify.assert({ message = "hi", duration = duration })
         end, "duration must be a finite integer")
     end
 end)
@@ -108,81 +108,81 @@ harness.test("assert rejects false defaults instead of silently replacing them",
         { message = "hi", position = false },
     }) do
         harness.assertThrows(function()
-            QB.notify.assert(payload)
+            Kora.notify.assert(payload)
         end)
     end
 end)
 
 harness.test("assert accepts every documented type and position", function()
     for _, notifyType in ipairs({ "info", "success", "warning", "error" }) do
-        QB.notify.assert({ message = "hi", type = notifyType })
+        Kora.notify.assert({ message = "hi", type = notifyType })
     end
 
     for _, position in ipairs({
         "top-left", "top-center", "top-right", "bottom-left", "bottom-center",
         "bottom-right", "center-left", "center-right", "top", "bottom",
     }) do
-        QB.notify.assert({ message = "hi", position = position })
+        Kora.notify.assert({ message = "hi", position = position })
     end
 end)
 
 harness.test("assert accepts type aliases and normalize resolves them", function()
-    QB.notify.assert({ message = "hi", type = "inform" })
-    QB.notify.assert({ message = "hi", type = "warn" })
+    Kora.notify.assert({ message = "hi", type = "inform" })
+    Kora.notify.assert({ message = "hi", type = "warn" })
 
     local original = { message = "hi", type = "inform", duration = 1000 }
-    local normalized = QB.notify.normalize(original)
+    local normalized = Kora.notify.normalize(original)
     harness.assertEqual(normalized.type, "info")
     harness.assertEqual(normalized.message, "hi")
     harness.assertEqual(normalized.duration, 1000)
     harness.assertEqual(original.type, "inform", "the caller's payload must not be mutated")
-    harness.assertEqual(QB.notify.normalize({ message = "hi", type = "warn" }).type, "warning")
+    harness.assertEqual(Kora.notify.normalize({ message = "hi", type = "warn" }).type, "warning")
 
     local canonical = { message = "hi", type = "success" }
-    harness.assertEqual(QB.notify.normalize(canonical), canonical, "canonical types pass through untouched")
-    harness.assertEqual(QB.notify.normalize({ message = "hi" }).type, nil)
-    harness.assertEqual(QB.notify.withDefaults({ message = "hi", type = "inform" }).type, "info")
+    harness.assertEqual(Kora.notify.normalize(canonical), canonical, "canonical types pass through untouched")
+    harness.assertEqual(Kora.notify.normalize({ message = "hi" }).type, nil)
+    harness.assertEqual(Kora.notify.withDefaults({ message = "hi", type = "inform" }).type, "info")
 end)
 
 harness.test("aliases do not weaken validation of unknown types", function()
     harness.assertThrows(function()
-        QB.notify.assert(QB.notify.normalize({ message = "hi", type = "catastrophe" }))
+        Kora.notify.assert(Kora.notify.normalize({ message = "hi", type = "catastrophe" }))
     end)
     harness.assertThrows(function()
-        QB.notify.assert(QB.notify.normalize({ message = "hi", type = false }))
+        Kora.notify.assert(Kora.notify.normalize({ message = "hi", type = false }))
     end)
 end)
 
 harness.test("assert rejects an unknown type or position", function()
     harness.assertThrows(function()
-        QB.notify.assert({ message = "hi", type = "catastrophe" })
+        Kora.notify.assert({ message = "hi", type = "catastrophe" })
     end, "an unknown notification type should be rejected")
 
     harness.assertThrows(function()
-        QB.notify.assert({ message = "hi", position = "middle" })
+        Kora.notify.assert({ message = "hi", position = "middle" })
     end, "an unknown notification position should be rejected")
 end)
 
 harness.test("assert rejects a non-string title or message", function()
     harness.assertThrows(function()
-        QB.notify.assert({ title = { nested = "table" } })
+        Kora.notify.assert({ title = { nested = "table" } })
     end, "a table title would crash the NUI renderer, so it must be rejected")
 
     harness.assertThrows(function()
-        QB.notify.assert({ message = 42 })
+        Kora.notify.assert({ message = 42 })
     end, "a numeric message should be rejected")
 end)
 
 harness.test("withDefaults fills in the configured type/position/duration without mutating the caller", function()
     local payload = { message = "hi" }
-    local resolved = QB.notify.withDefaults(payload)
+    local resolved = Kora.notify.withDefaults(payload)
 
     harness.assertEqual(resolved.type, Config.notify.defaultType, "type should fall back to the configured default")
     harness.assertEqual(resolved.position, Config.notify.defaultPosition, "position should fall back to the configured default")
     harness.assertEqual(resolved.duration, Config.notify.defaultDuration, "duration should fall back to the configured default")
     harness.assertEqual(payload.type, nil, "the caller's own table must not be mutated")
 
-    local explicit = QB.notify.withDefaults({ message = "hi", type = "error", position = "bottom-left", duration = 1000 })
+    local explicit = Kora.notify.withDefaults({ message = "hi", type = "error", position = "bottom-left", duration = 1000 })
     harness.assertEqual(explicit.type, "error", "an explicit type should win over the default")
     harness.assertEqual(explicit.position, "bottom-left", "an explicit position should win over the default")
     harness.assertEqual(explicit.duration, 1000, "an explicit duration should win over the default")
@@ -228,7 +228,7 @@ end)
 
 harness.test("server send pushes to the client and shows a NUI notification", function()
     lastNui = nil
-    QB.notify.send(mocks.SOURCE, { title = "Server said hi" })
+    Kora.notify.send(mocks.SOURCE, { title = "Server said hi" })
 
     harness.assertTrue(lastNui ~= nil, "server send should reach the client via the events push and show a NUI notification")
     harness.assertEqual(lastNui.data.title, "Server said hi", "the payload should survive the round trip")
@@ -236,7 +236,7 @@ end)
 
 harness.test("server sendToAll also reaches the client", function()
     lastNui = nil
-    QB.notify.sendToAll({ message = "everyone" })
+    Kora.notify.sendToAll({ message = "everyone" })
     harness.assertTrue(lastNui ~= nil, "sendToAll should still reach the mock client")
 end)
 
@@ -244,11 +244,11 @@ harness.test("server send drops malformed recipients before either dispatch rout
     lastNui = nil
     thirdPartyClientPayloads = {}
     Config.third_party_notify = false
-    QB.notify.send(1.5, { message = "invalid recipient" })
+    Kora.notify.send(1.5, { message = "invalid recipient" })
     harness.assertEqual(lastNui, nil, "the kora_lib push route must not receive an invalid target")
 
     Config.third_party_notify = true
-    QB.notify.send(1.5, { message = "invalid recipient" })
+    Kora.notify.send(1.5, { message = "invalid recipient" })
     harness.assertEqual(#thirdPartyClientPayloads, 0, "the third-party route must not receive an invalid target")
     Config.third_party_notify = false
 end)
@@ -258,7 +258,7 @@ harness.test("server send uses the third-party client event when configured", fu
     lastNui = nil
     thirdPartyClientPayloads = {}
 
-    QB.notify.send(mocks.SOURCE, { message = "server third party" })
+    Kora.notify.send(mocks.SOURCE, { message = "server third party" })
 
     harness.assertEqual(#thirdPartyClientPayloads, 1, "the third-party client event should have fired once")
     harness.assertTrue(lastNui == nil, "the NUI path should be skipped when third-party notify is on")

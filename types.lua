@@ -298,7 +298,7 @@
 ---@field count integer Number of currently registered kora_lib blips in the category.
 
 ---@class QBRegisteredBlip
----@field handle integer Actual native blip handle returned by QB.blips.create.
+---@field handle integer Actual native blip handle returned by Kora.blips.create.
 ---@field resource string Resource that created the blip.
 ---@field category integer Native category id.
 ---@field categoryKey string Canonical fixed category key/name, or `native:<id>` for a numeric compatibility category.
@@ -1011,7 +1011,7 @@
 ---@field minigames KoraLibMinigames
 ---@field notify KoraLibNotify
 ---@field nui KoraLibNui
----@field ox KoraLibOx Private provider for the optional ox_lib bridge; native resources should use QB.nui.
+---@field ox KoraLibOx Private provider for the optional ox_lib bridge; native resources should use Kora.nui.
 ---@field permissions KoraLibPermissions
 ---@field placement KoraLibPlacement
 ---@field print KoraLibPrint

@@ -18,7 +18,7 @@ local requestCounter = 0
 -- Ownership tracking (which resource registered a given callback name, and
 -- bulk cleanup when that resource stops) is delegated to the shared registry
 -- -- see local/resources/AGENTS.md.
-local callbackOwnership = QB.resources.registry(function(name)
+local callbackOwnership = Kora.resources.registry(function(name)
     registry[name] = nil
 end)
 
@@ -33,18 +33,18 @@ end)
 local function awaitToken()
     if token ~= nil then return true end
 
-    -- Explicitly Config.callback.timeout, not QB.loops.controlled's own 10s
+    -- Explicitly Config.callback.timeout, not Kora.loops.controlled's own 10s
     -- default: the handshake is the FIRST thing a consumer waits on, on the
     -- coldest a client will ever be, so it must get the same budget as the
     -- request it is gating rather than a shorter hidden one.
-    return QB.loops.controlled(function()
+    return Kora.loops.controlled(function()
         return token ~= nil
     end, false, Config.callback.timeout) ~= false
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
@@ -65,7 +65,7 @@ local isCallable = QB.compat.isCallable
 -- Callers MUST capture GetInvokingResource() themselves, before doing
 -- anything that can yield, and pass it in as `invoker` -- GetInvokingResource()
 -- only reflects the real cross-resource caller within the SAME synchronous
--- native-call frame as the exports() invocation. QB.callback.trigger below
+-- native-call frame as the exports() invocation. Kora.callback.trigger below
 -- can yield inside awaitToken() (polling for the initial handshake token,
 -- very much still in flight on a consumer resource's very first-ever
 -- trigger() call), and by the time control comes back GetInvokingResource()
@@ -82,7 +82,7 @@ local isCallable = QB.compat.isCallable
 -- promise itself still resolves with ONLY the handler's first return value,
 -- deliberately unchanged from before this existed, so every EXISTING
 -- same-VM caller inside kora_lib (e.g. modules/minigames/client.lua's own
--- `Citizen.Await(QB.callback.trigger(...))`) keeps working exactly as it did
+-- `Citizen.Await(Kora.callback.trigger(...))`) keeps working exactly as it did
 -- -- only a genuine cross-resource caller, reached here, gets the extra
 -- values, by reading the side-channel field Citizen.Await(p) itself can't
 -- carry (a promise only ever resolves with ONE value).
@@ -90,19 +90,19 @@ local function settleForExport(p, invoker)
     if invoker then
         Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
         local packed = p.koraLibCallbackResults
-        if packed == nil then return p.value end -- not a QB.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
+        if packed == nil then return p.value end -- not a Kora.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
         return table.unpack(packed, 1, packed.n)
     end
     return p
 end
 
----Registers a handler for a callback invoked from the server via QB.callback.trigger(target, name, ...).
+---Registers a handler for a callback invoked from the server via Kora.callback.trigger(target, name, ...).
 ---Automatically unregistered if the calling resource stops (see onClientResourceStop below) --
----most callers don't need to call QB.callback.unregister themselves.
+---most callers don't need to call Kora.callback.unregister themselves.
 ---@param name string
 ---@param handler fun(...: any): any
-function QB.callback.register(name, handler)
-    QB.callback.assertName(name)
+function Kora.callback.register(name, handler)
+    Kora.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
@@ -119,11 +119,11 @@ function QB.callback.register(name, handler)
     callbackOwnership.track(owner, name)
 end
 
----Unregisters a callback handler registered with QB.callback.register.
+---Unregisters a callback handler registered with Kora.callback.register.
 ---@param name string
 ---@return boolean removed
-function QB.callback.unregister(name)
-    QB.callback.assertName(name)
+function Kora.callback.unregister(name)
+    Kora.callback.assertName(name)
     local invoker = GetInvokingResource()
     if invoker and callbackOwnership.owner(name) ~= invoker then return false end
     registry[name] = nil
@@ -131,7 +131,7 @@ function QB.callback.unregister(name)
     return true
 end
 
----Triggers a callback registered on the server via QB.callback.register(name, handler).
+---Triggers a callback registered on the server via Kora.callback.register(name, handler).
 ---Waits for the initial handshake token if it hasn't arrived yet.
 ---@param name string
 ---@param ... any
@@ -140,8 +140,8 @@ end
 ---cross-resource settlement path). For a genuine cross-resource caller, the handler's return values are unpacked --
 ---e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
 ---settleForExport above).
-function QB.callback.trigger(name, ...)
-    QB.callback.assertName(name)
+function Kora.callback.trigger(name, ...)
+    Kora.callback.assertName(name)
 
     -- Captured FIRST, before awaitToken() below gets any chance to yield --
     -- see the comment on settleForExport above for why calling this any
@@ -189,7 +189,7 @@ RegisterNetEvent(events.response, function(requestId, ok, ...)
         -- resolving -- settleForExport above reads it back out for a
         -- cross-resource caller. The promise itself still resolves with only
         -- the handler's FIRST return value, unchanged from before this
-        -- existed, so a same-VM `Citizen.Await(QB.callback.trigger(...))`
+        -- existed, so a same-VM `Citizen.Await(Kora.callback.trigger(...))`
         -- caller (e.g. modules/minigames/client.lua) sees no behavior change
         -- at all.
         local packed = table.pack(...)
@@ -205,7 +205,7 @@ RegisterNetEvent(events.response, function(requestId, ok, ...)
 end)
 
 -- No token check here: the server is always the trusted party for its own
--- TriggerClientEvent calls, same reasoning as QB.events.push/onPush.
+-- TriggerClientEvent calls, same reasoning as Kora.events.push/onPush.
 RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
     if type(requestId) ~= "number" or requestId < 1 or requestId % 1 ~= 0 or requestId ~= requestId
         or requestId == math.huge or requestId == -math.huge or type(name) ~= "string" or #name > 128 then

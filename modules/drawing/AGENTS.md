@@ -11,7 +11,7 @@ Nothing else in kora_lib draws to the screen. `modules/zones`' debug renderer (`
 - The distance check runs against `GetEntityCoords(PlayerPedId())` computed fresh every call, before touching any `SetText*`/`AddTextComponentString`/`SetDrawOrigin` native -- culling has to happen first, not as an early-return after the natives already ran, or the whole point of `maxDistance` (skip the cost, not just the visual) is lost.
 - Resolve and validate all text options before culling. A malformed call must fail before any drawing native runs, whether or not its position is currently visible.
 - `SetTextCentre(true)` is always applied (not configurable) -- an interaction prompt anchored by `SetDrawOrigin` reads correctly centered on its anchor point; a left-aligned prompt would visually drift off whatever it's labeling.
-- Nothing here is a persistent registration or gets tracked in a `QB.resources.registry` -- there's nothing to clean up, since a call that stops happening simply stops drawing on the next frame. This is a deliberate contract difference from `modules/zones`/`modules/entities`/`modules/blips`, which all own state until explicitly removed or their resource stops.
+- Nothing here is a persistent registration or gets tracked in a `Kora.resources.registry` -- there's nothing to clean up, since a call that stops happening simply stops drawing on the next frame. This is a deliberate contract difference from `modules/zones`/`modules/entities`/`modules/blips`, which all own state until explicitly removed or their resource stops.
 - Client-only, no `shared.lua`/`server.lua` -- drawing only makes sense against the calling client's own screen, same shape as `modules/raycast`/`modules/stream`/`modules/world`.
 
 ## Testing

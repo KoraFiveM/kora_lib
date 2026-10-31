@@ -5,7 +5,7 @@ The loops module centralizes controlled polling/retry logic. It's for cases wher
 
 ## API
 
-### `QB.loops.controlled(call, tries, timeout, backoff)`
+### `Kora.loops.controlled(call, tries, timeout, backoff)`
 Repeatedly invokes `call` until it returns a truthy value, or until the try count / timeout is exhausted.
 
 #### Parameters
@@ -36,7 +36,7 @@ options fail before the first predicate call, rather than during a later retry.
 
 #### Example
 ```lua
-local ped = QB.loops.controlled(function()
+local ped = Kora.loops.controlled(function()
     return DoesEntityExist(PlayerPedId()) and PlayerPedId() or nil
 end, 20, 5000)
 
@@ -46,7 +46,7 @@ if not ped then return print('player ped never became available') end
 Polling with exponential backoff:
 
 ```lua
-local loaded, err = QB.loops.controlled(function()
+local loaded, err = Kora.loops.controlled(function()
     return HasModelLoaded(model)
 end, false, 10000, true)
 
@@ -56,7 +56,7 @@ if not loaded then return print('model load failed:', err) end
 Polling on a fixed interval — the middle ground between every-frame and exponential, for waiting on something that changes on its own schedule:
 
 ```lua
-local vehicle = QB.loops.controlled(function()
+local vehicle = Kora.loops.controlled(function()
     local spawned = GetVehiclePedIsIn(PlayerPedId(), false)
     return spawned ~= 0 and spawned or nil
 end, false, 5000, 250) -- check 4x a second for up to 5s

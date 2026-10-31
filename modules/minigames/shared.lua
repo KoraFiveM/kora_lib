@@ -1,8 +1,8 @@
 -- Every place that validates a minigame type string shares this set, rather
 -- than each repeating its own "lockpick or skillbar or circuit or mash"
--- chain. A plain table, not a function, so build/finalise.lua's `pairs(QB.minigames)`
+-- chain. A plain table, not a function, so build/finalise.lua's `pairs(Kora.minigames)`
 -- export walk (which only exports function values) leaves it alone.
-QB.minigames.GAME_TYPES = {
+Kora.minigames.GAME_TYPES = {
     lockpick = true,
     skillbar = true,
     circuit = true,
@@ -17,14 +17,14 @@ QB.minigames.GAME_TYPES = {
 }
 
 ---Deterministic back-and-forth motion every lockpick/skillbar puzzle animates
----by. Attached to QB.minigames (not left as a shared.lua local) because
+---by. Attached to Kora.minigames (not left as a shared.lua local) because
 ---client.lua and server.lua are separate Lua chunks within the same realm --
 ---this is the one piece of game logic both genuinely need, since the server
 ---validates a submitted attempt by independently recomputing the exact
 ---position the client was rendering at a given elapsed time. The two must
 ---never drift out of sync with each other, which is also why this is a plain,
 ---cheap formula rather than anything stateful: same reasoning
----modules/loops/shared.lua's QB.loops.controlled is attached to QB rather
+---modules/loops/shared.lua's Kora.loops.controlled is attached to Kora rather
 ---than kept as a shared.lua local.
 ---
 ---A triangle wave, not a sine: constant angular velocity reads as perfectly
@@ -33,7 +33,7 @@ QB.minigames.GAME_TYPES = {
 ---@param elapsedMs number Milliseconds since the round started.
 ---@param speedHz number Full back-and-forth cycles per second.
 ---@return number position 0..1
-function QB.minigames.triangleWave(elapsedMs, speedHz)
+function Kora.minigames.triangleWave(elapsedMs, speedHz)
     local phase = (elapsedMs / 1000 * speedHz) % 1
     return phase < 0.5 and phase * 2 or 2 - phase * 2
 end

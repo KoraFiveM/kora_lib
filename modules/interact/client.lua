@@ -17,7 +17,7 @@ local zonesByName = {}
 local reopenFns = {}
 local zoneOwners = {}
 local targetHandles = { entity = {}, model = {} }
-local targetRegistry = QB.resources.registry(function(handle)
+local targetRegistry = Kora.resources.registry(function(handle)
     targetHandles[handle.kind][handle.id] = nil
     if handle.kind == 'entity' then
         exports.kora_target:removeEntity(handle.value, handle.id)
@@ -26,7 +26,7 @@ local targetRegistry = QB.resources.registry(function(handle)
     end
 end)
 
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local function isEnabled()
     local state = LocalPlayer and LocalPlayer.state
@@ -55,7 +55,7 @@ end
 local function groupGrade(group)
     local grade = type(group) == 'table' and group.grade or nil
     if type(grade) == 'table' then grade = grade.level end
-    return QB.util.isFiniteNumber(grade) and grade or nil
+    return Kora.util.isFiniteNumber(grade) and grade or nil
 end
 
 local function playerData()
@@ -132,8 +132,8 @@ local function hide(session)
 
     local controlLease, owner = active.controlLease, active.owner
     active = nil
-    if controlLease then QB.compat.releaseControlLease(controlLease, owner) end
-    QB.nui.send("hideInteract")
+    if controlLease then Kora.compat.releaseControlLease(controlLease, owner) end
+    Kora.nui.send("hideInteract")
     return true
 end
 
@@ -192,7 +192,7 @@ local function ensureCallbacks()
     if callbackRegistered then return end
     callbackRegistered = true
 
-    QB.nui.registerCallback("selectOption", function(choice)
+    Kora.nui.registerCallback("selectOption", function(choice)
         local session = active
         if type(choice) ~= "number" or choice % 1 ~= 0 or not session then return {} end
 
@@ -206,7 +206,7 @@ local function ensureCallbacks()
         return {}
     end)
 
-    QB.nui.registerCallback("closeInteract", function()
+    Kora.nui.registerCallback("closeInteract", function()
         hide()
         return {}
     end)
@@ -223,11 +223,11 @@ end
 local function controls(session)
     while active == session do
         if isPressed(Config.interact.previousControls) then
-            QB.nui.send("scroll", -1)
+            Kora.nui.send("scroll", -1)
         elseif isPressed(Config.interact.nextControls) then
-            QB.nui.send("scroll", 1)
+            Kora.nui.send("scroll", 1)
         elseif isPressed(Config.interact.selectControls) then
-            QB.nui.send("select")
+            Kora.nui.send("select")
         elseif isPressed(Config.interact.cancelControls) then
             hide(session)
         end
@@ -273,7 +273,7 @@ local function open(options, source, owner)
         options = available,
         source = source,
         owner = owner or GetCurrentResourceName(),
-        controlLease = QB.compat.acquireControls(interactionControls(), nil, owner or GetCurrentResourceName()),
+        controlLease = Kora.compat.acquireControls(interactionControls(), nil, owner or GetCurrentResourceName()),
     }
     active = session
 
@@ -283,7 +283,7 @@ local function open(options, source, owner)
         labels[index] = { label = option.label }
     end
 
-    QB.nui.send("openInteract", labels)
+    Kora.nui.send("openInteract", labels)
     CreateThread(function()
         local ok, err = pcall(controls, session)
         if not ok then
@@ -312,33 +312,33 @@ end
 ---Opens the compact, game-input-driven selector. No NUI focus is granted.
 ---@param options QBInteractOption[]
 ---@return boolean opened False when disabled or no option passes its restrictions.
-function QB.interact.open(options)
+function Kora.interact.open(options)
     return open(options, nil, GetInvokingResource() or GetCurrentResourceName())
 end
 
 ---Hides any active selector without invoking an option.
 ---@return boolean closed
-function QB.interact.close()
+function Kora.interact.close()
     return hide()
 end
 
 ---@return boolean active
-function QB.interact.isActive()
+function Kora.interact.isActive()
     return active ~= nil
 end
 
 local function assertCoords(coords, label)
     assert((type(coords) == 'table' or type(coords) == 'vector3')
-        and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+        and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
         ('%s must have finite x, y, and z coordinates.'):format(label))
 end
 
 local function assertBoxSize(size, label)
     assert((type(size) == 'table' or type(size) == 'vector3' or type(size) == 'vector4')
-        and QB.util.isFiniteNumber(size.x) and QB.util.isFiniteNumber(size.y)
-        and QB.util.isFiniteNumber(size.z) and size.x > 0 and size.y > 0 and size.z > 0,
+        and Kora.util.isFiniteNumber(size.x) and Kora.util.isFiniteNumber(size.y)
+        and Kora.util.isFiniteNumber(size.z) and size.x > 0 and size.y > 0 and size.z > 0,
         ('%s must have positive finite x, y, and z dimensions.'):format(label))
-    assert(size.w == nil or QB.util.isFiniteNumber(size.w), ('%s rotation must be finite.'):format(label))
+    assert(size.w == nil or Kora.util.isFiniteNumber(size.w), ('%s rotation must be finite.'):format(label))
 end
 
 local function zoneOptionList(targetOptions)
@@ -357,13 +357,13 @@ end
 ---@param debug boolean
 ---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@return QBZoneHandle? zone
-function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
+function Kora.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
     local options = zoneOptionList(targetOptions)
     assertCoords(coords, 'interact circle coordinates')
     if radius == nil then radius = 5.0 end
-    assert(QB.util.isFiniteNumber(radius) and radius > 0, 'interact circle radius must be positive and finite.')
+    assert(Kora.util.isFiniteNumber(radius) and radius > 0, 'interact circle radius must be positive and finite.')
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     if zonesByName[name] then
@@ -371,7 +371,7 @@ function QB.interact.addCircleZone(name, coords, radius, targetOptions, debug)
         removeNamedZone(name)
     end
     local function enter() open(options, name, owner) end
-    local zone = QB.zones.sphere({
+    local zone = Kora.zones.sphere({
         coords = compatVector(coords),
         radius = radius,
         debug = debug,
@@ -394,7 +394,7 @@ end
 ---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle? zone
-function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
+function Kora.interact.addBoxZone(name, coords, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
     local options = zoneOptionList(targetOptions)
@@ -407,7 +407,7 @@ function QB.interact.addBoxZone(name, coords, size, targetOptions, debug)
         removeNamedZone(name)
     end
     local function enter() open(options, name, owner) end
-    local zone = QB.zones.box({
+    local zone = Kora.zones.box({
         coords = compatVector(coords),
         size = compatVector(size),
         rotation = size.w or 0.0,
@@ -427,7 +427,7 @@ end
 ---Removes a zone previously created by addCircleZone/addBoxZone.
 ---@param name string
 ---@return boolean removed
-function QB.interact.removeZone(name)
+function Kora.interact.removeZone(name)
     if zoneOwners[name] ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     return removeNamedZone(name)
 end
@@ -440,7 +440,7 @@ end
 ---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle[] zones
-function QB.interact.addTargetModel(models, size, targetOptions, debug)
+function Kora.interact.addTargetModel(models, size, targetOptions, debug)
     if not isEnabled() then return {} end
     assert(type(targetOptions) == "table", "interact target options require an options array.")
 
@@ -462,7 +462,7 @@ function QB.interact.addTargetModel(models, size, targetOptions, debug)
             assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
                 "interact target model size must be vector-like.")
 
-            zones[#zones + 1] = QB.interact.addBoxZone(("model:%s"):format(entity), coords, size, targetOptions, debug)
+            zones[#zones + 1] = Kora.interact.addBoxZone(("model:%s"):format(entity), coords, size, targetOptions, debug)
         end
     end
 
@@ -475,7 +475,7 @@ end
 ---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
 ---@param debug boolean
 ---@return QBZoneHandle? zone
-function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
+function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(targetOptions) == "table",
         "interact target options require an options array.")
@@ -484,14 +484,14 @@ function QB.interact.addTargetEntity(entity, size, targetOptions, debug)
     assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
         "interact target entity size must be vector-like.")
     local coords = GetEntityCoords(entity)
-    return QB.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
+    return Kora.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
 end
 
 -- Registers an aim-targeted entity through kora_target, while keeping kora_lib's
 -- option vocabulary (`action`/`event`) and resource-stop ownership at this
 -- public boundary. Unlike addTargetEntity this follows a moving entity.
 local function assertTargetDistance(distance)
-    assert(distance == nil or (QB.util.isFiniteNumber(distance) and distance > 0),
+    assert(distance == nil or (Kora.util.isFiniteNumber(distance) and distance > 0),
         'interact target distance must be a positive finite number.')
 end
 
@@ -499,7 +499,7 @@ end
 ---@param options QBInteractOption[]
 ---@param distance? number
 ---@return integer id
-function QB.interact.addEntity(entity, options, distance)
+function Kora.interact.addEntity(entity, options, distance)
     assert(type(options) == 'table' and #options > 0, 'interact entity options must be a non-empty array.')
     assertTargetDistance(distance)
     local owner = GetInvokingResource() or GetCurrentResourceName()
@@ -531,7 +531,7 @@ end
 ---@param entity number
 ---@param id? integer
 ---@return boolean
-function QB.interact.removeEntity(entity, id)
+function Kora.interact.removeEntity(entity, id)
     if id then
         local handle = targetHandles.entity[id]
         if not handle or targetRegistry.owner(handle) ~= (GetInvokingResource() or GetCurrentResourceName()) then
@@ -559,7 +559,7 @@ end
 ---@param options QBInteractOption[]
 ---@param distance? number
 ---@return integer id
-function QB.interact.addModel(model, options, distance)
+function Kora.interact.addModel(model, options, distance)
     assert(type(options) == 'table' and #options > 0, 'interact model options must be a non-empty array.')
     assertTargetDistance(distance)
     local owner = GetInvokingResource() or GetCurrentResourceName()
@@ -588,7 +588,7 @@ end
 ---@param model string|number|(string|number)[]
 ---@param id? integer
 ---@return boolean
-function QB.interact.removeModel(model, id)
+function Kora.interact.removeModel(model, id)
     if id then
         local handle = targetHandles.model[id]
         if not handle or targetRegistry.owner(handle) ~= (GetInvokingResource() or GetCurrentResourceName()) then

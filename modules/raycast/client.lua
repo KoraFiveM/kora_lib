@@ -3,18 +3,18 @@
 -- vector-math operators (subtraction, scalar multiply, etc.), only field
 -- access and construction, so there's nothing glm buys here.
 local function toVec3(v)
-    assert(v and QB.util.isFiniteNumber(v.x) and QB.util.isFiniteNumber(v.y) and QB.util.isFiniteNumber(v.z),
+    assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z),
         "Coordinates must have finite x, y, and z values.")
     return { x = v.x, y = v.y, z = v.z }
 end
 
 local function assertDistance(maxDistance)
-    assert(QB.util.isFiniteNumber(maxDistance) and maxDistance > 0,
+    assert(Kora.util.isFiniteNumber(maxDistance) and maxDistance > 0,
         "Raycast maxDistance must be a positive finite number.")
 end
 
 local function assertInteger(value, name)
-    assert(QB.util.isInteger(value), name .. " must be a finite integer.")
+    assert(Kora.util.isInteger(value), name .. " must be a finite integer.")
 end
 
 ---@param rot table Euler angles in degrees, { x = pitch, y = roll, z = yaw } (GetGameplayCamRot's shape).
@@ -72,12 +72,12 @@ end
 ---@return table? coords {x, y, z} table, only present when hit is true
 ---@return number? entityHit Entity handle the ray struck, only present when hit is true
 ---@return table? surfaceNormal {x, y, z} table, only present when hit is true
-function QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)
-    return awaitShapeTest(QB.raycast.start(startCoords, endCoords, flags, ignoreEntity))
+function Kora.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)
+    return awaitShapeTest(Kora.raycast.start(startCoords, endCoords, flags, ignoreEntity))
 end
 
 ---Fires a shape test WITHOUT waiting for it, returning its raw handle for a
----later `QB.raycast.await`/`QB.raycast.poll`.
+---later `Kora.raycast.await`/`Kora.raycast.poll`.
 ---
 ---Shape tests are resolved by the engine once per frame, so a caller that
 ---needs several rays in the same logical "look" (e.g. a targeting resource
@@ -89,8 +89,8 @@ end
 ---@param endCoords table vector3-like { x, y, z }
 ---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
 ---@param ignoreEntity? number Entity handle to exclude from the test; defaults to `PlayerPedId()`.
----@return number rayHandle Pass to `QB.raycast.await` or `QB.raycast.poll`.
-function QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)
+---@return number rayHandle Pass to `Kora.raycast.await` or `Kora.raycast.poll`.
+function Kora.raycast.start(startCoords, endCoords, flags, ignoreEntity)
     startCoords = toVec3(startCoords)
     endCoords = toVec3(endCoords)
     if flags == nil then flags = -1 else assertInteger(flags, "Raycast flags") end
@@ -103,20 +103,20 @@ function QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)
     )
 end
 
----Starts a camera ray without waiting for it. See `QB.raycast.start`.
+---Starts a camera ray without waiting for it. See `Kora.raycast.start`.
 ---@param maxDistance number
 ---@param flags? number
 ---@param ignoreEntity? number
 ---@return number rayHandle
-function QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)
+function Kora.raycast.startFromCamera(maxDistance, flags, ignoreEntity)
     assertDistance(maxDistance)
     local camCoord = toVec3(GetGameplayCamCoord())
 
-    return QB.raycast.start(camCoord, camDestination(camCoord, GetGameplayCamRot(2), maxDistance), flags, ignoreEntity)
+    return Kora.raycast.start(camCoord, camDestination(camCoord, GetGameplayCamRot(2), maxDistance), flags, ignoreEntity)
 end
 
 ---Blocks (yielding a frame at a time, bounded to one second) until a handle
----from `QB.raycast.start`/`startFromCamera` has settled, then reports it in
+---from `Kora.raycast.start`/`startFromCamera` has settled, then reports it in
 ---the same shape `fromCoords` returns. A handle that has already settled --
 ---because another ray started in the same frame was awaited first -- returns
 ---immediately without yielding at all.
@@ -125,7 +125,7 @@ end
 ---@return table? coords
 ---@return number? entityHit
 ---@return table? surfaceNormal
-function QB.raycast.await(rayHandle)
+function Kora.raycast.await(rayHandle)
     assertInteger(rayHandle, "Raycast handle")
     return awaitShapeTest(rayHandle)
 end
@@ -141,7 +141,7 @@ end
 ---@return table? coords
 ---@return number? entityHit
 ---@return table? surfaceNormal
-function QB.raycast.poll(rayHandle)
+function Kora.raycast.poll(rayHandle)
     assertInteger(rayHandle, "Raycast handle")
     local status, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
     if status == 1 then return false, false, nil, nil, nil end
@@ -160,8 +160,8 @@ end
 ---@return table? coords {x, y, z} table, only present when hit is true
 ---@return number? entityHit Entity handle the ray struck, only present when hit is true
 ---@return table? surfaceNormal {x, y, z} table, only present when hit is true
-function QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)
-    return awaitShapeTest(QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity))
+function Kora.raycast.fromCamera(maxDistance, flags, ignoreEntity)
+    return awaitShapeTest(Kora.raycast.startFromCamera(maxDistance, flags, ignoreEntity))
 end
 
 ---Aims from a scripted camera and raycasts against world geometry, for a
@@ -175,12 +175,12 @@ end
 ---@return table? coords {x, y, z} table, only present when hit is true
 ---@return number? entityHit Entity handle the ray struck, only present when hit is true
 ---@return table? surfaceNormal {x, y, z} table, only present when hit is true
-function QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
+function Kora.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)
     assertInteger(cam, "Scripted camera handle")
     assertDistance(maxDistance)
     local camCoord = toVec3(GetCamCoord(cam))
 
-    return QB.raycast.fromCoords(camCoord, camDestination(camCoord, GetCamRot(cam, 2), maxDistance), flags, ignoreEntity)
+    return Kora.raycast.fromCoords(camCoord, camDestination(camCoord, GetCamRot(cam, 2), maxDistance), flags, ignoreEntity)
 end
 
 local function roundToTwoPlaces(value)
@@ -190,7 +190,7 @@ end
 local function removeEntity(ent)
     if not ent then return end
 
-    local ok, result, err = pcall(QB.entities.remove, ent)
+    local ok, result, err = pcall(Kora.entities.remove, ent)
     if not ok or result == false then
     end
 
@@ -205,8 +205,8 @@ local function releaseCoordGrabber(state)
     state.released = true
 
     if activeCoordGrabber == state then activeCoordGrabber = nil end
-    if state.controlLease then pcall(QB.compat.releaseControlLease, state.controlLease, state.owner) end
-    if state.textui then pcall(QB.textui.hide, state.textui) end
+    if state.controlLease then pcall(Kora.compat.releaseControlLease, state.controlLease, state.owner) end
+    if state.textui then pcall(Kora.textui.hide, state.textui) end
 
     removeEntity(state.entity)
     state.entity = nil
@@ -236,20 +236,20 @@ end
 
 
 local function runCoordGrabber(state)
-    state.controlLease = QB.compat.acquireControls(COORD_GRABBER_CONTROLS, nil, state.owner)
-    state.textui = QB.textui.show(state.model
+    state.controlLease = Kora.compat.acquireControls(COORD_GRABBER_CONTROLS, nil, state.owner)
+    state.textui = Kora.textui.show(state.model
         and "**Left / Right:** rotate  ·  **E:** confirm  ·  **Backspace:** cancel"
         or "**E:** confirm  ·  **Backspace:** cancel", {
         icon = state.model and "Box" or "Crosshair",
     }, state.owner)
     while activeCoordGrabber == state do
-        local hit, coords = QB.raycast.fromCamera(state.maxDistance, state.flags,
+        local hit, coords = Kora.raycast.fromCamera(state.maxDistance, state.flags,
             state.entity or state.playerPed)
 
         if hit and coords then
             if state.model then
                 if not state.entity then
-                    local ent, createErr = QB.entities.create(state.model, coords, {
+                    local ent, createErr = Kora.entities.create(state.model, coords, {
                         preset = "static",
                         heading = state.heading,
                     })
@@ -291,17 +291,17 @@ end
 ---removed; this function only returns where a future object could be created.
 ---@param data? { type?: 'object', object?: string|number, heading?: number, maxDistance?: number, flags?: number }
 ---@return { coords: { x: number, y: number, z: number, w?: number }, object: string|number|false }? result
-function QB.raycast.getCoords(data)
+function Kora.raycast.getCoords(data)
     if data == nil then data = {} end
     assert(type(data) == "table", "Coordinate grabber options must be a table.")
     assert(data.type == nil or data.type == "object", "Coordinate grabber type must be 'object' when provided.")
-    assert(data.type ~= "object" or type(data.object) == "string" or QB.util.isInteger(data.object),
+    assert(data.type ~= "object" or type(data.object) == "string" or Kora.util.isInteger(data.object),
         "Coordinate grabber object must be a model name or finite integer hash.")
-    assert(data.heading == nil or QB.util.isFiniteNumber(data.heading),
+    assert(data.heading == nil or Kora.util.isFiniteNumber(data.heading),
         "Coordinate grabber heading must be a finite number.")
-    assert(data.maxDistance == nil or QB.util.isFiniteNumber(data.maxDistance) and data.maxDistance > 0,
+    assert(data.maxDistance == nil or Kora.util.isFiniteNumber(data.maxDistance) and data.maxDistance > 0,
         "Coordinate grabber maxDistance must be a positive finite number.")
-    assert(data.flags == nil or QB.util.isInteger(data.flags), "Coordinate grabber flags must be a finite integer.")
+    assert(data.flags == nil or Kora.util.isInteger(data.flags), "Coordinate grabber flags must be a finite integer.")
     assert(not activeCoordGrabber, "A coordinate grabber is already active.")
 
     local state = {

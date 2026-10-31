@@ -4,7 +4,7 @@
 ---@field yaw number Rotation around Z, in degrees.
 
 ---@class QBPlacementResult
----@field model string | number Original model name/hash passed to `QB.placement.start`.
+---@field model string | number Original model name/hash passed to `Kora.placement.start`.
 ---@field coords {x: number, y: number, z: number}
 ---@field heading number Native entity heading, read independently from Euler yaw.
 ---@field rotation QBPlacementRotation
@@ -35,7 +35,7 @@ end
 
 local function assertVec3(value, label)
     assert(type(value) == "table" or type(value) == "vector3", ("%s must be vector-like."):format(label))
-    assert(QB.util.isFiniteNumber(value.x) and QB.util.isFiniteNumber(value.y) and QB.util.isFiniteNumber(value.z),
+    assert(Kora.util.isFiniteNumber(value.x) and Kora.util.isFiniteNumber(value.y) and Kora.util.isFiniteNumber(value.z),
         ("%s must contain finite x, y, and z values."):format(label))
 end
 
@@ -65,15 +65,15 @@ end
 ---result retains full precision; only this copied representation is rounded.
 ---@param result QBPlacementResult
 ---@return string
-function QB.placement.generateSnippet(result)
+function Kora.placement.generateSnippet(result)
     assert(type(result) == "table", "Placement result must be a table.")
     assert(type(result.model) == "string" or type(result.model) == "number",
         "Placement result model must be a string or number.")
     assertVec3(result.coords, "Placement result coords")
-    assert(QB.util.isFiniteNumber(result.heading), "Placement result heading must be a finite number.")
+    assert(Kora.util.isFiniteNumber(result.heading), "Placement result heading must be a finite number.")
     assert(type(result.rotation) == "table", "Placement result rotation must be a table.")
-    assert(QB.util.isFiniteNumber(result.rotation.pitch) and QB.util.isFiniteNumber(result.rotation.roll)
-        and QB.util.isFiniteNumber(result.rotation.yaw),
+    assert(Kora.util.isFiniteNumber(result.rotation.pitch) and Kora.util.isFiniteNumber(result.rotation.roll)
+        and Kora.util.isFiniteNumber(result.rotation.yaw),
         "Placement result rotation must contain finite pitch, roll, and yaw values.")
 
     return ("{\n    model = %s,\n    coords = vector3(%s, %s, %s),\n    heading = %s,\n    rotation = {\n        pitch = %s,\n        roll = %s,\n        yaw = %s,\n    },\n}")
@@ -99,19 +99,19 @@ end
 local function releaseStateResources(state)
     clearHeld()
     if state.dialogRequest then
-        pcall(QB.nui.cancelRequest, state.dialogRequest, { cancelled = true })
+        pcall(Kora.nui.cancelRequest, state.dialogRequest, { cancelled = true })
         state.dialogRequest = nil
     end
 
     if state.controlLease then
-        pcall(QB.compat.releaseControlLease, state.controlLease, state.resource)
+        pcall(Kora.compat.releaseControlLease, state.controlLease, state.resource)
         state.controlLease = nil
     end
 
     if state.entity then
         -- remove() also drops ownership tracking. It is intentionally called
         -- even if another cleanup path already deleted the underlying entity.
-        pcall(QB.entities.remove, state.entity)
+        pcall(Kora.entities.remove, state.entity)
         state.entity = nil
     end
 
@@ -120,12 +120,12 @@ local function releaseStateResources(state)
         state.instructions = nil
     end
 
-    pcall(QB.nui.send, "placement:hud", nil)
+    pcall(Kora.nui.send, "placement:hud", nil)
     -- If an owning resource stops while the summary owns NUI focus, settling
     -- the placement promise alone cannot answer that still-pending browser
-    -- request. Ask the component to respond "keep editing" so QB.nui releases
+    -- request. Ask the component to respond "keep editing" so Kora.nui releases
     -- focus immediately; the event is a harmless no-op when no dialog is open.
-    pcall(QB.nui.send, "placement:closeConfirm", nil)
+    pcall(Kora.nui.send, "placement:closeConfirm", nil)
     if state.radarManaged and not state.radarWasHidden then pcall(DisplayRadar, true) end
 
     if state.freecam then
@@ -215,17 +215,17 @@ local function openConfirmDialog(state)
     if activeState ~= state or state.dialogOpen then return end
 
     local result = captureResult(state)
-    local snippet = QB.placement.generateSnippet(result)
+    local snippet = Kora.placement.generateSnippet(result)
     state.dialogOpen = true
     clearHeld()
 
     local ok, response = pcall(function()
         if state.options.copy == false then
-            state.dialogRequest = QB.nui.requestAsync('openAlert', { title = 'Confirm placement', message = 'Save this object at its current position and rotation?' }, false, state.resource, true)
+            state.dialogRequest = Kora.nui.requestAsync('openAlert', { title = 'Confirm placement', message = 'Save this object at its current position and rotation?' }, false, state.resource, true)
             return Citizen.Await(state.dialogRequest)
         end
-        return QB.nui.withFocus(true, true, function()
-            return Citizen.Await(QB.nui.request("placement:confirm", {
+        return Kora.nui.withFocus(true, true, function()
+            return Citizen.Await(Kora.nui.request("placement:confirm", {
                 model = tostring(state.model),
                 snippet = snippet,
             }, Config.placement.confirmTimeout, state.resource))
@@ -261,7 +261,7 @@ local function numericInput(state)
     state.dialogOpen = true
     clearHeld()
     local ok, response = pcall(function()
-        state.dialogRequest = QB.nui.requestAsync('openInputDialog', { title = 'Adjust object placement', fields = {
+        state.dialogRequest = Kora.nui.requestAsync('openInputDialog', { title = 'Adjust object placement', fields = {
             { id = 'coords', label = 'Position', type = 'vector', dimensions = 3, required = true, default = plainVec3(state.coords) },
             { id = 'rotation', label = 'Rotation (pitch, roll, yaw)', type = 'vector', dimensions = 3, required = true,
                 default = { x = state.rotation.pitch, y = state.rotation.roll, z = state.rotation.yaw } },
@@ -277,7 +277,7 @@ local function numericInput(state)
     if type(values) ~= 'table' then return end
     local valid = pcall(function() assertVec3(values.coords, 'Position'); assertVec3(values.rotation, 'Rotation') end)
     if not valid or not setPosition(state, values.coords) then
-        QB.notify.send({ message = 'Placement must stay inside the allowed property boundary.', type = 'error' })
+        Kora.notify.send({ message = 'Placement must stay inside the allowed property boundary.', type = 'error' })
         return
     end
     state.raycast = false
@@ -334,7 +334,7 @@ local function ensurePlacementThread(state)
                     if rotation then state.camYaw = rotation.yaw end
                     updateEntityPlacement(state, multiplier)
                     if state.raycast then
-                        local hit, coords = QB.raycast.fromCam(state.freecam.getCamera(), Config.placement.raycastDistance, nil, state.entity)
+                        local hit, coords = Kora.raycast.fromCam(state.freecam.getCamera(), Config.placement.raycastDistance, nil, state.entity)
                         if activeState == state and hit then setPosition(state, coords) end
                     end
                 end
@@ -343,7 +343,7 @@ local function ensurePlacementThread(state)
                 if state.forceHud or now >= state.nextHudAt then
                     state.forceHud = false
                     state.nextHudAt = now + Config.placement.hudUpdateInterval
-                    QB.nui.send("placement:hud", hudSnapshot(state))
+                    Kora.nui.send("placement:hud", hudSnapshot(state))
                 end
 
                 Wait(0)
@@ -359,7 +359,7 @@ end
 
 
 local function startCamera(state, camCoord, camRot)
-    local freecam, err = QB.freecam.start({
+    local freecam, err = Kora.freecam.start({
         coords = camCoord,
         rotation = camRot,
         moveSpeed = Config.placement.cameraMoveSpeed,
@@ -380,7 +380,7 @@ end
 local function validateModel(model)
     assert(type(model) == "string" or type(model) == "number", "Placement model must be a string or number.")
     assert(type(model) ~= "string" or model ~= "", "Placement model name cannot be empty.")
-    assert(type(model) ~= "number" or QB.util.isInteger(model), "Placement model hash must be a finite integer.")
+    assert(type(model) ~= "number" or Kora.util.isInteger(model), "Placement model hash must be a finite integer.")
     local hash = type(model) == "string" and joaat(model) or model
     assert(IsModelValid(hash), ("Invalid placement model: %s"):format(tostring(model)))
 end
@@ -415,7 +415,7 @@ end
 ---and returns its settled result because Cfx cannot marshal a promise table.
 ---@param model string | number
 ---@return QBPlacementResult | promise | nil
-function QB.placement.start(model, options)
+function Kora.placement.start(model, options)
     local invokingResource = GetInvokingResource()
     local externalCaller = invokingResource ~= nil
     options = options or {}
@@ -425,8 +425,8 @@ function QB.placement.start(model, options)
     end
     if options.coords then assertVec3(options.coords, 'Placement initial coordinates') end
     if options.rotation then
-        assert(type(options.rotation) == 'table' and QB.util.isFiniteNumber(options.rotation.pitch)
-            and QB.util.isFiniteNumber(options.rotation.roll) and QB.util.isFiniteNumber(options.rotation.yaw), 'Placement rotation requires finite pitch, roll and yaw.')
+        assert(type(options.rotation) == 'table' and Kora.util.isFiniteNumber(options.rotation.pitch)
+            and Kora.util.isFiniteNumber(options.rotation.roll) and Kora.util.isFiniteNumber(options.rotation.yaw), 'Placement rotation requires finite pitch, roll and yaw.')
     end
 
     if Config.placement.enabled == false then
@@ -438,7 +438,7 @@ function QB.placement.start(model, options)
         return rejectedForCaller("An entity placement session is already active.", externalCaller)
     end
 
-    local zones = rawget(QB, "zones")
+    local zones = rawget(Kora, "zones")
     if zones and type(zones.isCreatorActive) == "function" and zones.isCreatorActive() then
         return rejectedForCaller("The zone creator is already active.", externalCaller)
     end
@@ -471,16 +471,16 @@ function QB.placement.start(model, options)
         local gameplayCamCoord = GetGameplayCamCoord()
         local gameplayCamRot = GetGameplayCamRot(ROTATION_ORDER)
         local hit, coords
-        if options.coords then hit, coords = true, options.coords else hit, coords = QB.raycast.fromCamera(Config.placement.raycastDistance) end
+        if options.coords then hit, coords = true, options.coords else hit, coords = Kora.raycast.fromCamera(Config.placement.raycastDistance) end
         assert(hit and coords, "Aim at a solid surface before starting entity placement.")
         if options.bounds then
             assert(type(options.bounds) == 'table', 'Placement bounds must be a polygon definition.')
-            state.bounds = QB.zones.poly({ points = options.bounds.points, minZ = options.bounds.minZ, maxZ = options.bounds.maxZ, trackPlayer = false })
+            state.bounds = Kora.zones.poly({ points = options.bounds.points, minZ = options.bounds.minZ, maxZ = options.bounds.maxZ, trackPlayer = false })
             assert(state.bounds.contains(coords), 'Initial placement is outside the property boundary.')
         end
         assert(not state.aborted, "The placement owner stopped while placement was starting.")
 
-        local entity, createErr = QB.entities.create(model, coords, {
+        local entity, createErr = Kora.entities.create(model, coords, {
             preset = "static",
             heading = gameplayCamRot.z,
         })
@@ -495,7 +495,7 @@ function QB.placement.start(model, options)
         SetEntityAlpha(entity, Config.placement.previewAlpha, false)
         SetEntityRotation(entity, state.rotation.pitch, state.rotation.roll, state.rotation.yaw, ROTATION_ORDER, true)
 
-        state.controlLease = QB.compat.acquireControls(PLACEMENT_CONTROLS, nil, state.resource)
+        state.controlLease = Kora.compat.acquireControls(PLACEMENT_CONTROLS, nil, state.resource)
         startCamera(state, gameplayCamCoord, gameplayCamRot)
     end)
 
@@ -511,9 +511,9 @@ function QB.placement.start(model, options)
 
     activeState = state
     clearHeld()
-    state.instructions = QB.instructional.show({ { control = 32, label = "Move camera forward" } })
+    state.instructions = Kora.instructional.show({ { control = 32, label = "Move camera forward" } })
     updatePlacementInstructions(state)
-    QB.nui.send("placement:start", {
+    Kora.nui.send("placement:start", {
         model = tostring(model),
     })
     ensurePlacementThread(state)
@@ -523,13 +523,13 @@ end
 
 
 ---@return boolean
-function QB.placement.isActive()
+function Kora.placement.isActive()
     return activeState ~= nil or startingState ~= nil
 end
 
 ---Cancels only the invoking resource's placement and settles its result as nil.
 ---@return boolean, string?
-function QB.placement.cancel()
+function Kora.placement.cancel()
     local state = activeState or startingState
     if not state then return true end
     local owner = GetInvokingResource() or GetCurrentResourceName()
@@ -540,7 +540,7 @@ end
 
 
 local function registerHeldBinding(id, description, defaultKey)
-    bindingHandles[id] = QB.keybind.add({
+    bindingHandles[id] = Kora.keybind.add({
         name = "qblib_placement_" .. id,
         description = description,
         defaultMapper = "keyboard",
@@ -562,7 +562,7 @@ registerHeldBinding("down", "Entity Placement: Move Down", "PAGEDOWN")
 registerHeldBinding("rotateLeft", "Entity Placement: Rotate Left", "LBRACKET")
 registerHeldBinding("rotateRight", "Entity Placement: Rotate Right", "RBRACKET")
 
-bindingHandles.cycle = QB.keybind.add({
+bindingHandles.cycle = Kora.keybind.add({
     name = "qblib_placement_cycle",
     description = "Entity Placement: Cycle Rotation Axis",
     defaultMapper = "keyboard",
@@ -575,7 +575,7 @@ bindingHandles.cycle = QB.keybind.add({
     end,
 })
 
-bindingHandles.confirm = QB.keybind.add({
+bindingHandles.confirm = Kora.keybind.add({
     name = "qblib_placement_confirm",
     description = "Entity Placement: Open Summary",
     defaultMapper = "keyboard",
@@ -585,7 +585,7 @@ bindingHandles.confirm = QB.keybind.add({
     end,
 })
 
-bindingHandles.cancel = QB.keybind.add({
+bindingHandles.cancel = Kora.keybind.add({
     name = "qblib_placement_cancel",
     description = "Entity Placement: Cancel",
     defaultMapper = "keyboard",
@@ -595,7 +595,7 @@ bindingHandles.cancel = QB.keybind.add({
     end,
 })
 
-bindingHandles.movement = QB.keybind.add({
+bindingHandles.movement = Kora.keybind.add({
     name = "qblib_placement_movement",
     description = "Entity Placement: Toggle Camera / Grid Movement",
     defaultMapper = "keyboard",
@@ -608,14 +608,14 @@ bindingHandles.movement = QB.keybind.add({
     end,
 })
 
-bindingHandles.numeric = QB.keybind.add({
+bindingHandles.numeric = Kora.keybind.add({
     name = 'qblib_placement_numeric', description = 'Entity Placement: Numeric Position and Rotation', defaultMapper = 'keyboard', defaultKey = 'N',
     onPressed = function()
         if activeState and activeState.options.numericInput then numericInput(activeState) end
     end,
 })
 
-bindingHandles.raycast = QB.keybind.add({
+bindingHandles.raycast = Kora.keybind.add({
     name = 'qblib_placement_raycast', description = 'Entity Placement: Toggle Surface Placement', defaultMapper = 'keyboard', defaultKey = 'R',
     onPressed = function()
         if activeState and activeState.options.raycast ~= nil and not activeState.dialogOpen then
@@ -637,8 +637,8 @@ AddEventHandler("onClientResourceStop", function(resourceName)
             state.promise:reject("kora_lib stopped during entity placement.")
         end
 
-        pcall(QB.nui.send, "placement:hud", nil)
-        pcall(QB.nui.send, "placement:closeConfirm", nil)
+        pcall(Kora.nui.send, "placement:hud", nil)
+        pcall(Kora.nui.send, "placement:closeConfirm", nil)
         return
     end
 
@@ -651,18 +651,18 @@ local function onStartPlacement(model)
     if type(model) == "string" and model:match("^%-?%d+$") then model = tonumber(model) end
 
     local ok, result = pcall(function()
-        return Citizen.Await(QB.placement.start(model))
+        return Citizen.Await(Kora.placement.start(model))
     end)
 
     if not ok then
         placementLog(tostring(result))
-        QB.notify.send({
+        Kora.notify.send({
             title = "Entity placement failed",
             message = tostring(result),
             type = "error",
         })
     elseif result then
-        QB.notify.send({
+        Kora.notify.send({
             title = "Entity placement",
             message = "Placement data copied.",
             type = "success",

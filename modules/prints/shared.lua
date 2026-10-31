@@ -33,26 +33,26 @@ local function formatArgs(...)
 end
 
 ---@param ... any
-function QB.print.debug(...)
+function Kora.print.debug(...)
     print('^6[DEBUG]^0 ' .. formatArgs(...))
 end
 
 ---@param ... any
-function QB.print.info(...)
+function Kora.print.info(...)
     print('^4[INFO]^0 ' .. formatArgs(...))
 end
 
 ---@param ... any
-function QB.print.error(...)
+function Kora.print.error(...)
     print('^1[ERROR]^0 ' .. formatArgs(...))
 end
 
 ---@param ... any
-function QB.print.warn(...)
+function Kora.print.warn(...)
     print('^3[WARNING]^0 ' .. formatArgs(...))
 end
 
 ---@param ... any
-function QB.print.success(...)
+function Kora.print.success(...)
     print('^2[SUCCESS]^0 ' .. formatArgs(...))
 end

@@ -34,12 +34,12 @@ _G.exports = {
 dofile(repoRoot .. "modules/theme/shared.lua")
 
 harness.test("accentColor permanently forwards to qbtheme", function()
-    harness.assertEqual(QB.theme.accentColor(), "#7C3AED", "primary value")
+    harness.assertEqual(Kora.theme.accentColor(), "#7C3AED", "primary value")
     harness.assertEqual(primaryCalls, 1, "qbtheme export call count")
 end)
 
 harness.test("tokens permanently forwards string overrides to qbtheme", function()
-    local result = QB.theme.tokens("#7C3AED")
+    local result = Kora.theme.tokens("#7C3AED")
     harness.assertEqual(result, tokenResult, "returned token table")
     harness.assertEqual(lastOverrides, "#7C3AED", "string override")
     harness.assertEqual(tokenCalls, 1, "qbtheme export call count")
@@ -47,7 +47,7 @@ end)
 
 harness.test("tokens permanently forwards semantic override tables to qbtheme", function()
     local overrides = { primary = "#DC143C", warning = "#F59E0B" }
-    QB.theme.tokens(overrides)
+    Kora.theme.tokens(overrides)
     harness.assertEqual(lastOverrides, overrides, "table override")
 end)
 
@@ -75,7 +75,7 @@ harness.test("legacy kora_lib theme callback keeps its response shape", function
 end)
 
 harness.test("push delegates to the imported qbtheme bridge", function()
-    harness.assertEqual(QB.theme.push(), refreshResult, "bridge return value")
+    harness.assertEqual(Kora.theme.push(), refreshResult, "bridge return value")
     harness.assertEqual(refreshCalls, 1, "bridge refresh call count")
 end)
 

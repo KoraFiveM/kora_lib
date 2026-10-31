@@ -26,16 +26,16 @@ _G.exports = {
 }
 
 -- Real modules/nui/client.lua isn't loaded here (that's modules/nui's own
--- smoke test) -- same "mock QB.nui directly, resolve synchronously" trick
+-- smoke test) -- same "mock Kora.nui directly, resolve synchronously" trick
 -- test/smoke/minigames.lua uses, since compat/client/qb-menu.lua's openMenu
--- has to consume QB.nui.openMenu's result itself (to know which legacy
+-- has to consume Kora.nui.openMenu's result itself (to know which legacy
 -- event to fire), not just hand a promise back to its own caller.
 local sentItems = nil
 local nextMenuResult = nil
 local sentActions = {}
 local playerFocus
 
-QB.nui = {
+Kora.nui = {
     openMenu = function(items)
         sentItems = items
         local p = promise.new()
@@ -46,7 +46,7 @@ QB.nui = {
         sentActions[#sentActions + 1] = { action = action, data = data }
     end,
 }
-QB.keybind = { add = function(options)
+Kora.keybind = { add = function(options)
     if options.name == 'playerfocus' then playerFocus = options.onPressed end
     return { remove = function() return true end }
 end }
@@ -182,14 +182,14 @@ harness.test("openMenu silently no-ops on a non-table menu, matching real qb-men
     sentItems = nil
     local ok = pcall(openMenu, "not a table")
     harness.assertTrue(ok, "a non-table menu should not error")
-    harness.assertTrue(sentItems == nil, "QB.nui.openMenu should never be reached for a non-table menu")
+    harness.assertTrue(sentItems == nil, "Kora.nui.openMenu should never be reached for a non-table menu")
 end)
 
 harness.test("openMenu silently no-ops on nil, matching real qb-menu", function()
     sentItems = nil
     local ok = pcall(openMenu, nil)
     harness.assertTrue(ok, "a nil menu should not error")
-    harness.assertTrue(sentItems == nil, "QB.nui.openMenu should never be reached for a nil menu")
+    harness.assertTrue(sentItems == nil, "Kora.nui.openMenu should never be reached for a nil menu")
 end)
 
 harness.test("closeMenu force-dismisses through the NUI cancellation action", function()
@@ -266,16 +266,16 @@ harness.test("an icon naming a shared item with a real imageUrl is used directly
     harness.assertEqual(sentItems[1].image, "https://example.com/bread.png", "a real imageUrl should be used as-is")
 end)
 
--- During a genuine export call, QB.nui.openMenu has already awaited its own
+-- During a genuine export call, Kora.nui.openMenu has already awaited its own
 -- promise before returning here. A second Citizen.Await on this plain result
 -- would return nil in CfxLua, so the compatibility layer must consume it
 -- directly. The event-path test above separately covers the promise path.
-harness.test("the export path consumes QB.nui.openMenu's already-settled result directly", function()
+harness.test("the export path consumes Kora.nui.openMenu's already-settled result directly", function()
     local received
     AddEventHandler("export:test:fired", function() received = true end)
 
     _G.GetInvokingResource = function() return "consumer-resource" end
-    QB.nui.openMenu = function(items)
+    Kora.nui.openMenu = function(items)
         sentItems = items
         return { selectedId = "1" }
     end

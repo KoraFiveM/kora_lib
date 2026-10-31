@@ -36,7 +36,7 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     /**
      * Drops the corner close button. For a dialog that must be answered via
-     * its own buttons (QB.nui.openAlert with cancellable = false), leaving the
+     * its own buttons (Kora.nui.openAlert with cancellable = false), leaving the
      * X in place would be another silent way out that the caller explicitly
      * asked not to have.
      */

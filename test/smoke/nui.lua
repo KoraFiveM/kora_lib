@@ -67,7 +67,7 @@ end
 dofile(repoRoot .. "build/finalise.lua")
 
 -- Simulates the NUI responding to the given request id/token via the shared
--- `kora_lib:nui:response` channel every QB.nui.request call resolves through.
+-- `kora_lib:nui:response` channel every Kora.nui.request call resolves through.
 local function respond(requestId, token, ok, resultOrError)
     local field = ok and "result" or "error"
     nuiCallbacks["kora_lib:nui:response"](
@@ -76,7 +76,7 @@ local function respond(requestId, token, ok, resultOrError)
     )
 end
 
--- Every QB.nui.request call sends { action, data = { requestId, token, payload } };
+-- Every Kora.nui.request call sends { action, data = { requestId, token, payload } };
 -- these pull the id/token back out of the most recently sent message, which is
 -- exactly what a well-behaved NUI does to answer it.
 local function lastRequestId()
@@ -104,22 +104,22 @@ end
 -- assertions moved rather than duplicated.
 
 harness.test("finalise exposes every registered-app lifecycle export", function()
-    harness.assertEqual(registeredExports.nui_registerApp, QB.nui.registerApp,
+    harness.assertEqual(registeredExports.nui_registerApp, Kora.nui.registerApp,
         "registerApp should cross the kora_lib export boundary")
-    harness.assertEqual(registeredExports.nui_unregisterApp, QB.nui.unregisterApp,
+    harness.assertEqual(registeredExports.nui_unregisterApp, Kora.nui.unregisterApp,
         "unregisterApp should cross the kora_lib export boundary")
-    harness.assertEqual(registeredExports.nui_openApp, QB.nui.openApp,
+    harness.assertEqual(registeredExports.nui_openApp, Kora.nui.openApp,
         "openApp should cross the kora_lib export boundary")
-    harness.assertEqual(registeredExports.nui_updateApp, QB.nui.updateApp,
+    harness.assertEqual(registeredExports.nui_updateApp, Kora.nui.updateApp,
         "updateApp should cross the kora_lib export boundary")
-    harness.assertEqual(registeredExports.nui_closeApp, QB.nui.closeApp,
+    harness.assertEqual(registeredExports.nui_closeApp, Kora.nui.closeApp,
         "closeApp should cross the kora_lib export boundary")
-    harness.assertEqual(registeredExports.nui_isAppOpen, QB.nui.isAppOpen,
+    harness.assertEqual(registeredExports.nui_isAppOpen, Kora.nui.isAppOpen,
         "isAppOpen should cross the kora_lib export boundary")
 end)
 
 harness.test("request sends the action and payload via SendNuiMessage", function()
-    QB.nui.request("someAction", { foo = "bar" })
+    Kora.nui.request("someAction", { foo = "bar" })
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "someAction", "the action should be forwarded as-is")
@@ -129,15 +129,15 @@ end)
 harness.test("request rejects unsafe timeouts before sending a message", function()
     local sentCount = #sentMessages
 
-    harness.assertThrows(function() QB.nui.request("someAction", {}, math.huge) end)
-    harness.assertThrows(function() QB.nui.request("someAction", {}, -1) end)
-    harness.assertThrows(function() QB.nui.request("someAction", {}, 1.5) end)
+    harness.assertThrows(function() Kora.nui.request("someAction", {}, math.huge) end)
+    harness.assertThrows(function() Kora.nui.request("someAction", {}, -1) end)
+    harness.assertThrows(function() Kora.nui.request("someAction", {}, 1.5) end)
 
     harness.assertEqual(#sentMessages, sentCount, "an invalid timeout must not create or send a request")
 end)
 
 harness.test("request resolves once the NUI responds with ok = true and the right token", function()
-    local p = QB.nui.request("someAction", {})
+    local p = Kora.nui.request("someAction", {})
     respondOk(lastRequestId(), { value = 42 })
 
     harness.assertEqual(p.state, "resolved", "the promise should resolve on a successful response")
@@ -145,7 +145,7 @@ harness.test("request resolves once the NUI responds with ok = true and the righ
 end)
 
 harness.test("request rejects once the NUI responds with ok = false", function()
-    local p = QB.nui.request("someAction", {})
+    local p = Kora.nui.request("someAction", {})
     respond(lastRequestId(), lastToken(), false, "something broke")
 
     harness.assertEqual(p.state, "rejected", "the promise should reject on a failed response")
@@ -153,12 +153,12 @@ harness.test("request rejects once the NUI responds with ok = false", function()
 end)
 
 harness.test("requestAsync can be cancelled and releases its focus lease", function()
-    local request = QB.nui.requestAsync("openAlert", { message = "Wait" }, false, "consumer", true)
+    local request = Kora.nui.requestAsync("openAlert", { message = "Wait" }, false, "consumer", true)
     local requestId, token = lastRequestId(), lastToken()
 
     harness.assertEqual(request.state, "pending", "the asynchronous request should remain available to its composing module")
     harness.assertTrue(focusCalls[#focusCalls].mouse, "focused requests should acquire a focus lease")
-    harness.assertTrue(QB.nui.cancelRequest(request, { confirmed = false }), "a pending request should cancel")
+    harness.assertTrue(Kora.nui.cancelRequest(request, { confirmed = false }), "a pending request should cancel")
 
     local cancellation = sentMessages[#sentMessages]
     harness.assertEqual(cancellation.action, "cancelNuiRequest", "cancellation should dismiss the matching browser surface")
@@ -166,19 +166,19 @@ harness.test("requestAsync can be cancelled and releases its focus lease", funct
     harness.assertEqual(cancellation.data.token, token, "cancellation should carry the request token")
     harness.assertEqual(request.state, "resolved", "a normal cancellation should resolve the request")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "settling should release the focus lease")
-    harness.assertFalse(QB.nui.cancelRequest(request), "an already-settled request should not cancel twice")
+    harness.assertFalse(Kora.nui.cancelRequest(request), "an already-settled request should not cancel twice")
 end)
 
 harness.test("cancelRequest can reject with the ox-compatible close reason", function()
-    local request = QB.nui.requestAsync("openAlert", { message = "Wait" }, false)
-    harness.assertTrue(QB.nui.cancelRequest(request, nil, "timeout"), "a pending request should reject")
+    local request = Kora.nui.requestAsync("openAlert", { message = "Wait" }, false)
+    harness.assertTrue(Kora.nui.cancelRequest(request, nil, "timeout"), "a pending request should reject")
     harness.assertEqual(request.state, "rejected", "an explicit rejection should reject the promise")
     harness.assertEqual(request.value, "timeout", "the close reason should be retained")
 end)
 
 harness.test("registerCallback preserves a false handler result", function()
     local response
-    QB.nui.registerCallback("returnsFalse", function() return false end)
+    Kora.nui.registerCallback("returnsFalse", function() return false end)
     nuiCallbacks.returnsFalse({}, function(result) response = result end)
     harness.assertFalse(response, "only nil should be normalized to an empty response table")
 end)
@@ -191,18 +191,18 @@ harness.test('registerCallback rejects invalid registrations before reaching the
         return registerNuiCallback(...)
     end
 
-    harness.assertThrows(function() QB.nui.registerCallback('', function() end) end)
-    harness.assertThrows(function() QB.nui.registerCallback('bad-handler', false) end)
+    harness.assertThrows(function() Kora.nui.registerCallback('', function() end) end)
+    harness.assertThrows(function() Kora.nui.registerCallback('bad-handler', false) end)
     _G.RegisterNUICallback = registerNuiCallback
 
     harness.assertEqual(registrations, 0, 'invalid registrations must not reach the native callback registry')
 end)
 
 harness.test("every request gets a fresh, non-empty token", function()
-    QB.nui.request("someAction", {})
+    Kora.nui.request("someAction", {})
     local tokenA = lastToken()
 
-    QB.nui.request("someAction", {})
+    Kora.nui.request("someAction", {})
     local tokenB = lastToken()
 
     harness.assertTrue(type(tokenA) == "string" and #tokenA > 0, "a token should be a non-empty string")
@@ -210,7 +210,7 @@ harness.test("every request gets a fresh, non-empty token", function()
 end)
 
 harness.test("a response carrying the wrong token is ignored, guarding against a spoofed response", function()
-    local p = QB.nui.request("someAction", {})
+    local p = Kora.nui.request("someAction", {})
     local requestId = lastRequestId()
 
     respond(requestId, "not-the-real-token", true, "spoofed")
@@ -222,7 +222,7 @@ harness.test("a response carrying the wrong token is ignored, guarding against a
 end)
 
 harness.test("a response with no token at all is ignored", function()
-    local p = QB.nui.request("someAction", {})
+    local p = Kora.nui.request("someAction", {})
     local requestId = lastRequestId()
 
     nuiCallbacks["kora_lib:nui:response"]({ requestId = requestId, ok = true, result = "spoofed" }, function() end)
@@ -230,10 +230,10 @@ harness.test("a response with no token at all is ignored", function()
 end)
 
 harness.test("malformed browser callback payloads are ignored", function()
-    local p = QB.nui.request("someAction", {})
+    local p = Kora.nui.request("someAction", {})
     local requestId, token = lastRequestId(), lastToken()
     local events = 0
-    local eventRequest = QB.nui.requestAsync("someAction", {}, false, nil, nil, function() events = events + 1 end)
+    local eventRequest = Kora.nui.requestAsync("someAction", {}, false, nil, nil, function() events = events + 1 end)
     local eventRequestId, eventToken = lastRequestId(), lastToken()
 
     nuiCallbacks["kora_lib:nui:response"]("not a table", function() end)
@@ -246,7 +246,7 @@ harness.test("malformed browser callback payloads are ignored", function()
     nuiCallbacks["kora_lib:nui:event"]({ requestId = eventRequestId, token = eventToken, event = "change" }, function() end)
     harness.assertEqual(p.value, "answered", "a valid response should still settle normally")
     harness.assertEqual(events, 1, "a valid event should still reach its handler")
-    QB.nui.cancelRequest(eventRequest)
+    Kora.nui.cancelRequest(eventRequest)
 end)
 
 harness.test("a response for an unknown requestId is a no-op", function()
@@ -255,7 +255,7 @@ harness.test("a response for an unknown requestId is a no-op", function()
 end)
 
 harness.test("a second response for an already-settled request is ignored", function()
-    local p = QB.nui.request("someAction", {})
+    local p = Kora.nui.request("someAction", {})
     local requestId = lastRequestId()
     local token = lastToken()
 
@@ -266,11 +266,11 @@ harness.test("a second response for an already-settled request is ignored", func
 end)
 
 harness.test("copyToClipboard sends the text and resolves true on success", function()
-    local p = QB.nui.copyToClipboard("QB.zones.box({})")
+    local p = Kora.nui.copyToClipboard("Kora.zones.box({})")
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "copyToClipboard", "copyToClipboard should send the copyToClipboard action")
-    harness.assertEqual(sent.data.payload.text, "QB.zones.box({})", "the text to copy should be forwarded as-is")
+    harness.assertEqual(sent.data.payload.text, "Kora.zones.box({})", "the text to copy should be forwarded as-is")
 
     respondOk(lastRequestId(), true)
     harness.assertEqual(p.state, "resolved", "copyToClipboard should resolve once the NUI confirms the write")
@@ -279,7 +279,7 @@ end)
 
 harness.test("openMenu sends the items/title and resolves with the NUI's raw result", function()
     local items = { { id = "a", label = "A" }, { id = "b", label = "B" } }
-    local p = QB.nui.openMenu(items, "Pick one")
+    local p = Kora.nui.openMenu(items, "Pick one")
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openMenu", "openMenu should send the openMenu action")
@@ -297,7 +297,7 @@ harness.test("openMenu forwards optional geometry without changing the existing 
         maxHeight = 680,
         presentation = "panel",
     }
-    local p = QB.nui.openMenu({ { id = "a", label = "A" } }, "Compact", opts)
+    local p = Kora.nui.openMenu({ { id = "a", label = "A" } }, "Compact", opts)
 
     local payload = sentMessages[#sentMessages].data.payload
     harness.assertEqual(payload.position, opts.position, "position should be forwarded as-is")
@@ -314,13 +314,13 @@ harness.test("menus reject render-breaking payloads before taking focus", functi
     recursive.submenu.items = { recursive }
 
     for _, invoke in ipairs({
-        function() QB.nui.openMenu({ { id = "bad", label = {} } }) end,
-        function() QB.nui.openMenu({ { id = "bad", label = "Bad", disabled = "yes" } }) end,
-        function() QB.nui.openMenu({ recursive }) end,
-        function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, {}, {}) end,
-        function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { maxWidth = 0 / 0 }) end,
-        function() QB.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { presentation = "popover" }) end,
-        function() QB.nui.openContextMenu({ { id = "ok", label = "Okay" } }, math.huge, 10) end,
+        function() Kora.nui.openMenu({ { id = "bad", label = {} } }) end,
+        function() Kora.nui.openMenu({ { id = "bad", label = "Bad", disabled = "yes" } }) end,
+        function() Kora.nui.openMenu({ recursive }) end,
+        function() Kora.nui.openMenu({ { id = "ok", label = "Okay" } }, {}, {}) end,
+        function() Kora.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { maxWidth = 0 / 0 }) end,
+        function() Kora.nui.openMenu({ { id = "ok", label = "Okay" } }, nil, { presentation = "popover" }) end,
+        function() Kora.nui.openContextMenu({ { id = "ok", label = "Okay" } }, math.huge, 10) end,
     }) do
         harness.assertThrows(invoke, "malformed menu data must be rejected")
     end
@@ -330,7 +330,7 @@ harness.test("menus reject render-breaking payloads before taking focus", functi
 end)
 
 harness.test("openMenu grants focus while open and releases it once answered", function()
-    QB.nui.openMenu({ { id = "a", label = "A" } })
+    Kora.nui.openMenu({ { id = "a", label = "A" } })
 
     local grant = focusCalls[#focusCalls]
     harness.assertTrue(grant.mouse and grant.keyboard, "focus should be granted when the menu opens")
@@ -344,7 +344,7 @@ end)
 harness.test("stopping a request owner closes its surface and releases only its focus lease", function()
     local originalCurrentResourceName = GetCurrentResourceName
     _G.GetCurrentResourceName = function() return "stopping_consumer" end
-    local p = QB.nui.openMenu({ { id = "a", label = "A" } })
+    local p = Kora.nui.openMenu({ { id = "a", label = "A" } })
     local requestId, token = lastRequestId(), lastToken()
     _G.GetCurrentResourceName = originalCurrentResourceName
 
@@ -362,7 +362,7 @@ harness.test("stopping a request owner closes its surface and releases only its 
 end)
 
 harness.test("openInputDialog releases focus even when the request is rejected", function()
-    QB.nui.openInputDialog({ { id = "f", label = "F", type = "text" } })
+    Kora.nui.openInputDialog({ { id = "f", label = "F", type = "text" } })
     respond(lastRequestId(), lastToken(), false, "NUI exploded")
 
     local release = focusCalls[#focusCalls]
@@ -371,7 +371,7 @@ end)
 
 harness.test("copyToClipboard never touches focus", function()
     local before = #focusCalls
-    QB.nui.copyToClipboard("invisible")
+    Kora.nui.copyToClipboard("invisible")
     respondOk(lastRequestId(), true)
 
     harness.assertEqual(#focusCalls, before, "an invisible clipboard write should never grant or release focus")
@@ -379,7 +379,7 @@ end)
 
 harness.test("openContextMenu forwards items and an (x, y) anchor", function()
     local items = { { id = "a", label = "A" } }
-    local p = QB.nui.openContextMenu(items, 100, 200)
+    local p = Kora.nui.openContextMenu(items, 100, 200)
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openContextMenu", "openContextMenu should send the openContextMenu action")
@@ -391,7 +391,7 @@ end)
 
 harness.test("openRadialMenu forwards shared menu items and optional geometry", function()
     local items = { { id = "repair", label = "Repair", icon = "Wrench" } }
-    local p = QB.nui.openRadialMenu(items, { radius = 180 })
+    local p = Kora.nui.openRadialMenu(items, { radius = 180 })
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openRadialMenu", "openRadialMenu should send its dedicated action")
@@ -410,7 +410,7 @@ harness.test("openRadialMenu forwards shared menu items and optional geometry", 
 end)
 
 harness.test("openRadialMenu preserves nested paths and releases focus on cancel", function()
-    local p = QB.nui.openRadialMenu({
+    local p = Kora.nui.openRadialMenu({
         {
             id = "vehicle",
             label = "Vehicle",
@@ -425,7 +425,7 @@ harness.test("openRadialMenu preserves nested paths and releases focus on cancel
     local selectedRelease = focusCalls[#focusCalls]
     harness.assertFalse(selectedRelease.mouse or selectedRelease.keyboard, "nested selection should release focus only after its final result")
 
-    local cancelled = QB.nui.openRadialMenu({ { id = "close", label = "Close" } })
+    local cancelled = Kora.nui.openRadialMenu({ { id = "close", label = "Close" } })
     respondOk(lastRequestId(), { cancelled = true })
     harness.assertTrue(cancelled.value.cancelled, "backdrop/Escape cancellation should pass through unchanged")
 
@@ -435,7 +435,7 @@ end)
 
 harness.test("openRadialMenu rejects malformed geometry before sending", function()
     harness.assertThrows(function()
-        QB.nui.openRadialMenu({}, { radius = 0 })
+        Kora.nui.openRadialMenu({}, { radius = 0 })
     end, "a non-positive radius should be rejected")
 end)
 
@@ -444,7 +444,7 @@ harness.test("openInputDialog forwards fields/title/description and resolves wit
         { id = "amount", label = "Amount", type = "number" },
         { id = "date", label = "Date", type = "date", dateMin = 1788825600000, dateMax = 1791417600000 },
     }
-    local p = QB.nui.openInputDialog(fields, "Enter amount", "How much?")
+    local p = Kora.nui.openInputDialog(fields, "Enter amount", "How much?")
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openInputDialog", "openInputDialog should send the openInputDialog action")
@@ -459,13 +459,13 @@ harness.test("openInputDialog applies the shared field schema before taking focu
     local beforeMessages, beforeFocus = #sentMessages, #focusCalls
 
     harness.assertThrows(function()
-        QB.nui.openInputDialog({ { id = "amount", label = "Amount", type = "number", min = 10, max = 5 } })
+        Kora.nui.openInputDialog({ { id = "amount", label = "Amount", type = "number", min = 10, max = 5 } })
     end, "invalid standalone field bounds should be rejected")
     harness.assertThrows(function()
-        QB.nui.openInputDialog({ { id = "kind", label = "Kind", type = "select" } })
+        Kora.nui.openInputDialog({ { id = "kind", label = "Kind", type = "select" } })
     end, "standalone selects should require options just like AppShell forms")
     harness.assertThrows(function()
-        QB.nui.openInputDialog({ { id = "child", label = "Child", type = "text", dependsOn = "missing" } })
+        Kora.nui.openInputDialog({ { id = "child", label = "Child", type = "text", dependsOn = "missing" } })
     end, "standalone dependent fields should reference a declared field")
 
     harness.assertEqual(#sentMessages, beforeMessages, "invalid standalone fields must not reach the browser")
@@ -474,7 +474,7 @@ end)
 
 harness.test("openAlert forwards optional artwork and manages focus until answered", function()
     local image = "nui://example-resource/web/images/preview.png"
-    local p = QB.nui.openAlert({ message = "Proceed?", image = image })
+    local p = Kora.nui.openAlert({ message = "Proceed?", image = image })
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openAlert", "openAlert should send the openAlert action")
@@ -492,18 +492,18 @@ end)
 
 harness.test("openAlert rejects render-breaking option types before taking focus", function()
     local beforeMessages, beforeFocus = #sentMessages, #focusCalls
-    harness.assertThrows(function() QB.nui.openAlert({ message = "Proceed?", title = {} }) end)
-    harness.assertThrows(function() QB.nui.openAlert({ message = "Proceed?", cancellable = "no" }) end)
+    harness.assertThrows(function() Kora.nui.openAlert({ message = "Proceed?", title = {} }) end)
+    harness.assertThrows(function() Kora.nui.openAlert({ message = "Proceed?", cancellable = "no" }) end)
     harness.assertEqual(#sentMessages, beforeMessages, "invalid alerts must not reach React")
     harness.assertEqual(#focusCalls, beforeFocus, "invalid alerts must not acquire focus")
 end)
 
 harness.test("copyToClipboard requires a string", function()
-    harness.assertThrows(function() QB.nui.copyToClipboard(123) end, "a non-string should be rejected before anything is sent")
+    harness.assertThrows(function() Kora.nui.copyToClipboard(123) end, "a non-string should be rejected before anything is sent")
 end)
 
 harness.test("registerCallback forwards the handler's return value to the NUI", function()
-    QB.nui.registerCallback("smoke:echo", function(data) return { echoed = data.value } end)
+    Kora.nui.registerCallback("smoke:echo", function(data) return { echoed = data.value } end)
 
     local response
     nuiCallbacks["smoke:echo"]({ value = "hi" }, function(r) response = r end)
@@ -512,7 +512,7 @@ harness.test("registerCallback forwards the handler's return value to the NUI", 
 end)
 
 harness.test("registerCallback catches a handler error and still responds", function()
-    QB.nui.registerCallback("smoke:boom", function() error("kaboom") end)
+    Kora.nui.registerCallback("smoke:boom", function() error("kaboom") end)
 
     local response
     local ok = pcall(function()
@@ -525,7 +525,7 @@ end)
 
 harness.test("withFocus sets focus, runs fn, and always releases focus afterward", function()
     local ran = false
-    local result, middle, tail = QB.nui.withFocus(true, true, function()
+    local result, middle, tail = Kora.nui.withFocus(true, true, function()
         ran = true
         return "done", nil, "tail"
     end)
@@ -540,34 +540,34 @@ end)
 
 harness.test('withFocus rejects invalid arguments before acquiring focus', function()
     local focusCount = #focusCalls
-    harness.assertThrows(function() QB.nui.withFocus('yes', true, function() end) end)
-    harness.assertThrows(function() QB.nui.withFocus(true, true, false) end)
-    harness.assertThrows(function() QB.nui.withFocus(true, true, function() end, '') end)
+    harness.assertThrows(function() Kora.nui.withFocus('yes', true, function() end) end)
+    harness.assertThrows(function() Kora.nui.withFocus(true, true, false) end)
+    harness.assertThrows(function() Kora.nui.withFocus(true, true, function() end, '') end)
     harness.assertEqual(#focusCalls, focusCount, 'invalid calls must not alter NUI focus')
 end)
 
 harness.test("explicit focus leases compose and release independently", function()
-    local releaseMouse = QB.nui.acquireFocus(true, false, true, "mouse-owner")
-    local releaseKeyboard = QB.nui.acquireFocus(false, true, false, "keyboard-owner")
+    local releaseMouse = Kora.nui.acquireFocus(true, false, true, "mouse-owner")
+    local releaseKeyboard = Kora.nui.acquireFocus(false, true, false, "keyboard-owner")
     harness.assertTrue(focusCalls[#focusCalls].mouse and focusCalls[#focusCalls].keyboard,
         "combined leases should preserve both focus capabilities")
     harness.assertTrue(keepInputCalls[#keepInputCalls], "the keep-input lease should be composed")
 
-    QB.nui.releaseFocus(releaseMouse)
+    Kora.nui.releaseFocus(releaseMouse)
     harness.assertFalse(focusCalls[#focusCalls].mouse, "releasing the mouse lease should remove mouse focus")
     harness.assertTrue(focusCalls[#focusCalls].keyboard, "the independent keyboard lease should remain")
     harness.assertFalse(keepInputCalls[#keepInputCalls], "releasing its lease should restore keep-input state")
 
-    QB.nui.releaseFocus(releaseKeyboard)
+    Kora.nui.releaseFocus(releaseKeyboard)
     harness.assertFalse(focusCalls[#focusCalls].keyboard, "releasing the final lease should clear focus")
 end)
 
 harness.test("the final focus lease restores a pre-existing keep-input state", function()
     SetNuiFocusKeepInput(true)
-    local release = QB.nui.acquireFocus(true, true, false, "compat-owner")
+    local release = Kora.nui.acquireFocus(true, true, false, "compat-owner")
     harness.assertFalse(keepInputCalls[#keepInputCalls], "the active lease should apply its own keep-input choice")
 
-    QB.nui.releaseFocus(release)
+    Kora.nui.releaseFocus(release)
     harness.assertTrue(keepInputCalls[#keepInputCalls], "releasing the final lease should restore the prior keep-input state")
 
     -- Keep later smoke tests independent from this simulated external overlay.
@@ -576,7 +576,7 @@ end)
 
 harness.test("withFocus releases focus even when fn errors, then re-raises", function()
     harness.assertThrows(function()
-        QB.nui.withFocus(true, true, function() error("nope") end)
+        Kora.nui.withFocus(true, true, function() error("nope") end)
     end, "the error should propagate out of withFocus")
 
     harness.assertEqual(focusCalls[#focusCalls].mouse, false, "focus should still be released after an error")
@@ -595,8 +595,8 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
         onAction = function(actionId) handled = actionId end,
     }
 
-    harness.assertEqual(QB.nui.registerApp(definition), definition.id, "registerApp should return the stable app id")
-    local p = QB.nui.openApp(definition.id, { viewId = "people", data = { unit = 12 } })
+    harness.assertEqual(Kora.nui.registerApp(definition), definition.id, "registerApp should return the stable app id")
+    local p = Kora.nui.openApp(definition.id, { viewId = "people", data = { unit = 12 } })
 
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openApp", "openApp should send its dedicated action")
@@ -607,12 +607,12 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     harness.assertEqual(sent.data.payload.app.onAction, nil, "Lua action handlers must never enter the JSON payload")
     harness.assertEqual(sent.data.payload.viewId, "people", "the requested initial view should be forwarded")
     harness.assertEqual(sent.data.payload.data.unit, 12, "private session data should be retained for the app instance")
-    harness.assertTrue(QB.nui.isAppOpen(definition.id), "isAppOpen should report the active registered app")
+    harness.assertTrue(Kora.nui.isAppOpen(definition.id), "isAppOpen should report the active registered app")
 
     local requestId, token = lastRequestId(), lastToken()
     respond(requestId, token, true, { closed = true, reason = "close", viewId = "people" })
     harness.assertEqual(p.value.reason, "close", "the browser close result should settle openApp")
-    harness.assertFalse(QB.nui.isAppOpen(), "settling openApp should clear the active instance")
+    harness.assertFalse(Kora.nui.isAppOpen(), "settling openApp should clear the active instance")
     harness.assertEqual(sentMessages[#sentMessages].action, "qbtheme:override", "closing should reset the app accent")
     harness.assertEqual(sentMessages[#sentMessages].data, playerAccent, "closing should restore the player's /theme colour")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "settling openApp should release NUI focus")
@@ -620,12 +620,12 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
 end)
 
 harness.test("openApp validates navigation identifiers before creating a request", function()
-    QB.nui.registerApp({ id = "smoke:app-options", title = "Options", navigation = { { id = "home", label = "Home" } } })
+    Kora.nui.registerApp({ id = "smoke:app-options", title = "Options", navigation = { { id = "home", label = "Home" } } })
     local messageCount, focusCount = #sentMessages, #focusCalls
 
-    harness.assertThrows(function() QB.nui.openApp("smoke:app-options", { viewId = 1 }) end,
+    harness.assertThrows(function() Kora.nui.openApp("smoke:app-options", { viewId = 1 }) end,
         'a non-string viewId must fail before opening the app')
-    harness.assertThrows(function() QB.nui.openApp("smoke:app-options", { tabId = false }) end,
+    harness.assertThrows(function() Kora.nui.openApp("smoke:app-options", { tabId = false }) end,
         'a non-string tabId must fail before opening the app')
     harness.assertEqual(#sentMessages, messageCount, 'invalid navigation identifiers must not send an NUI request')
     harness.assertEqual(#focusCalls, focusCount, 'invalid navigation identifiers must not acquire focus')
@@ -637,24 +637,24 @@ harness.test("AppShell validates and forwards optional media card grids", functi
     local definition = { id = "smoke:media-cards", title = "Events", navigation = {
         { id = "home", label = "Home", content = { blocks = { block } } },
     } }
-    QB.nui.registerApp(definition)
-    QB.nui.openApp(definition.id)
+    Kora.nui.registerApp(definition)
+    Kora.nui.openApp(definition.id)
     local sent = sentMessages[#sentMessages].data.payload.app.navigation[1].content.blocks[1]
     harness.assertEqual(sent.cardStyle, "media", "the browser should receive the selected card style")
     harness.assertEqual(sent.columns, 3, "the browser should receive the maximum grid columns")
     respond(lastRequestId(), lastToken(), true, { closed = true })
 
     block.cardStyle = "compact"
-    harness.assertEqual(QB.nui.registerApp(definition), definition.id, "explicit compact style remains supported")
+    harness.assertEqual(Kora.nui.registerApp(definition), definition.id, "explicit compact style remains supported")
     block.cardStyle = "poster"
-    harness.assertThrows(function() QB.nui.registerApp(definition) end, "unknown card styles must be rejected")
+    harness.assertThrows(function() Kora.nui.registerApp(definition) end, "unknown card styles must be rejected")
     block.cardStyle = "media"
     for _, columns in ipairs({ 0, 5, 1.5, "2", false, math.huge, 0 / 0 }) do
         block.columns = columns
-        harness.assertThrows(function() QB.nui.registerApp(definition) end, "invalid grid columns must be rejected")
+        harness.assertThrows(function() Kora.nui.registerApp(definition) end, "invalid grid columns must be rejected")
     end
     block.columns = 2
-    harness.assertTrue(QB.nui.updateApp(definition.id, { navigation = definition.navigation }), "updates should accept media grids")
+    harness.assertTrue(Kora.nui.updateApp(definition.id, { navigation = definition.navigation }), "updates should accept media grids")
 end)
 
 harness.test("AppShell validates image fit on collections and nested items", function()
@@ -665,8 +665,8 @@ harness.test("AppShell validates image fit on collections and nested items", fun
     local definition = { id = "smoke:image-fit", title = "Images", navigation = {
         { id = "home", label = "Home", content = { blocks = { block } } },
     } }
-    QB.nui.registerApp(definition)
-    QB.nui.openApp(definition.id)
+    Kora.nui.registerApp(definition)
+    Kora.nui.openApp(definition.id)
     local sent = sentMessages[#sentMessages].data.payload.app.navigation[1].content.blocks[1]
     harness.assertEqual(sent.imageFit, "contain", "the browser should receive the collection image fit")
     harness.assertEqual(sent.items[1].children[1].imageFit, "cover", "nested item overrides should reach the browser")
@@ -674,13 +674,13 @@ harness.test("AppShell validates image fit on collections and nested items", fun
 
     for _, imageFit in ipairs({ "cover", "contain", "fill", "none", "scale-down" }) do
         block.imageFit, child.imageFit = imageFit, imageFit
-        harness.assertEqual(QB.nui.registerApp(definition), definition.id, "native image fit values should be supported")
+        harness.assertEqual(Kora.nui.registerApp(definition), definition.id, "native image fit values should be supported")
     end
     for _, invalid in ipairs({ "stretch", "", false, 42, {} }) do
         block.imageFit, child.imageFit = invalid, "cover"
-        harness.assertThrows(function() QB.nui.registerApp(definition) end, "invalid collection image fit must be rejected")
+        harness.assertThrows(function() Kora.nui.registerApp(definition) end, "invalid collection image fit must be rejected")
         block.imageFit, child.imageFit = "contain", invalid
-        harness.assertThrows(function() QB.nui.registerApp(definition) end, "invalid nested image fit must be rejected")
+        harness.assertThrows(function() Kora.nui.registerApp(definition) end, "invalid nested image fit must be rejected")
     end
 end)
 
@@ -695,10 +695,10 @@ harness.test("registerApp accepts bounded progress graph blocks", function()
         },
     }
 
-    harness.assertEqual(QB.nui.registerApp(definition), definition.id,
+    harness.assertEqual(Kora.nui.registerApp(definition), definition.id,
         "a valid bounded progress graph should register")
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-progress", title = "Bad progress", navigation = {
                 { id = "skills", label = "Skills", content = { blocks = {
                     { type = "progress", items = { { label = "Mining", value = 101, max = 100 } }, },
@@ -708,7 +708,7 @@ harness.test("registerApp accepts bounded progress graph blocks", function()
     end, "progress values above max must be rejected before they reach the browser")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-progress-infinity", title = "Bad progress", navigation = {
                 { id = "skills", label = "Skills", content = { blocks = {
                     { type = "progress", items = { { label = "Mining", value = 1, max = math.huge } }, },
@@ -719,12 +719,12 @@ harness.test("registerApp accepts bounded progress graph blocks", function()
 end)
 
 harness.test("an app without its own accent keeps the player's /theme colour", function()
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:player-theme",
         title = "Player theme",
         navigation = { { id = "home", label = "Home" } },
     })
-    local p = QB.nui.openApp("smoke:player-theme")
+    local p = Kora.nui.openApp("smoke:player-theme")
 
     local open = sentMessages[#sentMessages]
     local accent = sentMessages[#sentMessages - 1]
@@ -737,7 +737,7 @@ end)
 
 harness.test("AppShell actions require the active token and route context to the registered handler", function()
     local receivedAction, receivedContext
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:actions",
         title = "Actions",
         navigation = { { id = "dashboard", label = "Dashboard", content = { actions = {
@@ -748,7 +748,7 @@ harness.test("AppShell actions require the active token and route context to the
             return { update = { footer = "Updated" } }
         end,
     })
-    QB.nui.openApp("smoke:actions", { data = { officer = "312" } })
+    Kora.nui.openApp("smoke:actions", { data = { officer = "312" } })
     local requestId, token = lastRequestId(), lastToken()
 
     local forged
@@ -781,7 +781,7 @@ end)
 
 harness.test("AppShell changes validate sessions and forms, update content, and keep focus", function()
     local received, update = nil, { footer = "Total: $30" }
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:changes", title = "Changes",
         navigation = { { id = "home", label = "Home", content = {
             actions = { { id = "refresh", label = "Refresh" } },
@@ -794,7 +794,7 @@ harness.test("AppShell changes validate sessions and forms, update content, and 
             return update
         end,
     })
-    local pending = QB.nui.openApp("smoke:changes", { data = { vehicle = 12 } })
+    local pending = Kora.nui.openApp("smoke:changes", { data = { vehicle = 12 } })
     local requestId, token = lastRequestId(), lastToken()
     harness.assertEqual(sentMessages[#sentMessages].data.payload.app.onChange, true,
         "only the presence of the handler should enter the browser payload")
@@ -817,19 +817,19 @@ harness.test("AppShell changes validate sessions and forms, update content, and 
     harness.assertEqual(received[2].data.vehicle, 12)
     harness.assertEqual(received[2].itemId, "pump")
     harness.assertEqual(response.result.app.footer, "Total: $30")
-    harness.assertTrue(QB.nui.isAppOpen("smoke:changes"), "closeBeforeAction must not close on edits")
+    harness.assertTrue(Kora.nui.isAppOpen("smoke:changes"), "closeBeforeAction must not close on edits")
     harness.assertEqual(pending.state, "pending", "changes must not settle the open request")
     update = { navigation = {} }
     harness.assertFalse(change(token, "fill", { quantity = 20 }).ok, "invalid updates must be rejected")
     update = nil
     harness.assertTrue(change(token, "fill", { quantity = "" }).ok, "incomplete drafts can be ignored")
-    harness.assertThrows(function() QB.nui.updateApp("smoke:changes", { onChange = true }) end)
+    harness.assertThrows(function() Kora.nui.updateApp("smoke:changes", { onChange = true }) end)
     respond(requestId, token, true, { closed = true, reason = "close" })
     harness.assertFalse(change(token, "fill", { quantity = 10 }).ok, "closed sessions must be rejected")
 end)
 
 harness.test("AppShell discards yielding change handlers after newer edits", function()
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:change-order", title = "Changes", navigation = { { id = "home", label = "Home",
             content = { actions = { { id = "edit", label = "Edit", fields = {
                 { id = "quantity", label = "Amount", type = "number" },
@@ -839,7 +839,7 @@ harness.test("AppShell discards yielding change handlers after newer edits", fun
             return { footer = tostring(context.value.quantity) }
         end,
     })
-    QB.nui.openApp("smoke:change-order")
+    Kora.nui.openApp("smoke:change-order")
     local token, oldResult, newResult = lastToken()
     local function change(quantity, cb)
         nuiCallbacks["kora_lib:app:change"]({ appId = "smoke:change-order", token = token,
@@ -856,7 +856,7 @@ end)
 
 harness.test("AppShell accepts inline action field schemas and forwards submitted values", function()
     local received
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:inline-fields",
         title = "Inline fields",
         navigation = { { id = "home", label = "Home", content = { actions = {
@@ -864,7 +864,7 @@ harness.test("AppShell accepts inline action field schemas and forwards submitte
         } } } },
         onAction = function(_, context) received = context.value end,
     })
-    QB.nui.openApp("smoke:inline-fields")
+    Kora.nui.openApp("smoke:inline-fields")
     local _, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({
@@ -875,37 +875,37 @@ harness.test("AppShell accepts inline action field schemas and forwards submitte
 end)
 
 harness.test("updateApp refreshes an active definition and closeApp settles through the browser", function()
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:lifecycle",
         title = "Lifecycle",
         navigation = { { id = "home", label = "Home" } },
     })
-    QB.nui.openApp("smoke:lifecycle")
+    Kora.nui.openApp("smoke:lifecycle")
     local requestId, token = lastRequestId(), lastToken()
 
-    harness.assertTrue(QB.nui.updateApp("smoke:lifecycle", { footer = "Live" }), "a registered app should update")
+    harness.assertTrue(Kora.nui.updateApp("smoke:lifecycle", { footer = "Live" }), "a registered app should update")
     local update = sentMessages[#sentMessages]
     harness.assertEqual(update.action, "updateApp", "an active update should be pushed to the browser")
     harness.assertEqual(update.data.app.footer, "Live", "the merged definition should be pushed")
     harness.assertEqual(update.data.token, token, "the active instance token should guard updates")
 
-    harness.assertTrue(QB.nui.closeApp("smoke:lifecycle"), "closeApp should start closing the active app")
+    harness.assertTrue(Kora.nui.closeApp("smoke:lifecycle"), "closeApp should start closing the active app")
     local close = sentMessages[#sentMessages]
     harness.assertEqual(close.action, "closeApp", "closeApp should ask the shell to settle")
     harness.assertEqual(close.data.reason, "api", "programmatic closes should identify their reason")
 
     respond(requestId, token, true, { closed = true, reason = "api" })
-    harness.assertFalse(QB.nui.isAppOpen("smoke:lifecycle"), "the app should no longer be active after its response")
-    harness.assertFalse(QB.nui.closeApp("smoke:lifecycle"), "closing an inactive app should be a harmless false")
+    harness.assertFalse(Kora.nui.isAppOpen("smoke:lifecycle"), "the app should no longer be active after its response")
+    harness.assertFalse(Kora.nui.closeApp("smoke:lifecycle"), "closing an inactive app should be a harmless false")
 end)
 
 harness.test("registered apps are removed and closed automatically when their owner stops", function()
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:owned",
         title = "Owned",
         navigation = { { id = "home", label = "Home" } },
     })
-    local opened = QB.nui.openApp("smoke:owned")
+    local opened = Kora.nui.openApp("smoke:owned")
     local requestId, token = lastRequestId(), lastToken()
 
     net.fire("onClientResourceStop", "kora_lib_test")
@@ -913,45 +913,45 @@ harness.test("registered apps are removed and closed automatically when their ow
     harness.assertEqual(close.action, "closeApp", "owner shutdown should close the visible app")
     harness.assertEqual(close.data.reason, "resourceStop", "owner shutdown should identify the close reason")
     harness.assertEqual(opened.state, "resolved", "owner shutdown should settle immediately without relying on the browser")
-    harness.assertFalse(QB.nui.isAppOpen(), "owner shutdown should release the active app immediately")
+    harness.assertFalse(Kora.nui.isAppOpen(), "owner shutdown should release the active app immediately")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "owner shutdown should release NUI focus immediately")
 
     respond(requestId, token, true, { closed = true, reason = "resourceStop" })
-    harness.assertThrows(function() QB.nui.openApp("smoke:owned") end,
+    harness.assertThrows(function() Kora.nui.openApp("smoke:owned") end,
         "an app should no longer be registered after its owner stops")
 end)
 
 harness.test("only an app owner can mutate or close its app", function()
     _G.GetInvokingResource = function() return "app_owner" end
-    QB.nui.registerApp({ id = "smoke:owned-boundary", title = "Owned", navigation = { { id = "home", label = "Home" } } })
+    Kora.nui.registerApp({ id = "smoke:owned-boundary", title = "Owned", navigation = { { id = "home", label = "Home" } } })
     _G.GetInvokingResource = function() return nil end
-    local opened = QB.nui.openApp("smoke:owned-boundary")
+    local opened = Kora.nui.openApp("smoke:owned-boundary")
     local requestId, token = lastRequestId(), lastToken()
 
     _G.GetInvokingResource = function() return "other_resource" end
     harness.assertThrows(function()
-        QB.nui.registerApp({ id = "smoke:owned-boundary", title = "Foreign", navigation = { { id = "home", label = "Home" } } })
+        Kora.nui.registerApp({ id = "smoke:owned-boundary", title = "Foreign", navigation = { { id = "home", label = "Home" } } })
     end, "a foreign resource must not replace the app")
-    harness.assertThrows(function() QB.nui.closeApp("smoke:owned-boundary") end,
+    harness.assertThrows(function() Kora.nui.closeApp("smoke:owned-boundary") end,
         "a foreign resource must not close the app")
-    harness.assertThrows(function() QB.nui.updateApp("smoke:owned-boundary", { footer = "Foreign" }) end,
+    harness.assertThrows(function() Kora.nui.updateApp("smoke:owned-boundary", { footer = "Foreign" }) end,
         "a foreign resource must not update the app")
-    harness.assertThrows(function() QB.nui.unregisterApp("smoke:owned-boundary") end,
+    harness.assertThrows(function() Kora.nui.unregisterApp("smoke:owned-boundary") end,
         "a foreign resource must not unregister the app")
 
     _G.GetInvokingResource = function() return "app_owner" end
-    harness.assertTrue(QB.nui.closeApp("smoke:owned-boundary"), "the owner should close its app")
+    harness.assertTrue(Kora.nui.closeApp("smoke:owned-boundary"), "the owner should close its app")
     respond(requestId, token, true, { closed = true, reason = "api" })
     harness.assertEqual(opened.value.reason, "api")
     _G.GetInvokingResource = function() return nil end
 end)
 
 harness.test("opening a second app releases old focus before granting focus to the new app", function()
-    QB.nui.registerApp({ id = "smoke:first", title = "First", navigation = { { id = "home", label = "Home" } } })
-    QB.nui.registerApp({ id = "smoke:second", title = "Second", navigation = { { id = "home", label = "Home" } } })
+    Kora.nui.registerApp({ id = "smoke:first", title = "First", navigation = { { id = "home", label = "Home" } } })
+    Kora.nui.registerApp({ id = "smoke:second", title = "Second", navigation = { { id = "home", label = "Home" } } })
 
-    local first = QB.nui.openApp("smoke:first")
-    local second = QB.nui.openApp("smoke:second")
+    local first = Kora.nui.openApp("smoke:first")
+    local second = Kora.nui.openApp("smoke:second")
     local secondRequestId, secondToken = lastRequestId(), lastToken()
 
     harness.assertEqual(first.state, "resolved", "the previous app request should close cleanly before replacement")
@@ -965,7 +965,7 @@ end)
 
 harness.test("registerApp rejects definitions that would strand focus in an unrenderable shell", function()
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:invalid",
             title = "Invalid",
             navigation = { { id = "home", label = "Home", disabled = true } },
@@ -973,7 +973,7 @@ harness.test("registerApp rejects definitions that would strand focus in an unre
     end, "an app with no enabled view must be rejected")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-block",
             title = "Invalid block",
             navigation = { { id = "home", label = "Home", content = { blocks = { { type = "table" } } } } },
@@ -981,7 +981,7 @@ harness.test("registerApp rejects definitions that would strand focus in an unre
     end, "a malformed standard content block must be rejected before opening")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-accent",
             title = "Invalid accent",
             accent = "blue",
@@ -991,10 +991,10 @@ harness.test("registerApp rejects definitions that would strand focus in an unre
 end)
 
 harness.test("nested dialogs release only their own focus lease while AppShell remains open", function()
-    QB.nui.registerApp({ id = "smoke:nested-focus", title = "Nested", navigation = { { id = "home", label = "Home" } } })
-    local app = QB.nui.openApp("smoke:nested-focus")
+    Kora.nui.registerApp({ id = "smoke:nested-focus", title = "Nested", navigation = { { id = "home", label = "Home" } } })
+    local app = Kora.nui.openApp("smoke:nested-focus")
     local appRequestId, appToken = lastRequestId(), lastToken()
-    local dialog = QB.nui.openInputDialog({ { id = "note", label = "Note", type = "text" } })
+    local dialog = Kora.nui.openInputDialog({ { id = "note", label = "Note", type = "text" } })
 
     respondOk(lastRequestId(), { cancelled = true })
     harness.assertEqual(dialog.state, "resolved", "the nested dialog should settle")
@@ -1010,7 +1010,7 @@ end)
 
 harness.test("AppShell rejects action ids not declared anywhere in the active definition", function()
     local called = false
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:declared-actions",
         title = "Declared actions",
         navigation = { { id = "home", label = "Home", content = { actions = {
@@ -1018,7 +1018,7 @@ harness.test("AppShell rejects action ids not declared anywhere in the active de
         } } } },
         onAction = function() called = true end,
     })
-    QB.nui.openApp("smoke:declared-actions")
+    Kora.nui.openApp("smoke:declared-actions")
     local requestId, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:declared-actions", token = token,
@@ -1030,7 +1030,7 @@ end)
 
 harness.test("closeBeforeAction settles AppShell and releases focus before owner code runs", function()
     local focusedDuringHandler
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:close-before",
         title = "Close before",
         navigation = { { id = "home", label = "Home", content = { actions = {
@@ -1042,7 +1042,7 @@ harness.test("closeBeforeAction settles AppShell and releases focus before owner
             return { notice = { tone = "success", message = "Editor complete." } }
         end,
     })
-    local opened = QB.nui.openApp("smoke:close-before")
+    local opened = Kora.nui.openApp("smoke:close-before")
     local _, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:close-before", token = token,
@@ -1050,13 +1050,13 @@ harness.test("closeBeforeAction settles AppShell and releases focus before owner
     harness.assertTrue(response.ok, "a declared close-before action should run")
     harness.assertEqual(opened.state, "resolved", "the shell request should settle before the handler returns")
     harness.assertFalse(focusedDuringHandler, "the owner handler must run after AppShell releases focus")
-    harness.assertFalse(QB.nui.isAppOpen(), "the shell should no longer be active")
+    harness.assertFalse(Kora.nui.isAppOpen(), "the shell should no longer be active")
 end)
 
 harness.test("closeBeforeAction reports owner failures after the shell is gone", function()
     local notified
-    QB.notify.send = function(options) notified = options end
-    QB.nui.registerApp({
+    Kora.notify.send = function(options) notified = options end
+    Kora.nui.registerApp({
         id = "smoke:close-before-error",
         title = "Close before error",
         navigation = { { id = "home", label = "Home", content = { actions = {
@@ -1064,7 +1064,7 @@ harness.test("closeBeforeAction reports owner failures after the shell is gone",
         } } } },
         onAction = function() error("editor failed") end,
     })
-    local opened = QB.nui.openApp("smoke:close-before-error")
+    local opened = Kora.nui.openApp("smoke:close-before-error")
     local token = lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:close-before-error", token = token,
@@ -1076,7 +1076,7 @@ harness.test("closeBeforeAction reports owner failures after the shell is gone",
 end)
 
 harness.test("AppShell validates and returns navigation and notice action results", function()
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:result-shapes",
         title = "Results",
         navigation = {
@@ -1088,7 +1088,7 @@ harness.test("AppShell validates and returns navigation and notice action result
                 notice = { tone = "primary", message = "Moved." } }
         end,
     })
-    QB.nui.openApp("smoke:result-shapes")
+    Kora.nui.openApp("smoke:result-shapes")
     local requestId, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:result-shapes", token = token,
@@ -1101,7 +1101,7 @@ end)
 
 harness.test("AppShell declares lazy view actions and typed configuration fields", function()
     local received
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:lazy-view",
         title = "Lazy view",
         navigation = {
@@ -1122,7 +1122,7 @@ harness.test("AppShell declares lazy view actions and typed configuration fields
         },
         onAction = function(action, context) received = { action, context.itemId } end,
     })
-    QB.nui.openApp("smoke:lazy-view")
+    Kora.nui.openApp("smoke:lazy-view")
     local requestId, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:lazy-view", token = token,
@@ -1134,7 +1134,7 @@ harness.test("AppShell declares lazy view actions and typed configuration fields
 end)
 
 harness.test("AppShell applies updates before validating result navigation", function()
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:update-navigation",
         title = "Update navigation",
         navigation = { { id = "home", label = "Home", content = { actions = {
@@ -1150,7 +1150,7 @@ harness.test("AppShell applies updates before validating result navigation", fun
             }
         end,
     })
-    QB.nui.openApp("smoke:update-navigation")
+    Kora.nui.openApp("smoke:update-navigation")
     local requestId, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:update-navigation", token = token,
@@ -1164,7 +1164,7 @@ end)
 
 harness.test("AppShell recursively validates dependent fields and nested collection actions", function()
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-dependent-field",
             title = "Invalid fields",
             navigation = { { id = "home", label = "Home", content = { blocks = { {
@@ -1176,7 +1176,7 @@ harness.test("AppShell recursively validates dependent fields and nested collect
     end, "a dependent field must reference a field in its form")
 
     local called
-    QB.nui.registerApp({
+    Kora.nui.registerApp({
         id = "smoke:nested-action",
         title = "Nested list",
         navigation = { { id = "home", label = "Home", content = { blocks = { {
@@ -1186,7 +1186,7 @@ harness.test("AppShell recursively validates dependent fields and nested collect
         } } } } },
         onAction = function(action) called = action end,
     })
-    QB.nui.openApp("smoke:nested-action")
+    Kora.nui.openApp("smoke:nested-action")
     local requestId, token = lastRequestId(), lastToken()
     local response
     nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:nested-action", token = token,
@@ -1222,12 +1222,12 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
         { id = "visible", label = "Visible", type = "text", visibleWhen = { fieldId = "visible", equals = {} } },
     }
     for index, field in ipairs(invalidFields) do
-        harness.assertThrows(function() QB.nui.registerApp(appWithField("bad-field-" .. index, field)) end,
+        harness.assertThrows(function() Kora.nui.registerApp(appWithField("bad-field-" .. index, field)) end,
             "malformed field contracts must be rejected recursively")
     end
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-default-tab", title = "Invalid tab",
             navigation = { { id = "home", label = "Home", defaultTab = "missing", tabs = {
                 { id = "present", label = "Present" },
@@ -1236,7 +1236,7 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
     end, "defaultTab must name a declared tab")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-list-layout", title = "Invalid list",
             navigation = { { id = "home", label = "Home", content = { blocks = { {
                 type = "list", layout = "carousel", searchable = "yes", pageSize = 0, items = {},
@@ -1245,7 +1245,7 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
     end, "list layout and paging/search options must use supported types")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-table-sort", title = "Invalid table",
             navigation = { { id = "home", label = "Home", content = { blocks = { {
                 type = "table", columns = { { key = "name", label = "Name", sortable = "yes" } }, rows = {},
@@ -1254,7 +1254,7 @@ harness.test("AppShell rejects malformed field, tab, and collection contracts", 
     end, "table sorting options must use supported types")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:bad-table-empty", title = "Invalid table empty state",
             navigation = { { id = "home", label = "Home", content = { blocks = { {
                 type = "table", columns = { { key = "name", label = "Name" } }, rows = {},
@@ -1266,7 +1266,7 @@ end)
 
 harness.test("AppShell rejects non-finite map points before registering", function()
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:invalid-map", title = "Invalid map",
             navigation = { { id = "home", label = "Home", content = { blocks = { {
                 type = "map", tiles = { url = "https://tiles.example/{z}/{x}/{y}.png", grid = { x = math.huge, y = 1 } },
@@ -1276,7 +1276,7 @@ harness.test("AppShell rejects non-finite map points before registering", functi
     end, "non-finite map calibration values must be rejected")
 
     harness.assertThrows(function()
-        QB.nui.registerApp({
+        Kora.nui.registerApp({
             id = "smoke:invalid-marker", title = "Invalid marker",
             navigation = { { id = "home", label = "Home", content = { blocks = { {
                 type = "map", tiles = { url = "https://tiles.example/{z}/{x}/{y}.png", tileSize = 256 },
@@ -1306,7 +1306,7 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     local first = { now = 100, calls = {} }
     local latest = { now = 200, calls = {}, hidden = true }
     harness.assertTrue(registeredExports.nui_setDispatchFeed(first))
-    harness.assertTrue(QB.nui.setDispatchFeed(latest))
+    harness.assertTrue(Kora.nui.setDispatchFeed(latest))
     clock = 3500
     local replay = ready()
     harness.assertEqual(replay.now, 2700, 'late readiness includes time since publication')
@@ -1316,32 +1316,32 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
 
     caller = 'other'
     local beforeMessages = #sentMessages
-    harness.assertFalse(QB.nui.setDispatchFeed(first))
-    harness.assertFalse(QB.nui.setDispatchFeed(false))
+    harness.assertFalse(Kora.nui.setDispatchFeed(first))
+    harness.assertFalse(Kora.nui.setDispatchFeed(false))
     net.fire('onClientResourceStop', 'other')
     harness.assertEqual(#sentMessages, beforeMessages, 'foreign operations never alter the feed')
     harness.assertEqual(ready().now, 2700)
 
     caller = 'kora_dispatch'
-    harness.assertTrue(QB.nui.setDispatchFeed(false))
+    harness.assertTrue(Kora.nui.setDispatchFeed(false))
     caller = 'other'
-    harness.assertTrue(QB.nui.setDispatchFeed(first))
+    harness.assertTrue(Kora.nui.setDispatchFeed(first))
     net.fire('onClientResourceStop', 'kora_dispatch')
     harness.assertEqual(ready().now, first.now, 'an old owner cannot clear its successor')
     net.fire('onClientResourceStop', 'other')
     harness.assertEqual(ready(), false)
-    harness.assertThrows(function() QB.nui.setDispatchFeed(nil) end)
-    harness.assertThrows(function() QB.nui.setDispatchFeed(true) end)
-    harness.assertThrows(function() QB.nui.setDispatchFeed({}) end)
-    harness.assertThrows(function() QB.nui.setDispatchFeed({ now = math.huge }) end)
+    harness.assertThrows(function() Kora.nui.setDispatchFeed(nil) end)
+    harness.assertThrows(function() Kora.nui.setDispatchFeed(true) end)
+    harness.assertThrows(function() Kora.nui.setDispatchFeed({}) end)
+    harness.assertThrows(function() Kora.nui.setDispatchFeed({ now = math.huge }) end)
 
     caller = 'shop'
-    local release = QB.nui.acquireFocus(true, true)
+    local release = Kora.nui.acquireFocus(true, true)
     local focusedCalls = #focusCalls
     caller = 'kora_dispatch'
-    QB.nui.setDispatchFeed(first)
+    Kora.nui.setDispatchFeed(first)
     ready()
-    QB.nui.setDispatchFeed(false)
+    Kora.nui.setDispatchFeed(false)
     harness.assertEqual(#focusCalls, focusedCalls, 'feed publication leaves a focused interaction alone')
     release()
     harness.assertEqual(#focusCalls, beforeFocus + 2, 'only the unrelated lease acquires and releases focus')

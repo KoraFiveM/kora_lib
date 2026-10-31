@@ -5,7 +5,7 @@ The drawing module renders world-space visuals -- currently just 3D text -- via 
 
 ## API
 
-### `QB.drawing.text3d(coords, text, options)`
+### `Kora.drawing.text3d(coords, text, options)`
 Draws one frame of world-space 3D text anchored at `coords`. Not a persistent registration -- like a raw `DrawMarker` call, call it again every frame it should stay visible.
 
 #### Parameters
@@ -26,7 +26,7 @@ Nothing.
 ```lua
 CreateThread(function()
     while HasTarget() do
-        QB.drawing.text3d(GetEntityCoords(targetEntity), "[E] Open")
+        Kora.drawing.text3d(GetEntityCoords(targetEntity), "[E] Open")
         Wait(0)
     end
 end)

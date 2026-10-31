@@ -60,7 +60,7 @@ function menuPlacement(payload: OpenMenuPayload): { className: string; style: CS
 /**
  * Renders the "openMenu" request as a searchable Command list inside a
  * Dialog. Always mounted (see App.tsx) but renders nothing until Lua sends
- * an "openMenu" message; settles the pending QB.nui.request promise exactly
+ * an "openMenu" message; settles the pending Kora.nui.request promise exactly
  * once, either with the selected item or a cancellation (via useNuiRequest).
  *
  * Items carrying a `submenu` push a new level rather than resolving, and the

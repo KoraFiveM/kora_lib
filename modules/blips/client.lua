@@ -25,7 +25,7 @@ local renderedInfo = nil
 local missedSelectionPolls = 0
 local SELECTION_GRACE_POLLS = 3
 local textureRefcounts = {}
-local categoryCatalog = assert(QB.blips._categoryCatalog, 'QB.blips category catalogue did not load.')
+local categoryCatalog = assert(Kora.blips._categoryCatalog, 'Kora.blips category catalogue did not load.')
 local registeredByBlip = {}
 local categoryVisibility = {}
 local infoThreadRunning = false
@@ -59,7 +59,7 @@ end
 -- resource that invoked `create` -- see local/resources/AGENTS.md. Cleanup on
 -- resource stop guards with DoesBlipExist since RemoveBlip on an
 -- already-gone handle is undefined behavior, not a no-op.
-local blipRegistry = QB.resources.registry(function(blip)
+local blipRegistry = Kora.resources.registry(function(blip)
     registeredByBlip[blip] = nil
     clearStoredInfo(blip)
     if DoesBlipExist(blip) then RemoveBlip(blip) end
@@ -416,7 +416,7 @@ end
 ---@param options? QBBlipsCreateOptions
 ---@return number | false blip The created blip handle, or false if it failed to create.
 ---@return string? error
-function QB.blips.create(coords, options)
+function Kora.blips.create(coords, options)
     -- Must be captured before any native calls below -- the invoking-resource
     -- context is only valid at this call boundary, same reasoning as
     -- modules/entities.
@@ -425,7 +425,7 @@ function QB.blips.create(coords, options)
     if options == nil then options = {} end
     assert(type(options) == "table", "Blip options must be a table.")
 
-    assert(coords and QB.util.isFiniteNumber(coords.x) and QB.util.isFiniteNumber(coords.y) and QB.util.isFiniteNumber(coords.z),
+    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
 
     local category = resolveCategory(options.category)
@@ -441,10 +441,10 @@ function QB.blips.create(coords, options)
     local shortRange = options.shortRange
     if shortRange == nil then shortRange = Config.blips.defaultShortRange end
 
-    assert(QB.util.isInteger(sprite) and sprite >= 0, 'Blip sprite must be a non-negative integer.')
-    assert(QB.util.isInteger(color) and color >= 0, 'Blip color must be a non-negative integer.')
-    assert(QB.util.isFiniteNumber(scale) and scale > 0, 'Blip scale must be a positive finite number.')
-    assert(QB.util.isInteger(display) and display >= 0,
+    assert(Kora.util.isInteger(sprite) and sprite >= 0, 'Blip sprite must be a non-negative integer.')
+    assert(Kora.util.isInteger(color) and color >= 0, 'Blip color must be a non-negative integer.')
+    assert(Kora.util.isFiniteNumber(scale) and scale > 0, 'Blip scale must be a positive finite number.')
+    assert(Kora.util.isInteger(display) and display >= 0,
         'Blip display must be a non-negative integer.')
     assert(type(shortRange) == 'boolean', 'Blip shortRange must be a boolean.')
     assert(options.route == nil or type(options.route) == 'boolean', 'Blip route must be a boolean.')
@@ -511,7 +511,7 @@ end
 
 ---Returns the fixed category catalogue ordered by native id.
 ---@return QBBlipCategory[] categories
-function QB.blips.getCategories()
+function Kora.blips.getCategories()
     local result = {}
     local counts = {}
     for _, record in pairs(registeredByBlip) do
@@ -527,7 +527,7 @@ end
 
 ---@param category string|number Category name, alias, or native id.
 ---@return QBBlipCategory category
-function QB.blips.getCategory(category)
+function Kora.blips.getCategory(category)
     return publicCategory(resolveCategory(category))
 end
 
@@ -535,7 +535,7 @@ end
 ---actual native handle returned by `create`; kora_lib never replaces it with an
 ---object wrapper.
 ---@return QBRegisteredBlip[] blips
-function QB.blips.getRegistered()
+function Kora.blips.getRegistered()
     local result = {}
     for _, record in pairs(registeredByBlip) do
         result[#result + 1] = {
@@ -558,7 +558,7 @@ end
 
 ---@param category string|number Category name, alias, or native id.
 ---@return boolean visible
-function QB.blips.isCategoryVisible(category)
+function Kora.blips.isCategoryVisible(category)
     return categoryIsVisible(resolveCategory(category))
 end
 
@@ -581,23 +581,23 @@ end
 
 ---@param category string|number Category name, alias, or native id.
 ---@return boolean changed
-function QB.blips.hideCategory(category)
+function Kora.blips.hideCategory(category)
     return setCategoryVisible(category, false)
 end
 
 ---@param category string|number Category name, alias, or native id.
 ---@return boolean changed
-function QB.blips.showCategory(category)
+function Kora.blips.showCategory(category)
     return setCategoryVisible(category, true)
 end
 
----@param blip integer Native handle returned by QB.blips.create.
+---@param blip integer Native handle returned by Kora.blips.create.
 ---@return boolean success
 ---@return string? error
-function QB.blips.hide(blip)
+function Kora.blips.hide(blip)
     assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
     local record = registeredByBlip[blip]
-    if not record then return false, 'Blip is not tracked by QB.blips.' end
+    if not record then return false, 'Blip is not tracked by Kora.blips.' end
     if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
         return false, 'Blip is not owned by the calling resource.'
     end
@@ -607,13 +607,13 @@ function QB.blips.hide(blip)
     return true
 end
 
----@param blip integer Native handle returned by QB.blips.create.
+---@param blip integer Native handle returned by Kora.blips.create.
 ---@return boolean success
 ---@return string? error
-function QB.blips.show(blip)
+function Kora.blips.show(blip)
     assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
     local record = registeredByBlip[blip]
-    if not record then return false, 'Blip is not tracked by QB.blips.' end
+    if not record then return false, 'Blip is not tracked by Kora.blips.' end
     if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
         return false, 'Blip is not owned by the calling resource.'
     end
@@ -630,7 +630,7 @@ end
 ---@param info QBBlipInfo
 ---@return boolean success
 ---@return string? error
-function QB.blips.setInfo(blip, info)
+function Kora.blips.setInfo(blip, info)
     assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
 
     local caller = GetInvokingResource() or GetCurrentResourceName()
@@ -646,7 +646,7 @@ end
 ---@param blip number
 ---@return boolean success
 ---@return string? error
-function QB.blips.clearInfo(blip)
+function Kora.blips.clearInfo(blip)
     assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
 
     local caller = GetInvokingResource() or GetCurrentResourceName()
@@ -663,11 +663,11 @@ end
 ---@param blip number The blip handle to remove.
 ---@return boolean success
 ---@return string? error
-function QB.blips.remove(blip)
+function Kora.blips.remove(blip)
     assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
 
     if not blipRegistry.owner(blip) then
-        return false, "Blip is not tracked by QB.blips."
+        return false, "Blip is not tracked by Kora.blips."
     end
     if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
         return false, "Blip is not owned by the calling resource."

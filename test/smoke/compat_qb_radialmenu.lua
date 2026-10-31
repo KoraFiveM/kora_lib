@@ -11,14 +11,14 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Same "mock QB.nui directly, resolve synchronously" trick compat_qb_menu.lua
+-- Same "mock Kora.nui directly, resolve synchronously" trick compat_qb_menu.lua
 -- and compat_qb_input.lua use -- openRegisteredRadial has to consume
--- QB.nui.openRadialMenu's result itself (to dispatch the right option), not
+-- Kora.nui.openRadialMenu's result itself (to dispatch the right option), not
 -- just hand a promise back to its own caller.
 local sentItems = nil
 local nextRadialResult = nil
 
-QB.nui = {
+Kora.nui = {
     -- Each call consumes `nextRadialResult` and resets it to a plain cancel
     -- -- a shouldClose=false selection makes openRegisteredRadial reopen the
     -- wheel immediately (see that function's own doc comment), which would
@@ -35,13 +35,13 @@ QB.nui = {
     end,
 }
 
--- QB.progressbar.start is called by the built-in flip-vehicle action --
+-- Kora.progressbar.start is called by the built-in flip-vehicle action --
 -- modules/progressbar/client.lua isn't loaded here (this test only needs the
--- QB table it would attach to), so it's stubbed directly, controllable via
+-- Kora table it would attach to), so it's stubbed directly, controllable via
 -- `progressCompletes`.
 local progressCompletes = true
-QB.progressbar = { start = function() return progressCompletes end }
-QB.keybind = {
+Kora.progressbar = { start = function() return progressCompletes end }
+Kora.keybind = {
     add = function(options)
         net.commands[options.name] = options.onPressed
         return { remove = function() return true end }
@@ -135,7 +135,7 @@ local function itemById(items, id)
     return nil
 end
 
--- The wheel only opens via its QB.keybind handler, not a direct export. The
+-- The wheel only opens via its Kora.keybind handler, not a direct export. The
 -- keybind stub above records that callback in the mock command registry.
 local function openRadial()
     harness.assertTrue(net.commands ~= nil and net.commands["qblib_radialmenu_open"] ~= nil,
@@ -226,7 +226,7 @@ end)
 
 -- Real qb-radialmenu options can carry their own nested `items[]` to form a
 -- submenu (upstream's own "Work"/"Vehicle" branches work this way).
--- QB.nui.openRadialMenu natively supports `item.submenu = {title, items}`,
+-- Kora.nui.openRadialMenu natively supports `item.submenu = {title, items}`,
 -- so a registered option with nested items must translate onto that instead
 -- of being flattened or dropped, and a NESTED leaf's selection must still
 -- dispatch correctly even though it was never in the top-level registry.
@@ -310,13 +310,13 @@ harness.test("no Vehicle/Work submenu appears with no nearby vehicle and no job"
     resetVehicleState()
     resetPlayerData()
 
-    -- openRegisteredRadial returns early (never calling QB.nui.openRadialMenu
+    -- openRegisteredRadial returns early (never calling Kora.nui.openRadialMenu
     -- at all) when there's nothing to show, which would otherwise leave
     -- sentItems stale from whatever the previous test last sent.
     sentItems = nil
     nextRadialResult = { cancelled = true }
     openRadial()
-    harness.assertTrue(sentItems == nil, "an empty wheel should never call QB.nui.openRadialMenu")
+    harness.assertTrue(sentItems == nil, "an empty wheel should never call Kora.nui.openRadialMenu")
 end)
 
 harness.test("a nearby vehicle produces a Vehicle submenu with doors and extras nested, but no flip/seats", function()
@@ -490,7 +490,7 @@ harness.test("a downed non-police/EMS player cannot open the wheel at all", func
     nextRadialResult = { selectedId = "should-not-be-read" }
     sentItems = nil
     openRadial()
-    harness.assertTrue(sentItems == nil, "a downed civilian should never reach QB.nui.openRadialMenu at all")
+    harness.assertTrue(sentItems == nil, "a downed civilian should never reach Kora.nui.openRadialMenu at all")
 end)
 
 harness.test("a downed police/EMS player sees only the emergency button, bypassing the normal registry", function()
@@ -524,7 +524,7 @@ harness.test("a handcuffed player cannot open the wheel", function()
     sentItems = nil
     nextRadialResult = { cancelled = true }
     openRadial()
-    harness.assertTrue(sentItems == nil, "a handcuffed player should never reach QB.nui.openRadialMenu")
+    harness.assertTrue(sentItems == nil, "a handcuffed player should never reach Kora.nui.openRadialMenu")
 end)
 
 resetVehicleState()

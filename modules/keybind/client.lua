@@ -1,4 +1,4 @@
--- QB.keybind (client realm) -- owner-tracked, rebindable +command/-command
+-- Kora.keybind (client realm) -- owner-tracked, rebindable +command/-command
 -- pairs with live state and callbacks. FiveM does not expose per-command or
 -- per-keymap unregister natives, so one stable native wrapper is installed per
 -- name and dispatches through the current owned definition.
@@ -15,10 +15,10 @@ local commandEvents = {
     execute = 'kora_lib:commands:keybind:execute',
 }
 
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local function assertOptions(options)
-    assert(type(options) == 'table', 'QB.keybind.add requires an options table.')
+    assert(type(options) == 'table', 'Kora.keybind.add requires an options table.')
     assert(type(options.name) == 'string' and options.name:match('^[%w_:%.%-]+$'),
         'Keybind name must be a non-empty command name without whitespace.')
     assert(type(options.description) == 'string' and options.description ~= '',
@@ -60,7 +60,7 @@ local function removeDefinition(name, expected)
     return true
 end
 
-ownership = QB.resources.registry(function(name)
+ownership = Kora.resources.registry(function(name)
     local definition = bindings[name]
     if definition then
         definition.pressed = false
@@ -180,20 +180,20 @@ end
 ---Registers a rebindable press/release action.
 ---@param options QBKeybindOptions
 ---@return QBKeybindHandle handle
-function QB.keybind.add(options)
+function Kora.keybind.add(options)
     return add(options)
 end
 
 ---@param name string
 ---@return boolean removed
-function QB.keybind.remove(name)
+function Kora.keybind.remove(name)
     assert(type(name) == 'string' and name ~= '', 'Keybind name must be a non-empty string.')
     if ownership.owner(name) ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     return removeDefinition(name)
 end
 
 ---@return table[] bindings Shallow public metadata sorted by name.
-function QB.keybind.list()
+function Kora.keybind.list()
     local result = {}
     for name, definition in pairs(bindings) do
         result[#result + 1] = {
@@ -212,7 +212,7 @@ function QB.keybind.list()
     return result
 end
 
--- Server-owned QB.commands key mappings are mirrored into the same local
+-- Server-owned Kora.commands key mappings are mirrored into the same local
 -- registry. Their callbacks send only the command name; the server re-resolves
 -- the live definition and applies the ordinary permission/argument wrapper.
 local function addCommandBinding(name, options)

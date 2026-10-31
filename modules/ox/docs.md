@@ -1,6 +1,6 @@
 # ox_lib provider bridge
 
-`QB.ox` is the internal provider used by the separately named `ox_lib`
+`Kora.ox` is the internal provider used by the separately named `ox_lib`
 compatibility resource. Third-party scripts continue to load
 `@ox_lib/init.lua` and call `lib.*`; they should not call this module directly.
 
@@ -61,27 +61,27 @@ parent and child navigation. The public kora_lib dialog presentation is unchange
 The `ox_lib` compatibility resource is the only intended caller of these
 owner-aware functions:
 
-- dialogs and focus: `QB.ox.alertDialog`, `QB.ox.closeAlertDialog`,
-  `QB.ox.inputDialog`, `QB.ox.closeInputDialog`, `QB.ox.setClipboard`,
-  `QB.ox.setNuiFocus`, and `QB.ox.resetNuiFocus`;
-- context menus: `QB.ox.registerContext`, `QB.ox.showContext`,
-  `QB.ox.getOpenContextMenu`, and `QB.ox.hideContext`;
-- menus: `QB.ox.registerMenu`, `QB.ox.showMenu`, `QB.ox.hideMenu`,
-  `QB.ox.setMenuOptions`, and `QB.ox.getOpenMenu`;
-- notifications and progress: `QB.ox.notify`, `QB.ox.defaultNotify`,
-  `QB.ox.progressBar`, `QB.ox.progressCircle`, `QB.ox.cancelProgress`, and
-  `QB.ox.progressActive`;
-- radial menus: `QB.ox.registerRadial`, `QB.ox.getCurrentRadialId`,
-  `QB.ox.hideRadial`, `QB.ox.addRadialItem`, `QB.ox.removeRadialItem`,
-  `QB.ox.clearRadialItems`, `QB.ox.disableRadial`, and
-  `QB.ox.showRadialMenu`;
-- skill checks and TextUI: `QB.ox.skillCheck`, `QB.ox.cancelSkillCheck`,
-  `QB.ox.skillCheckActive`, `QB.ox.showTextUI`, `QB.ox.hideTextUI`, and
-  `QB.ox.isTextUIOpen`;
-- locale/lifecycle: `QB.ox.getLocaleKey`, `QB.ox.setLocale`, and
-  `QB.ox.disposeOwner`.
+- dialogs and focus: `Kora.ox.alertDialog`, `Kora.ox.closeAlertDialog`,
+  `Kora.ox.inputDialog`, `Kora.ox.closeInputDialog`, `Kora.ox.setClipboard`,
+  `Kora.ox.setNuiFocus`, and `Kora.ox.resetNuiFocus`;
+- context menus: `Kora.ox.registerContext`, `Kora.ox.showContext`,
+  `Kora.ox.getOpenContextMenu`, and `Kora.ox.hideContext`;
+- menus: `Kora.ox.registerMenu`, `Kora.ox.showMenu`, `Kora.ox.hideMenu`,
+  `Kora.ox.setMenuOptions`, and `Kora.ox.getOpenMenu`;
+- notifications and progress: `Kora.ox.notify`, `Kora.ox.defaultNotify`,
+  `Kora.ox.progressBar`, `Kora.ox.progressCircle`, `Kora.ox.cancelProgress`, and
+  `Kora.ox.progressActive`;
+- radial menus: `Kora.ox.registerRadial`, `Kora.ox.getCurrentRadialId`,
+  `Kora.ox.hideRadial`, `Kora.ox.addRadialItem`, `Kora.ox.removeRadialItem`,
+  `Kora.ox.clearRadialItems`, `Kora.ox.disableRadial`, and
+  `Kora.ox.showRadialMenu`;
+- skill checks and TextUI: `Kora.ox.skillCheck`, `Kora.ox.cancelSkillCheck`,
+  `Kora.ox.skillCheckActive`, `Kora.ox.showTextUI`, `Kora.ox.hideTextUI`, and
+  `Kora.ox.isTextUIOpen`;
+- locale/lifecycle: `Kora.ox.getLocaleKey`, `Kora.ox.setLocale`, and
+  `Kora.ox.disposeOwner`.
 
-`QB.ox.setLocale` accepts the selected key, decoded ox locale catalog, and
+`Kora.ox.setLocale` accepts the selected key, decoded ox locale catalog, and
 origin owner. kora_lib retains the small browser-label subset and exposes it to
 the NUI through both a startup handshake and live updates, so the persisted
 ox locale is not lost when the compatibility resource starts before the page

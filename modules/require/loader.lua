@@ -1,4 +1,4 @@
--- This file returns a factory because QB.require has to run inside the
+-- This file returns a factory because Kora.require has to run inside the
 -- consumer resource that loaded @kora_lib/init.lua. Exporting these functions
 -- from kora_lib would execute required chunks in kora_lib's environment instead.
 return function(currentResource)
@@ -134,8 +134,8 @@ return function(currentResource)
     end
 
     -- `local` is a Lua keyword, so dot syntax cannot express this field. Keep
-    -- the requested name available as QB.require["local"](...), with
-    -- QB.require.current(...) as the normal dot-syntax spelling.
+    -- the requested name available as Kora.require["local"](...), with
+    -- Kora.require.current(...) as the normal dot-syntax spelling.
     api['local'] = api.current
 
     local function clearResource(resource)

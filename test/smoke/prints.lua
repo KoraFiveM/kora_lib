@@ -21,13 +21,13 @@ _G.json = {
 dofile(repoRoot .. 'modules/prints/shared.lua')
 
 harness.test('print helpers format encodable tables', function()
-    QB.print.info('ready', { ok = true })
+    Kora.print.info('ready', { ok = true })
     harness.assertEqual(output[#output], '^4[INFO]^0 ready {"ok":true}')
 end)
 
 harness.test('print helpers contain table encoding failures', function()
     local value = { fail = true }
-    local ok = pcall(QB.print.error, value)
+    local ok = pcall(Kora.print.error, value)
     harness.assertTrue(ok, 'diagnostic output must not throw when JSON encoding fails')
     harness.assertTrue(output[#output]:find('^1[ERROR]^0 table:', 1, true) ~= nil)
 end)

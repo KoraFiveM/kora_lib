@@ -5,7 +5,7 @@ The raycast module fires world-geometry raycasts and reports what they hit -- co
 
 ## API
 
-### `QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
+### `Kora.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
 Fires a raycast between two explicit points. The helper yields while the
 asynchronous shape test is pending and returns only after status `2`
 (complete); a result that remains pending for one second is treated as a miss.
@@ -22,7 +22,7 @@ asynchronous shape test is pending and returns only after status `2`
 - `number | nil` -- The entity handle struck, only present on a hit (`0` if the ray hit bare world geometry, not an entity).
 - `table | nil` -- {x, y, z} surface normal at the hit point, only present on a hit.
 
-### `QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)`
+### `Kora.raycast.fromCamera(maxDistance, flags, ignoreEntity)`
 Convenience wrapper: builds the ray from the gameplay camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Lets a player "look at it" instead of supplying coordinates.
 
 #### Parameters
@@ -35,7 +35,7 @@ Same as `fromCoords`.
 
 #### Example
 ```lua
-local hit, coords, entity = QB.raycast.fromCamera(50.0)
+local hit, coords, entity = Kora.raycast.fromCamera(50.0)
 if hit then
     print(('aiming at %s at %.1f, %.1f, %.1f'):format(entity ~= 0 and ('entity ' .. entity) or 'world', coords.x, coords.y, coords.z))
 end
@@ -49,8 +49,8 @@ if hit and entity ~= 0 then
 end
 ```
 
-### `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
-Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this accepts any scripted-camera handle -- for example, the native handle returned by `QB.freecam.getCamera()` for the zone creator's aim raycast.
+### `Kora.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
+Convenience wrapper: builds the ray from a given scripted camera's position/rotation out to `maxDistance`, then calls `fromCoords`. Unlike `fromCamera`, which is hardwired to the gameplay camera, this accepts any scripted-camera handle -- for example, the native handle returned by `Kora.freecam.getCamera()` for the zone creator's aim raycast.
 
 #### Parameters
 - `cam: integer` -- Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
@@ -63,14 +63,14 @@ Same as `fromCoords`.
 
 #### Example
 ```lua
-local hit, coords, entity = QB.raycast.fromCam(freecamHandle, 50.0)
+local hit, coords, entity = Kora.raycast.fromCam(freecamHandle, 50.0)
 if hit then
     print(('freecam aiming at %s at %.1f, %.1f, %.1f'):format(entity ~= 0 and ('entity ' .. entity) or 'world', coords.x, coords.y, coords.z))
 end
 ```
 
-### `QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)`
-Fires the same shape test `fromCoords` does but returns immediately, handing back the raw ray handle instead of a settled result. Pair it with `QB.raycast.await` or `QB.raycast.poll`.
+### `Kora.raycast.start(startCoords, endCoords, flags, ignoreEntity)`
+Fires the same shape test `fromCoords` does but returns immediately, handing back the raw ray handle instead of a settled result. Pair it with `Kora.raycast.await` or `Kora.raycast.poll`.
 
 The engine resolves shape tests once per frame. A caller that needs several rays describing the same instant -- a targeting resource firing a broad world mask and a narrow entity mask, say -- should start all of them and only then await them: awaiting each ray before starting the next serialises them, costing one extra frame of latency and one extra thread wake-up per ray for information the first frame already had.
 
@@ -80,13 +80,13 @@ Identical to `fromCoords`.
 #### Returns
 - `number` -- Ray handle. Only meaningful to `await`/`poll`.
 
-### `QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
+### `Kora.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
 The `fromCamera` equivalent of `start`: builds the ray from the gameplay camera and returns its handle without waiting.
 
 #### Returns
 - `number` -- Ray handle.
 
-### `QB.raycast.await(rayHandle)`
+### `Kora.raycast.await(rayHandle)`
 Waits for a handle from `start`/`startFromCamera` to settle (yielding a frame at a time, bounded to one second, exactly like `fromCoords`) and reports it.
 
 A handle that has already settled -- because another ray started in the same frame was awaited first -- returns immediately without yielding at all. That is what makes starting several rays together cheaper than firing them one at a time.
@@ -94,7 +94,7 @@ A handle that has already settled -- because another ray started in the same fra
 #### Returns
 Same as `fromCoords`.
 
-### `QB.raycast.poll(rayHandle)`
+### `Kora.raycast.poll(rayHandle)`
 Non-blocking read of a started ray. Never yields, so a caller driving its own tick loop can start a ray on one tick and consume it on the next without parking a frame inside kora_lib.
 
 #### Returns
@@ -107,11 +107,11 @@ Non-blocking read of a started ray. Never yields, so a caller driving its own ti
 #### Example
 ```lua
 -- Two masks describing the same instant, resolved in one frame instead of two.
-local broad = QB.raycast.startFromCamera(10.0, 511)
-local entities = QB.raycast.startFromCamera(10.0, 26)
+local broad = Kora.raycast.startFromCamera(10.0, 511)
+local entities = Kora.raycast.startFromCamera(10.0, 26)
 
-local hit, coords, entity = QB.raycast.await(broad)
-local entityHit, entityCoords, entityHandle = QB.raycast.await(entities) -- already settled
+local hit, coords, entity = Kora.raycast.await(broad)
+local entityHit, entityCoords, entityHandle = Kora.raycast.await(entities) -- already settled
 ```
 
 ## Notes
@@ -122,11 +122,11 @@ local entityHit, entityCoords, entityHandle = QB.raycast.await(entities) -- alre
   `GetEntityModel`.
 - `entityHit` is `0` (not `nil`) when the ray strikes bare world geometry rather than an entity -- check `entity ~= 0` before treating it as an entity handle.
 - Client-only: raycasting only makes sense against the calling client's own rendered world/camera, so this module has no `shared.lua`/`server.lua`, the same shape as `modules/stream` and `modules/zones`.
-- `modules/zones`' zone creator now calls `QB.raycast.fromCamera` instead of its own private copy; behavior there is unchanged.
+- `modules/zones`' zone creator now calls `Kora.raycast.fromCamera` instead of its own private copy; behavior there is unchanged.
 
 ## Coordinate grabber
 
-### `QB.raycast.getCoords(data?)`
+### `Kora.raycast.getCoords(data?)`
 
 Runs a small blocking coordinate-capture tool using the gameplay camera. With
 no options it draws a white orb at the current ray hit. Press E to return the
@@ -134,7 +134,7 @@ coordinates or Backspace to cancel. `data` must be a table when supplied;
 only an omitted (`nil`) value selects the defaults.
 
 ```lua
-local result = QB.raycast.getCoords()
+local result = Kora.raycast.getCoords()
 if result then print(result.coords.x, result.coords.y, result.coords.z) end
 ```
 
@@ -143,7 +143,7 @@ its heading; the preview is deleted when the grabber finishes and is never the
 persisted object itself.
 
 ```lua
-local result = QB.raycast.getCoords({
+local result = Kora.raycast.getCoords({
     type = 'object',
     object = 'prop_bin_08',
 })

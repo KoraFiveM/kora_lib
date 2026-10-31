@@ -15,7 +15,7 @@ local registry = {}
 local rateBuckets = {}
 local pendingClientCallbacks = {}
 local requestCounter = 0
-local isInteger = QB.util.isInteger
+local isInteger = Kora.util.isInteger
 local MAX_RATE_LIMIT = 10000
 local MAX_RATE_WINDOW = 86400000
 -- A client handshakes once per session; anything faster is abuse of the
@@ -96,16 +96,16 @@ end
 -- Ownership tracking (which resource registered a given callback name, and
 -- bulk cleanup when that resource stops) is delegated to the shared registry
 -- -- see local/resources/AGENTS.md.
-local callbackOwnership = QB.resources.serverRegistry(function(name)
+local callbackOwnership = Kora.resources.serverRegistry(function(name)
     registry[name] = nil
     clearRateLimit(name)
 end)
 
-local generateToken = QB.compat.generateToken
+local generateToken = Kora.compat.generateToken
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 -- A promise object doesn't survive crossing a real cross-resource exports()
 -- call back to the caller: only METHOD CALLS on it reach the real promise
@@ -139,21 +139,21 @@ local function settleForExport(p)
     if GetInvokingResource() then
         Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
         local packed = p.koraLibCallbackResults
-        if packed == nil then return p.value end -- not a QB.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
+        if packed == nil then return p.value end -- not a Kora.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
         return table.unpack(packed, 1, packed.n)
     end
     return p
 end
 
----Registers a handler for a callback invoked from the client via QB.callback.trigger(name, ...).
+---Registers a handler for a callback invoked from the client via Kora.callback.trigger(name, ...).
 ---Requests carrying a missing or invalid per-player token are dropped silently.
 ---Automatically unregistered if the calling resource stops (see onResourceStop below) --
----most callers don't need to call QB.callback.unregister themselves.
+---most callers don't need to call Kora.callback.unregister themselves.
 ---@param name string
 ---@param handler fun(src: integer, ...: any): any
 ---@param opts? QBRegistrationOptions
-function QB.callback.register(name, handler, opts)
-    QB.callback.assertName(name)
+function Kora.callback.register(name, handler, opts)
+    Kora.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")
     local rateLimit = normalizeRateLimit(opts)
     -- Some compatibility resources intentionally replace a placeholder owned
@@ -175,11 +175,11 @@ function QB.callback.register(name, handler, opts)
     callbackOwnership.track(owner, name)
 end
 
----Unregisters a callback handler registered with QB.callback.register.
+---Unregisters a callback handler registered with Kora.callback.register.
 ---@param name string
 ---@return boolean removed
-function QB.callback.unregister(name)
-    QB.callback.assertName(name)
+function Kora.callback.unregister(name)
+    Kora.callback.assertName(name)
     local invoker = GetInvokingResource()
     if invoker and callbackOwnership.owner(name) ~= invoker then return false end
     registry[name] = nil
@@ -188,7 +188,7 @@ function QB.callback.unregister(name)
     return true
 end
 
----Triggers a callback registered on a specific client via QB.callback.register(name, handler).
+---Triggers a callback registered on a specific client via Kora.callback.register(name, handler).
 ---Not token-gated on the way out — the server is always the trusted party for its own
 ---TriggerClientEvent calls — but the client's response is only accepted from the same
 ---player it was addressed to.
@@ -200,8 +200,8 @@ end
 ---yourself). For a genuine cross-resource caller, the handler's own return values themselves, unpacked --
 ---e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
 ---settleForExport above).
-function QB.callback.trigger(target, name, ...)
-    QB.callback.assertName(name)
+function Kora.callback.trigger(target, name, ...)
+    Kora.callback.assertName(name)
     assert(isInteger(target) and target >= 1, "target must be a positive finite player server ID.")
 
     local p = promise.new()
@@ -309,7 +309,7 @@ RegisterNetEvent(events.clientResponse, function(requestId, ok, ...)
         -- resolving -- settleForExport above reads it back out for a
         -- cross-resource caller. The promise itself still resolves with only
         -- the handler's FIRST return value, unchanged from before this
-        -- existed, so a same-VM `Citizen.Await(QB.callback.trigger(...))`
+        -- existed, so a same-VM `Citizen.Await(Kora.callback.trigger(...))`
         -- caller sees no behavior change at all.
         local packed = table.pack(...)
         pending.promise.koraLibCallbackResults = packed

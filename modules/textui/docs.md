@@ -5,7 +5,7 @@ newest live handle is rendered, and removing it restores the previous entry.
 This lets independent resources show temporary prompts without overwriting or
 prematurely hiding one another.
 
-## `QB.textui.show(text, opts?) -> id`
+## `Kora.textui.show(text, opts?) -> id`
 
 Adds an entry and returns its integer handle. `text` may include newlines for
 a compact read-only status view. Options:
@@ -30,23 +30,23 @@ Options default only when omitted; an explicit invalid value (including
 Text is rendered as safe GitHub-flavoured Markdown. Raw HTML is ignored and
 unsafe link protocols are rejected by the renderer.
 
-## `QB.textui.update(id, text, opts?) -> boolean`
+## `Kora.textui.update(id, text, opts?) -> boolean`
 
 Replaces a live entry without changing its stack position. Updating a hidden
 entry takes effect if it later becomes visible. Returns `false` for an expired
 handle or one owned by another resource.
 
-## `QB.textui.hide(id) -> boolean`
+## `Kora.textui.hide(id) -> boolean`
 
 Removes one entry owned by the calling resource. If it was visible, the
 previous live entry is rendered; another resource's handle returns `false`.
 
-## `QB.textui.isOpen(id?) -> boolean`
+## `Kora.textui.isOpen(id?) -> boolean`
 
 With an ID, reports whether that handle is live. With no ID, reports whether
 the stack contains any entries.
 
-## `QB.textui.isVisible(id) -> boolean`
+## `Kora.textui.isVisible(id) -> boolean`
 
 Reports whether an entry is currently the newest live handle being rendered.
 
@@ -55,12 +55,12 @@ that resource stops. The browser component is pointer-transparent and the Lua
 module never requests NUI focus.
 
 ```lua
-local prompt = QB.textui.show('Open the vehicle', {
+local prompt = Kora.textui.show('Open the vehicle', {
     key = 'E',
     icon = 'Car',
     position = 'right-center',
 })
 
-QB.textui.update(prompt, 'Enter the vehicle', { key = 'E', icon = 'Key' })
-QB.textui.hide(prompt)
+Kora.textui.update(prompt, 'Enter the vehicle', { key = 'E', icon = 'Key' })
+Kora.textui.hide(prompt)
 ```

@@ -48,7 +48,7 @@ harness.test("text3d skips every native call beyond maxDistance", function()
     calls = {}
     playerCoords = { x = 0, y = 0, z = 0 }
 
-    QB.drawing.text3d({ x = 100, y = 0, z = 0 }, "too far", { maxDistance = 10.0 })
+    Kora.drawing.text3d({ x = 100, y = 0, z = 0 }, "too far", { maxDistance = 10.0 })
 
     harness.assertEqual(#calls, 0, "no drawing native should run beyond maxDistance")
 end)
@@ -56,10 +56,10 @@ end)
 harness.test("text3d rejects non-finite coordinates and culling ranges", function()
     calls = {}
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = math.huge, y = 0, z = 0 }, "invalid")
+        Kora.drawing.text3d({ x = math.huge, y = 0, z = 0 }, "invalid")
     end, "infinite draw origins must be rejected")
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { maxDistance = 0 / 0 })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { maxDistance = 0 / 0 })
     end, "NaN culling ranges must be rejected")
     harness.assertEqual(#calls, 0, "invalid drawing inputs must not run natives")
 end)
@@ -67,31 +67,31 @@ end)
 harness.test("text3d validates every native option before drawing", function()
     calls = {}
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { font = 1.5 })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { font = 1.5 })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { scale = math.huge })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { scale = math.huge })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { color = { r = 0, g = 0, b = 256, a = 0 } })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { color = { r = 0, g = 0, b = 256, a = 0 } })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { outline = 'yes' })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { outline = 'yes' })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", false)
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", false)
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { maxDistance = false })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { maxDistance = false })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { font = false })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { font = false })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { scale = false })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { scale = false })
     end)
     harness.assertThrows(function()
-        QB.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { color = false })
+        Kora.drawing.text3d({ x = 0, y = 0, z = 0 }, "invalid", { color = false })
     end)
     harness.assertEqual(#calls, 0, "invalid options must not run drawing natives")
 end)
@@ -100,7 +100,7 @@ harness.test("text3d draws when within maxDistance", function()
     calls = {}
     playerCoords = { x = 0, y = 0, z = 0 }
 
-    QB.drawing.text3d({ x = 5, y = 0, z = 0 }, "[E] Open", { maxDistance = 10.0 })
+    Kora.drawing.text3d({ x = 5, y = 0, z = 0 }, "[E] Open", { maxDistance = 10.0 })
 
     harness.assertTrue(#calls > 0, "drawing natives should run when within range")
 
@@ -117,7 +117,7 @@ harness.test("text3d draws exactly at maxDistance", function()
     calls = {}
     playerCoords = { x = 0, y = 0, z = 0 }
 
-    QB.drawing.text3d({ x = 3, y = 4, z = 0 }, "at range", { maxDistance = 5.0 })
+    Kora.drawing.text3d({ x = 3, y = 4, z = 0 }, "at range", { maxDistance = 5.0 })
 
     harness.assertTrue(#calls > 0, "the culling boundary should remain inclusive")
 end)
@@ -126,7 +126,7 @@ harness.test("text3d uses Config.drawing.text3d defaults when options is omitted
     calls = {}
     playerCoords = { x = 0, y = 0, z = 0 }
 
-    QB.drawing.text3d({ x = 1, y = 0, z = 0 }, "hello")
+    Kora.drawing.text3d({ x = 1, y = 0, z = 0 }, "hello")
 
     local font = callNamed("SetTextFont")
     harness.assertEqual(font[1], Config.drawing.text3d.font, "font should default from config")
@@ -142,7 +142,7 @@ harness.test("text3d option overrides reach the underlying natives", function()
     calls = {}
     playerCoords = { x = 0, y = 0, z = 0 }
 
-    QB.drawing.text3d({ x = 1, y = 0, z = 0 }, "hello", {
+    Kora.drawing.text3d({ x = 1, y = 0, z = 0 }, "hello", {
         font = 7,
         scale = 0.9,
         color = { r = 1, g = 2, b = 3, a = 4 },

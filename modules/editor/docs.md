@@ -31,7 +31,7 @@ command by changing its matching configuration field before kora_lib starts.
 ## Zone creator
 
 `/qb_zonecreator [box|sphere|poly]` starts the zone creator; omitting the
-shape starts a box creator. The result is copied as a `QB.zones.<shape>({...})`
+shape starts a box creator. The result is copied as a `Kora.zones.<shape>({...})`
 snippet after confirmation. Invalid shapes show command usage instead of
 opening the editor.
 

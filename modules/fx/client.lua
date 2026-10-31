@@ -1,5 +1,5 @@
 ---@class QBFxPtfxDef
----@field dict string Particle effect asset (ptfx) dictionary name, streamed via `QB.stream.loadPtfx`.
+---@field dict string Particle effect asset (ptfx) dictionary name, streamed via `Kora.stream.loadPtfx`.
 ---@field name string Effect name within `dict`.
 ---@field bone? string Bone name to attach to, resolved via `GetEntityBoneIndexByName`. Only honored when `entity` is also given and `looped` is true -- see the function doc comment.
 ---@field entity? number Attaches the effect to this entity. Mutually exclusive with `coords` -- `entity` wins if both are given.
@@ -15,14 +15,14 @@
 ---@field particleId? number Set only when `looped` is true -- the handle `StopParticleFxLooped` needs.
 
 ---@class QBFxScreenHandle
----@field id integer Opaque per-call identifier; use the whole handle with `QB.fx.stopScreenEffect`.
+---@field id integer Opaque per-call identifier; use the whole handle with `Kora.fx.stopScreenEffect`.
 ---@field name string
 
 -- Looped particle-fx handles, id = the native particle handle returned by
 -- StartParticleFxLooped*. Non-looped effects have nothing worth tracking --
--- they end on their own and QB.fx.stop is a no-op for them (see its doc
+-- they end on their own and Kora.fx.stop is a no-op for them (see its doc
 -- comment) -- so only looped ones ever enter this registry.
-local ptfxRegistry = QB.resources.registry(function(particleId)
+local ptfxRegistry = Kora.resources.registry(function(particleId)
     StopParticleFxLooped(particleId, false)
 end)
 
@@ -49,26 +49,26 @@ local function disposeScreenHandle(id)
     return true
 end
 
-local screenRegistry = QB.resources.registry(disposeScreenHandle)
+local screenRegistry = Kora.resources.registry(disposeScreenHandle)
 
 local function assertDuration(duration, label)
     if duration == nil then duration = 0 end
-    assert(QB.util.isInteger(duration) and duration >= 0,
+    assert(Kora.util.isInteger(duration) and duration >= 0,
         ("%s must be a finite non-negative integer."):format(label))
     return duration
 end
 
 local function assertVec3(value, label)
-    assert(value and QB.util.isFiniteNumber(value.x) and QB.util.isFiniteNumber(value.y)
-            and QB.util.isFiniteNumber(value.z),
+    assert(value and Kora.util.isFiniteNumber(value.x) and Kora.util.isFiniteNumber(value.y)
+            and Kora.util.isFiniteNumber(value.z),
         ("%s must have finite x, y, and z values."):format(label))
 end
 
----Plays a particle effect, streaming `def.dict` via `QB.stream.loadPtfx`'s
+---Plays a particle effect, streaming `def.dict` via `Kora.stream.loadPtfx`'s
 ---callback form -- the dict is released immediately after the effect starts,
 ---which is safe: once `StartParticleFx*` has been called, the running effect
 ---no longer needs its source dict flagged as needed (same release-after-use
----timing `QB.anim.play` and `modules/progressbar` use for anim dicts).
+---timing `Kora.anim.play` and `modules/progressbar` use for anim dicts).
 ---
 ---Bone attachment (`def.bone`) is only honored for a looped effect on an
 ---`entity` (`StartParticleFxLoopedOnEntityBone`) -- the non-looped on-entity
@@ -78,11 +78,11 @@ end
 ---@param def QBFxPtfxDef
 ---@return QBFxPtfxHandle | false handle False if `def.dict` never streamed in time.
 ---@return string? error
-function QB.fx.playPtfx(def)
-    assert(type(def) == "table", "QB.fx.playPtfx requires a def table.")
-    assert(type(def.dict) == "string" and type(def.name) == "string", "QB.fx.playPtfx requires string dict/name.")
-    assert(def.entity ~= nil or def.coords ~= nil, "QB.fx.playPtfx requires either def.entity or def.coords.")
-    assert(def.entity == nil or (QB.util.isInteger(def.entity) and def.entity > 0), "Particle effect entity must be a positive finite integer.")
+function Kora.fx.playPtfx(def)
+    assert(type(def) == "table", "Kora.fx.playPtfx requires a def table.")
+    assert(type(def.dict) == "string" and type(def.name) == "string", "Kora.fx.playPtfx requires string dict/name.")
+    assert(def.entity ~= nil or def.coords ~= nil, "Kora.fx.playPtfx requires either def.entity or def.coords.")
+    assert(def.entity == nil or (Kora.util.isInteger(def.entity) and def.entity > 0), "Particle effect entity must be a positive finite integer.")
     assert(def.bone == nil or type(def.bone) == "string", "Particle effect bone must be a string.")
     assert(def.looped == nil or type(def.looped) == "boolean", "Particle effect looped must be a boolean.")
     local duration = assertDuration(def.duration, "Particle effect duration")
@@ -99,12 +99,12 @@ function QB.fx.playPtfx(def)
     if not def.entity then assertVec3(def.coords, "Particle effect coordinates") end
     assertVec3(offset, "Particle effect offset")
     assertVec3(rot, "Particle effect rotation")
-    assert(QB.util.isFiniteNumber(scale), "Particle effect scale must be finite.")
+    assert(Kora.util.isFiniteNumber(scale), "Particle effect scale must be finite.")
 
     local particleId
     local started = false
 
-    local loadedDict, loadErr = QB.stream.loadPtfx(def.dict, function()
+    local loadedDict, loadErr = Kora.stream.loadPtfx(def.dict, function()
         UseParticleFxAssetNextCall(def.dict)
 
         if def.entity and looped and def.bone then
@@ -158,12 +158,12 @@ function QB.fx.playPtfx(def)
     return { looped = looped, particleId = looped and particleId or nil }
 end
 
----Stops a looped particle effect started with `QB.fx.playPtfx`. A no-op for
+---Stops a looped particle effect started with `Kora.fx.playPtfx`. A no-op for
 ---a non-looped handle (or `false`/`nil`) -- there is nothing to stop, the
 ---effect ends on its own.
 ---@param handle QBFxPtfxHandle | false
 ---@return boolean stopped
-function QB.fx.stop(handle)
+function Kora.fx.stop(handle)
     if not handle or not handle.looped or not handle.particleId then return false end
 
     local caller = GetInvokingResource() or GetCurrentResourceName()
@@ -181,9 +181,9 @@ end
 ---@param duration? integer ms passed to `StartScreenEffect`. Defaults to 0 (the effect's own default).
 ---@param looped? boolean Defaults to false.
 ---@return QBFxScreenHandle handle
-function QB.fx.screenEffect(name, duration, looped)
-    assert(type(name) == "string" and #name > 0, "QB.fx.screenEffect requires a string effect name.")
-    assert(looped == nil or type(looped) == "boolean", "QB.fx.screenEffect looped must be a boolean.")
+function Kora.fx.screenEffect(name, duration, looped)
+    assert(type(name) == "string" and #name > 0, "Kora.fx.screenEffect requires a string effect name.")
+    assert(looped == nil or type(looped) == "boolean", "Kora.fx.screenEffect looped must be a boolean.")
     duration = assertDuration(duration, "Screen effect duration")
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
@@ -198,10 +198,10 @@ function QB.fx.screenEffect(name, duration, looped)
     return { id = id, name = name }
 end
 
----Stops a screen effect started with `QB.fx.screenEffect`.
+---Stops a screen effect started with `Kora.fx.screenEffect`.
 ---@param handle QBFxScreenHandle | false
 ---@return boolean stopped
-function QB.fx.stopScreenEffect(handle)
+function Kora.fx.stopScreenEffect(handle)
     if not handle then return false end
 
     local id = handle.id

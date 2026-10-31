@@ -73,7 +73,7 @@ H.test('a delayed snapshot cannot overwrite a newer live update', function()
     H.assertEqual(values.shared, 20)
 end)
 
-H.test('consumer-local QB.config forwards editor opens to kora_lib', function()
+H.test('consumer-local Kora.config forwards editor opens to kora_lib', function()
     H.assertTrue(config.open('sample'))
     H.assertEqual(openedResource, 'sample')
 end)

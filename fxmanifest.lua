@@ -7,19 +7,19 @@ name 'kora_lib'
 provide 'qblib'
 author 'Jamie'
 version '1.0.0'
-description 'Lightweight Lua library exposing a shared QB namespace over FiveM exports'
+description 'Lightweight Lua library exposing a shared Kora namespace over FiveM exports'
 
 dependency 'kora_theme'
 
 -- qb-menu, qb-input, qb-radialmenu and qb-minigames are being deprecated in
--- favour of QB.nui.openMenu/openContextMenu/openRadialMenu/openInputDialog
--- and QB.minigames.play -- `provide` only satisfies another resource's
+-- favour of Kora.nui.openMenu/openContextMenu/openRadialMenu/openInputDialog
+-- and Kora.minigames.play -- `provide` only satisfies another resource's
 -- `dependency '<name>'` check; what actually makes
 -- exports['qb-menu']:openMenu(...)/exports['qb-input']:ShowInput(...)/
 -- exports['qb-radialmenu']:AddOption(...)/exports['qb-minigames']:Hacking(...)
 -- (etc.) reach compat/client/qb-menu.lua/qb-input.lua/qb-radialmenu.lua/
 -- qb-minigames.lua is the __cfx_export_ identity bridge those files register
--- through QB.compat.provideExport (see their own header comments).
+-- through Kora.compat.provideExport (see their own header comments).
 provide 'qb-menu'
 provide 'qb-input'
 provide 'progressbar'
@@ -30,14 +30,14 @@ provide 'qb-minigames'
 -- resource. The legacy export identities are registered by its late compat bridge.
 provide 'screenshot-basic'
 
--- Consumers pull the QB proxy in with: shared_script '@kora_lib/init.lua'
+-- Consumers pull the Kora proxy in with: shared_script '@kora_lib/init.lua'
 -- It must be listed here so the client can fetch it.
 files {
     'init.lua',
-    -- QB.require executes in each consumer's Lua environment rather than as a
+    -- Kora.require executes in each consumer's Lua environment rather than as a
     -- kora_lib export, so init.lua loads this small factory on demand.
     'modules/require/loader.lua',
-    -- Like QB.require, QB.config executes in each consuming resource so it
+    -- Like Kora.require, Kora.config executes in each consuming resource so it
     -- can safely own that resource's Config table and config.local.lua.
     'modules/config/consumer.lua',
     -- Loaded into each consumer so compatibility handlers belong to and stop
@@ -63,7 +63,7 @@ files {
     -- ships 'nui/**/*'). With 'web/build/assets/**' the hashed JS/CSS bundles
     -- were silently never served: index.html loaded (it's listed explicitly),
     -- but its <script> 404'd, so React never mounted, nothing ever rendered,
-    -- and every QB.nui.request sat until it timed out.
+    -- and every Kora.nui.request sat until it timed out.
     'web/build/assets/**/*'
 }
 
@@ -72,8 +72,8 @@ files {
 ui_page 'web/build/index.html'
 
 -- Load order is significant:
---   1. build/initiate.lua  creates the empty QB table
---   2. local/** + modules/**  populate QB.<module>.<function>
+--   1. build/initiate.lua  creates the empty Kora table
+--   2. local/** + modules/**  populate Kora.<module>.<function>
 --   3. build/finalise.lua  turns every entry into a `<module>_<function>` export
 --
 -- finalise must be the LAST file loaded in each environment, so it lives in
@@ -90,15 +90,15 @@ shared_scripts {
 
 -- local/resources must load before every other local/ module: callback and
 -- events (and any future local module built the same way) create a
--- QB.resources.registry()/serverRegistry() at their own load time, which
+-- Kora.resources.registry()/serverRegistry() at their own load time, which
 -- requires that function to already exist. A `local/**/client.lua` glob
 -- expands in alphabetical folder order, which happens to put "resources"
 -- AFTER "callback"/"events" -- so local/ can't be a single glob here. Listed
 -- explicitly (not a `local/resources/client.lua` entry ALONGSIDE a
 -- `local/**/client.lua` glob -- that would match and load the same file
 -- twice). Add new local/ modules to this list explicitly, after resources.
--- compat/client/* load after 'modules/**/client.lua' (they call QB.nui.*/
--- QB.minigames.* directly) and before finalise, same reasoning
+-- compat/client/* load after 'modules/**/client.lua' (they call Kora.nui.*/
+-- Kora.minigames.* directly) and before finalise, same reasoning
 -- kora_core/fxmanifest.lua gives for its own compat/* placement: each compat
 -- function calls those modules DIRECTLY rather than through
 -- exports.kora_lib:..., so GetInvokingResource() inside it still resolves to

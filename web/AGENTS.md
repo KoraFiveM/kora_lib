@@ -163,7 +163,7 @@ foreground variants.
 Never add raw Tailwind slate, zinc, neutral, grey, sky, or blue utilities inside reusable components when an appropriate semantic token exists. Neutral palette values above are the source of truth even if a Tailwind named colour happens to look close.
 
 New UI consumers should depend directly on kora_theme and import its client bridge,
-stylesheet, and loader. `QB.theme.tokens()` remains a kora_lib compatibility
+stylesheet, and loader. `Kora.theme.tokens()` remains a kora_lib compatibility
 forward only; never re-derive the HSL math locally.
 
 ## Foundations

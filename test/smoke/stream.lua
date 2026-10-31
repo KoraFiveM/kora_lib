@@ -78,14 +78,14 @@ function _G.PlayerPedId() return 1 end
 dofile(repoRoot .. "modules/stream/client.lua")
 
 harness.test("loadModel converts a string model to a numeric hash", function()
-    local hash = QB.stream.loadModel("prop_test")
+    local hash = Kora.stream.loadModel("prop_test")
     harness.assertTrue(type(hash) == "number", "string models should resolve via joaat")
 end)
 
 harness.test("loadModel requests, waits, runs the callback, then releases the model", function()
     local seen
     local model = joaat("prop_test_2")
-    local result = QB.stream.loadModel(model, function(m) seen = m end)
+    local result = Kora.stream.loadModel(model, function(m) seen = m end)
 
     harness.assertEqual(result, model, "loadModel should return the model on success")
     harness.assertEqual(seen, model, "the callback should receive the loaded model")
@@ -94,28 +94,28 @@ end)
 
 harness.test("loadModel rejects a model IsModelValid refuses", function()
     harness.assertThrows(function()
-        QB.stream.loadModel("totally-invalid")
+        Kora.stream.loadModel("totally-invalid")
     end, "an invalid model should raise instead of silently failing")
 end)
 
 harness.test("streaming loaders reject malformed callbacks, options, and native inputs", function()
-    harness.assertThrows(function() QB.stream.loadModel(false) end)
-    harness.assertThrows(function() QB.stream.loadModel("prop_test", false) end)
-    harness.assertThrows(function() QB.stream.loadModel("prop_test", nil, false) end)
-    harness.assertThrows(function() QB.stream.loadAnimSet("move", nil, false) end)
-    harness.assertThrows(function() QB.stream.loadClipSet("move", nil, false) end)
-    harness.assertThrows(function() QB.stream.loadIpl("move", nil, false) end)
-    harness.assertThrows(function() QB.stream.loadScaleformMovie("move", nil, false) end)
-    harness.assertThrows(function() QB.stream.loadTextureDict("commonmenu", nil, "yes") end)
-    harness.assertThrows(function() QB.stream.loadWeaponAsset(false) end)
-    harness.assertThrows(function() QB.stream.loadWeaponAsset("weapon_pistol", nil, false) end)
-    harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2, z = 3 }, false) end)
-    harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2, z = 3 }, nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadModel(false) end)
+    harness.assertThrows(function() Kora.stream.loadModel("prop_test", false) end)
+    harness.assertThrows(function() Kora.stream.loadModel("prop_test", nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadAnimSet("move", nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadClipSet("move", nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadIpl("move", nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadScaleformMovie("move", nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadTextureDict("commonmenu", nil, "yes") end)
+    harness.assertThrows(function() Kora.stream.loadWeaponAsset(false) end)
+    harness.assertThrows(function() Kora.stream.loadWeaponAsset("weapon_pistol", nil, false) end)
+    harness.assertThrows(function() Kora.stream.loadCollision({ x = 1, y = 2, z = 3 }, false) end)
+    harness.assertThrows(function() Kora.stream.loadCollision({ x = 1, y = 2, z = 3 }, nil, false) end)
 end)
 
 harness.test("loadAnimSet supports caller cancellation while waiting", function()
     local polls = 0
-    local result, err = QB.stream.loadAnimSet("move", nil, {
+    local result, err = Kora.stream.loadAnimSet("move", nil, {
         shouldContinue = function()
             polls = polls + 1
             return polls < 2
@@ -128,20 +128,20 @@ harness.test("loadAnimSet supports caller cancellation while waiting", function(
 end)
 
 harness.test("streaming loaders reject empty asset names before native requests", function()
-    harness.assertThrows(function() QB.stream.loadModel("") end)
-    harness.assertThrows(function() QB.stream.loadPtfx("") end)
-    harness.assertThrows(function() QB.stream.loadAnimDict("") end)
-    harness.assertThrows(function() QB.stream.loadAnimSet("") end)
-    harness.assertThrows(function() QB.stream.loadClipSet("") end)
-    harness.assertThrows(function() QB.stream.loadIpl("") end)
-    harness.assertThrows(function() QB.stream.loadScaleformMovie("") end)
-    harness.assertThrows(function() QB.stream.loadTextureDict("") end)
-    harness.assertThrows(function() QB.stream.loadAudioBank("") end)
-    harness.assertThrows(function() QB.stream.loadWeaponAsset("") end)
+    harness.assertThrows(function() Kora.stream.loadModel("") end)
+    harness.assertThrows(function() Kora.stream.loadPtfx("") end)
+    harness.assertThrows(function() Kora.stream.loadAnimDict("") end)
+    harness.assertThrows(function() Kora.stream.loadAnimSet("") end)
+    harness.assertThrows(function() Kora.stream.loadClipSet("") end)
+    harness.assertThrows(function() Kora.stream.loadIpl("") end)
+    harness.assertThrows(function() Kora.stream.loadScaleformMovie("") end)
+    harness.assertThrows(function() Kora.stream.loadTextureDict("") end)
+    harness.assertThrows(function() Kora.stream.loadAudioBank("") end)
+    harness.assertThrows(function() Kora.stream.loadWeaponAsset("") end)
 end)
 
 harness.test("loadModel gives up and still cleans up when a model never streams in", function()
-    local model, err = QB.stream.loadModel(9999)
+    local model, err = Kora.stream.loadModel(9999)
     harness.assertFalse(model, "should report failure for a model that never loads")
     harness.assertTrue(err ~= nil, "the failure should come with a reason")
     harness.assertTrue(removedModels[9999], "the stuck request should still be released")
@@ -149,7 +149,7 @@ end)
 
 harness.test("loadModel supports caller cancellation while waiting", function()
     local polls = 0
-    local model, err = QB.stream.loadModel(9999, nil, {
+    local model, err = Kora.stream.loadModel(9999, nil, {
         timeout = 5000,
         shouldContinue = function()
             polls = polls + 1
@@ -164,33 +164,33 @@ end)
 harness.test("loadModel re-raises a callback error after cleaning up", function()
     local model = joaat("prop_test_3")
     harness.assertThrows(function()
-        QB.stream.loadModel(model, function() error("callback exploded") end)
+        Kora.stream.loadModel(model, function() error("callback exploded") end)
     end, "a callback error should propagate to the caller")
     harness.assertTrue(removedModels[model], "cleanup should still happen even when the callback errors")
 end)
 
 harness.test("loadAnimDict validates the dict exists before requesting it", function()
     harness.assertThrows(function()
-        QB.stream.loadAnimDict("does-not-exist")
+        Kora.stream.loadAnimDict("does-not-exist")
     end, "an unknown anim dict should raise")
 end)
 
 harness.test("loadAnimDict loads a known dict and runs its callback", function()
     local ran = false
-    local result = QB.stream.loadAnimDict("move_m@generic", function() ran = true end)
+    local result = Kora.stream.loadAnimDict("move_m@generic", function() ran = true end)
     harness.assertEqual(result, "move_m@generic", "should return the dict name")
     harness.assertTrue(ran, "the callback should run once the dict is loaded")
 end)
 
 harness.test("loadPtfx loads and runs its callback", function()
     local ran = false
-    QB.stream.loadPtfx("core", function() ran = true end)
+    Kora.stream.loadPtfx("core", function() ran = true end)
     harness.assertTrue(ran, "the ptfx callback should run once the asset is loaded")
 end)
 
 harness.test("loadWeaponAsset converts a string weapon name and runs its callback", function()
     local seen
-    QB.stream.loadWeaponAsset("weapon_pistol", function(hash) seen = hash end)
+    Kora.stream.loadWeaponAsset("weapon_pistol", function(hash) seen = hash end)
     harness.assertTrue(type(seen) == "number", "the weapon name should resolve to a numeric hash")
 end)
 
@@ -198,7 +198,7 @@ harness.test("loadAudioBank loads, runs its callback, then releases the bank", f
     audioBankRequests = 0
     local ran = false
 
-    local result = QB.stream.loadAudioBank("DLC_TEST_SOUNDSET", function() ran = true end)
+    local result = Kora.stream.loadAudioBank("DLC_TEST_SOUNDSET", function() ran = true end)
 
     harness.assertEqual(result, "DLC_TEST_SOUNDSET", "should return the bank name")
     harness.assertTrue(ran, "the callback should run once the bank is loaded")
@@ -207,20 +207,20 @@ harness.test("loadAudioBank loads, runs its callback, then releases the bank", f
 end)
 
 harness.test("loadAudioBank gives up on a bank that never reports ready", function()
-    local result, err = QB.stream.loadAudioBank("never_loads")
+    local result, err = Kora.stream.loadAudioBank("never_loads")
     harness.assertFalse(result, "a bank that never loads should report failure")
     harness.assertTrue(err ~= nil, "a failed load should come with an error message")
 end)
 
 harness.test("loadAudioBank rejects a non-string bank", function()
-    harness.assertThrows(function() QB.stream.loadAudioBank(123) end, "a numeric audio bank should raise")
+    harness.assertThrows(function() Kora.stream.loadAudioBank(123) end, "a numeric audio bank should raise")
 end)
 
 harness.test("loadCollision requests at the given coords and runs its callback", function()
     requestedCollisionAt = nil
     local ran = false
 
-    local ok = QB.stream.loadCollision({ x = 10, y = 20, z = 30 }, function() ran = true end)
+    local ok = Kora.stream.loadCollision({ x = 10, y = 20, z = 30 }, function() ran = true end)
 
     harness.assertTrue(ok, "collision should report success once loaded")
     harness.assertTrue(ran, "the callback should run once collision is ready")
@@ -229,8 +229,8 @@ harness.test("loadCollision requests at the given coords and runs its callback",
 end)
 
 harness.test("loadCollision rejects malformed coords", function()
-    harness.assertThrows(function() QB.stream.loadCollision({ x = 1, y = 2 }) end, "coords missing z should raise")
-    harness.assertThrows(function() QB.stream.loadCollision({ x = math.huge, y = 2, z = 3 }) end,
+    harness.assertThrows(function() Kora.stream.loadCollision({ x = 1, y = 2 }) end, "coords missing z should raise")
+    harness.assertThrows(function() Kora.stream.loadCollision({ x = math.huge, y = 2, z = 3 }) end,
         "non-finite collision coordinates should raise")
 end)
 

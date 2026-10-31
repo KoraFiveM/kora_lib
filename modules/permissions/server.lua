@@ -1,5 +1,5 @@
--- QB.permissions (server realm) -- one permission gateway over FiveM ACEs and,
--- when a caller opts in, QB.discord's fail-closed role cache. ACE checks are
+-- Kora.permissions (server realm) -- one permission gateway over FiveM ACEs and,
+-- when a caller opts in, Kora.discord's fail-closed role cache. ACE checks are
 -- always evaluated and win immediately; Discord roles can add a grant but can
 -- never disable an ACE grant such as group.admin.
 
@@ -88,7 +88,7 @@ local function discordAllows(src, permission, discordRoles)
 
     -- hasAnyRole rejects disabled bots and missing/stale member snapshots. A
     -- role lookup failure must fail closed without disturbing the ACE result.
-    local hasAnyRole = QB.discord and QB.discord.hasAnyRole
+    local hasAnyRole = Kora.discord and Kora.discord.hasAnyRole
     if type(hasAnyRole) ~= 'function' then return false end
     local ok, allowed = pcall(hasAnyRole, src, roles)
     return ok and allowed == true
@@ -99,7 +99,7 @@ end
 ---@param levels string[] -- ordered most-privileged first; 'user' always matches
 ---@param prefixOrOptions string|table|nil -- prefix, or { prefix?, discordRoles? }
 ---@return string
-function QB.permissions.getLevel(src, levels, prefixOrOptions)
+function Kora.permissions.getLevel(src, levels, prefixOrOptions)
     assertPlayerSource(src)
     assertLevels(levels)
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
@@ -120,12 +120,12 @@ end
 ---@param levels string[]
 ---@param prefixOrOptions string|table|nil -- prefix, or { prefix?, discordRoles? }
 ---@return boolean
-function QB.permissions.hasLevel(src, required, levels, prefixOrOptions)
+function Kora.permissions.hasLevel(src, required, levels, prefixOrOptions)
     assertPlayerSource(src)
     assert(type(required) == 'string' and required ~= '', 'Required permission level must be a non-empty string.')
     assertLevels(levels)
 
-    local held = QB.permissions.getLevel(src, levels, prefixOrOptions)
+    local held = Kora.permissions.getLevel(src, levels, prefixOrOptions)
     local heldIndex, requiredIndex
     for index = 1, #levels do
         local level = levels[index]
@@ -139,7 +139,7 @@ end
 ---@param permission string
 ---@param prefixOrOptions string|table|nil -- prefix, or { prefix?, discordRoles? }
 ---@return boolean
-function QB.permissions.hasPermission(src, permission, prefixOrOptions)
+function Kora.permissions.hasPermission(src, permission, prefixOrOptions)
     assertPlayerSource(src)
     assert(type(permission) == 'string' and permission ~= '', 'Permission must be a non-empty string.')
     if permission == 'user' then return true end
@@ -160,7 +160,7 @@ end
 ---@param prefixOrOptions string|table|nil
 ---@return table checks array of { level, object, raw, type, allowed }
 ---@return string resolved
-function QB.permissions.explain(src, levels, prefixOrOptions)
+function Kora.permissions.explain(src, levels, prefixOrOptions)
     assertPlayerSource(src)
     assertLevels(levels)
     local prefix = resolveOptions(prefixOrOptions)
@@ -184,5 +184,5 @@ function QB.permissions.explain(src, levels, prefixOrOptions)
         end
     end
 
-    return checks, QB.permissions.getLevel(src, levels, prefixOrOptions)
+    return checks, Kora.permissions.getLevel(src, levels, prefixOrOptions)
 end

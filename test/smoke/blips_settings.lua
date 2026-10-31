@@ -55,7 +55,7 @@ local registered = {
 local visibleByCategory = { [13] = true, [14] = false }
 local hideCalls, showCalls = {}, {}
 
-QB.blips = {
+Kora.blips = {
     getCategories = function() return categories end,
     getCategory = function(target)
         for index = 1, #categories do
@@ -85,7 +85,7 @@ QB.blips = {
 local registeredApp, lastUpdate
 local appOpen = false
 local openCalls, closeCalls = 0, 0
-QB.nui = {
+Kora.nui = {
     registerApp = function(definition)
         registeredApp = definition
         return definition.id
@@ -108,7 +108,7 @@ QB.nui = {
 }
 
 local admin = true
-QB.callback = {
+Kora.callback = {
     trigger = function()
         local result = promise.new()
         result:resolve(admin)

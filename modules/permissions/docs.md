@@ -27,12 +27,12 @@ local options = {
 
 Omit `discordRoles` (or leave it empty) for ACE-only behavior. Mapped values
 may be one role name/ID or a non-empty dense string array; matching any mapped role grants that
-permission. Discord checks use `QB.discord.hasAnyRole`, including its bot,
+permission. Discord checks use `Kora.discord.hasAnyRole`, including its bot,
 identifier, freshness, and fail-closed rules.
 
 ## API
 
-### `QB.permissions.getLevel(src, levels, prefixOrOptions?)` -- server
+### `Kora.permissions.getLevel(src, levels, prefixOrOptions?)` -- server
 Resolves the highest privilege level a player holds.
 
 #### Parameters
@@ -51,22 +51,22 @@ Resolves the highest privilege level a player holds.
 #### Example
 ```lua
 local LEVELS = { 'god', 'admin', 'mod', 'user' }
-local level = QB.permissions.getLevel(source, LEVELS, 'qbcore')
+local level = Kora.permissions.getLevel(source, LEVELS, 'qbcore')
 ```
 
-### `QB.permissions.hasLevel(src, required, levels, prefixOrOptions?)` -- server
+### `Kora.permissions.hasLevel(src, required, levels, prefixOrOptions?)` -- server
 Checks a ranked requirement using the same ACE/Discord resolution as
 `getLevel`. `levels` is ordered most-privileged first, so an `admin` result
 satisfies a `mod` requirement without ACE principal chaining.
 
 ```lua
 local LEVELS = { 'god', 'admin', 'mod', 'user' }
-if QB.permissions.hasLevel(source, 'mod', LEVELS, options) then
+if Kora.permissions.hasLevel(source, 'mod', LEVELS, options) then
     -- admin and god also pass
 end
 ```
 
-### `QB.permissions.hasPermission(src, permission, prefixOrOptions?)` -- server
+### `Kora.permissions.hasPermission(src, permission, prefixOrOptions?)` -- server
 Checks whether a player holds one specific permission.
 
 #### Parameters
@@ -82,7 +82,7 @@ Checks whether a player holds one specific permission.
 
 #### Example
 ```lua
-if QB.permissions.hasPermission(source, 'admin', 'qbcore') then
+if Kora.permissions.hasPermission(source, 'admin', 'qbcore') then
     -- ...
 end
 ```
@@ -92,7 +92,7 @@ Called cross-resource via export:
 exports.kora_lib:permissions_hasPermission(source, 'admin', 'myresource')
 ```
 
-### `QB.permissions.explain(src, levels, prefixOrOptions?)` -- server
+### `Kora.permissions.explain(src, levels, prefixOrOptions?)` -- server
 Diagnostics. Reports every ACE object `getLevel` would consult for `src`, in
 order, with the raw value `IsPlayerAceAllowed` returned for each. Nothing gates
 on this -- it exists so a "my ACEs look correct but I have no permissions"
@@ -116,7 +116,7 @@ rejected before any ACE lookup.
 
 #### Example
 ```lua
-local checks, resolved = QB.permissions.explain(source, LEVELS, 'qbcore')
+local checks, resolved = Kora.permissions.explain(source, LEVELS, 'qbcore')
 for _, check in ipairs(checks) do
     print(check.object, check.raw, check.type, check.allowed)
 end

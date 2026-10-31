@@ -18,7 +18,7 @@ _G.GetCurrentResourceName = function() return 'kora_lib' end
 _G.GetResourceState = function(resource) return resource == 'kora_admin' and 'stopped' or 'started' end
 _G.StopResource = function(resource) stoppedResource = resource; return true end
 _G.StartResource = function(resource) startedResource = resource; return true end
-QB = {
+Kora = {
     callback = { register = function(name, handler) callbacks[name] = handler end },
     commands = { add = function(name, _, _, _, handler, options)
         registeredCommand = { name = name, handler = handler, options = options }
@@ -69,13 +69,13 @@ H.test('every editor callback requires the exact configuration ACE', function()
 end)
 
 H.test('an unavailable owner returns a normal editor error', function()
-    local commit = QB.config.commit
-    QB.config.commit = function() error('resource stopped', 0) end
+    local commit = Kora.config.commit
+    Kora.config.commit = function() error('resource stopped', 0) end
     local value, err = callbacks['kora_lib:configCommit'](12,
         { resource = 'sample', path = { 'enabled' }, value = false, revision = 1 })
     H.assertEqual(value, nil)
     H.assertEqual(err, 'configuration is unavailable')
-    QB.config.commit = commit
+    Kora.config.commit = commit
 end)
 
 H.test('reads sanitize secrets and commits only valid requests', function()
@@ -96,7 +96,7 @@ H.test('reads sanitize secrets and commits only valid requests', function()
 end)
 
 H.test('reads preserve authored numeric object keys', function()
-    QB.config.read = function()
+    Kora.config.read = function()
         return {
             resource = 'sample',
             schema = { kind = 'object', fields = {
@@ -115,7 +115,7 @@ H.test('reads preserve authored numeric object keys', function()
 end)
 
 H.test('reads retain added inferred-list rows using the first authored item schema', function()
-    QB.config.read = function()
+    Kora.config.read = function()
         return {
             resource = 'sample',
             schema = { kind = 'object', fields = {
@@ -137,7 +137,7 @@ H.test('an authorised owner can restart a registered resource but not kora_lib',
     H.assertEqual(stoppedResource, 'sample')
     H.assertEqual(startedResource, 'sample')
 
-    QB.config.catalog = function() return { { resource = 'kora_lib', schema = {} } } end
+    Kora.config.catalog = function() return { { resource = 'kora_lib', schema = {} } } end
     result = callbacks['kora_lib:configRestart'](12, 'kora_lib')
     H.assertFalse(result.ok)
 end)

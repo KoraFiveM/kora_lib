@@ -8,7 +8,7 @@ local mocks = require("mocks")
 
 local net = mocks.install()
 
--- QB.timers is a shared module that picks its ownership registry by realm at
+-- Kora.timers is a shared module that picks its ownership registry by realm at
 -- first use. mocks.lua deliberately doesn't define IsDuplicityVersion (it is a
 -- realm marker, not a module native), so this file pins the client realm and
 -- loads local/resources/client.lua to match.
@@ -22,7 +22,7 @@ dofile(repoRoot .. "modules/util/shared.lua")
 
 harness.test("setInterval fires once per tick and keeps going", function()
     local runs = 0
-    local id = QB.timers.setInterval(function() runs = runs + 1 end, 100)
+    local id = Kora.timers.setInterval(function() runs = runs + 1 end, 100)
 
     harness.assertEqual(runs, 0, "the first run must be a full interval away, not immediate")
 
@@ -32,17 +32,17 @@ harness.test("setInterval fires once per tick and keeps going", function()
     net.step()
     harness.assertEqual(runs, 2, "the interval should keep running after its first tick")
 
-    QB.timers.clearInterval(id)
+    Kora.timers.clearInterval(id)
 end)
 
 harness.test("clearInterval stops the timer without firing one extra tick", function()
     local runs = 0
-    local id = QB.timers.setInterval(function() runs = runs + 1 end, 100)
+    local id = Kora.timers.setInterval(function() runs = runs + 1 end, 100)
 
     net.step()
     harness.assertEqual(runs, 1, "sanity: the interval ran once")
 
-    local cancelled = QB.timers.clearInterval(id)
+    local cancelled = Kora.timers.clearInterval(id)
     harness.assertTrue(cancelled, "clearInterval should report that it cancelled a live timer")
 
     -- The coroutine is parked inside Wait() at this point. Resuming it must
@@ -53,18 +53,18 @@ harness.test("clearInterval stops the timer without firing one extra tick", func
 end)
 
 harness.test("clearInterval reports false for an unknown or already-cancelled id", function()
-    harness.assertFalse(QB.timers.clearInterval(999999), "an id that was never live should report false")
-    harness.assertFalse(QB.timers.clearInterval(0 / 0), "NaN must not reach the timer record table")
-    harness.assertFalse(QB.timers.clearTimeout(math.huge), "infinite ids are not timer handles")
+    harness.assertFalse(Kora.timers.clearInterval(999999), "an id that was never live should report false")
+    harness.assertFalse(Kora.timers.clearInterval(0 / 0), "NaN must not reach the timer record table")
+    harness.assertFalse(Kora.timers.clearTimeout(math.huge), "infinite ids are not timer handles")
 
-    local id = QB.timers.setInterval(function() end, 100)
-    QB.timers.clearInterval(id)
-    harness.assertFalse(QB.timers.clearInterval(id), "cancelling twice should report false the second time")
+    local id = Kora.timers.setInterval(function() end, 100)
+    Kora.timers.clearInterval(id)
+    harness.assertFalse(Kora.timers.clearInterval(id), "cancelling twice should report false the second time")
 end)
 
 harness.test("setTimeout fires exactly once", function()
     local runs = 0
-    QB.timers.setTimeout(function() runs = runs + 1 end, 50)
+    Kora.timers.setTimeout(function() runs = runs + 1 end, 50)
 
     harness.assertEqual(runs, 0, "a timeout must not fire synchronously")
 
@@ -76,19 +76,19 @@ harness.test("setTimeout fires exactly once", function()
 end)
 
 harness.test("a fired timeout untracks itself", function()
-    local before = QB.timers.count()
-    QB.timers.setTimeout(function() end, 50)
-    harness.assertEqual(QB.timers.count(), before + 1, "a pending timeout should be counted")
+    local before = Kora.timers.count()
+    Kora.timers.setTimeout(function() end, 50)
+    harness.assertEqual(Kora.timers.count(), before + 1, "a pending timeout should be counted")
 
     net.step()
-    harness.assertEqual(QB.timers.count(), before, "a fired one-shot must drop out of tracking, not leak an entry")
+    harness.assertEqual(Kora.timers.count(), before, "a fired one-shot must drop out of tracking, not leak an entry")
 end)
 
 harness.test("clearTimeout prevents a pending timeout from firing", function()
     local runs = 0
-    local id = QB.timers.setTimeout(function() runs = runs + 1 end, 50)
+    local id = Kora.timers.setTimeout(function() runs = runs + 1 end, 50)
 
-    harness.assertTrue(QB.timers.clearTimeout(id), "clearTimeout should cancel a pending one-shot")
+    harness.assertTrue(Kora.timers.clearTimeout(id), "clearTimeout should cancel a pending one-shot")
 
     net.step()
     harness.assertEqual(runs, 0, "a cancelled timeout must never run")
@@ -96,14 +96,14 @@ end)
 
 harness.test("foreign resources cannot cancel an owned timer", function()
     _G.GetInvokingResource = function() return "timer_owner" end
-    local id = QB.timers.setInterval(function() end, 100)
+    local id = Kora.timers.setInterval(function() end, 100)
 
     _G.GetInvokingResource = function() return "other_resource" end
-    harness.assertFalse(QB.timers.clearInterval(id),
+    harness.assertFalse(Kora.timers.clearInterval(id),
         "another resource must not cancel an owned timer")
 
     _G.GetInvokingResource = function() return "timer_owner" end
-    harness.assertTrue(QB.timers.clearTimeout(id),
+    harness.assertTrue(Kora.timers.clearTimeout(id),
         "the timer owner should still be able to cancel it through either alias")
     _G.GetInvokingResource = function() return nil end
 end)
@@ -112,7 +112,7 @@ harness.test("timers are cancelled when their owning resource stops", function()
     local runs = 0
 
     _G.GetInvokingResource = function() return "some_other_resource" end
-    QB.timers.setInterval(function() runs = runs + 1 end, 100)
+    Kora.timers.setInterval(function() runs = runs + 1 end, 100)
     _G.GetInvokingResource = function() return nil end
 
     net.step()
@@ -126,7 +126,7 @@ end)
 
 harness.test("setInterval contains a handler error and keeps ticking", function()
     local runs = 0
-    local id = QB.timers.setInterval(function()
+    local id = Kora.timers.setInterval(function()
         runs = runs + 1
         error("boom")
     end, 100)
@@ -135,7 +135,7 @@ harness.test("setInterval contains a handler error and keeps ticking", function(
     net.step()
 
     harness.assertEqual(runs, 2, "an erroring tick must not kill the interval")
-    QB.timers.clearInterval(id)
+    Kora.timers.clearInterval(id)
 end)
 
 harness.test("setInterval accepts a cross-resource callable table", function()
@@ -145,26 +145,26 @@ harness.test("setInterval accepts a cross-resource callable table", function()
     -- would reject outright.
     local callable = setmetatable({}, { __call = function() runs = runs + 1 end })
 
-    local id = QB.timers.setInterval(callable, 100)
+    local id = Kora.timers.setInterval(callable, 100)
     net.step()
 
     harness.assertEqual(runs, 1, "a __call table must be accepted like a plain function")
-    QB.timers.clearInterval(id)
+    Kora.timers.clearInterval(id)
 end)
 
 harness.test("timer APIs reject a non-callable, negative, and non-finite interval", function()
-    harness.assertThrows(function() QB.timers.setInterval("not a function", 100) end,
+    harness.assertThrows(function() Kora.timers.setInterval("not a function", 100) end,
         "a string handler should be refused")
-    harness.assertThrows(function() QB.timers.setInterval(function() end, -1) end,
+    harness.assertThrows(function() Kora.timers.setInterval(function() end, -1) end,
         "a negative interval should be refused")
-    harness.assertThrows(function() QB.timers.setInterval(function() end, 0.5) end,
+    harness.assertThrows(function() Kora.timers.setInterval(function() end, 0.5) end,
         "fractional intervals must not silently become per-frame timers")
     for _, create in ipairs({
-        function() QB.timers.setInterval(function() end, math.huge) end,
-        function() QB.timers.setTimeout(function() end, math.huge) end,
-        function() QB.timers.debounce(function() end, math.huge) end,
-        function() QB.timers.throttle(function() end, math.huge) end,
-        function() QB.timers.cooldown(math.huge) end,
+        function() Kora.timers.setInterval(function() end, math.huge) end,
+        function() Kora.timers.setTimeout(function() end, math.huge) end,
+        function() Kora.timers.debounce(function() end, math.huge) end,
+        function() Kora.timers.throttle(function() end, math.huge) end,
+        function() Kora.timers.cooldown(math.huge) end,
     }) do
         harness.assertThrows(create, "timer delays must be finite")
     end
@@ -172,7 +172,7 @@ end)
 
 harness.test("debounce fires once, with the last call's arguments", function()
     local calls = {}
-    local save = QB.timers.debounce(function(value) calls[#calls + 1] = value end, 100)
+    local save = Kora.timers.debounce(function(value) calls[#calls + 1] = value end, 100)
 
     save("first")
     save("second")
@@ -190,7 +190,7 @@ end)
 
 harness.test("debounce cancel drops the pending run", function()
     local runs = 0
-    local save = QB.timers.debounce(function() runs = runs + 1 end, 100)
+    local save = Kora.timers.debounce(function() runs = runs + 1 end, 100)
 
     save()
     harness.assertTrue(save.cancel(), "cancel should report that it dropped a pending run")
@@ -202,7 +202,7 @@ end)
 
 harness.test("throttle passes the first call and drops the rest of the window", function()
     local runs = 0
-    local alert = QB.timers.throttle(function() runs = runs + 1 end, 1000)
+    local alert = Kora.timers.throttle(function() runs = runs + 1 end, 1000)
 
     harness.assertTrue(alert(), "the leading-edge call should pass through and report true")
     harness.assertEqual(runs, 1, "the first call runs immediately")
@@ -220,7 +220,7 @@ harness.test("throttle passes the first call and drops the rest of the window", 
 end)
 
 harness.test("throttle reports its remaining cooldown and can be reset", function()
-    local alert = QB.timers.throttle(function() end, 1000)
+    local alert = Kora.timers.throttle(function() end, 1000)
 
     harness.assertEqual(alert.remaining(), 0, "an unused throttle is ready immediately")
 
@@ -234,7 +234,7 @@ end)
 
 harness.test("throttle forwards arguments to the wrapped function", function()
     local seen
-    local alert = QB.timers.throttle(function(a, b) seen = { a, b } end, 1000)
+    local alert = Kora.timers.throttle(function(a, b) seen = { a, b } end, 1000)
 
     alert("shots_fired", 42)
 
@@ -243,7 +243,7 @@ harness.test("throttle forwards arguments to the wrapped function", function()
 end)
 
 harness.test("keyed cooldowns keep identities independent", function()
-    local cooldown = QB.timers.cooldown(1000)
+    local cooldown = Kora.timers.cooldown(1000)
     harness.assertTrue(cooldown.use('a'))
     harness.assertFalse(cooldown.use('a'))
     harness.assertTrue(cooldown.use('b'))
@@ -257,7 +257,7 @@ harness.test("keyed cooldowns keep identities independent", function()
 end)
 
 harness.test('keyed cooldowns reject retaining non-scalar or unbounded keys', function()
-    local cooldown = QB.timers.cooldown(1000)
+    local cooldown = Kora.timers.cooldown(1000)
     harness.assertThrows(function() cooldown.use({ player = 1 }) end)
     harness.assertThrows(function() cooldown.remaining(math.huge) end)
     harness.assertThrows(function() cooldown.reset(string.rep('x', 257)) end)
@@ -267,8 +267,8 @@ end)
 -- must also expose a plain `.run` field -- funcrefs DO cross. Dropping `.run`
 -- is what broke kora_police's melee detector with "attempt to call a table value".
 harness.test("throttle and debounce handles expose a plain .run field", function()
-    local throttled = QB.timers.throttle(function() end, 1000)
-    local debounced = QB.timers.debounce(function() end, 100)
+    local throttled = Kora.timers.throttle(function() end, 1000)
+    local debounced = Kora.timers.debounce(function() end, 100)
 
     harness.assertEqual(type(throttled.run), "function",
         "throttle must expose .run as a plain function, not only __call")
@@ -279,7 +279,7 @@ end)
 harness.test("throttle .run behaves exactly like calling the handle", function()
     local runs = 0
     local seen
-    local alert = QB.timers.throttle(function(...) runs = runs + 1; seen = { ... } end, 1000)
+    local alert = Kora.timers.throttle(function(...) runs = runs + 1; seen = { ... } end, 1000)
 
     harness.assertTrue(alert.run("melee", 7), ".run should pass the leading-edge call through")
     harness.assertEqual(runs, 1, ".run must actually invoke the wrapped function")
@@ -296,7 +296,7 @@ end)
 
 harness.test("debounce .run behaves exactly like calling the handle", function()
     local calls = {}
-    local save = QB.timers.debounce(function(value) calls[#calls + 1] = value end, 100)
+    local save = Kora.timers.debounce(function(value) calls[#calls + 1] = value end, 100)
 
     save.run("first")
     save.run("second")

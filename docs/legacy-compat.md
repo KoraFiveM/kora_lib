@@ -5,10 +5,10 @@ permalink: /legacy-compat/
 
 # Legacy resource compatibility
 
-kora_lib can replace several older standalone resources while consumers migrate to the native `QB` APIs. Its manifest uses `provide` so dependency checks succeed, and its compatibility bridge registers exports under each legacy resource identity.
+kora_lib can replace several older standalone resources while consumers migrate to the native `Kora` APIs. Its manifest uses `provide` so dependency checks succeed, and its compatibility bridge registers exports under each legacy resource identity.
 
 Compatibility providers can use
-`QB.compat.provideExport(resourceName, exportName, callable)` in either realm.
+`Kora.compat.provideExport(resourceName, exportName, callable)` in either realm.
 It registers the hidden CFX export event that `provide` alone does not create;
 the callable may be a Lua function or a FiveM funcref. Registration executes
 inside the consuming resource, so the alias handler stops with its provider
@@ -26,7 +26,7 @@ exports['qb-menu']:closeMenu()
 exports['qb-menu']:showHeader(items)
 ```
 
-The legacy `qb-menu:client:openMenu` and `qb-menu:client:closeMenu` events are also handled. Menus render through `QB.nui.openMenu`. Legacy Font Awesome class names are not kora_lib's Lucide icon names, so unsupported icons are dropped. See the [NUI reference]({{ site.baseurl }}/reference/nui/) for the field mapping and dispatch rules.
+The legacy `qb-menu:client:openMenu` and `qb-menu:client:closeMenu` events are also handled. Menus render through `Kora.nui.openMenu`. Legacy Font Awesome class names are not kora_lib's Lucide icon names, so unsupported icons are dropped. See the [NUI reference]({{ site.baseurl }}/reference/nui/) for the field mapping and dispatch rules.
 
 ## qb-input
 
@@ -36,7 +36,7 @@ Provided client export:
 local values = exports['qb-input']:ShowInput(definition)
 ```
 
-The bridge maps supported text, number, password, radio, select, and checkbox fields to `QB.nui.openInputDialog`. Radio groups become selects, a checkbox group becomes individual booleans, and Font Awesome icons are dropped. Cancellation returns `nil`.
+The bridge maps supported text, number, password, radio, select, and checkbox fields to `Kora.nui.openInputDialog`. Radio groups become selects, a checkbox group becomes individual booleans, and Font Awesome icons are dropped. Cancellation returns `nil`.
 
 ## qb-radialmenu
 
@@ -64,7 +64,7 @@ exports['qb-minigames']:WordGuess(...)
 exports['qb-minigames']:WordScramble(...)
 ```
 
-Calls render through `QB.minigames.play`. These legacy client-only calls do not mint a server-consumable proof; use kora_lib's authorization flow when success gates a valuable server action. Lockpick and Skillbar have documented mechanic differences. See [Minigames]({{ site.baseurl }}/reference/minigames/) for signatures and result mapping.
+Calls render through `Kora.minigames.play`. These legacy client-only calls do not mint a server-consumable proof; use kora_lib's authorization flow when success gates a valuable server action. Lockpick and Skillbar have documented mechanic differences. See [Minigames]({{ site.baseurl }}/reference/minigames/) for signatures and result mapping.
 
 ## screenshot-basic
 
@@ -97,10 +97,10 @@ The optional `ox_lib` resource provides the complete pinned
 [ox_lib 3.39.0 surface]({{ site.baseurl }}/migration/ox-lib/); `PolyZone`
 targets PolyZone 2.6.2 and provides `client.lua`, BoxZone, CircleZone,
 EntityZone, and ComboZone over kora_lib's zone engine. Static shapes use
-`QB.zones`; EntityZone uses model-local containment so it follows a moving or
+`Kora.zones`; EntityZone uses model-local containment so it follows a moving or
 rotating entity without rebuilding grid entries. `destroy()`/`remove()` stops
 any transition or custom-point polling owned by that wrapper. Native kora_lib
-resources should use `QB.nui` and `QB.zones` directly; `QB.ox` is private to
+resources should use `Kora.nui` and `Kora.zones` directly; `Kora.ox` is private to
 the optional `ox_lib` bridge.
 
 ### PolyZone bridge coverage
@@ -150,7 +150,7 @@ ensure PolyZone # only for @PolyZone/... imports
 
 Do not enable either line pre-emptively. Keep the importing resource after its
 wrapper, and remove the wrapper again once the final consumer has migrated to
-the native `QB` API. Default configurations must use explicit resource lines,
+the native `Kora` API. Default configurations must use explicit resource lines,
 not broad `ensure [test]` or `ensure [compat]` group starts, because those
 groups can also start optional wrappers.
 
@@ -202,5 +202,5 @@ names, because players' saved key bindings are stored under them.
 1. Start kora_lib in a test environment while the consumer still uses its legacy calls.
 2. Exercise every menu, input, radial action, minigame, or screenshot path the resource owns.
 3. Check the relevant mapping caveats above.
-4. Replace legacy calls with native `QB.nui`, `QB.minigames`, or `QB.screenshot` calls when you need a kora_lib-only capability.
+4. Replace legacy calls with native `Kora.nui`, `Kora.minigames`, or `Kora.screenshot` calls when you need a kora_lib-only capability.
 5. Remove the standalone legacy resource only after all consumers work through kora_lib's provided identity.

@@ -24,7 +24,7 @@ dofile(repoRoot .. 'init.lua')
 
 harness.test('consumer compat aliases register in the consumers environment', function()
     local expected = function() return 'ok' end
-    QB.compat.provideExport('legacy', 'action', expected)
+    Kora.compat.provideExport('legacy', 'action', expected)
     local provided
     handlers.__cfx_export_legacy_action(function(value) provided = value end)
     harness.assertEqual(provided, expected)

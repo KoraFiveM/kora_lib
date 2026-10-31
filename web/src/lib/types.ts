@@ -1,11 +1,11 @@
 // The full Lua <-> NUI message contract. Every message from Lua arrives as a
 // `window` `message` event shaped like NuiWireMessage below (see
-// useNuiEvent.ts). Fire-and-forget messages (QB.nui.send) put the raw payload
-// directly in `data`; request/response messages (QB.nui.request) wrap it as
+// useNuiEvent.ts). Fire-and-forget messages (Kora.nui.send) put the raw payload
+// directly in `data`; request/response messages (Kora.nui.request) wrap it as
 // NuiRequestEnvelope, and expect the reply POSTed to the "kora_lib:nui:response"
 // NUI callback (see respondToNui in fetchNui.ts) as a NuiResponseEnvelope.
 //
-// Keep this file in sync with every Lua-side QB.nui.send/request call site:
+// Keep this file in sync with every Lua-side Kora.nui.send/request call site:
 // modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
 // openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
 // zoneCreator:* actions), modules/placement/client.lua (the placement:* actions),
@@ -762,7 +762,7 @@ export interface ProgressStartPayload {
 // action: "progressCancel" (fire-and-forget, no payload) -- hides the bar
 // immediately instead of waiting for its own fill animation to finish.
 // Lua sends this on every early-exit path (death, the cancel key,
-// QB.progressbar.cancel(), or QB.progressbar.start itself erroring), so the
+// Kora.progressbar.cancel(), or Kora.progressbar.start itself erroring), so the
 // visual can never keep filling past the point the real bar it represents
 // already ended.
 
@@ -780,9 +780,9 @@ export type NotifyPosition =
     | "top"
     | "bottom"
 
-// action: "notify" (fire-and-forget) -- see modules/notify/. QB.notify.send
+// action: "notify" (fire-and-forget) -- see modules/notify/. Kora.notify.send
 // resolves duration/type/position from Config.notify before sending (see
-// QB.notify.withDefaults), so they arrive populated in practice; they stay
+// Kora.notify.withDefaults), so they arrive populated in practice; they stay
 // optional here because the Toast component must not trust that -- any
 // resource can post a bare payload straight to this action.
 export interface NotifyPayload {
@@ -1036,7 +1036,7 @@ export type MinigameAttempt =
     | CancelledAttempt
 
 // action: "minigames:round" (request) -- mount/update MinigameContainer. Sent
-// once per round: the FIRST round after QB.minigames.play() starts, and again
+// once per round: the FIRST round after Kora.minigames.play() starts, and again
 // after every failed-but-not-exhausted attempt, in the SAME mounted overlay
 // (Lua never closes and reopens it between rounds -- see
 // modules/minigames/AGENTS.md). `puzzle` is the server-generated round to
@@ -1061,7 +1061,7 @@ export interface MinigamesClosePayload {
     result?: "success" | "exhausted" | "cancelled"
 }
 
-// Persistent, display-only qbdispatch:feed payload from QB.nui.setDispatchFeed.
+// Persistent, display-only qbdispatch:feed payload from Kora.nui.setDispatchFeed.
 export interface DispatchFeedCall {
     id: number
     code?: string

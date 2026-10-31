@@ -4,25 +4,25 @@
 This module fires world-geometry raycasts and reports what they hit -- coordinates, struck entity, and surface normal -- either between two explicit points or from the gameplay camera outward.
 
 ## Public API
-- `QB.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
+- `Kora.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)`
   - Starts an asynchronous `StartShapeTestRay`, waits for `GetShapeTestResult` to report completion, then returns the settled result.
   - Returns `hit, coords, entityHit, surfaceNormal`.
-- `QB.raycast.fromCamera(maxDistance, flags, ignoreEntity)`
+- `Kora.raycast.fromCamera(maxDistance, flags, ignoreEntity)`
   - Builds a ray from `GetGameplayCamCoord`/`GetGameplayCamRot(2)` out to `maxDistance`, then delegates to `fromCoords`.
   - Same return shape as `fromCoords`.
-- `QB.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
+- `Kora.raycast.fromCam(cam, maxDistance, flags, ignoreEntity)`
   - Builds a ray from a given scripted camera handle's `GetCamCoord`/`GetCamRot(cam, 2)` out to `maxDistance`, then delegates to `fromCoords`.
   - Same return shape as `fromCoords`.
-- `QB.raycast.getCoords(data?)`
+- `Kora.raycast.getCoords(data?)`
   - Runs an interactive gameplay-camera coordinate picker. No options draws an
     orb; `{ type = "object", object = model }` creates a heading-only preview.
   - Returns rounded `{ coords, object }` data on E or `nil` on Backspace, and
     always removes its temporary UI, controls lease, and preview.
-- `QB.raycast.start(startCoords, endCoords, flags, ignoreEntity)` / `QB.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
+- `Kora.raycast.start(startCoords, endCoords, flags, ignoreEntity)` / `Kora.raycast.startFromCamera(maxDistance, flags, ignoreEntity)`
   - Fire the shape test and return its raw handle immediately, without settling it.
-- `QB.raycast.await(rayHandle)`
+- `Kora.raycast.await(rayHandle)`
   - Settles a started handle, yielding a frame at a time under the same one-second bound `fromCoords` uses. Returns immediately for a handle that has already settled.
-- `QB.raycast.poll(rayHandle)`
+- `Kora.raycast.poll(rayHandle)`
   - Non-blocking read. Returns `settled, hit, coords, entityHit, surfaceNormal`; nothing after `settled` is meaningful until it is true.
 
 ## Implementation notes

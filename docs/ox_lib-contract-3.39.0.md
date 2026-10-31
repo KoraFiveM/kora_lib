@@ -108,9 +108,9 @@ Client engine cache keys are `playerId`, `serverId`, `ped`, `vehicle`, `seat`,
 The resource polls every 100 ms. `cache.coords` is opportunistically updated by
 points/zones (it is not part of the base cache poll).
 
-kora_lib gap: `QB` proxy only; no `lib`, global callable/indexable `cache`,
+kora_lib gap: `Kora` proxy only; no `lib`, global callable/indexable `cache`,
 `lib.onCache`, loader metadata, startup guards, interval globals, or ox cache
-events. `QB.cache` has related but incompatible function getters, extra keys,
+events. `Kora.cache` has related but incompatible function getters, extra keys,
 different update cadence, handler ordering/isolation, and write semantics.
 
 ## 2. Resource exports (P0)
@@ -369,7 +369,7 @@ These must be consumer-local to preserve methods/metatables.
   8/16/32/64, Float32/64, LuaInt/UluaInt/LuaNum, null-terminated String;
   endian boolean; setters chain and error when forbidden growth occurs.
 
-kora_lib gap: all are missing; `QB.util.weightedChoice` and deepClone are isolated
+kora_lib gap: all are missing; `Kora.util.weightedChoice` and deepClone are isolated
 helpers, not substitute contracts.
 
 ## 7. Shared primitive/library extensions (P1)
@@ -485,7 +485,7 @@ Nearby/closest defaults use strict distance `< 2.0`:
 - `getRelativeCoords` supports (vec3,heading,offset), (vec4,offset), or
   (vec3,rotationVec3,offset), preserving vec4 heading.
 
-kora_lib `QB.closest/world` uses different options/filtering, defaults and return
+kora_lib `Kora.closest/world` uses different options/filtering, defaults and return
 shapes. Thin exact adapters are possible but must preserve strict boundary and
 vector types.
 
@@ -505,7 +505,7 @@ Client imports:
   requests dict, plays, removes dict.
 
 All requests return synchronously after yielding; invalid input/load timeout
-raises an error. kora_lib `QB.stream.*` is callback-oriented with different
+raises an error. kora_lib `Kora.stream.*` is callback-oriented with different
 timeouts/failure values, so exact wrappers are required.
 
 `lib.disableControls` is callable each frame and has capitalized
@@ -685,7 +685,7 @@ Cross-cutting release gates:
    metadata/branding changes that do not affect runtime.
 2. Enumerate direct exports in client and server and compare to section 2.
 3. Run kora_lib's full smoke suite and every qbcore2 consumer suite after adding
-   aliases/adapters; existing `QB.*` contracts must remain unchanged.
+   aliases/adapters; existing `Kora.*` contracts must remain unchanged.
 4. Add external black-box fixtures using only documented ox syntax—never
    loading kora_lib directly—including manifest eager imports.
 5. Preserve upstream LGPL-3.0 `LICENSE`, `NOTICE.md`, source headers, and make

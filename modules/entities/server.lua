@@ -1,6 +1,6 @@
 ---@alias QBServerVehicleType "automobile" | "bike" | "boat" | "heli" | "plane" | "submarine" | "trailer" | "train"
 
-local isFiniteNumber = QB.util.isFiniteNumber
+local isFiniteNumber = Kora.util.isFiniteNumber
 
 local vehicleTypes = {
     automobile = true,
@@ -38,13 +38,13 @@ end
 ---@param coords table Coordinates with x, y, z, and optional w/heading.
 ---@param vehicleType QBServerVehicleType? Server setter type; defaults to automobile.
 ---@return number | false, string?
-function QB.entities.createVehicle(model, coords, vehicleType)
+function Kora.entities.createVehicle(model, coords, vehicleType)
     local modelHash = resolveModel(model)
     local typeName = vehicleType or 'automobile'
     assert(vehicleTypes[typeName], ('Invalid server vehicle type: %s'):format(tostring(typeName)))
 
     local x, y, z, heading = resolveCoords(coords)
-    if not QB.lookup.vehicle(modelHash) then
+    if not Kora.lookup.vehicle(modelHash) then
         return false, 'Vehicle model is invalid.'
     end
 

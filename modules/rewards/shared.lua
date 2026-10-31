@@ -15,11 +15,11 @@ local function resolveAmount(item)
         return 1
     end
 
-    if QB.util.isFiniteNumber(amount) then
+    if Kora.util.isFiniteNumber(amount) then
         return amount
     end
 
-    assert(type(amount) == "table" and QB.util.isInteger(amount.min) and QB.util.isInteger(amount.max),
+    assert(type(amount) == "table" and Kora.util.isInteger(amount.min) and Kora.util.isInteger(amount.max),
         "item.amount must be a number or a { min, max } table with integer bounds")
     assert(amount.min <= amount.max, "item.amount.min must not be greater than item.amount.max")
 
@@ -55,7 +55,7 @@ local function resolveChances(items, mode)
     for i = 1, #items do
         local item = items[i]
         if item.chance ~= nil then
-            assert(QB.util.isFiniteNumber(item.chance) and item.chance > 0, "item.chance must be a positive number")
+            assert(Kora.util.isFiniteNumber(item.chance) and item.chance > 0, "item.chance must be a positive number")
             if mode == "percent" then
                 assert(item.chance <= 100, "item.chance must not exceed 100 in percent mode")
             end
@@ -78,7 +78,7 @@ local function resolveChances(items, mode)
     return chances
 end
 
----Builds the `{value, weight}` pairs `QB.util.weightedChoice` expects.
+---Builds the `{value, weight}` pairs `Kora.util.weightedChoice` expects.
 ---@param items QBRewardItem[]
 ---@param chances number[]
 ---@return {[1]: QBRewardItem, [2]: number}[]
@@ -101,7 +101,7 @@ end
 ---@return QBRewardItem[]
 local function roll(items, chances, weightedPairs, mode)
     if mode == "weighted" then
-        return { QB.util.weightedChoice(weightedPairs) }
+        return { Kora.util.weightedChoice(weightedPairs) }
     end
 
     local hits = {}
@@ -125,11 +125,11 @@ end
 ---@param items QBRewardItem[] Reward pool. Must be non-empty.
 ---@param opts? { mode?: "weighted" | "percent", rolls?: integer, allowNone?: boolean }
 ---@return table[] rewards Copies of the winning items, each with `amount` resolved to a number. Guaranteed non-empty unless `opts.allowNone` is `true`.
-function QB.rewards.generate(items, opts)
+function Kora.rewards.generate(items, opts)
     assert(type(items) == "table", "items must be a non-empty array")
     local itemCount = 0
     for index, item in pairs(items) do
-        assert(QB.util.isInteger(index) and index >= 1 and type(item) == 'table',
+        assert(Kora.util.isInteger(index) and index >= 1 and type(item) == 'table',
             'items must be a dense array of tables')
         itemCount = itemCount + 1
     end
@@ -142,7 +142,7 @@ function QB.rewards.generate(items, opts)
     assert(mode == "weighted" or mode == "percent", "opts.mode must be \"weighted\" or \"percent\"")
 
     local rolls = opts.rolls == nil and 1 or opts.rolls
-    assert(QB.util.isInteger(rolls) and rolls >= 1 and rolls <= MAX_REWARD_RESULTS,
+    assert(Kora.util.isInteger(rolls) and rolls >= 1 and rolls <= MAX_REWARD_RESULTS,
         ("opts.rolls must be an integer between 1 and %d"):format(MAX_REWARD_RESULTS))
     assert(opts.allowNone == nil or type(opts.allowNone) == "boolean", "opts.allowNone must be a boolean")
     assert(mode ~= 'percent' or itemCount * rolls <= MAX_REWARD_RESULTS,
@@ -164,7 +164,7 @@ function QB.rewards.generate(items, opts)
     -- up empty. Unless the caller explicitly allows that, force one more
     -- pick so a reward roll never hands back nothing.
     if #rewards == 0 and not opts.allowNone then
-        rewards[1] = toReward(QB.util.weightedChoice(weightedPairs))
+        rewards[1] = toReward(Kora.util.weightedChoice(weightedPairs))
     end
 
     return rewards

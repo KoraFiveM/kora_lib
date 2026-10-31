@@ -10,17 +10,17 @@ freecam, returns/copies its transform, and deletes the preview on every exit.
 
 - Never leave the preview alive after confirm, cancel, error, owner stop, or
   kora_lib stop. `releaseStateResources` is the shared teardown path.
-- Never create a networked entity. Spawn through `QB.entities.create` and keep
-  its normal owner tracking intact until `QB.entities.remove` is called.
+- Never create a networked entity. Spawn through `Kora.entities.create` and keep
+  its normal owner tracking intact until `Kora.entities.remove` is called.
 - Capture `GetInvokingResource()` before raycasting or streaming yields.
 - Keep heading separate from Euler yaw: capture both from their native getters
   with entity rotation order `2`.
-- Camera movement/lifecycle belongs to `QB.freecam`; placement retains only
-  entity transform movement. Instruction prompts belong to `QB.instructional`.
+- Camera movement/lifecycle belongs to `Kora.freecam`; placement retains only
+  entity transform movement. Instruction prompts belong to `Kora.instructional`.
 - HUD messages are capped by `Config.placement.hudUpdateInterval`; entity
   movement remains per-frame and frame-time-scaled.
 - The placement and zone creators are mutually exclusive. Keep both guards and
-  `QB.placement.isActive()` in sync if lifecycle states change.
+  `Kora.placement.isActive()` in sync if lifecycle states change.
 - The summary's Copy & Finish action must not settle on clipboard failure.
 - Every teardown sends `placement:closeConfirm`; without that response an
   owner stop during the summary could leave NUI focus held until timeout.

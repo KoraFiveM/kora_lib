@@ -32,8 +32,8 @@ dofile(repoRoot .. "modules/util/shared.lua")
 local messages = {}
 local instructionButtons
 local instructionsHidden = false
-QB.nui = { send = function(action, data) messages[#messages + 1] = { action = action, data = data } end }
-QB.instructional = {
+Kora.nui = { send = function(action, data) messages[#messages + 1] = { action = action, data = data } end }
+Kora.instructional = {
     show = function(buttons)
         instructionButtons = buttons
         return { hide = function() instructionsHidden = true end }
@@ -47,33 +47,33 @@ local cameras = {
 }
 
 harness.test("camera opens a fixed network and switches cameras", function()
-    QB.camera.open({ mode = "cctv", cameras = cameras, viewMode = 4 })
-    harness.assertTrue(QB.camera.isOpen(), "camera should be open")
+    Kora.camera.open({ mode = "cctv", cameras = cameras, viewMode = 4 })
+    harness.assertTrue(Kora.camera.isOpen(), "camera should be open")
     harness.assertEqual(rendered, true, "fixed cameras should render through script cams")
     harness.assertEqual(cameraHandles, 1, "the first camera should be created")
     harness.assertEqual(#instructionButtons, 3, "a camera network should show switch and exit instructions")
-    QB.camera.next()
+    Kora.camera.next()
     harness.assertEqual(cameraHandles, 2, "next should create the second camera")
     harness.assertEqual(messages[#messages].data.cameraLabel, "CAM 02", "next should update the HUD label")
 end)
 
 harness.test("camera close restores the player's view and rejects malformed cameras", function()
-    QB.camera.close("test")
-    harness.assertFalse(QB.camera.isOpen(), "camera should be closed")
+    Kora.camera.close("test")
+    harness.assertFalse(Kora.camera.isOpen(), "camera should be closed")
     harness.assertEqual(rendered, false, "script cameras should be disabled")
     harness.assertEqual(restoredView, 1, "the previous follow-camera mode should be restored")
     harness.assertTrue(instructionsHidden, "closing should hide camera instructions")
     harness.assertThrows(function()
-        QB.camera.open({ mode = "cctv", cameras = { { coords = { x = 1, y = 2 } } } })
+        Kora.camera.open({ mode = "cctv", cameras = { { coords = { x = 1, y = 2 } } } })
     end, "malformed camera coordinates should fail early")
 end)
 
 harness.test("operator mode keeps the native view and still shows the HUD", function()
     rendered = nil
-    QB.camera.open({ mode = "helicam", recording = true })
-    harness.assertTrue(QB.camera.isOpen(), "operator mode should open without fixed cameras")
+    Kora.camera.open({ mode = "helicam", recording = true })
+    harness.assertTrue(Kora.camera.isOpen(), "operator mode should open without fixed cameras")
     harness.assertEqual(rendered, nil, "operator mode should not replace the native camera")
-    QB.camera.close()
+    Kora.camera.close()
 end)
 
 harness.report("camera")

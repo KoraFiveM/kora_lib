@@ -11,7 +11,7 @@ dofile(repoRoot .. 'modules/util/shared.lua')
 
 local calls = {}
 _G.IsModelInCdimage, _G.IsModelAVehicle = nil, nil
-QB.lookup.vehicle = function(hash) return hash == joaat('sultan') and {} or nil end
+Kora.lookup.vehicle = function(hash) return hash == joaat('sultan') and {} or nil end
 function _G.CreateVehicleServerSetter(model, vehicleType, x, y, z, heading)
     calls = { model, vehicleType, x, y, z, heading }
     return 42
@@ -22,7 +22,7 @@ function _G.NetworkGetNetworkIdFromEntity() return 4242 end
 dofile(repoRoot .. 'modules/entities/server.lua')
 
 harness.test('creates a strictmode server vehicle and returns its network id', function()
-    local netId, err = QB.entities.createVehicle('sultan', { x = 1, y = 2, z = 3, w = 90.0 })
+    local netId, err = Kora.entities.createVehicle('sultan', { x = 1, y = 2, z = 3, w = 90.0 })
     harness.assertEqual(err, nil)
     harness.assertEqual(netId, 4242)
     harness.assertEqual(calls[2], 'automobile')
@@ -31,13 +31,13 @@ end)
 
 harness.test('rejects an invalid vehicle type', function()
     harness.assertThrows(function()
-        QB.entities.createVehicle('sultan', { x = 1, y = 2, z = 3 }, 'spaceship')
+        Kora.entities.createVehicle('sultan', { x = 1, y = 2, z = 3 }, 'spaceship')
     end)
 end)
 
 harness.test('rejects models absent from the server lookup before creation', function()
     calls = {}
-    local netId, err = QB.entities.createVehicle(0, { x = 1, y = 2, z = 3 })
+    local netId, err = Kora.entities.createVehicle(0, { x = 1, y = 2, z = 3 })
     harness.assertEqual(netId, false)
     harness.assertEqual(err, 'Vehicle model is invalid.')
     harness.assertEqual(next(calls), nil)

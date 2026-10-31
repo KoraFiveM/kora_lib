@@ -11,15 +11,15 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Same "mock QB.nui directly, resolve synchronously" trick
+-- Same "mock Kora.nui directly, resolve synchronously" trick
 -- test/smoke/minigames.lua and compat_qb_menu.lua use -- ShowInput has to
--- consume QB.nui.openInputDialog's result itself (to return the legacy
+-- consume Kora.nui.openInputDialog's result itself (to return the legacy
 -- table-or-false shape), not just hand a promise back to its own caller.
 local sentFields = nil
 local sentTitle = nil
 local nextResult = nil
 
-QB.nui = {
+Kora.nui = {
     openInputDialog = function(fields, title)
         sentFields = fields
         sentTitle = title
@@ -213,12 +213,12 @@ harness.test("a field with no name is rejected", function()
     end, "an input with no name should be rejected")
 end)
 
--- QB.nui.openInputDialog returns an already-awaited result while the
+-- Kora.nui.openInputDialog returns an already-awaited result while the
 -- compatibility export is handling a call from another resource. Awaiting
 -- that table a second time would silently turn it into nil in real CfxLua.
-harness.test("the export path consumes QB.nui.openInputDialog's plain result directly", function()
+harness.test("the export path consumes Kora.nui.openInputDialog's plain result directly", function()
     _G.GetInvokingResource = function() return "consumer-resource" end
-    QB.nui.openInputDialog = function()
+    Kora.nui.openInputDialog = function()
         return { values = { amount = 42 } }
     end
 

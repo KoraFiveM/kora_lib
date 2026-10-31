@@ -48,7 +48,7 @@ dofile(repoRoot .. "modules/raycast/client.lua")
 
 harness.test("fromCoords reports a miss as false with no other values", function()
     nextResult = { hit = 0 }
-    local hit, coords, entity, normal = QB.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 })
+    local hit, coords, entity, normal = Kora.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 })
 
     harness.assertFalse(hit, "a miss should report hit = false")
     harness.assertTrue(coords == nil, "coords should be nil on a miss")
@@ -63,7 +63,7 @@ harness.test("fromCoords reports coords, entity, and normal on a hit", function(
         surfaceNormal = { x = 0, y = 0, z = 1 },
         entityHit = 42,
     }
-    local hit, coords, entity, normal = QB.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 })
+    local hit, coords, entity, normal = Kora.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 })
 
     harness.assertTrue(hit, "a hit should report hit = true")
     harness.assertEqual(coords.x, 5, "hit coords should come from GetShapeTestResult")
@@ -80,7 +80,7 @@ harness.test("fromCoords waits for a pending shape test before reading its entit
         entityHit = 42,
     }
 
-    local hit, coords, entity = QB.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 })
+    local hit, coords, entity = Kora.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 10, y = 0, z = 0 })
 
     harness.assertTrue(hit, "the completed shape test should be returned")
     harness.assertEqual(coords.x, 5, "pending output coordinates must be ignored")
@@ -90,7 +90,7 @@ end)
 harness.test("fromCoords treats a shape test that never settles as a miss", function()
     pendingReads = math.huge
 
-    local hit, coords, entity, normal = QB.raycast.fromCoords(
+    local hit, coords, entity, normal = Kora.raycast.fromCoords(
         { x = 0, y = 0, z = 0 },
         { x = 10, y = 0, z = 0 }
     )
@@ -103,7 +103,7 @@ end)
 
 harness.test("fromCoords defaults flags to -1 and ignoreEntity to PlayerPedId()", function()
     nextResult = { hit = 0 }
-    QB.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 })
+    Kora.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 })
 
     harness.assertEqual(lastRayArgs[7], -1, "flags should default to -1 (everything)")
     harness.assertEqual(lastRayArgs[8], 1, "ignoreEntity should default to PlayerPedId()")
@@ -112,23 +112,23 @@ end)
 harness.test("raycast rejects non-finite coordinates and camera distances before native calls", function()
     local started = startedRays
     harness.assertThrows(function()
-        QB.raycast.start({ x = 0, y = math.huge, z = 0 }, { x = 1, y = 0, z = 0 })
+        Kora.raycast.start({ x = 0, y = math.huge, z = 0 }, { x = 1, y = 0, z = 0 })
     end)
-    harness.assertThrows(function() QB.raycast.startFromCamera(math.huge) end)
+    harness.assertThrows(function() Kora.raycast.startFromCamera(math.huge) end)
     harness.assertThrows(function()
-        QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, false)
+        Kora.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, false)
     end)
     harness.assertThrows(function()
-        QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 1, 2.5)
+        Kora.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 1, 2.5)
     end)
-    harness.assertThrows(function() QB.raycast.await(false) end)
-    harness.assertThrows(function() QB.raycast.poll(1.5) end)
+    harness.assertThrows(function() Kora.raycast.await(false) end)
+    harness.assertThrows(function() Kora.raycast.poll(1.5) end)
     harness.assertEqual(startedRays, started, "invalid inputs must not start a shape test")
 end)
 
 harness.test("fromCoords passes explicit flags and ignoreEntity through", function()
     nextResult = { hit = 0 }
-    QB.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 16, 99)
+    Kora.raycast.fromCoords({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 16, 99)
 
     harness.assertEqual(lastRayArgs[7], 16, "an explicit flags value should be used as-is")
     harness.assertEqual(lastRayArgs[8], 99, "an explicit ignoreEntity value should be used as-is")
@@ -141,7 +141,7 @@ harness.test("fromCamera delegates to fromCoords using the gameplay camera", fun
         surfaceNormal = { x = 0, y = 1, z = 0 },
         entityHit = 0,
     }
-    local hit, coords, entity = QB.raycast.fromCamera(50.0)
+    local hit, coords, entity = Kora.raycast.fromCamera(50.0)
 
     harness.assertTrue(hit, "fromCamera should report the same hit as the underlying ray")
     harness.assertEqual(coords.x, 1, "fromCamera should surface the hit coords")
@@ -155,7 +155,7 @@ harness.test("fromCam delegates to fromCoords using the given camera handle", fu
         surfaceNormal = { x = 1, y = 0, z = 0 },
         entityHit = 7,
     }
-    local hit, coords, entity = QB.raycast.fromCam(999, 50.0)
+    local hit, coords, entity = Kora.raycast.fromCam(999, 50.0)
 
     harness.assertTrue(hit, "fromCam should report the same hit as the underlying ray")
     harness.assertEqual(coords.x, 4, "fromCam should surface the hit coords")
@@ -166,7 +166,7 @@ harness.test("start fires the shape test without reading a result", function()
     nextResult = { hit = 0 }
     resultReads = 0
 
-    local handle = QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 26, 5)
+    local handle = Kora.raycast.start({ x = 0, y = 0, z = 0 }, { x = 1, y = 0, z = 0 }, 26, 5)
 
     harness.assertTrue(type(handle) == "number", "start should hand back the raw ray handle")
     harness.assertEqual(resultReads, 0, "start must not consume the result -- that is await/poll's job")
@@ -185,17 +185,17 @@ harness.test("two rays started together settle in one wait instead of two", func
     -- Both rays are in flight before either is awaited, which is the whole
     -- point of the split API: the engine settles shape tests once per frame,
     -- so the second await finds its result already there.
-    local first = QB.raycast.startFromCamera(10.0, 511)
-    local second = QB.raycast.startFromCamera(10.0, 26)
+    local first = Kora.raycast.startFromCamera(10.0, 511)
+    local second = Kora.raycast.startFromCamera(10.0, 26)
     harness.assertTrue(first ~= second, "each started ray should get its own handle")
 
     pendingReads = 1
-    local hit, coords, entity = QB.raycast.await(first)
+    local hit, coords, entity = Kora.raycast.await(first)
     harness.assertTrue(hit, "the first await should settle its ray")
     harness.assertEqual(entity, 11, "and report its entity")
 
     resultReads = 0
-    local secondHit, secondCoords = QB.raycast.await(second)
+    local secondHit, secondCoords = Kora.raycast.await(second)
     harness.assertTrue(secondHit, "the second ray should settle too")
     harness.assertEqual(secondCoords.x, 2, "and report its coords")
     harness.assertEqual(resultReads, 1, "an already-settled ray must not yield another frame")
@@ -208,15 +208,15 @@ harness.test("poll reports an unsettled ray without yielding, and never leaks pe
         surfaceNormal = { x = 0, y = 0, z = 1 },
         entityHit = 12,
     }
-    local handle = QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 5, y = 0, z = 0 })
+    local handle = Kora.raycast.start({ x = 0, y = 0, z = 0 }, { x = 5, y = 0, z = 0 })
 
     pendingReads = 1
-    local settled, hit, coords, entity = QB.raycast.poll(handle)
+    local settled, hit, coords, entity = Kora.raycast.poll(handle)
     harness.assertFalse(settled, "a pending shape test must report settled = false")
     harness.assertFalse(hit, "and must not claim a hit")
     harness.assertTrue(coords == nil and entity == nil, "pending output slots must never reach the caller")
 
-    settled, hit, coords, entity = QB.raycast.poll(handle)
+    settled, hit, coords, entity = Kora.raycast.poll(handle)
     harness.assertTrue(settled, "the completed shape test should report settled = true")
     harness.assertTrue(hit, "and its hit")
     harness.assertEqual(coords.x, 3, "and its coords")
@@ -225,9 +225,9 @@ end)
 
 harness.test("poll reports a settled miss as settled, not pending", function()
     nextResult = { hit = 0 }
-    local handle = QB.raycast.start({ x = 0, y = 0, z = 0 }, { x = 5, y = 0, z = 0 })
+    local handle = Kora.raycast.start({ x = 0, y = 0, z = 0 }, { x = 5, y = 0, z = 0 })
 
-    local settled, hit = QB.raycast.poll(handle)
+    local settled, hit = Kora.raycast.poll(handle)
     harness.assertTrue(settled, "a completed miss is settled -- a caller must not poll it forever")
     harness.assertFalse(hit, "a miss reports hit = false")
 end)
@@ -246,31 +246,31 @@ local confirmPolls = 0
 local cancelPressed = false
 local rotateLeft = false
 
-QB.controls.acquire = function()
+Kora.controls.acquire = function()
     acquiredLeases = acquiredLeases + 1
     return acquiredLeases
 end
-QB.controls.release = function()
+Kora.controls.release = function()
     releasedLeases = releasedLeases + 1
     return true
 end
-QB.compat.acquireControls = function()
+Kora.compat.acquireControls = function()
     acquiredLeases = acquiredLeases + 1
     return acquiredLeases
 end
-QB.compat.releaseControlLease = function()
+Kora.compat.releaseControlLease = function()
     releasedLeases = releasedLeases + 1
     return true
 end
-QB.textui.show = function()
+Kora.textui.show = function()
     shownPrompts = shownPrompts + 1
     return shownPrompts
 end
-QB.textui.hide = function()
+Kora.textui.hide = function()
     hiddenPrompts = hiddenPrompts + 1
     return true
 end
-QB.entities.create = function(model, coords, options)
+Kora.entities.create = function(model, coords, options)
     createdPreview = {
         entity = 99,
         model = model,
@@ -280,7 +280,7 @@ QB.entities.create = function(model, coords, options)
     previewExists = true
     return 99
 end
-QB.entities.remove = function(entity)
+Kora.entities.remove = function(entity)
     removedPreview = entity
     previewExists = false
     return true
@@ -330,7 +330,7 @@ harness.test("getCoords defaults to an orb and returns rounded coordinates", fun
         entityHit = 0,
     }
 
-    local result = QB.raycast.getCoords()
+    local result = Kora.raycast.getCoords()
 
     harness.assertEqual(result.coords.x, 1.23, "x should be rounded to two decimal places")
     harness.assertEqual(result.coords.y, -5.68, "negative values should be rounded to two decimal places")
@@ -346,7 +346,7 @@ harness.test("getCoords rejects an explicit non-table options value before start
     local leases = acquiredLeases
 
     harness.assertThrows(function()
-        QB.raycast.getCoords(false)
+        Kora.raycast.getCoords(false)
     end)
     harness.assertEqual(acquiredLeases, leases, "invalid options must not acquire controls or start the grabber")
 end)
@@ -356,7 +356,7 @@ harness.test("getCoords rejects non-finite preview model hashes before starting"
     local leases = acquiredLeases
 
     harness.assertThrows(function()
-        QB.raycast.getCoords({ type = "object", object = math.huge })
+        Kora.raycast.getCoords({ type = "object", object = math.huge })
     end)
     harness.assertEqual(acquiredLeases, leases, "invalid model hashes must not acquire controls or create a preview")
 end)
@@ -372,7 +372,7 @@ harness.test("getCoords uses a heading-only object preview and ignores it on lat
         entityHit = 0,
     }
 
-    local result = QB.raycast.getCoords({ type = "object", object = "prop_bin_08" })
+    local result = Kora.raycast.getCoords({ type = "object", object = "prop_bin_08" })
 
     harness.assertEqual(createdPreview.model, "prop_bin_08", "the requested preview model should be created")
     harness.assertEqual(lastRayArgs[8], 99, "later rays should ignore the preview instead of hitting it")
@@ -384,16 +384,16 @@ harness.test("getCoords uses a heading-only object preview and ignores it on lat
 end)
 
 harness.test("getCoords deletes its preview if the entity helper fails or leaves it alive", function()
-    local remove = QB.entities.remove
+    local remove = Kora.entities.remove
     for _, outcome in ipairs({ "false", "error", "still-alive" }) do
         resetGrabberMocks()
         nextResult = { hit = 1, coords = { x = 10, y = 20, z = 30 }, surfaceNormal = { x = 0, y = 0, z = 1 }, entityHit = 0 }
-        QB.entities.remove = function()
+        Kora.entities.remove = function()
             if outcome == "error" then error("simulated removal failure") end
             return outcome == "still-alive"
         end
-        local ok, result = pcall(QB.raycast.getCoords, { type = "object", object = "prop_bin_08" })
-        QB.entities.remove = remove
+        local ok, result = pcall(Kora.raycast.getCoords, { type = "object", object = "prop_bin_08" })
+        Kora.entities.remove = remove
 
         harness.assertTrue(ok, "preview fallback cleanup should preserve the coordinate result")
         harness.assertEqual(result.object, "prop_bin_08", "cleanup should preserve the selected model")
@@ -410,7 +410,7 @@ harness.test("getCoords cancels without coordinates when Backspace is released",
     cancelPressed = true
     nextResult = { hit = 0 }
 
-    local result = QB.raycast.getCoords()
+    local result = Kora.raycast.getCoords()
 
     harness.assertTrue(result == nil, "cancel should return nil")
     harness.assertEqual(releasedLeases, acquiredLeases, "cancel should release its controls")
@@ -425,11 +425,11 @@ harness.test("getCoords cleans up and reports preview creation failures", functi
         surfaceNormal = { x = 0, y = 0, z = 1 },
         entityHit = 0,
     }
-    local create = QB.entities.create
-    QB.entities.create = function() return false, "model did not load" end
+    local create = Kora.entities.create
+    Kora.entities.create = function() return false, "model did not load" end
 
-    local ok, err = pcall(QB.raycast.getCoords, { type = "object", object = "missing_prop" })
-    QB.entities.create = create
+    local ok, err = pcall(Kora.raycast.getCoords, { type = "object", object = "missing_prop" })
+    Kora.entities.create = create
 
     harness.assertFalse(ok, "a failed preview should reject the grabber")
     harness.assertTrue(tostring(err):find("model did not load", 1, true) ~= nil,
@@ -447,7 +447,7 @@ harness.test("getCoords exits cleanly when its owning resource stops", function(
         net.fire("onClientResourceStop", "kora_lib_test")
     end
 
-    local result = QB.raycast.getCoords()
+    local result = Kora.raycast.getCoords()
     _G.Wait = wait
 
     harness.assertTrue(result == nil, "resource shutdown should cancel the grabber")

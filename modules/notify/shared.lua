@@ -25,7 +25,7 @@ local NOTIFY_TYPES = {
 }
 
 -- Aliases from other notify APIs (ox_lib calls the info variant `inform`).
--- Resolved by QB.notify.normalizeType before validation, in one place for the
+-- Resolved by Kora.notify.normalizeType before validation, in one place for the
 -- client and server send paths; anything else still has to be a NOTIFY_TYPES key.
 local NOTIFY_TYPE_ALIASES = {
     inform = "info",
@@ -34,22 +34,22 @@ local NOTIFY_TYPE_ALIASES = {
 
 ---Maps a notify type alias (`inform`, `warn`) onto its canonical type. Values
 ---that are not a known alias (including nil/non-strings) are returned unchanged
----so the strict validation in QB.notify.assert still sees them.
+---so the strict validation in Kora.notify.assert still sees them.
 ---@param notifyType any
 ---@return any
-function QB.notify.normalizeType(notifyType)
+function Kora.notify.normalizeType(notifyType)
     if type(notifyType) ~= "string" then return notifyType end
     return NOTIFY_TYPE_ALIASES[notifyType] or notifyType
 end
 
 ---Returns a shallow copy of the payload with its `type` alias resolved; the
 ---original table is never mutated. Non-table payloads are returned as-is for
----QB.notify.assert to reject.
+---Kora.notify.assert to reject.
 ---@param payload QBNotifyPayload
 ---@return QBNotifyPayload
-function QB.notify.normalize(payload)
+function Kora.notify.normalize(payload)
     if type(payload) ~= "table" then return payload end
-    local canonical = QB.notify.normalizeType(payload.type)
+    local canonical = Kora.notify.normalizeType(payload.type)
     if canonical == payload.type then return payload end
     local copy = {}
     for k, v in pairs(payload) do copy[k] = v end
@@ -84,7 +84,7 @@ local ICON_ANIMATIONS = {
 
 ---Validates a notify payload, raising an assertion error if it's malformed.
 ---@param payload QBNotifyPayload
-function QB.notify.assert(payload)
+function Kora.notify.assert(payload)
     assert(type(payload) == "table", "Notify payload must be a table.")
 
     local title = payload.title
@@ -98,17 +98,17 @@ function QB.notify.assert(payload)
     assert(title == nil or type(title) == "string", "Notification title must be a string.")
     assert(message == nil or type(message) == "string", "Notification message must be a string.")
     assert(title or message, "Notifications require a title or message.")
-    assert(QB.util.isInteger(duration), "Duration must be a finite integer.")
+    assert(Kora.util.isInteger(duration), "Duration must be a finite integer.")
     assert(duration > 0, "Duration must be greater than 0.")
     assert(duration <= Config.notify.maxDuration,
         ("Duration must be at most %d ms (Config.notify.maxDuration)."):format(Config.notify.maxDuration))
 
-    assert(payload.type == nil or NOTIFY_TYPES[QB.notify.normalizeType(payload.type)],
+    assert(payload.type == nil or NOTIFY_TYPES[Kora.notify.normalizeType(payload.type)],
         ("Notification type must be one of info/success/warning/error, got: %s"):format(tostring(payload.type)))
     assert(payload.position == nil or NOTIFY_POSITIONS[payload.position],
         ("Notification position must be one of top/bottom + left/center/right, got: %s"):format(tostring(payload.position)))
     assert(payload.icon == nil or type(payload.icon) == "string", "Notification icon must be a string.")
-    assert(payload.id == nil or QB.util.isFiniteNumber(payload.id) or (type(payload.id) == "string" and payload.id ~= ""),
+    assert(payload.id == nil or Kora.util.isFiniteNumber(payload.id) or (type(payload.id) == "string" and payload.id ~= ""),
         "Notification id must be a finite number or non-empty string.")
     assert(payload.iconColor == nil or type(payload.iconColor) == "string", "Notification iconColor must be a string.")
     assert(payload.iconAnimation == nil or ICON_ANIMATIONS[payload.iconAnimation], "Notification iconAnimation is unsupported.")
@@ -123,10 +123,10 @@ end
 ---Lua-side config values that are never transmitted.
 ---@param payload QBNotifyPayload
 ---@return QBNotifyPayload resolved A copy; the caller's table is never mutated.
-function QB.notify.withDefaults(payload)
+function Kora.notify.withDefaults(payload)
     local duration = payload.duration
     if duration == nil then duration = Config.notify.defaultDuration end
-    local notifyType = QB.notify.normalizeType(payload.type)
+    local notifyType = Kora.notify.normalizeType(payload.type)
     if notifyType == nil then notifyType = Config.notify.defaultType end
     local position = payload.position
     if position == nil then position = Config.notify.defaultPosition end

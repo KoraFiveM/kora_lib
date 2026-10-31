@@ -1,6 +1,6 @@
 # Require
 
-`QB.require` loads Lua modules from resource files on both the client and
+`Kora.require` loads Lua modules from resource files on both the client and
 server. Paths are relative to the target resource root. A missing `.lua`
 extension is added automatically, with `<path>/init.lua` as a fallback.
 
@@ -13,13 +13,13 @@ As with Lua's built-in `require`, a module that returns nothing resolves to
 Pass a string to load one module:
 
 ```lua
-local config = QB.require.load('qbapartments', 'config')
+local config = Kora.require.load('qbapartments', 'config')
 ```
 
 Pass an ordered array to receive one return value per module:
 
 ```lua
-local config, data, params = QB.require.load('qbapartments', {
+local config, data, params = Kora.require.load('qbapartments', {
     'config',
     'public/data',
     'params',
@@ -29,15 +29,15 @@ local config, data, params = QB.require.load('qbapartments', {
 ## Load from the current resource
 
 ```lua
-local config = QB.require.current('config')
+local config = Kora.require.current('config')
 ```
 
-`local` is a reserved Lua keyword, so `QB.require.local(...)` is not valid Lua
+`local` is a reserved Lua keyword, so `Kora.require.local(...)` is not valid Lua
 syntax. The same alias is available with bracket notation when that wording is
 preferred:
 
 ```lua
-local config = QB.require['local']('config')
+local config = Kora.require['local']('config')
 ```
 
 On the client, the target files must be included in the target resource's

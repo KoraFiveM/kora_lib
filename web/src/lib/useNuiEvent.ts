@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react"
 import type { NuiWireMessage } from "./types"
 
 /**
- * Subscribes to messages sent from Lua via QB.nui.send/QB.nui.request for a
+ * Subscribes to messages sent from Lua via Kora.nui.send/Kora.nui.request for a
  * single `action` name. `handler` receives the message's `data` verbatim --
  * for a request/response action that's a NuiRequestEnvelope ({ requestId,
  * token, payload }), for a fire-and-forget action it's the raw payload.

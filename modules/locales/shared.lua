@@ -14,7 +14,7 @@ local function defaultLanguage()
 end
 
 local function currentLanguage()
-    return QB.locale._language or defaultLanguage()
+    return Kora.locale._language or defaultLanguage()
 end
 
 local function configuredLanguages()
@@ -109,14 +109,14 @@ end
 ---Returns the language selected for this FiveM client. On the server this is
 ---the configured fallback language because client KVP storage is local only.
 ---@return string
-function QB.locale.getLanguage()
+function Kora.locale.getLanguage()
     return currentLanguage()
 end
 
 ---Returns the server's selectable language codes. Configure them with
 ---`setr qb_locales "en,de"`; English and `qb_locale` are always included.
 ---@return string[]
-function QB.locale.getLanguages()
+function Kora.locale.getLanguages()
     return configuredLanguages()
 end
 
@@ -127,13 +127,13 @@ end
 ---@param key string
 ---@param ... any
 ---@return any
-function QB.locale.translate(resource, key, ...)
+function Kora.locale.translate(resource, key, ...)
     assert(validResource(resource), 'locale resource must be a valid resource name.')
     assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')
     return translate(resource, key, ...)
 end
 
-function QB.lang(key, ...)
+function Kora.lang(key, ...)
     local resource = GetInvokingResource() or GetCurrentResourceName()
     assert(resource, 'Resource name not found')
     assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')

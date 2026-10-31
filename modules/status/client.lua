@@ -4,17 +4,17 @@ local changeListeners = {}
 local nextListenerId = 0
 local movementMultiplier = 1.0
 local movementLoopRunning = false
-local isInteger = QB.util.isInteger
+local isInteger = Kora.util.isInteger
 
 -- The private bootstrap helper normalizes native functions and every Cfx
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
-local statusRegistry = QB.resources.registry(function(name)
-    QB.status.remove(name)
+local statusRegistry = Kora.resources.registry(function(name)
+    Kora.status.remove(name)
 end)
 
-local listenerRegistry = QB.resources.registry(function(listenerId)
+local listenerRegistry = Kora.resources.registry(function(listenerId)
     changeListeners[listenerId] = nil
 end)
 
@@ -52,7 +52,7 @@ end
 ---Plays `def`'s fx/anim/movement on the local ped and returns everything
 ---needed to tear it back down again. A shallow per-call copy of `def.fx.ptfx`
 ---is built rather than passing the registered def's own table straight into
----QB.fx.playPtfx -- that function is documented to accept caller-owned option
+---Kora.fx.playPtfx -- that function is documented to accept caller-owned option
 ---tables, and mutating the SAME table object every application (to default
 ---`entity`, force `looped = true`) would leak this call's ped/looped flag
 ---into the shared, registry-wide def for every future application.
@@ -67,7 +67,7 @@ local function renderEffect(def)
     local ok, err = pcall(function()
         if def.fx then
             if def.fx.screen then
-                rendered.screenHandle = QB.fx.screenEffect(def.fx.screen, nil, true)
+                rendered.screenHandle = Kora.fx.screenEffect(def.fx.screen, nil, true)
             end
 
             if def.fx.ptfx then
@@ -80,13 +80,13 @@ local function renderEffect(def)
                 }
                 if not ptfxCall.entity and not ptfxCall.coords then ptfxCall.entity = ped end
 
-                local handle = QB.fx.playPtfx(ptfxCall)
+                local handle = Kora.fx.playPtfx(ptfxCall)
                 if handle then rendered.ptfxHandle = handle end
             end
         end
 
         if def.anim then
-            local handle = QB.anim.play(ped, def.anim.dict, def.anim.clip)
+            local handle = Kora.anim.play(ped, def.anim.dict, def.anim.clip)
             if handle then rendered.animHandle = handle end
         end
 
@@ -105,11 +105,11 @@ end
 ---@param rendered table
 ---@param def QBStatusEffectDef
 clearRender = function(rendered, def)
-    if rendered.screenHandle then QB.fx.stopScreenEffect(rendered.screenHandle) end
-    if rendered.ptfxHandle then QB.fx.stop(rendered.ptfxHandle) end
+    if rendered.screenHandle then Kora.fx.stopScreenEffect(rendered.screenHandle) end
+    if rendered.ptfxHandle then Kora.fx.stop(rendered.ptfxHandle) end
     if rendered.animHandle then
-        if QB.anim.stopHandle then QB.anim.stopHandle(rendered.animHandle)
-        else QB.anim.stop(rendered.animHandle.entity) end
+        if Kora.anim.stopHandle then Kora.anim.stopHandle(rendered.animHandle)
+        else Kora.anim.stop(rendered.animHandle.entity) end
     end
 end
 
@@ -121,23 +121,23 @@ end
 
 ---Applies a registered status effect locally: renders its fx/anim/movement
 ---and starts its expiry timer. Also reachable via a server-side
----`QB.status.apply(target, ...)` push -- this is the function that push
----dispatches into (see `QB.events.onPush` below), and is equally valid to
+---`Kora.status.apply(target, ...)` push -- this is the function that push
+---dispatches into (see `Kora.events.onPush` below), and is equally valid to
 ---call directly for a purely client-local effect that never needs
 ---server-side tracking.
 ---@param name string
 ---@param opts? QBStatusApplyOptions
 ---@return boolean success
-function QB.status.apply(name, opts)
-    QB.status.assertName(name)
-    assert(opts == nil or type(opts) == "table", "QB.status.apply options must be a table.")
+function Kora.status.apply(name, opts)
+    Kora.status.assertName(name)
+    assert(opts == nil or type(opts) == "table", "Kora.status.apply options must be a table.")
     opts = opts or {}
     assert(opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
         "duration must be a non-negative integer.")
     assert(opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
         "severity must be a positive integer.")
 
-    local def = QB.status.getEffectDef(name)
+    local def = Kora.status.getEffectDef(name)
     assert(def, ("Unknown status effect: %s"):format(name))
 
     local invokingResource = GetInvokingResource()
@@ -192,7 +192,7 @@ function QB.status.apply(name, opts)
             -- actually due -- a "replace" re-application resets expiresAt,
             -- which this check honors rather than removing early.
             if current and current.expiresAt and current.expiresAt <= GetGameTimer() then
-                QB.status.remove(name)
+                Kora.status.remove(name)
             end
         end)
     end
@@ -216,15 +216,15 @@ end
 
 ---@param name string
 ---@return boolean removed False if `name` wasn't active or is owned by another resource.
-function QB.status.remove(name)
-    QB.status.assertName(name)
+function Kora.status.remove(name)
+    Kora.status.assertName(name)
     return removeStatus(name, GetInvokingResource())
 end
 
 ---@param name string
 ---@return boolean
-function QB.status.isActive(name)
-    QB.status.assertName(name)
+function Kora.status.isActive(name)
+    Kora.status.assertName(name)
     local entry = active[name]
     if not entry then return false end
     if entry.expiresAt and entry.expiresAt <= GetGameTimer() then
@@ -235,7 +235,7 @@ function QB.status.isActive(name)
 end
 
 ---@return QBStatusActiveEntry[]
-function QB.status.getActive()
+function Kora.status.getActive()
     local result = {}
     local expired = {}
     local now = GetGameTimer()
@@ -261,9 +261,9 @@ end
 ---removed, locally or via a server push. Automatically unregistered if the
 ---calling resource stops.
 ---@param handler fun(name: string, applied: boolean)
----@return integer listenerId Pass to QB.status.offChange to unregister.
-function QB.status.onChange(handler)
-    assert(isCallable(handler), "QB.status.onChange requires a function.")
+---@return integer listenerId Pass to Kora.status.offChange to unregister.
+function Kora.status.onChange(handler)
+    assert(isCallable(handler), "Kora.status.onChange requires a function.")
     local owner = GetInvokingResource() or GetCurrentResourceName()
     nextListenerId = nextListenerId + 1
     changeListeners[nextListenerId] = handler
@@ -273,7 +273,7 @@ end
 
 ---@param listenerId integer
 ---@return boolean removed
-function QB.status.offChange(listenerId)
+function Kora.status.offChange(listenerId)
     local invoker = GetInvokingResource()
     if invoker and listenerRegistry.owner(listenerId) ~= invoker then return false end
 
@@ -282,10 +282,10 @@ function QB.status.offChange(listenerId)
     return true
 end
 
-QB.events.onPush("kora_lib:status:apply", function(name, opts)
-    QB.status.apply(name, opts)
+Kora.events.onPush("kora_lib:status:apply", function(name, opts)
+    Kora.status.apply(name, opts)
 end)
 
-QB.events.onPush("kora_lib:status:remove", function(name)
-    QB.status.remove(name)
+Kora.events.onPush("kora_lib:status:remove", function(name)
+    Kora.status.remove(name)
 end)

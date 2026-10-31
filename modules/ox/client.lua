@@ -5,7 +5,7 @@ local radialItems = {}
 local radialItemOwners = {}
 local radialBrowserIds = setmetatable({}, { __mode = 'k' })
 local nextRadialBrowserId = 0
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local activeAlert
 local activeContext
@@ -78,11 +78,11 @@ end
 
 local function cancelSession(session, result, rejection)
     if not session or not session.request then return false end
-    return QB.nui.cancelRequest(session.request, result, rejection)
+    return Kora.nui.cancelRequest(session.request, result, rejection)
 end
 
 local function request(action, payload, owner, timeout, onEvent)
-    return QB.nui.requestAsync(action, payload, timeout, owner, true, onEvent)
+    return Kora.nui.requestAsync(action, payload, timeout, owner, true, onEvent)
 end
 
 local function menuPosition(position)
@@ -204,10 +204,10 @@ local function notify(data, owner, legacy)
 
     local kind = legacy and data.status or data.type
     if kind == 'inform' then kind = 'info' end
-    QB.nui.send('notify', {
+    Kora.nui.send('notify', {
         title = data.title,
         message = data.description,
-        duration = QB.util.isFiniteNumber(data.duration) and data.duration > 0 and data.duration or 3000,
+        duration = Kora.util.isFiniteNumber(data.duration) and data.duration > 0 and data.duration or 3000,
         position = data.position,
         type = kind,
         icon = iconName(data.icon),
@@ -226,7 +226,7 @@ local function notify(data, owner, legacy)
             PlaySoundFrontend(soundId, sound.name, sound.set, true)
             ReleaseSoundId(soundId)
         end
-        if sound.bank then QB.stream.loadAudioBank(sound.bank, play) else play() end
+        if sound.bank then Kora.stream.loadAudioBank(sound.bank, play) else play() end
     end
 end
 
@@ -285,12 +285,12 @@ local function transitionContext(session, id)
     if not registration then error('No context menu of such id found.', 2) end
     session.id = id
     session.registration = registration
-    return QB.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
+    return Kora.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
 end
 
 local function refreshContext(session)
     if activeContext ~= session or not session.request then return end
-    QB.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
+    Kora.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
 end
 
 local function contextEvent(session, event, data)
@@ -418,25 +418,25 @@ end
 
 local function refreshMenu(session)
     if activeMenu ~= session or not session.request then return end
-    QB.nui.updateRequest(session.request, 'updateMenu', menuPayload(session))
+    Kora.nui.updateRequest(session.request, 'updateMenu', menuPayload(session))
 end
 
 local function runMenu(session)
     local definition = session.registration.data
     while activeMenu == session do
-        session.releaseFocus = QB.nui.acquireFocus(true, false, definition.disableInput ~= true, session.owner)
+        session.releaseFocus = Kora.nui.acquireFocus(true, false, definition.disableInput ~= true, session.owner)
         if definition.disableInput == nil or definition.disableInput == true then
-            session.controlLease = QB.compat.acquireControls({ 140 }, {
+            session.controlLease = Kora.compat.acquireControls({ 140 }, {
                 disablePlayerFiring = true,
                 ignoreWeaponWheel = true,
             }, session.owner)
         end
-        session.request = QB.nui.requestAsync('openMenu', menuPayload(session), false, session.owner, false,
+        session.request = Kora.nui.requestAsync('openMenu', menuPayload(session), false, session.owner, false,
             function(event, data) menuEvent(session, event, data) end)
         local ok, result = pcall(awaitPromise, session.request)
         session.request = nil
         if session.releaseFocus then session.releaseFocus() session.releaseFocus = nil end
-        if session.controlLease then QB.compat.releaseControlLease(session.controlLease, session.owner) session.controlLease = nil end
+        if session.controlLease then Kora.compat.releaseControlLease(session.controlLease, session.owner) session.controlLease = nil end
         if activeMenu ~= session then return end
         if not ok then
             activeMenu = nil
@@ -547,26 +547,26 @@ local function refreshRadial(session)
     if activeRadial ~= session or not session.request then return end
     local tree, mapped = buildRadial(session)
     session.mapped = mapped
-    QB.nui.updateRequest(session.request, 'updateRadialMenu', { items = tree })
+    Kora.nui.updateRequest(session.request, 'updateRadialMenu', { items = tree })
 end
 
 local function releaseRadialLeases(session)
     if session.releaseFocus then session.releaseFocus() session.releaseFocus = nil end
-    if session.controls then QB.compat.releaseControlLease(session.controls, session.owner) session.controls = nil end
-    if session.pauseControls then QB.compat.releaseControlLease(session.pauseControls, session.owner) session.pauseControls = nil end
+    if session.controls then Kora.compat.releaseControlLease(session.controls, session.owner) session.controls = nil end
+    if session.pauseControls then Kora.compat.releaseControlLease(session.pauseControls, session.owner) session.pauseControls = nil end
 end
 
 local function runRadial(session)
-    session.releaseFocus = QB.nui.acquireFocus(true, true, true, session.owner)
-    session.controls = QB.compat.acquireControls({ 1, 2, 142 }, { disablePlayerFiring = true }, session.owner)
-    session.pauseControls = QB.compat.acquireControls({ 199, 200 }, { inputGroup = 2 }, session.owner)
+    session.releaseFocus = Kora.nui.acquireFocus(true, true, true, session.owner)
+    session.controls = Kora.compat.acquireControls({ 1, 2, 142 }, { disablePlayerFiring = true }, session.owner)
+    session.pauseControls = Kora.compat.acquireControls({ 199, 200 }, { inputGroup = 2 }, session.owner)
     SetCursorLocation(0.5, 0.5)
 
     local ok, err = pcall(function()
         local tree, mapped = buildRadial(session)
         if #tree == 0 then activeRadial = nil return end
         session.mapped = mapped
-        session.request = QB.nui.requestAsync('openRadialMenu', { items = tree }, false, session.owner, false,
+        session.request = Kora.nui.requestAsync('openRadialMenu', { items = tree }, false, session.owner, false,
             function(event, data) radialEvent(session, event, data) end)
         local result = awaitPromise(session.request)
         session.request = nil
@@ -609,7 +609,7 @@ local function difficultyOptions(difficulty)
     elseif difficulty == 'hard' then areaSize, multiplier = 25, 1.75
     elseif type(difficulty) == 'table' then
         areaSize, multiplier = difficulty.areaSize, difficulty.speedMultiplier
-        assert(QB.util.isFiniteNumber(areaSize) and QB.util.isFiniteNumber(multiplier),
+        assert(Kora.util.isFiniteNumber(areaSize) and Kora.util.isFiniteNumber(multiplier),
             'custom skillCheck difficulty requires finite areaSize and speedMultiplier.')
     else
         error(('invalid skillCheck difficulty: %s'):format(tostring(difficulty)), 2)
@@ -699,19 +699,19 @@ end
 
 local function startProgress(data, style, owner)
     assertOwner(owner)
-    while QB.progressbar.isActive() do Wait(0) end
+    while Kora.progressbar.isActive() do Wait(0) end
     activeProgressOwner = owner
-    local ok, completed, err = pcall(QB.progressbar.start, progressPayload(data, style, owner), owner)
+    local ok, completed, err = pcall(Kora.progressbar.start, progressPayload(data, style, owner), owner)
     if activeProgressOwner == owner then activeProgressOwner = nil end
     if not ok then error(completed, 2) end
     if err then error(err, 2) end
     return completed
 end
 
-function QB.ox.alertDialog(data, timeout, owner)
+function Kora.ox.alertDialog(data, timeout, owner)
     assertOwner(owner)
     assert(type(data) == 'table' and type(data.content) == 'string', 'ox alertDialog requires content.')
-    assert(timeout == nil or timeout == false or (QB.util.isInteger(timeout) and timeout >= 0),
+    assert(timeout == nil or timeout == false or (Kora.util.isInteger(timeout) and timeout >= 0),
         'ox alertDialog timeout must be a non-negative finite integer or false.')
     if activeAlert then return nil end
     local session = { owner = owner }
@@ -741,7 +741,7 @@ function QB.ox.alertDialog(data, timeout, owner)
     return result.confirmed and 'confirm' or 'cancel'
 end
 
-function QB.ox.closeAlertDialog(reason, owner)
+function Kora.ox.closeAlertDialog(reason, owner)
     assertOwner(owner)
     local session = activeAlert
     if not session then return end
@@ -749,13 +749,13 @@ function QB.ox.closeAlertDialog(reason, owner)
     cancelSession(session, nil, reason)
 end
 
-function QB.ox.setClipboard(value, owner)
+function Kora.ox.setClipboard(value, owner)
     assertOwner(owner)
     if type(value) ~= 'string' then return end
-    QB.nui.requestAsync('copyToClipboard', { text = value }, nil, owner, false)
+    Kora.nui.requestAsync('copyToClipboard', { text = value }, nil, owner, false)
 end
 
-function QB.ox.registerContext(context, owner)
+function Kora.ox.registerContext(context, owner)
     assertOwner(owner)
     assert(type(context) == 'table', 'ox registerContext requires a table.')
     assert(context.id or denseArray(context) or next(context) == nil,
@@ -777,14 +777,14 @@ function QB.ox.registerContext(context, owner)
     end
 end
 
-function QB.ox.showContext(id, owner) return showContext(id, owner) end
+function Kora.ox.showContext(id, owner) return showContext(id, owner) end
 
-function QB.ox.getOpenContextMenu(owner)
+function Kora.ox.getOpenContextMenu(owner)
     assertOwner(owner)
     return activeContext and activeContext.id or nil
 end
 
-function QB.ox.hideContext(onExit, owner)
+function Kora.ox.hideContext(onExit, owner)
     assertOwner(owner)
     local session = activeContext
     if not session then return end
@@ -793,7 +793,7 @@ function QB.ox.hideContext(onExit, owner)
     if onExit and isCallable(session.registration.data.onExit) then session.registration.data.onExit() end
 end
 
-function QB.ox.inputDialog(heading, rows, options, owner)
+function Kora.ox.inputDialog(heading, rows, options, owner)
     assertOwner(owner)
     assert(type(heading) == 'string', 'ox inputDialog heading must be a string.')
     assert(options == nil or type(options) == 'table', 'ox inputDialog options must be a table.')
@@ -817,7 +817,7 @@ function QB.ox.inputDialog(heading, rows, options, owner)
     return orderedInputValues(fields, result)
 end
 
-function QB.ox.closeInputDialog(owner)
+function Kora.ox.closeInputDialog(owner)
     assertOwner(owner)
     local session = activeInput
     if not session then return end
@@ -825,15 +825,15 @@ function QB.ox.closeInputDialog(owner)
     cancelSession(session, { cancelled = true })
 end
 
-function QB.ox.setNuiFocus(allowInput, disableCursor, owner)
+function Kora.ox.setNuiFocus(allowInput, disableCursor, owner)
     assertOwner(owner)
     assert(allowInput == nil or type(allowInput) == 'boolean', 'ox setNuiFocus allowInput must be a boolean.')
     assert(disableCursor == nil or type(disableCursor) == 'boolean', 'ox setNuiFocus disableCursor must be a boolean.')
     if focusReleases[owner] then focusReleases[owner]() end
-    focusReleases[owner] = QB.nui.acquireFocus(true, not disableCursor, allowInput == true, owner)
+    focusReleases[owner] = Kora.nui.acquireFocus(true, not disableCursor, allowInput == true, owner)
 end
 
-function QB.ox.resetNuiFocus(owner)
+function Kora.ox.resetNuiFocus(owner)
     assertOwner(owner)
     local release = focusReleases[owner]
     if release then
@@ -842,7 +842,7 @@ function QB.ox.resetNuiFocus(owner)
     end
 end
 
-function QB.ox.registerMenu(data, callback, owner)
+function Kora.ox.registerMenu(data, callback, owner)
     assertOwner(owner)
     assert(type(data) == 'table', 'ox registerMenu requires a table.')
     if not data.id then error('No menu id was provided.', 2) end
@@ -860,7 +860,7 @@ function QB.ox.registerMenu(data, callback, owner)
     end
 end
 
-function QB.ox.showMenu(id, startIndex, owner)
+function Kora.ox.showMenu(id, startIndex, owner)
     assertOwner(owner)
     local registration = menus[id]
     if not registration then error(('No menu with id %s was found'):format(id), 2) end
@@ -875,7 +875,7 @@ function QB.ox.showMenu(id, startIndex, owner)
     CreateThread(function() runMenu(session) end)
 end
 
-function QB.ox.hideMenu(onExit, owner)
+function Kora.ox.hideMenu(onExit, owner)
     assertOwner(owner)
     local session = activeMenu
     if not session then return end
@@ -884,12 +884,12 @@ function QB.ox.hideMenu(onExit, owner)
     if onExit and session.registration.data.onClose then session.registration.data.onClose() end
 end
 
-function QB.ox.setMenuOptions(id, options, index, owner)
+function Kora.ox.setMenuOptions(id, options, index, owner)
     assertOwner(owner)
     local registration = menus[id]
     assert(registration, ('No menu with id %s was found'):format(tostring(id)))
     if index ~= nil then
-        assert(QB.util.isInteger(index) and index >= 1, 'ox menu option index must be a positive integer.')
+        assert(Kora.util.isInteger(index) and index >= 1, 'ox menu option index must be a positive integer.')
         assert(index <= #registration.data.options, 'ox menu option index must refer to an existing option.')
         assert(type(options) == 'table', 'ox menu option must be a table.')
         registration.data.options[index] = options
@@ -904,28 +904,28 @@ function QB.ox.setMenuOptions(id, options, index, owner)
     if activeMenu and activeMenu.id == id then refreshMenu(activeMenu) end
 end
 
-function QB.ox.getOpenMenu(owner)
+function Kora.ox.getOpenMenu(owner)
     assertOwner(owner)
     return activeMenu and activeMenu.id or nil
 end
 
-function QB.ox.notify(data, owner) assertOwner(owner) return notify(data, owner, false) end
-function QB.ox.defaultNotify(data, owner) assertOwner(owner) return notify(data, owner, true) end
-function QB.ox.progressBar(data, owner) return startProgress(data, 'bar', owner) end
-function QB.ox.progressCircle(data, owner) return startProgress(data, 'circle', owner) end
+function Kora.ox.notify(data, owner) assertOwner(owner) return notify(data, owner, false) end
+function Kora.ox.defaultNotify(data, owner) assertOwner(owner) return notify(data, owner, true) end
+function Kora.ox.progressBar(data, owner) return startProgress(data, 'bar', owner) end
+function Kora.ox.progressCircle(data, owner) return startProgress(data, 'circle', owner) end
 
-function QB.ox.cancelProgress(owner)
+function Kora.ox.cancelProgress(owner)
     assertOwner(owner)
     if not activeProgressOwner then error('No progress bar is active', 2) end
-    QB.progressbar.cancel(owner)
+    Kora.progressbar.cancel(owner)
 end
 
-function QB.ox.progressActive(owner)
+function Kora.ox.progressActive(owner)
     assertOwner(owner)
     return activeProgressOwner ~= nil
 end
 
-function QB.ox.registerRadial(radial, owner)
+function Kora.ox.registerRadial(radial, owner)
     assertOwner(owner)
     assert(type(radial) == 'table' and type(radial.id) == 'string' and radial.id ~= '' and type(radial.items) == 'table',
         'ox registerRadial requires a non-empty id and items.')
@@ -941,12 +941,12 @@ function QB.ox.registerRadial(radial, owner)
     if activeRadial then refreshRadial(activeRadial) end
 end
 
-function QB.ox.getCurrentRadialId(owner)
+function Kora.ox.getCurrentRadialId(owner)
     assertOwner(owner)
     return activeRadial and activeRadial.currentId or nil
 end
 
-function QB.ox.hideRadial(owner)
+function Kora.ox.hideRadial(owner)
     assertOwner(owner)
     local session = activeRadial
     if not session then return end
@@ -954,7 +954,7 @@ function QB.ox.hideRadial(owner)
     cancelSession(session, { cancelled = true })
 end
 
-function QB.ox.addRadialItem(items, parentMenuId, owner)
+function Kora.ox.addRadialItem(items, parentMenuId, owner)
     assertOwner(owner)
     local target
     if parentMenuId then
@@ -982,7 +982,7 @@ function QB.ox.addRadialItem(items, parentMenuId, owner)
     if activeRadial then refreshRadial(activeRadial) end
 end
 
-function QB.ox.removeRadialItem(id, parentMenuId, owner)
+function Kora.ox.removeRadialItem(id, parentMenuId, owner)
     assertOwner(owner)
     local target
     if parentMenuId then
@@ -1003,7 +1003,7 @@ function QB.ox.removeRadialItem(id, parentMenuId, owner)
     if activeRadial then refreshRadial(activeRadial) end
 end
 
-function QB.ox.clearRadialItems(owner)
+function Kora.ox.clearRadialItems(owner)
     assertOwner(owner)
     for index = #radialItems, 1, -1 do
         radialItemOwners[radialItems[index]] = nil
@@ -1013,22 +1013,22 @@ function QB.ox.clearRadialItems(owner)
     if activeRadial then refreshRadial(activeRadial) end
 end
 
-function QB.ox.disableRadial(state, owner)
+function Kora.ox.disableRadial(state, owner)
     assertOwner(owner)
     assert(type(state) == 'boolean', 'ox disableRadial state must be a boolean.')
-    QB.ox._radialDisabled = state
-    if state then QB.ox.hideRadial(owner) end
+    Kora.ox._radialDisabled = state
+    if state then Kora.ox.hideRadial(owner) end
 end
 
-function QB.ox.showRadialMenu(id, owner)
+function Kora.ox.showRadialMenu(id, owner)
     assertOwner(owner)
-    if QB.ox._radialDisabled then return end
+    if Kora.ox._radialDisabled then return end
     local registration = radialMenus[id]
     if not registration or #registration.data.items == 0 then return end
     openRadial(id, owner)
 end
 
-function QB.ox.skillCheck(difficulty, inputs, owner)
+function Kora.ox.skillCheck(difficulty, inputs, owner)
     assertOwner(owner)
     if activeSkillOwner then return nil end
     if inputs ~= nil then
@@ -1038,8 +1038,8 @@ function QB.ox.skillCheck(difficulty, inputs, owner)
     for index = 1, #stages do difficultyOptions(stages[index]) end
 
     activeSkillOwner = owner
-    local releaseFocus = QB.nui.acquireFocus(true, false, false, owner)
-    local pending = QB.nui.requestAsync('oxSkillCheck', {
+    local releaseFocus = Kora.nui.acquireFocus(true, false, false, owner)
+    local pending = Kora.nui.requestAsync('oxSkillCheck', {
         difficulty = difficulty,
         inputs = inputs,
     }, false, owner, false)
@@ -1055,18 +1055,18 @@ function QB.ox.skillCheck(difficulty, inputs, owner)
     return result == true
 end
 
-function QB.ox.cancelSkillCheck(owner)
+function Kora.ox.cancelSkillCheck(owner)
     assertOwner(owner)
     if not activeSkillRequest then error('No skillCheck is active', 2) end
-    QB.nui.cancelRequest(activeSkillRequest, false)
+    Kora.nui.cancelRequest(activeSkillRequest, false)
 end
 
-function QB.ox.skillCheckActive(owner)
+function Kora.ox.skillCheckActive(owner)
     assertOwner(owner)
     return activeSkillOwner ~= nil
 end
 
-function QB.ox.showTextUI(text, options, owner)
+function Kora.ox.showTextUI(text, options, owner)
     assertOwner(owner)
     assert(type(text) == 'string' and text ~= '', 'ox showTextUI requires text.')
     assert(options == nil or type(options) == 'table', 'ox TextUI options must be a table.')
@@ -1074,9 +1074,9 @@ function QB.ox.showTextUI(text, options, owner)
     assert(options.style == nil or type(options.style) == 'table' or type(options.style) == 'string',
         'ox TextUI style must be a table or CSS declaration string.')
     if activeText and activeText.text == text then return end
-    if activeText then QB.textui.hide(activeText.handle) end
+    if activeText then Kora.textui.hide(activeText.handle) end
     local key, body = text:match('^%[([^%]]+)%]%s*%-?%s*(.+)$')
-    local handle = QB.textui.show(body or text, {
+    local handle = Kora.textui.show(body or text, {
         key = key,
         icon = iconName(options.icon),
         iconColor = options.iconColor,
@@ -1088,14 +1088,14 @@ function QB.ox.showTextUI(text, options, owner)
     activeText = { owner = owner, handle = handle, text = text }
 end
 
-function QB.ox.hideTextUI(owner)
+function Kora.ox.hideTextUI(owner)
     assertOwner(owner)
     if not activeText then return end
-    QB.textui.hide(activeText.handle)
+    Kora.textui.hide(activeText.handle)
     activeText = nil
 end
 
-function QB.ox.isTextUIOpen(owner)
+function Kora.ox.isTextUIOpen(owner)
     assertOwner(owner)
     return activeText ~= nil, activeText and activeText.text or nil
 end
@@ -1103,7 +1103,7 @@ end
 ---@param key string
 ---@param data? table|string Locale JSON data, or the legacy owner argument.
 ---@param owner? string
-function QB.ox.setLocale(key, data, owner)
+function Kora.ox.setLocale(key, data, owner)
     if owner == nil and type(data) == 'string' then
         owner = data
         data = nil
@@ -1112,16 +1112,16 @@ function QB.ox.setLocale(key, data, owner)
     assert(type(key) == 'string' and key ~= '', 'ox locale key must be a non-empty string.')
     assert(data == nil or type(data) == 'table', 'ox locale data must be a table.')
     if data then oxLocale = browserLocale(data) end
-    QB.nui.send('oxLocale', oxLocale)
+    Kora.nui.send('oxLocale', oxLocale)
     return true
 end
 
 
-QB.nui.registerCallback('kora_lib:oxLocale', function()
+Kora.nui.registerCallback('kora_lib:oxLocale', function()
     return oxLocale
 end)
 
-function QB.ox.disposeOwner(owner)
+function Kora.ox.disposeOwner(owner)
     assertOwner(owner)
     for id, registration in pairs(contexts) do if registration.owner == owner then contexts[id] = nil end end
     for id, registration in pairs(menus) do if registration.owner == owner then menus[id] = nil end end
@@ -1156,21 +1156,21 @@ function QB.ox.disposeOwner(owner)
             end
         end
     end
-    if activeAlert and activeAlert.owner == owner then QB.ox.closeAlertDialog('resource stopped', owner) end
-    if activeContext and (activeContext.owner == owner or activeContext.registration.owner == owner) then QB.ox.hideContext(false, owner) end
-    if activeInput and activeInput.owner == owner then QB.ox.closeInputDialog(owner) end
-    if activeMenu and (activeMenu.owner == owner or activeMenu.registration.owner == owner) then QB.ox.hideMenu(false, owner) end
+    if activeAlert and activeAlert.owner == owner then Kora.ox.closeAlertDialog('resource stopped', owner) end
+    if activeContext and (activeContext.owner == owner or activeContext.registration.owner == owner) then Kora.ox.hideContext(false, owner) end
+    if activeInput and activeInput.owner == owner then Kora.ox.closeInputDialog(owner) end
+    if activeMenu and (activeMenu.owner == owner or activeMenu.registration.owner == owner) then Kora.ox.hideMenu(false, owner) end
     if activeRadial and (activeRadial.owner == owner or radialChanged) then
-        QB.ox.hideRadial(owner)
+        Kora.ox.hideRadial(owner)
     end
-    if activeProgressOwner == owner and QB.progressbar.isActive() then QB.progressbar.cancel(owner) end
-    if activeSkillOwner == owner and activeSkillRequest then pcall(QB.nui.cancelRequest, activeSkillRequest, false) end
-    if activeText and activeText.owner == owner then QB.ox.hideTextUI(owner) end
-    if focusReleases[owner] then QB.ox.resetNuiFocus(owner) end
+    if activeProgressOwner == owner and Kora.progressbar.isActive() then Kora.progressbar.cancel(owner) end
+    if activeSkillOwner == owner and activeSkillRequest then pcall(Kora.nui.cancelRequest, activeSkillRequest, false) end
+    if activeText and activeText.owner == owner then Kora.ox.hideTextUI(owner) end
+    if focusReleases[owner] then Kora.ox.resetNuiFocus(owner) end
 end
 
 RegisterCommand('ox_lib-radial', function()
-    if QB.ox._radialDisabled or #radialItems == 0 then return end
+    if Kora.ox._radialDisabled or #radialItems == 0 then return end
     openRadial(nil, GetCurrentResourceName())
 end, false)
 RegisterKeyMapping('ox_lib-radial', 'Open radial menu', 'keyboard', 'z')

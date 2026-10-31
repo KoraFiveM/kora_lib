@@ -42,7 +42,7 @@ function scopedStyle(style: TextUiPayload["style"]): Record<string, string | num
     return Object.fromEntries(Object.entries(style).filter(([key, value]) => key !== "pointerEvents" && key !== "pointer-events" && (typeof value === "string" || typeof value === "number")))
 }
 
-/** Display-only QB.textui prompt. It never takes pointer or keyboard focus. */
+/** Display-only Kora.textui prompt. It never takes pointer or keyboard focus. */
 export function TextUi() {
     const [state, setState] = useState<TextUiPayload | null>(null)
 

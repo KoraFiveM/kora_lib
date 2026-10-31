@@ -31,7 +31,7 @@ local function navigation(id)
     end
 end
 
-QB = {
+Kora = {
     callback = { trigger = function(name, request)
         if name == 'kora_lib:configCatalog' then return {
             { resource = entry.resource, revision = entry.revision, schema = entry.schema, loaded = false },
@@ -77,7 +77,7 @@ function RegisterNetEvent(name, handler) events[name] = handler end
 dofile(repoRoot .. 'modules/config/editor_client.lua')
 
 H.test('every registered resource remains available in the sidebar', function()
-    QB.config.open('sample')
+    Kora.config.open('sample')
     H.assertEqual(definition.id, 'kora_lib:config')
     H.assertEqual(openArgs.viewId, 'resource:sample')
     H.assertEqual(definition.navigation[1].id, 'resources')
@@ -135,7 +135,7 @@ H.test('vectors and optional values use typed controls instead of raw JSON', fun
     entry.configured = { location = { x = 1, y = 2, z = 3 } }
     entry.values = { location = { x = 1, y = 2, z = 3 } }
 
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local result = definition.onAction('config:setting', {
         viewId = 'resource:sample', itemId = 'location',
     })
@@ -174,7 +174,7 @@ end)
 
 H.test('restart-required resources expose and run an explicit apply action', function()
     otherEntry.configured = { mode = 2, nickname = '' }
-    QB.config.open('other')
+    Kora.config.open('other')
     local view = navigation('resource:other')
     H.assertEqual(view.content.actions[2].id, 'config:restart')
     local result = definition.onAction('config:restart', { viewId = 'resource:other' })
@@ -184,7 +184,7 @@ H.test('restart-required resources expose and run an explicit apply action', fun
 end)
 
 H.test('enum values retain their authored type and strings may be empty', function()
-    QB.config.open('other')
+    Kora.config.open('other')
     local result = definition.onAction('config:setting', { viewId = 'resource:other', itemId = 'mode' })
     local otherView
     for _, item in ipairs(result.update.navigation) do
@@ -218,7 +218,7 @@ H.test('numeric config keys keep their authored values in the editor', function(
     entry.configured = { restricted = { [2] = true } }
     entry.values = { restricted = { [2] = false } }
 
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local result = definition.onAction('config:setting', {
         viewId = 'resource:sample', itemId = 'restricted\31' .. '2',
     })
@@ -240,7 +240,7 @@ H.test('list settings use editable key and value rows and preserve value types',
     entry.configured = { locations = { 'airport' } }
     entry.values = { locations = { 'airport' } }
 
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local result = definition.onAction('config:setting', {
         viewId = 'resource:sample', itemId = 'locations',
     })
@@ -271,7 +271,7 @@ H.test('map settings accept new text keys and boolean values', function()
     entry.configured = { roles = { police = true } }
     entry.values = { roles = { police = true } }
 
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local result = definition.onAction('config:setting', {
         viewId = 'resource:sample', itemId = 'roles',
     })
@@ -300,7 +300,7 @@ H.test('mixed-key maps round-trip numeric keys and use compact table summaries',
     entry.configured = { rates = { default = 0.5, [0] = 0.1 } }
     entry.values = { rates = { default = 0.5, [0] = 0.1 } }
 
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local overview = navigation('resource:sample').content.blocks[1]
     H.assertEqual(overview.rows[1].value, '2 rows')
     local result = definition.onAction('config:setting', {
@@ -336,7 +336,7 @@ H.test('advanced toggle filters rows and counts without changing saved settings'
     } }
     entry.configured = { enabled = true, timeout = 1000 }
     entry.values = { enabled = true, timeout = 1000 }
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local content = navigation('resource:sample').content
     H.assertEqual(#content.blocks[1].rows, 1)
     H.assertEqual(content.blocks[1].rows[1].value, 'On')
@@ -358,18 +358,18 @@ H.test('restart actions reflect actual nested changes including hidden advanced 
     } }
     entry.configured = { mapping = { one = false, two = { 1, 2 } } }
     entry.values = { mapping = { two = { 1, 2 }, one = false } }
-    QB.config.open('sample')
+    Kora.config.open('sample')
     H.assertEqual(#navigation('resource:sample').content.actions, 1)
     entry.configured = { mapping = { one = false, two = { 1, 3 } } }
-    QB.config.open('sample')
+    Kora.config.open('sample')
     H.assertEqual(navigation('resource:sample').content.actions[2].id, 'config:restart')
     entry.configured = { mapping = { one = false, two = { 1, 2 }, added = true } }
-    QB.config.open('sample')
+    Kora.config.open('sample')
     H.assertEqual(navigation('resource:sample').content.actions[2].id, 'config:restart')
 end)
 
 H.test('only the selected resource gets a populated settings page', function()
-    QB.config.open('other')
+    Kora.config.open('other')
     H.assertEqual(navigation('resource:sample').content.blocks[1].type, 'empty')
     H.assertEqual(navigation('resource:other').content.blocks[1].type, 'table')
 end)
@@ -384,7 +384,7 @@ H.test('advanced preference survives reopening the editor runtime', function()
     H.assertEqual(stored, 1)
     GetResourceKvpInt = function() return stored end
     dofile(repoRoot .. 'modules/config/editor_client.lua')
-    QB.config.open('sample')
+    Kora.config.open('sample')
     H.assertEqual(#navigation('resource:sample').content.blocks[1].rows, 1)
     definition.onAction('config:advanced', { viewId = 'resource:sample' })
     H.assertEqual(stored, 0)
@@ -402,7 +402,7 @@ H.test('false values and setting identities survive editing', function()
     } }
     entry.configured = { flag = false, choice = false, rates = { default = 1.234567890123 } }
     entry.values = entry.configured
-    QB.config.open('sample')
+    Kora.config.open('sample')
     local function openSetting(key)
         local result = definition.onAction('config:setting', { viewId = 'resource:sample', itemId = key })
         for _, item in ipairs(result.update.navigation) do

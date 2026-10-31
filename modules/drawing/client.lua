@@ -8,7 +8,7 @@
 -- Plain { x, y, z } table, not glm.vec3 -- see the identical note in
 -- modules/raycast/client.lua, modules/world/client.lua, and modules/zones/client.lua.
 local function toVec3(v)
-    assert(v and QB.util.isFiniteNumber(v.x) and QB.util.isFiniteNumber(v.y) and QB.util.isFiniteNumber(v.z),
+    assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
     return { x = v.x, y = v.y, z = v.z }
 end
@@ -24,7 +24,7 @@ end
 ---@param coords any World position to anchor the text to.
 ---@param text string Multi-line via GTA's own "~n~" token, not "\n".
 ---@param options? QBDrawingText3DOptions Any field omitted falls back to Config.drawing.text3d.
-function QB.drawing.text3d(coords, text, options)
+function Kora.drawing.text3d(coords, text, options)
     assert(type(text) == "string" and #text > 0, "text must be a non-empty string.")
 
     if options == nil then options = {} end
@@ -34,7 +34,7 @@ function QB.drawing.text3d(coords, text, options)
     local point = toVec3(coords)
     local maxDistance = options.maxDistance
     if maxDistance == nil then maxDistance = defaults.maxDistance end
-    assert(QB.util.isFiniteNumber(maxDistance) and maxDistance >= 0,
+    assert(Kora.util.isFiniteNumber(maxDistance) and maxDistance >= 0,
         'text3d maxDistance must be a finite non-negative number.')
     local font = options.font
     if font == nil then font = defaults.font end
@@ -45,12 +45,12 @@ function QB.drawing.text3d(coords, text, options)
     local outline = options.outline
     if outline == nil then outline = defaults.outline end
 
-    assert(QB.util.isInteger(font) and font >= 0, 'text3d font must be a non-negative integer.')
-    assert(QB.util.isFiniteNumber(scale) and scale > 0, 'text3d scale must be a positive finite number.')
-    assert(type(color) == 'table' and QB.util.isInteger(color.r) and color.r >= 0 and color.r <= 255
-        and QB.util.isInteger(color.g) and color.g >= 0 and color.g <= 255
-        and QB.util.isInteger(color.b) and color.b >= 0 and color.b <= 255
-        and QB.util.isInteger(color.a) and color.a >= 0 and color.a <= 255,
+    assert(Kora.util.isInteger(font) and font >= 0, 'text3d font must be a non-negative integer.')
+    assert(Kora.util.isFiniteNumber(scale) and scale > 0, 'text3d scale must be a positive finite number.')
+    assert(type(color) == 'table' and Kora.util.isInteger(color.r) and color.r >= 0 and color.r <= 255
+        and Kora.util.isInteger(color.g) and color.g >= 0 and color.g <= 255
+        and Kora.util.isInteger(color.b) and color.b >= 0 and color.b <= 255
+        and Kora.util.isInteger(color.a) and color.a >= 0 and color.a <= 255,
         'text3d color must have integer r, g, b, and a components from 0 to 255.')
     assert(type(outline) == 'boolean', 'text3d outline must be a boolean.')
 

@@ -5,7 +5,7 @@ The rewards module rolls one or more items out of a reward pool — loot tables,
 
 ## API
 
-### `QB.rewards.generate(items, opts)`
+### `Kora.rewards.generate(items, opts)`
 Generates rewards from a pool of possible items.
 
 #### Parameters
@@ -51,7 +51,7 @@ local items = {
     { name = "water_bottle", label = "Water" }, -- no chance: weight 1
 }
 
-local rewards = QB.rewards.generate(items, { rolls = 3 })
+local rewards = Kora.rewards.generate(items, { rolls = 3 })
 -- e.g. { { name = "bread", label = "Bread", amount = 2 }, { name = "water_bottle", ... }, { name = "bread", ... } }
 ```
 
@@ -62,17 +62,17 @@ local items = {
     { name = "rare_gem", chance = 2 },
 }
 
-local rewards = QB.rewards.generate(items, { mode = "percent" })
+local rewards = Kora.rewards.generate(items, { mode = "percent" })
 -- guaranteed non-empty: if both misses, one is force-picked as a fallback
 ```
 
 ```lua
 -- Explicitly allow an empty result
-local rewards = QB.rewards.generate(items, { mode = "percent", allowNone = true })
+local rewards = Kora.rewards.generate(items, { mode = "percent", allowNone = true })
 -- rewards may be {}
 ```
 
 ## Notes
-- Weighted-mode selection is built on `QB.util.weightedChoice`, so weights follow the same "relative to each other, don't need to sum to anything" rules documented there.
+- Weighted-mode selection is built on `Kora.util.weightedChoice`, so weights follow the same "relative to each other, don't need to sum to anything" rules documented there.
 - `amount` ranges are rolled with `math.random(min, max)` and expect integers.
 - The empty-result guarantee (`allowNone = false`) reuses the same weighted pool as a fallback pick, even in percent mode, so a higher `chance` still makes an item more likely to be the fallback.

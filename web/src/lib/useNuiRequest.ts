@@ -16,7 +16,7 @@ interface CancelledRequest {
 }
 
 /**
- * Shared "listen for a Lua QB.nui.request, track it, respond exactly once"
+ * Shared "listen for a Lua Kora.nui.request, track it, respond exactly once"
  * primitive used by the dialog-shaped NUI components (menus, the input
  * dialog, the zone creator's confirm dialog). Centralizes the requestId/token
  * bookkeeping and the double-response guard so each component only has to

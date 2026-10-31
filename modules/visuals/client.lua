@@ -1,11 +1,11 @@
-QB.visuals = QB.visuals or {}
+Kora.visuals = Kora.visuals or {}
 local FADE_TIMEOUT_BUFFER = 1000
 
 local function parseDuration(duration, default)
     duration = tonumber(duration)
     if duration == nil then return default end
 
-    assert(QB.util.isFiniteNumber(duration) and duration >= 0,
+    assert(Kora.util.isFiniteNumber(duration) and duration >= 0,
         'Visual effect duration must be a finite non-negative number.')
     return duration
 end
@@ -94,12 +94,12 @@ end
 ---@field perTickRagdoll? {chance: integer, minTime: integer, maxTime: integer} Chance out of 100, each tick, to ragdoll if running.
 ---@field finalRagdoll? {minTime: integer, maxTime: integer} Ragdoll unconditionally once the tick loop ends.
 
----Shared stamina-tick loop behind QB.visuals.meth/crack/coke. Always reads the
----ped fresh via QB.cache.ped() at each point of use rather than caching it
+---Shared stamina-tick loop behind Kora.visuals.meth/crack/coke. Always reads the
+---ped fresh via Kora.cache.ped() at each point of use rather than caching it
 ---once up front, so a death/respawn mid-loop (up to 20s) doesn't ragdoll a
 ---stale/dead ped handle.
 ---@param options QBVisualsStaminaEffectOptions
----@param duration number|string|nil Raw duration argument as passed to the public QB.visuals.<fn>.
+---@param duration number|string|nil Raw duration argument as passed to the public Kora.visuals.<fn>.
 local function runStaminaDrugEffect(options, duration)
     local playerId = PlayerId()
 
@@ -113,7 +113,7 @@ local function runStaminaDrugEffect(options, duration)
         restoreStamina(options.restoreChance)
 
         if options.perTickRagdoll and math.random(1, 100) <= options.perTickRagdoll.chance then
-            ragdollIfRunning(QB.cache.ped(), options.perTickRagdoll.minTime, options.perTickRagdoll.maxTime)
+            ragdollIfRunning(Kora.cache.ped(), options.perTickRagdoll.minTime, options.perTickRagdoll.maxTime)
         end
 
         if math.random(1, options.replayScale or 100) <= options.replayChance then
@@ -127,7 +127,7 @@ local function runStaminaDrugEffect(options, duration)
     end
 
     if options.finalRagdoll then
-        ragdollIfRunning(QB.cache.ped(), options.finalRagdoll.minTime, options.finalRagdoll.maxTime)
+        ragdollIfRunning(Kora.cache.ped(), options.finalRagdoll.minTime, options.finalRagdoll.maxTime)
     end
 
     endSprintEffect(playerId, token)
@@ -135,7 +135,7 @@ end
 
 -- Cross-resource function references arrive as callable tables rather than
 -- plain Lua functions. Public callback-taking APIs must accept both shapes.
-local isCallable = QB.compat.isCallable
+local isCallable = Kora.compat.isCallable
 
 local function isCoords(value)
     local kind = type(value)
@@ -144,15 +144,15 @@ end
 
 ---Fades the screen around `fn`, running it while the screen is fully black.
 ---The legacy `(coords, duration)` form remains supported; new movement code
----should use `QB.teleport.entity`/`QB.teleport.player` instead.
+---should use `Kora.teleport.entity`/`Kora.teleport.player` instead.
 ---@param duration number|vector3|vector4|table|nil Fade duration in milliseconds, or legacy destination coords.
 ---@param fn function|table|number|string|nil Work to perform while faded out, a masked callable, or legacy duration.
-function QB.visuals.fade(duration, fn)
+function Kora.visuals.fade(duration, fn)
     if isCoords(duration) then
         local coords, legacyDuration = duration, fn
-        return QB.visuals.fade(legacyDuration, function()
-            SetEntityCoords(QB.cache.ped(), coords.x, coords.y, coords.z)
-            if type(coords.w) == 'number' then SetEntityHeading(QB.cache.ped(), coords.w) end
+        return Kora.visuals.fade(legacyDuration, function()
+            SetEntityCoords(Kora.cache.ped(), coords.x, coords.y, coords.z)
+            if type(coords.w) == 'number' then SetEntityHeading(Kora.cache.ped(), coords.w) end
         end)
     end
 
@@ -173,14 +173,14 @@ function QB.visuals.fade(duration, fn)
 end
 
 ---@param duration? number|string
-function QB.visuals.trevor(duration)
+function Kora.visuals.trevor(duration)
     CreateThread(function()
         playDrugEffect('DrugsTrevorClownsFight', duration)
     end)
 end
 
 ---@param duration? number|string
-function QB.visuals.meth(duration)
+function Kora.visuals.meth(duration)
     CreateThread(function()
         runStaminaDrugEffect({
             prefix = 'DrugsTrevorClownsFight',
@@ -193,7 +193,7 @@ function QB.visuals.meth(duration)
 end
 
 ---@param duration? number|string
-function QB.visuals.ecstacy(duration)
+function Kora.visuals.ecstacy(duration)
     CreateThread(function()
         local playerId = PlayerId()
         local stamina = math.max(1, math.floor(parseDuration(duration, 30000) / 1000))
@@ -209,19 +209,19 @@ function QB.visuals.ecstacy(duration)
         end
         -- Read fresh, not the ped from when this thread started -- this loop
         -- can run tens of seconds, long enough to outlive a death/respawn.
-        ragdollIfRunning(QB.cache.ped(), 1000, 3000)
+        ragdollIfRunning(Kora.cache.ped(), 1000, 3000)
     end)
 end
 
 ---@param duration? number|string
-function QB.visuals.alien(duration)
+function Kora.visuals.alien(duration)
     CreateThread(function()
         playDrugEffect('DrugsMichaelAliensFight', duration)
     end)
 end
 
 ---@param duration? number|string
-function QB.visuals.crack(duration)
+function Kora.visuals.crack(duration)
     CreateThread(function()
         runStaminaDrugEffect({
             prefix = 'DrugsMichaelAliensFight',
@@ -236,7 +236,7 @@ function QB.visuals.crack(duration)
 end
 
 ---@param duration? number|string
-function QB.visuals.coke(duration)
+function Kora.visuals.coke(duration)
     CreateThread(function()
         runStaminaDrugEffect({
             prefix = 'DrugsMichaelAliensFight',

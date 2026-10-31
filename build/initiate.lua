@@ -7,7 +7,7 @@
 ---@field reject fun(self: promise, err: any)
 ---@field next fun(self: promise, onResolved: (fun(value: any): any), onRejected: (fun(err: any): any)?): promise
 
-QB = setmetatable({}, {
+Kora = setmetatable({}, {
     __index = function(self, key)
         local module = {}
         rawset(self, key, module)
@@ -31,7 +31,7 @@ local function isCallable(value, seen)
     return type(mt) == 'table' and isCallable(mt.__call, seen)
 end
 
-QB.compat.isCallable = isCallable
+Kora.compat.isCallable = isCallable
 
 -- Opaque protocol/session identifiers are needed in several independent Lua
 -- chunks and in both realms. Keep the byte generation here so callback,
@@ -71,7 +71,7 @@ end
 
 ---@param length? integer
 ---@return string token
-function QB.compat.generateToken(length)
+function Kora.compat.generateToken(length)
     length = length or 32
     assert(type(length) == 'number' and length >= 1 and length % 1 == 0,
         'Token length must be a positive integer.')

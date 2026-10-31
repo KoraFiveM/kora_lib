@@ -10,8 +10,8 @@ server-side state.
 
 ## API
 
-### `QB.events.register(name, handler, opts?)` — server
-Registers `handler` to run when a client calls `QB.events.trigger(name, ...)`.
+### `Kora.events.register(name, handler, opts?)` — server
+Registers `handler` to run when a client calls `Kora.events.trigger(name, ...)`.
 
 #### Parameters
 - `name: string` — Logical action name (1–128 bytes).
@@ -23,11 +23,11 @@ Registers `handler` to run when a client calls `QB.events.trigger(name, ...)`.
 #### Behavior
 Requests are only dispatched to `handler` if the triggering client's session token (established during the handshake) matches what the server has stored for that player. Anything else — no token, wrong token, wrong types — is dropped without running `handler` or raising an error. Token and handler resolution happen before rate quota is consumed. Over-limit events are silently dropped.
 
-### `QB.events.trigger(name, ...)` — client
+### `Kora.events.trigger(name, ...)` — client
 Triggers the handler registered under `name` on the server.
 
 #### Parameters
-- `name: string` — 1–128 bytes; must match a name passed to `QB.events.register` on the server.
+- `name: string` — 1–128 bytes; must match a name passed to `Kora.events.register` on the server.
 - `...: any` — Forwarded to the server-side handler after `src`.
 
 #### Returns
@@ -37,7 +37,7 @@ Triggers the handler registered under `name` on the server.
 #### Example
 Server:
 ```lua
-QB.events.register('inventory:useItem', function(src, itemName)
+Kora.events.register('inventory:useItem', function(src, itemName)
     -- src is the real player who triggered this, not client-supplied
     print(('player %d used %s'):format(src, itemName))
 end)
@@ -45,7 +45,7 @@ end)
 
 Client:
 ```lua
-local ok, err = QB.events.trigger('inventory:useItem', 'water_bottle')
+local ok, err = Kora.events.trigger('inventory:useItem', 'water_bottle')
 if not ok then
     print('failed to trigger event:', err)
 end
@@ -74,11 +74,11 @@ end
   current server state in every valuable handler. The gateway cannot perform
   those application-specific checks for you.
 
-Need a response back instead of fire-and-forget? See the `callback` module (`local/callback/`) — `QB.callback.register`/`QB.callback.trigger` work the same way but return a promise, and also support the reverse direction (server asking a client).
+Need a response back instead of fire-and-forget? See the `callback` module (`local/callback/`) — `Kora.callback.register`/`Kora.callback.trigger` work the same way but return a promise, and also support the reverse direction (server asking a client).
 
 ## Push (server → client)
 
-### `QB.events.push(target, name, ...)` — server
+### `Kora.events.push(target, name, ...)` — server
 Sends a named push to one client, or every connected client.
 
 #### Parameters
@@ -89,22 +89,22 @@ Sends a named push to one client, or every connected client.
 #### Behavior
 Not token-gated. Unlike `trigger`, there's no client identity to verify here — the server is always the trusted party for its own `TriggerClientEvent` calls, so `push` is a thin, named wrapper around one shared gateway event rather than a security control.
 
-### `QB.events.onPush(name, handler)` — client
-Registers `handler` to run when the server calls `QB.events.push(target, name, ...)` for this client.
+### `Kora.events.onPush(name, handler)` — client
+Registers `handler` to run when the server calls `Kora.events.push(target, name, ...)` for this client.
 
 #### Parameters
-- `name: string` — 1–128 bytes; must match a name passed to `QB.events.push` on the server.
+- `name: string` — 1–128 bytes; must match a name passed to `Kora.events.push` on the server.
 - `handler: fun(...: any)` — Called with whatever arguments the server sent, run under `pcall`. Errors are logged with the push name.
 
 #### Example
 Server:
 ```lua
-QB.events.push(src, 'inventory:itemUsed', 'water_bottle')
+Kora.events.push(src, 'inventory:itemUsed', 'water_bottle')
 ```
 
 Client:
 ```lua
-QB.events.onPush('inventory:itemUsed', function(itemName)
+Kora.events.onPush('inventory:itemUsed', function(itemName)
     print(('used %s'):format(itemName))
 end)
 ```
@@ -113,14 +113,14 @@ end)
 - `handler` runs under `pcall` — an error inside it is isolated and won't stop other registered pushes from dispatching.
 - Prefer this over a module-owned `RegisterNetEvent`/`TriggerClientEvent` pair so all networked events in the library share one set of gateway names.
 
-### `QB.events.assertName(name)` — either realm
-Validates an event name (a 1–128-byte string), raising an assertion error otherwise. Used internally by every function above; exported like every other `QB.*` function, so a consumer can pre-validate a name before registering.
+### `Kora.events.assertName(name)` — either realm
+Validates an event name (a 1–128-byte string), raising an assertion error otherwise. Used internally by every function above; exported like every other `Kora.*` function, so a consumer can pre-validate a name before registering.
 
-### `QB.events.unregister(name)` — server
-Removes the caller's handler registered with `QB.events.register` and returns whether it was removed.
+### `Kora.events.unregister(name)` — server
+Removes the caller's handler registered with `Kora.events.register` and returns whether it was removed.
 
-### `QB.events.offPush(name)` — client
-Removes the caller's handler registered with `QB.events.onPush` and returns whether it was removed.
+### `Kora.events.offPush(name)` — client
+Removes the caller's handler registered with `Kora.events.onPush` and returns whether it was removed.
 
 #### Behavior (both)
 Most callers don't need these directly: a registered handler is automatically removed when the resource that registered it stops (`onResourceStop`/`onClientResourceStop`, matching realm). Call them explicitly if a resource wants to stop listening for a specific name without restarting.

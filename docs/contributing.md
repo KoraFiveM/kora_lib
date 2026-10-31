@@ -24,7 +24,7 @@ When a public function or contract changes:
 4. Add a new entry to `docs/_data/navigation.yml` if this is a new module.
 5. Run `test/run.sh` and prepare the Pages source with `docs/build.sh`.
 
-The API contract smoke test discovers normal `QB.<module>.<function>` definitions and fails when their namespace or function is missing from `types.lua`, or when the exact symbol is absent from the adjacent guide.
+The API contract smoke test discovers normal `Kora.<module>.<function>` definitions and fails when their namespace or function is missing from `types.lua`, or when the exact symbol is absent from the adjacent guide.
 
 ## Previewing the source
 

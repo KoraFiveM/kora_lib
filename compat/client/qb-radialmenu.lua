@@ -2,8 +2,8 @@
 -- (exports['qb-radialmenu']:AddOption/RemoveOption, the
 -- 'qb-radialmenu:client:AddOption'/'qb-radialmenu:client:RemoveOption' net
 -- events, and the fixed keybind that opens the wheel) onto
--- QB.nui.openRadialMenu, kora_lib's own native replacement. qb-radialmenu itself
--- is being deprecated in favour of QB.nui.openMenu/openContextMenu/
+-- Kora.nui.openRadialMenu, kora_lib's own native replacement. qb-radialmenu itself
+-- is being deprecated in favour of Kora.nui.openMenu/openContextMenu/
 -- openRadialMenu -- this file exists so a script written against
 -- exports['qb-radialmenu']:... keeps working unmodified while it migrates,
 -- exactly the same shape of shim as compat/client/qb-menu.lua and
@@ -12,20 +12,20 @@
 -- SHAPE MISMATCH, read before touching this file: real qb-radialmenu is a
 -- GLOBAL, PERSISTENT menu -- other resources register/unregister options
 -- into one shared wheel over time via AddOption/RemoveOption, and the player
--- opens it whenever they want via a fixed keybind. QB.nui.openRadialMenu is a
+-- opens it whenever they want via a fixed keybind. Kora.nui.openRadialMenu is a
 -- ONE-SHOT, per-call menu -- a caller builds an items list and awaits a
--- single result. There is no primitive on QB.nui for "a menu that's already
+-- single result. There is no primitive on Kora.nui for "a menu that's already
 -- open and waiting, built from whatever's currently registered" -- so this
 -- file keeps its own registry of currently-registered options and only
--- actually calls QB.nui.openRadialMenu when the keybind fires, translating
+-- actually calls Kora.nui.openRadialMenu when the keybind fires, translating
 -- the registry to an items list at that moment. See modules/nui/docs.md's
 -- "Legacy compat" section for the field-by-field mapping table and this
 -- caveat spelled out again.
 --
--- Also note: QB.nui.openRadialMenu never takes x/y (it always opens
+-- Also note: Kora.nui.openRadialMenu never takes x/y (it always opens
 -- centered) -- real qb-radialmenu has no notion of screen position either
 -- (it always opens centered on the player's cursor/screen), so nothing is
--- lost there. `opts.radius` is left at QB.nui's default; nothing in
+-- lost there. `opts.radius` is left at Kora.nui's default; nothing in
 -- qb-radialmenu's public surface configures it.
 --
 -- BUILT-IN CONTENT: real qb-radialmenu's own main.lua also injects a set of
@@ -53,16 +53,16 @@
 -- Nested submenus are what makes the built-in content possible at all: a
 -- registered option's own `items` (array of the same option shape --
 -- exactly how upstream's "Work"/"Vehicle" branches are built) translates
--- recursively onto QB.nui's native `item.submenu = {title, items}` -- see
+-- recursively onto Kora.nui's native `item.submenu = {title, items}` -- see
 -- translateOption below.
 
--- QB.compat.provideExport registers the hidden CFX export event under the
+-- Kora.compat.provideExport registers the hidden CFX export event under the
 -- legacy `qb-radialmenu` identity; `provide 'qb-radialmenu'` alone only
 -- satisfies dependency checks.
 
 -- Warned once per resource run -- same reasoning as qb-menu compat's
 -- warnIconOnce: real qb-radialmenu options carry a Font Awesome `icon` class
--- string; QB.nui.openMenu-shaped items' `icon` expects a lucide-react name
+-- string; Kora.nui.openMenu-shaped items' `icon` expects a lucide-react name
 -- (web/src/lib/icon.ts), and the two vocabularies don't overlap. Dropped
 -- rather than mistranslated.
 local warnedIcon = false
@@ -70,11 +70,11 @@ local function warnIconOnce()
     if warnedIcon then return end
     warnedIcon = true
     print("[qb-radialmenu-bridge] WARNING: option 'icon' fields (Font Awesome classes) are not translated to "
-        .. "QB.nui's lucide icon names -- icons are dropped. Only shown once per session.")
+        .. "Kora.nui's lucide icon names -- icons are dropped. Only shown once per session.")
 end
 
 -- `iconAnimation` (a CSS/animate.css-style spin/pulse class in real
--- qb-radialmenu) has no equivalent at all on QB.nui's item schema -- it's
+-- qb-radialmenu) has no equivalent at all on Kora.nui's item schema -- it's
 -- purely decorative on top of the already-dropped icon, so it's silently
 -- ignored rather than given its own warning on top of warnIconOnce.
 
@@ -99,7 +99,7 @@ end
 -- Real qb-radialmenu options can carry their OWN nested `items[]` (an array
 -- of the same option shape) to form a submenu -- e.g. upstream's own
 -- main.lua builds a "Work"/"Vehicle" branch this way, and third-party
--- scripts do the same for any grouped set of actions. QB.nui's radial menu
+-- scripts do the same for any grouped set of actions. Kora.nui's radial menu
 -- natively supports arbitrary submenu depth via `item.submenu = {title,
 -- items}` (web/src/components/menu/RadialMenu.tsx), so nesting translates
 -- directly instead of needing its own emulation the way the persistent
@@ -109,7 +109,7 @@ end
 -- purely by id regardless of how deep it was nested; ids are unique across
 -- this whole registry (auto-generated and persisted back onto the option the
 -- same way AddOption does for top-level ones), so a flat lookup is enough
--- even though QB.nui's result also carries the full root-to-leaf `path`.
+-- even though Kora.nui's result also carries the full root-to-leaf `path`.
 local function translateOption(option, leafById)
     if option.icon then warnIconOnce() end
 
@@ -133,7 +133,7 @@ local function translateOption(option, leafById)
 end
 
 -- Maps the currently-registered top-level options onto one
--- QB.nui.openMenu-shaped items list (openRadialMenu takes the same item
+-- Kora.nui.openMenu-shaped items list (openRadialMenu takes the same item
 -- schema), recursing into any nested `items` via translateOption above.
 -- `top = true` options are moved to the front, stable within each group --
 -- the closest flat-list equivalent of "pin near the top of the wheel"; note
@@ -381,7 +381,7 @@ end)
 -- nil/false, so it's omitted entirely rather than guarded with a pcall that
 -- would just always fall back the same way.
 RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
-    local completed = QB.progressbar.start({
+    local completed = Kora.progressbar.start({
         label = "Flipping vehicle...",
         duration = Config.radialmenuCompat.flipVehicleTime,
         disable = { move = true, car = true, combat = true },
@@ -485,14 +485,14 @@ local function setupJobMenu(job, jobType)
     jobMenuRegistered = true
 end
 
--- Guards against the keybind stacking a second QB.nui.openRadialMenu request
+-- Guards against the keybind stacking a second Kora.nui.openRadialMenu request
 -- on top of one that's already open and awaiting the player.
 local isOpen = false
 
 -- Opens the wheel from whatever's currently registered, dispatches the
 -- selection, and -- if the selected option's `shouldClose` is false --
 -- reopens immediately to approximate real qb-radialmenu's "wheel stays open
--- for chained selections" behaviour. QB.nui.openRadialMenu has no concept of
+-- for chained selections" behaviour. Kora.nui.openRadialMenu has no concept of
 -- staying open across a selection (it's one-shot), so this is a best-effort
 -- emulation via a fresh request rather than a truly persistent NUI state.
 local function openRegisteredRadial()
@@ -539,10 +539,10 @@ local function openRegisteredRadial()
     if #items == 0 then return end
 
     -- This is invoked from kora_lib's own command/keybind, not from the resource
-    -- that originally registered an option. QB.nui.openRadialMenu therefore
+    -- that originally registered an option. Kora.nui.openRadialMenu therefore
     -- returns its pending same-resource promise and must be awaited here.
     isOpen = true
-    local result = Citizen.Await(QB.nui.openRadialMenu(items))
+    local result = Citizen.Await(Kora.nui.openRadialMenu(items))
     isOpen = false
 
     if not result or result.cancelled then return end
@@ -555,8 +555,8 @@ local function openRegisteredRadial()
     end
 end
 
-QB.compat.provideExport("qb-radialmenu", "AddOption", addOption)
-QB.compat.provideExport("qb-radialmenu", "RemoveOption", removeOption)
+Kora.compat.provideExport("qb-radialmenu", "AddOption", addOption)
+Kora.compat.provideExport("qb-radialmenu", "RemoveOption", removeOption)
 
 RegisterNetEvent("qb-radialmenu:client:AddOption", addOption)
 RegisterNetEvent("qb-radialmenu:client:RemoveOption", removeOption)
@@ -570,13 +570,13 @@ AddEventHandler("onClientResourceStop", function(resource)
 end)
 
 -- Real qb-radialmenu opens on a fixed keybind rather than a script-triggered
--- call -- there's no QB.nui hook for "open whatever's registered", so this
--- owns one QB.keybind definition. "F1" matches
+-- call -- there's no Kora.nui hook for "open whatever's registered", so this
+-- owns one Kora.keybind definition. "F1" matches
 -- qbcore-framework/qb-radialmenu's own config.lua default (`Config.Keybind =
 -- 'F1'`) -- some forks differ, and it's always rebindable by the player from
 -- FiveM's own Settings > Key Bindings regardless of what's set here, so this
 -- is a best-effort default rather than a guarantee every fork matches it.
-QB.keybind.add({
+Kora.keybind.add({
     name = 'qblib_radialmenu_open',
     description = 'Open Radial Menu',
     defaultMapper = 'keyboard',

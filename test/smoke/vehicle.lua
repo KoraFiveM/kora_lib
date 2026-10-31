@@ -32,7 +32,7 @@ function _G.DoesEntityExist(entity) return entity == VEHICLE and state.exists en
 function _G.IsEntityAVehicle(entity) return entity == VEHICLE end
 function _G.NetworkHasControlOfEntity() return state.control end
 function _G.NetworkRequestControlOfEntity() if requestSucceeds then state.control = true end end
-QB.entities.requestControl = function(entity)
+Kora.entities.requestControl = function(entity)
     if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
     if NetworkHasControlOfEntity(entity) then return true end
     NetworkRequestControlOfEntity(entity)
@@ -105,40 +105,40 @@ dofile(repoRoot .. 'modules/vehicle/shared.lua')
 dofile(repoRoot .. 'modules/vehicle/client.lua')
 
 harness.test('normalizePlate applies explicit whitespace and character policies', function()
-    harness.assertEqual(QB.vehicle.normalizePlate(' ab  12 '), 'AB 12')
-    harness.assertEqual(QB.vehicle.normalizePlate(' ab  12 ', { whitespace = 'remove' }), 'AB12')
-    harness.assertEqual(QB.vehicle.normalizePlate(' ab  12 ', { whitespace = 'preserve' }), 'AB  12')
-    local invalid, reason = QB.vehicle.normalizePlate('AB-12')
+    harness.assertEqual(Kora.vehicle.normalizePlate(' ab  12 '), 'AB 12')
+    harness.assertEqual(Kora.vehicle.normalizePlate(' ab  12 ', { whitespace = 'remove' }), 'AB12')
+    harness.assertEqual(Kora.vehicle.normalizePlate(' ab  12 ', { whitespace = 'preserve' }), 'AB  12')
+    local invalid, reason = Kora.vehicle.normalizePlate('AB-12')
     harness.assertEqual(invalid, nil)
     harness.assertEqual(reason, 'invalid_characters')
-    harness.assertEqual(QB.vehicle.normalizePlate('CUSTOM-PLATE', {
+    harness.assertEqual(Kora.vehicle.normalizePlate('CUSTOM-PLATE', {
         maxLength = 32,
         characters = 'any',
     }), 'CUSTOM-PLATE')
-    harness.assertThrows(function() QB.vehicle.normalizePlate('TEST42', false) end)
+    harness.assertThrows(function() Kora.vehicle.normalizePlate('TEST42', false) end)
 end)
 
 harness.test('vehicle delete acquires control before deleting', function()
     reset()
-    local ok, err = QB.vehicle.delete(VEHICLE)
+    local ok, err = Kora.vehicle.delete(VEHICLE)
     harness.assertTrue(ok, tostring(err))
     harness.assertEqual(#calls.DeleteVehicle, 1)
     harness.assertTrue(state.control, 'network control should be requested')
-    harness.assertThrows(function() QB.vehicle.delete(VEHICLE, false) end)
+    harness.assertThrows(function() Kora.vehicle.delete(VEHICLE, false) end)
 end)
 
 harness.test('identity helpers validate, trim, and localize vehicles', function()
     reset()
-    harness.assertTrue(QB.vehicle.isDriver(VEHICLE))
-    harness.assertEqual(QB.vehicle.model(VEHICLE), 1234)
-    harness.assertEqual(QB.vehicle.plate(VEHICLE), 'TEST42')
-    harness.assertEqual(QB.vehicle.label(VEHICLE), 'Adder')
-    harness.assertFalse(QB.vehicle.plate(99))
+    harness.assertTrue(Kora.vehicle.isDriver(VEHICLE))
+    harness.assertEqual(Kora.vehicle.model(VEHICLE), 1234)
+    harness.assertEqual(Kora.vehicle.plate(VEHICLE), 'TEST42')
+    harness.assertEqual(Kora.vehicle.label(VEHICLE), 'Adder')
+    harness.assertFalse(Kora.vehicle.plate(99))
 end)
 
 harness.test('getProperties returns the complete compatible shape including extras 0 through 20', function()
     reset()
-    local props, err = QB.vehicle.getProperties(VEHICLE)
+    local props, err = Kora.vehicle.getProperties(VEHICLE)
     harness.assertTrue(props ~= false, tostring(err))
     harness.assertEqual(props.model, 1234)
     harness.assertEqual(props.plate, 'TEST42')
@@ -158,7 +158,7 @@ harness.test('getProperties emits JSON-stable RGB color objects without table.pa
     reset()
     state.customColors = true
     state.customXenon = true
-    local props = QB.vehicle.getProperties(VEHICLE)
+    local props = Kora.vehicle.getProperties(VEHICLE)
     harness.assertEqual(props.color1.r, 10)
     harness.assertEqual(props.color2.b, 60)
     harness.assertEqual(props.neonColor.g, 2)
@@ -171,7 +171,7 @@ end)
 
 harness.test('setProperties obtains control and preserves explicit false and zero values', function()
     reset()
-    local ok, err = QB.vehicle.setProperties(VEHICLE, {
+    local ok, err = Kora.vehicle.setProperties(VEHICLE, {
         plate = '', plateIndex = 0, fuelLevel = 0, dirtLevel = 0,
         color1 = 0, pearlescentColor = 0, wheelColor = 0,
         wheelSize = 0, wheelWidth = 0, windowTint = 0,
@@ -206,7 +206,7 @@ end)
 harness.test('setProperties returns a bounded control failure without mutating', function()
     reset()
     requestSucceeds = false
-    local ok, err = QB.vehicle.setProperties(VEHICLE, { fuelLevel = 0 }, { timeout = 1 })
+    local ok, err = Kora.vehicle.setProperties(VEHICLE, { fuelLevel = 0 }, { timeout = 1 })
     harness.assertFalse(ok)
     harness.assertTrue(type(err) == 'string')
     harness.assertEqual(calls.SetVehicleFuelLevel, nil)
@@ -215,13 +215,13 @@ end)
 harness.test('setProperties rejects non-finite native values before mutation', function()
     reset()
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { fuelLevel = math.huge })
+        Kora.vehicle.setProperties(VEHICLE, { fuelLevel = math.huge })
     end)
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { neonColor = { r = 1, g = 0 / 0, b = 3 } })
+        Kora.vehicle.setProperties(VEHICLE, { neonColor = { r = 1, g = 0 / 0, b = 3 } })
     end)
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, {}, false)
+        Kora.vehicle.setProperties(VEHICLE, {}, false)
     end)
     harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid properties must not reach vehicle natives')
 end)
@@ -229,10 +229,10 @@ end)
 harness.test('setProperties rejects malformed plate and interior colour before mutation', function()
     reset()
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { plate = {} })
+        Kora.vehicle.setProperties(VEHICLE, { plate = {} })
     end)
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { interiorColor = math.huge })
+        Kora.vehicle.setProperties(VEHICLE, { interiorColor = math.huge })
     end)
     harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid properties must not reach vehicle natives')
 end)
@@ -240,13 +240,13 @@ end)
 harness.test('setProperties rejects invalid wheel, window, and door indices before mutation', function()
     reset()
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { tireHealth = { [math.huge] = 1000 } })
+        Kora.vehicle.setProperties(VEHICLE, { tireHealth = { [math.huge] = 1000 } })
     end)
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { windowStatus = { [8] = true } })
+        Kora.vehicle.setProperties(VEHICLE, { windowStatus = { [8] = true } })
     end)
     harness.assertThrows(function()
-        QB.vehicle.setProperties(VEHICLE, { doorStatus = { ['not-an-index'] = false } })
+        Kora.vehicle.setProperties(VEHICLE, { doorStatus = { ['not-an-index'] = false } })
     end)
     harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid indexed properties must not reach vehicle natives')
 end)
@@ -262,27 +262,27 @@ harness.test('setProperties rejects non-boolean state fields before mutation', f
         { modTurbo = 1 },
         { modCustomTiresF = 'yes' },
     }) do
-        harness.assertThrows(function() QB.vehicle.setProperties(VEHICLE, props) end)
+        harness.assertThrows(function() Kora.vehicle.setProperties(VEHICLE, props) end)
     end
     harness.assertEqual(calls.SetVehicleModKit, nil, 'invalid boolean states must not reach vehicle natives')
 end)
 
 harness.test('property helpers reject invalid entities', function()
     reset()
-    local props = QB.vehicle.getProperties(99)
+    local props = Kora.vehicle.getProperties(99)
     harness.assertFalse(props)
-    local ok = QB.vehicle.setProperties(99, {})
+    local ok = Kora.vehicle.setProperties(99, {})
     harness.assertFalse(ok)
 end)
 
 harness.test('vehicle helpers reject malformed handles before native work', function()
     reset()
     for _, vehicle in ipairs({ 0, -1, 1.5, math.huge, -math.huge, 0 / 0 }) do
-        harness.assertFalse(QB.vehicle.model(vehicle))
-        harness.assertFalse(QB.vehicle.plate(vehicle))
-        harness.assertFalse(QB.vehicle.getProperties(vehicle))
-        harness.assertFalse(QB.vehicle.setProperties(vehicle, {}))
-        harness.assertThrows(function() QB.vehicle.delete(vehicle) end)
+        harness.assertFalse(Kora.vehicle.model(vehicle))
+        harness.assertFalse(Kora.vehicle.plate(vehicle))
+        harness.assertFalse(Kora.vehicle.getProperties(vehicle))
+        harness.assertFalse(Kora.vehicle.setProperties(vehicle, {}))
+        harness.assertThrows(function() Kora.vehicle.delete(vehicle) end)
     end
 end)
 

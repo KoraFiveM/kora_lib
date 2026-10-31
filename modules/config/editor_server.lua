@@ -53,8 +53,8 @@ local function allowed(source)
         and (IsPlayerAceAllowed(source, ACE) == true or IsPlayerAceAllowed(source, LEGACY_ACE) == true) then
         return true
     end
-    return QB.permissions and QB.permissions.hasPermission
-        and QB.permissions.hasPermission(source, 'admin') == true
+    return Kora.permissions and Kora.permissions.hasPermission
+        and Kora.permissions.hasPermission(source, 'admin') == true
 end
 
 local function sanitize(schema, value)
@@ -158,14 +158,14 @@ end
 -- Registers the callback under its kora_lib: name and under the deprecated
 -- qblib: alias, so callers that predate the rename keep working.
 local function registerWithLegacyAlias(name, handler, options)
-    QB.callback.register(name, handler, options)
-    QB.callback.register((name:gsub('^kora_lib:', 'qblib:')), handler, options)
+    Kora.callback.register(name, handler, options)
+    Kora.callback.register((name:gsub('^kora_lib:', 'qblib:')), handler, options)
 end
 
 registerWithLegacyAlias('kora_lib:configCatalog', function(source)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
-    local catalogOk, summaries = pcall(QB.config.catalog)
+    local catalogOk, summaries = pcall(Kora.config.catalog)
     if not catalogOk or type(summaries) ~= 'table' then return nil, 'configuration catalog is unavailable' end
     local catalog = {}
     for _, summary in ipairs(summaries) do
@@ -180,13 +180,13 @@ registerWithLegacyAlias('kora_lib:configRead', function(source, resource)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validResource(resource) then return nil, 'invalid resource' end
-    local readOk, entry = pcall(QB.config.read, resource)
+    local readOk, entry = pcall(Kora.config.read, resource)
     if not readOk or type(entry) ~= 'table' then return nil, 'configuration is unavailable' end
     return sanitizeEntry(entry)
 end, READ_LIMIT)
 
 local function isRegistered(resource)
-    local ok, summaries = pcall(QB.config.catalog)
+    local ok, summaries = pcall(Kora.config.catalog)
     if not ok or type(summaries) ~= 'table' then return false end
     for _, summary in ipairs(summaries) do
         if summary.resource == resource then return true end
@@ -221,11 +221,11 @@ registerWithLegacyAlias('kora_lib:configCommit', function(source, request)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validRequest(request) then return nil, 'invalid configuration request' end
-    local commitOk, result = pcall(QB.config.commit, request.resource,
+    local commitOk, result = pcall(Kora.config.commit, request.resource,
         { path = request.path, value = request.value, revision = request.revision })
     if not commitOk then return nil, 'configuration is unavailable' end
     if type(result) ~= 'table' then return result end
-    local readOk, entry = pcall(QB.config.read, request.resource)
+    local readOk, entry = pcall(Kora.config.read, request.resource)
     if readOk and type(entry) == 'table' then
         result.configured = sanitize(entry.schema, entry.configured)
         result.values = sanitize(entry.schema, entry.values)
@@ -237,11 +237,11 @@ registerWithLegacyAlias('kora_lib:configReset', function(source, request)
     local ok, err = requireEditor(source)
     if not ok then return nil, err end
     if not validRequest(request) then return nil, 'invalid configuration request' end
-    local resetOk, result = pcall(QB.config.reset, request.resource,
+    local resetOk, result = pcall(Kora.config.reset, request.resource,
         { path = request.path, revision = request.revision })
     if not resetOk then return nil, 'configuration is unavailable' end
     if type(result) ~= 'table' then return result end
-    local readOk, entry = pcall(QB.config.read, request.resource)
+    local readOk, entry = pcall(Kora.config.read, request.resource)
     if readOk and type(entry) == 'table' then
         result.configured = sanitize(entry.schema, entry.configured)
         result.values = sanitize(entry.schema, entry.values)
@@ -256,7 +256,7 @@ end, WRITE_LIMIT)
 local function registerFallbackCommand()
     if type(GetResourceState) == 'function' and GetResourceState('kora_admin') == 'started' then return end
 
-    QB.commands.add('config', 'Open the kora_lib configuration editor', nil, false, function(source, args)
+    Kora.commands.add('config', 'Open the kora_lib configuration editor', nil, false, function(source, args)
         local resource = type(args[1]) == 'string' and args[1] or nil
         TriggerClientEvent('kora_lib:client:configOpened', source, resource)
     end, {

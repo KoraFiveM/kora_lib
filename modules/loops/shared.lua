@@ -9,8 +9,8 @@
 ---@param backoff? boolean | integer How long to wait between attempts: `true` backs off exponentially (25ms -> 1s), a number waits that many ms every attempt, and `false`/omitted waits a single frame.
 ---@return any | false result The truthy value from `call`, or false on failure.
 ---@return string? error Reason the loop gave up.
-function QB.loops.controlled(call, tries, timeout, backoff)
-    assert(QB.compat.isCallable(call), 'Loop predicate must be callable.')
+function Kora.loops.controlled(call, tries, timeout, backoff)
+    assert(Kora.compat.isCallable(call), 'Loop predicate must be callable.')
     assert(tries == nil or tries == false or (type(tries) == 'number' and tries >= 1 and tries % 1 == 0
         and tries == tries and tries ~= math.huge and tries ~= -math.huge),
         'Loop tries must be a positive integer or false.')

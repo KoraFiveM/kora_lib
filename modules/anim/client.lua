@@ -7,7 +7,7 @@
 ---@field lockX? boolean Defaults to false.
 ---@field lockY? boolean Defaults to false.
 ---@field lockZ? boolean Defaults to false.
----@field onFinish? fun(entity: number) Called once, after `duration` ms have elapsed and the anim was stopped by this module (not called on an explicit `QB.anim.stop`, and not called at all when `duration` is omitted -- see the function doc comment).
+---@field onFinish? fun(entity: number) Called once, after `duration` ms have elapsed and the anim was stopped by this module (not called on an explicit `Kora.anim.stop`, and not called at all when `duration` is omitted -- see the function doc comment).
 
 ---@class QBAnimHandle
 ---@field entity number
@@ -20,16 +20,16 @@
 ---@field vertexIndex? number Legacy option name for the native's rotationOrder. Defaults to 0.
 ---@field fixedRot? boolean Defaults to true.
 
--- Keyed by entity, not a synthetic handle id -- QB.anim.stop/isPlaying take
+-- Keyed by entity, not a synthetic handle id -- Kora.anim.stop/isPlaying take
 -- the entity directly (matching how every other per-entity kora_lib primitive,
--- e.g. QB.cache, is addressed), so the entity itself IS the id space this
+-- e.g. Kora.cache, is addressed), so the entity itself IS the id space this
 -- module tracks. A `generation` counter guards a delayed auto-stop thread
 -- (started by a `duration` option) against stopping a LATER anim that
 -- replaced the one it was scheduled for.
 local activeByEntity = {}
 local generationByEntity = {}
-local isInteger = QB.util.isInteger
-local isCallable = QB.compat.isCallable
+local isInteger = Kora.util.isInteger
+local isCallable = Kora.compat.isCallable
 
 local function bumpGeneration(entity)
     local nextGeneration = (generationByEntity[entity] or 0) + 1
@@ -38,7 +38,7 @@ local function bumpGeneration(entity)
 end
 
 local function resolveBlendOutSpeed(value)
-    assert(value == nil or QB.util.isFiniteNumber(value), 'Animation blendOutSpeed must be finite.')
+    assert(value == nil or Kora.util.isFiniteNumber(value), 'Animation blendOutSpeed must be finite.')
     return value or 8.0
 end
 
@@ -46,15 +46,15 @@ end
 -- cleanup when that resource stops) is delegated to the shared registry --
 -- see local/resources/AGENTS.md. The id tracked here is the entity, same
 -- space `activeByEntity` uses.
-local animRegistry = QB.resources.registry(function(entity)
-    QB.anim.stop(entity)
+local animRegistry = Kora.resources.registry(function(entity)
+    Kora.anim.stop(entity)
 end)
 
 -- Ownership tracking for attached props, id = the created prop entity.
 -- Separate registry from animRegistry: unrelated id spaces (an anim's owning
 -- entity vs. a prop's own entity handle) sharing one registry would corrupt
 -- each other's reverse lookup -- see local/resources/AGENTS.md.
-local propRegistry = QB.resources.registry(function(prop)
+local propRegistry = Kora.resources.registry(function(prop)
     if DoesEntityExist(prop) then
         DetachEntity(prop, true, false)
         DeleteEntity(prop)
@@ -62,9 +62,9 @@ local propRegistry = QB.resources.registry(function(prop)
 end)
 
 ---Plays an animation on `entity`, streaming `dict` first via
----`QB.stream.loadModel`'s sibling `QB.stream.loadAnimDict` -- called WITHOUT
+---`Kora.stream.loadModel`'s sibling `Kora.stream.loadAnimDict` -- called WITHOUT
 ---a callback, so the dict is deliberately left loaded for the anim's
----lifetime and released by this module (on `QB.anim.stop`, a `duration`
+---lifetime and released by this module (on `Kora.anim.stop`, a `duration`
 ---timeout, or the owning resource stopping), not immediately after this
 ---function returns. Only one anim per entity is tracked at a time: starting
 ---a new one on an entity that already has one replaces it (the previous
@@ -75,11 +75,11 @@ end)
 ---@param opts? QBAnimPlayOptions
 ---@return QBAnimHandle | false handle False if `dict` never streamed in time.
 ---@return string? error
-function QB.anim.play(entity, dict, clip, opts)
+function Kora.anim.play(entity, dict, clip, opts)
     assert(type(entity) == "number" and entity ~= 0, ("Invalid entity: %s"):format(entity))
-    assert(type(dict) == "string" and type(clip) == "string", "QB.anim.play requires string dict/clip.")
+    assert(type(dict) == "string" and type(clip) == "string", "Kora.anim.play requires string dict/clip.")
 
-    -- Must be captured before QB.stream.loadAnimDict's own poll/Wait loop --
+    -- Must be captured before Kora.stream.loadAnimDict's own poll/Wait loop --
     -- the invoking-resource context is only valid at this call boundary,
     -- same reasoning modules/blips and modules/entities document for
     -- themselves.
@@ -91,11 +91,11 @@ function QB.anim.play(entity, dict, clip, opts)
     assert(duration == nil or (isInteger(duration) and duration >= -1),
         "Animation duration must be -1 or a non-negative finite integer.")
     assert(opts.flag == nil or isInteger(opts.flag), 'Animation flag must be a finite integer.')
-    assert(opts.blendInSpeed == nil or QB.util.isFiniteNumber(opts.blendInSpeed),
+    assert(opts.blendInSpeed == nil or Kora.util.isFiniteNumber(opts.blendInSpeed),
         'Animation blendInSpeed must be finite.')
-    assert(opts.blendOutSpeed == nil or QB.util.isFiniteNumber(opts.blendOutSpeed),
+    assert(opts.blendOutSpeed == nil or Kora.util.isFiniteNumber(opts.blendOutSpeed),
         'Animation blendOutSpeed must be finite.')
-    assert(opts.playbackRate == nil or QB.util.isFiniteNumber(opts.playbackRate),
+    assert(opts.playbackRate == nil or Kora.util.isFiniteNumber(opts.playbackRate),
         'Animation playbackRate must be finite.')
     for _, field in ipairs({ 'lockX', 'lockY', 'lockZ' }) do
         assert(opts[field] == nil or type(opts[field]) == 'boolean',
@@ -108,7 +108,7 @@ function QB.anim.play(entity, dict, clip, opts)
         return false, "Animation is owned by another resource."
     end
 
-    local loadedDict, loadErr = QB.stream.loadAnimDict(dict)
+    local loadedDict, loadErr = Kora.stream.loadAnimDict(dict)
     if not loadedDict then
         return false, loadErr
     end
@@ -141,11 +141,11 @@ function QB.anim.play(entity, dict, clip, opts)
             Wait(duration)
             if generationByEntity[entity] ~= myGeneration then return end
 
-            QB.anim.stop(entity)
+            Kora.anim.stop(entity)
             if opts.onFinish then
                 local ok, err = pcall(opts.onFinish, entity)
                 if not ok then
-                    print(("[kora_lib] QB.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
+                    print(("[kora_lib] Kora.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
                 end
             end
         end)
@@ -154,12 +154,12 @@ function QB.anim.play(entity, dict, clip, opts)
     return handle
 end
 
----Stops whatever anim `QB.anim.play` started on `entity` (a no-op if none is
+---Stops whatever anim `Kora.anim.play` started on `entity` (a no-op if none is
 ---tracked) and releases its dict.
 ---@param entity number
 ---@param blendOutSpeed? number Defaults to 8.0.
 ---@return boolean stopped False if this module had nothing active on `entity`.
-function QB.anim.stop(entity, blendOutSpeed)
+function Kora.anim.stop(entity, blendOutSpeed)
     blendOutSpeed = resolveBlendOutSpeed(blendOutSpeed)
 
     local handle = activeByEntity[entity]
@@ -186,16 +186,16 @@ end
 ---@param handle QBAnimHandle
 ---@param blendOutSpeed? number
 ---@return boolean stopped
-function QB.anim.stopHandle(handle, blendOutSpeed)
+function Kora.anim.stopHandle(handle, blendOutSpeed)
     if type(handle) ~= "table" then return false end
     local current = activeByEntity[handle.entity]
     if not current or current.generation ~= handle.generation then return false end
-    return QB.anim.stop(handle.entity, blendOutSpeed)
+    return Kora.anim.stop(handle.entity, blendOutSpeed)
 end
 
 ---@param entity number
 ---@return boolean
-function QB.anim.isPlaying(entity)
+function Kora.anim.isPlaying(entity)
     local handle = activeByEntity[entity]
     if not handle then return false end
     return IsEntityPlayingAnim(entity, handle.dict, handle.clip, 3)
@@ -203,7 +203,7 @@ end
 
 ---Creates a local, non-networked prop (`CreateObjectNoOffset`, same
 ---placement native `modules/entities` uses for objects) and attaches it to
----`entity` at `bone`, streaming `model` first via `QB.stream.loadModel`.
+---`entity` at `bone`, streaming `model` first via `Kora.stream.loadModel`.
 ---@param entity number
 ---@param model string | number
 ---@param bone string Bone name resolved via `GetEntityBoneIndexByName` -- works for both ped and non-ped target entities.
@@ -212,19 +212,19 @@ end
 ---@param opts? QBAnimAttachOptions
 ---@return number | false prop The created, attached prop entity, or false if the model never streamed or `entity`/`bone` was invalid.
 ---@return string? error
-function QB.anim.attachProp(entity, model, bone, offset, rotation, opts)
+function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)
     assert(type(entity) == "number" and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
-    assert(type(bone) == "string" and #bone > 0, "QB.anim.attachProp requires a string bone name.")
+    assert(type(bone) == "string" and #bone > 0, "Kora.anim.attachProp requires a string bone name.")
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     if offset == nil then offset = { x = 0.0, y = 0.0, z = 0.0 } end
     if rotation == nil then rotation = { x = 0.0, y = 0.0, z = 0.0 } end
     assert((type(offset) == 'table' or type(offset) == 'vector3')
-        and QB.util.isFiniteNumber(offset.x) and QB.util.isFiniteNumber(offset.y) and QB.util.isFiniteNumber(offset.z),
+        and Kora.util.isFiniteNumber(offset.x) and Kora.util.isFiniteNumber(offset.y) and Kora.util.isFiniteNumber(offset.z),
         'Animation prop offset must contain finite x, y, and z values.')
     assert((type(rotation) == 'table' or type(rotation) == 'vector3')
-        and QB.util.isFiniteNumber(rotation.x) and QB.util.isFiniteNumber(rotation.y) and QB.util.isFiniteNumber(rotation.z),
+        and Kora.util.isFiniteNumber(rotation.x) and Kora.util.isFiniteNumber(rotation.y) and Kora.util.isFiniteNumber(rotation.z),
         'Animation prop rotation must contain finite x, y, and z values.')
     assert(opts == nil or type(opts) == 'table', 'Animation prop options must be a table.')
     opts = opts or {}
@@ -241,7 +241,7 @@ function QB.anim.attachProp(entity, model, bone, offset, rotation, opts)
 
     local prop
 
-    local loadedModel, loadErr = QB.stream.loadModel(model, function(loadedModelHash)
+    local loadedModel, loadErr = Kora.stream.loadModel(model, function(loadedModelHash)
         local created = CreateObjectNoOffset(loadedModelHash, offset.x, offset.y, offset.z, false, false, false)
         if created == 0 or not DoesEntityExist(created) then return end
 
@@ -265,17 +265,17 @@ function QB.anim.attachProp(entity, model, bone, offset, rotation, opts)
     return prop
 end
 
----Detaches and deletes a prop created with `QB.anim.attachProp`. Refuses
----props this module didn't create, matching `QB.entities.remove`/`QB.blips.remove`.
+---Detaches and deletes a prop created with `Kora.anim.attachProp`. Refuses
+---props this module didn't create, matching `Kora.entities.remove`/`Kora.blips.remove`.
 ---@param prop number
 ---@return boolean success
 ---@return string? error
-function QB.anim.detachProp(prop)
+function Kora.anim.detachProp(prop)
     assert(type(prop) == "number", ("Invalid prop: %s"):format(prop))
 
     local owner = propRegistry.owner(prop)
     if not owner then
-        return false, "Prop is not tracked by QB.anim."
+        return false, "Prop is not tracked by Kora.anim."
     end
 
     local invoker = GetInvokingResource()
@@ -294,20 +294,20 @@ function QB.anim.detachProp(prop)
 end
 
 ---Starts a scenario on an entity. Scenarios have no streamed dictionary and
----are therefore deliberately separate from QB.anim.play's tracked lifecycle.
+---are therefore deliberately separate from Kora.anim.play's tracked lifecycle.
 ---@param entity number
 ---@param scenario string
 ---@param enterVehicle? boolean Defaults to false.
-function QB.anim.playScenario(entity, scenario, enterVehicle)
+function Kora.anim.playScenario(entity, scenario, enterVehicle)
     assert(type(entity) == 'number' and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
-    assert(type(scenario) == 'string' and #scenario > 0, 'QB.anim.playScenario requires a scenario.')
+    assert(type(scenario) == 'string' and #scenario > 0, 'Kora.anim.playScenario requires a scenario.')
     TaskStartScenarioInPlace(entity, scenario, 0, enterVehicle == true)
 end
 
 ---@param entity number
 ---@param immediate? boolean Defaults to false.
-function QB.anim.clear(entity, immediate)
+function Kora.anim.clear(entity, immediate)
     assert(type(entity) == 'number' and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
-    QB.anim.stop(entity)
+    Kora.anim.stop(entity)
     if immediate then ClearPedTasksImmediately(entity) else ClearPedTasks(entity) end
 end

@@ -10,8 +10,8 @@
 
 -- Plain { x, y, z } tables, not glm.vec3 -- see the identical note in
 -- modules/raycast/client.lua and modules/zones/client.lua for why.
-local isFiniteNumber = QB.util.isFiniteNumber
-local isInteger = QB.util.isInteger
+local isFiniteNumber = Kora.util.isFiniteNumber
+local isInteger = Kora.util.isInteger
 
 local function toVec3(v)
     assert(v and isFiniteNumber(v.x) and isFiniteNumber(v.y) and isFiniteNumber(v.z),
@@ -107,7 +107,7 @@ local function assertQueryOptions(options)
         end
         assert(count == #options.excludeEntities, 'World query excludeEntities must be a dense array.')
     end
-    assert(options.predicate == nil or QB.compat.isCallable(options.predicate),
+    assert(options.predicate == nil or Kora.compat.isCallable(options.predicate),
         'World query predicate must be callable.')
     assert(options.includeOwnPed == nil or type(options.includeOwnPed) == 'boolean',
         'World query includeOwnPed must be a boolean.')
@@ -183,7 +183,7 @@ end
 ---@param radius number
 ---@param options? QBWorldQueryOptions
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
-function QB.world.getNearbyEntities(entityType, coords, radius, options)
+function Kora.world.getNearbyEntities(entityType, coords, radius, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
     assertRadius(radius)
 
@@ -199,7 +199,7 @@ end
 ---@return number|false entity `false` if nothing matched within range.
 ---@return table? coords Only present when an entity was found.
 ---@return number? distance Only present when an entity was found.
-function QB.world.getClosestEntity(entityType, coords, options)
+function Kora.world.getClosestEntity(entityType, coords, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
     assertQueryOptions(options)
 
@@ -227,7 +227,7 @@ end
 ---@param options? QBWorldGroundOptions
 ---@return table|false coords
 ---@return string? error
-function QB.world.getGroundCoords(coords, options)
+function Kora.world.getGroundCoords(coords, options)
     local origin = toVec3(coords)
     assert(options == nil or type(options) == "table", "Ground query options must be a table.")
     options = options or {}
@@ -252,8 +252,8 @@ end
 ---@param coords? vector3|{x:number,y:number,z:number} Defaults to the cached player coordinates.
 ---@return string street
 ---@return string? crossing
-function QB.world.getStreetNames(coords)
-    if coords == nil then coords = QB.cache.coords() end
+function Kora.world.getStreetNames(coords)
+    if coords == nil then coords = Kora.cache.coords() end
     coords = toVec3(coords)
     local streetHash, crossingHash = GetStreetNameAtCoord(coords.x, coords.y, coords.z)
     local street = streetHash and streetHash ~= 0 and GetStreetNameFromHashKey(streetHash) or ''
@@ -265,8 +265,8 @@ end
 ---@param coords? vector3|{x:number,y:number,z:number} Defaults to the cached player coordinates.
 ---@return string label
 ---@return string code
-function QB.world.getZoneName(coords)
-    if coords == nil then coords = QB.cache.coords() end
+function Kora.world.getZoneName(coords)
+    if coords == nil then coords = Kora.cache.coords() end
     coords = toVec3(coords)
     local code = GetNameOfZone(coords.x, coords.y, coords.z)
     local label = GetLabelText(code)
@@ -280,13 +280,13 @@ local CARDINAL_DIRECTIONS = { 'N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE' }
 ---@param value? number Heading in degrees, or an entity handle when options.entity is true. Defaults to the cached player ped.
 ---@param options? {entity?: boolean}
 ---@return 'N'|'NW'|'W'|'SW'|'S'|'SE'|'E'|'NE'
-function QB.world.getCardinalDirection(value, options)
+function Kora.world.getCardinalDirection(value, options)
     assert(options == nil or type(options) == 'table', 'Cardinal direction options must be a table.')
     assert(options == nil or options.entity == nil or type(options.entity) == 'boolean',
         'Cardinal direction options.entity must be a boolean.')
     local heading
     if value == nil then
-        heading = GetEntityHeading(QB.cache.ped())
+        heading = GetEntityHeading(Kora.cache.ped())
     elseif options and options.entity then
         assert(type(value) == 'number' and value ~= 0 and DoesEntityExist(value), 'Invalid entity.')
         heading = GetEntityHeading(value)
@@ -303,7 +303,7 @@ end
 ---Returns the active waypoint position, or false when no waypoint is set.
 ---@return table|false coords
 ---@return string? error
-function QB.world.getWaypointCoords()
+function Kora.world.getWaypointCoords()
     local blip = GetFirstBlipInfoId(8)
     if not blip or blip == 0 or not DoesBlipExist(blip) then
         return false, 'No waypoint is set.'
@@ -318,7 +318,7 @@ end
 ---@param radius number
 ---@param options? QBWorldQueryOptions
 ---@return boolean clear
-function QB.world.isSpawnClear(coords, radius, options)
+function Kora.world.isSpawnClear(coords, radius, options)
     assertRadius(radius)
     assert(options == nil or type(options) == "table", "World query options must be a table.")
     options = options or {}
