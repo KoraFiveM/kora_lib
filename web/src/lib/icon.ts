@@ -3,6 +3,14 @@ import type { LucideProps } from "lucide-react"
 import type { IconDefinition, IconName, IconPack, IconPrefix } from "@fortawesome/fontawesome-svg-core"
 import type { FontAwesomeIcon as FontAwesomeIconType } from "@fortawesome/react-fontawesome"
 import {
+    Armchair,
+    Camera,
+    CircleDot,
+    Lightbulb,
+    Palette,
+    Puzzle,
+    Receipt,
+    RectangleHorizontal,
     Activity,
     AlertCircle,
     AlertTriangle,
@@ -72,6 +80,14 @@ import {
 // which bloated this NUI's bundle by roughly 1MB for a handful of menu icons.
 // Add more entries here as real menus need them.
 const ICONS: Record<string, ComponentType<LucideProps>> = {
+    Armchair,
+    Camera,
+    CircleDot,
+    Lightbulb,
+    Palette,
+    Puzzle,
+    Receipt,
+    RectangleHorizontal,
     Activity,
     AlertCircle,
     AlertTriangle,

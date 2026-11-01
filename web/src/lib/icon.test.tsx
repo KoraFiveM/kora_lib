@@ -21,3 +21,9 @@ describe("resolveIcon image compatibility", () => {
         expect(resolveIcon("data:text/html,bad")).toBeNull()
     })
 })
+
+describe("resolveIcon curated set", () => {
+    it.each(["Palette", "Camera", "Receipt", "CircleDot", "Armchair", "Lightbulb", "RectangleHorizontal", "Puzzle"])("resolves %s from the bundled Lucide set", (name) => {
+        expect(resolveIcon(name)?.displayName ?? "").not.toContain("FontAwesome")
+    })
+})
