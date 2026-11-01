@@ -18,6 +18,13 @@ if not isServer then
     consumerModuleFiles.util[#consumerModuleFiles.util + 1] = 'modules/util/client.lua'
 end
 
+local function compileKoraFile(path)
+    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
+    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
+    assert(chunk, compileError)
+    return chunk
+end
+
 local function loadConsumerModule(namespace, name, paths)
     local module = {}
     local previous = rawget(namespace, name)
@@ -29,11 +36,7 @@ local function loadConsumerModule(namespace, name, paths)
 
     local ok, loadError = pcall(function()
         for index = 1, #paths do
-            local path = paths[index]
-            local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
-            local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
-            assert(chunk, compileError)
-            chunk()
+            compileKoraFile(paths[index])()
         end
 
         assert(next(module), ('Consumer module Kora.%s did not register any functions.'):format(name))
@@ -55,11 +58,7 @@ local function getRequireModule()
     if requireModule then return requireModule end
 
     local path = 'modules/require/loader.lua'
-    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
-    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
-    assert(chunk, compileError)
-
-    local createRequire = chunk()
+    local createRequire = compileKoraFile(path)()
     assert(type(createRequire) == 'function', ('@kora_lib/%s must return a factory function'):format(path))
 
     requireModule = createRequire(GetCurrentResourceName())
@@ -74,11 +73,7 @@ local function getConfigModule()
     if configModule then return configModule end
 
     local path = 'modules/config/consumer.lua'
-    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
-    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
-    assert(chunk, compileError)
-
-    local createConfig = chunk()
+    local createConfig = compileKoraFile(path)()
     assert(type(createConfig) == 'function', ('@kora_lib/%s must return a factory function'):format(path))
     configModule = createConfig(library)
     return configModule
@@ -87,11 +82,7 @@ end
 local function getCompatModule()
     if compatModule then return compatModule end
     local path = 'compat/provider.lua'
-    local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
-    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
-    assert(chunk, compileError)
-    local createCompat = chunk()
-    compatModule = createCompat()
+    compatModule = compileKoraFile(path)()()
     return compatModule
 end
 
