@@ -79,7 +79,7 @@ local SKIPPED_DIRECTORIES = {
     build = true,
 }
 
-local function collectFiles(resource, mountPath, relativePath, includeAll, output, depth, budget)
+local function collectFiles(mountPath, relativePath, includeAll, output, depth, budget)
     if depth > 12 then return end
     local entries = readDirectory(mountPath)
     if entries == nil then return end
@@ -97,7 +97,7 @@ local function collectFiles(resource, mountPath, relativePath, includeAll, outpu
 
         if childEntries ~= nil then
             if includeAll or not SKIPPED_DIRECTORIES[name:lower()] then
-                collectFiles(resource, childMount, childRelative, includeAll, output, depth + 1, budget)
+                collectFiles(childMount, childRelative, includeAll, output, depth + 1, budget)
             end
         else
             local lower = name:lower()
@@ -118,10 +118,10 @@ local function resourceFiles(resource)
     local budget = { entries = 0, truncated = false }
     local streamMount = ('@%s/stream'):format(resource)
     if readDirectory(streamMount) ~= nil then
-        collectFiles(resource, streamMount, 'stream', true, files, 0, budget)
+        collectFiles(streamMount, 'stream', true, files, 0, budget)
     end
     if not budget.truncated then
-        collectFiles(resource, ('@%s/'):format(resource), '', false, files, 0, budget)
+        collectFiles(('@%s/'):format(resource), '', false, files, 0, budget)
     end
 
     local unique = {}
