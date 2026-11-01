@@ -69,7 +69,7 @@ end
 
 local function render()
     local id = visibleId()
-    local entry = id and entries[id] or nil
+    local entry = id and entries[id]
     if entry then
         Kora.nui.send('textui:set', {
             id = id,

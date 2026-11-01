@@ -84,8 +84,7 @@ end
 local function toWeightedPairs(items, chances)
     local pairs_ = {}
     for i = 1, #items do
-        local item = items[i]
-        pairs_[i] = { item, chances[i] }
+        pairs_[i] = { items[i], chances[i] }
     end
     return pairs_
 end
@@ -103,9 +102,8 @@ local function roll(items, chances, weightedPairs, mode)
 
     local hits = {}
     for i = 1, #items do
-        local item = items[i]
         if math.random() * 100 <= chances[i] then
-            hits[#hits + 1] = item
+            hits[#hits + 1] = items[i]
         end
     end
 
@@ -146,8 +144,7 @@ function Kora.rewards.generate(items, opts)
     for _ = 1, rolls do
         local rolledItems = roll(items, chances, weightedPairs, mode)
         for itemIndex = 1, #rolledItems do
-            local item = rolledItems[itemIndex]
-            rewards[#rewards + 1] = toReward(item)
+            rewards[#rewards + 1] = toReward(rolledItems[itemIndex])
         end
     end
 

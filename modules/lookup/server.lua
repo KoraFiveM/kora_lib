@@ -274,7 +274,6 @@ local function decodeOverride(resource)
     return decoded
 end
 
-
 local METADATA_FIELDS = {
     vehicle = { class = 'string', manufacturer = 'string', type = 'string', seats = 'integer' },
     ped = { pedType = 'string' },
@@ -617,8 +616,7 @@ state.buildBatches = buildBatches
 local function sendSnapshot(target)
     snapshotBatches = snapshotBatches or buildBatches()
     for index = 1, #snapshotBatches do
-        local batch = snapshotBatches[index]
-        Kora.events.push(target, SYNC_PUSH, state.overlayVersion, index, #snapshotBatches, batch)
+        Kora.events.push(target, SYNC_PUSH, state.overlayVersion, index, #snapshotBatches, snapshotBatches[index])
     end
 end
 

@@ -43,7 +43,6 @@ export function PlacementHud() {
                     </span>
             ) : undefined}
         >
-
             {snapshot ? (
                 <>
                     <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-1 text-xs text-muted-foreground">

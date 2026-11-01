@@ -208,7 +208,6 @@ function Kora.commands.add(name, help, args, argsRequired, handler, opts)
         dispatch(name, def, source, rawArgs, raw)
     end, false)
 
-    -- Chat suggestion.
     TriggerClientEvent('chat:addSuggestion', -1, '/' .. name, help or '', publicArgs(args) or {})
     if previous and previous.keybind and not keybind then TriggerClientEvent(keybindEvents.remove, -1, name) end
     publishKeybind(name, commands[name])

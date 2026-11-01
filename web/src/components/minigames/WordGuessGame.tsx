@@ -48,8 +48,7 @@ export function WordGuessGame({ puzzle, attempt, attempts, timeLimit, lastResult
             const letter = event.key.toLowerCase()
             if (guessed.includes(letter)) return
 
-            const now = performance.now() - startRef.current
-            guessesRef.current = [...guessesRef.current, { letter, elapsed: now }]
+            guessesRef.current = [...guessesRef.current, { letter, elapsed: performance.now() - startRef.current }]
             setGuessed((prev) => [...prev, letter])
         }
 

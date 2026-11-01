@@ -447,15 +447,14 @@ local function runMenu(session)
             activeMenu = nil
             if isCallable(definition.onClose) then definition.onClose(result and result.keyPressed or nil) end
             return
-        else
-            local choice = session.choices[result.selectedId]
-            if not choice then return end
-            if choice.option.close ~= false then activeMenu = nil end
-            if isCallable(session.registration.callback) then
-                session.registration.callback(choice.index, result.valueIndex, choice.option.args, result.checked)
-            end
-            if choice.option.close ~= false then return end
         end
+        local choice = session.choices[result.selectedId]
+        if not choice then return end
+        if choice.option.close ~= false then activeMenu = nil end
+        if isCallable(session.registration.callback) then
+            session.registration.callback(choice.index, result.valueIndex, choice.option.args, result.checked)
+        end
+        if choice.option.close ~= false then return end
     end
 end
 
@@ -586,16 +585,11 @@ end
 
 local function openRadial(id, owner)
     if not activeRadial and (IsNuiFocused() or IsPauseMenuActive()) then return end
-    if activeRadial and activeRadial.rootId == id then
-        local previous = activeRadial
+    local previous = activeRadial
+    if previous then
         activeRadial = nil
         cancelSession(previous, { cancelled = true })
-        return
-    end
-    if activeRadial then
-        local previous = activeRadial
-        activeRadial = nil
-        cancelSession(previous, { cancelled = true })
+        if previous.rootId == id then return end
     end
     local session = { rootId = id, currentId = id, owner = owner, path = {} }
     activeRadial = session
@@ -1115,7 +1109,6 @@ function Kora.ox.setLocale(key, data, owner)
     Kora.nui.send('oxLocale', oxLocale)
     return true
 end
-
 
 Kora.nui.registerCallback('kora_lib:oxLocale', function()
     return oxLocale

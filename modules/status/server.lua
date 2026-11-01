@@ -69,7 +69,7 @@ function Kora.status.apply(target, name, opts)
 
     local severity = def.severityLevels and opts.severity or nil
     if severity == nil then
-        severity = (existing and existing.severity)
+        severity = existing and existing.severity
     elseif stacking == "stack" and existing and existing.severity then
         severity = math.min(def.severityLevels or severity, existing.severity + severity)
     end

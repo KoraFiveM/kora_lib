@@ -17,6 +17,11 @@ function randomAngle(offset: number) {
     return -90 + Math.floor(Math.random() * Math.max(1, 240 - offset)) + 120
 }
 
+function randomKey(inputs: OxSkillCheckPayload["inputs"]) {
+    const valid = inputs?.filter((input) => typeof input === "string" && input.length > 0)
+    return valid?.[Math.floor(Math.random() * valid.length)]?.toLowerCase() ?? "e"
+}
+
 function keyboardKey(event: KeyboardEvent) {
     if (event.key.charCodeAt(0) < 880) return event.key.toLowerCase()
     if (event.code.startsWith("Key") && event.code.length === 4) return event.code.charAt(3).toLowerCase()
@@ -38,8 +43,7 @@ export function OxSkillCheck() {
             const { offset } = stageValues(first)
             setStageIndex(0)
             setAngle(randomAngle(offset))
-            const inputs = data.inputs?.filter((input) => typeof input === "string" && input.length > 0)
-            setKey(inputs?.[Math.floor(Math.random() * inputs.length)]?.toLowerCase() ?? "e")
+            setKey(randomKey(data.inputs))
         }, []),
     )
 
@@ -54,10 +58,9 @@ export function OxSkillCheck() {
         }
         const nextIndex = stageIndex + 1
         const nextValues = stageValues(stages[nextIndex])
-        const inputs = payload?.inputs?.filter((input) => typeof input === "string" && input.length > 0)
         setStageIndex(nextIndex)
         setAngle(randomAngle(nextValues.offset))
-        setKey(inputs?.[Math.floor(Math.random() * inputs.length)]?.toLowerCase() ?? "e")
+        setKey(randomKey(payload?.inputs))
     }, [payload?.inputs, respond, stageIndex, stages])
 
     useEffect(() => {

@@ -116,7 +116,6 @@ local function visibleOptions(options)
     for optionIndex = 1, #options do
         local option = options[optionIndex]
         if isAvailable(option, data, itemAvailability) then
-            -- Compact NUI payload so no action/event data leaks into the browser.
             visible[#visible + 1] = option
         end
     end
@@ -256,11 +255,12 @@ local function open(options, source, owner)
 
     if active then hide(active) end
 
+    owner = owner or GetCurrentResourceName()
     local session = {
         options = available,
         source = source,
-        owner = owner or GetCurrentResourceName(),
-        controlLease = Kora.compat.acquireControls(interactionControls(), nil, owner or GetCurrentResourceName()),
+        owner = owner,
+        controlLease = Kora.compat.acquireControls(interactionControls(), nil, owner),
     }
     active = session
 
@@ -296,6 +296,7 @@ end
 local function compatVector(vec)
     return vector3(vec.x, vec.y, vec.z)
 end
+
 ---Opens the compact, game-input-driven selector. No NUI focus is granted.
 ---@param options QBInteractOption[]
 ---@return boolean opened False when disabled or no option passes its restrictions.

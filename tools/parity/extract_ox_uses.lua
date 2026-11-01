@@ -63,11 +63,6 @@ function M.extract(root)
         for name in code:gmatch("exports[%.%[]['\"]?oxmysql['\"]?%]?[:%.]([%w_]+)") do bump(oxmysqlExports, name) end
     end
 
-    -- Direct `lib.x` hits that are real modules (more than one segment came
-    -- from them) are kept as-is; the counts below summarise the shape.
-    local libNames = {}
-    for k in pairs(lib) do libNames[#libNames + 1] = k end
-
     return {
         meta = { tool = "extract_ox_uses" },
         lib = lib,
@@ -80,7 +75,7 @@ function M.extract(root)
             luaFiles = counts.files,
             requireCalls = counts.require,
             libLoadCalls = counts.libLoad,
-            libNames = #libNames,
+            libNames = #common.keys(lib),
             libModules = #common.keys(libModules),
             cacheKeys = #common.keys(cache),
             mysqlForms = #common.keys(mysql),

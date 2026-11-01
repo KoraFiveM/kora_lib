@@ -41,8 +41,7 @@ local function poolEntities(entityType)
         local peds = {}
         local players = GetPlayers()
         for playerIndex = 1, #players do
-            local playerId = players[playerIndex]
-            peds[#peds + 1] = GetPlayerPed(playerId)
+            peds[#peds + 1] = GetPlayerPed(players[playerIndex])
         end
         return peds
     end

@@ -375,6 +375,3 @@ end
 function Kora.util.bearing(origin, target)
     return Kora.util.directionToHeading(Kora.util.vecSub(target, origin))
 end
-
--- No compass-point helper here: Kora.world.getCardinalDirection already maps a heading to "N"/"NE"/...; pair it
--- with Kora.util.bearing for the direction TO something.

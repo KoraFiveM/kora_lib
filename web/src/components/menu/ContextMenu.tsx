@@ -165,7 +165,7 @@ export function ContextMenuContainer() {
                             : item.readOnly ? "cursor-default" : "cursor-pointer hover:bg-surface-hover",
                         index === activeIndex && !item.disabled && "bg-surface-hover before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-primary"
                     )}
-                    >
+                >
                     <MenuItemLabel item={item} />
                     {(item.submenu || item.arrow === true) && item.arrow !== false ? <ChevronRight aria-hidden className="ml-auto mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /> : null}
                 </button>

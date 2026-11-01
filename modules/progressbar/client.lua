@@ -74,6 +74,7 @@ local BEHAVIOUR_FIELDS = { 'useWhileDead', 'allowRagdoll', 'allowCuffed', 'allow
 local DISABLE_FIELDS = { 'move', 'sprint', 'combat', 'car', 'mouse' }
 local ANIM_LOCK_FIELDS = { 'lockX', 'lockY', 'lockZ' }
 local PROP_BOOLEAN_FIELDS = { 'softPinning', 'collision', 'syncRotation' }
+local LEASE_FIELDS = { 'carLease', 'combatLease', 'sprintLease', 'mouseLease', 'movementLease' }
 
 local function deleteProgressProp(entity)
     if not entity or not DoesEntityExist(entity) then return end
@@ -253,25 +254,12 @@ local function cleanupSession(session, cancelled)
     if activeSession == session then activeSession = nil end
     busy = false
 
-    if session.carLease then
-        Kora.compat.releaseControlLease(session.carLease, session.owner)
-        session.carLease = nil
-    end
-    if session.combatLease then
-        Kora.compat.releaseControlLease(session.combatLease, session.owner)
-        session.combatLease = nil
-    end
-    if session.sprintLease then
-        Kora.compat.releaseControlLease(session.sprintLease, session.owner)
-        session.sprintLease = nil
-    end
-    if session.mouseLease then
-        Kora.compat.releaseControlLease(session.mouseLease, session.owner)
-        session.mouseLease = nil
-    end
-    if session.movementLease then
-        Kora.compat.releaseControlLease(session.movementLease, session.owner)
-        session.movementLease = nil
+    for i = 1, #LEASE_FIELDS do
+        local field = LEASE_FIELDS[i]
+        if session[field] then
+            Kora.compat.releaseControlLease(session[field], session.owner)
+            session[field] = nil
+        end
     end
 
     if session.frozen then
@@ -424,8 +412,7 @@ function Kora.progressbar.start(payload, owner, hooks)
     local ok, result = pcall(function()
         local props = payload.props or {}
         for index = 1, #props do
-            local prop = props[index]
-            prepareProp(session, prop, index)
+            prepareProp(session, props[index], index)
             if session.cleaned then return false end
         end
         if payload.prop then
@@ -515,8 +502,7 @@ function Kora.progressbar.start(payload, owner, hooks)
 
             if payload.canCancel and cancelControls then
                 for i = 1, #cancelControls do
-                    local control = cancelControls[i]
-                    if IsControlJustPressed(0, control) then return true end
+                    if IsControlJustPressed(0, cancelControls[i]) then return true end
                 end
             end
             return false

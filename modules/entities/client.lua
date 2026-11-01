@@ -295,10 +295,11 @@ end
 function Kora.entities.remove(entity)
     assert(type(entity) == "number", ("Invalid entity: %s"):format(entity))
 
-    if not entityRegistry.owner(entity) then
+    local owner = entityRegistry.owner(entity)
+    if not owner then
         return false, "Entity is not tracked by Kora.entities."
     end
-    if entityRegistry.owner(entity) ~= (GetInvokingResource() or GetCurrentResourceName()) then
+    if owner ~= (GetInvokingResource() or GetCurrentResourceName()) then
         return false, "Entity is not owned by the calling resource."
     end
 
