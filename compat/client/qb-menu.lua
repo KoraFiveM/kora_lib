@@ -91,6 +91,8 @@ end
 -- path has no external caller and must await the pending promise here.
 local headerShown = false
 local headerMenu
+local openSerial, menuOpen = 0, false
+local silenced = {}
 
 local function openMenu(menu, sort, skipFirst)
     local items, byId = translateItems(menu, sort, skipFirst)
@@ -101,22 +103,33 @@ local function openMenu(menu, sort, skipFirst)
     -- the original export runtime is no longer necessarily on FiveM's runtime
     -- stack, so querying GetInvokingResource afterwards is not reliable.
     local calledFromExport = GetInvokingResource() ~= nil
+    if menuOpen then silenced[openSerial] = true end
+    openSerial = openSerial + 1
+    local mine = openSerial
+    menuOpen = true
     local result = Kora.nui.openMenu(items)
     if not calledFromExport then result = Citizen.Await(result) end
+    if mine == openSerial then menuOpen = false end
     if not result or result.cancelled then
-        TriggerEvent('qb-menu:client:menuClosed')
+        if silenced[mine] then
+            silenced[mine] = nil
+        else
+            TriggerEvent('qb-menu:client:menuClosed')
+        end
         return
     end
     dispatch(byId[result.selectedId])
 end
 
 -- Force-dismiss the open menu; the container answers its pending request as cancelled, same path as Escape.
+-- The programmatic close is silenced: upstream fires menuClosed only for a user close.
 local function closeMenu()
     if headerShown then
         Kora.nui.send('hideMenuHeader', {})
         headerShown = false
     end
     headerMenu = nil
+    if menuOpen then silenced[openSerial] = true end
     Kora.nui.send("closeMenu", {})
 end
 

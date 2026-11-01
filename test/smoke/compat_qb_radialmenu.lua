@@ -115,7 +115,7 @@ local RemoveOption = getExport("qb-radialmenu", "RemoveOption")
 
 local function itemById(items, id)
     for _, item in ipairs(items) do
-        if item.id == id then return item end
+        if item.id == tostring(id) then return item end
     end
     return nil
 end
@@ -196,11 +196,11 @@ harness.test("selecting an option with an event fires TriggerEvent/TriggerServer
     local clientFired, serverFired = false, false
     net.eventHandlers["test:client:action"] = { function() clientFired = true end }
 
-    nextRadialResult = { selectedId = clientId }
+    nextRadialResult = { selectedId = tostring(clientId) }
     openRadial()
     harness.assertTrue(clientFired, "a client-type option should fire TriggerEvent")
 
-    nextRadialResult = { selectedId = serverId }
+    nextRadialResult = { selectedId = tostring(serverId) }
     openRadial()
     harness.assertTrue(net.triggeredServerEvents[#net.triggeredServerEvents].name == "test:server:action",
         "a server-type option should fire TriggerServerEvent")
@@ -512,5 +512,40 @@ end)
 
 resetVehicleState()
 resetPlayerData()
+
+harness.test("AddOption without an id returns a numeric id", function()
+    local id = AddOption({ title = "Numeric" })
+    harness.assertEqual(math.type(id), "integer", "a generated id should be numeric, as upstream")
+    RemoveOption(id)
+end)
+
+harness.test("onRadialmenuOpen and onRadialmenuClose fire around the wheel", function()
+    local log = {}
+    net.eventHandlers["qb-radialmenu:client:onRadialmenuOpen"] = { function() log[#log + 1] = "open" end }
+    net.eventHandlers["qb-radialmenu:client:onRadialmenuClose"] = { function() log[#log + 1] = "close" end }
+    local id = AddOption({ title = "Evented" })
+    nextRadialResult = { cancelled = true }
+    openRadial()
+    harness.assertEqual(table.concat(log, ","), "open,close", "open then close should fire once each")
+    RemoveOption(id)
+    net.eventHandlers["qb-radialmenu:client:onRadialmenuOpen"] = nil
+    net.eventHandlers["qb-radialmenu:client:onRadialmenuClose"] = nil
+end)
+
+harness.test("changeSeat is refused while HasHarness is true", function()
+    local seated = 0
+    _G.SetPedIntoVehicle = function() seated = seated + 1 end
+    _G.GetVehiclePedIsIn = function() return 7 end
+    _G.IsVehicleSeatFree = function() return true end
+    _G.GetEntitySpeed = function() return 0.0 end
+    local harnessOn = true
+    _G.exports["qb-smallresources"] = { HasHarness = function() return harnessOn end }
+    net.fire("kora_lib:radialmenuCompat:client:changeSeat", { seatIndex = 0 })
+    harness.assertEqual(seated, 0, "a harnessed player must not switch seats")
+    harnessOn = false
+    net.fire("kora_lib:radialmenuCompat:client:changeSeat", { seatIndex = 0 })
+    harness.assertEqual(seated, 1, "without a harness the seat change should proceed")
+    _G.exports["qb-smallresources"] = nil
+end)
 
 harness.report("compat_qb_radialmenu")

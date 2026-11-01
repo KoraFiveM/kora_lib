@@ -267,4 +267,32 @@ harness.test("the export path consumes Kora.nui.openMenu's already-settled resul
     _G.GetInvokingResource = function() return nil end
 end)
 
+harness.test("menuClosed fires only on a user close, not after a programmatic closeMenu", function()
+    local closed = 0
+    net.eventHandlers["qb-menu:client:menuClosed"] = { function() closed = closed + 1 end }
+
+    local realOpen = Kora.nui.openMenu
+    local closeDuringOpen = false
+    Kora.nui.openMenu = function()
+        if closeDuringOpen then closeMenu() end
+        local p = promise.new()
+        p:resolve({ cancelled = true })
+        return p
+    end
+
+    openMenu({ { header = "One" } })
+    harness.assertEqual(closed, 1, "a user cancel should fire menuClosed")
+
+    closeDuringOpen = true
+    openMenu({ { header = "Two" } })
+    harness.assertEqual(closed, 1, "closeMenu while open should not fire menuClosed")
+
+    closeDuringOpen = false
+    openMenu({ { header = "Three" } })
+    harness.assertEqual(closed, 2, "the silence must not leak into the next menu")
+
+    Kora.nui.openMenu = realOpen
+    net.eventHandlers["qb-menu:client:menuClosed"] = nil
+end)
+
 harness.report("compat_qb_menu")
