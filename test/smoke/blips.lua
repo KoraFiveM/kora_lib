@@ -56,6 +56,8 @@ function _G.AddTextEntry(key, value)
 end
 function _G.SetBlipAsMissionCreatorBlip(blip, enabled) missionCreatorBlips[blip] = enabled end
 
+local cursorX = 0.3
+function _G.GetControlNormal(_, control) return control == 239 and cursorX or 0.5 end
 function _G.IsFrontendReadyForControl() return frontendReady end
 function _G.IsHoveringOverMissionCreatorBlip() return hoveringBlip end
 function _G.GetNewSelectedMissionCreatorBlip() return selectedBlip end
@@ -254,8 +256,46 @@ harness.test("creates and renders an optional pause-map detail panel", function(
     net.step()
     harness.assertTrue(#scaleformCalls > callsBeforeClose,
         "closing the pause frontend should clear kora_lib's active detail column")
-    harness.assertEqual(scaleformCalls[#scaleformCalls], "SHOW_COLUMN",
-        "the scaleform column must not remain logically selected after the frontend closes")
+    harness.assertEqual(scaleformCalls[#scaleformCalls], "SET_DATA_SLOT_EMPTY",
+        "the drawn card should be emptied after the frontend closes")
+end)
+
+harness.test("legend selection does not render the card or blank the legend; map hover does", function()
+    local blip = Kora.blips.create({ x = 5, y = 5, z = 5 }, { info = { title = "Legend" } })
+    frontendReady = true
+    hoveringBlip = true
+    selectedBlip = blip
+
+    local function countSince(start, name)
+        local n = 0
+        for i = start + 1, #scaleformCalls do
+            if scaleformCalls[i] == name then n = n + 1 end
+        end
+        return n
+    end
+
+    cursorX = 0.85 -- cursor over the legend column
+    local start = #scaleformCalls
+    net.step()
+    net.step()
+    net.step()
+    net.step()
+    harness.assertEqual(#scaleformCalls, start, "legend-focused selection must make no frontend calls")
+
+    cursorX = 0.3 -- cursor moved onto the map
+    net.step()
+    harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1, "map hover should render the card")
+
+    start = #scaleformCalls
+    cursorX = 0.85 -- legend clicked while the card was up
+    for _ = 1, 4 do net.step() end
+    harness.assertEqual(countSince(start, "SHOW_COLUMN"), 0, "the legend column must never be hidden")
+    harness.assertEqual(countSince(start, "DISPLAY_DATA_SLOT"), 0, "no card is drawn over the legend")
+    harness.assertEqual(countSince(start, "SET_DATA_SLOT_EMPTY"), 1, "the card slots are emptied once")
+
+    Kora.blips.clearInfo(blip)
+    frontendReady = false
+    hoveringBlip = false
 end)
 
 harness.test("only the owner can change or clear a blip detail panel", function()

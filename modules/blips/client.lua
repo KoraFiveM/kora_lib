@@ -261,6 +261,20 @@ local function setDisplayVisible(visible)
     EndScaleformMovieMethod()
 end
 
+local function infoConfig()
+    return Config.blips.info or {}
+end
+
+-- Clicking a legend entry makes IsHoveringOverMissionCreatorBlip report that blip exactly
+-- like a map hover does, and no frontend native tells the two apart. The legend lives on
+-- the right of the screen, so the mouse cursor (INPUT_CURSOR_X, always readable) being
+-- over that region means the selection came from the legend, not from the map.
+local function legendHasFocus()
+    local cfg = infoConfig()
+    if cfg.showOnLegendSelect == true then return false end
+    return GetControlNormal(2, 239) >= (cfg.legendMinX or 0.66)
+end
+
 local function clearDisplay()
     if not BeginScaleformMovieMethodOnFrontend("SET_DATA_SLOT_EMPTY") then return end
     ScaleformMovieMethodAddParamInt(displayColumn)
@@ -366,7 +380,7 @@ ensureInfoThread = function()
                 sleep = 50
                 if IsHoveringOverMissionCreatorBlip() then
                     blip = GetNewSelectedMissionCreatorBlip()
-                    if DoesBlipExist(blip) then info = infoByBlip[blip] end
+                    if DoesBlipExist(blip) and not legendHasFocus() then info = infoByBlip[blip] end
                 end
             end
 
@@ -394,7 +408,9 @@ ensureInfoThread = function()
                     selectedBlip = nil
                     renderedInfo = nil
                     missedSelectionPolls = 0
-                    setDisplayVisible(false)
+                    -- Empty only the card we drew; SHOW_COLUMN(false) would hide the legend
+                    -- the game keeps in this column.
+                    clearDisplay()
                 end
             end
 

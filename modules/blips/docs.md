@@ -176,6 +176,8 @@ local blip = Kora.blips.create(contract.coords, {
 
 `image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Shared dictionaries are retained once and released after the final panel using them is cleared or removed. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`. While a detailed blip is highlighted, kora_lib refreshes the frontend column every frame because GTA rebuilds pause-map columns continuously; the renderer returns to its low-frequency idle poll as soon as the highlight ends.
 
+The card shares frontend column 1 with GTA's legend, and selecting a legend entry reports the same highlighted blip as hovering it on the map. By default (`Config.blips.info.showOnLegendSelect = false`) the card is not drawn while the mouse cursor is at or right of `Config.blips.info.legendMinX` (`0.66`, screen fraction), so clicking a legend entry no longer makes the legend flash. When a card ends, only the slots kora_lib drew are emptied; the column is never hidden. Set `showOnLegendSelect = true` to always draw the card for the selected blip.
+
 ### `Kora.blips.setInfo(blip, info)`
 
 Replaces a detail panel for a blip created by the calling resource. This also

@@ -77,6 +77,17 @@ Config.blips = {
     -- in modules/blips/shared.lua uses ids from this range.
     namedCategoryStart = 12,
     namedCategoryEnd = 133,
+
+    -- Custom pause-map detail card (Kora.blips create/setInfo `info`).
+    info = {
+        -- false: the card is drawn only while the map cursor hovers a blip. Clicking a legend entry
+        -- also selects that blip, but the card shares frontend column 1 with the legend and would
+        -- blank it every frame, so it is suppressed while the cursor is over the legend.
+        -- true: always draw the card for the selected blip (legend flicker returns).
+        showOnLegendSelect = false,
+        -- Screen-space X (0-1) from which the cursor counts as being over the legend column.
+        legendMinX = 0.66,
+    },
 }
 
 Config.progressbar = {
