@@ -113,7 +113,7 @@ local function translateField(input)
 end
 
 -- Real ShowInput blocks the calling coroutine and returns either a table of
--- `{ [name]: value }` (submit) or `false` (cancel) -- never a promise the
+-- `{ [name]: value }` (submit) or `nil` (cancel) -- never a promise the
 -- caller has to unwrap. Kora.nui.openInputDialog already performs that wait when
 -- this compatibility export was invoked by another resource. A direct kora_lib
 -- invocation still returns a promise, so retain the await for that path.
@@ -145,7 +145,7 @@ local function showInput(data)
     end)
     inputOpen = false
     if not ok then error(result, 0) end
-    if not result or result.cancelled then return false end
+    if not result or result.cancelled then return nil end
 
     return result.values
 end

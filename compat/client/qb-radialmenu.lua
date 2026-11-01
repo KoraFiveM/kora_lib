@@ -32,9 +32,12 @@ local byId = {}
 
 -- Auto-generated ids use a per-session counter; collisions with caller-supplied ids are not guarded against.
 local nextGeneratedId = 0
-local function generateId()
-    nextGeneratedId = nextGeneratedId + 1
-    return ("radial_%d"):format(nextGeneratedId)
+local function generateId(leafById)
+    repeat
+        nextGeneratedId = nextGeneratedId + 1
+        local key = tostring(nextGeneratedId)
+    until not byId[key] and not (leafById and leafById[key])
+    return nextGeneratedId
 end
 
 -- Options may carry nested `items[]`, which translate directly onto Kora.nui's `item.submenu = {title, items}`.
@@ -42,8 +45,8 @@ end
 local function translateOption(option, leafById)
     if option.icon then warnIconOnce() end
 
-    local id = option.id ~= nil and tostring(option.id) or generateId()
-    option.id = id
+    if option.id == nil then option.id = generateId(leafById) end
+    local id = tostring(option.id)
 
     local translated = { id = id, label = option.title or option.label or "" }
 
@@ -113,7 +116,7 @@ local function dispatch(option)
     end
 end
 
--- Registers one option and returns its id. The second positional argument is overloaded across forks:
+-- Registers one option and returns its id (numeric when generated, as upstream; a caller-supplied id is returned unchanged). The second positional argument is overloaded across forks:
 -- a boolean is `shouldClose` (an explicit `option.shouldClose` wins), anything else non-nil is the explicit
 -- slot id, as in upstream's `AddOption(data, id)`. shouldClose defaults to true.
 local function addOption(option, second)
@@ -122,10 +125,12 @@ local function addOption(option, second)
     local id
     if type(second) == "boolean" then
         if option.shouldClose == nil then option.shouldClose = second end
-        id = option.id ~= nil and tostring(option.id) or generateId()
+        id = option.id
     else
-        id = second ~= nil and tostring(second) or (option.id ~= nil and tostring(option.id) or generateId())
+        id = second
+        if id == nil then id = option.id end
     end
+    if id == nil then id = generateId() end
     if option.shouldClose == nil then
         option.shouldClose = true
     end
@@ -133,10 +138,11 @@ local function addOption(option, second)
     option.id = id
     option.__koraLibOwner = GetInvokingResource() or GetCurrentResourceName()
 
-    if not byId[id] then
-        order[#order + 1] = id
+    local key = tostring(id)
+    if not byId[key] then
+        order[#order + 1] = key
     end
-    byId[id] = option
+    byId[key] = option
 
     return id
 end
@@ -238,13 +244,13 @@ RegisterNetEvent("kora_lib:radialmenuCompat:client:changeSeat", function(data)
     local vehicle = GetVehiclePedIsIn(ped)
     if vehicle == 0 then return end
     if not IsVehicleSeatFree(vehicle, data.seatIndex) then return end
+    local ok, harness = pcall(function() return exports['qb-smallresources']:HasHarness() end)
+    if ok and harness then return end
     if (GetEntitySpeed(vehicle) * 3.6) > 100.0 then return end -- upstream's own too-fast-to-swap-seats guard
 
     SetPedIntoVehicle(ped, vehicle, data.seatIndex)
 end)
 
--- Upstream also gates this on exports['qb-smallresources']:HasHarness(); no resource here exposes it and a
--- missing cross-resource export errors, so the check is omitted.
 RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     local completed = Kora.progressbar.start({
         label = "Flipping vehicle...",
@@ -395,8 +401,10 @@ local function openRegisteredRadial()
     -- that originally registered an option. Kora.nui.openRadialMenu therefore
     -- returns its pending same-resource promise and must be awaited here.
     isOpen = true
+    TriggerEvent("qb-radialmenu:client:onRadialmenuOpen")
     local result = Citizen.Await(Kora.nui.openRadialMenu(items))
     isOpen = false
+    TriggerEvent("qb-radialmenu:client:onRadialmenuClose")
 
     if not result or result.cancelled then return end
 

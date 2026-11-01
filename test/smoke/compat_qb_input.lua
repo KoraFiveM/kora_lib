@@ -12,7 +12,7 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
 -- Mock Kora.nui directly and resolve synchronously: ShowInput must consume
--- Kora.nui.openInputDialog's result itself to return the legacy table-or-false shape.
+-- Kora.nui.openInputDialog's result itself to return the legacy table-or-nil shape.
 local sentFields = nil
 local sentTitle = nil
 local nextResult = nil
@@ -179,20 +179,21 @@ harness.test("submitting returns the values table keyed by name, unreshaped", fu
     local result = ShowInput({ inputs = { { name = "amount", type = "number" } } })
 
     harness.assertEqual(result.amount, 42, "the legacy result[name] lookup should keep working")
+    harness.assertEqual(math.type(result.amount), "integer", "a number field should come back as a Lua number")
 end)
 
-harness.test("cancelling returns false, not nil or {cancelled = true}", function()
+harness.test("cancelling returns nil, not false or {cancelled = true}", function()
     nextResult = { cancelled = true }
     local result = ShowInput({ inputs = { { name = "amount", type = "number" } } })
 
-    harness.assertEqual(result, false, "cancel should return exactly false, matching real qb-input")
+    harness.assertEqual(result, nil, "cancel should return nil, matching real qb-input")
 end)
 
-harness.test("a timeout/error (nil result) also returns false", function()
+harness.test("a timeout/error (nil result) also returns nil", function()
     nextResult = nil
     local result = ShowInput({ inputs = { { name = "amount", type = "number" } } })
 
-    harness.assertEqual(result, false, "a nil NUI result should still surface as false, never nil")
+    harness.assertEqual(result, nil, "a nil NUI result should surface as nil")
 end)
 
 harness.test("ShowInput mirrors upstream's nil response for malformed or concurrent requests", function()
