@@ -165,9 +165,7 @@ end
 local function removeEntity(ent)
     if not ent then return end
 
-    local ok, result, err = pcall(Kora.entities.remove, ent)
-    if not ok or result == false then
-    end
+    pcall(Kora.entities.remove, ent)
 
     if DoesEntityExist(ent) then
         SetEntityAsMissionEntity(ent, true, true)
