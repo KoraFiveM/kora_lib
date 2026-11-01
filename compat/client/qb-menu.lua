@@ -7,7 +7,7 @@
 -- Kora.nui.openMenu expects, so icons are dropped rather than guessed.
 local function imageFor(item)
     if type(item.icon) ~= 'string' or item.icon == '' then return nil end
-    if item.icon:find('://', 1, true) or item.icon:sub(1, 6) == 'nui://' then return item.icon end
+    if item.icon:find('://', 1, true) then return item.icon end
     -- Resolve at render time through the registry getter. Capturing the whole
     -- Items map here would miss definitions registered after this resource
     -- started (and getShared expects a lowercase registry plus a record key).
@@ -70,7 +70,7 @@ local function dispatch(item)
         item.action()
         return
     end
-    local params = item and item.params
+    local params = item.params
     if not params or not params.event then return end
 
     if params.isServer then

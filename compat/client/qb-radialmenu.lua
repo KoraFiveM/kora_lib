@@ -50,8 +50,7 @@ local function translateOption(option, leafById)
     if type(option.items) == "table" and #option.items > 0 then
         local children = {}
         for childIndex = 1, #option.items do
-            local child = option.items[childIndex]
-            children[#children + 1] = translateOption(child, leafById)
+            children[#children + 1] = translateOption(option.items[childIndex], leafById)
         end
         translated.submenu = { title = option.title or option.label, items = children }
     else
@@ -186,6 +185,12 @@ local function getNearestVeh()
     return vehicleHandle
 end
 
+local function getCurrentOrNearestVeh(ped)
+    local current = GetVehiclePedIsIn(ped)
+    if current and current ~= 0 then return current end
+    return getNearestVeh()
+end
+
 -- Door/extra/seat items carry doorIndex/extraIndex/seatIndex fields directly instead of upstream's
 -- packed id strings ("door0"); these ids are owned by this file so no string round-trip is needed.
 local VEHICLE_DOOR_ITEMS = {
@@ -201,7 +206,7 @@ local VEHICLE_SEAT_LABELS = { [1] = "Driver Seat", [2] = "Passenger Seat", [3] =
 
 RegisterNetEvent("kora_lib:radialmenuCompat:client:openDoor", function(data)
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    local vehicle = getCurrentOrNearestVeh(ped)
     if not vehicle or vehicle == 0 then return end
 
     local door = data.doorIndex
@@ -250,7 +255,7 @@ RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     if not completed then return end
 
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    local vehicle = getCurrentOrNearestVeh(ped)
     if vehicle and vehicle ~= 0 then SetVehicleOnGroundProperly(vehicle) end
 end)
 
@@ -261,7 +266,7 @@ local vehicleMenuRegistered = false
 -- on all wheels, seats only while inside.
 local function setupVehicleMenu()
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    local vehicle = getCurrentOrNearestVeh(ped)
 
     if not vehicle or vehicle == 0 then
         if vehicleMenuRegistered then
