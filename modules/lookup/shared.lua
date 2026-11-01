@@ -158,8 +158,7 @@ local function baseCandidates(namespace, hash)
     if type(compact) == 'table' then
         if type(compact[1]) == 'table' then
             for entryIndex = 1, #compact do
-                local entry = compact[entryIndex]
-                candidates[#candidates + 1] = materialize(namespace, hash, entry)
+                candidates[#candidates + 1] = materialize(namespace, hash, compact[entryIndex])
             end
         else
             candidates[1] = materialize(namespace, hash, compact)
@@ -297,8 +296,7 @@ function Kora.lookup.model(value, kind)
         local namespace = MODEL_NAMESPACES[i]
         local records = resolvedCandidates(namespace, hash)
         for recordIndex = 1, #records do
-            local record = records[recordIndex]
-            candidates[#candidates + 1] = record
+            candidates[#candidates + 1] = records[recordIndex]
         end
     end
 

@@ -41,8 +41,7 @@ export function QuizGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
 
     function choose(option: string) {
         if (doneRef.current || index >= puzzle.questions.length) return
-        const now = performance.now() - startRef.current
-        answersRef.current = [...answersRef.current, { choice: option, elapsed: now }]
+        answersRef.current = [...answersRef.current, { choice: option, elapsed: performance.now() - startRef.current }]
 
         if (index + 1 >= puzzle.questions.length) {
             finish(answersRef.current)

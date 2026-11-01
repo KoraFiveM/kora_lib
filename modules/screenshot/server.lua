@@ -319,7 +319,6 @@ local function receiveUpload(request, response)
         return
     end
 
-
     local maxBytes = maxUploadBytes()
     for name, value in pairs(request.headers or {}) do
         if tostring(name):lower() == 'content-length' and tonumber(value) and tonumber(value) > maxBytes then

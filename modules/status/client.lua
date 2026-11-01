@@ -48,13 +48,22 @@ local function notifyChange(name, applied)
     end
 end
 
+---@param rendered table
+---@param def QBStatusEffectDef
+local function clearRender(rendered, def)
+    if rendered.screenHandle then Kora.fx.stopScreenEffect(rendered.screenHandle) end
+    if rendered.ptfxHandle then Kora.fx.stop(rendered.ptfxHandle) end
+    if rendered.animHandle then
+        if Kora.anim.stopHandle then Kora.anim.stopHandle(rendered.animHandle)
+        else Kora.anim.stop(rendered.animHandle.entity) end
+    end
+end
+
 ---Plays `def`'s fx/anim/movement on the local ped and returns what's needed to tear it down.
 ---Copies `def.fx.ptfx` per call: Kora.fx.playPtfx may mutate caller-owned tables (default `entity`,
 ---force `looped`), which would otherwise leak into the shared registered def.
 ---@param def QBStatusEffectDef
 ---@return table rendered
-local clearRender
-
 local function renderEffect(def)
     local ped = PlayerPedId()
     local rendered = {}
@@ -95,17 +104,6 @@ local function renderEffect(def)
     end
 
     return rendered
-end
-
----@param rendered table
----@param def QBStatusEffectDef
-clearRender = function(rendered, def)
-    if rendered.screenHandle then Kora.fx.stopScreenEffect(rendered.screenHandle) end
-    if rendered.ptfxHandle then Kora.fx.stop(rendered.ptfxHandle) end
-    if rendered.animHandle then
-        if Kora.anim.stopHandle then Kora.anim.stopHandle(rendered.animHandle)
-        else Kora.anim.stop(rendered.animHandle.entity) end
-    end
 end
 
 local function dropActive(name, entry)

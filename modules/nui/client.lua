@@ -29,11 +29,6 @@ local ALERT_BOOLEAN_FIELDS = {
     'cancellable', 'showCancel', 'showClose', 'dismissOnBackdrop', 'destructive', 'centered', 'overflow',
 }
 
-local function nextId()
-    nextRequestId = nextRequestId + 1
-    return nextRequestId
-end
-
 -- Random per-request token the NUI must echo back: NUI callback routing isn't scoped to the issuing frame, so another resource's page could otherwise forge a response for a guessable requestId.
 local generateToken = Kora.compat.generateToken
 
@@ -50,7 +45,6 @@ local function translateAppLabel(key)
     return APP_LABEL_FALLBACKS[key]
 end
 
--- Handlers can't be JSON-encoded into SendNUIMessage; keep them in the private registry.
 local function appLabels()
     return {
         cancel = translateAppLabel('cancel'), confirm = translateAppLabel('confirm'), working = translateAppLabel('working'),
@@ -68,6 +62,7 @@ local function appLabels()
     }
 end
 
+-- Handlers can't be JSON-encoded into SendNUIMessage; keep them in the private registry.
 local function browserApp(definition)
     local result = {}
     for key, value in pairs(definition) do
@@ -849,7 +844,8 @@ local function requestPromise(action, data, timeout, owner, onEvent)
             "NUI request timeout must be a non-negative finite integer or false.")
     end
 
-    local requestId = nextId()
+    nextRequestId = nextRequestId + 1
+    local requestId = nextRequestId
     local token = generateToken()
     local p = promise.new()
     owner = owner or GetInvokingResource() or GetCurrentResourceName()
@@ -863,7 +859,6 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     Kora.nui.send(action, { requestId = requestId, token = token, payload = data })
 
     if timeout ~= false then
-        -- One-shot native timer: this almost never fires, so it shouldn't cost a thread per request.
         SetTimeout(timeout, function()
             if pendingRequests[requestId] then
                 pendingRequests[requestId] = nil
@@ -1309,9 +1304,7 @@ function Kora.nui.openApp(id, opts)
 
     -- Settle the old app before granting focus, or its late focus-release could strip the new app's input.
     if activeApp then
-        local previous = activeApp
-        -- Replacing an app is normal flow; resolve the old caller as closed rather than rejecting its export call.
-        settlePendingRequest(previous.promise, true, { closed = true, reason = "superseded" })
+        settlePendingRequest(activeApp.promise, true, { closed = true, reason = "superseded" })
     end
 
     opts = opts or {}

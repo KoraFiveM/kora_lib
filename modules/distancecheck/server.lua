@@ -8,7 +8,7 @@ end
 
 local function assertRadius(distance)
     if distance == nil then distance = 5.0 end
-    assert(Kora.util.isFiniteNumber(distance) and distance >= 0,
+    assert(isFiniteNumber(distance) and distance >= 0,
         'Distance must be a finite non-negative number.')
     return distance
 end

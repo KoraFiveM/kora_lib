@@ -207,11 +207,7 @@ local function categoryIsVisible(category)
     return visible
 end
 
----@param category string|number|nil
----@return table
-local function resolveCategory(category)
-    return categoryCatalog.resolve(category)
-end
+local resolveCategory = categoryCatalog.resolve
 
 ---@param record table
 ---@return boolean visible

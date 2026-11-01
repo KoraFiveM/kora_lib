@@ -42,8 +42,7 @@ export function PinpadGame({ puzzle, attempt, attempts, timeLimit, lastResult, r
 
     function press(value: number) {
         if (doneRef.current || entered.length >= puzzle.digitCount) return
-        const now = performance.now() - startRef.current
-        digitsRef.current = [...digitsRef.current, { value, elapsed: now }]
+        digitsRef.current = [...digitsRef.current, { value, elapsed: performance.now() - startRef.current }]
         const next = [...entered, value]
         setEntered(next)
         if (next.length >= puzzle.digitCount) finish(digitsRef.current)

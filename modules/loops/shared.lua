@@ -41,17 +41,12 @@ function Kora.loops.controlled(call, tries, timeout, backoff)
             return value
         end
 
-        if timeout then
-            local currentTime = GetGameTimer()
-            if (currentTime - timer) >= timeout then
-                return false, "Loop timed out."
-            end
+        if timeout and (GetGameTimer() - timer) >= timeout then
+            return false, "Loop timed out."
         end
 
-        if tries then
-            if attempt >= tries then
-                return false, "Loop failed due to exceeding try count."
-            end
+        if tries and attempt >= tries then
+            return false, "Loop failed due to exceeding try count."
         end
 
         if isExponential or fixedInterval then

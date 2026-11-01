@@ -18,15 +18,14 @@ end
 local function playDrugEffect(prefix, duration)
     duration = getDuration(duration)
     local effectIn = prefix .. 'In'
-    local effect = prefix
     local effectOut = prefix .. 'Out'
     StartScreenEffect(effectIn, 3.0, false)
     Wait(duration)
-    StartScreenEffect(effect, 3.0, false)
+    StartScreenEffect(prefix, 3.0, false)
     Wait(duration)
     StartScreenEffect(effectOut, 3.0, false)
     StopScreenEffect(effectIn)
-    StopScreenEffect(effect)
+    StopScreenEffect(prefix)
     StopScreenEffect(effectOut)
 end
 

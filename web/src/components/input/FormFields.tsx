@@ -48,9 +48,7 @@ export function defaultValueFor(field: InputField): FieldValue {
         return field.default
     }
     if (field.type === "checkbox") return false
-    if (field.type === "multiselect") return []
-    if (field.type === "date-range") return []
-    if (field.type === "key-value") return []
+    if (field.type === "multiselect" || field.type === "date-range" || field.type === "key-value") return []
     if (field.type === "range") return field.min ?? RANGE_FALLBACK_MIN
     return ""
 }
@@ -133,10 +131,6 @@ function colorRgba(value: string): [number, number, number, number] {
         : hue < 3 ? [0, chroma, secondary] : hue < 4 ? [0, secondary, chroma]
             : hue < 5 ? [secondary, 0, chroma] : [chroma, 0, secondary]
     return [Math.round((channels[0] + offset) * 255), Math.round((channels[1] + offset) * 255), Math.round((channels[2] + offset) * 255), hsl[4] === undefined ? 1 : Number(hsl[4])]
-}
-
-function colorHex(value: string) {
-    return formatColor(value)
 }
 
 function formatColor(value: string, format: InputField["colorFormat"] = "hex") {
@@ -409,7 +403,7 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
                         : field.type === "date-range" ? <DateRangeField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} onChange={(value) => setValue(field.id, value)} />
                         : field.type === "date" ? <Input id={id} type="date" min={dateInputConstraint(field.dateMin)} max={dateInputConstraint(field.dateMax)} value={String(values[field.id] ?? "")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
                         : field.type === "time" ? <div className="flex items-center gap-1"><Input id={id} type="time" lang={field.timeFormat === "12" ? "en-US" : field.timeFormat === "24" ? "en-GB" : undefined} value={String(values[field.id] ?? "")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.clearable && values[field.id] !== "" ? <Button type="button" variant="ghost" size="icon" aria-label={`Clear ${field.label}`} onClick={() => setValue(field.id, "")}><X aria-hidden /></Button> : null}</div>
-                        : field.type === "color" ? <div className="flex items-center gap-2"><Input id={id} type="color" value={colorHex(String(values[field.id] || "#ffffff"))} onChange={(event) => setValue(field.id, formatColor(event.target.value, field.colorFormat))} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="h-10 w-16 shrink-0 cursor-pointer p-1" /><Input aria-label={`${field.label} value`} value={String(values[field.id] || "#ffffff")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="min-w-0 font-mono text-xs" /></div>
+                        : field.type === "color" ? <div className="flex items-center gap-2"><Input id={id} type="color" value={formatColor(String(values[field.id] || "#ffffff"))} onChange={(event) => setValue(field.id, formatColor(event.target.value, field.colorFormat))} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="h-10 w-16 shrink-0 cursor-pointer p-1" /><Input aria-label={`${field.label} value`} value={String(values[field.id] || "#ffffff")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="min-w-0 font-mono text-xs" /></div>
                         : <><Input id={id} type={field.type} inputMode={field.numericOnly ? "numeric" : undefined} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => { const cleaned = field.numericOnly ? event.target.value.replace(/\D/g, "") : event.target.value; setValue(field.id, field.maxLength === undefined ? cleaned : cleaned.slice(0, field.maxLength)) }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.keypad ? <NumericKeypad value={String(values[field.id] ?? "")} maxLength={field.maxLength} labels={labels} onChange={(value) => setValue(field.id, value)} /> : null}</>}
                     {field.type === "number" && field.presets?.length ? <div className="grid grid-cols-4 gap-1.5">{field.presets.map((preset) => <Button key={preset.value} type="button" size="sm" variant="outline" className="font-mono text-xs" onClick={() => setValue(field.id, preset.value)}>{preset.label ?? preset.value}</Button>)}</div> : null}
                 </>}

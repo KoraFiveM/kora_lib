@@ -273,9 +273,8 @@ export function ScreenshotCapture() {
 
     useNuiEvent<UploadPayload | NuiRequestEnvelope<UploadPayload>>("screenshot:upload", (message) => {
         const envelope = isRequestEnvelope(message) ? message : undefined
-        const rawPayload: unknown = envelope ? envelope.payload : message
-        if (!isUploadPayload(rawPayload)) return
-        const payload = rawPayload
+        const payload: unknown = envelope ? envelope.payload : message
+        if (!isUploadPayload(payload)) return
 
         void enqueue(() => capture(payload, !payload.rawBody && !payload.field))
             .then(async ({ blob, data }) => {

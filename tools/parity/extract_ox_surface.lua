@@ -71,11 +71,7 @@ function M.extract(root)
             local mod = inImports and path:match("^imports/([^/]+)/") or "init"
             subkeys[mod] = subkeys[mod] or {}
             for owner, sep, name in code:gmatch("function%s+([%w_]+)([%.:])([%w_]+)%s*%(") do
-                if owner == "lib" then
-                    -- function lib.x() itself, not a sub-key
-                else
-                    subkeys[mod][owner .. sep .. name] = true
-                end
+                if owner ~= "lib" then subkeys[mod][owner .. sep .. name] = true end
             end
             for a, sep, name in code:gmatch("function%s+lib%.([%w_]+)([%.:])([%w_]+)%s*%(") do
                 subkeys[mod][a .. sep .. name] = true

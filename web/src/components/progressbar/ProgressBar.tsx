@@ -55,9 +55,6 @@ export function ProgressBar() {
             presentation: payload.presentation === "circle" ? "circle" : "bar",
             position: payload.position === "bottom" ? "bottom" : "middle",
         })
-        // Self-dismissing, same idiom as Toast's auto-dismiss timer -- Lua's
-        // own poll loop is timed to the same duration, so this is purely the
-        // visual finishing in step with it, not a second source of truth.
         timeoutRef.current = setTimeout(() => {
             setState((prev) => (prev?.id === id ? null : prev))
         }, duration)

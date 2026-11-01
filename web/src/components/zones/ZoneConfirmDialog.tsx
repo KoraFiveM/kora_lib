@@ -42,16 +42,11 @@ export function ZoneConfirmDialog() {
     const copySnippet = useCallback(async () => {
         if (!payload) return false
 
-        try {
-            if (!(await copyToClipboard(payload.snippet))) throw new Error("copy failed")
-            setCopyState("copied")
-            return true
-        } catch {
-            // The snippet is still visible, so copy failure is feedback rather
-            // than a reason to trap the player in this confirmation dialog.
-            setCopyState("failed")
-            return false
-        }
+        // The snippet is still visible, so copy failure is feedback rather
+        // than a reason to trap the player in this confirmation dialog.
+        const copied = await copyToClipboard(payload.snippet)
+        setCopyState(copied ? "copied" : "failed")
+        return copied
     }, [payload])
 
     const handleCopyAndConfirm = useCallback(async () => {

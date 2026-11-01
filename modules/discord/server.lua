@@ -671,7 +671,6 @@ local function sqlTransaction(statements)
 end
 
 local function waitForQbSql()
-    if type(GetResourceState) ~= 'function' then return false, 'qbsql resource state is unavailable' end
     local deadline = GetGameTimer() + discordConfig('databaseTimeout', 60000)
 
     while true do
@@ -1155,10 +1154,7 @@ function Kora.discord.syncRoles(callback)
     syncInProgress = true
 
     CreateThread(function()
-        local ran, ok, result = pcall(function()
-            local syncOk, syncResult = runFullRoleSync()
-            return syncOk, syncResult
-        end)
+        local ran, ok, result = pcall(runFullRoleSync)
         syncInProgress = false
 
         if not ran then

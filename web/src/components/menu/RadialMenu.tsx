@@ -3,12 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/cn"
 import { isIconImage, resolveIcon } from "@/lib/icon"
 import { iconAnimationClass } from "@/lib/iconAnimation"
-import type { MenuItem, MenuResult, OpenRadialMenuPayload } from "@/lib/types"
+import type { MenuItem, MenuResult, NuiRequestEnvelope, NuiRequestEventEnvelope, OpenRadialMenuPayload } from "@/lib/types"
 import { useNuiRequest } from "@/lib/useNuiRequest"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 import { getNuiViewport } from "@/lib/viewport"
 import { fetchNui } from "@/lib/fetchNui"
-import type { NuiRequestEnvelope, NuiRequestEventEnvelope } from "@/lib/types"
 import { useOxLocale } from "@/lib/oxLocale"
 
 const MAX_RING_ITEMS = 8
@@ -106,6 +105,7 @@ export function RadialMenuContainer() {
             console.error("[kora_lib] radial level event failed:", error)
         })
     }, [isOpen, requestId, stack, token])
+
     const entries = useMemo<RingEntry[]>(() => {
         if (!level) return []
 
@@ -235,15 +235,11 @@ export function RadialMenuContainer() {
     const radius = Math.min(Math.max(96, requestedRadius), maximumRadius)
     const activeEntry = entries[activeIndex]
     const activeItem = activeEntry?.kind === "item" ? activeEntry.item : undefined
-    // Disabled items don't carry a reason field, so falling back to a plain
-    // "unavailable" note is better than the previous silence -- hovering one
-    // used to update nothing in the hub at all.
+    // Disabled items carry no reason field, so fall back to a plain note.
     const activeDescriptionIsFallback = Boolean(activeItem?.disabled && !activeItem.description)
     const activeDescription = activeItem?.description ?? (activeItem?.disabled ? "Unavailable right now" : undefined)
-    const closeIcon = resolveIcon("X")
-    const backIcon = resolveIcon("ChevronLeft")
     const moreIcon = resolveIcon("ChevronRight")
-    const CenterIcon = canGoBack ? backIcon : closeIcon
+    const CenterIcon = resolveIcon(canGoBack ? "ChevronLeft" : "X")
 
     return (
         <>
@@ -304,7 +300,7 @@ export function RadialMenuContainer() {
                     const Icon = item ? resolveIcon(item.icon) : moreIcon
                     const iconIsImage = isIconImage(item?.icon)
                     const disabled = item?.disabled === true
-            const label = entry.kind === "more" ? `${locale.more} ${entry.page + 1}/${entry.totalPages}` : item?.label ?? ""
+                    const label = entry.kind === "more" ? `${locale.more} ${entry.page + 1}/${entry.totalPages}` : item?.label ?? ""
 
                     return (
                         <button

@@ -42,8 +42,7 @@ local function awaitShapeTest(rayHandle)
         status, hit, hitCoords, surfaceNormal, entityHit = GetShapeTestResult(rayHandle)
     end
 
-    if status ~= 2 then return false, nil, nil, nil end
-    if hit == 0 then return false, nil, nil, nil end
+    if status ~= 2 or hit == 0 then return false, nil, nil, nil end
     return true, toVec3(hitCoords), entityHit, toVec3(surfaceNormal)
 end
 

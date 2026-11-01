@@ -767,7 +767,7 @@ function validate.keys(session, attempt)
     for i = 1, #solution.pattern do
         local key = solution.pattern[i]
         local press = attempt.presses[i]
-        if press == nil or type(press) ~= "table" or type(press.key) ~= "string" or
+        if type(press) ~= "table" or type(press.key) ~= "string" or
             #press.key == 0 or #press.key > 5 or not isFiniteNumber(press.elapsed) then
             faults = faults + 1
         else
@@ -811,7 +811,6 @@ function validate.hacking(session, attempt)
 
     return attempt.submitted == session.solution.code
 end
-
 
 endSession = function(session)
     if session.ended then return end
