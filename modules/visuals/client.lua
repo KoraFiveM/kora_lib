@@ -42,10 +42,6 @@ local function restoreStamina(chance)
     end
 end
 
-local function setSprintMultiplier(multiplier)
-    SetRunSprintMultiplierForPlayer(PlayerId(), multiplier)
-end
-
 -- Overlapping effects share one native sprint multiplier: the newest live effect wins, and finishing an older one leaves it alone.
 local sprintEffectGeneration = 0
 local sprintEffects = {}
@@ -58,7 +54,7 @@ local function beginSprintEffect(multiplier)
     local token = sprintEffectGeneration
     sprintEffects[token] = multiplier
     currentSprintToken = token
-    setSprintMultiplier(multiplier)
+    SetRunSprintMultiplierForPlayer(PlayerId(), multiplier)
     return token
 end
 
