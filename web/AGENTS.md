@@ -2,7 +2,7 @@
 
 ## Purpose and authority
 
-This file is the canonical visual specification for kora_lib NUI and the reference for other QBCore resources that want the same look. Use it when editing an existing component, installing a shadcn component, or creating a new resource UI. The goal is a compact, modern game overlay built from neutral charcoal surfaces with QBCore crimson used as a focused accent.
+This file is the canonical visual specification for kora_lib NUI and the reference for other QBCore resources that want the same look. Use it when editing an existing component, installing a shadcn component, or creating a new resource UI. The goal is a compact, modern game overlay built from neutral charcoal surfaces with QBCore brand-colour used as a focused accent.
 
 This guide is prescriptive: reuse its semantic tokens and component recipes instead of inventing a parallel palette or one-off treatment. The parent `../AGENTS.md` still governs NUI architecture, focus, build output, and request/response behavior. If a visual choice conflicts with the headless-overlay rules there, the parent rules win.
 
@@ -16,7 +16,7 @@ The neutral palette, Tailwind extensions, shared primitives, and kora_lib-owned 
 
 - The UI has one permanent dark theme. Do not add a light palette or theme toggle.
 - Large backgrounds and surfaces are neutral grey, never blue, slate, navy, or blue-tinted black.
-- `#DC143C` is the default brand colour. Use the configured brand token for primary actions, focus, selection, progress, and small branded details; do not turn whole menus, dialogs, or headers into a solid accent.
+- `#95FF00` (Kora green) is the default brand colour. Use the configured brand token for primary actions, focus, selection, progress, and small branded details; do not turn whole menus, dialogs, or headers into a solid accent.
 - The page itself stays fully transparent. Only visible components paint a surface.
 - The visual density is compact but readable: default controls are 36px high and interactive targets must never be smaller than 32px.
 - Rounded corners are consistent and restrained. Controls use 8-10px radii; floating surfaces use 10-14px radii.
@@ -42,13 +42,13 @@ The neutral palette, Tailwind extensions, shared primitives, and kora_lib-owned 
 | Secondary text | `#C7C7C7` | Supporting copy that still needs emphasis |
 | Muted text | `#949494` | Descriptions, placeholders, metadata |
 | Disabled text | `#686868` | Disabled content only; never normal body copy |
-| Default brand | `#DC143C` | Default primary action, active state, focus, progress; server-configurable |
-| Brand hover | `#C41236` | Hovered primary controls |
-| Brand pressed | `#AA102F` | Pressed primary controls |
-| Brand soft | `rgb(220 20 60 / 14%)` | Selected rows, subtle badges, active backgrounds |
-| Brand border | `rgb(220 20 60 / 45%)` | Selected or branded outlines |
+| Default brand | `#95FF00` | Default primary action, active state, focus, progress; server-configurable |
+| Brand hover | `#86E500` | Hovered primary controls |
+| Brand pressed | `#76C900` | Pressed primary controls |
+| Brand soft | `rgb(149 255 0 / 14%)` | Selected rows, subtle badges, active backgrounds |
+| Brand border | `rgb(149 255 0 / 45%)` | Selected or branded outlines |
 
-Pure white `#FFFFFF` is the foreground on solid brand controls. It has approximately a 4.99:1 contrast ratio on `#DC143C` and passes WCAG AA for normal text. Use `#F5F5F5` for normal foreground content unless a component recipe defines another contrast-safe pairing, such as the dark foreground on a filled destructive control.
+Near-black `#101010` is the foreground on solid brand controls (kora_theme's `primary-foreground`). It has approximately a 15:1 contrast ratio on `#95FF00` (white would be about 1.2:1). kora_theme picks the more readable of white and near-black for whatever primary is configured, so always use the `primary-foreground` token rather than a literal colour. Use `#F5F5F5` for normal foreground content unless a component recipe defines another contrast-safe pairing, such as the dark foreground on a filled destructive control.
 
 ### Semantic colours
 
@@ -112,7 +112,7 @@ Keep shadcn's semantic names. When the system is implemented, the base variables
 }
 ```
 
-Do not overload `accent` with crimson: in shadcn, `accent` is the neutral hover surface, while `primary` is the brand. The extra variables above are part of the contract even if only one component initially consumes them.
+Do not overload `accent` with brand-colour: in shadcn, `accent` is the neutral hover surface, while `primary` is the brand. The extra variables above are part of the contract even if only one component initially consumes them.
 
 The implementation phase must also give the nonstandard scales stable Tailwind names instead of scattering arbitrary values:
 
@@ -154,7 +154,7 @@ extend: {
 
 ### Server-configured accent
 
-`#DC143C` is the default accent, not a hard-coded component dependency. Server
+`#95FF00` (Kora green) is the default accent, not a hard-coded component dependency. Server
 owners configure semantic colours in `kora_theme/config.lua`; kora_lib imports
 kora_theme's stylesheet and browser loader. Components must use those semantic
 tokens. kora_theme derives hover, pressed, translucent, focus, and readable
@@ -229,12 +229,12 @@ Nested elements should have a smaller radius than their container. Avoid making 
 - Default decorative surface border/separator: 1px `#343434`.
 - Strong decorative border: 1px `#444444`.
 - Input and unchecked-control boundary: 1px `#666666`; hover uses `#7A7A7A`. These higher-contrast tokens are required wherever the boundary identifies a control.
-- Selected border: `rgb(220 20 60 / 45%)`; selection should also have a non-colour cue such as an indicator or check icon.
+- Selected border: `rgb(149 255 0 / 45%)`; selection should also have a non-colour cue such as an indicator or check icon.
 - Do not use double borders or gradients as borders.
 - Low elevation: `0 4px 12px rgb(0 0 0 / 28%)`.
 - Floating elevation: `0 12px 32px rgb(0 0 0 / 42%)`.
 - Modal elevation: `0 24px 64px rgb(0 0 0 / 55%)`.
-- Shadows are black/neutral only. No crimson glow or coloured shadow.
+- Shadows are black/neutral only. No brand-colour glow or coloured shadow.
 - Use one elevation treatment per surface. Do not stack multiple dramatic shadows.
 
 ### Icons
@@ -264,7 +264,7 @@ Nested elements should have a smaller radius than their container. Avoid making 
 - Closed interactive UI must be unmounted or marked `hidden`/`inert`; pointer-event removal alone does not prevent tab focus or accessibility-tree exposure. Hidden portal content must not remain tabbable.
 - A focus-owning UI must return its result/cancellation, restore DOM focus to the logical trigger when one exists, and release NUI focus immediately on submit, selection, Escape, backdrop dismissal, or close.
 - Use the existing layer model through its target semantic utilities: world HUD `z-hud` (40), interactive overlays/popovers/toasts `z-overlay` (50), and development tooling `z-dev` (100). Add a new level only when this model cannot express the relationship.
-- Modal backdrop: black at 68% opacity. It may fade but must not tint blue or crimson.
+- Modal backdrop: black at 68% opacity. It may fade but must not tint blue or brand-colour.
 - HUDs, dialogs, menus, and forms use no backdrop blur. The transparent NUI canvas cannot supply a reliable backdrop for it.
 
 ## Universal interaction states
@@ -275,7 +275,7 @@ Every interactive component must specify all applicable states; a default and ho
 | --- | --- |
 | Default | Clear surface, readable label, and border where the boundary is otherwise ambiguous |
 | Hover | One neutral surface step lighter, or brand hover for a solid primary action |
-| Focus-visible | 2px crimson ring or inset ring; never remove focus without replacement |
+| Focus-visible | 2px brand-colour ring or inset ring; never remove focus without replacement |
 | Pressed/open | Brand pressed for primary controls; stronger border or darker neutral surface elsewhere |
 | Selected/current | Brand-soft background plus a check, marker, left rail, or font-weight change |
 | Disabled | No pointer events, 48% visual opacity, and no hover/press response |
@@ -283,7 +283,7 @@ Every interactive component must specify all applicable states; a default and ho
 | Error/invalid | Error border or icon plus concise error text; set `aria-invalid` and connect the description |
 | Read-only | Normal legibility with a subdued surface; do not make it look disabled if selection/copy remains possible |
 
-Use `focus-visible`, not unconditional focus rings after mouse clicks. The crimson focus treatment keeps the indicator visible against neutral surfaces and unpredictable gameplay without a white outer halo. Hover styling must never be the only way to discover an action.
+Use `focus-visible`, not unconditional focus rings after mouse clicks. The brand-colour focus treatment keeps the indicator visible against neutral surfaces and unpredictable gameplay without a white outer halo. Hover styling must never be the only way to discover an action.
 
 Custom controls must match the keyboard behavior supplied by Radix primitives: Tab and Shift+Tab traverse controls, Enter/Space activate buttons, Escape closes or cancels transient UI, arrow keys plus Home/End move through roving menus/tabs, and modal dialogs trap focus until closed. Restore focus to the logical trigger after a modal or popup closes whenever that trigger still exists.
 
@@ -305,7 +305,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 
 - Labels are 14px/500 and sit 6px above their control. Required markers use error colour and are accompanied by semantic required state.
 - Input/textarea surface is `#101010`, with a `#666666` control border, 8px radius, and 12px horizontal padding.
-- Hover moves the border to `#7A7A7A`. Focus uses the crimson focus treatment and brand border.
+- Hover moves the border to `#7A7A7A`. Focus uses the brand-colour focus treatment and brand border.
 - Placeholder text uses muted text. User-entered text uses foreground.
 - Textareas share the input treatment, have at least 72px height, and resize vertically only when resizing is appropriate to the overlay.
 - Help text is muted and 12px. Error text is `#F04444`, 12px, and placed in the same location so the layout does not jump unpredictably.
@@ -324,7 +324,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 - Triggers follow input sizing and states. Chevron is 16px and muted until hover/open.
 - Content uses popover background, 10px radius, default border, floating shadow, 4px internal padding, and `pointer-events: auto`.
 - Items are at least 36px high with 8-12px horizontal padding and 6px radius.
-- Hover/focused item uses neutral hover. Selected item uses brand-soft, a foreground check, and a slim brand rail against the popover; do not use a solid crimson row or crimson label text.
+- Hover/focused item uses neutral hover. Selected item uses brand-soft, a foreground check, and a slim brand rail against the popover; do not use a solid brand-colour row or brand-colour label text.
 - Group labels are muted 12px/600. Separators use the default border.
 - A combobox search field is visually integrated into the popover but retains a visible lower divider and focus state.
 
@@ -360,11 +360,11 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 - Search row is 44px high with a bottom border. Search icon is 16px and muted.
 - Results scroll independently with a practical maximum height. Empty state is centred, muted, and padded 24px.
 - Rows follow the menu item recipe and are 40px minimum, or 48px with a description.
-- Match highlighting uses foreground weight or underline. Do not use normal-size crimson text or paint every match with a solid block.
+- Match highlighting uses foreground weight or underline. Do not use normal-size brand-colour text or paint every match with a solid block.
 
 ### Tabs, accordion, and collapsible content
 
-- Tabs use a neutral raised track or a border-bottom layout. The active tab uses foreground text plus a crimson underline/indicator or brand-soft background.
+- Tabs use a neutral raised track or a border-bottom layout. The active tab uses foreground text plus a brand-colour underline/indicator or brand-soft background.
 - Inactive tabs are muted; hover brings them to foreground without changing selection.
 - Accordion triggers are at least 40px, with a 16px chevron that rotates in 140ms. Content uses spacing rather than an extra card unless it is independently grouped.
 - Focus and keyboard behavior come from the Radix primitive and must remain visible after styling.
@@ -421,7 +421,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 ### Interact selector
 
 - The interact selector is a display-only, left-edge gameplay overlay. Keep it pointer-transparent and do not grant NUI focus; its owning resource retains all game-control behavior.
-- Use the compact HUD surface, a 10px radius, low neutral shadow, and 40px minimum rows. The current row uses brand-soft plus the shared slim crimson rail; do not turn the whole panel crimson.
+- Use the compact HUD surface, a 10px radius, low neutral shadow, and 40px minimum rows. The current row uses brand-soft plus the shared slim brand-colour rail; do not turn the whole panel brand-colour.
 - The selected row may carry one compact confirm-key chip. Labels truncate rather than widening the panel into the gameplay centre.
 - Its kora_lib interaction contract is `openInteract` carrying `[{ label }]`, `scroll` carrying `1` or `-1`, `select` confirming the highlighted row, and `hideInteract` hiding it. Confirmation POSTs the one-based numeric choice to `selectOption`.
 
@@ -481,7 +481,7 @@ Custom controls must match the keyboard behavior supplied by Radix primitives: T
 Do:
 
 - Use charcoal hierarchy, spacing, border, and elevation to separate surfaces.
-- Use crimson to make the next action, current selection, or keyboard focus obvious.
+- Use brand-colour to make the next action, current selection, or keyboard focus obvious.
 - Keep important content legible over both bright and dark gameplay.
 - Review long labels, empty data, overflow, keyboard focus, and disabled states.
 - Reuse the exact tokens in other resources so kora_lib interfaces feel related.
@@ -489,8 +489,8 @@ Do:
 Do not:
 
 - Use blue/slate-tinted backgrounds or restore shadcn's default slate dark palette.
-- Fill large panels, title bars, or whole selected lists with crimson.
-- Add crimson glow, coloured shadows, decorative gradients, neon bloom, or heavy glass effects.
+- Fill large panels, title bars, or whole selected lists with brand-colour.
+- Add brand-colour glow, coloured shadows, decorative gradients, neon bloom, or heavy glass effects.
 - fetch fonts, icons, or visual assets from remote hosts at runtime.
 - Use arbitrary spacing, radius, z-index, or hard-coded colours when a token covers the need.
 - Hide focus rings, communicate state by colour alone, or make hover the only visible affordance.
@@ -501,7 +501,7 @@ Do not:
 Before considering a UI styling change complete, verify:
 
 - Surfaces are neutral charcoal with no blue cast, and the root is still transparent.
-- The rendered brand matches kora_theme's configured primary (default `#DC143C`); hover/pressed and brand-soft states derive from that same token.
+- The rendered brand matches kora_theme's configured primary (default `#95FF00`, Kora green); hover/pressed and brand-soft states derive from that same token.
 - Text/background pairs meet WCAG AA. In particular, white on the brand is valid, muted copy is not replaced with disabled grey, and semantic text remains on charcoal.
 - Every control has default, hover, focus-visible, pressed/open, disabled, loading, and invalid states where applicable.
 - Mouse, keyboard, Escape, backdrop dismissal, and Radix focus behavior still work.

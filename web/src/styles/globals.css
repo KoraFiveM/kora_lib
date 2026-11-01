@@ -59,7 +59,7 @@
     background: hsl(var(--brand-soft));
   }
 
-  /* qbtarget is display-only NUI: compact neutral geometry with crimson only
+  /* qbtarget is display-only NUI: compact neutral geometry with the brand colour only
      when a valid option is under the crosshair. No blur or opaque backdrop. */
   .target-reticle {
     display: grid;
