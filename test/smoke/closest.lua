@@ -31,8 +31,6 @@ local function reset()
     worldReturn = nil
 end
 
--- ===== client =====
-
 _G.PlayerPedId = function() return 100 end
 
 local activePlayers = { 0, 1 }
@@ -123,13 +121,8 @@ harness.test("ped queries rely on Kora.world's default local-ped exclusion", fun
         "a redundant exclusion table should not be allocated")
 end)
 
--- ===== server =====
-
--- test/smoke/closest.lua's client.lua and server.lua both define
--- Kora.closest.player/vehicle/ped/object -- dofile-ing server.lua below
--- overwrites the client realm's definitions of the same names (see
--- AGENTS.md's note on this exact collision). Every client test above has
--- already run and reported its own assertions, so that's safe here.
+-- client.lua and server.lua both define Kora.closest.player/vehicle/ped/object; dofile-ing
+-- server.lua overwrites the client versions, safe since all client tests already ran.
 Kora.world.getClosestEntity = stubWorld
 
 local serverPlayers = { "10", "11" }

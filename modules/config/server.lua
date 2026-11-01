@@ -158,10 +158,8 @@ function Kora.config.commit(resource, request)
         entry.revision = result.revision
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
-        -- This is a local server event, so every subscribing resource can
-        -- refresh its in-memory copy without a cross-resource export call in
-        -- a gameplay loop. The target resource has already applied its own
-        -- handler before returning success.
+        -- Local server event: subscribers refresh their in-memory copy without a cross-resource
+        -- export call in a gameplay loop. The target has already applied its handler.
         TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
         -- Deprecated alias for listeners that predate the rename.
         TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)

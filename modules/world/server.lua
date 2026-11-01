@@ -6,8 +6,7 @@
 ---@field excludeEntities? number[] Entity handles to skip outright -- the only way to exclude a caller's own ped server-side, since there's no single-player concept to default that on (contrast client's includeOwnPed).
 ---@field radius? number getClosestEntity only -- search radius, meters. Defaults to Config.world.defaultRadius.
 
--- Plain { x, y, z } tables, not glm.vec3 -- see the identical note in
--- modules/world/client.lua.
+-- Plain { x, y, z } tables, not glm.vec3 (see modules/world/client.lua).
 local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function toVec3(v)
@@ -29,17 +28,14 @@ local ENTITY_TYPES = { ped = true, vehicle = true, object = true, player = true 
 local ENTITY_TYPE_IDS = { ped = 1, vehicle = 2, object = 3 }
 local isInteger = Kora.util.isInteger
 
--- GetGamePool is client-only -- the server-side equivalents are one native
--- per entity kind rather than a single pool-name-keyed native.
+-- GetGamePool is client-only; the server has one native per entity kind.
 local poolFnByEntityType = {
     ped = GetAllPeds,
     vehicle = GetAllVehicles,
     object = GetAllObjects,
 }
 
--- "player" is enumerated via the connected player list, one ped per
--- connected player (GetActivePlayers is client-only; GetPlayers is its
--- server-side counterpart).
+-- "player" is enumerated via GetPlayers (GetActivePlayers is client-only), one ped per player.
 local function poolEntities(entityType)
     if entityType == "player" then
         local peds = {}
@@ -126,8 +122,7 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
 
             if dSq <= radiusSq then
                 local distance = options.predicate and math.sqrt(dSq) or nil
-                -- Predicates receive the documented plain coordinate table;
-                -- internal visitors copy only a returned candidate.
+                -- Predicates receive the documented plain coordinate table; internal visitors copy only a returned candidate.
                 if not options.predicate or options.predicate(entity, toVec3(entityCoords), distance) then
                     local result = visit(entity, entityCoords, dSq, distance)
                     if result ~= nil then return result end
@@ -155,9 +150,7 @@ local function byDistance(a, b)
     return a.distance < b.distance
 end
 
----Finds every entity of `entityType` within `radius` meters of `coords`,
----nearest first. Reads the live server entity pools rather than tracking
----anything itself.
+---Finds every entity of `entityType` within `radius` meters of `coords`, nearest first, from the live server pools.
 ---@param entityType QBWorldEntityType
 ---@param coords any
 ---@param radius number

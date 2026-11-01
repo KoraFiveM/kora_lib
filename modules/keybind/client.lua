@@ -1,7 +1,5 @@
--- Kora.keybind (client realm) -- owner-tracked, rebindable +command/-command
--- pairs with live state and callbacks. FiveM does not expose per-command or
--- per-keymap unregister natives, so one stable native wrapper is installed per
--- name and dispatches through the current owned definition.
+-- Kora.keybind (client): owner-tracked, rebindable +command/-command pairs.
+-- FiveM has no per-command or keymap unregister, so one stable wrapper per name dispatches to the current owned definition.
 
 local bindings = {}
 local nativeRegistrations = {}
@@ -212,9 +210,7 @@ function Kora.keybind.list()
     return result
 end
 
--- Server-owned Kora.commands key mappings are mirrored into the same local
--- registry. Their callbacks send only the command name; the server re-resolves
--- the live definition and applies the ordinary permission/argument wrapper.
+-- Server-owned Kora.commands key mappings are mirrored locally; callbacks send only the command name and the server re-applies permission/argument checks.
 local function addCommandBinding(name, options)
     if type(name) ~= 'string' or type(options) ~= 'table' then return end
     local existing = commandBindings[name]

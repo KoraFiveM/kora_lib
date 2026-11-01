@@ -30,8 +30,7 @@ local isCallable = Kora.compat.isCallable
 
 local function isEnabled()
     local state = LocalPlayer and LocalPlayer.state
-    -- Character/scene selection is a camera preview, not gameplay. Do not let
-    -- a nearby world target open a kora_lib selector over that NUI.
+    -- Character/scene selection is a camera preview; don't open a selector over that NUI.
     if state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false then return false end
     return Config.ui and Config.ui.interact == true
 end
@@ -117,8 +116,7 @@ local function visibleOptions(options)
     for optionIndex = 1, #options do
         local option = options[optionIndex]
         if isAvailable(option, data, itemAvailability) then
-            -- Keep the original option for selection, but construct a compact
-            -- NUI payload so no action/event data leaks into the browser.
+            -- Compact NUI payload so no action/event data leaks into the browser.
             visible[#visible + 1] = option
         end
     end
@@ -155,18 +153,8 @@ local function dispatch(option)
     end
 end
 
--- Selecting an option only hides the compact selector -- it never resets the
--- zone's isInside state, and onEnter (the only thing that calls open()) fires
--- solely on a false->true transition. Without this, a player who never left
--- the zone's radius has no way to see the prompt again after picking an
--- option: onExit/onEnter can't refire while they're still standing inside.
--- Polls IsNuiFocused() rather than requiring the dispatched action to report
--- back, so this works for any option (an external menu, a server roundtrip,
--- or nothing at all) without kora_inventory/other resources needing to know
--- interact exists. The grace period before the first check gives an
--- externally-opened menu (e.g. a shop, which grabs focus only after a server
--- roundtrip) time to actually take focus, so the prompt doesn't flash back on
--- screen in that gap.
+-- Selecting an option only hides the selector and never resets the zone's isInside, so onEnter can't refire while the player stays inside.
+-- Polls IsNuiFocused() so any option works; the grace period lets an externally-opened menu (e.g. after a server roundtrip) take focus first.
 local function watchForReopen(name)
     local zone = zonesByName[name]
     if not zone then return end
@@ -186,8 +174,7 @@ local function watchForReopen(name)
     end)
 end
 
--- interact loads before nui under the manifest's alphabetical module glob,
--- so callbacks register lazily once a zone opens at runtime.
+-- interact loads before nui (alphabetical glob), so callbacks register lazily once a zone opens.
 local function ensureCallbacks()
     if callbackRegistered then return end
     callbackRegistered = true
@@ -487,9 +474,7 @@ function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
     return Kora.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
 end
 
--- Registers an aim-targeted entity through kora_target, while keeping kora_lib's
--- option vocabulary (`action`/`event`) and resource-stop ownership at this
--- public boundary. Unlike addTargetEntity this follows a moving entity.
+-- Registers an aim-targeted entity via kora_target, keeping kora_lib's option vocabulary and resource-stop ownership. Follows a moving entity, unlike addTargetEntity.
 local function assertTargetDistance(distance)
     assert(distance == nil or (Kora.util.isFiniteNumber(distance) and distance > 0),
         'interact target distance must be a positive finite number.')
@@ -520,8 +505,7 @@ function Kora.interact.addEntity(entity, options, distance)
         }
     end
     local id = exports.kora_target:addEntity(entity, translated, distance)
-    -- kora_target's removeEntity takes one entity even when registration covered
-    -- several; removing by id tears down that whole registration.
+    -- kora_target's removeEntity takes one entity; removing by id tears down the whole registration.
     local handle = { kind = 'entity', value = type(entity) == 'table' and entity[1] or entity, id = id }
     targetHandles.entity[id] = handle
     targetRegistry.track(owner, handle)

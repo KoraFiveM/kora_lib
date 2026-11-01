@@ -1,9 +1,7 @@
 ---@diagnostic disable: duplicate-doc-field
 
--- Kora.world.getClosestEntity('player', ...) returns the closest player's PED
--- (see modules/world/client.lua's poolEntities), but Kora.closest.player's own
--- established contract is a player id (usable with e.g. GetPlayerServerId),
--- not a ped handle -- so the ped has to be mapped back to its owning player.
+-- Kora.world.getClosestEntity('player') returns a PED; Kora.closest.player's contract is a
+-- player id, so the ped is mapped back to its owning player.
 local function pedToPlayerId(ped)
     local players = GetActivePlayers()
     for playerIndex = 1, #players do

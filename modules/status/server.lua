@@ -150,9 +150,7 @@ AddEventHandler("playerDropped", function()
     active[source] = nil
 end)
 
--- Periodic sweep so an effect nobody ever polls isActive/getActive for still
--- gets dropped from memory once it expires, instead of sitting in `active`
--- indefinitely. 30s matches modules/minigames' own session-sweep cadence.
+-- Periodic sweep drops expired effects nobody polls; 30s matches modules/minigames' session sweep.
 local function hasExpiringEntries()
     for _, bucket in pairs(active) do
         for _, entry in pairs(bucket) do

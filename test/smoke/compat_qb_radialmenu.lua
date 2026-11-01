@@ -11,20 +11,14 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Same "mock Kora.nui directly, resolve synchronously" trick compat_qb_menu.lua
--- and compat_qb_input.lua use -- openRegisteredRadial has to consume
--- Kora.nui.openRadialMenu's result itself (to dispatch the right option), not
--- just hand a promise back to its own caller.
+-- Mock Kora.nui directly and resolve synchronously: openRegisteredRadial consumes
+-- Kora.nui.openRadialMenu's result itself to dispatch the chosen option.
 local sentItems = nil
 local nextRadialResult = nil
 
 Kora.nui = {
-    -- Each call consumes `nextRadialResult` and resets it to a plain cancel
-    -- -- a shouldClose=false selection makes openRegisteredRadial reopen the
-    -- wheel immediately (see that function's own doc comment), which would
-    -- otherwise reuse the SAME answer forever and recurse without end. A
-    -- real player picks a new option or backs out on the reopened wheel;
-    -- this is the mock equivalent of that second, different answer.
+    -- Each call consumes `nextRadialResult` and resets it to a cancel; a shouldClose=false
+    -- selection reopens the wheel, which would otherwise repeat the same answer forever.
     openRadialMenu = function(items)
         sentItems = items
         local answer = nextRadialResult
@@ -35,10 +29,8 @@ Kora.nui = {
     end,
 }
 
--- Kora.progressbar.start is called by the built-in flip-vehicle action --
--- modules/progressbar/client.lua isn't loaded here (this test only needs the
--- Kora table it would attach to), so it's stubbed directly, controllable via
--- `progressCompletes`.
+-- Stub for Kora.progressbar.start (flip-vehicle action); modules/progressbar isn't loaded.
+-- Controlled via `progressCompletes`.
 local progressCompletes = true
 Kora.progressbar = { start = function() return progressCompletes end }
 Kora.keybind = {
@@ -50,11 +42,8 @@ Kora.keybind = {
 
 dofile(repoRoot .. "compat/shared.lua")
 
--- Controllable mock kora_core PlayerData -- the built-in job/vehicle content
--- reads job/metadata via exports.kora_core:getPlayerData/getShared (pcall-
--- guarded in the compat file itself, same pattern as qb-menu compat's
--- imageFor), so a real exports mock is needed to exercise that content
--- rather than only its "qbcore isn't running" degraded path.
+-- Controllable kora_core PlayerData mock for the built-in job/vehicle content, which reads
+-- it via pcall-guarded exports.kora_core calls (the degraded path is "qbcore isn't running").
 local playerJob = { name = nil, onduty = false }
 local playerMetadata = {}
 local jobDefs = { police = { type = "leo" }, ambulance = { type = "ems" }, unemployed = { type = "civ" } }
@@ -73,9 +62,7 @@ _G.exports = {
     },
 }
 
--- Controllable mock vehicle state -- native names/shapes match what
--- compat/client/qb-radialmenu.lua's built-in Vehicle submenu and its door/
--- extra/seat event handlers actually call.
+-- Controllable vehicle state; native names/shapes match what the Vehicle submenu calls.
 local vehicleState = {
     pedVehicle = 0,     -- GetVehiclePedIsIn: 0 means "not in a vehicle"
     nearestVehicle = 0, -- getNearestVeh's own raycast result
@@ -113,9 +100,7 @@ _G.SetVehicleOnGroundProperly = function() end
 
 dofile(repoRoot .. "compat/client/qb-radialmenu.lua")
 
--- Mirrors what a real cross-resource exports['qb-radialmenu']:Fn() call does
--- under the hood: fire the __cfx_export_ event with a setCB stub and capture
--- what gets passed to it.
+-- Mirrors a cross-resource exports['qb-radialmenu']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -285,8 +270,6 @@ harness.test("the qb-radialmenu:client:AddOption/RemoveOption net events mirror 
 
     RemoveOption(anchorId)
 end)
-
--- --- built-in wheel content -------------------------------------------
 
 local function resetVehicleState()
     vehicleState.pedVehicle = 0

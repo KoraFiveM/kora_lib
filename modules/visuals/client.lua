@@ -46,10 +46,7 @@ local function setSprintMultiplier(multiplier)
     SetRunSprintMultiplierForPlayer(PlayerId(), multiplier)
 end
 
--- Overlapping drug effects need stack-like ownership of the one native sprint
--- multiplier. The most recently started live effect wins. If it finishes
--- first, the previous live effect is restored; if an older effect finishes
--- first, the current value is left alone.
+-- Overlapping effects share one native sprint multiplier: the newest live effect wins, and finishing an older one leaves it alone.
 local sprintEffectGeneration = 0
 local sprintEffects = {}
 local currentSprintToken = nil
@@ -94,10 +91,7 @@ end
 ---@field perTickRagdoll? {chance: integer, minTime: integer, maxTime: integer} Chance out of 100, each tick, to ragdoll if running.
 ---@field finalRagdoll? {minTime: integer, maxTime: integer} Ragdoll unconditionally once the tick loop ends.
 
----Shared stamina-tick loop behind Kora.visuals.meth/crack/coke. Always reads the
----ped fresh via Kora.cache.ped() at each point of use rather than caching it
----once up front, so a death/respawn mid-loop (up to 20s) doesn't ragdoll a
----stale/dead ped handle.
+---Shared stamina-tick loop behind Kora.visuals.meth/crack/coke. Reads the ped fresh each tick so a death/respawn mid-loop doesn't ragdoll a stale handle.
 ---@param options QBVisualsStaminaEffectOptions
 ---@param duration number|string|nil Raw duration argument as passed to the public Kora.visuals.<fn>.
 local function runStaminaDrugEffect(options, duration)
@@ -207,8 +201,7 @@ function Kora.visuals.ecstacy(duration)
             end
             stamina = stamina - 1
         end
-        -- Read fresh, not the ped from when this thread started -- this loop
-        -- can run tens of seconds, long enough to outlive a death/respawn.
+        -- Read fresh: this loop can outlive a death/respawn.
         ragdollIfRunning(Kora.cache.ped(), 1000, 3000)
     end)
 end

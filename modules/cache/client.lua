@@ -6,11 +6,8 @@ local refreshInterval = Config.cache.tickInterval
 assert(Kora.util.isInteger(refreshInterval) and refreshInterval > 0,
     'Config.cache.tickInterval must be a positive finite integer.')
 
--- Built-in keys this module owns. Kora.cache.set rejects writes to
--- any of these outright (see below) rather than merely letting refresh()
--- overwrite a bogus value back within one tick -- a resource (or a future
--- ambulance job reading `health` to gate treatment) must never observe even a
--- transient poisoned value for one of these.
+-- Built-in keys this module owns. Kora.cache.set rejects writes to them outright,
+-- so no consumer can observe even a transient poisoned value.
 local RESERVED_KEYS = {
     playerId = true,
     serverId = true,
@@ -27,18 +24,13 @@ local RESERVED_KEYS = {
     coords = true,
 }
 
--- listenersById[id] = { key = key, entry = entry } -- lets the shared
--- ownership registry's onDispose (which only knows an id) find and drop the
--- one listener entry that id refers to, without scanning every key. A cache
--- listener isn't a single owned handle like an entity/zone/blip -- one key
--- can have several listeners from several resources -- so each onChange
--- registration gets its own synthetic id to track, rather than tracking by
--- key or by resource directly.
+-- listenersById[id] = { key, entry }: lets the registry's onDispose (which only knows
+-- an id) find one listener without scanning. A key can have several listeners from
+-- several resources, so each onChange registration gets its own synthetic id.
 local listenersById = {}
 local nextListenerId = 0
 
--- Forward-declared: Kora.cache.onChange (defined below, before the registry
--- itself is created) needs to reference it as an upvalue.
+-- Forward-declared: Kora.cache.onChange references it as an upvalue before it is created.
 local listenerRegistry
 
 local function assertKey(key)
@@ -80,14 +72,11 @@ local function setValue(key, value)
     end
 end
 
--- No single native answers "what seat am I in" -- scan every seat (-1 =
--- driver, 0+ = passenger) and find the one this ped occupies.
+-- No single native answers "what seat am I in": scan seats (-1 = driver, 0+ = passenger).
 local function computeSeat(vehicle, ped, cachedSeat)
     if not vehicle then return false end
 
-    -- Most refreshes happen while the player remains in the same seat. Check
-    -- that one slot first and only scan the vehicle when it no longer contains
-    -- the ped (vehicle change, seat shuffle, or exit).
+    -- Check the previous seat first; only scan the vehicle when the ped has left it.
     if type(cachedSeat) == "number" and GetPedInVehicleSeat(vehicle, cachedSeat) == ped then
         return cachedSeat
     end
@@ -101,10 +90,8 @@ local function computeSeat(vehicle, ped, cachedSeat)
     return false
 end
 
--- Player indices are session constants. Resolve them outside refresh() so the
--- shared telemetry tick never pays for PlayerId/GetPlayerServerId. During an
--- early resource start GetPlayerServerId may still be -1; a short-lived startup
--- worker replaces that sentinel once networking assigns the real id.
+-- Player indices are session constants, resolved outside refresh(). GetPlayerServerId
+-- may still be -1 early in resource start; a short startup worker replaces it.
 local playerId = PlayerId()
 setValue("playerId", playerId)
 
@@ -121,8 +108,7 @@ if serverId == -1 and NetworkIsSessionStarted then
                     return
                 end
             end
-            -- Networking can remain unavailable through a long loading screen;
-            -- polling every frame here buys no useful responsiveness.
+            -- Networking can stay unavailable through a long loading screen; don't poll every frame.
             Wait(SERVER_ID_RETRY_INTERVAL)
         end
     end)
@@ -133,19 +119,13 @@ local function refresh()
     setValue("ped", ped)
     setValue("health", GetEntityHealth(ped))
     setValue("armour", GetPedArmour(ped))
-    -- Keyed off the PLAYER index, not the ped -- GetPlayerStamina takes a
-    -- player, unlike the two above. Cached here rather than left to consumers
-    -- because it changes CONTINUOUSLY while sprinting: a HUD that polls it on
-    -- its own timer either lags visibly or runs a second always-on thread
-    -- alongside this one. onChange off this shared tick gives it neither.
+    -- Keyed off the PLAYER index (GetPlayerStamina takes a player). Cached here because it
+    -- changes continuously while sprinting, so HUDs can use onChange instead of their own thread.
     setValue("stamina", GetPlayerStamina(playerId))
 
-    -- Capture the attempted-entry state alongside the actual vehicle state so
-    -- consumers can react to the full Entering -> Entered/Aborted lifecycle
-    -- without running a second polling loop (the former separate vehicle
-    -- lifecycle use case).
-    -- The native is always present in FiveM; the guard keeps cache consumers
-    -- independently smoke-testable under the deliberately minimal Lua mocks.
+    -- Track the attempted-entry state alongside the actual vehicle so consumers can follow
+    -- Entering -> Entered/Aborted without a second polling loop.
+    -- Native guard keeps this smoke-testable under minimal mocks.
     local enteringVehicle = GetVehiclePedIsTryingToEnter and GetVehiclePedIsTryingToEnter(ped) or 0
     if enteringVehicle == 0 then enteringVehicle = false end
     local enteringSeat = enteringVehicle and GetSeatPedIsTryingToEnter and GetSeatPedIsTryingToEnter(ped) or false
@@ -167,11 +147,8 @@ local function refresh()
     if not oldCoords or oldCoords.x ~= coords.x or oldCoords.y ~= coords.y or oldCoords.z ~= coords.z then
         setValue('coords', coords)
     end
-    -- Use the engine's death predicate rather than inferring death from a
-    -- health threshold. Set it after coords so an isDead observer receives
-    -- this refresh's location when the alive -> dead edge occurs.
-    -- The native is always available in FiveM; retain a false fallback so
-    -- consumers can load the cache with intentionally minimal Lua mocks.
+    -- Engine death predicate, not a health threshold. Set after coords so an isDead
+    -- observer gets this refresh's location on the alive -> dead edge.
     setValue("isDead", IsPedFatallyInjured and IsPedFatallyInjured(ped) or false)
 end
 
@@ -192,14 +169,8 @@ function Kora.cache.get(key)
     return cache[key]
 end
 
----Sets a cached value directly, firing any Kora.cache.onChange handlers
----registered for `key` if the value actually changed. Lets other modules (or
----other resources, via exports.kora_lib:cache_set) piggyback on the same cache +
----change-notification system for their own local state. Writing a built-in
----key (playerId/serverId/ped/vehicle/seat/weapon/health/armour/stamina/coords) is rejected
----outright -- logged and ignored -- rather than merely self-healing on the
----next refresh tick, so no caller (this resource or another) can ever observe
----even a transient poisoned value for one of them.
+---Sets a cached value, firing onChange handlers for `key` if it changed. Reserved built-in keys
+---(playerId/serverId/ped/vehicle/seat/weapon/health/armour/stamina/coords) are rejected and logged.
 ---@param key string
 ---@param value any
 function Kora.cache.set(key, value)
@@ -213,12 +184,8 @@ function Kora.cache.set(key, value)
     setValue(key, value)
 end
 
----Registers `handler(newValue, oldValue)` to run whenever `key`'s cached
----value changes, whether via Kora.cache.set or the module's own per-tick
----refresh. Multiple handlers may be registered for the same key; a handler
----that errors is logged and doesn't stop the others. Automatically removed
----when the registering resource stops (see the sweep below) -- most callers
----don't need Kora.cache.offChange themselves.
+---Registers `handler(newValue, oldValue)` for changes to `key` (via set or the per-tick refresh).
+---A handler that errors is logged without stopping others; removed automatically when the resource stops.
 ---@param key string
 ---@param handler fun(newValue: any, oldValue: any)
 function Kora.cache.onChange(key, handler)
@@ -238,10 +205,7 @@ function Kora.cache.onChange(key, handler)
     listenerRegistry.track(owner, id)
 end
 
----Removes one listener entry, dropping it from `listeners[key]` and the
----ownership registry alike. Shared by Kora.cache.offChange and the registry's
----own onDispose (a stopped resource's listeners), so there is exactly one
----place that keeps `listeners`/`listenersById` consistent.
+---Removes one listener entry from `listeners[key]` and the ownership registry (single place keeping both consistent).
 ---@param id number
 local function removeListener(id)
     local record = listenersById[id]
@@ -259,16 +223,12 @@ local function removeListener(id)
     if #handlers == 0 then listeners[record.key] = nil end
 end
 
--- Ownership tracking (which resource registered a given listener, and bulk
--- cleanup when that resource stops) is delegated to the shared registry --
--- see local/resources/AGENTS.md. A cache listener isn't a single owned
--- handle, so the id tracked here is the synthetic per-listener id above, not
--- the key or the resource itself.
+-- Ownership/cleanup on resource stop is delegated to the shared registry
+-- (local/resources/AGENTS.md); id = the synthetic per-listener id above.
 listenerRegistry = Kora.resources.registry(removeListener)
 
 ---Removes every onChange handler the calling resource registered for `key`.
----(Handler identity doesn't survive the exports boundary, so removal is
----per-resource-per-key rather than per-function.)
+---(Handler identity doesn't survive the exports boundary, so removal is per-resource-per-key.)
 ---@param key string
 function Kora.cache.offChange(key)
     assertKey(key)
@@ -351,12 +311,8 @@ function Kora.cache.weapon()
     return cache.weapon
 end
 
----The local player's current health (GetEntityHealth(ped)). Note GTA's death
----threshold is commonly 100, not 0 -- a ped dies once health drops to (or
----below) that engine-defined floor, not at a literal zero. A consumer
----checking for death (e.g. a future ambulance/EMS job) should compare against
----that threshold, or better, hook a death event, rather than assuming 0 is
----reachable.
+---The local player's current health (GetEntityHealth(ped)). GTA's death threshold is commonly
+---100, not 0; use `isDead` or a death event rather than assuming 0 is reachable.
 ---@return integer
 function Kora.cache.health()
     return cache.health

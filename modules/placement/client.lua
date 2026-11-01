@@ -109,8 +109,7 @@ local function releaseStateResources(state)
     end
 
     if state.entity then
-        -- remove() also drops ownership tracking. It is intentionally called
-        -- even if another cleanup path already deleted the underlying entity.
+        -- Called even if another path already deleted the entity; remove() also drops ownership tracking.
         pcall(Kora.entities.remove, state.entity)
         state.entity = nil
     end
@@ -121,10 +120,7 @@ local function releaseStateResources(state)
     end
 
     pcall(Kora.nui.send, "placement:hud", nil)
-    -- If an owning resource stops while the summary owns NUI focus, settling
-    -- the placement promise alone cannot answer that still-pending browser
-    -- request. Ask the component to respond "keep editing" so Kora.nui releases
-    -- focus immediately; the event is a harmless no-op when no dialog is open.
+    -- If the owner stops while the summary holds NUI focus, answer the pending request with "keep editing" so Kora.nui releases focus; no-op when no dialog is open.
     pcall(Kora.nui.send, "placement:closeConfirm", nil)
     if state.radarManaged and not state.radarWasHidden then pcall(DisplayRadar, true) end
 
@@ -410,9 +406,7 @@ local function updatePlacementInstructions(state)
 end
 
 
----Starts a temporary local entity placement session. A same-resource caller
----receives an awaitable promise; a genuine cross-resource export call blocks
----and returns its settled result because Cfx cannot marshal a promise table.
+---Starts a temporary local entity placement session. Same-resource callers get a promise; cross-resource export calls block and return the settled result (Cfx can't marshal a promise).
 ---@param model string | number
 ---@return QBPlacementResult | promise | nil
 function Kora.placement.start(model, options)
@@ -502,9 +496,7 @@ function Kora.placement.start(model, options)
     startingState = nil
     if not ok then
         releaseStateResources(state)
-        -- A caller-resource stop can settle this promise while model streaming
-        -- is yielding. In that case the resumed start path still cleans up the
-        -- just-created entity, but must not reject an already-resolved cancel.
+        -- A caller stop can settle the promise mid model-streaming; the resumed path still cleans up the entity but must not reject the already-resolved cancel.
         if not state.aborted then p:reject(err) end
         return settleForCaller(p, externalCaller)
     end

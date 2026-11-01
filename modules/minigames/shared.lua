@@ -1,7 +1,4 @@
--- Every place that validates a minigame type string shares this set, rather
--- than each repeating its own "lockpick or skillbar or circuit or mash"
--- chain. A plain table, not a function, so build/finalise.lua's `pairs(Kora.minigames)`
--- export walk (which only exports function values) leaves it alone.
+-- Shared set for validating minigame type strings. A table, not a function, so build/finalise.lua's export walk skips it.
 Kora.minigames.GAME_TYPES = {
     lockpick = true,
     skillbar = true,
@@ -16,20 +13,8 @@ Kora.minigames.GAME_TYPES = {
     hacking = true,
 }
 
----Deterministic back-and-forth motion every lockpick/skillbar puzzle animates
----by. Attached to Kora.minigames (not left as a shared.lua local) because
----client.lua and server.lua are separate Lua chunks within the same realm --
----this is the one piece of game logic both genuinely need, since the server
----validates a submitted attempt by independently recomputing the exact
----position the client was rendering at a given elapsed time. The two must
----never drift out of sync with each other, which is also why this is a plain,
----cheap formula rather than anything stateful: same reasoning
----modules/loops/shared.lua's Kora.loops.controlled is attached to Kora rather
----than kept as a shared.lua local.
----
----A triangle wave, not a sine: constant angular velocity reads as perfectly
----linear back-and-forth motion, which is both easy for a player to judge by
----eye and trivial to recompute server-side from nothing but elapsed time.
+---Deterministic triangle-wave motion the lockpick/skillbar puzzles animate by.
+---Attached to Kora.minigames because the server recomputes the client's rendered position from elapsed time, so both must agree.
 ---@param elapsedMs number Milliseconds since the round started.
 ---@param speedHz number Full back-and-forth cycles per second.
 ---@return number position 0..1

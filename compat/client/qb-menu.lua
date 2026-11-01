@@ -1,31 +1,10 @@
--- Drop-in compatibility bridge: translates the real, public qb-menu API
--- (exports['qb-menu']:openMenu/closeMenu, the 'qb-menu:client:openMenu' /
--- 'qb-menu:client:closeMenu' net events) onto Kora.nui.openMenu, kora_lib's own
--- native replacement. qb-menu itself is being deprecated in favour of
--- Kora.nui.openMenu/openContextMenu/openRadialMenu -- this file exists so a
--- script written against exports['qb-menu']:... keeps working unmodified
--- while it migrates, exactly the same shape of shim as
--- kora_target/client/compat/ox-target.lua and kora_core/compat/*.
---
--- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
--- mapping table and the caveats flagged below.
+-- Compat bridge: translates exports['qb-menu']:openMenu/closeMenu and the 'qb-menu:client:*' net events
+-- onto Kora.nui.openMenu. Field mapping and caveats: see modules/nui/docs.md "Legacy compat".
 
--- Kora.compat.provideExport registers the hidden CFX export event under the
--- legacy `qb-menu` identity; `provide 'qb-menu'` alone only satisfies
--- dependency checks.
+-- Registers the hidden CFX export event under the legacy `qb-menu` identity; `provide` alone only satisfies dependency checks.
 
--- Warned once per resource run (not per menu/item) -- real qb-menu items
--- carry a Font Awesome class string (e.g. "fas fa-car"); Kora.nui.openMenu's
--- `icon` expects a lucide-react name (web/src/lib/icon.ts) instead, and the
--- two vocabularies don't overlap. Rather than guess a translation that could
--- render the wrong glyph (or none), the icon is simply dropped -- one loud
--- warning is enough to point whoever's porting the script at the gap without
--- spamming the console for every item of every menu.
--- Real qb-menu items have no stable `id` field at all (`{header, txt, icon,
--- isMenuHeader, disabled, params}`) -- Kora.nui's MenuItem requires one, so the
--- 1-based position in the array is used. `isMenuHeader` rows (real qb-menu's
--- unselectable section labels) map onto `disabled = true`, the closest thing
--- the new menu has to a non-interactive row.
+-- Warned once per resource run: qb-menu's Font Awesome `icon` strings don't map onto the lucide names
+-- Kora.nui.openMenu expects, so icons are dropped rather than guessed.
 local function imageFor(item)
     if type(item.icon) ~= 'string' or item.icon == '' then return nil end
     if item.icon:find('://', 1, true) or item.icon:sub(1, 6) == 'nui://' then return item.icon end
@@ -35,25 +14,9 @@ local function imageFor(item)
     local ok, definition = pcall(function() return exports.kora_core:getShared('items', item.icon) end)
     definition = ok and definition or nil
     if definition and type(definition.imageUrl) == 'string' and definition.imageUrl ~= '' then return definition.imageUrl end
-    -- `definition.image` (e.g. "bread.png") is the LEGACY local-file field --
-    -- real qb-inventory served it from its own html/images/ folder, but
-    -- kora_inventory (the resource that actually `provide`s the 'qb-inventory'
-    -- identity in this codebase) ships no such files: its fxmanifest.lua
-    -- `files{}` block only exposes web/build/**, nothing under
-    -- html/images/. A `nui://qb-inventory/html/images/%s` URL therefore
-    -- always 404s in the NUI -- it used to be built here as a fallback, which
-    -- is dead weight, not a fallback.
-    --
-    -- kora_core's own seed data (shared/items.lua) already does the real
-    -- resolution: every seeded item gets `imageUrl = QBCoreSeed.imageUrl(name)`
-    -- at load time, which looks the item name up in `itemImagePaths` and
-    -- returns a real, fetchable itemImageBaseUrl+path URL when one exists, or
-    -- nil otherwise. So by the time `definition.imageUrl` is missing/empty
-    -- here, kora_core has already told us there is no real artwork for this
-    -- item -- re-deriving through itemImagePaths ourselves would just
-    -- reproduce that same nil. Match this function's own "the icon is simply
-    -- dropped" philosophy (see the Font-Awesome-vs-lucide comment above) and
-    -- drop it here too instead of returning a URL known to 404.
+    -- `definition.image` is the legacy local-file field served from qb-inventory's html/images/, which
+    -- kora_inventory doesn't ship, so that URL would always 404. kora_core's seed already resolves
+    -- `imageUrl` when real artwork exists; if it's missing, drop the image.
     return nil
 end
 
@@ -67,12 +30,11 @@ local function sorted(menu, sort, skipFirst)
     return copy
 end
 
+
+-- Upstream items have no stable `id`; MenuItem requires one, so the 1-based array position is used.
+-- `isMenuHeader` rows (unselectable section labels) map onto `disabled = true`.
 local function translateItems(menu, sort, skipFirst)
-    -- Real qb-menu's openMenu/showHeader silently no-op on `if not data or
-    -- not next(data) then return end` -- a caller passing nil (or building an
-    -- empty menu conditionally) gets nothing shown, not an error. Match that:
-    -- a non-table menu translates to zero items instead of asserting, so
-    -- openMenu/showHeader's own `#items == 0` guard below does the no-op.
+    -- Upstream no-ops on nil/empty data; translate a non-table menu to zero items instead of asserting.
     if type(menu) ~= "table" then return {}, {} end
 
     local items, byId = {}, {}
@@ -97,23 +59,12 @@ local function translateItems(menu, sort, skipFirst)
     return items, byId
 end
 
--- FXServer hands a function that crossed an exports boundary back as a TABLE
--- with a __call metamethod, not a real function -- a bare `type(x) ==
--- 'function'` guard rejects every item/action built by another resource and
--- handed to this one via exports['qb-menu']:openMenu(...). Same fix, same
--- reasoning, as kora_lib's own isCallable (local/events, local/callback,
--- modules/cache, modules/status, modules/zones, modules/interact) and
--- kora_core/kora_inventory/qbtarget's copies -- duplicated per-file rather than
--- shared, like all of those. See the kora_inventory funcref bug in
--- qbcore-compat-parity/inventory-compat-identities memory for the live crash
--- this pattern was discovered from.
+-- Functions that crossed an exports boundary arrive as __call tables, so a bare `type(x) == 'function'`
+-- would reject items/actions built by another resource.
 local isCallable = Kora.compat.isCallable
 
--- Selecting an item in real qb-menu fires `params.event` (TriggerServerEvent
--- if `params.isServer`, TriggerEvent otherwise) with `params.args` unpacked
--- as positional arguments -- an item with no `params`/`params.event` just
--- closes the menu, same as here. Matches qb-menu's own
--- `RegisterNUICallback('selectMenuItem', ...)` handler.
+-- Selecting an item fires `params.event` (server event if `params.isServer`) with `params.args` unpacked;
+-- an item without params/event just closes the menu, as upstream.
 local function dispatch(item)
     if isCallable(item.action) then
         item.action()
@@ -135,14 +86,9 @@ local function dispatch(item)
     end
 end
 
--- Real qb-menu's openMenu is fire-and-forget from the caller's point of view
--- (nothing reads its return value; selection is entirely event-driven) -- so
--- this doesn't return anything either, matching that shape. It still has to
--- consume Kora.nui.openMenu's result itself to know which event to fire. When
--- reached through this compatibility export, Kora.nui.openMenu already awaits
--- its promise for the external caller; a second Citizen.Await would turn that
--- plain result table into nil. The legacy net-event path has no external
--- caller, so it receives the pending promise and must await it here instead.
+-- Fire-and-forget like upstream (selection is event-driven). Through the compat export Kora.nui.openMenu
+-- already awaits for the external caller (a second Await would turn the result into nil); the net-event
+-- path has no external caller and must await the pending promise here.
 local headerShown = false
 local headerMenu
 
@@ -164,9 +110,7 @@ local function openMenu(menu, sort, skipFirst)
     dispatch(byId[result.selectedId])
 end
 
--- Force-dismiss the currently open list menu. The menu container answers its
--- pending request with the normal cancelled result, so focus and the awaiting
--- Lua call are settled through the same path as Escape/backdrop dismissal.
+-- Force-dismiss the open menu; the container answers its pending request as cancelled, same path as Escape.
 local function closeMenu()
     if headerShown then
         Kora.nui.send('hideMenuHeader', {})

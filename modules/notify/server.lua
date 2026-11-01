@@ -2,9 +2,7 @@
 ---@param src integer Server ID of the target player, or -1 for every connected player (what sendToAll passes).
 ---@param payload QBNotifyPayload
 function Kora.notify.send(src, payload)
-    -- Mirrors the client-side send: pcall'd so a malformed notification can't
-    -- take down the caller, but the failure is logged rather than swallowed --
-    -- see modules/notify/client.lua for why silence here is actively harmful.
+    -- pcall'd so a malformed notification can't take down the caller; logged, see notify/client.lua.
     local ok, err = pcall(function()
         assert(src == -1 or (Kora.util.isInteger(src) and src >= 1),
             "Notify target must be -1 or a positive integer server ID.")

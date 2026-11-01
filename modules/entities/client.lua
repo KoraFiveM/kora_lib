@@ -17,24 +17,16 @@ local presets = {
 }
 local isFiniteNumber = Kora.util.isFiniteNumber
 
--- Per-type creation dispatch. Each entry spawns a non-networked (isNetwork =
--- false), non-mission entity (netMissionEntity/bScriptHostPed = false) at the
--- given coords -- ownership/cleanup is handled entirely by this module's own
--- resource-stop tracking below, not by GTA's native script-host pinning.
+-- Per-type creation dispatch. Entities are non-networked and non-mission; cleanup is this
+-- module's own resource-stop tracking, not GTA's script-host pinning.
 local creators = {
-    -- pedType is passed as 4 (conventionally PED_TYPE_CIVMALE) but is inert:
-    -- CreatePed's own native docs state it is unused and the game assigns
-    -- ped types automatically regardless of the value given.
+    -- pedType 4 is inert: CreatePed ignores it and assigns ped types itself.
     ped = function(model, x, y, z, heading)
         return CreatePed(4, model, x, y, z, heading, false, false)
     end,
 
-    -- CreateObjectNoOffset (not CreateObject) is used deliberately: CreateObject's
-    -- z coordinate is documented as "ground level" and applies an internal
-    -- offset/snap adjustment, whereas CreateObjectNoOffset places the object
-    -- exactly at the given coords -- required for predictable placement,
-    -- especially when the entity is about to be frozen in place. It has no
-    -- heading parameter, so heading is applied separately below.
+    -- CreateObjectNoOffset, not CreateObject: CreateObject treats z as "ground level" and
+    -- snaps it, which breaks exact placement. It has no heading param, so heading is set below.
     object = function(model, x, y, z, heading)
         local entity = CreateObjectNoOffset(model, x, y, z, false, false, false)
         if entity ~= 0 and DoesEntityExist(entity) then
@@ -48,12 +40,8 @@ local creators = {
     end,
 }
 
----Determines which of "ped" / "vehicle" / "object" `model` is, so callers
----never have to say what kind of entity they're spawning. `IsModelAPed` and
----`IsModelAVehicle` are static model-metadata queries -- they work off the
----model hash alone and don't require the asset to be streamed in first.
----Anything that's neither a ped nor a vehicle model is treated as an object
----(the generic "place something in the world" case).
+---Determines whether `model` is a "ped", "vehicle" or "object". IsModelAPed/IsModelAVehicle
+---work from the hash alone (no streaming needed); anything else is an object.
 ---@param modelHash number
 ---@return QBEntitiesType
 local function detectEntityType(modelHash)
@@ -62,16 +50,13 @@ local function detectEntityType(modelHash)
     return "object"
 end
 
--- Ownership tracking (which resource created a given entity, and bulk
--- cleanup when that resource stops) is delegated to the shared registry --
--- see local/resources/AGENTS.md.
+-- Ownership/cleanup on resource stop is delegated to the shared registry (local/resources/AGENTS.md).
 local entityRegistry = Kora.resources.registry(function(entity)
     if DoesEntityExist(entity) then DeleteEntity(entity) end
 end)
 
--- Scoped entities have their own id space: their id identifies a persistent
--- scope registration, while an entity handle is deliberately transient (it
--- changes every time the player leaves and re-enters the scope).
+-- Scoped entities have their own id space: the id names a persistent scope registration,
+-- while the entity handle changes each time the player re-enters the scope.
 local nextScopeId = 0
 local scopeRegistry
 local scopes = {}
@@ -87,11 +72,7 @@ local function resolveOverride(explicit, presetValue)
     return presetValue or false
 end
 
----Resolves the heading to spawn at. An explicit `options.heading` always
----wins; otherwise it's read off `coords` itself -- `.w` for a real FiveM
----vector4 (the only heading-shaped field it actually exposes), falling back
----to `.heading` for plain coords tables that use that name by convention
----instead (vector4 has no `.heading` field of its own). Defaults to 0.0.
+---Resolves spawn heading: `options.heading`, else `coords.w` (vector4), else `coords.heading`, else 0.0.
 ---@param options QBEntitiesCreateOptions
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number}
 ---@return number
@@ -112,15 +93,8 @@ local function assertCreateOptions(options)
     assert(options.invincible == nil or type(options.invincible) == "boolean", "Entity invincible must be a boolean.")
 end
 
----Spawns a local, non-networked entity visible only to the calling client,
----streaming its model with `Kora.stream.loadModel` first. Whether the result
----is a ped, vehicle, or object is auto-detected from `model` itself (see
----`detectEntityType`) -- callers never specify a type. The entity is created
----inside `loadModel`'s callback so it's built before the model is released,
----and is tracked against whichever resource invoked `create` (via
----`GetInvokingResource`, falling back to the current resource when called
----directly rather than through an export) so it is automatically deleted if
----that resource stops.
+---Spawns a local, non-networked entity visible only to the calling client. Type (ped/vehicle/object)
+---is auto-detected from `model`; it is tracked against the invoking resource and deleted if that stops.
 ---@param model string | number The model to spawn. Its type (ped/vehicle/object) is detected automatically.
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number} World coordinates to spawn at. A heading on `coords` (`.w` for vector4, or `.heading` for a plain table using that convention) is used unless `options.heading` is set -- see `resolveHeading`.
 ---@param options? QBEntitiesCreateOptions
@@ -171,8 +145,7 @@ local function createForResource(model, coords, options, invokingResource)
 end
 
 function Kora.entities.create(model, coords, options)
-    -- Must be captured before any Wait()/polling happens inside loadModel --
-    -- the invoking-resource context is only valid at this call boundary.
+    -- Capture before loadModel yields: the invoking resource is only valid at the call boundary.
     return createForResource(model, coords, options, GetInvokingResource() or GetCurrentResourceName())
 end
 

@@ -6,8 +6,7 @@ local movementMultiplier = 1.0
 local movementLoopRunning = false
 local isInteger = Kora.util.isInteger
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
+-- Normalizes native functions and Cfx funcref proxies consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
 local statusRegistry = Kora.resources.registry(function(name)
@@ -49,13 +48,9 @@ local function notifyChange(name, applied)
     end
 end
 
----Plays `def`'s fx/anim/movement on the local ped and returns everything
----needed to tear it back down again. A shallow per-call copy of `def.fx.ptfx`
----is built rather than passing the registered def's own table straight into
----Kora.fx.playPtfx -- that function is documented to accept caller-owned option
----tables, and mutating the SAME table object every application (to default
----`entity`, force `looped = true`) would leak this call's ped/looped flag
----into the shared, registry-wide def for every future application.
+---Plays `def`'s fx/anim/movement on the local ped and returns what's needed to tear it down.
+---Copies `def.fx.ptfx` per call: Kora.fx.playPtfx may mutate caller-owned tables (default `entity`,
+---force `looped`), which would otherwise leak into the shared registered def.
 ---@param def QBStatusEffectDef
 ---@return table rendered
 local clearRender
@@ -119,12 +114,8 @@ local function dropActive(name, entry)
     clearRender(entry.rendered, entry.def)
 end
 
----Applies a registered status effect locally: renders its fx/anim/movement
----and starts its expiry timer. Also reachable via a server-side
----`Kora.status.apply(target, ...)` push -- this is the function that push
----dispatches into (see `Kora.events.onPush` below), and is equally valid to
----call directly for a purely client-local effect that never needs
----server-side tracking.
+---Applies a registered status effect locally and starts its expiry timer. Also the target of a server-side
+---`Kora.status.apply(target, ...)` push; valid to call directly for a client-only effect.
 ---@param name string
 ---@param opts? QBStatusApplyOptions
 ---@return boolean success
@@ -187,10 +178,7 @@ function Kora.status.apply(name, opts)
         CreateThread(function()
             Wait(remainingDuration)
             local current = active[name]
-            -- Only remove if this is still the SAME application (not
-            -- superseded by a later apply/remove in the meantime) and it's
-            -- actually due -- a "replace" re-application resets expiresAt,
-            -- which this check honors rather than removing early.
+            -- Only remove if this is still the same application and due: a "replace" re-apply resets expiresAt.
             if current and current.expiresAt and current.expiresAt <= GetGameTimer() then
                 Kora.status.remove(name)
             end
@@ -257,9 +245,7 @@ function Kora.status.getActive()
     return result
 end
 
----Registers a handler called every time a status effect is applied or
----removed, locally or via a server push. Automatically unregistered if the
----calling resource stops.
+---Registers a handler called whenever a status effect is applied or removed (locally or via push); unregistered when the calling resource stops.
 ---@param handler fun(name: string, applied: boolean)
 ---@return integer listenerId Pass to Kora.status.offChange to unregister.
 function Kora.status.onChange(handler)

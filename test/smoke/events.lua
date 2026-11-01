@@ -6,12 +6,8 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
--- server.lua and client.lua register their net events under disjoint names
--- (register/push vs. trigger/onPush), so loading both into this one mocked
--- process gives a genuine client <-> server round trip through
--- TriggerServerEvent/TriggerClientEvent, without needing to simulate two
--- separate Lua realms. (Promise-based request/response lives in the
--- `callback` module now -- see test/smoke/callback.lua.)
+-- server.lua and client.lua register under disjoint event names, so loading both
+-- into one mocked process gives a real client <-> server round trip.
 local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
@@ -415,14 +411,10 @@ harness.test("foreign resources cannot unregister events or push handlers", func
     _G.GetInvokingResource = function() return nil end
 end)
 
--- The rest of these fire onResourceStop/onClientResourceStop for the mocked
--- resource name ("kora_lib_test", from GetCurrentResourceName()), which sweeps
--- every handler currently owned by it -- placed last so no earlier test's
--- still-needed registration gets swept out from under it. They also need a
--- working token, which "playerDropped clears the token" above deliberately
--- cleared server-side without the client's own cached token knowing --
--- exactly like a real reconnect, replaying the handshake refreshes both
--- sides in sync (see test/smoke/callback.lua for the same fix, same reason).
+-- Placed last: these fire onResourceStop/onClientResourceStop for "kora_lib_test", which
+-- sweeps every handler it owns. They also need a working token; the earlier
+-- "playerDropped clears the token" test cleared it server-side only, so replay the
+-- handshake (like a real reconnect) to resync both sides.
 _G.source = mocks.SOURCE
 for _, fn in ipairs(net.netHandlers["kora_lib:events:handshake"]) do fn() end
 _G.source = nil

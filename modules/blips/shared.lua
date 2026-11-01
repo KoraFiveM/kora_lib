@@ -1,8 +1,5 @@
--- The named pause-map categories are deliberately fixed. GTA only reserves a
--- small numeric range for script-defined legend groups, so allocating ids in
--- creation order makes the same category move between ids after resource
--- restarts. Keeping the catalogue in shared code gives every realm and every
--- client the same name -> native id contract.
+-- Categories are fixed: GTA reserves a small numeric range for script legend groups,
+-- and allocating ids in creation order would shuffle them across resource restarts.
 local DEFINITIONS = {
     { key = 'Other', name = 'Other', label = 'Other', id = 12 },
     { key = 'Bank', name = 'Bank', label = 'Bank', id = 13 },
@@ -97,9 +94,8 @@ local function resolve(category)
     return definition
 end
 
--- Nested internal table: build/finalise exports only direct module functions,
--- so this shared catalogue is available to the client implementation without
--- accidentally publishing mutable internals as exports.
+-- Nested table: build/finalise only exports direct module functions, so this
+-- catalogue stays out of the exports.
 Kora.blips._categoryCatalog = {
     definitions = DEFINITIONS,
     byId = byId,
@@ -107,9 +103,7 @@ Kora.blips._categoryCatalog = {
     resolve = resolve,
 }
 
----Returns a fresh canonical category-name -> native-id map. The catalogue is
----available in both realms so server config/validation can share the same ids
----without reaching into client state.
+---Returns a fresh canonical category-name -> native-id map (shared so server config can validate).
 ---@return table<string, integer> categoryIds
 function Kora.blips.getCategoryIds()
     local result = {}

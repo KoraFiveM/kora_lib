@@ -34,20 +34,10 @@ local function nextId()
     return nextRequestId
 end
 
--- Per-request secret the NUI must echo back in its response. FiveM's NUI
--- callback routing (the `https://<resource>/<callback>` fetch every NUI page
--- uses) isn't scoped to the frame that issued a given request -- any other
--- installed resource's own NUI page could in principle POST a response to
--- "kora_lib:nui:response" for a guessable sequential requestId. A random token,
--- known only to this client and echoed back only by the legitimate response,
--- closes that gap the same way local/callback's per-player token does for the
--- client<->server boundary.
---
+-- Random per-request token the NUI must echo back: NUI callback routing isn't scoped to the issuing frame, so another resource's page could otherwise forge a response for a guessable requestId.
 local generateToken = Kora.compat.generateToken
 
--- FXServer represents a function passed through an exports boundary as a
--- callable table rather than a plain Lua function. App action handlers are
--- registered by consumer resources, so accept both shapes.
+-- FXServer passes functions across exports as callable tables, so accept both shapes.
 local isCallable = Kora.compat.isCallable
 
 local function assertAppId(id)
@@ -60,8 +50,7 @@ local function translateAppLabel(key)
     return APP_LABEL_FALLBACKS[key]
 end
 
--- Handlers belong in Lua and cannot be JSON-encoded into SendNUIMessage. Keep
--- the callable in the private registry and copy only the browser definition.
+-- Handlers can't be JSON-encoded into SendNUIMessage; keep them in the private registry.
 local function appLabels()
     return {
         cancel = translateAppLabel('cancel'), confirm = translateAppLabel('confirm'), working = translateAppLabel('working'),
@@ -626,10 +615,6 @@ end
 ---@param action string
 ---@param data any
 function Kora.nui.send(action, data)
-    -- SendNUIMessage (capital NUI) is the runtime wrapper that takes a table
-    -- and json-encodes it; the similarly-named SendNuiMessage native takes a
-    -- pre-encoded JSON *string* and would stringify a table into garbage.
-
     SendNUIMessage({ action = action, data = data })
 end
 
@@ -642,9 +627,7 @@ function Kora.nui.setFocus(mouse, keyboard)
     SetNuiFocus(mouse, keyboard)
 end
 
--- Interactive surfaces take leases instead of independently toggling the
--- global NUI focus native. Closing a child dialog therefore reveals the app
--- beneath it without stealing that app's mouse and keyboard input.
+-- Surfaces take focus leases so closing a child dialog doesn't steal input from the app beneath it.
 local function refreshFocus()
     local mouse, keyboard, keepInput, hasLease = false, false, false, false
     for _, lease in pairs(focusLeases) do
@@ -705,10 +688,7 @@ function Kora.nui.releaseFocus(release)
     release()
 end
 
----Runs `fn` with NUI focus set, guaranteeing focus is released afterward even
----if `fn` errors -- the headless-UI rule (AGENTS.md) is that focus never
----outlives the interaction that requested it, and this is the one place that
----guarantee is enforced instead of every caller hand-rolling it.
+---Runs `fn` with NUI focus set and always releases it afterward, even if `fn` errors.
 ---@param mouse boolean
 ---@param keyboard boolean
 ---@param fn fun(): any
@@ -763,8 +743,7 @@ function Kora.nui.registerCallback(name, handler)
     end
 
     register(name)
-    -- kora_lib's own callbacks keep answering under their deprecated qblib:
-    -- names, so a cached older web build or an external caller still works.
+    -- Deprecated qblib: names stay answered for cached older web builds and external callers.
     if LEGACY_ALIASED_CALLBACKS[name] then register('qblib:' .. name:sub(#'kora_lib:' + 1)) end
 end
 
@@ -794,8 +773,7 @@ function Kora.nui.setDispatchFeed(payload)
     return true
 end
 
--- Persistent state may arrive before the shared browser subscribes. Re-emit
--- into this frame instead of returning dispatch data to callback fetchers.
+-- Persistent state may arrive before the browser subscribes; re-emit into this frame.
 Kora.nui.registerCallback('kora_lib:dispatchfeed:ready', function()
     local payload = feedPayload
     if payload then
@@ -807,11 +785,7 @@ Kora.nui.registerCallback('kora_lib:dispatchfeed:ready', function()
     return true
 end)
 
----The single shared response channel every `Kora.nui.request` call resolves
----through, keyed by requestId -- one registered callback rather than a
----dynamically-named one per request. `data.token` must match the token this
----request was issued with (see generateToken above); a mismatched or missing
----token is silently ignored rather than resolving/rejecting anything.
+---Shared response channel for every `Kora.nui.request`, keyed by requestId. A missing or mismatched `data.token` is ignored.
 Kora.nui.registerCallback("kora_lib:nui:response", function(data)
     if type(data) ~= "table" then return {} end
 
@@ -831,10 +805,7 @@ Kora.nui.registerCallback("kora_lib:nui:response", function(data)
     return {}
 end)
 
--- Interactive request surfaces can report non-terminal changes (for example,
--- an ox_lib menu changing its selected row, checkbox, or side-scroll value)
--- without resolving the request. The same per-request token used by the final
--- response validates these messages against the live request.
+-- Non-terminal events (e.g. menu selection change) don't resolve the request; the same per-request token validates them.
 Kora.nui.registerCallback("kora_lib:nui:event", function(data)
     if type(data) ~= "table" then return {} end
 
@@ -849,25 +820,9 @@ Kora.nui.registerCallback("kora_lib:nui:event", function(data)
     return {}
 end)
 
--- A promise object doesn't survive crossing a real cross-resource exports()
--- call back to the caller: only METHOD CALLS on it (:next(), used below)
--- reach the real promise inside kora_lib, while plain field reads (.state,
--- .value -- what Citizen.Await itself checks) on the crossed reference never
--- reflect the real remote promise's settlement, so the caller's own
--- Citizen.Await silently resolves nil regardless of the real outcome.
--- GetInvokingResource() is nil for a same-VM call (kora_lib's own modules,
--- every dofile()'d smoke test) and the real calling resource's name for a
--- genuine cross-resource exports() call (same signal modules/zones already
--- relies on for ownership tracking -- see its AGENTS.md's "Resource
--- ownership" note) -- exactly the distinction that matters here. Same-VM
--- callers get the real promise back unchanged, so `Citizen.Await(Kora.nui.X(...))`
--- keeps working exactly as before for internal callers and every smoke test.
--- A genuine cross-resource caller gets the already-awaited plain value (or a
--- raised error on rejection/timeout, which -- like every other kora_lib error --
--- surfaces to that caller as a printed export-call error and a nil return,
--- not a catchable Lua error) instead of a promise it can't usefully await.
--- Deliberately duplicated per-file -- see local/callback/{client,server}.lua
--- and modules/zones/client.lua for the other copies.
+-- A promise doesn't survive a real cross-resource exports() call (field reads like .state never reflect the remote promise, so Citizen.Await resolves nil).
+-- GetInvokingResource() is nil for same-VM callers, who get the promise unchanged; cross-resource callers get the awaited value.
+-- Deliberately duplicated per-file; see local/callback/{client,server}.lua and modules/zones/client.lua.
 local function settleForExport(p)
     if GetInvokingResource() then
         return Citizen.Await(p)
@@ -895,9 +850,7 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     local token = generateToken()
     local p = promise.new()
     owner = owner or GetInvokingResource() or GetCurrentResourceName()
-    -- Private metadata used by the long-lived app shell callbacks. Keeping it
-    -- on the local promise avoids changing the public wire envelope or return
-    -- value of Kora.nui.request.
+    -- Private metadata for the app shell callbacks; kept off the wire envelope and the public return value.
     p.koraLibNuiRequestId = requestId
     p.koraLibNuiToken = token
     p.koraLibNuiOwner = owner
@@ -907,11 +860,7 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     Kora.nui.send(action, { requestId = requestId, token = token, payload = data })
 
     if timeout ~= false then
-        -- A one-shot native timer rather than a CreateThread+Wait coroutine --
-        -- this timeout almost never actually fires (the response callback
-        -- above settles it first), so it shouldn't cost a whole thread per
-        -- request. Same idiom local/callback/server.lua already uses for the
-        -- same "cheap deadline that's usually beaten by a real response" shape.
+        -- One-shot native timer: this almost never fires, so it shouldn't cost a thread per request.
         SetTimeout(timeout, function()
             if pendingRequests[requestId] then
                 pendingRequests[requestId] = nil
@@ -924,10 +873,7 @@ local function requestPromise(action, data, timeout, owner, onEvent)
     return p
 end
 
--- Settles one known local request without waiting for a browser round trip.
--- App-owner shutdown and app supersession use this after telling the browser
--- to hide: focus must be released immediately even if the frame disappears
--- before it gets a chance to answer normally.
+-- Settles a known local request without a browser round trip, so focus is released even if the frame vanishes first.
 local function settlePendingRequest(p, ok, value)
     local requestId = p and p.koraLibNuiRequestId
     local pending = requestId and pendingRequests[requestId]
@@ -974,11 +920,7 @@ function Kora.nui.requestAsync(action, data, timeout, owner, focused, onEvent)
     return focused and focusUntilSettled(request) or request
 end
 
--- Grants mouse+keyboard focus for the lifetime of an interactive request and
--- releases it the moment the promise settles -- answered, cancelled, or timed
--- out (the request timeout doubles as the guarantee focus can't get stuck).
--- This is what makes the open* wrappers below actually clickable/typable
--- in-game; without focus the NUI renders but can never receive input.
+-- Holds mouse+keyboard focus until the request settles; the timeout guarantees focus can't get stuck.
 function focusUntilSettled(p)
     local release = acquireFocus(true, true, p.koraLibNuiOwner)
     p:next(release, release)
@@ -1138,13 +1080,7 @@ end
 function Kora.nui.openMenu(items, title, opts)
     assertMenuItems(items, "openMenu")
     assertMenuGeometry(title, opts)
-    -- timeout = false: these three wait on a HUMAN, and there's no sensible
-    -- deadline for "how long until they pick something" -- a player can open a
-    -- dialog, get shot at, and come back to it. A timeout here doesn't fail
-    -- safe either: it rejects a dialog that's still on screen, so the player
-    -- goes on to answer a request nothing is listening for any more. They're
-    -- all dismissable (Escape/backdrop/Cancel), so cancelling is always
-    -- available as the way out -- see modules/nui/docs.md.
+    -- timeout = false: these wait on a human, and timing out would reject a dialog still on screen. All are dismissable.
     return settleForExport(focusUntilSettled(requestPromise("openMenu", {
         title = title,
         items = items,
@@ -1167,7 +1103,7 @@ function Kora.nui.openContextMenu(items, x, y)
     assertMenuItems(items, "openContextMenu")
     assert(x == nil or isFiniteNumber(x), "openContextMenu x must be a finite number.")
     assert(y == nil or isFiniteNumber(y), "openContextMenu y must be a finite number.")
-    -- No timeout, same reasoning as openMenu above.
+    -- No timeout, see openMenu.
     return settleForExport(focusUntilSettled(requestPromise("openContextMenu", { items = items, x = x, y = y }, false)))
 end
 
@@ -1185,8 +1121,7 @@ function Kora.nui.openRadialMenu(items, opts)
     assert(opts.radius == nil or (isFiniteNumber(opts.radius) and opts.radius > 0),
         "openRadialMenu radius must be a positive number.")
 
-    -- No timeout, same reasoning as openMenu: a human owns dismissal, and
-    -- timing out would leave a still-visible radial with no awaiting caller.
+    -- No timeout, see openMenu.
     return settleForExport(focusUntilSettled(requestPromise("openRadialMenu", {
         items = items,
         radius = opts.radius,
@@ -1216,9 +1151,7 @@ function Kora.nui.openAlert(opts)
     assert(opts.size == nil or opts.size == "xs" or opts.size == "sm" or opts.size == "md"
         or opts.size == "lg" or opts.size == "xl", "openAlert size is invalid.")
 
-    -- No timeout, same reasoning as openMenu -- and a non-cancellable alert
-    -- MUST NOT have one: timing it out would resolve a dialog that's still on
-    -- screen demanding an answer, which is what it was set up to prevent.
+    -- No timeout, see openMenu; a non-cancellable alert must not time out while still on screen.
     return settleForExport(focusUntilSettled(requestPromise("openAlert", opts, false)))
 end
 
@@ -1232,9 +1165,7 @@ function Kora.nui.openInputDialog(fields, title, description)
     assertInputFields(fields, "openInputDialog")
     assert(title == nil or type(title) == "string", "openInputDialog title must be a string.")
     assert(description == nil or type(description) == "string", "openInputDialog description must be a string.")
-    -- No timeout, same reasoning as openMenu above -- and most acute here,
-    -- since filling in a multi-field form is the slowest thing the NUI asks
-    -- anyone to do.
+    -- No timeout, see openMenu.
     return settleForExport(focusUntilSettled(requestPromise("openInputDialog", {
         title = title,
         description = description,
@@ -1243,14 +1174,9 @@ function Kora.nui.openInputDialog(fields, title, description)
     }, false)))
 end
 
--- App registrations are owner-tracked like callbacks, zones, and keybinds.
--- If a consumer stops while its app is open, ask the browser to settle the
--- request first (which releases focus) and then remove the definition.
+-- App registrations are owner-tracked; if the consumer stops mid-open, settle the request (releasing focus) then remove the definition.
 local function applyAppAccent(registration)
-    -- Go through the imported bridge instead of clearing the browser override
-    -- directly. The bridge combines an app-owned accent with the player's
-    -- saved /theme preference, so an app without an accent keeps that choice
-    -- and closing an explicitly themed app restores it.
+    -- Go through the theme bridge so an app without an accent keeps the player's saved /theme preference.
     QBTheme.apply(registration and registration.browser.accent or nil)
 end
 
@@ -1267,10 +1193,7 @@ appOwnership = Kora.resources.registry(function(id)
     registeredApps[id] = nil
 end)
 
--- Human-driven requests intentionally have no arbitrary timeout, so their
--- caller owns their lifetime instead. If that resource stops, reject the Lua
--- promise and tell the shared browser hook to unmount the matching surface;
--- the promise's focus callback then releases only this request's lease.
+-- Human-driven requests have no timeout; if the owning resource stops, reject the promise and unmount the surface so its lease is released.
 requestOwnership = Kora.resources.registry(function(requestId)
     local pending = pendingRequests[requestId]
     if not pending then return end
@@ -1280,9 +1203,7 @@ requestOwnership = Kora.resources.registry(function(requestId)
     pending.promise:reject("The resource that opened this NUI request stopped.")
 end)
 
--- withFocus is also used around multi-step module operations (minigames and
--- editors), not only request promises. Owner tracking guarantees an abandoned
--- coroutine cannot leave a stale aggregate focus lease behind.
+-- withFocus also wraps multi-step operations; owner tracking stops an abandoned coroutine leaving a stale lease.
 focusOwnership = Kora.resources.registry(function(id)
     if not focusLeases[id] then return end
     focusLeases[id] = nil
@@ -1367,16 +1288,10 @@ function Kora.nui.openApp(id, opts)
     local registration = registeredApps[id]
     assert(registration, ("App '%s' is not registered."):format(id))
 
-    -- Settle an old app before granting the new one focus. If this were left
-    -- to the browser's asynchronous supersede response, the old promise's
-    -- focus-release callback could run after the new request granted focus,
-    -- leaving the newly visible app unable to receive input.
+    -- Settle the old app before granting focus, or its late focus-release could strip the new app's input.
     if activeApp then
         local previous = activeApp
-        -- Reopening/replacing an app is normal control flow (notably when an
-        -- admin runs /admin again). Resolve the old caller as closed instead
-        -- of rejecting its cross-resource export call, which would otherwise
-        -- print a misleading SCRIPT ERROR in the resource that opened it.
+        -- Replacing an app is normal flow; resolve the old caller as closed rather than rejecting its export call.
         settlePendingRequest(previous.promise, true, { closed = true, reason = "superseded" })
     end
 
@@ -1466,8 +1381,7 @@ function Kora.nui.isAppOpen(id)
     return activeApp ~= nil and (id == nil or activeApp.id == id)
 end
 
--- Form edits update the visible definition without submitting, closing, or
--- taking another focus lease. Yielding handlers must not overwrite newer edits.
+-- Form edits don't submit, close or take focus; yielding handlers must not overwrite newer edits.
 Kora.nui.registerCallback("kora_lib:app:change", function(data)
     local current = activeApp
     if not current or type(data) ~= "table" then
@@ -1549,9 +1463,7 @@ local function validateActionResult(registration, result)
     return result
 end
 
--- One token-validated route for every button/list/table action emitted by the
--- AppShell. The per-open token prevents another NUI page from invoking a
--- registered application's privileged action handler by guessing its id.
+-- Token-validated route for AppShell actions; the per-open token stops another NUI page invoking privileged handlers by guessing an id.
 Kora.nui.registerCallback("kora_lib:app:action", function(data)
     local current = activeApp
     if not current or type(data) ~= "table" then
@@ -1574,9 +1486,7 @@ Kora.nui.registerCallback("kora_lib:app:action", function(data)
     end
     current.changeVersion = (current.changeVersion or 0) + 1
 
-    -- World editors and other focused UIs cannot safely open beneath the
-    -- shell. Settle its request first so its focus lease is gone before the
-    -- owning handler starts the next interaction.
+    -- Settle the shell first so its focus lease is gone before the handler starts a focused UI.
     if declared.closeBeforeAction then
         Kora.nui.send("closeApp", {
             appId = current.id,

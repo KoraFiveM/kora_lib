@@ -1,7 +1,5 @@
--- Kora.commands (server realm) -- a registration wrapper over RegisterCommand
--- with pluggable permission gating and chat-suggestion support.
--- OWNER-TRACKED via Kora.resources.serverRegistry, keyed by command name, so a
--- resource that restarts doesn't leave dead command handlers behind.
+-- Registration wrapper over RegisterCommand with pluggable permission gating and chat
+-- suggestions. Owner-tracked via Kora.resources.serverRegistry (keyed by command name).
 
 -- name -> { help, args, argsRequired, handler, permission, resource, checkPermission, notify }
 local commands = {}
@@ -96,13 +94,9 @@ local function normalizeKeybind(keybind, description, owner)
 end
 
 local function dispatch(name, definition, source, rawArgs, raw)
-    -- No checkPermission with a non-'user' permission fails closed: a caller
-    -- that declares a gated command without wiring a check must not get it for
-    -- free. Key mappings use this exact same dispatcher. A denial caused by a
-    -- broken check (missing/erroring checkPermission) is logged here -- only
-    -- on dispatch, not per-keystroke suggestion filtering -- because it is
-    -- otherwise indistinguishable from the player genuinely lacking the
-    -- permission.
+    -- No checkPermission with a non-'user' permission fails closed. A denial from a broken
+    -- check is logged here (dispatch only, not suggestion filtering) since it is otherwise
+    -- indistinguishable from the player lacking the permission.
     local allowed, denyReason = isAllowed(source, definition)
     if not allowed then
         if denyReason then
@@ -145,9 +139,8 @@ local function removeCommand(name)
     if definition.keybind then TriggerClientEvent(keybindEvents.remove, -1, name) end
 end
 
--- Registry id == command name (a name-keyed registry, per Kora.resources'
--- own documented use case): re-registering an existing name just transfers
--- ownership, and a resource stop disposes exactly the names it still owns.
+-- Registry id == command name: re-registering transfers ownership; a resource stop
+-- disposes exactly the names it still owns.
 local cmdRegistry = Kora.resources.serverRegistry(removeCommand)
 
 local function defaultNotify(src, message, type_)

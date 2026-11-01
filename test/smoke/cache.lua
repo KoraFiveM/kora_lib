@@ -19,11 +19,8 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- Scenario baked into these mocks: player 5 (server id 42), ped 100, sitting
--- in vehicle 200's seat 1 (not the driver, and not seat 0 -- proves
--- computeSeat's scan doesn't just check the first candidate), armed with
--- weapon hash 999. All specific to this module, so mocked here rather than
--- in test/mocks.lua per the root AGENTS.md testing convention.
+-- Scenario: player 5 (server id 42), ped 100, in vehicle 200 seat 1 (not driver, not seat 0,
+-- so computeSeat's scan is exercised), weapon hash 999.
 local playerIdReads, serverIdReads, seatReads, pedReads = 0, 0, 0, 0
 local networkReady = false
 local occupiedSeat = 1
@@ -304,9 +301,7 @@ harness.test("offChange removes the calling resource's handlers for that key", f
     harness.assertEqual(calls, 0, "a removed handler must not fire")
 end)
 
--- Placed last: fires onClientResourceStop for the mocked resource name
--- ("kora_lib_test", from GetCurrentResourceName()), which sweeps every handler
--- registered by any earlier test still holding one.
+-- Placed last: onClientResourceStop sweeps handlers still registered by earlier tests.
 harness.test("onChange handlers are swept when their owning resource stops", function()
     local calls = 0
     Kora.cache.onChange("sweep-target", function() calls = calls + 1 end)

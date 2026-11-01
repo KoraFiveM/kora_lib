@@ -21,13 +21,9 @@ dofile(repoRoot .. "local/events/client.lua")
 local lastNui
 local thirdPartyClientPayloads = {}
 
--- The table-accepting wrapper (capital NUI), matching what Kora.nui.send calls.
 function _G.SendNUIMessage(msg) lastNui = msg end
 
--- notify sends through Kora.nui.send (not SendNuiMessage directly -- see the
--- root AGENTS.md "UI conventions"), so modules/nui/client.lua needs to be
--- loaded too. RegisterNUICallback/SetNuiFocus are specific to that module and
--- unused by anything notify exercises here, so they're harmless no-ops.
+-- notify sends via Kora.nui.send, so modules/nui/client.lua must be loaded too.
 _G.RegisterNUICallback = function() end
 _G.SetNuiFocus = function() end
 dofile(repoRoot .. "modules/nui/client.lua")
@@ -46,10 +42,7 @@ end)
 dofile(repoRoot .. "modules/notify/shared.lua")
 dofile(repoRoot .. "modules/notify/client.lua")
 
--- client.lua's `Kora.events.onPush('notify', Kora.notify.send)` already captured
--- the client version by value, but Kora.notify.send itself is about to be
--- overwritten by server.lua (same module, same table slot) -- so grab a
--- direct reference to the client function before that happens.
+-- Capture the client Kora.notify.send now; server.lua overwrites the same table slot.
 local clientNotifySend = Kora.notify.send
 
 dofile(repoRoot .. "modules/notify/server.lua")

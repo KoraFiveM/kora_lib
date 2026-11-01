@@ -255,13 +255,9 @@ harness.test("selectOption dispatches the selected client event once and hides",
     harness.assertTrue(type(response) == "table", "the NUI callback should always respond")
 end)
 
--- exports.kora_lib:addCircleZone(...)/addBoxZone(...) are real cross-resource
--- entry points -- a `function` value another resource puts on `option.action`
--- or `option.canInteract` crosses that boundary as a table with a __call
--- metamethod, not a real function (FXServer's own funcref marshalling; see
--- compat/client/qb-menu.lua's identical fix and its test for the same
--- pattern). dispatch()/isAvailable() already route both fields through the
--- local isCallable() here, but nothing exercised that until now.
+-- A `function` another resource puts on `option.action`/`option.canInteract` crosses
+-- exports.kora_lib:addCircleZone/addBoxZone as a table with a __call metamethod
+-- (FXServer funcref marshalling; same pattern as compat/client/qb-menu.lua).
 harness.test("dispatch still invokes a masked cross-resource function action", function()
     reset()
     local fired = 0

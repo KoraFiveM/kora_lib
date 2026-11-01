@@ -1,8 +1,7 @@
 local state = Kora.lookup._state
 local SYNC_REQUEST = 'kora_lib:lookup:sync'
 local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
--- Leave framing headroom so the complete encoded event payload remains below
--- the requested 24 KiB boundary, not merely the JSON array within it.
+-- Headroom for event framing so the whole encoded payload stays under the 24 KiB boundary, not just the JSON array.
 local MAX_BATCH_BYTES = 23 * 1024
 local MAX_SCANNED_FILE_BYTES = 16 * 1024 * 1024
 local MAX_OVERRIDE_BYTES = 1024 * 1024
@@ -575,10 +574,7 @@ local function flattenOverlay()
                 if #resources <= MAX_RESOURCES_PER_WIRE_RECORD then
                     records[#records + 1] = record
                 else
-                    -- One popular model can be contributed by many resources.
-                    -- Split only its attribution list on the wire so no single
-                    -- record can defeat the bounded batch size; the client
-                    -- merges these identical name/hash fragments again.
+                    -- A popular model can have many contributing resources; split its attribution list so no record exceeds the batch bound (client re-merges).
                     for first = 1, #resources, MAX_RESOURCES_PER_WIRE_RECORD do
                         local fragment = copyTable(record)
                         fragment.resources = {}

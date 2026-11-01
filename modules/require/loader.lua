@@ -76,8 +76,7 @@ return function(currentResource)
                     error(("unable to load '@%s/%s': %s"):format(resource, fileName, result), 3)
                 end
 
-                -- Match Lua require: a module with no explicit return value is
-                -- considered successfully loaded and resolves to true.
+                -- Like Lua require: no explicit return value resolves to true.
                 if result == nil then result = true end
                 resourceCache[fileName] = result
                 return result
@@ -133,9 +132,7 @@ return function(currentResource)
         return loadPaths(currentResource, paths)
     end
 
-    -- `local` is a Lua keyword, so dot syntax cannot express this field. Keep
-    -- the requested name available as Kora.require["local"](...), with
-    -- Kora.require.current(...) as the normal dot-syntax spelling.
+    -- `local` is a Lua keyword, so dot syntax can't express it; `Kora.require.current` is the dot-syntax spelling.
     api['local'] = api.current
 
     local function clearResource(resource)

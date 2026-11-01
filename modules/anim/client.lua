@@ -20,12 +20,8 @@
 ---@field vertexIndex? number Legacy option name for the native's rotationOrder. Defaults to 0.
 ---@field fixedRot? boolean Defaults to true.
 
--- Keyed by entity, not a synthetic handle id -- Kora.anim.stop/isPlaying take
--- the entity directly (matching how every other per-entity kora_lib primitive,
--- e.g. Kora.cache, is addressed), so the entity itself IS the id space this
--- module tracks. A `generation` counter guards a delayed auto-stop thread
--- (started by a `duration` option) against stopping a LATER anim that
--- replaced the one it was scheduled for.
+-- Keyed by entity. A per-entity `generation` counter stops a delayed auto-stop
+-- thread from stopping a LATER anim that replaced the one it was scheduled for.
 local activeByEntity = {}
 local generationByEntity = {}
 local isInteger = Kora.util.isInteger
@@ -42,18 +38,14 @@ local function resolveBlendOutSpeed(value)
     return value or 8.0
 end
 
--- Ownership tracking (which resource started a given entity's anim, and bulk
--- cleanup when that resource stops) is delegated to the shared registry --
--- see local/resources/AGENTS.md. The id tracked here is the entity, same
--- space `activeByEntity` uses.
+-- Ownership/cleanup on resource stop is delegated to the shared registry
+-- (local/resources/AGENTS.md); id = entity.
 local animRegistry = Kora.resources.registry(function(entity)
     Kora.anim.stop(entity)
 end)
 
--- Ownership tracking for attached props, id = the created prop entity.
--- Separate registry from animRegistry: unrelated id spaces (an anim's owning
--- entity vs. a prop's own entity handle) sharing one registry would corrupt
--- each other's reverse lookup -- see local/resources/AGENTS.md.
+-- Separate from animRegistry: mixing entity and prop id spaces in one registry
+-- would corrupt reverse lookup (local/resources/AGENTS.md).
 local propRegistry = Kora.resources.registry(function(prop)
     if DoesEntityExist(prop) then
         DetachEntity(prop, true, false)
@@ -61,14 +53,9 @@ local propRegistry = Kora.resources.registry(function(prop)
     end
 end)
 
----Plays an animation on `entity`, streaming `dict` first via
----`Kora.stream.loadModel`'s sibling `Kora.stream.loadAnimDict` -- called WITHOUT
----a callback, so the dict is deliberately left loaded for the anim's
----lifetime and released by this module (on `Kora.anim.stop`, a `duration`
----timeout, or the owning resource stopping), not immediately after this
----function returns. Only one anim per entity is tracked at a time: starting
----a new one on an entity that already has one replaces it (the previous
----anim's dict is released, its `onFinish` is never called).
+---Plays an animation on `entity`. The dict is loaded via `Kora.stream.loadAnimDict` without
+---a callback and released on stop, `duration` timeout, or owner stop. One anim per entity:
+---a new one replaces the old (its `onFinish` is never called).
 ---@param entity number
 ---@param dict string
 ---@param clip string
@@ -79,10 +66,7 @@ function Kora.anim.play(entity, dict, clip, opts)
     assert(type(entity) == "number" and entity ~= 0, ("Invalid entity: %s"):format(entity))
     assert(type(dict) == "string" and type(clip) == "string", "Kora.anim.play requires string dict/clip.")
 
-    -- Must be captured before Kora.stream.loadAnimDict's own poll/Wait loop --
-    -- the invoking-resource context is only valid at this call boundary,
-    -- same reasoning modules/blips and modules/entities document for
-    -- themselves.
+    -- Capture before loadAnimDict yields: the invoking resource is only valid at the call boundary.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     assert(opts == nil or type(opts) == "table", "Animation options must be a table.")
@@ -113,13 +97,8 @@ function Kora.anim.play(entity, dict, clip, opts)
         return false, loadErr
     end
 
-    -- Replacing whatever this entity was already doing: release the OLD
-    -- dict, unless it's the same dict the new anim is about to use (a
-    -- replay/re-parameterize on the same dict) -- in that case the dict we
-    -- just resolved above IS the one still about to play, and freeing it
-    -- here would release an asset this very call still needs. Also bumps
-    -- `generation` so any in-flight duration timer for the old anim becomes
-    -- a no-op instead of stopping the one we're about to start.
+    -- Release the OLD dict unless the new anim reuses it. Bumping `generation`
+    -- turns the old anim's in-flight duration timer into a no-op.
     local previous = activeByEntity[entity]
     if previous and previous.dict ~= dict then
         RemoveAnimDict(previous.dict)

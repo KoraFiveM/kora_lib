@@ -1,7 +1,5 @@
--- Kora.permissions (server realm) -- one permission gateway over FiveM ACEs and,
--- when a caller opts in, Kora.discord's fail-closed role cache. ACE checks are
--- always evaluated and win immediately; Discord roles can add a grant but can
--- never disable an ACE grant such as group.admin.
+-- Kora.permissions (server): one gateway over FiveM ACEs and, opt-in, Kora.discord's fail-closed role cache.
+-- ACE grants win immediately; Discord roles can add a grant but never disable an ACE grant such as group.admin.
 
 local MAX_LEVELS = 32
 
@@ -41,18 +39,8 @@ local function assertLevels(levels)
     assert(count == #levels, 'Permission levels must be a dense array.')
 end
 
--- Normalizes whatever IsPlayerAceAllowed hands back into a real boolean.
---
--- The native is declared BOOL and the Lua runtime does return true/false, so
--- this is belt-and-braces rather than a fix for an observed miscount. It is
--- worth having anyway for two reasons. First, `aceAllows` and `hasPermission`
--- below used to return the native's value straight through, and hasPermission
--- is a cross-resource export -- any consumer writing `== true` against a
--- non-boolean would silently deny. Second, note that a hypothetical numeric
--- return could NOT cause a denial in the first place: 0 is truthy in Lua, so a
--- 1/0 native would make getLevel return the FIRST level it tests ('god') for
--- everybody. Over-permission, not under. Anyone debugging a "no permissions"
--- report should look at identifiers and principals, not here.
+-- Normalizes IsPlayerAceAllowed to a real boolean: hasPermission is an export and a consumer's `== true` would silently deny a non-boolean.
+-- (A numeric 0 would be truthy in Lua and over-permit, so look at identifiers/principals for "no permissions" reports.)
 local function aceAllowed(src, object)
     local allowed = IsPlayerAceAllowed(src, object)
     return allowed == true or allowed == 1
@@ -86,8 +74,7 @@ local function discordAllows(src, permission, discordRoles)
             ('Discord roles for permission %q must be a non-empty dense string array.'):format(permission))
     end
 
-    -- hasAnyRole rejects disabled bots and missing/stale member snapshots. A
-    -- role lookup failure must fail closed without disturbing the ACE result.
+    -- hasAnyRole rejects disabled bots and stale member snapshots; a lookup failure fails closed without touching the ACE result.
     local hasAnyRole = Kora.discord and Kora.discord.hasAnyRole
     if type(hasAnyRole) ~= 'function' then return false end
     local ok, allowed = pcall(hasAnyRole, src, roles)
@@ -144,17 +131,12 @@ function Kora.permissions.hasPermission(src, permission, prefixOrOptions)
     assert(type(permission) == 'string' and permission ~= '', 'Permission must be a non-empty string.')
     if permission == 'user' then return true end
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
-    -- Explicitly a boolean: this is an export, and a caller comparing the
-    -- result with `== true` must not be defeated by a truthy non-boolean.
+    -- Strict boolean: this is an export and callers may compare with `== true`.
     return aceAllows(src, permission, prefix, true) == true
         or discordAllows(src, permission, discordRoles) == true
 end
 
----Explains how a permission level was resolved for one player: every ACE
----object consulted, in order, with the raw value the native returned for it.
----Diagnostics only -- nothing gates on this. It exists so a "my ACEs are right
----but I have no permissions" report can be answered with evidence instead of
----inference.
+---Explains how a level was resolved: each ACE object consulted, in order, with the native's raw value. Diagnostics only; nothing gates on it.
 ---@param src integer
 ---@param levels string[]
 ---@param prefixOrOptions string|table|nil

@@ -31,9 +31,7 @@ end
 dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-minigames.lua")
 
--- Mirrors what a real cross-resource exports['qb-minigames']:Fn() call does
--- under the hood: fire the __cfx_export_ event with a setCB stub and capture
--- what gets passed to it. Same helper compat_qb_menu.lua uses.
+-- Mirrors a cross-resource exports['qb-minigames']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")

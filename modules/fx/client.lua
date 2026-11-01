@@ -18,17 +18,12 @@
 ---@field id integer Opaque per-call identifier; use the whole handle with `Kora.fx.stopScreenEffect`.
 ---@field name string
 
--- Looped particle-fx handles, id = the native particle handle returned by
--- StartParticleFxLooped*. Non-looped effects have nothing worth tracking --
--- they end on their own and Kora.fx.stop is a no-op for them (see its doc
--- comment) -- so only looped ones ever enter this registry.
+-- Looped particle handles only; non-looped effects end on their own and Kora.fx.stop is a no-op for them.
 local ptfxRegistry = Kora.resources.registry(function(particleId)
     StopParticleFxLooped(particleId, false)
 end)
 
--- The native is name-keyed, but callers still need independent lifetimes. A
--- per-call handle plus a name refcount prevents one resource stopping its
--- copy of an effect from cancelling another resource's still-live copy.
+-- Per-call handle plus a name refcount, so one resource stopping its copy doesn't cancel another's live copy of a name-keyed effect.
 local nextScreenId = 0
 local screenHandles = {}
 local screenRefcounts = {}
@@ -64,17 +59,8 @@ local function assertVec3(value, label)
         ("%s must have finite x, y, and z values."):format(label))
 end
 
----Plays a particle effect, streaming `def.dict` via `Kora.stream.loadPtfx`'s
----callback form -- the dict is released immediately after the effect starts,
----which is safe: once `StartParticleFx*` has been called, the running effect
----no longer needs its source dict flagged as needed (same release-after-use
----timing `Kora.anim.play` and `modules/progressbar` use for anim dicts).
----
----Bone attachment (`def.bone`) is only honored for a looped effect on an
----`entity` (`StartParticleFxLoopedOnEntityBone`) -- the non-looped on-entity
----native has no generic bone-index variant, only a ped-bone-specific one this
----module doesn't special-case. A non-looped effect with both `entity` and
----`bone` set plays at the entity's origin, ignoring `bone`.
+---Plays a particle effect, releasing `def.dict` right after the effect starts (the running effect no longer needs it).
+---Bone attachment is only honored for a looped effect on an `entity`; a non-looped one plays at the entity origin, ignoring `bone`.
 ---@param def QBFxPtfxDef
 ---@return QBFxPtfxHandle | false handle False if `def.dict` never streamed in time.
 ---@return string? error
@@ -147,7 +133,7 @@ function Kora.fx.playPtfx(def)
             local myParticleId = particleId
             CreateThread(function()
                 Wait(duration)
-                if ptfxRegistry.owner(myParticleId) then -- still tracked -- not already stopped
+                if ptfxRegistry.owner(myParticleId) then -- not already stopped
                     ptfxRegistry.untrack(myParticleId)
                     StopParticleFxLooped(myParticleId, false)
                 end
@@ -158,9 +144,7 @@ function Kora.fx.playPtfx(def)
     return { looped = looped, particleId = looped and particleId or nil }
 end
 
----Stops a looped particle effect started with `Kora.fx.playPtfx`. A no-op for
----a non-looped handle (or `false`/`nil`) -- there is nothing to stop, the
----effect ends on its own.
+---Stops a looped particle effect started with `Kora.fx.playPtfx`; a no-op for non-looped handles.
 ---@param handle QBFxPtfxHandle | false
 ---@return boolean stopped
 function Kora.fx.stop(handle)

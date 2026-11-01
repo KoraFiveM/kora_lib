@@ -1,8 +1,5 @@
--- Kora.logging (server realm) -- a lightweight ring-buffered event log with an
--- optional Discord webhook, plus aggregate counters other tooling can read.
--- Framework-agnostic: any resource can call Kora.logging.event(...), and
--- webhook messages are attributed to whichever resource actually logged the
--- event rather than to a hardcoded name.
+-- Kora.logging (server): ring-buffered event log with an optional Discord webhook and aggregate counters.
+-- Webhook messages are attributed to the resource that logged the event.
 
 local RING = 500
 local ring = {}
@@ -16,8 +13,7 @@ local function assertEvent(category, src, data)
     assert(data == nil or type(data) == 'table', 'Log data must be a table or nil.')
 end
 
----Log a gameplay/admin event. category groups them (e.g. 'money', 'job',
----'admin'). data is any table; src is the acting player (0 for system).
+---Log a gameplay/admin event; category groups them, src is the acting player (0 for system).
 ---@param category string
 ---@param src integer
 ---@param data table|nil
@@ -30,8 +26,7 @@ function Kora.logging.event(category, src, data)
     if #ring < RING then ring[#ring + 1] = entry else ring[head + 1] = entry; head = (head + 1) % RING end
     counts[category] = (counts[category] or 0) + 1
 
-    -- 'qblib_log_webhook' and 'qbcore_log_webhook' are legacy fallbacks for
-    -- servers that already set them before this module lived in kora_lib.
+    -- 'qblib_log_webhook' and 'qbcore_log_webhook' are legacy fallbacks.
     local url = GetConvar('kora_lib_log_webhook', '')
     if url == '' then url = GetConvar('qblib_log_webhook', GetConvar('qbcore_log_webhook', '')) end
     if url ~= '' then
@@ -46,15 +41,14 @@ function Kora.logging.event(category, src, data)
         local payloadEncoded, payload = pcall(json.encode, {
             username = resource,
             content = content,
-            -- Log data routinely contains player-supplied text (names, chat,
-            -- reasons); without this a crafted "@everyone" would ping the channel.
+            -- Log data contains player-supplied text; this stops a crafted "@everyone" pinging the channel.
             allowed_mentions = { parse = {} },
         })
         if not payloadEncoded then
             print(('[kora_lib:logging] webhook envelope for %q could not be encoded: %s'):format(category, tostring(payload)))
             return
         end
-        -- Fire-and-forget webhook; never blocks the caller.
+        -- Fire-and-forget; never blocks the caller.
         pcall(PerformHttpRequest, url, function() end, 'POST', payload, { ['Content-Type'] = 'application/json' })
     end
 end

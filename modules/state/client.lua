@@ -1,5 +1,4 @@
--- Kora.state (client realm) -- owner-tracked wrappers over state-bag change
--- handlers with a normalized context object and entity resolution.
+-- Kora.state (client realm) -- owner-tracked state-bag change handlers.
 
 local listeners = {}
 

@@ -6,9 +6,7 @@ for key, value in pairs(Kora) do
         local kind = type(value)
 
         if kind == "function" then
-            -- A bare function attached directly to Kora (none exist today; every
-            -- current module is a table) -- a hypothetical Kora.foo(...) would
-            -- export as exports.kora_lib:foo(...)
+            -- Bare function: Kora.foo(...) -> exports.kora_lib:foo(...)
             exports(key, value)
         elseif kind == "table" then
             -- Kora.stream.loadModel(...) -> exports.kora_lib:stream_loadModel(...)

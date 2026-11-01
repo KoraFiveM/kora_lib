@@ -1,9 +1,6 @@
--- Consumer-local configuration runtime.
---
--- This file is loaded by @kora_lib/init.lua into the consuming resource's own
--- Lua environment. That is intentional: Config and SaveResourceFile are
--- resource-local, so kora_lib can coordinate configuration without needing (or
--- being granted) permission to write another resource's files.
+-- Consumer-local configuration runtime, loaded by @kora_lib/init.lua into the consuming
+-- resource's own Lua environment: Config and SaveResourceFile are resource-local, so kora_lib
+-- never needs permission to write another resource's files.
 
 return function(library)
     local RESOURCE = GetCurrentResourceName()
@@ -1417,11 +1414,8 @@ return function(library)
 
     if not isServer and type(AddEventHandler) == 'function' then
         AddEventHandler('onClientResourceStart', function(resource)
-            -- A kora_lib restart replaces the authoritative server registry but
-            -- does not necessarily restart every consuming client resource.
-            -- Re-request this owner's active snapshot in either case so a
-            -- client can never remain on its authored defaults after kora_lib is
-            -- reloaded during development or maintenance.
+            -- A kora_lib restart replaces the server registry without necessarily restarting
+            -- consumers; re-request the active snapshot so clients don't stay on authored defaults.
             if (resource == RESOURCE or resource == 'kora_lib') and state then requestSnapshot() end
         end)
 

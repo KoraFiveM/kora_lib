@@ -1,5 +1,4 @@
--- Optional client bridge to kora_skills. kora_lib remains usable on servers that do
--- not run kora_skills; callers simply receive no skill data or modifier there.
+-- Optional client bridge to kora_skills; without it callers get no skill data or modifier.
 
 local RESOURCE = 'kora_skills'
 

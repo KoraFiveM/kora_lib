@@ -66,10 +66,8 @@ _G.SetEntityCoords = function() end
 
 dofile(repoRoot .. "modules/visuals/client.lua")
 
--- Generous upper bound on net.step() calls to run any of meth/crack/coke's
--- 8-20 tick loops (plus playDrugEffect's own internal Waits, and any replay)
--- to completion. Harmless once a thread finishes -- mocks.step() skips
--- coroutines that are no longer suspended.
+-- Generous upper bound on net.step() calls to finish any 8-20 tick effect loop;
+-- harmless once threads finish (mocks.step() skips non-suspended coroutines).
 local function runToCompletion(steps)
     for _ = 1, (steps or 60) do
         net.step()

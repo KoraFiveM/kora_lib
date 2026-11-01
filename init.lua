@@ -95,37 +95,14 @@ local function getCompatModule()
     return compatModule
 end
 
--- FXServer's export dispatch has a known bug (citizenfx/fivem#2408): calling
--- an export via dot-style dispatch -- `t[k](t, ...)` or `t.k(...)` -- can
--- shift/drop arguments (observed here as a handler function arriving as
--- something other than a function), while genuine colon-call syntax
--- (`t:k(...)`) works correctly. The two are semantically equivalent in plain
--- Lua but compile to different bytecode (colon sugar emits a SELF
--- instruction; `t[k](t, ...)` doesn't), and FXServer's exports resolution
--- apparently depends on that difference.
---
--- Colon sugar only exists for a LITERAL method name at the call site, which
--- is impossible here since Kora.<module>.<fn> needs a dynamically *computed*
--- export name. `load()` works around that: it compiles a fresh chunk from a
--- source STRING containing a literal `lib:name(...)` call, so the compiler
--- still emits the real SELF instruction even though `name` was assembled at
--- runtime -- unlike `library[path](library, ...)`, which never can.
---
--- Only ever called with `name` built from Kora module/function keys (lowercase
--- identifiers by this codebase's own naming convention -- see AGENTS.md
--- "Conventions"), but validated anyway since it's runtime code generation
--- from property-access keys: a malformed key becoming a Lua injection vector
--- into `load()`'s source string would be a bad failure mode to leave open.
+-- FXServer export dispatch bug (citizenfx/fivem#2408): dot-style `t[k](t, ...)` can
+-- drop/shift arguments, while colon-call syntax (SELF opcode) works. Colon sugar needs a
+-- literal name, so load() compiles a chunk with a literal `lib:name(...)` call instead.
+-- `name` is validated because it is spliced into load()'s source string.
 local function makeColonCall(name)
     assert(name:match("^[%a_][%w_]*$"), ("Invalid Kora export name: %s"):format(name))
 
-    -- `...` isn't a valid name to declare a local as (so `local lib, ... = ...`
-    -- is a syntax error), and referencing `...` a second time later in the
-    -- chunk would just re-expand to ALL of it again, receiver included --
-    -- select() is what actually splits "receiver" from "the rest" here.
-    -- select(1, ...) truncated by the surrounding parens = just the receiver
-    -- (library, prepended by the wrapper below); select(2, ...), unparenthesized
-    -- in the final argument slot, expands to every real call argument.
+    -- select(1, ...) in parens = receiver only; select(2, ...) in the last slot expands to every call argument.
     local chunk = assert(load(("return (select(1, ...)):%s(select(2, ...))"):format(name)))
 
     return function(...)
@@ -158,24 +135,14 @@ Kora = setmetatable({}, {
             return loadConsumerModule(t, k, consumerFiles)
         end
 
-        -- Computed once per module access, not per call -- __call's own
-        -- implicit self (the proxy table) still has to be stripped below,
-        -- since a metamethod always receives it as its first argument
-        -- regardless of what the wrapped function itself expects.
+        -- __call always receives the proxy as self; strip it before forwarding.
         local moduleCall = makeColonCall(k)
 
-        -- Memoized: the sub-proxy is rawset back into Kora so repeated
-        -- Kora.<module> accesses reuse one table instead of allocating a fresh
-        -- proxy per lookup (__index only fires while the key is absent).
+        -- Memoized via rawset so __index only fires once per module.
         local proxy = setmetatable({}, {
-            -- A bare function on Kora, e.g. a hypothetical Kora.foo(...) ->
-            -- exports.kora_lib:foo(...)
+            -- Bare function: Kora.foo(...) -> exports.kora_lib:foo(...)
             __call = function(_, ...) return moduleCall(...) end,
-            -- A module function, e.g. Kora.notify.send(...) ->
-            -- exports.kora_lib:notify_send(...). Memoized the same way as the
-            -- module-level proxy above: rawset into the sub-proxy so the
-            -- colon-call chunk for a given Kora.<module>.<fn> is compiled via
-            -- load() once, not on every single call.
+            -- Module function: Kora.notify.send(...) -> exports.kora_lib:notify_send(...); memoized so load() runs once.
             __index = function(subProxy, k2)
                 local wrapper = makeColonCall(("%s_%s"):format(k, k2))
                 rawset(subProxy, k2, wrapper)

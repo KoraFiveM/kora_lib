@@ -13,17 +13,13 @@ dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- RegisterNUICallback/SendNUIMessage/SetNuiFocus are specific to this module,
--- so (per the root AGENTS.md testing convention) they're mocked here rather
--- than in test/mocks.lua. `nuiCallbacks` captures every registered callback
--- by name so tests can simulate the NUI calling back into Lua; `sentMessages`
--- records every SendNUIMessage payload in order.
+-- RegisterNUICallback/SendNUIMessage/SetNuiFocus are module-specific, so mocked here.
+-- `nuiCallbacks` captures callbacks by name to simulate the NUI calling back;
+-- `sentMessages` records every SendNUIMessage payload.
 --
--- SendNUIMessage (capital NUI) is the table-accepting runtime wrapper --
--- that's the one the module must call, NOT the SendNuiMessage native (which
--- takes a pre-encoded JSON string). Deliberately no SendNuiMessage mock is
--- installed, so a regression back to the string-typed native fails loudly
--- here instead of silently stringifying tables in-game.
+-- SendNUIMessage (capital NUI) is the table-accepting wrapper the module must call, NOT
+-- the SendNuiMessage native (pre-encoded JSON string). It is deliberately not mocked, so a
+-- regression to the native fails loudly here instead of stringifying tables in-game.
 local nuiCallbacks = {}
 local sentMessages = {}
 local focusCalls = {}
@@ -98,10 +94,6 @@ local function lastMessage(action)
         if sentMessages[index].action == action then return sentMessages[index] end
     end
 end
-
--- The kora_lib:nui:theme callback now lives in modules/theme/client.lua (see
--- test/smoke/theme.lua) -- this file no longer dofiles that module, so those
--- assertions moved rather than duplicated.
 
 harness.test("finalise exposes every registered-app lifecycle export", function()
     harness.assertEqual(registeredExports.nui_registerApp, Kora.nui.registerApp,

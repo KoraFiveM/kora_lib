@@ -16,7 +16,6 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- --- audio natives, mocked --------------------------------------------------
 local nextSoundId = 0
 local freeIds = true
 local played = {}
@@ -54,9 +53,7 @@ function _G.DoesEntityExist(entity) return entity == 55 end
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/timers/shared.lua")
 
--- Kora.stream.loadAudioBank is the only cross-module call Kora.sound makes. Stubbed
--- rather than loading modules/stream/client.lua, which drags in a much larger
--- native surface for one boolean.
+-- Stubbed: loading modules/stream/client.lua would pull in a much larger native surface for one boolean.
 local requestedBanks = {}
 local bankLoads = true
 Kora.stream.loadAudioBank = function(bank)
