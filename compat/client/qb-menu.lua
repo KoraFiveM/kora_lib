@@ -1,10 +1,6 @@
 -- Compat bridge: translates exports['qb-menu']:openMenu/closeMenu and the 'qb-menu:client:*' net events
 -- onto Kora.nui.openMenu. Field mapping and caveats: see modules/nui/docs.md "Legacy compat".
 
--- Registers the hidden CFX export event under the legacy `qb-menu` identity; `provide` alone only satisfies dependency checks.
-
--- Warned once per resource run: qb-menu's Font Awesome `icon` strings don't map onto the lucide names
--- Kora.nui.openMenu expects, so icons are dropped rather than guessed.
 local function imageFor(item)
     if type(item.icon) ~= 'string' or item.icon == '' then return nil end
     if item.icon:find('://', 1, true) then return item.icon end
@@ -29,7 +25,6 @@ local function sorted(menu, sort, skipFirst)
     if first then table.insert(copy, 1, first) end
     return copy
 end
-
 
 -- Upstream items have no stable `id`; MenuItem requires one, so the 1-based array position is used.
 -- `isMenuHeader` rows (unselectable section labels) map onto `disabled = true`.
@@ -134,7 +129,7 @@ local function closeMenu()
 end
 
 local function showHeader(menu)
-    local items = select(1, translateItems(menu))
+    local items = translateItems(menu)
     if #items == 0 then return end
     headerShown = true
     headerMenu = menu

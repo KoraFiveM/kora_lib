@@ -13,7 +13,6 @@
 -- Config.radialmenuCompat) and the stretcher/trunk/clothing submodules (owned by kora_ambulance/qbclothing).
 -- Nested `items` translate recursively onto Kora.nui's `item.submenu = {title, items}` (see translateOption).
 
--- Registers the hidden CFX export event under the legacy `qb-radialmenu` identity; `provide` alone only satisfies dependency checks.
 -- Warned once per resource run: Font Awesome `icon` classes don't map onto Kora.nui's lucide names, so icons are dropped.
 local warnedIcon = false
 local function warnIconOnce()
@@ -80,10 +79,8 @@ local function translateItems(leafById)
         end
     end
 
-    local items = {}
-    for i = 1, #topItems do items[#items + 1] = topItems[i] end
-    for i = 1, #restItems do items[#items + 1] = restItems[i] end
-    return items
+    table.move(restItems, 1, #restItems, #topItems + 1, topItems)
+    return topItems
 end
 
 -- Selecting fires `option.onSelect(option)` if given, else `option.event` (server event when
@@ -131,9 +128,7 @@ local function addOption(option, second)
         if id == nil then id = option.id end
     end
     if id == nil then id = generateId() end
-    if option.shouldClose == nil then
-        option.shouldClose = true
-    end
+    if option.shouldClose == nil then option.shouldClose = true end
 
     option.id = id
     option.__koraLibOwner = GetInvokingResource() or GetCurrentResourceName()
