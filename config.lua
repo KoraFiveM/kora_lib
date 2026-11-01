@@ -79,14 +79,33 @@ Config.blips = {
     namedCategoryEnd = 133,
 
     -- Custom pause-map detail card (Kora.blips create/setInfo `info`).
+    -- Selecting an entry in the pause-map legend reports the same highlighted blip as hovering
+    -- it on the map, for a few frames, while the map pans. The card shares frontend column 1
+    -- with the legend, so drawing then shows an unpositioned panel in the top-left corner.
     info = {
-        -- false: the card is drawn only while the map cursor hovers a blip. Clicking a legend entry
-        -- also selects that blip, but the card shares frontend column 1 with the legend and would
-        -- blank it every frame, so it is suppressed while the cursor is over the legend.
-        -- true: always draw the card for the selected blip (legend flicker returns).
+        -- false: draw the card only for a genuine map hover (see the options below).
+        -- true: draw it for any highlighted blip, legend selections included. The stable-hover
+        -- delay and frontend-ready checks still apply.
         showOnLegendSelect = false,
-        -- Screen-space X (0-1) from which the cursor counts as being over the legend column.
+        -- ms the cursor must stay on the same blip (unbroken) before its card is first drawn.
+        -- Filters out the few-frame blip report of a legend click. 0 draws immediately.
+        hoverStableMs = 120,
+        -- Require GetPauseMenuState() == PM_READY (15) besides IsPauseMenuActive,
+        -- IsFrontendReadyForControl and not IsPauseMenuRestarting.
+        requirePauseReady = true,
+        -- Treat IsNavigatingMenuContent() as legend focus (keyboard/gamepad/mouse navigation of
+        -- the legend). Set false if it also reports true during plain map hover on your build.
+        blockWhileNavigatingContent = true,
+        -- ms to hold the card back after each pause-menu layout-changed event (list navigation,
+        -- which is what a legend selection raises). 0 disables the event check.
+        legendSuppressMs = 400,
+        -- Fallback only: with the mouse as active input, a cursor X (0-1) at or right of this
+        -- counts as over the legend. false/0 disables it.
         legendMinX = 0.66,
+        -- Call SHOW_COLUMN(1, true) while the card renders. The game script, not the engine, makes
+        -- this column visible for creator blips, so the default is true. Set false to rely on
+        -- the game having shown the column itself. kora_lib never calls SHOW_COLUMN(1, false).
+        forceShowColumn = true,
     },
 }
 

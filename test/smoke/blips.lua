@@ -57,7 +57,21 @@ end
 function _G.SetBlipAsMissionCreatorBlip(blip, enabled) missionCreatorBlips[blip] = enabled end
 
 local cursorX = 0.3
-function _G.GetControlNormal(_, control) return control == 239 and cursorX or 0.5 end
+local usingKeyboard = true
+local navigatingContent = false
+local layoutChanged = false
+local pauseActive = true
+local pauseState = 15
+local pauseRestarting = false
+-- Frontend controls are disabled, so the normal read reports 0 and only the disabled read has the cursor.
+function _G.GetControlNormal(_, _) return 0.0 end
+function _G.GetDisabledControlNormal(_, control) return control == 239 and cursorX or 0.5 end
+function _G.IsUsingKeyboard(_) return usingKeyboard end
+function _G.IsNavigatingMenuContent() return navigatingContent end
+function _G.HasMenuLayoutChangedEventOccurred() return layoutChanged end
+function _G.IsPauseMenuActive() return pauseActive end
+function _G.GetPauseMenuState() return pauseState end
+function _G.IsPauseMenuRestarting() return pauseRestarting end
 function _G.IsFrontendReadyForControl() return frontendReady end
 function _G.IsHoveringOverMissionCreatorBlip() return hoveringBlip end
 function _G.GetNewSelectedMissionCreatorBlip() return selectedBlip end
@@ -197,6 +211,32 @@ harness.test("route without an explicit color does not set a route color", funct
     harness.assertEqual(blipCalls[blip].routeColor, nil, "route color should be left unset without an explicit color")
 end)
 
+local function settleHover()
+    for _ = 1, 12 do net.step() end -- 12 * 16ms mock frames > Config.blips.info.hoverStableMs
+end
+
+local function countSince(start, name)
+    local n = 0
+    for i = start + 1, #scaleformCalls do
+        if scaleformCalls[i] == name then n = n + 1 end
+    end
+    return n
+end
+
+local function resetFrontend()
+    frontendReady = false
+    hoveringBlip = false
+    selectedBlip = 0
+    cursorX = 0.3
+    usingKeyboard = true
+    navigatingContent = false
+    layoutChanged = false
+    pauseActive = true
+    pauseState = 15
+    pauseRestarting = false
+    for _ = 1, 4 do net.step() end
+end
+
 harness.test("creates and renders an optional pause-map detail panel", function()
     local blip = Kora.blips.create({ x = 0, y = 0, z = 0 }, {
         info = {
@@ -216,7 +256,10 @@ harness.test("creates and renders an optional pause-map detail panel", function(
     frontendReady = true
     hoveringBlip = true
     selectedBlip = blip
+    local callsBeforeHover = #scaleformCalls
     net.step()
+    harness.assertEqual(#scaleformCalls, callsBeforeHover, "the first hover frame must not draw yet")
+    settleHover()
 
     harness.assertEqual(scaleformCalls[#scaleformCalls], "DISPLAY_DATA_SLOT",
         "hovering a detailed blip should render its data panel")
@@ -260,42 +303,119 @@ harness.test("creates and renders an optional pause-map detail panel", function(
         "the drawn card should be emptied after the frontend closes")
 end)
 
-harness.test("legend selection does not render the card or blank the legend; map hover does", function()
+harness.test("legend selection by mouse never draws and never blanks the legend", function()
     local blip = Kora.blips.create({ x = 5, y = 5, z = 5 }, { info = { title = "Legend" } })
     frontendReady = true
     hoveringBlip = true
     selectedBlip = blip
 
-    local function countSince(start, name)
-        local n = 0
-        for i = start + 1, #scaleformCalls do
-            if scaleformCalls[i] == name then n = n + 1 end
-        end
-        return n
-    end
-
     cursorX = 0.85 -- cursor over the legend column
     local start = #scaleformCalls
-    net.step()
-    net.step()
-    net.step()
+    settleHover()
     net.step()
     harness.assertEqual(#scaleformCalls, start, "legend-focused selection must make no frontend calls")
 
     cursorX = 0.3 -- cursor moved onto the map
-    net.step()
-    harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1, "map hover should render the card")
+    settleHover()
+    harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1, "a stable map hover should render the card")
 
     start = #scaleformCalls
     cursorX = 0.85 -- legend clicked while the card was up
     for _ = 1, 4 do net.step() end
     harness.assertEqual(countSince(start, "SHOW_COLUMN"), 0, "the legend column must never be hidden")
     harness.assertEqual(countSince(start, "DISPLAY_DATA_SLOT"), 0, "no card is drawn over the legend")
-    harness.assertEqual(countSince(start, "SET_DATA_SLOT_EMPTY"), 1, "the card slots are emptied once")
+    harness.assertEqual(countSince(start, "SET_DATA_SLOT_EMPTY"), 1, "the card slots are emptied exactly once")
 
     Kora.blips.clearInfo(blip)
-    frontendReady = false
-    hoveringBlip = false
+    resetFrontend()
+end)
+
+harness.test("keyboard or gamepad legend navigation draws nothing", function()
+    local blip = Kora.blips.create({ x = 6, y = 6, z = 6 }, { info = { title = "Legend pad" } })
+    frontendReady = true
+    hoveringBlip = true
+    selectedBlip = blip
+    usingKeyboard = false -- gamepad: the mouse cursor value is stale and must not matter
+    navigatingContent = true
+
+    local start = #scaleformCalls
+    settleHover()
+    harness.assertEqual(#scaleformCalls, start, "legend navigation must make zero frontend calls")
+
+    navigatingContent = false
+    cursorX = 0.9 -- stale mouse position while the gamepad is active
+    settleHover()
+    harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1,
+        "a gamepad map hover is not blocked by a stale mouse position")
+
+    Kora.blips.clearInfo(blip)
+    resetFrontend()
+end)
+
+harness.test("a layout-changed event holds the card back while the map pans", function()
+    local blip = Kora.blips.create({ x = 7, y = 7, z = 7 }, { info = { title = "Pan" } })
+    frontendReady = true
+    hoveringBlip = true
+    selectedBlip = blip
+
+    layoutChanged = true
+    net.step()
+    layoutChanged = false
+    local start = #scaleformCalls
+    for _ = 1, 20 do net.step() end -- 20 * 16ms < 400ms hold, longer than the stable time
+    harness.assertEqual(#scaleformCalls, start, "no draw during the post-navigation hold")
+
+    for _ = 1, 40 do net.step() end
+    harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1, "the card draws once the hold has passed")
+
+    Kora.blips.clearInfo(blip)
+    resetFrontend()
+end)
+
+harness.test("a transient hover shorter than the stable time makes no frontend calls", function()
+    local blip = Kora.blips.create({ x = 8, y = 8, z = 8 }, { info = { title = "Blip" } })
+    frontendReady = true
+    selectedBlip = blip
+    local start = #scaleformCalls
+
+    for _ = 1, 3 do
+        hoveringBlip = true
+        net.step()
+        net.step()
+        hoveringBlip = false
+        net.step()
+    end
+    harness.assertEqual(#scaleformCalls, start, "interrupted brief hovers must never draw")
+
+    Kora.blips.clearInfo(blip)
+    resetFrontend()
+end)
+
+harness.test("the card needs a ready pause menu", function()
+    local blip = Kora.blips.create({ x = 9, y = 9, z = 9 }, { info = { title = "Ready" } })
+    frontendReady = true
+    hoveringBlip = true
+    selectedBlip = blip
+    local start = #scaleformCalls
+
+    pauseRestarting = true
+    settleHover()
+    pauseRestarting = false
+    pauseState = 10 -- PM_RESTARTING
+    settleHover()
+    pauseState = 15
+    pauseActive = false
+    settleHover()
+    harness.assertEqual(#scaleformCalls, start, "no draw while the pause menu is inactive or rebuilding")
+
+    pauseActive = true
+    settleHover()
+    harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1, "a ready pause menu renders the card")
+    harness.assertEqual(countSince(start, "SHOW_COLUMN"), countSince(start, "DISPLAY_DATA_SLOT"),
+        "SHOW_COLUMN is only ever the visible=true call that accompanies a drawn card")
+
+    Kora.blips.clearInfo(blip)
+    resetFrontend()
 end)
 
 harness.test("only the owner can change or clear a blip detail panel", function()

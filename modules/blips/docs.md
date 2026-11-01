@@ -176,7 +176,23 @@ local blip = Kora.blips.create(contract.coords, {
 
 `image` accepts `{ dictionary = '...', texture = '...' }` for a streamed pause-menu texture. Shared dictionaries are retained once and released after the final panel using them is cleared or removed. Rows use one of `text`, `name`, `header`, `wrappedText`, or `icon`; icon rows additionally accept `icon`, `color`, and `checked`. While a detailed blip is highlighted, kora_lib refreshes the frontend column every frame because GTA rebuilds pause-map columns continuously; the renderer returns to its low-frequency idle poll as soon as the highlight ends.
 
-The card shares frontend column 1 with GTA's legend, and selecting a legend entry reports the same highlighted blip as hovering it on the map. By default (`Config.blips.info.showOnLegendSelect = false`) the card is not drawn while the mouse cursor is at or right of `Config.blips.info.legendMinX` (`0.66`, screen fraction), so clicking a legend entry no longer makes the legend flash. When a card ends, only the slots kora_lib drew are emptied; the column is never hidden. Set `showOnLegendSelect = true` to always draw the card for the selected blip.
+The card shares frontend column 1 with GTA's legend, and selecting a legend entry reports the same highlighted blip as hovering it on the map (for a few frames, while the map pans to it). kora_lib therefore draws a card only when all of these hold:
+
+- the pause menu is open, `GetPauseMenuState()` is ready, the frontend is ready for control and not restarting (`requirePauseReady`);
+- the legend does not have focus: `IsNavigatingMenuContent()` is false (`blockWhileNavigatingContent`), no pause-menu layout-changed event fired in the last `legendSuppressMs`, and, as a fallback with mouse input, the cursor is left of `legendMinX`;
+- the cursor has stayed on the same blip for `hoverStableMs` without a break. After that the card is redrawn every frame as before.
+
+When the legend gains focus while a card is up, the card's slots are emptied once. kora_lib never hides the column (`SHOW_COLUMN(1, false)`); it calls `SHOW_COLUMN(1, true)` only while a card renders (`forceShowColumn`).
+
+| `Config.blips.info` option | Default | Meaning |
+| --- | --- | --- |
+| `showOnLegendSelect` | `false` | `true` skips the legend checks (the stable-hover and frontend-ready checks still apply). |
+| `hoverStableMs` | `120` | Unbroken hover time before the first draw; `0` draws immediately. |
+| `requirePauseReady` | `true` | Also require `GetPauseMenuState() == 15`. |
+| `blockWhileNavigatingContent` | `true` | Treat `IsNavigatingMenuContent()` as legend focus. Disable if it is true during plain map hover on your build. |
+| `legendSuppressMs` | `400` | Hold-back after a menu layout-changed event; `0` disables the check. |
+| `legendMinX` | `0.66` | Mouse-only fallback: cursor X at or right of this counts as over the legend; `false`/`0` disables. |
+| `forceShowColumn` | `true` | Call `SHOW_COLUMN(1, true)` while the card renders. |
 
 ### `Kora.blips.setInfo(blip, info)`
 

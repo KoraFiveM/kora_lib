@@ -24,6 +24,10 @@ local selectedBlip = nil
 local renderedInfo = nil
 local missedSelectionPolls = 0
 local SELECTION_GRACE_POLLS = 3
+local PAUSE_MENU_READY = 15 -- ePauseMenuState.PM_READY
+local hoverBlip = nil
+local hoverSince = 0
+local legendSuppressUntil = 0
 local textureRefcounts = {}
 local categoryCatalog = assert(Kora.blips._categoryCatalog, 'Kora.blips category catalogue did not load.')
 local registeredByBlip = {}
@@ -261,14 +265,48 @@ local function infoConfig()
     return Config.blips.info or {}
 end
 
--- Clicking a legend entry makes IsHoveringOverMissionCreatorBlip report that blip exactly
--- like a map hover does, and no frontend native tells the two apart. The legend lives on
--- the right of the screen, so the mouse cursor (INPUT_CURSOR_X, always readable) being
--- over that region means the selection came from the legend, not from the map.
-local function legendHasFocus()
-    local cfg = infoConfig()
+local function nativeTrue(value)
+    return value == true or (type(value) == "number" and value ~= 0)
+end
+
+-- The card is only drawn while the pause menu is open, fully started and not rebuilding.
+-- Before that the frontend has not laid its columns out, so a column write lands unpositioned
+-- in the top-left corner.
+local function frontendReadyForCard()
+    if not IsFrontendReadyForControl() then return false end
+    if not IsPauseMenuActive() or IsPauseMenuRestarting() then return false end
+    if infoConfig().requirePauseReady == false then return true end
+    return GetPauseMenuState() == PAUSE_MENU_READY
+end
+
+-- Clicking a legend entry makes IsHoveringOverMissionCreatorBlip report that blip exactly like
+-- a map hover does. Fallback only: while the mouse is the active input, a cursor at or right
+-- of legendMinX is over the legend. Gameplay controls are disabled in the frontend, so the
+-- disabled-control read is taken too (GetControlNormal can report 0 there).
+local function cursorOverLegend(cfg)
+    local minX = cfg.legendMinX
+    if type(minX) ~= "number" or minX <= 0 or minX > 1 then return false end
+    if IsUsingKeyboard and not IsUsingKeyboard(2) then return false end
+    local x = math.max(GetControlNormal(2, 239) or 0.0, GetDisabledControlNormal(2, 239) or 0.0)
+    return x >= minX
+end
+
+-- True when the highlighted blip came from the legend rather than the map cursor. Navigating
+-- the legend with keyboard or gamepad keeps the mouse where it was, so the primary signal is
+-- the frontend's own "navigating menu content" state; the cursor position is the fallback.
+local function legendHasFocus(cfg)
     if cfg.showOnLegendSelect == true then return false end
-    return GetControlNormal(2, 239) >= (cfg.legendMinX or 0.66)
+    if cfg.blockWhileNavigatingContent ~= false and nativeTrue(IsNavigatingMenuContent()) then return true end
+    return cursorOverLegend(cfg)
+end
+
+-- Menu layout changes fire when a list (the legend) is navigated, by any input device, and
+-- the map then pans to the entry. Hold the card back for legendSuppressMs after each one.
+local function legendNavigated(cfg, now)
+    local holdMs = cfg.legendSuppressMs
+    if type(holdMs) ~= "number" or holdMs <= 0 then return false end
+    if nativeTrue(HasMenuLayoutChangedEventOccurred()) then legendSuppressUntil = now + holdMs end
+    return now < legendSuppressUntil
 end
 
 local function clearDisplay()
@@ -356,7 +394,7 @@ local function renderInfo(blip, info, clearExisting)
 
     for index = 1, #info.rows do renderRow(blip, index - 1, info.rows[index]) end
 
-    setDisplayVisible(true)
+    if infoConfig().forceShowColumn ~= false then setDisplayVisible(true) end
     updateDisplay()
 end
 
@@ -368,16 +406,41 @@ ensureInfoThread = function()
         while next(infoByBlip) ~= nil or selectedBlip ~= nil do
             local sleep = 1000
             local hasInfo = next(infoByBlip) ~= nil
-            local frontendReady = hasInfo and IsFrontendReadyForControl()
+            local frontendReady = hasInfo and frontendReadyForCard()
             local blip
             local info
+            local legendFocused = false
 
             if frontendReady then
+                local cfg = infoConfig()
+                local now = GetGameTimer()
                 sleep = 50
+                -- Layout-change events last one frame, so they need a per-frame poll.
+                if (cfg.legendSuppressMs or 0) > 0 then sleep = 0 end
+                legendFocused = legendNavigated(cfg, now)
+                if not legendFocused then legendFocused = legendHasFocus(cfg) end
+
                 if IsHoveringOverMissionCreatorBlip() then
                     blip = GetNewSelectedMissionCreatorBlip()
-                    if DoesBlipExist(blip) and not legendHasFocus() then info = infoByBlip[blip] end
+                    if DoesBlipExist(blip) and not legendFocused then info = infoByBlip[blip] end
                 end
+
+                -- A legend click reports the blip for only a few frames while the map pans to
+                -- it. Require an unbroken hover on the same blip before the first render.
+                if info then
+                    if hoverBlip ~= blip then
+                        hoverBlip = blip
+                        hoverSince = now
+                    end
+                    if selectedBlip ~= blip and now - hoverSince < (cfg.hoverStableMs or 0) then
+                        info = nil
+                        sleep = 0
+                    end
+                else
+                    hoverBlip = nil
+                end
+            else
+                hoverBlip = nil
             end
 
             if info then
@@ -398,9 +461,10 @@ ensureInfoThread = function()
                 -- Frontend selection natives can report a transient false result
                 -- while the pause map refreshes. Require consecutive misses so a
                 -- single bad frame cannot repeatedly hide and show the column.
-                sleep = 50
+                -- Legend focus is not transient: drop the card at once.
+                sleep = math.min(sleep, 50)
                 missedSelectionPolls = missedSelectionPolls + 1
-                if missedSelectionPolls >= SELECTION_GRACE_POLLS then
+                if legendFocused or missedSelectionPolls >= SELECTION_GRACE_POLLS then
                     selectedBlip = nil
                     renderedInfo = nil
                     missedSelectionPolls = 0
