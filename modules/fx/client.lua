@@ -188,9 +188,9 @@ end
 function Kora.fx.stopScreenEffect(handle)
     if not handle then return false end
 
+    local caller = GetInvokingResource() or GetCurrentResourceName()
     local id = handle.id
     if type(id) ~= "number" and type(handle.name) == "string" then
-        local caller = GetInvokingResource() or GetCurrentResourceName()
         for candidateId, entry in pairs(screenHandles) do
             if entry.name == handle.name and screenRegistry.owner(candidateId) == caller then
                 id = candidateId
@@ -200,7 +200,6 @@ function Kora.fx.stopScreenEffect(handle)
     end
     if type(id) ~= "number" then return false end
 
-    local caller = GetInvokingResource() or GetCurrentResourceName()
     if screenRegistry.owner(id) ~= caller then return false end
 
     local owner = screenRegistry.untrack(id)
