@@ -740,6 +740,7 @@
 ---@field maxZoom? number
 ---@field initialZoom? number
 ---@field follow? boolean
+---@field captureWheel? boolean Mouse wheel zooms the map and does not scroll the page behind it. Default true.
 ---@field recenter? QBAppPoint
 ---@field now? number
 ---@field fadeDuration? number

@@ -480,6 +480,7 @@ local function assertAppContent(content, location, actionIds)
             assert(block.tiles.tileSize == nil or (Kora.util.isFiniteNumber(block.tiles.tileSize) and block.tiles.tileSize > 0),
                 blockLocation .. " tileSize must be a positive finite number.")
             assert(block.follow == nil or type(block.follow) == "boolean", blockLocation .. " follow must be a boolean.")
+            assert(block.captureWheel == nil or type(block.captureWheel) == "boolean", blockLocation .. " captureWheel must be a boolean.")
             assert(block.fadeDuration == nil or (Kora.util.isFiniteNumber(block.fadeDuration) and block.fadeDuration >= 0),
                 blockLocation .. " fadeDuration must be a non-negative finite number.")
             assert(block.minZoom == nil or Kora.util.isFiniteNumber(block.minZoom), blockLocation .. " minZoom must be a finite number.")

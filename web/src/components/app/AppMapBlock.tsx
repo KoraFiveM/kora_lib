@@ -56,13 +56,27 @@ export default function AppMapBlock({ block, labels, disabled, onSelect }: { blo
         return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up) }
     }, [scale])
 
-    const zoomBy = (factor: number) => setScale((current) => Math.min(4, Math.max(0.12, current * factor)))
+    const zoomBy = useCallback((factor: number) => setScale((current) => Math.min(4, Math.max(0.12, current * factor))), [])
+    const captureWheel = block.captureWheel ?? true
+
+    // React registers wheel listeners as passive, so preventDefault() there is ignored; attach a native non-passive one.
+    useEffect(() => {
+        const element = container.current
+        if (!element || !captureWheel) return
+        const wheel = (event: WheelEvent) => {
+            event.preventDefault()
+            event.stopPropagation()
+            zoomBy(event.deltaY < 0 ? 1.15 : 1 / 1.15)
+        }
+        element.addEventListener("wheel", wheel, { passive: false })
+        return () => element.removeEventListener("wheel", wheel)
+    }, [captureWheel, zoomBy])
     const toScreen = useCallback((point: { x: number; y: number }) => ({ x: (point.x - centre.x) * scale + viewport.width / 2, y: (point.y - centre.y) * scale + viewport.height / 2 }), [centre, scale, viewport])
     const visibleMarkers = block.markers.filter((marker) => !marker.expiresAt || block.now === undefined || marker.expiresAt > block.now - (marker.fadeDuration ?? block.fadeDuration ?? 0))
 
     return <section className="overflow-hidden rounded-lg border border-border bg-card">
         {block.title ? <h3 className="border-b border-border px-4 py-3 text-sm font-semibold">{block.title}</h3> : null}
-        <div ref={container} role="application" aria-label={block.title ?? labels.map} className="relative h-[clamp(20rem,52vh,42rem)] w-full cursor-grab select-none overflow-hidden bg-background active:cursor-grabbing" onPointerDown={(event) => { drag.current = { x: event.clientX, y: event.clientY, cx: centre.x, cy: centre.y } }} onWheel={(event) => zoomBy(event.deltaY < 0 ? 1.15 : 1 / 1.15)}>
+        <div ref={container} role="application" aria-label={block.title ?? labels.map} className="relative h-[clamp(20rem,52vh,42rem)] w-full cursor-grab select-none overflow-hidden overscroll-contain bg-background active:cursor-grabbing" onPointerDown={(event) => { drag.current = { x: event.clientX, y: event.clientY, cx: centre.x, cy: centre.y } }}>
             <TileLayer block={block} centre={centre} scale={scale} viewport={viewport} minZoom={minZoom} maxZoom={maxZoom} tileSize={tileSize} grid={grid} />
             {visibleMarkers.map((marker) => {
                 const at = toScreen(project(marker))

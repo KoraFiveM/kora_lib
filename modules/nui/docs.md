@@ -472,7 +472,9 @@ labels, and content remain the consumer's responsibility.
   URLs use `{z}`, `{x}`, `{y}` placeholders and may point at another resource
   through `https://cfx-nui-<resource>/...`; that resource keeps and exposes its
   own tile assets. A marker's `fadeDuration` overrides the block default when
-  different marker classes have different lifetimes.
+  different marker classes have different lifetimes. `captureWheel?` (default
+  `true`) makes the mouse wheel zoom the map without scrolling the surrounding
+  page; set `false` to let wheel events scroll the page instead.
 - `empty`: `title`, `description?`, `icon?`
 
 Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.

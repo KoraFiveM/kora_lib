@@ -560,7 +560,7 @@ export type AppBlock =
     | { type: "form"; id: string; title?: string; description?: string; fields: InputField[]; action: AppAction; submitLabel?: string }
     | { type: "details"; id?: string; title?: string; columns?: number; items: AppDetailItem[] }
     | { type: "timeline"; id?: string; title?: string; items: AppTimelineItem[]; empty?: string }
-    | { type: "map"; id?: string; title?: string; tiles: AppMapTiles; markers: AppMapMarker[]; selectedId?: string; action?: string; minZoom?: number; maxZoom?: number; initialZoom?: number; follow?: boolean; recenter?: { x: number; y: number }; now?: number; fadeDuration?: number; empty?: string }
+    | { type: "map"; id?: string; title?: string; tiles: AppMapTiles; markers: AppMapMarker[]; selectedId?: string; action?: string; minZoom?: number; maxZoom?: number; initialZoom?: number; follow?: boolean; captureWheel?: boolean; recenter?: { x: number; y: number }; now?: number; fadeDuration?: number; empty?: string }
     | { type: "empty"; title: string; description?: string; icon?: string }
 
 export interface AppContent {
