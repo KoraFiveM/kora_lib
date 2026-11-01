@@ -47,9 +47,7 @@ local function normalizeOptions(options)
     assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1),
         'Screenshot maxHeight must be a positive integer or false.')
 
-    -- screenshot-basic accepted this option but its CfxTexture capture never
-    -- contained CEF layers. Retain it on the wire for source compatibility;
-    -- see modules/screenshot/docs.md for the rendering boundary.
+    -- Accepted for screenshot-basic compatibility; capture never contained CEF layers (see docs.md).
     assert(options.includeNui == nil or type(options.includeNui) == 'boolean',
         'Screenshot includeNui must be a boolean.')
 
@@ -84,9 +82,7 @@ local function beginCapture(options, timeout)
     return p
 end
 
--- A promise object does not survive a real cross-resource exports call, so
--- match Kora.nui's public convention: internal callers receive an awaitable
--- promise and external callers receive its settled value.
+-- A promise doesn't survive a cross-resource export: internal callers get a promise, external callers its settled value (as Kora.nui does).
 local function settleForExport(p)
     if GetInvokingResource() then return Citizen.Await(p) end
     return p
@@ -180,8 +176,7 @@ function Kora.screenshot.requestScreenshotUpload(url, field, options, callback)
     end)
 end
 
--- kora_lib's direct aliases are useful for a resource that has already made
--- kora_lib a dependency, while the provided-resource hooks preserve the normal
+-- Direct aliases serve resources that depend on kora_lib; the provided-resource hooks keep the
 -- exports['screenshot-basic']:requestScreenshot(...) call shape.
 if exports then
     exports('requestScreenshot', Kora.screenshot.requestScreenshot)
@@ -234,12 +229,9 @@ RegisterNetEvent('kora_lib:client:screenshotRequested', function(payload)
 
         TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'sending')
         Kora.nui.request('screenshot:upload', options, captureTimeout):next(function()
-            -- The HTTP handler owns successful completion; there is no large
-            -- Lua/event payload to acknowledge here.
+            -- The HTTP handler completes the request; nothing to acknowledge.
         end, function()
-            -- Secure NUI pages cannot always fetch a server's plain-HTTP
-            -- endpoint. Re-capture through the bounded latent-event receiver
-            -- so server-initiated diagnostics remain available in that setup.
+            -- Secure NUI pages can't always fetch a plain-HTTP endpoint; fall back to the bounded latent-event receiver.
             sendLatentScreenshot(token, options, captureTimeout)
         end)
         return

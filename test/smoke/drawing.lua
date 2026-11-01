@@ -16,9 +16,7 @@ local playerCoords = { x = 0, y = 0, z = 0 }
 _G.PlayerPedId = function() return 1 end
 _G.GetEntityCoords = function() return playerCoords end
 
--- Every text/draw-origin native is recorded as a spy call rather than
--- actually rendering anything -- there's nothing to assert visually, only
--- that the right calls happened with the right arguments in the right order.
+-- Draw natives are recorded as spy calls; tests assert call order and arguments.
 local calls
 
 local function spy(name)

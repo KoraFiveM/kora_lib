@@ -507,11 +507,9 @@ function Kora.discord.deleteMessage(channelId, messageId, callback, auditReason)
     return Kora.discord.botRequest('DELETE', route, nil, callback, auditReason)
 end
 
--- Cached/persisted role directory -------------------------------------------------
-
--- All caches are guild-keyed even though the public convenience methods use the
--- configured default guild. This keeps low-level calls to another guild from
--- contaminating the authorization data used by the server.
+-- Cached/persisted role directory
+-- Caches are guild-keyed so low-level calls to another guild can't contaminate the
+-- default guild's authorization data.
 local guildRoleCache = {}   -- guildId -> { byId, byName, list, syncedAt }
 local guildMemberCache = {} -- guildId -> userId -> { roles = set, syncedAt, stale }
 local databaseReady = false

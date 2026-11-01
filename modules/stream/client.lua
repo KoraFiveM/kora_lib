@@ -1,10 +1,6 @@
----Generic request -> poll-until-loaded -> callback -> cleanup driver shared by
----every `Kora.stream.load*` function, including `loadModel`. Skips the request
----if already loaded, polls once per frame up to a 10s timeout.
----Cleanup runs on the failure path and right after a callback returns; when
----called WITHOUT a callback the asset is deliberately left loaded and the
----caller owns releasing it -- see each public function's doc comment for the
----auto-cleanup timing tradeoff this implies.
+---Generic request -> poll-until-loaded -> callback -> cleanup driver for every `Kora.stream.load*` function.
+---Skips the request if already loaded and polls once per frame up to a 10s timeout. Cleanup runs on failure and
+---after a callback returns; with NO callback the asset is left loaded and the caller must release it.
 ---@param request fun(key: any): any Streaming request native. Its return value becomes `identifier` when `identifierFromRequest` is true; otherwise it's called for its side effect and `key` is used as `identifier`.
 ---@param hasLoaded fun(identifier: any): boolean Poll predicate, called with `identifier`.
 ---@param remove fun(identifier: any): nil Cleanup native, called with `identifier`.
@@ -76,9 +72,7 @@ function Kora.stream.loadModel(model, cb, options)
     return loadStreamingAsset(RequestModel, HasModelLoaded, SetModelAsNoLongerNeeded, model, cb, false, options)
 end
 
----Loads a named particle effect (ptfx) asset, runs an optional callback, then
----releases it immediately afterwards -- effects that must keep playing beyond
----the callback's synchronous scope should not be requested this way.
+---Loads a named particle effect (ptfx) asset, runs an optional callback, then releases it.
 ---@param fxName string The particle effect asset name.
 ---@param cb? fun(fxName: string) : nil Optional callback run once loaded; asset is released right after it returns.
 ---@param options? QBStreamLoadOptions
@@ -89,9 +83,7 @@ function Kora.stream.loadPtfx(fxName, cb, options)
     return loadStreamingAsset(RequestNamedPtfxAsset, HasNamedPtfxAssetLoaded, RemoveNamedPtfxAsset, fxName, cb, false, options)
 end
 
----Loads an animation dictionary, runs an optional callback, then releases it
----immediately afterwards -- anims that must keep playing beyond the
----callback's synchronous scope should not be requested this way.
+---Loads an animation dictionary, runs an optional callback, then releases it immediately afterwards.
 ---@param animDict string The animation dictionary to load.
 ---@param cb? fun(animDict: string) : nil Optional callback run once loaded; dict is released right after it returns.
 ---@param options? QBStreamLoadOptions
@@ -103,9 +95,7 @@ function Kora.stream.loadAnimDict(animDict, cb, options)
     return loadStreamingAsset(RequestAnimDict, HasAnimDictLoaded, RemoveAnimDict, animDict, cb, false, options)
 end
 
----Loads an animation set, runs an optional callback, then releases it
----immediately afterwards -- see `loadAnimDict` for the auto-cleanup timing
----tradeoff this implies.
+---Loads an animation set, runs an optional callback, then releases it.
 ---@param animSet string The animation set to load.
 ---@param cb? fun(animSet: string) : nil Optional callback run once loaded; set is released right after it returns.
 ---@param options? QBStreamLoadOptions
@@ -116,9 +106,7 @@ function Kora.stream.loadAnimSet(animSet, cb, options)
     return loadStreamingAsset(RequestAnimSet, HasAnimSetLoaded, RemoveAnimSet, animSet, cb, false, options)
 end
 
----Loads a clip set, runs an optional callback, then releases it immediately
----afterwards -- see `loadAnimDict` for the auto-cleanup timing tradeoff this
----implies.
+---Loads a clip set, runs an optional callback, then releases it.
 ---@param clipSet string The clip set to load.
 ---@param cb? fun(clipSet: string) : nil Optional callback run once loaded; set is released right after it returns.
 ---@param options? QBStreamLoadOptions
@@ -129,10 +117,7 @@ function Kora.stream.loadClipSet(clipSet, cb, options)
     return loadStreamingAsset(RequestClipSet, HasClipSetLoaded, RemoveClipSet, clipSet, cb, false, options)
 end
 
----Loads (activates) an interior proplist (IPL), runs an optional callback,
----then deactivates it again immediately afterwards -- IPLs that must stay
----active beyond the callback's synchronous scope (e.g. an interior that
----should remain visible) should not be loaded this way.
+---Loads (activates) an interior proplist (IPL), runs an optional callback, then deactivates it.
 ---@param iplName string The IPL to load.
 ---@param cb? fun(iplName: string) : nil Optional callback run once active; IPL is removed right after it returns.
 ---@param options? QBStreamLoadOptions
@@ -143,9 +128,7 @@ function Kora.stream.loadIpl(iplName, cb, options)
     return loadStreamingAsset(RequestIpl, IsIplActive, RemoveIpl, iplName, cb, false, options)
 end
 
----Loads a scaleform movie, runs an optional callback with its handle, then
----releases it immediately afterwards -- movies that must keep drawing beyond
----the callback's synchronous scope should not be requested this way.
+---Loads a scaleform movie, runs an optional callback with its handle, then releases it.
 ---@param scaleformName string The scaleform movie to load.
 ---@param cb? fun(handle: number) : nil Optional callback run once loaded, receiving the scaleform handle; movie is released right after it returns.
 ---@param options? QBStreamLoadOptions
@@ -157,9 +140,7 @@ function Kora.stream.loadScaleformMovie(scaleformName, cb, options)
         scaleformName, cb, true, options)
 end
 
----Loads a streamed texture dictionary, runs an optional callback, then
----releases it immediately afterwards -- see `loadAnimDict` for the
----auto-cleanup timing tradeoff this implies.
+---Loads a streamed texture dictionary, runs an optional callback, then releases it.
 ---@param textureDict string The texture dictionary to load.
 ---@param cb? fun(textureDict: string) : nil Optional callback run once loaded; dict is released right after it returns.
 ---@param isAdditionalTextures? boolean Second argument forwarded to `RequestStreamedTextureDict`; Rockstar/FiveM do not document its exact effect. Defaults to false, matching common usage.
@@ -174,14 +155,9 @@ function Kora.stream.loadTextureDict(textureDict, cb, isAdditionalTextures)
     end, HasStreamedTextureDictLoaded, SetStreamedTextureDictAsNoLongerNeeded, textureDict, cb)
 end
 
----Loads a script audio bank, runs an optional callback, then releases it
----immediately afterwards -- a bank whose sounds must keep playing beyond the
----callback's synchronous scope should not be requested this way.
----
----Unlike every other loader here there is no separate `Has...Loaded` native:
----`RequestScriptAudioBank` itself returns true once the bank is in memory, so
----it doubles as the poll predicate (which is why `loadStreamingAsset` calls
----`hasLoaded` before `request` -- an already-loaded bank short-circuits).
+---Loads a script audio bank, runs an optional callback, then releases it.
+---There is no `Has...Loaded` native: `RequestScriptAudioBank` returns true once resident, so it doubles as the
+---poll predicate (hence `loadStreamingAsset` calls `hasLoaded` before `request`).
 ---@param audioBank string The audio bank to load, e.g. "DLC_HEIST_FLEECA_SOUNDSET".
 ---@param cb? fun(audioBank: string) : nil Optional callback run once loaded; bank is released right after it returns.
 ---@return string | false audioBank The loaded bank name, or false if it never loaded.
@@ -196,15 +172,9 @@ function Kora.stream.loadAudioBank(audioBank, cb)
     return loadStreamingAsset(requestBank, requestBank, ReleaseNamedScriptAudioBank, audioBank, cb)
 end
 
----Waits for world collision to stream in around `coords`, so a freshly
----teleported or spawned entity doesn't fall through unloaded map geometry.
----
----Deliberately NOT built on `loadStreamingAsset`: collision has no
----identifier-keyed request/has-loaded/release triad. `RequestCollisionAtCoord`
----must be re-issued on every poll (a single call is not sticky), readiness is
----reported for an *entity* rather than for the requested point, and there is
----no release native at all -- collision unloads on its own as the streamer
----moves on, so there is nothing to clean up and no callback-scoped lifetime.
+---Waits for world collision to stream in around `coords`, so a teleported or spawned entity doesn't fall through the map.
+---Not built on `loadStreamingAsset`: `RequestCollisionAtCoord` must be re-issued every poll, readiness is
+---reported per entity, and there is no release native.
 ---@param coords vector3 | {x: number, y: number, z: number} The point to stream collision around.
 ---@param cb? fun() : nil Optional callback run once collision is ready.
 ---@param entity? number Entity whose surroundings are checked (`HasCollisionLoadedAroundEntity`). Defaults to the local player's ped -- the usual case, where the ped has just been moved to `coords`.
@@ -232,9 +202,7 @@ function Kora.stream.loadCollision(coords, cb, entity)
     return true
 end
 
----Loads a weapon's streaming asset (model/anims/etc), runs an optional
----callback, then releases it immediately afterwards -- see `loadAnimDict`
----for the auto-cleanup timing tradeoff this implies.
+---Loads a weapon's streaming asset, runs an optional callback, then releases it.
 ---@param weapon string | number The weapon name or hash to load assets for.
 ---@param cb? fun(weaponHash: number) : nil Optional callback run once loaded, receiving the weapon hash; asset is released right after it returns.
 ---@param weaponResourceFlags? integer Forwarded to `RequestWeaponAsset`; undocumented upstream, almost universally 31 in practice. Defaults to 31.

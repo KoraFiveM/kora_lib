@@ -1,5 +1,4 @@
--- Optional server bridge to kora_skills. All writes remain server-only: this
--- module merely keeps dependent resources free of resource-state plumbing.
+-- Optional server bridge to kora_skills; all writes stay server-only.
 
 local RESOURCE = 'kora_skills'
 

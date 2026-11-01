@@ -341,11 +341,8 @@ harness.test('isSpawnClear sees invisible vehicles and honours exclusions', func
         'explicitly excluded vehicles should not block spawning')
 end)
 
--- Every client-realm test above has already run and reported its own
--- assertions, so dofile-ing server.lua below overwriting
--- Kora.world.getNearbyEntities/getClosestEntity with the server realm's
--- definitions of the same names (see AGENTS.md's note on this exact
--- collision) is safe -- nothing after this point needs the client versions.
+-- Every client-realm test has already run, so dofile-ing server.lua (which overwrites
+-- Kora.world.getNearbyEntities/getClosestEntity) is safe.
 
 -- Server has no GetGamePool/GetActivePlayers/own-ped concept -- one native
 -- per entity kind instead, plus GetPlayers for the connected-player list.

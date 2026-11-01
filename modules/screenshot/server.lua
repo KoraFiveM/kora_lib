@@ -143,8 +143,7 @@ local function normalizeOptions(options)
     }
 end
 
----Requests one game-frame capture from a connected client. The opaque upload
----token is single-use, per-player, and expires automatically.
+---Requests one game-frame capture from a connected client; the upload token is single-use, per-player and expires.
 ---@param player integer
 ---@param options? table `{ fileName?: string, encoding?: 'jpg'|'png'|'webp', quality?: number, maxWidth?: integer|false, maxHeight?: integer|false, includeNui?: boolean, timeout?: integer }`
 ---@param callback? fun(err: string|false, result?: string)
@@ -187,8 +186,7 @@ function Kora.screenshot.requestClient(player, options, callback)
         quality = normalized.quality,
         maxWidth = normalized.maxWidth,
         maxHeight = normalized.maxHeight,
-        -- Kept for screenshot-basic source compatibility. Game-view capture
-        -- cannot access separate resource CEF layers; docs make that explicit.
+        -- Kept for screenshot-basic compatibility; game-view capture never includes CEF layers.
         includeNui = normalized.includeNui,
         timeout = timeout,
     })
@@ -197,9 +195,8 @@ function Kora.screenshot.requestClient(player, options, callback)
     return token
 end
 
--- GetCurrentServerEndpoint is client-only. The player that received the
--- request builds the upload URL, then reports this specific inability so a
--- report can continue without waiting for the capture timeout.
+-- GetCurrentServerEndpoint is client-only: the client builds the upload URL and reports failure here
+-- so the report doesn't wait out the capture timeout.
 RegisterNetEvent('kora_lib:server:screenshotFailed', function(token, clientReason)
     if type(token) ~= 'string' then return end
 

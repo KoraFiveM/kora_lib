@@ -22,8 +22,7 @@ _G.GetInvokingResource = function() return invokingResource end
 
 _G.json = {
     encode = function(v)
-        -- Not a real JSON encoder -- just deterministic enough to assert on
-        -- for this test's simple flat tables.
+        -- Not a real JSON encoder; deterministic enough for flat tables.
         if type(v) ~= "table" then return tostring(v) end
         local parts = {}
         for k, val in pairs(v) do

@@ -97,9 +97,7 @@ local function consumeRateLimit(name, src, limit)
     return true
 end
 
--- Ownership tracking (which resource registered a given event name, and bulk
--- cleanup when that resource stops) is delegated to the shared registry --
--- see local/resources/AGENTS.md.
+-- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local eventOwnership = Kora.resources.serverRegistry(function(name)
     registry[name] = nil
     clearRateLimit(name)
@@ -125,11 +123,8 @@ function Kora.events.register(name, handler, opts)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    -- One name, one handler: a second registration silently replaces the
-    -- first, and Kora.resources.serverRegistry's track() moves ownership to
-    -- match. Cross-resource collisions are almost always a namespacing
-    -- mistake, so say so loudly rather than failing mysteriously later.
-    -- (Re-registering your own name -- a resource restart -- is normal.)
+    -- One name, one handler: a second registration replaces the first and ownership moves with it.
+    -- Cross-resource collisions are almost always a namespacing mistake, so warn (own-resource restarts are normal).
     local previousOwner = eventOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
         print(("[kora_lib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
@@ -179,7 +174,7 @@ local function dispatchGateway(token, name, ...)
         return
     end
     if type(token) ~= "string" or type(name) ~= "string" or #name > 128 then return end
-    if tokens[src] == nil or tokens[src] ~= token then return end
+    if tokens[src] ~= token then return end
 
     local definition = registry[name]
     if definition == nil then return end

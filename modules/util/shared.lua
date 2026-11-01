@@ -212,7 +212,7 @@ function Kora.util.weightedChoice(list)
         if roll <= cumulative then return entry[1] end
     end
 
-    return list[#list][1] -- floating-point fallback, should only trigger on a roll == total edge case
+    return list[#list][1] -- floating-point fallback for a roll == total edge case
 end
 
 ---@param t table
@@ -225,18 +225,10 @@ function Kora.util.tableContains(t, value)
     return false
 end
 
--- --- vector helpers -------------------------------------------------------
---
--- These accept vector2/vector3/vector4 and coordinate tables interchangeably
--- and always RETURN a plain `{x, y, z}` table, never a CfxLua `vector3`. Two reasons: this file is
--- shared and loads in the plain-Lua smoke-test harness where `vector3` doesn't
--- exist, and a plain table survives json.encode and the exports boundary
--- unchanged, which a vector3 does not. Callers that want a real vector3 can
--- wrap the result themselves.
---
--- Deliberately flat names (`vecAdd`, not `vec.add`): build/finalise.lua only
--- exports functions sitting directly on the module table, so a nested `vec`
--- sub-table would be invisible to every other resource.
+-- Vector helpers accept vector2/3/4 and coordinate tables interchangeably and always RETURN a plain
+-- `{x, y, z}` table: this file loads in the plain-Lua test harness where `vector3` doesn't exist, and a
+-- plain table survives json.encode and the exports boundary. Names are flat (`vecAdd`) because
+-- build/finalise.lua only exports functions directly on the module table.
 
 ---@param v any
 ---@param label? string
@@ -334,9 +326,7 @@ function Kora.util.vecDistance(a, b)
     return magnitude(dx, dy, dz, "Kora.util.vecDistance")
 end
 
----2D (ground-plane) distance, ignoring z. This is the right measure for
----"how far away is that dispatch call" -- a caller three storeys up in a
----tower is not 30 metres of driving away.
+---2D (ground-plane) distance, ignoring z: the right measure for "how far away is that dispatch call".
 ---@param a vector3 | {x: number, y: number, z: number}
 ---@param b vector3 | {x: number, y: number, z: number}
 ---@return number
@@ -386,8 +376,5 @@ function Kora.util.bearing(origin, target)
     return Kora.util.directionToHeading(Kora.util.vecSub(target, origin))
 end
 
--- There is deliberately no compass-point helper here: Kora.world.getCardinalDirection
--- already turns a heading (or an entity, or the cached player ped) into
--- "N"/"NE"/"E"/... with exactly these semantics. Pair it with Kora.util.bearing
--- when you need the direction TO something rather than the direction something
--- is facing.
+-- No compass-point helper here: Kora.world.getCardinalDirection already maps a heading to "N"/"NE"/...; pair it
+-- with Kora.util.bearing for the direction TO something.

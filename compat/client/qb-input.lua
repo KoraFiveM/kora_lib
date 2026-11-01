@@ -1,22 +1,11 @@
--- Drop-in compatibility bridge: translates the real, public qb-input API
--- (exports['qb-input']:ShowInput) onto Kora.nui.openInputDialog, kora_lib's own
--- native replacement. qb-input itself is being deprecated in favour of
--- Kora.nui.openInputDialog -- this file exists so a script written against
--- exports['qb-input']:ShowInput(...) keeps working unmodified while it
--- migrates, exactly the same shape of shim as
--- kora_target/client/compat/ox-target.lua and kora_core/compat/*.
---
--- See modules/nui/docs.md's "Legacy compat" section for the field-by-field
--- mapping table and the caveats flagged below.
+-- Compat bridge: translates exports['qb-input']:ShowInput onto Kora.nui.openInputDialog.
+-- Field mapping and caveats: see modules/nui/docs.md "Legacy compat".
 
 -- Kora.compat.provideExport registers the hidden CFX export event under the
 -- legacy `qb-input` identity; `provide 'qb-input'` alone only satisfies
 -- dependency checks.
 
--- Warned once per resource run -- same reasoning as qb-menu compat's
--- warnIconOnce: real qb-input inputs carry a Font Awesome `icon` class that
--- Kora.nui.openInputDialog's InputField has no equivalent field for at all, so
--- it's dropped rather than guessed at.
+-- Warned once per resource run: qb-input's Font Awesome `icon` class has no InputField equivalent, so it is dropped.
 local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
@@ -25,11 +14,7 @@ local function warnIconOnce()
         .. "Kora.nui.openInputDialog's fields -- icons are dropped. Only shown once per session.")
 end
 
--- Warned once per (unrecognized) type name rather than globally -- unlike
--- the icon warning, which fires every time a *field the whole compat layer
--- can never support carries a value*, this is "you're using a type this
--- shim hasn't seen before", which is worth naming exactly which type so
--- whoever's porting the script knows what to check.
+-- Warned once per unrecognized type name, so the porter knows which type to check.
 local warnedTypes = {}
 local inputOpen = false
 local function warnUnknownTypeOnce(inputType)
@@ -58,24 +43,11 @@ local function translateOptions(options)
     return translated
 end
 
--- Real qb-input's "checkbox" type is a CHECKBOX GROUP, not a single boolean:
--- an `inputs[]` entry of type "checkbox" carries its own `options[]` list
--- (each `{value, text, checked}`, same shape as radio/select), and the
--- submitted result is keyed by EACH OPTION'S OWN `value` -- never by the
--- input's own `name` at all. See qbcore-framework/qb-input's
--- html/script.js: `renderCheckboxInput` sets `formInputs[option.value] =
--- option.checked and "true" or "false"` for every option, and `name` is
--- only used to group the `<input>` elements in the DOM, not as a result key.
--- Kora.nui.openInputDialog's `checkbox` field type is a single boolean keyed
--- by its own `id` -- there is no multi-option checkbox-group widget to route
--- to -- so one real checkbox input with options expands into N separate
--- boolean fields here, one per option, each keyed by that option's OWN
--- value exactly like upstream, with the group's own `text` prefixed onto
--- each option's label for context since the flat field list can't show
--- visual grouping. A checkbox input with no `options` (some simplified
--- qb-input forks use a single scalar `checked`/`default` boolean instead of
--- a group) still falls through to the single-boolean field below, keyed by
--- `name` as before.
+-- qb-input's "checkbox" type is a GROUP: the entry carries `options[]` and the result is keyed by each
+-- option's own `value`, never by `name` (see upstream html/script.js renderCheckboxInput).
+-- Kora.nui has only a single-boolean checkbox, so each option expands into its own boolean field keyed by
+-- that option's `value`, with the group's `text` prefixed to the label. A checkbox with no `options`
+-- (simplified forks) falls through to the single-boolean field keyed by `name`.
 local function translateCheckboxOptions(input, fields)
     local prefix = (input.text and input.text ~= "") and (input.text .. ": ") or ""
     for optionIndex = 1, #input.options do
@@ -89,10 +61,7 @@ local function translateCheckboxOptions(input, fields)
     end
 end
 
--- Maps one real qb-input `inputs[]` entry onto an InputField. `name` becomes
--- `id` directly -- Kora.nui.openInputDialog's result is `{ values = { [id] = value } }`,
--- so keeping id == name means the legacy `result[name]` lookup keeps working
--- with zero reshaping once ShowInput gets the response back.
+-- Maps one qb-input `inputs[]` entry onto an InputField. id == name so the legacy `result[name]` lookup works unchanged.
 local function translateField(input)
     assert(type(input.name) == "string" and #input.name > 0, "qb-input compat: every input needs a string 'name'.")
 

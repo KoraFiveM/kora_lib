@@ -1,12 +1,7 @@
 ---Sends a notification to the local player.
 ---@param payload QBNotifyPayload
 function Kora.notify.send(payload)
-    -- pcall'd because a notification is incidental to whatever the caller was
-    -- actually doing -- a malformed payload shouldn't take that down with it.
-    -- The failure is LOGGED rather than swallowed, though: a silent return
-    -- here makes "bad payload" and "the NUI is dead" look identical from
-    -- in-game, which is exactly the ambiguity that made a real NUI outage
-    -- hard to pin down.
+    -- pcall'd so a bad payload doesn't take down the caller, but logged so it isn't mistaken for a dead NUI.
     local ok, err = pcall(function()
         payload = Kora.notify.normalize(payload)
         Kora.notify.assert(payload)

@@ -6,10 +6,8 @@ Config.ui = {
     interact = true, -- set false to disable the kora_lib interact-zone module entirely
 }
 
--- Screenshot capture is rendered only when a resource requests it. Keeping a
--- sensible output ceiling prevents an ultrawide/4K client from allocating a
--- second full-resolution frame buffer just to attach a diagnostic image. Set
--- either limit to false to leave that dimension unbounded.
+-- Output ceiling for screenshot capture, so ultrawide/4K clients don't allocate a second full-res
+-- frame buffer. Set either limit to false to leave that dimension unbounded.
 Config.screenshot = {
     debugConvar = 'kora_lib_screenshot_debug',
     defaultEncoding = 'jpg',
@@ -32,22 +30,13 @@ Config.interact = {
 }
 
 Config.callback = {
-    -- ms a Kora.callback.trigger() request (either direction) waits before
-    -- rejecting. This has to cover the WORST client, not the average one: a
-    -- cold machine still finishing its join answers its first few round trips
-    -- far slower than a settled one, and a rejection here is indistinguishable
-    -- from a refusal at the call site -- kora_multichar's character select used to
-    -- silently give up on an empty scene catalog because of exactly that.
-    -- Nothing waits on this in the happy path, so a generous value costs only
-    -- how long a genuinely broken callback takes to report itself.
+    -- ms a Kora.callback.trigger() request waits before rejecting. Must cover the WORST client
+    -- (a cold, still-joining machine answers slowly) since a timeout looks like a refusal at the call site.
     timeout = 30000,
 }
 
 Config.cache = {
-    -- 5Hz keeps HUD health/armour/stamina and local distance helpers feeling
-    -- immediate, while halving the shared native/cache work previously done
-    -- at 10Hz. Never set this to 0: the cache is deliberately telemetry, not
-    -- a per-frame game-control loop.
+    -- 5Hz is enough for HUD/distance helpers. Never set to 0: this is telemetry, not a per-frame loop.
     tickInterval = 200,
 }
 
@@ -59,12 +48,8 @@ Config.notify = {
 }
 
 Config.sound = {
-    -- ms before a sound id allocated by Kora.sound is automatically released.
-    -- GTA's sound-id pool is small and finite, so an id that is never released
-    -- permanently reduces how many sounds the client can play at once. Ten
-    -- seconds comfortably outlives every alert tone and UI blip; a longer
-    -- looping sound should pass an explicit `releaseAfter` (or 0 to opt out
-    -- and call Kora.sound.stop itself).
+    -- ms before a Kora.sound-allocated sound id is auto-released. The id pool is small and finite;
+    -- long looping sounds should pass `releaseAfter` (0 opts out; call Kora.sound.stop yourself).
     defaultReleaseAfter = 10000,
     defaultRange = 30.0, -- metres; audible range for Kora.sound.playFromCoords when `range` is omitted
 }
@@ -76,13 +61,10 @@ Config.blips = {
     defaultShortRange = true,-- default SetBlipAsShortRange when options.shortRange is omitted
     defaultDisplay = 4,      -- restored after a player shows a hidden blip/category
 
-    -- Category 2 displays every blip as its own distance-bearing row in the
-    -- pause-map legend; it does not group repeated locations. It remains as a
-    -- numeric compatibility value. New code should pass a fixed catalogue name
-    -- to Kora.blips.create; omission now uses Other (12).
+    -- Category 2 lists every blip as its own row in the pause-map legend (no grouping).
+    -- Kept as a numeric compat value; new code should pass a catalogue name (omission uses Other, 12).
     listedCategory = 2,
-    -- Backwards-compatible alias. Despite the old name, category 2 is a list,
-    -- not a collapsible group.
+    -- Compat alias; category 2 is a list, not a collapsible group.
     groupedCategory = 2,
 
     -- GTA's range for named custom legend categories. kora_lib's fixed catalogue
@@ -97,45 +79,22 @@ Config.progressbar = {
     cancelControls = { 73, 322 }, -- checked when payload.canCancel is true -- X and Escape by default
 }
 
--- compat/client/qb-radialmenu.lua's built-in wheel content -- the same
--- categories real qbcore-framework/qb-radialmenu injects into every player's
--- wheel by default (SetupJobMenu/SetupVehicleMenu in its main.lua), ported
--- here so a server pairing kora_lib's compat with no qb-radialmenu installed
--- still sees the same default content, not an empty wheel.
+-- Built-in wheel content for compat/client/qb-radialmenu.lua, ported from upstream qb-radialmenu's
+-- default job/vehicle menus so the wheel isn't empty without it.
 Config.radialmenuCompat = {
     enableVehicleExtras = true, -- mirrors real qb-radialmenu's Config.EnableExtraMenu
     flipVehicleTime = 15000,    -- ms; mirrors real qb-radialmenu's Config.Fliptime
 
-    -- Per-job "Work" submenu entries, keyed by job name (or job `type` for
-    -- 'leo' jobs, matching real qb-radialmenu's own JobInteractionCheck
-    -- override -- see compat/client/qb-radialmenu.lua's setupJobMenu). Only
-    -- shown while the player is on duty in that job, exactly like upstream.
-    --
-    -- Real qb-radialmenu's own default Config.JobInteractions ships entries
-    -- for ambulance/police/tow/taxi/mechanic/hotdog, but every one of those
-    -- (besides the ambulance actions below) fires an event owned by a
-    -- COMPANION job resource (qb-tow,
-    -- qb-taxi, qb-tunerchip, qb-houses, qb-hotdogjob) or requires the wheel
-    -- to know an aimed-at/nearby TARGET player (search/escort/jail/seize
-    -- license) that the wheel's own event payload never carries -- copying
-    -- those in verbatim would just be dead buttons against resources this
-    -- server doesn't run, or against ones (kora_ambulance/qbpolice) that
-    -- implement the equivalent action under a different, non-parameterless
-    -- shape. Only entries verified to have a real, self-contained handler in
-    -- THIS server's own resources are wired up below; add your own the same
-    -- way for any other job.
+    -- Per-job "Work" submenu entries keyed by job name (or job `type` for 'leo'), shown only while on duty.
+    -- Upstream entries that fire companion-resource events or need a target player are omitted
+    -- (dead buttons here); only entries with a self-contained handler on this server are wired.
     jobInteractions = {
         ambulance = {
             { id = 'statuscheck', title = 'Check Health Status', type = 'client', event = 'hospital:client:CheckStatus', shouldClose = true },
             { id = 'revivep', title = 'Revive', type = 'client', event = 'hospital:client:RevivePlayer', shouldClose = true },
             { id = 'treatwounds', title = 'Heal Wounds', type = 'client', event = 'hospital:client:TreatWounds', shouldClose = true },
-            -- Real upstream's ambulance/police "Emergency button" entries both
-            -- fire 'police:client:SendPoliceEmergencyAlert', which this
-            -- server's kora_police doesn't implement -- kora_police's own real
-            -- equivalent is the self-contained, on-duty-gated `/backup`
-            -- command (client/dispatch.lua), fired here via `type =
-            -- 'command'` (a real qb-radialmenu dispatch type -- see
-            -- ExecuteCommand(data.event) in its own selectItem callback).
+            -- Upstream's emergency button fires 'police:client:SendPoliceEmergencyAlert', which kora_police
+            -- doesn't implement; use its on-duty-gated `/backup` command via `type = 'command'` instead.
             { id = 'emergencybutton2', title = 'Request Backup', type = 'command', event = 'backup', shouldClose = true },
         },
         police = {
@@ -304,12 +263,9 @@ Config.minigames = {
         minReelInterval = 250,   -- ms; anti-cheat floor between reel inputs
     },
 
-    -- The six types below back the qb-minigames compat shim
-    -- (compat/client/qb-minigames.lua) -- unlike lockpick/skillbar/circuit/mash,
-    -- their puzzle CONTENT (the PIN, the word, the quiz questions) is supplied
-    -- by the calling script via opts rather than randomized purely from
-    -- config, since that's how the real qb-minigames exports work. These
-    -- config blocks only cover attempts/timing/anti-cheat defaults.
+    -- The six types below back the qb-minigames compat shim (compat/client/qb-minigames.lua).
+    -- Their puzzle CONTENT (PIN, word, quiz questions) comes from the caller via opts;
+    -- these blocks only cover attempts/timing/anti-cheat defaults.
     pinpad = {
         attempts = 1,
         digits = 4,             -- PIN length when opts.numbers isn't provided

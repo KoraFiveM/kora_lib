@@ -8,8 +8,7 @@
 ---@field excludeEntities? number[] Entity handles to skip outright.
 ---@field radius? number getClosestEntity only -- search radius, meters. Defaults to Config.world.defaultRadius.
 
--- Plain { x, y, z } tables, not glm.vec3 -- see the identical note in
--- modules/raycast/client.lua and modules/zones/client.lua for why.
+-- Plain { x, y, z } tables, not glm.vec3 (see modules/raycast/client.lua).
 local isFiniteNumber = Kora.util.isFiniteNumber
 local isInteger = Kora.util.isInteger
 
@@ -42,9 +41,7 @@ local poolTypeByEntityType = {
     object = "CObject",
 }
 
--- "player" isn't a GetGamePool type -- it's enumerated via the active player
--- list instead, one ped per connected player (including the local one, which
--- the ownPed exclusion below handles the same way it does for "ped").
+-- "player" isn't a GetGamePool type: it's enumerated via the active player list (the local ped is excluded like "ped").
 local function poolEntities(entityType)
     if entityType == "player" then
         local peds = {}
@@ -115,10 +112,7 @@ local function assertQueryOptions(options)
         'World query includeInvisible must be a boolean.')
 end
 
----Runs every cheap-reject-first filter (self-exclusion, explicit exclude
----list, model set, visibility) before the caller-supplied predicate, which
----may be arbitrarily expensive -- matching the AABB-then-exact-shape
----discipline modules/zones already documents for its own containment tests.
+---Runs the cheap-reject filters (self, exclude list, model set, visibility) before the possibly expensive caller predicate.
 local function visitCandidates(entityType, coords, radiusSq, options, visit)
     assertQueryOptions(options)
     options = options or {}
@@ -144,9 +138,7 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
 
             if dSq <= radiusSq then
                 local distance = options.predicate and math.sqrt(dSq) or nil
-                -- Only predicates have a public coordinate-table contract.
-                -- The internal visitors either ignore coordinates (spawn-clear)
-                -- or copy the winning/captured candidate below.
+                -- Only predicates have a public coordinate-table contract; internal visitors ignore or copy coords.
                 if not options.predicate or options.predicate(entity, toVec3(entityCoords), distance) then
                     local result = visit(entity, entityCoords, dSq, distance)
                     if result ~= nil then return result end
@@ -174,10 +166,7 @@ local function byDistance(a, b)
     return a.distance < b.distance
 end
 
----Finds every entity of `entityType` within `radius` meters of `coords`,
----nearest first. Reads the live entity pool (GetGamePool/GetActivePlayers)
----rather than tracking anything itself -- unlike modules/entities, nothing
----returned here was created or is owned by this module.
+---Finds every entity of `entityType` within `radius` meters of `coords`, nearest first, from the live entity pool.
 ---@param entityType QBWorldEntityType
 ---@param coords any
 ---@param radius number
@@ -323,8 +312,7 @@ function Kora.world.isSpawnClear(coords, radius, options)
     assert(options == nil or type(options) == "table", "World query options must be a table.")
     options = options or {}
 
-    -- Hidden streamed vehicles still block a spawn point. Copy the caller's
-    -- table so this helper does not mutate an options object they may reuse.
+    -- Hidden streamed vehicles still block a spawn point. Copy the options so the caller's table isn't mutated.
     local query = {}
     for key, value in pairs(options) do query[key] = value end
     query.includeInvisible = true

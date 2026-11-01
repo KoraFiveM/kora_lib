@@ -18,9 +18,7 @@ local function withinDistance(a, b, maximum)
     return dx * dx + dy * dy + dz * dz <= maximum * maximum
 end
 
----Draws one frame of world-space 3D text via the standard SetDrawOrigin
----idiom -- not a persistent registration, same contract as a raw DrawMarker
----call: call it again every frame it should stay visible.
+---Draws one frame of world-space 3D text (SetDrawOrigin); call it every frame it should stay visible.
 ---@param coords any World position to anchor the text to.
 ---@param text string Multi-line via GTA's own "~n~" token, not "\n".
 ---@param options? QBDrawingText3DOptions Any field omitted falls back to Config.drawing.text3d.
@@ -54,10 +52,7 @@ function Kora.drawing.text3d(coords, text, options)
         'text3d color must have integer r, g, b, and a components from 0 to 255.')
     assert(type(outline) == 'boolean', 'text3d outline must be a boolean.')
 
-    -- Distance-culled before any native call, not after -- the whole reason
-    -- this belongs in the primitive rather than being re-derived by every
-    -- caller is so a caller drawing dozens of prompts a frame doesn't pay for
-    -- the ones nowhere near the player.
+    -- Distance-cull before any native call so dozens of prompts per frame stay cheap.
     if not withinDistance(toVec3(GetEntityCoords(PlayerPedId())), point, maxDistance) then
         return
     end

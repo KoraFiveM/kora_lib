@@ -11,15 +11,8 @@ description 'Lightweight Lua library exposing a shared Kora namespace over FiveM
 
 dependency 'kora_theme'
 
--- qb-menu, qb-input, qb-radialmenu and qb-minigames are being deprecated in
--- favour of Kora.nui.openMenu/openContextMenu/openRadialMenu/openInputDialog
--- and Kora.minigames.play -- `provide` only satisfies another resource's
--- `dependency '<name>'` check; what actually makes
--- exports['qb-menu']:openMenu(...)/exports['qb-input']:ShowInput(...)/
--- exports['qb-radialmenu']:AddOption(...)/exports['qb-minigames']:Hacking(...)
--- (etc.) reach compat/client/qb-menu.lua/qb-input.lua/qb-radialmenu.lua/
--- qb-minigames.lua is the __cfx_export_ identity bridge those files register
--- through Kora.compat.provideExport (see their own header comments).
+-- `provide` only satisfies another resource's `dependency` check; the exports themselves are
+-- bridged by the __cfx_export_ identity registration in compat/client/* via Kora.compat.provideExport.
 provide 'qb-menu'
 provide 'qb-input'
 provide 'progressbar'
@@ -58,12 +51,8 @@ files {
     'modules/discord/sql/*.sql',
     'locales/*.json',
     'web/build/index.html',
-    -- A bare trailing '**' does NOT match files in FiveM's resource globber --
-    -- it needs the '/*' (compare citizen's own system_resources/monitor, which
-    -- ships 'nui/**/*'). With 'web/build/assets/**' the hashed JS/CSS bundles
-    -- were silently never served: index.html loaded (it's listed explicitly),
-    -- but its <script> 404'd, so React never mounted, nothing ever rendered,
-    -- and every Kora.nui.request sat until it timed out.
+    -- A bare trailing '**' does NOT match files in FiveM's resource globber; it needs '/*'
+    -- (otherwise the hashed JS/CSS bundles are never served and the NUI never mounts).
     'web/build/assets/**/*'
 }
 
@@ -88,22 +77,12 @@ shared_scripts {
     'compat/shared.lua'
 }
 
--- local/resources must load before every other local/ module: callback and
--- events (and any future local module built the same way) create a
--- Kora.resources.registry()/serverRegistry() at their own load time, which
--- requires that function to already exist. A `local/**/client.lua` glob
--- expands in alphabetical folder order, which happens to put "resources"
--- AFTER "callback"/"events" -- so local/ can't be a single glob here. Listed
--- explicitly (not a `local/resources/client.lua` entry ALONGSIDE a
--- `local/**/client.lua` glob -- that would match and load the same file
--- twice). Add new local/ modules to this list explicitly, after resources.
--- compat/client/* load after 'modules/**/client.lua' (they call Kora.nui.*/
--- Kora.minigames.* directly) and before finalise, same reasoning
--- kora_core/fxmanifest.lua gives for its own compat/* placement: each compat
--- function calls those modules DIRECTLY rather than through
--- exports.kora_lib:..., so GetInvokingResource() inside it still resolves to
--- the real external caller (qb-menu/qb-input/qb-radialmenu/qb-minigames
--- consumer), not to kora_lib itself.
+-- local/resources must load before every other local/ module: callback and events call
+-- Kora.resources.registry()/serverRegistry() at load time. A `local/**/client.lua` glob would sort
+-- "resources" after them alphabetically, so local/ is listed explicitly; add new local/ modules here, after resources.
+-- compat/client/* load after modules/**/client.lua (they call Kora.nui.*/Kora.minigames.* directly) and before
+-- finalise. Calling those modules directly, not via exports.kora_lib, keeps GetInvokingResource() pointing at
+-- the real external caller.
 client_scripts {
     '@kora_theme/client/bridge.lua',
     'local/resources/client.lua',

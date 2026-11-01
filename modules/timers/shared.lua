@@ -1,34 +1,20 @@
--- Kora.timers -- owner-tracked repeating/deferred callbacks, plus the two rate
--- shapers (debounce/throttle) every consumer otherwise hand-rolls.
+-- Kora.timers -- owner-tracked repeating/deferred callbacks, plus debounce/throttle.
 --
--- Why this exists next to modules/loops: Kora.loops.controlled polls until a
--- predicate goes truthy and then STOPS. It has no answer for "run this every
--- N ms until I say stop", which is what a heartbeat, a decay tick, or a
--- periodic refresh needs. Bare SetTimeout/CreateThread do that, but nothing
--- cancels them when the owning resource stops -- a stopped resource's
--- interval keeps ticking inside kora_lib's VM forever, calling a closure whose
--- upvalues belong to a dead script. Every timer here is tracked against
--- GetInvokingResource() and swept on stop, same contract as blips/zones.
+-- Unlike Kora.loops.controlled (which stops once a predicate goes truthy) this runs "every N ms until I
+-- say stop". Bare SetTimeout/CreateThread would keep ticking in kora_lib's VM after the owner stops, so
+-- every timer is tracked against GetInvokingResource() and swept on stop (same contract as blips/zones).
 --
--- One shared file rather than a client/server pair: the logic is byte-for-byte
--- realm-identical, and only the ownership registry differs (registry() vs
--- serverRegistry()).
+-- One shared file: the logic is realm-identical, only the ownership registry differs.
 
--- The registry is created LAZILY, not at load time. fxmanifest.lua loads every
--- modules/**/shared.lua before ANY local/resources/{client,server}.lua, so
--- Kora.resources.registry/serverRegistry do not exist yet while this chunk runs
--- -- calling either here would index a nil. By the time a consumer can reach
--- Kora.timers.setInterval, both realms have finished loading.
+-- The registry is created lazily: fxmanifest.lua loads every modules/**/shared.lua before
+-- local/resources/{client,server}.lua, so Kora.resources.registry/serverRegistry don't exist at load time.
 local timerRegistry
 
 local function registry()
     if not timerRegistry then
         local factory = IsDuplicityVersion() and Kora.resources.serverRegistry or Kora.resources.registry
 
-        -- onDispose only flips the record's flag: the coroutine is parked in a
-        -- Wait() and notices on its next wake. There is deliberately no attempt
-        -- to kill the coroutine outright -- FiveM has no such native, and a
-        -- flag check is both sufficient and cheap.
+        -- onDispose only flips the flag; the coroutine is parked in Wait() and notices on its next wake (no native kills it).
         timerRegistry = factory(function(id)
             local record = Kora.timers._records[id]
             if record then
@@ -41,22 +27,14 @@ local function registry()
     return timerRegistry
 end
 
--- id -> { cancelled = boolean }. The record (not a bare boolean) is what the
--- running coroutine holds a reference to, so cancelling is a single field
--- write the loop observes on its next wake -- no shared-table lookup on the
--- hot path, and no risk of a recycled id cancelling a still-sleeping timer.
---
--- Underscore-prefixed so build/finalise.lua skips it (it only exports
--- functions, but keeping the naming convention makes the intent explicit:
--- this is module state, not API).
+-- id -> { cancelled = boolean }. The running coroutine holds the record itself, so cancelling is one field
+-- write and a recycled id can't cancel a still-sleeping timer. Underscore-prefixed: module state, not API.
 Kora.timers._records = {}
 
 local nextId = 0
 
----Cross-resource callables arrive as a table with a `__call` metamethod, not
----a function -- a bare `type(x) == "function"` guard rejects every handler
----that came through an exports boundary. Same helper every other kora_lib module
----that accepts a callback carries.
+---Cross-resource callables arrive as a table with `__call`, not a function, so a bare `type(x) == "function"` guard
+---would reject every handler that crossed an exports boundary.
 ---@param value any
 ---@return boolean
 local isCallable = Kora.compat.isCallable
@@ -88,11 +66,8 @@ local function allocateId()
     return nextId
 end
 
----Internal one-shot scheduler taking an explicit owner, so debounce() can
----attribute its pending run to the resource that created the debouncer rather
----than to kora_lib. GetInvokingResource() inside a deferred closure is always
----nil -- there is no in-progress exports() call at that point -- so the owner
----has to be captured at registration time and carried down.
+---Internal one-shot scheduler taking an explicit owner: GetInvokingResource() is always nil inside a deferred
+---closure, so debounce() captures the owner at registration time and carries it down.
 ---@param owner string
 ---@param fn fun()
 ---@param delay integer
@@ -107,9 +82,7 @@ local function scheduleTimeout(owner, fn, delay)
         Wait(delay)
         if record.cancelled then return end
 
-        -- Untracked before running, not after: a one-shot has no further
-        -- schedule, so leaving it tracked would leak one registry entry per
-        -- timeout for the lifetime of the resource.
+        -- Untracked before running: a one-shot has no further schedule, so staying tracked would leak a registry entry.
         Kora.timers._records[id] = nil
         registry().untrack(id)
 
@@ -125,10 +98,7 @@ end
 ---Runs `fn` every `interval` ms until cancelled or the owning resource stops.
 ---The first run happens one full interval from now, not immediately.
 ---
----`fn` is pcall'd: an error is printed and the interval KEEPS RUNNING. A
----heartbeat that dies permanently because one tick hit a transient nil is a
----worse failure than a noisy console, and it's the same containment
----Kora.keybind and Kora.state already apply to their handlers.
+---`fn` is pcall'd: an error is printed and the interval KEEPS RUNNING (same containment as Kora.keybind and Kora.state).
 ---@param fn fun() Callback invoked on each tick.
 ---@param interval number Milliseconds between ticks.
 ---@return integer id Pass to Kora.timers.clearInterval.
@@ -146,9 +116,7 @@ function Kora.timers.setInterval(fn, interval)
     CreateThread(function()
         while not record.cancelled do
             Wait(interval)
-            -- Re-check after the wait: cancellation almost always lands while
-            -- this coroutine is parked, so checking only at the top of the
-            -- loop would still fire one extra tick after clearInterval.
+            -- Re-check after the wait: cancellation lands while parked, which would otherwise fire one extra tick.
             if record.cancelled then return end
 
             local ok, err = pcall(fn)
@@ -206,13 +174,7 @@ end
 
 ---Wraps `fn` so it only runs once calls have stopped arriving for `wait` ms.
 ---Each call restarts the clock; the LAST call's arguments are the ones used.
----Trailing-edge only (the common "user stopped typing / entity stopped
----moving" shape).
----
----Returns a CALLABLE TABLE, not a bare function -- Lua functions can't carry
----fields, and `.cancel()` needs somewhere to live. It satisfies the same
----`__call` shape every cross-resource callable already has, so it can be
----passed anywhere a handler is accepted.
+---Trailing-edge only. Returns a CALLABLE TABLE (not a function) so `.cancel()` has somewhere to live.
 ---@param fn fun(...) Callback.
 ---@param wait number Milliseconds of quiet required before firing.
 ---@return table debounced In-resource, call it like a function; from another resource use `.run(...)`. `.cancel()` drops a pending run.
@@ -243,14 +205,9 @@ function Kora.timers.debounce(fn, wait)
     end
 
     ---Schedules a run, exactly as calling the handle does.
-    ---
-    ---`.run()` exists because the `__call` metamethod below does NOT survive
-    ---the export boundary: a resource reaching this through the `Kora` proxy
-    ---(init.lua -> exports.kora_lib:timers_debounce) receives the table's fields
-    ---but not its metatable, so `debounced(...)` there raises "attempt to call
-    ---a table value". Plain function fields cross as funcrefs and keep
-    ---working, so `.run(...)` is the form every consumer outside kora_lib must
-    ---use. Same reasoning as Kora.timers.throttle's `.run`.
+    ---`.run()` exists because the `__call` metamethod does NOT survive the export boundary: a consumer reaching this
+    ---through the `Kora` proxy gets the fields but not the metatable, so `debounced(...)` raises "attempt to call a
+    ---table value". Plain function fields cross as funcrefs, so consumers outside kora_lib must use `.run(...)`.
     function debounced.run(...)
         pendingArgs = table.pack(...)
 
@@ -271,13 +228,8 @@ function Kora.timers.debounce(fn, wait)
     })
 end
 
----Wraps `fn` so it runs at most once per `interval` ms. Leading-edge: the
----first call passes through immediately, and calls inside the cooldown are
----DROPPED, not queued for a trailing run -- which is the semantics an alert
----detector or a rate-limited network send actually wants. A queued trailing
----call would fire an alert about a moment that has already passed.
----
----Returns a callable table, same rationale as debounce.
+---Wraps `fn` so it runs at most once per `interval` ms. Leading-edge: calls inside the cooldown are DROPPED, not
+---queued (a trailing call would fire an alert about a moment that has passed). Returns a callable table.
 ---@param fn fun(...) Callback.
 ---@param interval number Minimum milliseconds between runs.
 ---@return table throttled In-resource, call it like a function; from another resource use `.run(...)`. Either returns whether it ran. `.reset()` clears the cooldown.
@@ -303,14 +255,8 @@ function Kora.timers.throttle(fn, interval)
     end
 
     ---Runs `fn` if the cooldown has elapsed, exactly as calling the handle does.
-    ---
-    ---`.run()` exists because the `__call` metamethod below does NOT survive
-    ---the export boundary: a resource reaching this through the `Kora` proxy
-    ---(init.lua -> exports.kora_lib:timers_throttle) receives the table's fields
-    ---but not its metatable, so `throttled(...)` there raises "attempt to call
-    ---a table value" -- which is exactly how kora_police's melee detector
-    ---crashed. Plain function fields cross as funcrefs and keep working, so
-    ---`.run(...)` is the form every consumer outside kora_lib must use.
+    ---`.run()` exists because `__call` does NOT survive the export boundary (see debounce): outside kora_lib
+    ---`throttled(...)` raises "attempt to call a table value", so consumers must use `.run(...)`.
     ---@return boolean ran
     function throttled.run(...)
         local now = GetGameTimer()

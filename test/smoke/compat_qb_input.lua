@@ -11,10 +11,8 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Same "mock Kora.nui directly, resolve synchronously" trick
--- test/smoke/minigames.lua and compat_qb_menu.lua use -- ShowInput has to
--- consume Kora.nui.openInputDialog's result itself (to return the legacy
--- table-or-false shape), not just hand a promise back to its own caller.
+-- Mock Kora.nui directly and resolve synchronously: ShowInput must consume
+-- Kora.nui.openInputDialog's result itself to return the legacy table-or-false shape.
 local sentFields = nil
 local sentTitle = nil
 local nextResult = nil
@@ -32,9 +30,7 @@ Kora.nui = {
 dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-input.lua")
 
--- Mirrors what a real cross-resource exports['qb-input']:Fn() call does
--- under the hood: fire the __cfx_export_ event with a setCB stub and capture
--- what gets passed to it.
+-- Mirrors a cross-resource exports['qb-input']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -135,10 +131,7 @@ harness.test("submitting a checkbox group returns each option's value as its own
     harness.assertFalse(result.canClose)
 end)
 
--- A checkbox with no `options` at all (some simplified qb-input forks use a
--- single scalar boolean instead of a group) must keep working exactly as
--- before -- this is the case the pre-existing "checked' over 'default'" test
--- above already covers; this one just pins down that it stays keyed by name.
+-- A checkbox with no `options` (simplified qb-input forks use a scalar boolean) stays keyed by name.
 harness.test("a checkbox with no options stays a single field keyed by name", function()
     nextResult = { cancelled = true }
     ShowInput({ inputs = { { name = "flag", type = "checkbox", default = true } } })

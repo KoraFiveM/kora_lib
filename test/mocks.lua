@@ -64,26 +64,17 @@ function M.install()
         end
     end
 
-    -- Real RegisterCommand(name, handler, restricted) takes the invoking
-    -- player's source, the raw args array, and the raw command string --
-    -- `commands[name]` below stores the handler function as-is (same
-    -- bare-callback convention as eventHandlers/netHandlers) so a test can
-    -- invoke it directly with whatever it needs. `restricted` is accepted
-    -- but never enforced (no ACE system in this mock environment).
+    -- RegisterCommand handlers are stored as-is so tests can invoke them directly;
+    -- `restricted` is accepted but never enforced (no ACE system here).
     function _G.RegisterCommand(name, cb, restricted)
         commands[name] = cb
     end
 
-    -- Keymappings have no meaning outside a real client -- recorded only so
-    -- code that calls RegisterKeyMapping doesn't error when dofile'd here.
+    -- Keymappings are recorded only so dofile'd code calling RegisterKeyMapping doesn't error.
     function _G.RegisterKeyMapping(_, _, _, _) end
 
-    -- Real ExecuteCommand("name arg1 arg2") parses the string and invokes
-    -- the matching RegisterCommand handler synchronously, exactly like a
-    -- player typing "/name arg1 arg2" in chat -- mirrored here (whitespace
-    -- split, no quoting support -- none of this codebase's compat dispatch
-    -- needs it) so a `type = "command"` dispatch path can be tested
-    -- end-to-end instead of just asserting the call happened.
+    -- ExecuteCommand parses the string (whitespace split, no quoting) and invokes the matching
+    -- RegisterCommand handler synchronously, so `type = "command"` dispatch is testable end-to-end.
     local executedCommands = {}
     function _G.ExecuteCommand(command)
         table.insert(executedCommands, command)
@@ -98,9 +89,7 @@ function M.install()
         for _, fn in ipairs(netHandlers[name] or {}) do fn(...) end
     end
 
-    -- Client -> server. Sets `source` the way FiveM sets it for the receiving
-    -- server-side handler, then dispatches straight into any server.lua loaded
-    -- into this same process -- which is what makes an in-process round trip work.
+    -- Client -> server. Sets `source` as FiveM does, then dispatches into any loaded server.lua.
     function _G.TriggerServerEvent(name, ...)
         table.insert(triggeredServerEvents, { name = name, ... })
 
@@ -124,12 +113,8 @@ function M.install()
         for _, fn in ipairs(netHandlers[name] or {}) do fn(...) end
     end
 
-    -- Runs the thread body in a coroutine and resumes it exactly once. One-shot
-    -- threads (no Wait/yield) run to completion, same as in FiveM. Threads with
-    -- a `while true ... Wait() end` loop run one iteration and then sit
-    -- suspended, which is enough to smoke-test the loop body without hanging
-    -- the test process on an infinite loop. Every thread is retained so a test
-    -- can drive further iterations on demand -- see `step` in the returned handle.
+    -- Resumes the thread body once: one-shot threads finish, `while true ... Wait()` loops run
+    -- one iteration and stay suspended (no hang). Threads are retained for `step` below.
     function _G.CreateThread(fn)
         local co = coroutine.create(fn)
         table.insert(threads, co)
@@ -151,9 +136,7 @@ function M.install()
         return mockClock
     end
 
-    -- Every smoke test drives success/failure paths synchronously (the mock
-    -- network resolves/rejects before a real timeout would ever matter), so
-    -- SetTimeout callbacks are simply never fired.
+    -- SetTimeout callbacks are never fired: the mock network settles before any timeout matters.
     function _G.SetTimeout(_, _) end
 
     function _G.GetInvokingResource()
@@ -195,9 +178,7 @@ function M.install()
         for _, cb in ipairs(self.onRejected) do cb(err) end
     end
 
-    -- Mirrors CfxLua's deferred-library signature, next(onResolved, onRejected),
-    -- including callbacks registered while still pending firing on settlement --
-    -- code under test attaches settle handlers before the answer arrives.
+    -- Mirrors CfxLua's next(onResolved, onRejected), including callbacks registered while pending.
     function promiseMt:next(onResolved, onRejected)
         if self.state == "resolved" then
             if onResolved then onResolved(self.value) end
@@ -236,17 +217,12 @@ function M.install()
         triggeredClientEvents = triggeredClientEvents,
         commands = commands,
         executedCommands = executedCommands,
-        -- Fires both AddEventHandler and RegisterNetEvent handlers for `name`,
-        -- for tests that need to simulate lifecycle events directly
-        -- (playerDropped, onResourceStop, onClientResourceStop).
+        -- Fires AddEventHandler and RegisterNetEvent handlers for `name` (playerDropped, onResourceStop, ...).
         fire = function(name, ...)
             _G.TriggerEvent(name, ...)
         end,
-        -- Resumes every still-suspended CreateThread coroutine once, i.e.
-        -- advances each `while true ... Wait() end` loop by one iteration.
-        -- Needed to test anything driven by a tick rather than by a direct
-        -- call (zone enter/exit tracking, the cache refresh loop), since
-        -- CreateThread above only resumes each thread once on its own.
+        -- Resumes every still-suspended CreateThread coroutine once, advancing each tick loop by one
+        -- iteration (CreateThread itself only resumes each thread once).
         step = function()
             for _, co in ipairs(threads) do
                 if coroutine.status(co) == "suspended" then

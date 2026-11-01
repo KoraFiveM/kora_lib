@@ -33,20 +33,10 @@ end
 
 Kora.compat.isCallable = isCallable
 
--- Opaque protocol/session identifiers are needed in several independent Lua
--- chunks and in both realms. Keep the byte generation here so callback,
--- event, NUI, screenshot and minigame tokens cannot drift into subtly
--- different formats.
---
--- math.random is not a secure source on its own: its state is fully
--- determined by the seed, so a seed that is only a sum of timers can be
--- brute-forced from one observed token, after which every later token (and
--- every minigame solution drawn from the same generator) is predictable. FiveM
--- exposes no secure random source (`io` cannot be relied on), so the generator
--- is re-stirred with fresh timing noise before AND after each token: what a
--- player can observe never reveals the state later draws start from.
--- `os` exists only on the server and `GetGameTimer` is the one clock both
--- realms share, so every source is optional.
+-- Shared opaque-token generator (callback, event, NUI, screenshot and minigame tokens).
+-- math.random alone is predictable from one observed token if seeded only by timers, and FiveM has
+-- no secure random source, so the generator is re-stirred with timing noise before AND after each
+-- token. `os` is server-only and GetGameTimer is the one shared clock, so every source is optional.
 local TOKEN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 local tokenStirCount = 0
 

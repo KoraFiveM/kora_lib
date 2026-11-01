@@ -43,8 +43,7 @@ local function toReward(item)
     return reward
 end
 
----Fills in an equal share of `chance` for every item that didn't specify one:
----a weight of `1` each in weighted mode, or an equal split of `100` in percent mode.
+---Fills in an equal share of `chance` for items that omit it: weight `1` (weighted) or an equal split of `100` (percent).
 ---@param items QBRewardItem[]
 ---@param mode "weighted" | "percent"
 ---@return number[] chances Same length/order as `items`.
@@ -91,9 +90,7 @@ local function toWeightedPairs(items, chances)
     return pairs_
 end
 
----Runs one roll. Weighted mode picks exactly one item. Percent mode rolls
----every item independently against its own chance, so a single roll can
----return any number of items, including all of them or none.
+---Runs one roll: one item in weighted mode, or every item independently in percent mode (any number, including none).
 ---@param items QBRewardItem[]
 ---@param chances number[]
 ---@param weightedPairs {[1]: QBRewardItem, [2]: number}[]
@@ -115,13 +112,7 @@ local function roll(items, chances, weightedPairs, mode)
     return hits
 end
 
----Generates rewards from a pool of possible items.
----
----In `"weighted"` mode (the default) each roll picks exactly one item, with
----`chance` acting as a relative weight against the others. In `"percent"`
----mode every item is rolled independently against its own `chance` as a
----probability in (0, 100], so a single roll can yield any number of items,
----including all of them or none.
+---Generates rewards from a pool of possible items; `"weighted"` (default) picks one item per roll, `"percent"` rolls each independently.
 ---@param items QBRewardItem[] Reward pool. Must be non-empty.
 ---@param opts? { mode?: "weighted" | "percent", rolls?: integer, allowNone?: boolean }
 ---@return table[] rewards Copies of the winning items, each with `amount` resolved to a number. Guaranteed non-empty unless `opts.allowNone` is `true`.
@@ -160,9 +151,7 @@ function Kora.rewards.generate(items, opts)
         end
     end
 
-    -- Percent mode (and, in principle, a mis-tuned weighted table) can come
-    -- up empty. Unless the caller explicitly allows that, force one more
-    -- pick so a reward roll never hands back nothing.
+    -- Percent mode (or a mis-tuned weighted table) can come up empty; force one pick unless allowNone.
     if #rewards == 0 and not opts.allowNone then
         rewards[1] = toReward(Kora.util.weightedChoice(weightedPairs))
     end

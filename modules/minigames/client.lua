@@ -1,7 +1,4 @@
--- Only one minigame can be on screen for this player at a time -- a second
--- concurrent Kora.minigames.play() call is rejected immediately rather than
--- queued or allowed to stack overlays, same as modules/zones' single
--- creatorState guard.
+-- Only one minigame per player at a time; a concurrent play() is rejected rather than queued.
 local activeSession = nil
 local activeRoundRequest
 local nextSessionToken = 0
@@ -11,21 +8,9 @@ local function newSessionToken()
     return nextSessionToken
 end
 
--- Ownership tracking here is about the LOCAL overlay/focus, not the server
--- session (the server can't infer a resource owner from this later client
--- callback; authorized sessions inherit the issuer captured earlier by
--- authorizeProof, while legacy sessions remain player-scoped). If the
--- resource that called Kora.minigames.play() stops mid-round, the coroutine
--- driving beginPlay below is simply abandoned (there's no way to force a
--- suspended Citizen.Await to unwind) -- this registry's onDispose is
--- best-effort visual cleanup: drop the guard so a new session can start and
--- close the overlay so it isn't left on screen for an operation nothing is
--- driving anymore. Kora.nui owns and releases this session's focus lease and
--- pending request through the same resource-stop event. The abandoned coroutine
--- still terminates on its own once its
--- pending promise settles or times out (every Kora.callback.trigger and the
--- round's Kora.nui.request both have finite timeouts), it just has no one left
--- to report its result to.
+-- Tracks the LOCAL overlay/focus only; the server session owner is captured earlier by authorizeProof.
+-- If the calling resource stops mid-round, the beginPlay coroutine is abandoned (a suspended Citizen.Await can't be unwound);
+-- onDispose drops the guard and closes the overlay. The coroutine ends once its finite-timeout promises settle.
 local minigameOwnership = Kora.resources.registry(function(token)
     if activeSession == token then
         if activeRoundRequest then
@@ -53,12 +38,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                 local lastResult = nil
 
                 while true do
-                    -- The round's own timeLimit bounds how long a human gets to
-                    -- act; roundTimeoutBuffer widens that only enough to absorb
-                    -- latency/an abandoned overlay -- the NUI is expected to
-                    -- auto-submit well before this fires on its own clock (see
-                    -- this module's docs.md), so it's a safety net, not the
-                    -- real pacing mechanism.
+                    -- roundTimeoutBuffer only absorbs latency/an abandoned overlay; the NUI auto-submits well before this safety net fires.
                     local roundRequest = Kora.nui.requestAsync("minigames:round", {
                         type = gameType,
                         sessionId = round.sessionId,
@@ -72,13 +52,8 @@ local function beginPlay(gameType, opts, authorization, resource)
                     local attempt = Citizen.Await(roundRequest)
                     if activeRoundRequest == roundRequest then activeRoundRequest = nil end
 
-                    -- Player pressed Escape (every minigame's Dialog resolves
-                    -- {cancelled = true} on Escape/backdrop, same vocabulary
-                    -- modules/nui's own menus use) -- distinct from a round
-                    -- simply timing out (attempt == nil), which still submits
-                    -- as a normal failed attempt below. Ends the server
-                    -- session immediately rather than waiting on its TTL, and
-                    -- doesn't consume an attempt.
+                    -- Escape/backdrop (cancelled = true), distinct from a timeout (attempt == nil) which submits as a failed attempt.
+                    -- Ends the server session immediately and doesn't consume an attempt.
                     if attempt ~= nil and attempt.cancelled then
                         Citizen.Await(Kora.callback.trigger("kora_lib:minigames:cancel", round.sessionId))
                         serverSessionId = nil
@@ -89,10 +64,7 @@ local function beginPlay(gameType, opts, authorization, resource)
 
                     if submitResult.done then
                         serverSessionId = nil
-                        -- `faults` is nil for every type except `keys`
-                        -- (see server.lua's validate.keys) -- harmless to
-                        -- always thread through, since a nil table field is
-                        -- simply absent from the result.
+                        -- `faults` is nil except for `keys`.
                         return {
                             success = submitResult.success,
                             attempts = submitResult.attemptsUsed,
@@ -101,10 +73,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                         }
                     end
 
-                    -- Anti-farming regeneration happened server-side (see
-                    -- server.lua) -- the client just renders whatever fresh
-                    -- round it's handed next, in the SAME overlay (no
-                    -- re-mount/re-focus between attempts).
+                    -- The server regenerated the round (anti-farming); render it in the same overlay.
                     lastResult = "fail"
                     round = submitResult
                 end
@@ -119,9 +88,7 @@ local function beginPlay(gameType, opts, authorization, resource)
 
         if not ok then
             if serverSessionId then
-                -- The server successfully opened a session but a later NUI
-                -- or callback request failed. Best-effort cancel it now so an
-                -- immediate retry is not blocked until the expiry sweep.
+                -- A later NUI/callback request failed; cancel the server session so an immediate retry isn't blocked.
                 pcall(function()
                     Citizen.Await(Kora.callback.trigger("kora_lib:minigames:cancel", serverSessionId))
                 end)
@@ -141,24 +108,13 @@ local function beginPlay(gameType, opts, authorization, resource)
     return p
 end
 
----Plays one round-based minigame session -- lockpick, skillbar, circuit,
----mash, fishing, pinpad, quiz, wordguess, wordscramble, keys, or hacking -- against
----the server, which independently generates and validates every round (see
----modules/minigames/server.lua and this module's AGENTS.md). The client only
----ever renders the puzzle and reports raw input timestamps/selections (and,
----for circuit, which nodes were connected); it never computes or reports a
----pass/fail itself, so the result can't be forged by a modified client beyond
----the basic timestamp-plausibility floor documented in AGENTS.md.
+---Plays one round-based minigame session against the server, which generates and validates every round; the client only renders and reports raw input.
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "fishing" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table Per-type overrides merged over Config.minigames.<type> and clamped/validated server-side -- see docs.md for the accepted fields per type. For pinpad/quiz/wordguess/wordscramble, opts also carries the puzzle's actual CONTENT (numbers/questions/word), since the caller supplies it rather than the server randomizing it.
 ---@param authorization? string Opaque token returned by the gameplay resource's server-side Kora.minigames.authorizeProof call. When present, the server ignores opts and uses the trusted options captured by that authorization. Successful unauthorized legacy sessions remain proof-less.
 ---@return QBMinigameResult result The resolved result; this public function waits for the round to finish.
----(`attempts` = how many tries it took before success/exhaustion/cancellation; faults is only ever present for
----"keys", see server.lua's validate.keys). Callers do not need to wrap this function in Citizen.Await. `cancelled` is present (and `success` false)
----when the player backed out via Escape/backdrop instead of exhausting their attempts or the round trip
----failing outright -- see docs.md's "Cancelling" note. Rejects/errors if a minigame is already in progress for
----this player (checked both here and, in case a modified client skips this, server-side), gameType is
----invalid, or the underlying NUI/callback round trip fails.
+---`cancelled` is set (and `success` false) when the player backed out; `faults` is only present for "keys". No Citizen.Await needed.
+---Errors if a minigame is already in progress, gameType is invalid, or the NUI/callback round trip fails.
 function Kora.minigames.play(gameType, opts, authorization, owner)
     return Citizen.Await(Kora.minigames.playAsync(gameType, opts, authorization,
         owner or GetInvokingResource() or GetCurrentResourceName()))
@@ -183,9 +139,7 @@ function Kora.minigames.playAsync(gameType, opts, authorization, owner)
         return p
     end
 
-    -- Captured now, synchronously, while GetInvokingResource() still reflects
-    -- the caller that reached across the exports boundary -- see
-    -- modules/zones/client.lua's startCreator for the same reasoning.
+    -- Captured synchronously while GetInvokingResource() still reflects the exports caller (see modules/zones/client.lua startCreator).
     local resource = owner or GetInvokingResource() or GetCurrentResourceName()
 
     return beginPlay(gameType, opts, authorization, resource)
@@ -204,10 +158,7 @@ function Kora.minigames.cancel(owner)
     return Kora.nui.cancelRequest(request, { cancelled = true })
 end
 
----Plays a minigame whose optional difficulty adjustment comes from kora_skills.
----Without kora_skills, this is exactly the same as play(gameType, opts,
----authorization). An authorization issued by authorizeSkillCheck is still the
----only safe path for an action with a server-side reward or consequence.
+---Plays a minigame with an optional kora_skills difficulty adjustment; identical to play() without kora_skills.
 ---@param skill string
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table

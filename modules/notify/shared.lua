@@ -15,8 +15,7 @@
 ---@field style? table<string, any> Trusted scalar root styles and vetted title/description child styles.
 ---@field showDuration? boolean Set false to hide the lifetime indicator.
 
--- Validation sets, kept in sync with QBNotifyType/QBNotifyPosition above and
--- with NotifyPayload in web/src/lib/types.ts.
+-- Validation sets; keep in sync with the aliases above and NotifyPayload in web/src/lib/types.ts.
 local NOTIFY_TYPES = {
     info = true,
     success = true,
@@ -24,17 +23,13 @@ local NOTIFY_TYPES = {
     error = true,
 }
 
--- Aliases from other notify APIs (ox_lib calls the info variant `inform`).
--- Resolved by Kora.notify.normalizeType before validation, in one place for the
--- client and server send paths; anything else still has to be a NOTIFY_TYPES key.
+-- Aliases from other notify APIs (ox_lib's `inform`), resolved by Kora.notify.normalizeType; anything else must be a NOTIFY_TYPES key.
 local NOTIFY_TYPE_ALIASES = {
     inform = "info",
     warn = "warning",
 }
 
----Maps a notify type alias (`inform`, `warn`) onto its canonical type. Values
----that are not a known alias (including nil/non-strings) are returned unchanged
----so the strict validation in Kora.notify.assert still sees them.
+---Maps a notify type alias (`inform`, `warn`) onto its canonical type; unknown values are returned unchanged for Kora.notify.assert to reject.
 ---@param notifyType any
 ---@return any
 function Kora.notify.normalizeType(notifyType)
@@ -42,9 +37,7 @@ function Kora.notify.normalizeType(notifyType)
     return NOTIFY_TYPE_ALIASES[notifyType] or notifyType
 end
 
----Returns a shallow copy of the payload with its `type` alias resolved; the
----original table is never mutated. Non-table payloads are returned as-is for
----Kora.notify.assert to reject.
+---Returns a shallow copy of the payload with its `type` alias resolved; non-table payloads are returned as-is for Kora.notify.assert.
 ---@param payload QBNotifyPayload
 ---@return QBNotifyPayload
 function Kora.notify.normalize(payload)
@@ -92,9 +85,7 @@ function Kora.notify.assert(payload)
     local duration = payload.duration
     if duration == nil then duration = Config.notify.defaultDuration end
 
-    -- Type-checked, not just truthy-checked: these render as text in the NUI,
-    -- and a table/number sneaking through as a React child would crash the
-    -- whole NUI root, not just this one toast.
+    -- Type-checked: a non-string rendered as a React child would crash the whole NUI root.
     assert(title == nil or type(title) == "string", "Notification title must be a string.")
     assert(message == nil or type(message) == "string", "Notification message must be a string.")
     assert(title or message, "Notifications require a title or message.")
@@ -118,9 +109,7 @@ function Kora.notify.assert(payload)
     assert(payload.showDuration == nil or type(payload.showDuration) == "boolean", "Notification showDuration must be a boolean.")
 end
 
----Fills in the configured defaults a payload didn't specify, so the NUI always
----receives a fully-resolved `type`/`position` rather than having to know
----Lua-side config values that are never transmitted.
+---Fills in configured defaults so the NUI always receives a resolved `type`/`position`.
 ---@param payload QBNotifyPayload
 ---@return QBNotifyPayload resolved A copy; the caller's table is never mutated.
 function Kora.notify.withDefaults(payload)

@@ -25,11 +25,8 @@ _G.exports = {
     },
 }
 
--- Real modules/nui/client.lua isn't loaded here (that's modules/nui's own
--- smoke test) -- same "mock Kora.nui directly, resolve synchronously" trick
--- test/smoke/minigames.lua uses, since compat/client/qb-menu.lua's openMenu
--- has to consume Kora.nui.openMenu's result itself (to know which legacy
--- event to fire), not just hand a promise back to its own caller.
+-- Mock Kora.nui directly and resolve synchronously: openMenu must consume
+-- Kora.nui.openMenu's result itself to know which legacy event to fire.
 local sentItems = nil
 local nextMenuResult = nil
 local sentActions = {}
@@ -54,9 +51,7 @@ end }
 dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-menu.lua")
 
--- Mirrors what a real cross-resource exports['qb-menu']:Fn() call does under
--- the hood: fire the __cfx_export_ event with a setCB stub and capture what
--- gets passed to it.
+-- Mirrors a cross-resource exports['qb-menu']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -91,9 +86,7 @@ harness.test("isMenuHeader rows map onto disabled, matching real qb-menu's unsel
     harness.assertTrue(sentItems[1].disabled, "isMenuHeader should map to disabled")
 end)
 
--- TriggerEvent firing isn't recorded anywhere in test/mocks.lua (only the
--- client<->server crossing triggers are), so this registers its own listener
--- via AddEventHandler to observe what actually fired.
+-- TriggerEvent isn't recorded by test/mocks.lua, so listen via AddEventHandler.
 harness.test("selecting an item with a client event passes qb-menu's args table as one value", function()
     local received
     AddEventHandler("vehicle:repair", function(args) received = args end)
@@ -115,12 +108,8 @@ harness.test("selecting an item with isServer fires TriggerServerEvent", functio
     harness.assertEqual(sent[1][1], "water", "args should remain one server-event table")
 end)
 
--- A `function` value on `item.action` set by ANOTHER resource crosses the
--- exports['qb-menu']:openMenu(...) boundary as a table with a __call
--- metamethod, not a real function -- FXServer's own funcref marshalling, the
--- same shape test/smoke/funcref.lua in kora_inventory exercises for the
--- identical reason. A masked action must still fire, matching a real
--- (same-resource, unmasked) function action.
+-- A `function` on `item.action` from ANOTHER resource crosses the export boundary as a table
+-- with a __call metamethod (FXServer funcref marshalling). A masked action must still fire.
 harness.test("selecting an item with a masked cross-resource function action still fires it", function()
     local fired = 0
     local maskedAction = setmetatable({}, { __call = function(_) fired = fired + 1 end })
@@ -238,18 +227,10 @@ harness.test("the qb-menu:client:closeMenu net event does not error", function()
     harness.assertTrue(ok, "the closeMenu net event should not error")
 end)
 
--- Real qb-menu items sometimes carry a shared-item NAME as `icon` rather
--- than a real icon; imageFor looks that name up via
--- exports.kora_core:getShared('items', icon). If the matched definition has a real
--- `imageUrl`, it's used as-is (not exercised here). But if the definition
--- only has the LEGACY local-file `image` field (no `imageUrl`), imageFor
--- used to fall back to building a `nui://qb-inventory/html/images/%s` URL --
--- dead, because kora_inventory (the resource that actually provides the
--- 'qb-inventory' identity) ships no such files and never exposes that path
--- in its fxmanifest.lua `files{}` block. That URL always 404s in the NUI, so
--- imageFor now drops the icon entirely in this case instead, matching its
--- own "the icon is simply dropped" philosophy for the Font-Awesome-vs-lucide
--- case above it.
+-- Real qb-menu items sometimes carry a shared-item NAME as `icon`; imageFor looks it up via
+-- exports.kora_core:getShared('items', icon). A definition with only the legacy local-file
+-- `image` (no `imageUrl`) has its icon dropped: the nui://qb-inventory/html/images URL
+-- would always 404, since kora_inventory ships no such files.
 harness.test("an icon naming a shared item with only a legacy `image` field is dropped, not translated to a dead nui:// URL", function()
     sharedItems = { bread = { name = "bread", image = "bread.png" } }
     nextMenuResult = { cancelled = true }

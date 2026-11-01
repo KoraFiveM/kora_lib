@@ -1,20 +1,8 @@
--- Client-only additions to Kora.util. The rest of the module is realm-agnostic
--- and lives in shared.lua; anything needing a rendering native has to be here.
---
--- Both files populate the same Kora.util table. That is the established pattern
--- (Kora.notify, Kora.state, Kora.callback all do it), but note the smoke-test
--- consequence documented in AGENTS.md: a test that dofiles both realms into
--- one process must capture a direct reference to each realm's functions right
--- after its own dofile.
+-- Client-only additions to Kora.util (anything needing a rendering native). Both files populate the same
+-- table, so smoke tests must capture each realm's functions right after its own dofile (see AGENTS.md).
 
----Projects a world position onto normalised screen space.
----
----Returns `x, y` in the 0..1 range FiveM's own draw natives use (SetTextEntry,
----DrawRect, ...), NOT pixels -- multiply by the resolution yourself if a NUI
----overlay needs pixel coordinates. The third return says whether the point is
----actually on screen; `x`/`y` are still returned when it isn't, but they are
----meaningless (World3dToScreen2d leaves them at whatever the last successful
----projection produced), so always gate on it.
+---Projects a world position onto normalised 0..1 screen space (as FiveM's draw natives use), NOT pixels.
+---The third return says whether the point is on screen; `x`/`y` are meaningless when it isn't, so gate on it.
 ---@param coords vector3 | {x: number, y: number, z: number}
 ---@return number x Normalised 0..1, left to right.
 ---@return number y Normalised 0..1, top to bottom.

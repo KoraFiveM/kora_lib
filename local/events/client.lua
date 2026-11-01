@@ -11,9 +11,7 @@ local events = {
 local token = nil
 local pushRegistry = {}
 
--- Ownership tracking (which resource registered a given push name, and bulk
--- cleanup when that resource stops) is delegated to the shared registry --
--- see local/resources/AGENTS.md.
+-- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local pushOwnership = Kora.resources.registry(function(name)
     pushRegistry[name] = nil
 end)

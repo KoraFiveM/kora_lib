@@ -29,14 +29,9 @@ _G.DrawLine = function() drawLineCalls = drawLineCalls + 1 end
 _G.DrawMarker = function() drawMarkerCalls = drawMarkerCalls + 1 end
 _G.DrawPoly = function() drawPolyCalls = drawPolyCalls + 1 end
 
--- The zone creator's own natives. Placement now goes through the real
--- Kora.raycast.fromCamera (modules/raycast), so these are dofile'd here too --
--- the mock player/camera never moves and nothing is ever aimed at, so the
--- ray consistently misses (hit = 0), enough for the creator's startup/guard
--- behavior below without needing a real hit-testing simulation.
--- `registeredCommands` captures every RegisterCommand handler by name so a
--- test can drive the creator the same way a keybind would (see the cancel
--- call at the end of the guard test).
+-- Zone creator natives. Placement goes through the real Kora.raycast.fromCamera, loaded here;
+-- the mock camera never aims at anything, so the ray misses (hit = 0).
+-- `registeredCommands` captures RegisterCommand handlers so tests can drive the creator like a keybind.
 local registeredCommands = {}
 _G.RegisterCommand = function(name, handler) registeredCommands[name] = handler end
 _G.RegisterKeyMapping = function() end
@@ -104,10 +99,8 @@ dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/freecam/client.lua")
 dofile(repoRoot .. "modules/instructional/client.lua")
--- Kora.theme isn't otherwise loaded by this test file -- the debug/creator-preview
--- draw path now reads Kora.theme.accentColor() (see zoneDebugColor in
--- modules/zones/client.lua), and without this the Kora proxy in build/initiate.lua
--- would auto-vivify Kora.theme as an empty table, leaving accentColor nil.
+-- Kora.theme isn't otherwise loaded; without this the Kora proxy auto-vivifies an empty
+-- table and zoneDebugColor's Kora.theme.accentColor() is nil.
 _G.exports = { kora_theme = { getPrimaryColor = function() return "#95FF00" end } }
 dofile(repoRoot .. "modules/theme/shared.lua")
 dofile(repoRoot .. "modules/zones/client.lua")
@@ -274,10 +267,8 @@ harness.test("poly zone rejects sparse point arrays before creation", function()
 end)
 
 harness.test("poly thickness extends upward from the lowest point, not centred on the average", function()
-    -- Deliberately sloped: the lowest point is at z=0 and the highest at z=6,
-    -- so an average-centred band (the old behaviour) would have run from z=1
-    -- to z=5 -- leaving the ground at the lowest corner OUTSIDE its own zone,
-    -- and burying the bottom half of the zone under the hill at the high end.
+    -- Deliberately sloped (z=0 to z=6): an average-centred band (z=1 to z=5) would leave the
+    -- lowest corner's ground outside the zone and bury the bottom half at the high end.
     local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
@@ -912,9 +903,8 @@ harness.test("confirming a poly creator returns its coordinates without register
     harness.assertEqual(p.state, "resolved", "confirming should return the completed poly definition")
     harness.assertEqual(#p.value.opts.points, 3, "all captured poly coordinates should be returned")
 
-    -- The mock player is at the origin, inside the polygon above. Before this
-    -- regression was fixed, confirmation registered that polygon and the next
-    -- zone tick reported it here even though the creator is only a builder.
+    -- The mock player is at the origin, inside the polygon; confirming must not register it
+    -- as a live zone (the creator is only a builder).
     net.step()
     harness.assertEqual(#Kora.zones.getInside(), 0,
         "the creator preview must disappear without leaving a registered zone behind")

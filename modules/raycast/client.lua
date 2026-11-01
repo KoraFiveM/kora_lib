@@ -1,7 +1,4 @@
--- Plain { x, y, z } tables, not glm.vec3 -- the `glm` global isn't
--- guaranteed to exist on every FiveM client build, and this file never needs
--- vector-math operators (subtraction, scalar multiply, etc.), only field
--- access and construction, so there's nothing glm buys here.
+-- Plain { x, y, z } tables, not glm.vec3: the `glm` global isn't guaranteed on every client build.
 local function toVec3(v)
     assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z),
         "Coordinates must have finite x, y, and z values.")
@@ -26,11 +23,8 @@ local function rotationToDirection(rot)
     return { x = -math.sin(z) * flatLength, y = math.cos(z) * flatLength, z = math.sin(x) }
 end
 
--- Shape tests are asynchronous even though the public helper returns a
--- settled result. Reading once immediately after StartShapeTestRay can return
--- status 1 (pending); its other output slots are not valid yet and have been
--- observed to surface as stale entity handles. Keep the wait bounded so a
--- broken/invalid test can never strand its caller.
+-- Shape tests are asynchronous: reading right after StartShapeTestRay can return status 1 (pending)
+-- with stale entity handles in the other slots. The wait is bounded so a bad test can't strand its caller.
 local SHAPE_TEST_TIMEOUT_MS = 1000
 local COORD_GRABBER_CONTROLS = { 38, 174, 175, 177 }
 local COORD_GRABBER_DISTANCE = 50.0
@@ -76,15 +70,8 @@ function Kora.raycast.fromCoords(startCoords, endCoords, flags, ignoreEntity)
     return awaitShapeTest(Kora.raycast.start(startCoords, endCoords, flags, ignoreEntity))
 end
 
----Fires a shape test WITHOUT waiting for it, returning its raw handle for a
----later `Kora.raycast.await`/`Kora.raycast.poll`.
----
----Shape tests are resolved by the engine once per frame, so a caller that
----needs several rays in the same logical "look" (e.g. a targeting resource
----firing a broad world mask and a narrow entity mask) should start all of
----them first and await them afterwards. Awaiting each one before starting the
----next serialises them and costs one extra frame of latency per ray, plus one
----extra thread wake-up per ray, for no additional information.
+---Fires a shape test WITHOUT waiting, returning its raw handle for `Kora.raycast.await`/`Kora.raycast.poll`.
+---Start all rays of one "look" first, then await them: awaiting each in turn costs an extra frame per ray.
 ---@param startCoords table vector3-like { x, y, z }
 ---@param endCoords table vector3-like { x, y, z }
 ---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
@@ -115,11 +102,7 @@ function Kora.raycast.startFromCamera(maxDistance, flags, ignoreEntity)
     return Kora.raycast.start(camCoord, camDestination(camCoord, GetGameplayCamRot(2), maxDistance), flags, ignoreEntity)
 end
 
----Blocks (yielding a frame at a time, bounded to one second) until a handle
----from `Kora.raycast.start`/`startFromCamera` has settled, then reports it in
----the same shape `fromCoords` returns. A handle that has already settled --
----because another ray started in the same frame was awaited first -- returns
----immediately without yielding at all.
+---Blocks (a frame at a time, up to one second) until a started ray settles, then reports it in the `fromCoords` shape.
 ---@param rayHandle number
 ---@return boolean hit
 ---@return table? coords
@@ -130,11 +113,7 @@ function Kora.raycast.await(rayHandle)
     return awaitShapeTest(rayHandle)
 end
 
----Non-blocking read of a started shape test. `settled` is false while the
----engine is still resolving it; every other value is meaningless until it is
----true. Unlike `await` this never yields, so a caller driving its own tick
----loop can start a ray on one tick and consume it on the next without ever
----spending a frame parked inside kora_lib.
+---Non-blocking read of a started shape test; every value after `settled` is meaningless until it is true.
 ---@param rayHandle number
 ---@return boolean settled
 ---@return boolean hit
@@ -150,9 +129,7 @@ function Kora.raycast.poll(rayHandle)
     return true, true, toVec3(hitCoords), entityHit, toVec3(surfaceNormal)
 end
 
----Aims from the gameplay camera and raycasts against world geometry, so
----"look at it" is enough to know what a player is aiming at -- no coordinate
----typing required.
+---Aims from the gameplay camera and raycasts against world geometry.
 ---@param maxDistance number
 ---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
 ---@param ignoreEntity? number Entity handle to exclude from the test; defaults to `PlayerPedId()`.
@@ -164,9 +141,7 @@ function Kora.raycast.fromCamera(maxDistance, flags, ignoreEntity)
     return awaitShapeTest(Kora.raycast.startFromCamera(maxDistance, flags, ignoreEntity))
 end
 
----Aims from a scripted camera and raycasts against world geometry, for a
----caller that manages its own camera (e.g. a freecam) instead of the
----gameplay camera.
+---Aims from a scripted camera (e.g. a freecam) and raycasts against world geometry.
 ---@param cam number Scripted camera handle, e.g. from `CreateCam`/`CreateCamWithParams`.
 ---@param maxDistance number
 ---@param flags? number `StartShapeTestRay` intersect flags; defaults to `-1` (everything).
@@ -190,9 +165,7 @@ end
 local function removeEntity(ent)
     if not ent then return end
 
-    local ok, result, err = pcall(Kora.entities.remove, ent)
-    if not ok or result == false then
-    end
+    pcall(Kora.entities.remove, ent)
 
     if DoesEntityExist(ent) then
         SetEntityAsMissionEntity(ent, true, true)
@@ -285,10 +258,8 @@ local function runCoordGrabber(state)
     return nil
 end
 
----Captures coordinates under the gameplay-camera crosshair. With no options,
----a small orb marks the current hit. Passing `{ type = "object", object = model }`
----uses a temporary heading-only prop preview instead. The preview is always
----removed; this function only returns where a future object could be created.
+---Captures coordinates under the gameplay-camera crosshair, marked by an orb. With `{ type = "object", object = model }`
+---a temporary heading-only prop preview is shown instead; it is always removed and only the coordinates are returned.
 ---@param data? { type?: 'object', object?: string|number, heading?: number, maxDistance?: number, flags?: number }
 ---@return { coords: { x: number, y: number, z: number, w?: number }, object: string|number|false }? result
 function Kora.raycast.getCoords(data)

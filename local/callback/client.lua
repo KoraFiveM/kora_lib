@@ -15,9 +15,7 @@ local registry = {}
 local pending = {}
 local requestCounter = 0
 
--- Ownership tracking (which resource registered a given callback name, and
--- bulk cleanup when that resource stops) is delegated to the shared registry
--- -- see local/resources/AGENTS.md.
+-- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local callbackOwnership = Kora.resources.registry(function(name)
     registry[name] = nil
 end)
@@ -46,46 +44,17 @@ end
 -- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
--- A promise object doesn't survive crossing a real cross-resource exports()
--- call back to the caller: only METHOD CALLS on it reach the real promise
--- inside kora_lib, while plain field reads (.state, .value -- what Citizen.Await
--- itself checks) on the crossed reference never reflect the real remote
--- promise's settlement, so the caller's own Citizen.Await silently resolves
--- nil regardless of the real outcome. GetInvokingResource() is nil for a
--- same-VM call (kora_lib's own modules, every dofile()'d smoke test) and the
--- real calling resource's name for a genuine cross-resource exports() call
--- (same signal modules/zones already relies on for ownership tracking -- see
--- its AGENTS.md's "Resource ownership" note) -- exactly the distinction that
--- matters here. Same-VM callers get the real promise back unchanged. A
--- genuine cross-resource caller gets the already-awaited plain value (or a
--- raised error on rejection/timeout, which -- like every other kora_lib error --
--- surfaces to that caller as a printed export-call error and a nil return,
--- not a catchable Lua error) instead of a promise it can't usefully await.
+-- A promise doesn't survive an exports() crossing: only method calls reach the real promise, so the caller's
+-- Citizen.Await would silently resolve nil. GetInvokingResource() is nil for same-VM calls and the caller's
+-- name for cross-resource ones; same-VM callers get the promise, cross-resource callers get the awaited value
+-- (or a raised error on rejection/timeout).
 --
--- Callers MUST capture GetInvokingResource() themselves, before doing
--- anything that can yield, and pass it in as `invoker` -- GetInvokingResource()
--- only reflects the real cross-resource caller within the SAME synchronous
--- native-call frame as the exports() invocation. Kora.callback.trigger below
--- can yield inside awaitToken() (polling for the initial handshake token,
--- very much still in flight on a consumer resource's very first-ever
--- trigger() call), and by the time control comes back GetInvokingResource()
--- has already reverted to nil even though the original call was a genuine
--- cross-resource one -- calling it late here would silently misroute that
--- caller down the same-VM branch and hand it back a bare, unresolved promise.
+-- Callers MUST capture GetInvokingResource() before anything can yield and pass it as `invoker`; it only
+-- reflects the cross-resource caller within the synchronous native-call frame.
 --
--- UNLIKE every other module's identical copy of this helper (see
--- local/callback/server.lua, local/events/{client,server}.lua, and
--- modules/{cache,zones,nui}/client.lua), this copy also forwards every
--- extra return value a callback handler produced (e.g.
--- `return false, "you didn't have a proper item"`), not just the first --
--- see p.koraLibCallbackResults on the events.response handler below. The
--- promise itself still resolves with ONLY the handler's first return value,
--- deliberately unchanged from before this existed, so every EXISTING
--- same-VM caller inside kora_lib (e.g. modules/minigames/client.lua's own
--- `Citizen.Await(Kora.callback.trigger(...))`) keeps working exactly as it did
--- -- only a genuine cross-resource caller, reached here, gets the extra
--- values, by reading the side-channel field Citizen.Await(p) itself can't
--- carry (a promise only ever resolves with ONE value).
+-- Unlike other modules' copies, this one also forwards every extra handler return value (e.g.
+-- `return false, "reason"`) via the p.koraLibCallbackResults side channel, since a promise resolves with one
+-- value. The promise itself still resolves with only the first return value.
 local function settleForExport(p, invoker)
     if invoker then
         Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
@@ -107,8 +76,7 @@ function Kora.callback.register(name, handler)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    -- See local/events/server.lua's register for why a cross-resource
-    -- overwrite is worth warning about rather than silently accepting.
+    -- Warn on cross-resource overwrite; see local/events/server.lua register.
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
         print(("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
@@ -143,9 +111,7 @@ end
 function Kora.callback.trigger(name, ...)
     Kora.callback.assertName(name)
 
-    -- Captured FIRST, before awaitToken() below gets any chance to yield --
-    -- see the comment on settleForExport above for why calling this any
-    -- later would silently drop a genuine cross-resource caller's identity.
+    -- Captured first: calling it after awaitToken() yields would lose the cross-resource caller's identity.
     local invoker = GetInvokingResource()
 
     local p = promise.new()
@@ -184,22 +150,12 @@ RegisterNetEvent(events.response, function(requestId, ok, ...)
     pending[requestId] = nil
 
     if ok then
-        -- The FULL result is stashed as a plain field on the promise table
-        -- (not part of its own resolve/reject state machine) before
-        -- resolving -- settleForExport above reads it back out for a
-        -- cross-resource caller. The promise itself still resolves with only
-        -- the handler's FIRST return value, unchanged from before this
-        -- existed, so a same-VM `Citizen.Await(Kora.callback.trigger(...))`
-        -- caller (e.g. modules/minigames/client.lua) sees no behavior change
-        -- at all.
+        -- Stash the full result on the promise table for settleForExport; the promise still resolves with only the first value.
         local packed = table.pack(...)
         p.koraLibCallbackResults = packed
         p:resolve(packed[1])
     else
-        -- The error path only ever carries a single value (server.lua's
-        -- events.invoke handler sends just the pcall error message here), so
-        -- there's nothing to pack -- a rejected promise's `.value` already
-        -- is the one thing that matters.
+        -- Error path carries a single value (the pcall message); nothing to pack.
         p:reject((...))
     end
 end)
@@ -219,10 +175,7 @@ RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
         return
     end
 
-    -- table.pack, not `local ok, result = pcall(...)` -- see the identical
-    -- comment on server.lua's events.invoke handler for why a two-variable
-    -- capture would silently drop everything past a handler's first return
-    -- value.
+    -- table.pack: a handler may return multiple values; `local ok, result = pcall(...)` would drop the rest.
     local results = table.pack(pcall(handler, ...))
     local ok = results[1]
 

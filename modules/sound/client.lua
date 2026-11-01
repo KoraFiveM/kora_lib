@@ -1,18 +1,9 @@
 -- Kora.sound -- frontend/world/entity sound playback with managed sound ids.
 --
--- The reason this is a module and not three inlined natives: GTA's sound-id
--- pool is small and finite. GetSoundId() hands out a slot that stays claimed
--- until ReleaseSoundId(), and a script that allocates one per alert without
--- ever releasing will silently stop producing audio partway through a session
--- -- a bug that looks like "the dispatch sound randomly stopped working" and
--- is near-impossible to trace back. Every id allocated here is auto-released
--- on a timer, released early by Kora.sound.stop, and swept when the owning
--- resource stops.
---
--- The alternative (passing -1 as the sound id, the usual fire-and-forget
--- idiom) needs no bookkeeping but produces a handle you can never stop.
--- Managing the id uniformly means every call site gets a stoppable handle and
--- none of them can leak.
+-- GTA's sound-id pool is small: a GetSoundId() slot stays claimed until ReleaseSoundId(), and leaking
+-- them silently stops audio mid-session. Every id here is auto-released on a timer, released early by
+-- Kora.sound.stop, and swept when the owning resource stops. (Passing -1 would need no bookkeeping,
+-- but yields a handle that can never be stopped.)
 
 ---@class QBSoundOptions
 ---@field network? boolean Play for nearby players too, rather than only locally. Defaults to `false`.
@@ -46,9 +37,8 @@ local function disposeSound(soundId)
     return true
 end
 
--- soundId -> claim metadata. The registry sweeps ids still held when their owning
--- resource stops; StopSound before ReleaseSoundId because releasing an id
--- that is still playing leaves the audio running with no handle to stop it.
+-- soundId -> claim metadata. Ids still held when their owning resource stops are swept; StopSound
+-- comes before ReleaseSoundId because releasing a playing id leaves audio running with no handle.
 local soundRegistry = Kora.resources.registry(function(soundId)
     disposeSound(soundId)
 end)
@@ -68,9 +58,7 @@ local function assertOptions(options)
         "Sound bank must be a non-empty string.")
 end
 
----Claims a sound id, registers it against the caller, and arms its
----auto-release. Returns the id so each play* function only has to fire its
----own native.
+---Claims a sound id, registers it against the caller and arms its auto-release.
 ---@param owner string
 ---@param options QBSoundOptions
 ---@return number|false soundId
@@ -82,9 +70,7 @@ local function claim(owner, options)
         'Sound releaseAfter must be a finite non-negative number.')
 
     if options.bank then
-        -- Kora.stream.loadAudioBank yields until the bank is resident. Playing
-        -- before it loads is a silent no-op, not an error, which is the other
-        -- classic "the sound sometimes doesn't play" cause.
+        -- Playing before the bank is resident is a silent no-op, not an error.
         if bankRefs[options.bank] then
             bankRefs[options.bank] = bankRefs[options.bank] + 1
         else
@@ -115,8 +101,7 @@ local function claim(owner, options)
     return soundId
 end
 
----Plays a 2D UI/frontend sound (the `PlaySoundFrontend` family -- notification
----beeps, dispatch tones, menu clicks).
+---Plays a 2D UI/frontend sound (`PlaySoundFrontend` family).
 ---@param name string Sound name, e.g. `"Lose_1st"`.
 ---@param set string Sound set/ref, e.g. `"GTAO_FM_Events_Soundset"`.
 ---@param options? QBSoundOptions
@@ -186,10 +171,8 @@ function Kora.sound.playFromEntity(entity, name, set, options)
     return soundId
 end
 
----Stops a sound and releases its id. Refuses ids this module didn't allocate
------ exports.kora_lib:sound_stop is callable from any resource, and the
----untracked-id gate is what stops it doubling as a stop-anything primitive
----against another resource's audio (same rule Kora.blips.remove enforces).
+---Stops a sound and releases its id. Refuses ids this module didn't allocate: the export is callable
+---from any resource, and this gate stops it being a stop-anything primitive (same rule as Kora.blips.remove).
 ---@param soundId number
 ---@return boolean success
 ---@return string? error

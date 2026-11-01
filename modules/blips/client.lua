@@ -55,9 +55,7 @@ local function clearStoredInfo(blip)
     infoByBlip[blip] = nil
 end
 
--- blipRegistry tracks every blip this module has created, keyed by the
--- resource that invoked `create` -- see local/resources/AGENTS.md. Cleanup on
--- resource stop guards with DoesBlipExist since RemoveBlip on an
+-- Cleanup on resource stop guards with DoesBlipExist: RemoveBlip on an
 -- already-gone handle is undefined behavior, not a no-op.
 local blipRegistry = Kora.resources.registry(function(blip)
     registeredByBlip[blip] = nil
@@ -417,9 +415,7 @@ end
 ---@return number | false blip The created blip handle, or false if it failed to create.
 ---@return string? error
 function Kora.blips.create(coords, options)
-    -- Must be captured before any native calls below -- the invoking-resource
-    -- context is only valid at this call boundary, same reasoning as
-    -- modules/entities.
+    -- Capture before any native calls: the invoking resource is only valid at the call boundary.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     if options == nil then options = {} end

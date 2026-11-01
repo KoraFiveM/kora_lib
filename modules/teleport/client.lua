@@ -68,9 +68,7 @@ local function waypointEntity(options)
     return Kora.cache.ped()
 end
 
----Moves the player (or their driven vehicle) to the active map waypoint.
----Every failure restores the original position and the cleanup path always
----unfreezes the entity, clears streaming focus, and fades the display back in.
+---Moves the player (or their driven vehicle) to the active map waypoint, restoring the original position on failure.
 ---@param opts? QBWaypointTeleportOptions
 ---@return boolean success
 ---@return string? error

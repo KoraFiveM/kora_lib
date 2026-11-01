@@ -4,9 +4,7 @@ local zoneRegistry = {}
 local grid = {}
 local insideZones = {}
 
--- Forward-declared: destroyZone and zoneOwnership each need to reference the
--- other (destroyZone untracks on removal; zoneOwnership's onDispose destroys
--- a zone when its resource stops), so neither can be a plain `local function`.
+-- Forward-declared: destroyZone and zoneOwnership reference each other.
 local destroyZone
 local zoneOwnership
 local debugZones = {}
@@ -16,10 +14,7 @@ local function interactionsLocked()
     return state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false
 end
 
--- setZoneDebug (below ensureDebugThread, since it needs to call it) is
--- likewise forward-declared: both the handle's setDebug method (buildHandle,
--- right below) and Kora.zones.setDebug need to call it, and buildHandle runs
--- long before ensureDebugThread is defined.
+-- Forward-declared: buildHandle (via handle.setDebug) and Kora.zones.setDebug both need it before ensureDebugThread exists.
 local setZoneDebug
 
 local nextZoneId = 0
@@ -27,43 +22,24 @@ local tickThreadStarted = false
 local trackedZoneCount = 0
 local debugThreadStarted = false
 
--- Plain { x, y, z } tables, not glm.vec3 -- the `glm` global isn't guaranteed
--- to exist on every FiveM client build. distSq/containsBox below do their own
--- component-wise subtraction instead of relying on glm's operator overloads.
+-- Plain { x, y, z } tables, not glm.vec3: the `glm` global isn't guaranteed on every client build.
 local function toVec3(v)
-    -- Coordinate coercion happens only at public API boundaries (creation,
-    -- editing, and explicit handle.contains calls), never in the tick loop.
-    -- Read through pcall so malformed non-table values produce the documented
-    -- contract error instead of Lua's unhelpful "attempt to index" failure.
+    -- Coercion happens only at public API boundaries, never in the tick loop. pcall so malformed values give the contract error.
     local ok, x, y, z = pcall(function() return v.x, v.y, v.z end)
     assert(ok and Kora.util.isFiniteNumber(x) and Kora.util.isFiniteNumber(y) and Kora.util.isFiniteNumber(z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
     return { x = x, y = y, z = z }
 end
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
+-- Normalizes native functions and Cfx funcref proxies consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
--- A promise object doesn't survive crossing a real cross-resource exports()
--- call back to the caller: only METHOD CALLS on it reach the real promise
--- inside kora_lib, while plain field reads (.state, .value -- what Citizen.Await
--- itself checks) on the crossed reference never reflect the real remote
--- promise's settlement, so the caller's own Citizen.Await silently resolves
--- nil regardless of the real outcome. GetInvokingResource() is nil for a
--- same-VM call (kora_lib's own qb_zonecreator command below, every dofile()'d
--- smoke test) and the real calling resource's name for a genuine
--- cross-resource exports() call (same signal this file already relies on for
--- ownership tracking -- see this module's own AGENTS.md "Resource ownership"
--- note) -- exactly the distinction that matters here. Same-VM callers get the
--- real promise back unchanged, so qb_zonecreator's own Citizen.Await keeps
--- working exactly as before. A genuine cross-resource caller gets the
--- already-awaited plain value (or a raised error on rejection, which -- like
--- every other kora_lib error -- surfaces to that caller as a printed
--- export-call error and a nil return, not a catchable Lua error) instead of
--- a promise it can't usefully await. Deliberately duplicated per-file -- see
--- local/callback/{client,server}.lua, local/events/{client,server}.lua, and
--- modules/{cache,nui}/client.lua for the other copies.
+-- A promise doesn't survive a cross-resource exports() call: plain field reads (.state, .value, what Citizen.Await
+-- checks) on the crossed reference never reflect the real settlement, so the caller's Await resolves nil.
+-- GetInvokingResource() is nil for a same-VM call (the qb_zonecreator command, smoke tests) and the caller's name
+-- for a genuine cross-resource call (see AGENTS.md "Resource ownership"). Same-VM callers get the real promise;
+-- cross-resource callers get the awaited value (or a printed export error and nil on rejection).
+-- Deliberately duplicated per-file: see local/callback, local/events and modules/{cache,nui}/client.lua.
 local function settleForExport(p)
     if GetInvokingResource() then
         return Citizen.Await(p)
@@ -76,12 +52,8 @@ local function distSq(a, b)
     return dx * dx + dy * dy + dz * dz
 end
 
--- Squared distance from a point to the nearest point on an AABB, with the
--- clamp inlined rather than materialising that nearest point. This runs once
--- per candidate zone per tick -- and the tick runs per FRAME while anyone is
--- standing in a zone with an `inside` callback -- so the intermediate
--- {x,y,z} table it used to build was pure per-frame garbage, on a path whose
--- entire job is to be cheap enough to run every frame.
+-- Squared distance from a point to the nearest point on an AABB, clamp inlined: this runs per candidate zone per
+-- frame, so it must not allocate.
 local function aabbDistSq(p, aabb, ignoreZ)
     local px, py = p.x, p.y
     local cx = px < aabb.minX and aabb.minX or (px > aabb.maxX and aabb.maxX or px)
@@ -99,8 +71,7 @@ local function makeAabb(minX, maxX, minY, maxY, minZ, maxZ)
     return { minX = minX, maxX = maxX, minY = minY, maxY = maxY, minZ = minZ, maxZ = maxZ }
 end
 
--- abs() makes the sign convention of cosR/sinR irrelevant here, so the same cached
--- values used by the inverse rotation in containsBox can be reused as-is.
+-- abs() makes the sign convention of cosR/sinR irrelevant, so the cached values from containsBox's inverse rotation are reused.
 local function rotatedHalfExtents(halfX, halfY, cosR, sinR)
     return math.abs(halfX * cosR) + math.abs(halfY * sinR),
         math.abs(halfX * sinR) + math.abs(halfY * cosR)
@@ -173,9 +144,7 @@ local function worldToCell(x, y)
     return math.floor(x / Config.zones.gridSize), math.floor(y / Config.zones.gridSize)
 end
 
--- Bumped by every grid mutation (create, destroy, and the re-insert behind
--- Kora.zones.edit). The tick's candidate cache below keys off it, so a stale
--- candidate list can never outlive the grid it was built from.
+-- Bumped by every grid mutation so the tick's candidate cache can never outlive the grid it was built from.
 local gridEpoch = 0
 
 local function insertIntoGrid(zone)
@@ -230,11 +199,7 @@ destroyZone = function(zone)
     zoneRegistry[zone.id] = nil
 end
 
--- Ownership tracking (which resource created a given zone, and bulk cleanup
--- when that resource stops) is delegated to the shared registry -- see
--- local/resources/AGENTS.md. destroyZone above already handles the full
--- teardown a manual Kora.zones.remove()/handle.remove() needs, so onDispose
--- just routes a still-owned zone id back through it.
+-- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md); onDispose routes a still-owned zone back through destroyZone.
 zoneOwnership = Kora.resources.registry(function(zoneId)
     local zone = zoneRegistry[zoneId]
     if zone then destroyZone(zone) end
@@ -284,9 +249,7 @@ local function editZone(handle, opts)
         )
     end
 
-    -- Validate every field before mutating anything, so a rejected edit (e.g.
-    -- a bad onEnter alongside a valid coords) never leaves the zone
-    -- half-changed -- either every requested field applies, or none do.
+    -- Validate every field before mutating anything so a rejected edit never leaves the zone half-changed.
     local coords
     if opts.coords ~= nil then
         assert(zone.type ~= "poly", "Poly zones do not have editable coords; edit their points instead.")
@@ -307,10 +270,7 @@ local function editZone(handle, opts)
         )
     end
 
-    -- Every validation above passed: apply. Skip the grid churn (and the aabb
-    -- recompute, which would come out identical) when the new coords equal
-    -- the zone's current ones -- e.g. a caller re-editing onEnter/onExit
-    -- while re-passing the coords it already has.
+    -- Skip the grid churn and aabb recompute when the new coords equal the current ones.
     if coords ~= nil and (coords.x ~= zone.coords.x or coords.y ~= zone.coords.y or coords.z ~= zone.coords.z) then
         if zone.trackPlayer then removeFromGrid(zone) end
 
@@ -477,15 +437,9 @@ local function initPoly(zone, opts)
     assert(maxZ == nil or Kora.util.isFiniteNumber(maxZ), "maxZ must be a finite number.")
 
     if minZ == nil then
-        -- `thickness` is measured UPWARD FROM THE LOWEST POINT, not centred on
-        -- the points' average height. Poly points are almost always placed by
-        -- aiming at the ground (that's what the in-world creator does), so a
-        -- centred band buried half the zone underground and left only
-        -- thickness/2 of usable headroom -- and on sloping ground an average
-        -- could sit above the lowest point's own floor, leaving a gap there.
-        -- Anchoring at the lowest point means the zone always sits ON the
-        -- surface it was drawn on and `thickness` reads as "how tall is it".
-        -- Pass explicit minZ/maxZ when you need a band that floats instead.
+        -- `thickness` is measured UPWARD FROM THE LOWEST POINT, not centred: poly points are usually aimed at the
+        -- ground, so a centred band buries half the zone, and on slopes an average can sit above the lowest floor.
+        -- Pass explicit minZ/maxZ for a floating band.
         local thickness = opts.thickness or Config.zones.defaultPolyThickness
         minZ, maxZ = lowestZ, lowestZ + thickness
     end
@@ -505,9 +459,7 @@ local BOX_SIGNS = {
     { 1,  -1, -1 }, { 1,  -1, 1 }, { 1,  1,  -1 }, { 1,  1,  1 },
 }
 
--- Each face as 4 corner indices (into BOX_SIGNS/corners), wound around the
--- face's perimeter so the two triangles drawFace splits it into aren't
--- crossed/degenerate.
+-- Each face as 4 corner indices (into BOX_SIGNS/corners), wound around the perimeter so drawFace's two triangles aren't degenerate.
 local BOX_FACES = {
     { 1, 2, 4, 3 }, -- -X
     { 5, 6, 8, 7 }, -- +X
@@ -535,24 +487,19 @@ local function boxCorner(zone, sx, sy, sz)
         zone.coords.z + sz * zone.halfZ
 end
 
--- DrawPoly draws one filled, single-sided (backface-culled) triangle in
--- world space. Drawn twice per triangle, winding order reversed the second
--- time, so a wall reads as solid whether the camera is outside the zone or
--- (common for a box you're actively standing in) inside it.
+-- DrawPoly draws a single-sided (backface-culled) triangle, so each is drawn twice with reversed winding to read solid from inside or outside.
 local function drawWallTriangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, color)
     DrawPoly(x1, y1, z1, x2, y2, z2, x3, y3, z3, color.r, color.g, color.b, color.a)
     DrawPoly(x1, y1, z1, x3, y3, z3, x2, y2, z2, color.r, color.g, color.b, color.a)
 end
 
--- Splits a quad (4 corners, wound around its perimeter) into 2 triangles.
+-- Splits a quad (4 corners wound around its perimeter) into 2 triangles.
 local function drawWallQuad(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color)
     drawWallTriangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, color)
     drawWallTriangle(x1, y1, z1, x3, y3, z3, x4, y4, z4, color)
 end
 
--- Walls render at a lower alpha than edges/corners (Config.zones.debugWallAlpha,
--- not color.a) -- a fully-opaque fill at the same alpha as the wireframe
--- would bury the edges/corners it's meant to complement, not just add to them.
+-- Walls use a lower alpha (Config.zones.debugWallAlpha, not color.a) so they don't bury the wireframe edges.
 local function wallColor(color)
     return { r = color.r, g = color.g, b = color.b, a = Config.zones.debugWallAlpha }
 end
@@ -561,10 +508,7 @@ local function hexToRgb(hex)
     return tonumber(hex:sub(2, 3), 16), tonumber(hex:sub(4, 5), 16), tonumber(hex:sub(6, 7), 16)
 end
 
--- Debug zones and the creator's live preview should look like the rest of
--- kora_lib's UI, not carry their own hardcoded colour -- so the colour tracks
--- Kora.theme.accentColor() live (a config change takes effect on the very next
--- draw) instead of being baked into Config.zones at load time.
+-- The colour tracks Kora.theme.accentColor() live so config changes apply on the next draw.
 local function zoneDebugColor()
     local r, g, b = hexToRgb(Kora.theme.accentColor())
     return { r = r, g = g, b = b, a = Config.zones.debugAlpha }
@@ -617,11 +561,7 @@ local function drawDebugPoly(zone, color)
         DrawLine(a.x, a.y, zone.maxZ, b.x, b.y, zone.maxZ, color.r, color.g, color.b, color.a)
         DrawLine(a.x, a.y, zone.minZ, a.x, a.y, zone.maxZ, color.r, color.g, color.b, color.a)
 
-        -- The vertical side wall between this edge and the next -- no top/
-        -- bottom cap faces, since the footprint isn't guaranteed convex and
-        -- properly triangulating an arbitrary polygon is a lot of added
-        -- complexity for a debug-only visual; the wireframe alone already
-        -- shows the footprint shape clearly enough on its own.
+        -- Side wall only, no top/bottom caps: the footprint may be concave and the wireframe already shows it.
         drawWallQuad(
             a.x, a.y, zone.minZ,
             a.x, a.y, zone.maxZ,
@@ -655,10 +595,7 @@ local function ensureDebugThread()
     end)
 end
 
--- Shared by the handle's own setDebug method and Kora.zones.setDebug (both a
--- single-id call and the nil-id "every zone" fan-out) -- one place that keeps
--- zone.debug, debugZones, and the debug thread's running-or-not state
--- consistent, rather than three copies of the same add/remove-from-set logic.
+-- Shared by handle.setDebug and Kora.zones.setDebug; keeps zone.debug, debugZones and the debug thread state consistent.
 setZoneDebug = function(zone, enabled)
     zone.debug = enabled
 
@@ -698,9 +635,7 @@ local function createZone(zoneType, opts, initShape)
 
     initShape(zone, opts)
 
-    -- The tracker can run its first tick as soon as it is started below. Build
-    -- the public handle before then, so an onEnter callback can safely call
-    -- Kora.zones.getInside() during that first tick.
+    -- The tracker can tick as soon as it starts; build the handle first so onEnter can call Kora.zones.getInside().
     zone.handle = buildHandle(zone)
 
     zoneRegistry[zone.id] = zone
@@ -711,10 +646,7 @@ local function createZone(zoneType, opts, initShape)
 
     zoneOwnership.track(zone.resource, zone.id)
 
-    -- Config.zones.debug is a server-wide default OR'd in here, same pattern
-    -- kora_target's own Config.target.debug already uses on top of this --
-    -- opts.debug still wins on its own (a zone can opt in even with the
-    -- global default off), it just isn't the only way in anymore.
+    -- Config.zones.debug is a server-wide default OR'd in; opts.debug can still opt a zone in.
     if Config.zones.debug == true or opts.debug == true then
         setZoneDebug(zone, true)
     end
@@ -810,13 +742,7 @@ function Kora.zones.point(opts)
     return createZone("sphere", opts, initSphere)
 end
 
----Every zone the local player is currently inside, across every resource --
----read straight off the enter/exit state the tick loop already maintains, so
----this costs a registry walk and nothing more (no containment maths).
----
----Useful when you care about "what am I standing in right now" without having
----retained a handle from every constructor call yourself, and it's the only
----way to see zones another resource created.
+---Every zone the local player is currently inside, across every resource (a registry walk, no containment maths).
 ---@param resource? string Only return zones owned by this resource. Omit for all of them.
 ---@return QBZoneHandle[] zones Unordered -- the registry is a hash, not a list.
 function Kora.zones.getInside(resource)
@@ -833,11 +759,8 @@ function Kora.zones.getInside(resource)
     return inside
 end
 
----Toggles debug wireframe drawing on an already-created zone (or every
----currently-registered zone at once) at runtime -- unlike `opts.debug`,
----which only ever gets read once, at creation. Also reachable per-zone as
----`zone.setDebug(enabled)` on the handle itself, and globally via the
----`qb_zonedebug` command below.
+---Toggles debug wireframe drawing on one zone (or every zone) at runtime. Also available as `zone.setDebug(enabled)`
+---and via the `qb_zonedebug` command.
 ---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
 ---@param enabled boolean
 ---@return boolean changed
@@ -859,15 +782,8 @@ function Kora.zones.setDebug(id, enabled)
     return true
 end
 
--- The 3x3 cell scan is memoised: its result only changes when the player
--- crosses a 50m cell boundary or the grid itself changes. On foot that is
--- roughly once every ten seconds, so rebuilding the candidate set on every
--- tick meant nine hash lookups, a set union and a fresh table to throw away,
--- per frame, to arrive at the same answer as last frame.
---
--- Cached as a dense ARRAY of zone references rather than a set of ids, so the
--- tick walks it by index and reads each zone directly instead of paying a
--- second registry lookup per candidate.
+-- The 3x3 cell scan is memoised: it only changes when the player crosses a 50m cell boundary or the grid changes.
+-- Cached as a dense array of zone references so the tick avoids a registry lookup per candidate.
 local candidateCell, candidateList, candidateEpoch = nil, nil, -1
 
 local function candidatesFor(cx, cy)
@@ -899,19 +815,13 @@ end
 tickLoop = function()
     while trackedZoneCount > 0 do
         local ped = PlayerPedId()
-        -- The vector3 from the native is used directly. Copying it into a
-        -- {x,y,z} table allocated one more object per tick and bought nothing:
-        -- every reader here (the AABB clamp, all three containment tests) only
-        -- ever reads .x/.y/.z, which a vector3 already answers.
+        -- The native's vector3 is used directly: every reader only touches .x/.y/.z, so copying would just allocate.
         local p = GetEntityCoords(ped)
 
         local list = candidatesFor(worldToCell(p.x, p.y))
         local locked = interactionsLocked()
 
-        -- The spatial grid deliberately only examines nearby zones. Zones that
-        -- were inside on the prior tick need one cheap independent check so a
-        -- teleport or fast vehicle move cannot strand their isInside/onExit
-        -- state after they fall outside that neighbourhood.
+        -- The grid only examines nearby zones; previously-inside zones get a cheap independent check so a teleport can't strand their onExit.
         for zoneId, zone in pairs(insideZones) do
             if zone.removed then
                 insideZones[zoneId] = nil
@@ -928,15 +838,9 @@ tickLoop = function()
         for i = 1, #list do
             local zone = list[i]
 
-            -- A cached list is a snapshot, and an onEnter/onExit handler is
-            -- free to destroy a zone while this loop is still walking it --
-            -- so liveness is re-checked per zone, off the flag destroyZone
-            -- already sets, rather than by looking the id up again.
+            -- An onEnter/onExit handler may destroy a zone mid-walk, so liveness is re-checked off the flag destroyZone sets.
             if not zone.removed then
-                -- Scene/character selection moves a hidden ped through the
-                -- real world. Treat all gameplay zones as exited until that
-                -- mode ends so beds, banks, doors, and similar callbacks
-                -- cannot open over the selection UI.
+                -- Scene/character selection moves a hidden ped through the world; treat gameplay zones as exited so callbacks can't open over that UI.
                 if locked then
                     if zone.isInside then
                         zone.isInside = false
@@ -947,8 +851,7 @@ tickLoop = function()
                 local dSq = aabbDistSq(p, zone.aabb, zone.ignoreZ)
                 if dSq < minDistSq then minDistSq = dSq end
 
-                -- Exact containment only runs once the player is inside the zone's cheap
-                -- AABB reject test; everything outside every candidate's AABB skips it.
+                -- Exact containment only runs after the cheap AABB reject.
                 local isInside = dSq == 0 and containsFn[zone.type](zone, p) or false
 
                 if isInside and not zone.isInside then
@@ -974,12 +877,10 @@ tickLoop = function()
         if needsPerFrame then
             interval = Config.zones.tickInside
         elseif minDistSq == math.huge then
-            -- No candidate in any neighbouring cell, so there is nothing to be
-            -- near and no reason to pay for a speed native to prove it.
+            -- No candidates in neighbouring cells, so skip the speed native.
             interval = Config.zones.tickFar
         else
-            -- Widen the "near" threshold for fast-moving entities so a small zone can't be
-            -- skipped entirely between two far-tier ticks.
+            -- Widen the "near" threshold for fast entities so a small zone isn't skipped between far-tier ticks.
             local farTravel = GetEntitySpeed(ped) * (Config.zones.tickFar / 1000) * Config.zones.speedSafetyFactor
             local effectiveNearSq = math.max(nearProximitySq, farTravel * farTravel)
             interval = minDistSq <= effectiveNearSq and Config.zones.tickNear or Config.zones.tickFar
@@ -991,29 +892,17 @@ tickLoop = function()
     tickThreadStarted = false
 end
 
-------------------------------------------------------------------------------
--- Zone creator: aim, place points, and copy the finished Kora.zones.* call.
--- See modules/zones/AGENTS.md for the design notes behind this section.
-------------------------------------------------------------------------------
+-- Zone creator: aim, place points, copy the finished Kora.zones.* call (design notes: modules/zones/AGENTS.md).
 
 local initFnByType = { box = initBox, sphere = initSphere, poly = initPoly }
 
--- Every place that validates a zone-creator type string shares this set,
--- rather than each repeating its own "box or sphere or poly" chain.
+-- Shared by every zone-creator type validation.
 local ZONE_TYPES = { box = true, sphere = true, poly = true }
 
--- Which of a shape's numeric parameters the scroll wheel currently adjusts;
--- TAB cycles through this list. Single-entry lists still work (cycling is a no-op).
--- zOffset is on every shape's cycle: the placement raycast can only ever land
--- on solid geometry, so without it a zone is permanently stuck at ground level
--- and there'd be no way to build one over a floor, a rooftop, or water.
--- "editPoint" is a mode rather than a number: while it's the active entry the
--- placement key picks up the point nearest your aim and, on a second press,
--- drops it at the new aim -- instead of appending a new point. It lives on
--- this cycle (rather than being its own keybind) so the one thing Tab already
--- means -- "what does the next keypress/scroll act on" -- keeps covering
--- everything, and the HUD keeps being the single place that says what mode
--- you're in.
+-- Numeric parameters the scroll wheel adjusts per shape; TAB cycles them. zOffset is on every shape because the
+-- placement raycast only lands on solid geometry. "editPoint" is a mode, not a number: the place key picks up the
+-- point nearest the aim and a second press drops it at the new aim. It lives on this cycle so Tab keeps meaning
+-- "what the next keypress/scroll acts on".
 local creatorParamCycles = {
     box = { "size", "height", "rotation", "zOffset" },
     sphere = { "radius", "zOffset" },
@@ -1028,9 +917,7 @@ local function isEditingPoints(state)
     return state.type == "poly" and activeParamName(state) == "editPoint"
 end
 
--- Compared against the RAW stored points (not the zOffset-raised ones drawn
--- on screen): both the stored point and the placement raycast sit on the
--- ground, so this stays accurate no matter how far the zone has been lifted.
+-- Compared against the RAW stored points (not the zOffset-raised ones drawn), since both the point and the raycast sit on the ground.
 local function nearestPointIndex(points, coords)
     local bestIndex, bestDist = nil, math.huge
 
@@ -1068,10 +955,7 @@ local function formatCoords(v)
     return ("vector3(%s, %s, %s)"):format(formatNumber(v.x), formatNumber(v.y), formatNumber(v.z))
 end
 
----Formats `opts` (as returned by Kora.zones.startCreator's promise, or hand-built
----in the same shape) into the Kora.zones.<type>({...}) Lua snippet the creator's
----confirm dialog shows and copies to the clipboard. Pure and deterministic --
----no side effects, so it doesn't need the creator running to be useful/testable.
+---Formats `opts` (as resolved by Kora.zones.startCreator) into the Kora.zones.<type>({...}) snippet the confirm dialog copies. Pure.
 ---@param zoneType "box" | "sphere" | "poly"
 ---@param opts table
 ---@return string
@@ -1125,56 +1009,35 @@ local function newCreatorState(zoneType, resource)
         rotation = 0.0,
         radius = creator.defaultRadius,
         thickness = creator.defaultThickness,
-        -- Signed, and NOT clamped like the size params below -- lowering a zone
-        -- below the surface it was placed on is as valid as raising it.
+        -- Signed and NOT clamped: lowering a zone below its placement surface is valid.
         zOffset = 0.0,
         activeParam = 1,
-        -- Which point "editPoint" mode currently has under its crosshair (while
-        -- hovering) or has picked up (while grabbing) -- see `grabbing` below.
-        -- Recomputed from the aim every frame while hovering, so it never goes
-        -- stale against a points list that undo/place just changed.
+        -- The point "editPoint" mode has under the crosshair (hovering) or has picked up (grabbing); recomputed per frame while hovering.
         editIndex = nil,
-        -- false: editIndex just tracks whatever point is nearest the aim (a
-        -- hover highlight). true: the place key has picked that point up --
-        -- editIndex is now frozen on it regardless of where the camera flies
-        -- until place (drop it at the new aim) or undo (cancel the grab)
-        -- releases it. Without this, flying away to look at a placement spot
-        -- immediately re-targets editIndex at whatever's nearest THAT spot
-        -- instead, so there was never a way to actually move a distant point.
+        -- false: editIndex tracks the point nearest the aim. true: the place key picked it up and editIndex is frozen
+        -- until place (drop) or undo (cancel), so flying away doesn't re-target a different point.
         grabbing = false,
         promise = promise.new(),
-        -- dirty starts true so the first frame builds an (empty, since nothing's
-        -- placed yet) preview; cachedPreview/lastHud let the per-frame thread
-        -- below skip rebuilding either when nothing shape-relevant has changed.
+        -- dirty starts true so the first frame builds the preview; cachedPreview/lastHud let the per-frame thread skip unchanged rebuilds.
         dirty = true,
         cachedPreview = nil,
         lastHud = nil,
     }
 end
 
----Pre-populates a freshly created creator state from an existing zone's opts
----(the same shape Kora.zones.<type>() takes, and Kora.zones.startCreator's own
----resolved promise returns) -- lets Kora.zones.startCreator(type, existingOpts)
----reposition/resize an already-built zone instead of only ever starting fresh.
----Any field `opts` doesn't provide is left at newCreatorState's default.
+---Pre-populates a creator state from an existing zone's opts so startCreator can reposition/resize a built zone; omitted fields keep defaults.
 ---@param state table
 ---@param opts table
 local function seedCreatorState(state, opts)
     assert(type(opts) == "table", "startCreator existingOpts must be a table.")
 
-    -- Validated with the same rules the real constructors enforce
-    -- (positive sizes/radius, capped point count) -- and validated HERE,
-    -- synchronously, so hostile/malformed seed values raise back into the
-    -- caller instead of surfacing later as an uncaught assert inside the
-    -- per-frame preview thread when buildPreviewZone re-runs initBox/etc.
+    -- Validated synchronously with the real constructors' rules so malformed seeds raise to the caller, not in the preview thread.
     if state.type == "box" then
         if opts.coords then state.center = toVec3(opts.coords) end
         if opts.size then
             local size = toVec3(opts.size)
             assert(size.x > 0 and size.z > 0, "Seeded box size must be positive on every axis.")
-            -- The creator only tracks one uniform X/Y "size" scalar (see
-            -- creatorParamCycles); a non-square seed box's Y size is dropped,
-            -- which only matters as a starting point the player can re-adjust.
+            -- The creator tracks one uniform X/Y "size"; a non-square seed's Y is dropped (re-adjustable).
             state.size = size.x
             state.height = size.z
         end
@@ -1222,10 +1085,7 @@ local function creatorCanConfirm(state)
     return state.center ~= nil
 end
 
--- state.zOffset is applied HERE rather than being folded into state.center at
--- placement time, so it stays independently adjustable: re-placing the zone
--- (aim + E) keeps whatever elevation was dialled in, and scrolling zOffset
--- doesn't have to un-apply a previous value.
+-- state.zOffset is applied here, not folded into state.center, so it stays independently adjustable.
 local function raise(v, dz)
     return { x = v.x, y = v.y, z = v.z + dz }
 end
@@ -1243,8 +1103,7 @@ local function creatorOpts(state)
         return { coords = raise(state.center, state.zOffset), radius = state.radius }
     end
 
-    -- Poly has no single centre to shift, so every point moves together --
-    -- which keeps the footprint identical and just slides the height band.
+    -- Poly has no single centre, so every point moves together.
     local points = {}
     for i = 1, #state.points do
         local point = state.points[i]
@@ -1254,11 +1113,7 @@ local function creatorOpts(state)
     return { points = points, thickness = state.thickness }
 end
 
--- Builds a scratch zone-shaped table (reusing initBox/initSphere/initPoly, the
--- same functions real zones are built with) purely so drawDebugFn can render
--- the in-progress shape exactly like a normal `debug = true` zone. Delegates
--- "is there enough placed yet to preview" to creatorCanConfirm rather than
--- re-deriving the same rule with separate logic that could drift out of sync.
+-- Builds a scratch zone (reusing initBox/initSphere/initPoly) so drawDebugFn can render the in-progress shape; creatorCanConfirm decides if enough is placed.
 local function buildPreviewZone(state)
     if not creatorCanConfirm(state) then return nil end
 
@@ -1267,9 +1122,7 @@ local function buildPreviewZone(state)
     return scratch
 end
 
----Tears the creator down and settles its promise with `value` -- shared by
----both a successful confirm (`{ type, opts }`) and a cancel (`nil`), which
----otherwise differed only in which value they resolved with.
+---Tears the creator down and settles its promise with `value` (`{ type, opts }` on confirm, `nil` on cancel).
 ---@param value any
 local function releaseCreatorUi(state)
     if state and state.instructions then
@@ -1295,34 +1148,13 @@ local function resolveCreator(value)
     end
 end
 
--- Shift reverses the cycle direction (Shift+Tab steps backwards) and speeds up
--- scroll-adjustment (Shift+scroll moves shiftMultiplier times faster) -- rotate
--- in particular is painfully slow to dial in a full turn one rotationStep at a
--- time, and the same goes for nudging size/zOffset/etc. in bigger increments.
--- Checked at keypress/scroll time rather than being its own keybind because
--- RegisterKeyMapping has no modifier syntax to bind "Shift+Tab"/"Shift+Scroll"
--- with in the first place.
+-- Shift reverses the cycle direction and speeds up scroll adjustment (shiftMultiplier). It's checked at
+-- keypress/scroll time because RegisterKeyMapping has no modifier syntax.
 --
--- IsRawKeyDown reads the physical Shift key (VK_SHIFT = 0x10) and so can't be
--- thrown off by a rebound sprint control, but it isn't present on every
--- client build -- hence the guarded call and the INPUT_SPRINT (21) fallback.
---
--- IMPORTANT: this must be IsRawKeyDown, not IsRawKeyPressed. Despite the
--- name, IS_RAW_KEY_PRESSED is edge-triggered -- true only on the single frame
--- the key transitions from up to down, mirroring IS_RAW_KEY_RELEASED's "was
--- just released" -- while IS_RAW_KEY_DOWN is the level/held check ("is
--- currently down"). Using PRESSED here meant shiftHeld() was true for at
--- most one frame per keypress, so it essentially never lined up with a
--- scroll tick and the multiplier was never perceptible.
--- Both signals are checked and OR'd together, not "raw first, control as
--- fallback-on-error": IsRawKeyDown(16) can exist and execute without erroring
--- yet still never report true for a real Shift press (its raw key codes don't
--- reliably line up with the generic VK_SHIFT constant on every client build),
--- and a pcall can't tell "the native is missing" apart from "the native ran
--- and says false". Trusting a clean `false` from it unconditionally silently
--- disabled Shift detection entirely on those builds. IsControlPressed(0, 21)
--- (Sprint, bound to Shift by default) is checked unconditionally instead, so
--- a working raw-key build gains nothing and a broken one still gets Shift.
+-- IMPORTANT: use IsRawKeyDown, not IsRawKeyPressed: PRESSED is edge-triggered (one frame per keypress), so it
+-- almost never lined up with a scroll tick. Raw keys aren't on every client build and IsRawKeyDown(16) can run
+-- yet never report true, and a pcall can't tell "missing" from "false", so IsControlPressed(0, 21) (Sprint,
+-- Shift by default) is OR'd in unconditionally.
 local function shiftHeld()
     local ok, pressed = pcall(function() return IsRawKeyDown(16) end)
     if ok and pressed == true then return true end
@@ -1330,11 +1162,7 @@ local function shiftHeld()
     return IsControlPressed(0, 21)
 end
 
--- Unmultiplied per-tick step for whichever param is currently active -- 0 for
--- "editPoint" since it's a mode, not a value. Shared by adjustActiveParam
--- (which still applies its own direction/shiftMultiplier/clamping) and
--- creatorHudSnapshot, so the HUD's displayed step can never drift out of
--- sync with what a scroll tick actually does.
+-- Unmultiplied per-tick step for the active param (0 for the "editPoint" mode); shared with creatorHudSnapshot so the HUD step matches.
 local function activeParamBaseStep(state)
     local param = creatorParamCycles[state.type][state.activeParam]
     if param == "editPoint" then return 0 end
@@ -1348,19 +1176,15 @@ local function adjustActiveParam(state, direction)
     local multiplier = shiftHeld() and step.shiftMultiplier or 1
 
     if param == "editPoint" then
-        -- A mode, not a value: point selection is driven by the place/undo
-        -- keys (pick up/drop/cancel), so there's nothing for the scroll wheel
-        -- to nudge here.
+        -- A mode, not a value: driven by the place/undo keys, nothing for scroll to nudge.
         return
     elseif param == "rotation" then
         state.rotation = (state.rotation + direction * step.rotationStep * multiplier) % 360
     elseif param == "zOffset" then
-        -- Signed on purpose -- unlike the size params below, negative is
-        -- meaningful (sinking a zone beneath the surface it was placed on).
+        -- Signed on purpose: negative sinks a zone beneath its placement surface.
         state.zOffset = state.zOffset + direction * step.sizeStep * multiplier
     else
-        -- size/height/radius/thickness all move the same way: nudge by
-        -- sizeStep, clamped so it can never reach zero/negative.
+        -- Nudged by sizeStep, clamped so it never reaches zero/negative.
         state[param] = math.max(step.sizeStep, state[param] + direction * step.sizeStep * multiplier)
     end
 
@@ -1381,24 +1205,18 @@ local function creatorHudSnapshot(state, aiming)
         radius = state.radius,
         thickness = state.thickness,
         zOffset = state.zOffset,
-        -- 0 rather than nil: a nil-valued key is simply absent once serialized,
-        -- so the HUD could never tell "no point grabbed" from "field missing".
+        -- 0 rather than nil: a nil key is absent once serialized, so the HUD couldn't tell "none grabbed" from "missing".
         editIndex = state.editIndex or 0,
         grabbing = state.grabbing,
         canConfirm = creatorCanConfirm(state),
         aiming = aiming,
-        -- Surfaced so the HUD can actually show shift doing something instead
-        -- of it being an invisible, easy-to-doubt modifier: isShiftHeld drives
-        -- a visible indicator, stepSize is what one scroll tick currently
-        -- moves the active param by (already shiftMultiplier-scaled).
+        -- Surfaced so the HUD can show the shift modifier: isShiftHeld, and stepSize (already shiftMultiplier-scaled).
         isShiftHeld = shift,
         stepSize = activeParamBaseStep(state) * (shift and Config.zones.creator.shiftMultiplier or 1),
     }
 end
 
--- Manual field comparison instead of json.encode-ing both sides -- this runs
--- every frame purely to answer "did anything change", so it should be cheaper
--- than a full serialize-and-compare of a table this small and flat-shaped.
+-- Manual field comparison: this runs every frame to detect changes, cheaper than json.encode-ing both sides.
 local function hudSnapshotsEqual(a, b)
     if not b then return false end
 
@@ -1420,9 +1238,7 @@ local function hudSnapshotsEqual(a, b)
         and a.stepSize == b.stepSize
 end
 
--- Runs inside a RegisterCommand handler's own coroutine, so Citizen.Await
--- inside Kora.nui.withFocus's fn suspends this call until the dialog responds
--- without blocking the creator's separate per-frame preview thread.
+-- Runs in a RegisterCommand coroutine, so Citizen.Await inside Kora.nui.withFocus suspends only this call, not the preview thread.
 local function openConfirmDialog(state)
     local opts = creatorOpts(state)
     local snippet = Kora.zones.generateSnippet(state.type, opts)
@@ -1448,14 +1264,8 @@ local function openConfirmDialog(state)
     -- otherwise ("keep editing"): creatorState is untouched, the preview thread carries on
 end
 
--- In editPoint mode the place key is a two-step pick-up/drop instead of a
--- single click: the first press grabs whichever point is currently hovered
--- (freezing it in `grabbing`, below, so flying elsewhere doesn't re-target
--- it), the second press drops it at the NEW aim and releases the grab. A
--- single-press "move nearest point to wherever you're aiming right now"
--- can't express "carry this one specific point over there" at all, since
--- the moment the camera turns away from the point, it's no longer nearest
--- its own aim.
+-- In editPoint mode the place key is a two-step pick-up/drop: the first press grabs the hovered point (frozen in
+-- `grabbing`), the second drops it at the NEW aim and releases the grab.
 local function creatorPlaceEditPoint(state)
     if state.grabbing then
         local hit, coords = Kora.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
@@ -1466,15 +1276,12 @@ local function creatorPlaceEditPoint(state)
 
         local index = state.editIndex
         if index == nil or state.points[index] == nil then
-            -- The points list changed out from under a grab (e.g. undo while
-            -- grabbing already released it) -- nothing left to drop.
+            -- The points list changed under the grab (e.g. undo released it); nothing left to drop.
             state.grabbing = false
             return
         end
 
-        -- Stored raw, exactly like a freshly placed point: zOffset is
-        -- re-applied on top in creatorOpts, so moving a point on a lifted
-        -- zone doesn't bake the lift in twice.
+        -- Stored raw like a fresh point: zOffset is re-applied in creatorOpts, so a lifted zone isn't lifted twice.
         state.points[index] = coords
         state.grabbing = false
         state.dirty = true
@@ -1516,10 +1323,7 @@ end
 
 local function creatorUndo(state)
     if state.type == "poly" then
-        -- While a point is grabbed, undo cancels the grab (drop it back where
-        -- it started) rather than deleting the last point in the list -- that
-        -- last point is very likely a completely different one from whatever
-        -- is currently being carried around.
+            -- While grabbing, undo cancels the grab rather than deleting the last point (likely a different one).
         if state.grabbing then
             state.grabbing = false
         else
@@ -1532,28 +1336,17 @@ local function creatorUndo(state)
     state.dirty = true
 end
 
--- Shift also reverses the cycle direction (Shift+Tab steps backwards), which
--- matters once a shape has 4 parameters -- tabbing forward three times to get
--- back one is miserable. shiftHeld() itself is defined above, next to
--- adjustActiveParam, which is its other caller.
+-- Shift also reverses the cycle direction (see shiftHeld, defined next to adjustActiveParam).
 local function creatorCycleParam(state)
     local cycle = creatorParamCycles[state.type]
     local step = shiftHeld() and -1 or 1
 
-    -- +#cycle before the modulo keeps the -1 case positive: Lua's % is already
-    -- floor-based (so -1 % 3 == 2), but writing it out means the intent
-    -- survives someone porting this to a language where % follows the sign of
-    -- the dividend instead.
+    -- +#cycle before the modulo keeps the -1 case positive.
     state.activeParam = ((state.activeParam - 1 + step + #cycle) % #cycle) + 1
-    -- No state.dirty here: the active parameter doesn't change the shape
-    -- itself, only which one scroll adjusts -- the HUD field comparison below
-    -- already catches an activeParam change without needing a preview rebuild.
+    -- No state.dirty: the active parameter doesn't change the shape; the HUD comparison catches it.
 end
 
----Registers an owner-tracked zone-creator keybind that only calls
----`handler(creatorState)` while a creator session is active.
----Every qblib_zonecreator_* command follows this exact shape, so it's defined
----once instead of five times.
+---Registers an owner-tracked zone-creator keybind that only calls `handler(creatorState)` while a creator session is active.
 ---@param command string
 ---@param label string
 ---@param key string
@@ -1615,15 +1408,10 @@ registerCreatorKeybind("qblib_zonecreator_movement", "Zone Creator: Toggle Camer
     updateCreatorInstructions(state)
 end)
 
--- Lazily started per creator session (mirrors ensureTickThread/ensureDebugThread
--- above) and self-stops the moment creatorState no longer points at it, whether
--- that's a confirm, a cancel, or the resource stopping entirely.
+-- Lazily started per creator session (like ensureTickThread/ensureDebugThread); self-stops when creatorState no longer points at it.
 local function ensureCreatorThread(state)
     CreateThread(function()
-        -- pcall-wrapped: this loop calls a lot of natives every frame, and
-        -- any one of them erroring would otherwise silently kill this
-        -- coroutine right there, skipping the shared-camera cleanup and radar
-        -- restoration below.
+        -- pcall-wrapped: an erroring native would silently kill this coroutine, skipping camera and radar cleanup below.
         local ok, err = pcall(function()
         while creatorState == state do
             assert(state.freecam and state.freecam.isActive(), "The zone creator freecam stopped unexpectedly.")
@@ -1637,9 +1425,7 @@ local function ensureCreatorThread(state)
                     0.15, 0.15, 0.15, 255, 255, 0, 200, false, false, 2, false, nil, nil, false)
             end
 
-            -- The preview shape only depends on placement/size/rotation state
-            -- (never on the live raycast), so it's only rebuilt when a place/
-            -- undo/adjust actually changed something, not every single frame.
+            -- The preview only depends on placement/size/rotation, never the live raycast, so it's rebuilt only on change.
             if state.dirty then
                 state.cachedPreview = buildPreviewZone(state)
                 state.dirty = false
@@ -1650,43 +1436,27 @@ local function ensureCreatorThread(state)
             local editing = isEditingPoints(state)
 
             if not editing then
-                -- Leaving edit-point mode always drops any in-progress grab --
-                -- there's nowhere left to see/confirm it once the HUD/markers
-                -- for it stop being drawn below.
+                -- Leaving edit-point mode drops any in-progress grab, since its markers stop being drawn.
                 state.grabbing = false
             elseif not state.grabbing then
-                -- Only re-tracked while hovering, not while grabbing: a
-                -- grabbed point stays exactly the one that was picked no
-                -- matter where the camera flies afterward -- only place
-                -- (drop it) or undo (cancel the grab) changes it again.
+                -- Re-tracked only while hovering: a grabbed point stays the picked one until place or undo.
                 state.editIndex = (hit and aimCoords) and nearestPointIndex(state.points, aimCoords) or nil
             end
 
-            -- Points are drawn individually in two cases: below 3, because
-            -- there's no polygon to preview yet and the first two placements
-            -- would otherwise leave the screen unchanged; and while editing,
-            -- because you need to see which vertex is hovered/grabbed. In
-            -- between, the real preview's own debug draw already marks them.
+            -- Points are drawn individually below 3 (no polygon to preview yet) and while editing (to show the hovered/grabbed vertex).
             if state.type == "poly" and (editing or #state.points < 3) then
                 for i = 1, #state.points do
                     local point = state.points[i]
                     local grabbedHere = editing and state.grabbing and i == state.editIndex
                     local hoveredHere = editing and not state.grabbing and i == state.editIndex
 
-                    -- A grabbed point's marker follows the CURRENT aim rather
-                    -- than its last confirmed position -- a live preview of
-                    -- where place (E) will drop it, which is the whole point
-                    -- of being able to fly away and still be "holding" it.
+                    -- A grabbed point's marker follows the CURRENT aim: a live preview of where place will drop it.
                     local drawAt = (grabbedHere and hit and aimCoords) and aimCoords or point
 
-                    -- zOffset only applies to the point's own stored position,
-                    -- not to the aim-following ghost above (the aim is already
-                    -- a real world coordinate, not one that needs raising).
+                    -- zOffset applies only to the stored position, not the aim-following ghost (already a world coordinate).
                     local drawZ = drawAt.z + (drawAt == point and state.zOffset or 0.0)
 
-                    -- Grabbed draws in blue (actively being carried) so it
-                    -- reads as a distinct state from hovered (white, "this is
-                    -- what place would grab next") and idle (red).
+                    -- Grabbed draws blue, hovered white (next to be grabbed), idle red.
                     local size = (grabbedHere or hoveredHere) and 0.45 or 0.25
                     local r, g, b = 255, 60, 60
                     if hoveredHere then r, g, b = 255, 255, 255 end
@@ -1697,8 +1467,7 @@ local function ensureCreatorThread(state)
                 end
             end
 
-            -- Only pushed to the NUI when something actually changed, so the
-            -- HUD doesn't get a message every single frame while nothing moved.
+            -- Only pushed to the NUI when something changed.
             local snapshot = creatorHudSnapshot(state, hit)
             if not hudSnapshotsEqual(snapshot, state.lastHud) then
                 state.lastHud = snapshot
@@ -1706,11 +1475,7 @@ local function ensureCreatorThread(state)
                 updateCreatorInstructions(state)
             end
 
-            -- Re-asserted every frame rather than once at startup: the game
-            -- turns the radar back on by itself on plenty of transitions
-            -- (entering a vehicle, respawning, leaving an interior), so a
-            -- single call at the top would silently stop holding partway
-            -- through a placement session.
+            -- Re-asserted every frame: the game re-enables the radar on many transitions (vehicle, respawn, interior).
             if Config.zones.creator.hideRadar then
                 state.radarManaged = true
                 DisplayRadar(false)
@@ -1723,10 +1488,7 @@ local function ensureCreatorThread(state)
         if not ok then
             creatorLog(("zone creator crashed and was cleaned up: %s"):format(tostring(err)))
 
-            -- A crash left creatorState pointing at this now-dead session --
-            -- clear it so a fresh Kora.zones.startCreator isn't rejected as
-            -- "already running" forever, and reject the dangling promise
-            -- rather than leaving a caller's Await suspended indefinitely.
+            -- Clear the dead session so a new startCreator isn't rejected as "already running", and reject the dangling promise.
             if creatorState == state then
                 creatorState = nil
                 state.promise:reject(("zone creator crashed: %s"):format(tostring(err)))
@@ -1736,9 +1498,7 @@ local function ensureCreatorThread(state)
         releaseCreatorUi(state)
         releaseCreatorCamera(state)
 
-        -- Restore only the state this creator changed. Forcing the radar on
-        -- here overrides a HUD resource (or the player's existing hidden
-        -- state) when it was already hidden before the creator opened.
+        -- Restore only what this creator changed; forcing the radar on would override a HUD resource that had hidden it.
         restoreCreatorRadar(state)
 
         Kora.nui.send("zoneCreator:hud", nil)
@@ -1746,13 +1506,8 @@ local function ensureCreatorThread(state)
     end)
 end
 
--- A restart of THIS resource (kora_lib itself, not whichever resource called
--- Kora.zones.startCreator) kills the creator's thread outright -- no pcall, no
--- loop-exit path, and no cleanup below either runs for that, since the
--- coroutine is simply gone. Without this, a player mid-session when kora_lib
--- restarts is left frozen in place with a scripted camera stuck on screen
--- until they reconnect. Immediate, not eased: there's no gameplay camera
--- transition worth easing into when the resource providing it is already gone.
+-- Restarting THIS resource kills the creator thread with no cleanup, leaving the player frozen with a scripted
+-- camera until reconnect, so tear it down immediately (no easing) on stop.
 AddEventHandler('onClientResourceStop', function(resourceName)
     if not creatorState then return end
 
@@ -1767,8 +1522,7 @@ AddEventHandler('onClientResourceStop', function(resourceName)
     restoreCreatorRadar(creatorState)
 end)
 
--- The shared freecam starts from the gameplay view and owns camera/control/
--- player restoration. The creator only retains its native handle for raycasts.
+-- The shared freecam owns camera/control/player restoration; the creator keeps only its handle for raycasts.
 local function startCreatorCamera()
     local freecam, err = Kora.freecam.start({
         moveSpeed = Config.zones.creator.cameraMoveSpeed,
@@ -1807,11 +1561,8 @@ local function beginCreator(zoneType, resource, existingOpts)
     return state.promise
 end
 
----Starts the in-world zone creator: aim and press the placement key to mark
----points, adjust size/rotation/radius/thickness with the scroll wheel (the
----cycle key switches which parameter scroll adjusts), then confirm to open a
----summary dialog with the generated Kora.zones.<type>({...}) snippet and a
----copy-to-clipboard button.
+---Starts the in-world zone creator: aim and place points, adjust with the scroll wheel (the cycle key picks the
+---parameter), then confirm for a dialog with the generated Kora.zones.<type>({...}) snippet and a copy button.
 ---@param zoneType "box" | "sphere" | "poly"
 ---@param existingOpts? table Seeds the creator from an existing zone's opts (same shape Kora.zones.<type>() takes) -- e.g. `Kora.zones.startCreator("box", myZoneOpts)` to reposition/resize `myZoneOpts` instead of starting empty. Validated like the real constructors; malformed values raise synchronously.
 ---@return promise|any result Resolves/returns { type, opts } once confirmed, or nil if cancelled, for a same-VM
@@ -1841,29 +1592,19 @@ function Kora.zones.startCreator(zoneType, existingOpts)
         return settleForExport(p)
     end
 
-    -- Captured now, synchronously, while GetInvokingResource() still reflects
-    -- the caller that reached across the exports boundary -- by the time the
-    -- player actually confirms (seconds/minutes later, via a keypress with no
-    -- export call in progress), GetInvokingResource() would just return nil.
+    -- Captured synchronously while GetInvokingResource() still names the caller; it's nil by the time the player confirms.
     return settleForExport(beginCreator(zoneType, GetInvokingResource() or GetCurrentResourceName(), existingOpts))
 end
 
----Whether a zone creator session currently owns player input (camera fly,
----place/undo/cycle keybinds). Consulted by other resources whose own
----keybind collides with a creator keybind by default -- e.g. kora_inventory's
----TAB-bound inventory toggle vs. qblib_zonecreator_cycle -- so the second
----handler can bail instead of firing alongside the creator's.
+---Whether a zone creator session currently owns player input. Lets resources with a colliding default keybind (e.g.
+---kora_inventory's TAB vs qblib_zonecreator_cycle) bail instead of firing alongside the creator.
 ---@return boolean
 function Kora.zones.isCreatorActive()
     return creatorState ~= nil
 end
 
--- No-args toggle direction: "any zone currently drawing debug" flips
--- everything off, otherwise flips everything on. Reads debugZones directly
--- (rather than tracking a separate on/off flag of its own) so it stays
--- correct even after a resource has been calling Kora.zones.setDebug per-zone
--- behind this command's back -- there's no separate piece of state that
--- could drift out of sync with what's actually drawing.
+-- No-args toggle: if any zone is drawing debug, turn everything off, else on. Reads debugZones directly so it
+-- stays correct when Kora.zones.setDebug was used per-zone.
 RegisterCommand("qb_zonedebug", function(_, args)
     local arg = args[1] and tostring(args[1]):lower() or nil
     local enabled
@@ -1888,13 +1629,8 @@ end, false)
 ---@field onEnter? fun(zone: table)|false New enter callback, or false to remove it.
 ---@field onExit? fun(zone: table)|false New exit callback, or false to remove it.
 
----Edits an existing zone without replacing its handle.
----
----Only `coords`, `onEnter`, and `onExit` can be changed.
----Shape properties such as size, radius, rotation, points, and thickness
----cannot be modified through this function.
----
----Pass `false` for `onEnter` or `onExit` to remove the existing callback.
+---Edits an existing zone without replacing its handle. Only `coords`, `onEnter` and `onExit` can change; pass
+---`false` for a callback to remove it.
 ---@param handle QBZoneHandle
 ---@param opts QBZoneEditOptions
 ---@return QBZoneHandle? handle The same handle passed to the function, or nil for a foreign zone.

@@ -1,70 +1,20 @@
--- Drop-in compatibility bridge: translates the real, public qb-radialmenu API
--- (exports['qb-radialmenu']:AddOption/RemoveOption, the
--- 'qb-radialmenu:client:AddOption'/'qb-radialmenu:client:RemoveOption' net
--- events, and the fixed keybind that opens the wheel) onto
--- Kora.nui.openRadialMenu, kora_lib's own native replacement. qb-radialmenu itself
--- is being deprecated in favour of Kora.nui.openMenu/openContextMenu/
--- openRadialMenu -- this file exists so a script written against
--- exports['qb-radialmenu']:... keeps working unmodified while it migrates,
--- exactly the same shape of shim as compat/client/qb-menu.lua and
--- compat/client/qb-input.lua.
+-- Compat bridge: translates exports['qb-radialmenu']:AddOption/RemoveOption, the matching net events and the
+-- wheel keybind onto Kora.nui.openRadialMenu. Field mapping: see modules/nui/docs.md "Legacy compat".
 --
--- SHAPE MISMATCH, read before touching this file: real qb-radialmenu is a
--- GLOBAL, PERSISTENT menu -- other resources register/unregister options
--- into one shared wheel over time via AddOption/RemoveOption, and the player
--- opens it whenever they want via a fixed keybind. Kora.nui.openRadialMenu is a
--- ONE-SHOT, per-call menu -- a caller builds an items list and awaits a
--- single result. There is no primitive on Kora.nui for "a menu that's already
--- open and waiting, built from whatever's currently registered" -- so this
--- file keeps its own registry of currently-registered options and only
--- actually calls Kora.nui.openRadialMenu when the keybind fires, translating
--- the registry to an items list at that moment. See modules/nui/docs.md's
--- "Legacy compat" section for the field-by-field mapping table and this
--- caveat spelled out again.
+-- SHAPE MISMATCH: upstream is a global, persistent wheel that scripts add to over time, while
+-- Kora.nui.openRadialMenu is one-shot per call. This file keeps its own registry of options and only calls
+-- openRadialMenu when the keybind fires, translating the registry to items at that moment.
 --
--- Also note: Kora.nui.openRadialMenu never takes x/y (it always opens
--- centered) -- real qb-radialmenu has no notion of screen position either
--- (it always opens centered on the player's cursor/screen), so nothing is
--- lost there. `opts.radius` is left at Kora.nui's default; nothing in
--- qb-radialmenu's public surface configures it.
+-- Kora.nui.openRadialMenu always opens centered, as upstream does; `opts.radius` stays at Kora.nui's default.
 --
--- BUILT-IN CONTENT: real qb-radialmenu's own main.lua also injects a set of
--- default options into the wheel every time it opens -- a job-specific
--- "Work" submenu (Config.JobInteractions), a "Vehicle" submenu (doors/
--- extras/seats/flip), and a police/EMS-only "Emergency Button" replacing the
--- whole wheel while downed. All three are reproduced below (see "built-in
--- wheel content" further down), registered through this file's OWN AddOption
--- so they share the exact same registry/translation/dispatch path a
--- third-party script's AddOption call would. Two things are deliberately
--- NOT reproduced:
---   * Most of real qb-radialmenu's default Config.JobInteractions content
---     (tow/taxi/mechanic/hotdog jobs, and most of the police entries) --
---     those fire events owned by companion job resources this environment
---     doesn't run, or need an aimed-at/nearby TARGET player the wheel's own
---     event payload never carries. See config.lua's Config.radialmenuCompat
---     comment for exactly what's wired up instead and why.
---   * qb-radialmenu's own stretcher.lua/trunk.lua/clothing.lua submodules --
---     these are ambulance/police/character-creation FEATURES bundled into
---     the real resource, not part of the generic AddOption/RemoveOption API
---     surface, and this environment's kora_ambulance/qbclothing already own
---     equivalent functionality through their own (differently-shaped)
---     mechanisms.
---
--- Nested submenus are what makes the built-in content possible at all: a
--- registered option's own `items` (array of the same option shape --
--- exactly how upstream's "Work"/"Vehicle" branches are built) translates
--- recursively onto Kora.nui's native `item.submenu = {title, items}` -- see
--- translateOption below.
+-- Built-in content (job "Work" submenu, "Vehicle" submenu, police/EMS emergency button) is registered through
+-- this file's own AddOption so it shares the third-party path. Not reproduced: most of upstream's
+-- Config.JobInteractions (they fire companion-resource events or need a target player; see
+-- Config.radialmenuCompat) and the stretcher/trunk/clothing submodules (owned by kora_ambulance/qbclothing).
+-- Nested `items` translate recursively onto Kora.nui's `item.submenu = {title, items}` (see translateOption).
 
--- Kora.compat.provideExport registers the hidden CFX export event under the
--- legacy `qb-radialmenu` identity; `provide 'qb-radialmenu'` alone only
--- satisfies dependency checks.
-
--- Warned once per resource run -- same reasoning as qb-menu compat's
--- warnIconOnce: real qb-radialmenu options carry a Font Awesome `icon` class
--- string; Kora.nui.openMenu-shaped items' `icon` expects a lucide-react name
--- (web/src/lib/icon.ts), and the two vocabularies don't overlap. Dropped
--- rather than mistranslated.
+-- Registers the hidden CFX export event under the legacy `qb-radialmenu` identity; `provide` alone only satisfies dependency checks.
+-- Warned once per resource run: Font Awesome `icon` classes don't map onto Kora.nui's lucide names, so icons are dropped.
 local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
@@ -73,43 +23,22 @@ local function warnIconOnce()
         .. "Kora.nui's lucide icon names -- icons are dropped. Only shown once per session.")
 end
 
--- `iconAnimation` (a CSS/animate.css-style spin/pulse class in real
--- qb-radialmenu) has no equivalent at all on Kora.nui's item schema -- it's
--- purely decorative on top of the already-dropped icon, so it's silently
--- ignored rather than given its own warning on top of warnIconOnce.
+-- `iconAnimation` has no equivalent on Kora.nui's item schema and is silently ignored.
 
--- The persistent registry this file stands in for the real resource's own
--- internal state. `order` keeps registration order (also used for `top`
--- promotion below); `byId` is keyed by the same stringified id for O(1)
--- lookup on both RemoveOption and dispatch.
+-- Persistent registry standing in for upstream's internal state; `order` preserves registration order,
+-- `byId` gives O(1) lookup for RemoveOption and dispatch.
 local order = {}
 local byId = {}
 
--- Real qb-radialmenu options are usually given their own `id` by the caller
--- (so a later RemoveOption(id) can find them again); when one isn't
--- supplied, forks generally generate one and hand it back from AddOption.
--- Mirrored here with a simple per-session counter -- collisions with a
--- caller-supplied id are not guarded against, same as most real forks.
+-- Auto-generated ids use a per-session counter; collisions with caller-supplied ids are not guarded against.
 local nextGeneratedId = 0
 local function generateId()
     nextGeneratedId = nextGeneratedId + 1
     return ("radial_%d"):format(nextGeneratedId)
 end
 
--- Real qb-radialmenu options can carry their OWN nested `items[]` (an array
--- of the same option shape) to form a submenu -- e.g. upstream's own
--- main.lua builds a "Work"/"Vehicle" branch this way, and third-party
--- scripts do the same for any grouped set of actions. Kora.nui's radial menu
--- natively supports arbitrary submenu depth via `item.submenu = {title,
--- items}` (web/src/components/menu/RadialMenu.tsx), so nesting translates
--- directly instead of needing its own emulation the way the persistent
--- top-level registry does (see this file's header comment). Every LEAF
--- option encountered at any depth -- one with no `items` of its own -- is
--- indexed into `leafById` so dispatch can resolve the selection result
--- purely by id regardless of how deep it was nested; ids are unique across
--- this whole registry (auto-generated and persisted back onto the option the
--- same way AddOption does for top-level ones), so a flat lookup is enough
--- even though Kora.nui's result also carries the full root-to-leaf `path`.
+-- Options may carry nested `items[]`, which translate directly onto Kora.nui's `item.submenu = {title, items}`.
+-- Every leaf at any depth is indexed into `leafById`; ids are unique across the registry, so a flat lookup suffices.
 local function translateOption(option, leafById)
     if option.icon then warnIconOnce() end
 
@@ -121,8 +50,7 @@ local function translateOption(option, leafById)
     if type(option.items) == "table" and #option.items > 0 then
         local children = {}
         for childIndex = 1, #option.items do
-            local child = option.items[childIndex]
-            children[#children + 1] = translateOption(child, leafById)
+            children[#children + 1] = translateOption(option.items[childIndex], leafById)
         end
         translated.submenu = { title = option.title or option.label, items = children }
     else
@@ -132,14 +60,8 @@ local function translateOption(option, leafById)
     return translated
 end
 
--- Maps the currently-registered top-level options onto one
--- Kora.nui.openMenu-shaped items list (openRadialMenu takes the same item
--- schema), recursing into any nested `items` via translateOption above.
--- `top = true` options are moved to the front, stable within each group --
--- the closest flat-list equivalent of "pin near the top of the wheel"; note
--- this is NOT a real qb-radialmenu field (upstream has no such concept at
--- all) -- it's an additive convenience this compat layer accepts, which real
--- qb-radialmenu would simply ignore since it never reads `.top`.
+-- Maps the registered top-level options onto an openMenu-shaped items list, recursing via translateOption.
+-- `top = true` options move to the front (stable); that field is a compat addition upstream ignores.
 local function translateItems(leafById)
     local topItems, restItems = {}, {}
 
@@ -161,16 +83,9 @@ local function translateItems(leafById)
     return items
 end
 
--- Selecting an option fires `option.onSelect(option)` if given, otherwise
--- `option.event` -- TriggerServerEvent if `option.type == "server"`,
--- TriggerEvent otherwise (mirrors qb-menu compat's dispatch and real
--- qb-radialmenu's own client/server event split). An option with neither
--- just closes the wheel, same as an item with no `params.event` in qb-menu.
--- The option's own table is passed as the event's argument -- real
--- qb-radialmenu's selectItem NUI callback always does `TriggerEvent(data.
--- event, data)` / `TriggerServerEvent(data.event, data)`, and its own
--- handlers (e.g. qb-radialmenu:client:openDoor reading `data.id`) depend on
--- getting that table back, not just a bare event with no payload.
+-- Selecting fires `option.onSelect(option)` if given, else `option.event` (server event when
+-- `option.type == "server"`). The option table itself is passed as the event argument because upstream
+-- handlers (e.g. openDoor reading `data.id`) depend on it. No handler just closes the wheel.
 local function dispatch(option)
     if not option then return end
 
@@ -185,14 +100,8 @@ local function dispatch(option)
 
     if not option.event then return end
 
-    -- Real qb-radialmenu's selectItem callback supports four `type` values
-    -- (client/server/command/qbcommand, exactly mirroring qb-menu compat's
-    -- own params.isServer/isCommand/isQBCommand dispatch) -- command/
-    -- qbcommand were previously missing here entirely. Unlike upstream
-    -- (which does nothing for any OTHER type, including a missing one),
-    -- anything not "server"/"command"/"qbcommand" still falls through to
-    -- client dispatch -- a harmless, more forgiving default for options that
-    -- never set `type` at all, kept from before this fix.
+    -- Types: client/server/command/qbcommand. Unlike upstream, any other (or missing) type falls through
+    -- to client dispatch.
     if option.type == "server" then
         TriggerServerEvent(option.event, option)
     elseif option.type == "command" then
@@ -204,23 +113,9 @@ local function dispatch(option)
     end
 end
 
--- Real qb-radialmenu's AddOption registers one item into the global wheel
--- and returns its id so the caller can RemoveOption it later. Two DIFFERENT
--- conventions share this same second positional argument slot across the
--- ecosystem, so both are honoured:
---   * qbcore-framework/qb-radialmenu's own `main.lua` signature is
---     `AddOption(data, id)` -- `id`, when given, is an explicit slot to
---     register/update at (`local menuID = id ~= nil and id or
---     (#DynamicMenuItems + 1)`), used internally by its own SetupJobMenu/
---     SetupVehicleMenu to update an existing entry in place rather than
---     appending a duplicate one every time the wheel opens.
---   * Other forks instead use the second argument as `shouldClose`, a plain
---     boolean.
--- A boolean second argument is unambiguous (real qb-radialmenu never passes
--- one as `id`), so that's the discriminator: boolean -> shouldClose (unless
--- `option.shouldClose` is already set, which wins as the more explicit of
--- the two), anything else non-nil -> the explicit id, exactly like upstream.
--- Defaults to true (select -> wheel closes) same as real qb-radialmenu.
+-- Registers one option and returns its id. The second positional argument is overloaded across forks:
+-- a boolean is `shouldClose` (an explicit `option.shouldClose` wins), anything else non-nil is the explicit
+-- slot id, as in upstream's `AddOption(data, id)`. shouldClose defaults to true.
 local function addOption(option, second)
     assert(type(option) == "table", "qb-radialmenu compat: AddOption requires an option table.")
 
@@ -246,8 +141,7 @@ local function addOption(option, second)
     return id
 end
 
--- Removes a previously-registered option by id. A no-op if the id isn't
--- currently registered (real qb-radialmenu doesn't error on this either).
+-- Removes a registered option by id; a no-op if absent, as upstream.
 local function removeOption(id)
     id = tostring(id)
     if not byId[id] then return end
@@ -262,39 +156,19 @@ local function removeOption(id)
     end
 end
 
--- --- built-in wheel content: Vehicle submenu + per-job Work submenu -------
---
--- Real qb-radialmenu's own main.lua recomputes these two branches fresh
--- every time the wheel is about to open (SetupSubItems, called from
--- SetupRadialMenu, called right before the NUI push) and registers/updates
--- them through its OWN AddOption at a stable slot (jobIndex/vehicleIndex) so
--- repeated opens update the same entry instead of appending duplicates.
--- Mirrored the same way below, using THIS file's own AddOption/RemoveOption
--- (the locals above, not the exported wrappers) so third-party-registered
--- options and these built-ins share exactly one registry/translation/
--- dispatch path -- see openRegisteredRadial further down for where these
--- run, and modules/nui/docs.md's "Legacy compat" section for what's
--- deliberately NOT ported (most job-specific content -- see config.lua's
--- Config.radialmenuCompat comment for exactly why).
+-- Built-in wheel content: Vehicle submenu + per-job Work submenu.
+-- Upstream recomputes these on every open and updates them at a stable slot through its own AddOption;
+-- mirrored here via this file's local AddOption/RemoveOption so built-ins share the third-party path.
 
--- pcall-guarded and framework-agnostic, same reasoning as qb-menu compat's
--- imageFor: kora_lib itself has no player-data concept of its own, so if
--- kora_core isn't running (or a different framework is), this content simply
--- doesn't appear -- the same way real qb-radialmenu would show nothing here
--- without QBCore.Functions.GetPlayerData() ever resolving.
+-- pcall-guarded and framework-agnostic: if kora_core isn't running this content simply doesn't appear.
 local function getPlayerDataPath(path)
     local ok, value = pcall(function() return exports.kora_core:getPlayerData(path) end)
     if ok and type(value) == "table" then return value end
     return {}
 end
 
--- PlayerData.job in THIS environment's kora_core only carries name/label/
--- payment/onduty/isboss/grade (see kora_core's shared/jobs.lua) -- `type`
--- ('leo'/'ems'/'civ', what real qb-core's own PlayerData.job carries and
--- what upstream qb-radialmenu's IsPoliceOrEMS/JobInteractionCheck key off)
--- only lives on the job's REGISTRY record, fetched separately exactly the
--- way that file's own header comment says to: `exports.kora_core:getShared(
--- 'jobs', jobName)`, not PlayerData.job.
+-- PlayerData.job here lacks `type` ('leo'/'ems'/'civ'); it lives on the job's registry record,
+-- fetched via exports.kora_core:getShared('jobs', jobName).
 local function getJobType(jobName)
     if not jobName then return nil end
     local ok, def = pcall(function() return exports.kora_core:getShared("jobs", jobName) end)
@@ -311,13 +185,14 @@ local function getNearestVeh()
     return vehicleHandle
 end
 
--- Door/extra/seat items below carry their own doorIndex/extraIndex/
--- seatIndex field directly, read by the handlers below, rather than real
--- qb-radialmenu's own convention of packing the index into the id string
--- ("door0".."door5") and gsub-parsing it back out in the event handler --
--- these ids are entirely owned by this file (never caller-supplied), so
--- there's no reason to round-trip through string parsing for something a
--- plain integer field already carries safely.
+local function getCurrentOrNearestVeh(ped)
+    local current = GetVehiclePedIsIn(ped)
+    if current and current ~= 0 then return current end
+    return getNearestVeh()
+end
+
+-- Door/extra/seat items carry doorIndex/extraIndex/seatIndex fields directly instead of upstream's
+-- packed id strings ("door0"); these ids are owned by this file so no string round-trip is needed.
 local VEHICLE_DOOR_ITEMS = {
     { id = "door0", title = "Driver Door", doorIndex = 0 },
     { id = "door4", title = "Hood", doorIndex = 4 },
@@ -331,7 +206,7 @@ local VEHICLE_SEAT_LABELS = { [1] = "Driver Seat", [2] = "Passenger Seat", [3] =
 
 RegisterNetEvent("kora_lib:radialmenuCompat:client:openDoor", function(data)
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    local vehicle = getCurrentOrNearestVeh(ped)
     if not vehicle or vehicle == 0 then return end
 
     local door = data.doorIndex
@@ -342,14 +217,8 @@ RegisterNetEvent("kora_lib:radialmenuCompat:client:openDoor", function(data)
     end
 end)
 
--- Simplification vs. real qb-radialmenu's own openDoor handler: upstream
--- round-trips through a server event (qb-radialmenu:trunk:server:Door) to
--- authoritatively open/close another vehicle's doors when the player isn't
--- its occupant, so every client sees the same state. That path depends on
--- upstream's own server/trunk.lua, which isn't ported here (see this file's
--- header comment) -- the natives above still work fine locally either way,
--- they just don't broadcast to other clients when used on a vehicle the
--- player isn't in.
+-- Simplification: upstream round-trips doors through a server event (server/trunk.lua, not ported), so
+-- changes made on a vehicle the player isn't in don't broadcast to other clients.
 RegisterNetEvent("kora_lib:radialmenuCompat:client:setExtra", function(data)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped)
@@ -374,12 +243,8 @@ RegisterNetEvent("kora_lib:radialmenuCompat:client:changeSeat", function(data)
     SetPedIntoVehicle(ped, vehicle, data.seatIndex)
 end)
 
--- Simplification vs. upstream: real qb-radialmenu also gates this on
--- exports['qb-smallresources']:HasHarness() (racing-harness check) -- no
--- resource in this environment exposes that export, and calling a
--- cross-resource export that doesn't exist errors rather than returning
--- nil/false, so it's omitted entirely rather than guarded with a pcall that
--- would just always fall back the same way.
+-- Upstream also gates this on exports['qb-smallresources']:HasHarness(); no resource here exposes it and a
+-- missing cross-resource export errors, so the check is omitted.
 RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     local completed = Kora.progressbar.start({
         label = "Flipping vehicle...",
@@ -390,20 +255,18 @@ RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     if not completed then return end
 
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    local vehicle = getCurrentOrNearestVeh(ped)
     if vehicle and vehicle ~= 0 then SetVehicleOnGroundProperly(vehicle) end
 end)
 
 local VEHICLE_SLOT_ID = "qblib_radialmenu_vehicle"
 local vehicleMenuRegistered = false
 
--- Mirrors real qb-radialmenu's own SetupVehicleMenu: doors + (optionally)
--- extras always show for any nearby/occupied vehicle; a flip option only
--- while it's not sitting on all its wheels; a seats submenu only while the
--- player is actually inside it (switching from outside makes no sense).
+-- Mirrors upstream's SetupVehicleMenu: doors/extras for any nearby or occupied vehicle, flip only when not
+-- on all wheels, seats only while inside.
 local function setupVehicleMenu()
     local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped) ~= 0 and GetVehiclePedIsIn(ped) or getNearestVeh()
+    local vehicle = getCurrentOrNearestVeh(ped)
 
     if not vehicle or vehicle == 0 then
         if vehicleMenuRegistered then
@@ -463,12 +326,8 @@ end
 local JOB_SLOT_ID = "qblib_radialmenu_job"
 local jobMenuRegistered = false
 
--- Mirrors real qb-radialmenu's own SetupJobMenu: shows a "Work" submenu
--- built from Config.radialmenuCompat.jobInteractions[jobKey] only while
--- on duty in a job that has entries configured -- exactly upstream's
--- Config.JobInteractions[JobInteractionCheck] behaviour (JobInteractionCheck
--- itself being the job name, except any 'leo'-type job collapses onto the
--- 'police' key, same override upstream applies).
+-- Mirrors upstream's SetupJobMenu: a "Work" submenu from Config.radialmenuCompat.jobInteractions[jobKey]
+-- while on duty; any 'leo'-type job collapses onto the 'police' key.
 local function setupJobMenu(job, jobType)
     local jobKey = jobType == "leo" and "police" or job.name
     local entries = jobKey and Config.radialmenuCompat.jobInteractions[jobKey]
@@ -489,19 +348,13 @@ end
 -- on top of one that's already open and awaiting the player.
 local isOpen = false
 
--- Opens the wheel from whatever's currently registered, dispatches the
--- selection, and -- if the selected option's `shouldClose` is false --
--- reopens immediately to approximate real qb-radialmenu's "wheel stays open
--- for chained selections" behaviour. Kora.nui.openRadialMenu has no concept of
--- staying open across a selection (it's one-shot), so this is a best-effort
--- emulation via a fresh request rather than a truly persistent NUI state.
+-- Opens the wheel from the current registry and dispatches the selection. If `shouldClose` is false it
+-- reopens with a fresh request, approximating upstream's chained-selection wheel (openRadialMenu is one-shot).
 local function openRegisteredRadial()
     if isOpen then return end
 
-    -- Matches real qb-radialmenu's own RegisterCommand('radialmenu', ...)
-    -- gate: a downed player can only reach the wheel at all to get to the
-    -- emergency button below (police/EMS only) -- everyone else is blocked
-    -- outright while downed, handcuffed, or the pause menu is open.
+    -- Mirrors upstream's gate: a downed player may only reach the police/EMS emergency button;
+    -- everyone else is blocked while downed, handcuffed, or in the pause menu.
     local metadata = getPlayerDataPath({ "metadata" })
     local downed = metadata.isdead == true or metadata.inlaststand == true
     local job = getPlayerDataPath({ "job" })
@@ -569,13 +422,7 @@ AddEventHandler("onClientResourceStop", function(resource)
     for i = 1, #owned do removeOption(owned[i]) end
 end)
 
--- Real qb-radialmenu opens on a fixed keybind rather than a script-triggered
--- call -- there's no Kora.nui hook for "open whatever's registered", so this
--- owns one Kora.keybind definition. "F1" matches
--- qbcore-framework/qb-radialmenu's own config.lua default (`Config.Keybind =
--- 'F1'`) -- some forks differ, and it's always rebindable by the player from
--- FiveM's own Settings > Key Bindings regardless of what's set here, so this
--- is a best-effort default rather than a guarantee every fork matches it.
+-- Upstream opens on a fixed keybind; "F1" is its default. Players can rebind it in FiveM's Key Bindings.
 Kora.keybind.add({
     name = 'qblib_radialmenu_open',
     description = 'Open Radial Menu',

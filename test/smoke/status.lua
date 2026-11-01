@@ -171,18 +171,11 @@ harness.test("server apply pushes the effect to the client, which renders it", f
     clientRemove("high_weed")
 end)
 
--- From here on, tests care about SERVER-side timer bookkeeping in isolation.
--- Neutralize the push-delivered client renderer: in this single-process mock,
--- server->client push delivery is synchronous, so a duration-bearing apply
--- would otherwise make the CLIENT's own "auto-remove after `duration`"
--- CreateThread advance the same shared mock clock the server's expiresAt was
--- just computed against -- landing exactly on the boundary and making an
--- effect look already-expired the instant it's applied. Real deployments
--- never hit this (client/server clocks are genuinely independent processes);
--- it's purely an artifact of this mock's single shared clock, which the
--- "server apply pushes..." test above already covered honestly. The
--- previously captured `clientApply`/`clientRemove`/`clientIsActive` locals
--- are unaffected -- they still call the real client implementation directly.
+-- From here on, tests cover SERVER-side timer bookkeeping in isolation. Neutralize the
+-- push-delivered client renderer: push delivery is synchronous in this mock, so the client's
+-- auto-remove thread would advance the shared mock clock and make an effect look expired
+-- the instant it is applied (real client/server clocks are independent). The captured
+-- clientApply/clientRemove/clientIsActive locals still call the real client implementation.
 Kora.status.apply = function() end
 Kora.status.remove = function() end
 

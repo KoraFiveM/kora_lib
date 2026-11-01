@@ -20,7 +20,7 @@ local scaleformCalls = {}
 local textureRequests = {}
 local textureReleases = {}
 local textEntryCalls = 0
--- Pharmacy was hidden before the rename: only the deprecated qblib: key exists.
+-- Only the deprecated qblib: key exists, so the category stays hidden via the fallback.
 local resourceKvps = { ['qblib:blips:category:31'] = '0' }
 local nextBlip = 0
 local frontendReady = false

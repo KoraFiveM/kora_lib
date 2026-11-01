@@ -30,10 +30,8 @@ local function discover(command)
 end
 
 local function sourceFiles()
-    -- ripgrep when available, POSIX grep otherwise. rg is not installed
-    -- everywhere this suite runs, and without a fallback this whole contract
-    -- check silently stopped executing -- which is exactly the failure mode it
-    -- exists to catch elsewhere.
+    -- ripgrep when available, POSIX grep otherwise (rg is not installed everywhere, and a
+    -- silent skip would defeat this contract check).
     local files = discover(('cd %q && rg -l %q local modules --glob %q 2>/dev/null'):format(
         repoRoot, '^function Kora\\.', '*.lua'
     )) or discover(('cd %q && grep -rlE %q --include=%q local modules 2>/dev/null'):format(

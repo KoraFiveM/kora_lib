@@ -1,5 +1,4 @@
----Waits until a GlobalState key has a non-nil value, or until the bounded
----timeout expires. `false` is a valid resolved value.
+---Waits until a GlobalState key has a non-nil value or the bounded timeout expires. `false` is a valid value.
 ---@param key string
 ---@param timeoutMs? integer Defaults to 5000.
 ---@param pollIntervalMs? integer Defaults to 50.

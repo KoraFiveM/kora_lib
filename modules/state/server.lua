@@ -1,5 +1,4 @@
--- Kora.state (server realm) -- server-side twin of client.lua. Kept separate so
--- the listener registry and lifecycle event match the realm that owns them.
+-- Kora.state (server realm) -- twin of client.lua, kept separate so the listener registry matches its realm.
 
 local listeners = {}
 

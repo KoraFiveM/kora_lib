@@ -396,13 +396,8 @@ harness.test("submit rejects a request from a player who doesn't own the session
     harness.assertEqual(responseEntry.target, otherSrc, "the response should be addressed to the attacking player")
     harness.assertFalse(responseEntry[2], "a submit from a non-owning player must be rejected (ok = false)")
 
-    -- The mock's TriggerClientEvent doesn't filter by target (only one
-    -- simulated client exists), so the second player's handshake response
-    -- above just overwrote the shared client's own cached token -- replay
-    -- mocks.SOURCE's handshake to resync before using Kora.callback.trigger
-    -- normally again, exactly like test/smoke/callback.lua's own
-    -- "playerDropped clears the token" test does after the same kind of
-    -- token-clobbering.
+    -- The mock's TriggerClientEvent doesn't filter by target, so the second player's handshake
+    -- overwrote the shared client's cached token; replay mocks.SOURCE's handshake to resync.
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
     _G.source = nil

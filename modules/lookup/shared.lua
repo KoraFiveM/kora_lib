@@ -36,9 +36,7 @@ for namespaceIndex = 1, #NAMESPACE_ORDER do
     state.overlay[namespace] = {}
 end
 
--- Realm-specific lookup files share state through this deliberately non-exported
--- table. build/finalise.lua only exports direct function values, so consumers
--- cannot reach it through the Kora proxy.
+-- Shared state between realm files; non-exported because build/finalise.lua only exports function values.
 Kora.lookup._state = state
 
 local trim = Kora.util.trim

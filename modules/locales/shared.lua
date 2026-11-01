@@ -47,9 +47,7 @@ local function loadLocaleFile(resource, language)
     local luaRaw = LoadResourceFile(resource, luaPath)
     if not luaRaw then return nil end
 
-    -- Legacy qb-core locale files register their table through `Locale:new`
-    -- when FiveM executes them. Give those side effects harmless stand-ins so
-    -- the final `return Translations` can also be read by kora_lib on demand.
+    -- Legacy qb-core locale files register via `Locale:new` as a side effect; stub it so their `return Translations` is readable on demand.
     local noopLocale = { new = function() return { addLocale = function() end } end }
     local chunk = load(luaRaw, ('@@%s/%s'):format(resource, luaPath), 't', {
         Locale = noopLocale,
@@ -135,7 +133,6 @@ end
 
 function Kora.lang(key, ...)
     local resource = GetInvokingResource() or GetCurrentResourceName()
-    assert(resource, 'Resource name not found')
     assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')
     return translate(resource, key, ...)
 end

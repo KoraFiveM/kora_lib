@@ -29,10 +29,8 @@ function Kora.status.assertName(name)
         'Status effect name must be a non-empty string of at most 128 bytes.')
 end
 
----Registers a named status-effect definition. Call from a `shared_script` so
----both the client and server VM see the same definition -- Kora.status ships
----no bundled effects of its own, every consumer defines its own (e.g.
----`"bleeding"`, `"limping"`, `"high_weed"`).
+---Registers a named status-effect definition. Call from a `shared_script` so client and server see the same one;
+---Kora.status ships no bundled effects.
 ---@param name string
 ---@param def QBStatusEffectDef
 ---@return boolean registered

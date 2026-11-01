@@ -14,18 +14,14 @@ dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 
--- progressbar talks to the NUI through Kora.nui.send only (see AGENTS.md "UI
--- conventions"), so modules/nui/client.lua needs to be loaded too.
--- RegisterNUICallback/SetNuiFocus are unused by anything exercised here.
+-- progressbar talks to the NUI only through Kora.nui.send, so modules/nui/client.lua is loaded too.
 local nuiMessages = {}
 function _G.SendNUIMessage(msg) table.insert(nuiMessages, msg) end
 _G.RegisterNUICallback = function() end
 _G.SetNuiFocus = function() end
 dofile(repoRoot .. "modules/nui/client.lua")
 
--- Ped/control natives are specific to this module, so they're mocked here
--- rather than in the shared test/mocks.lua, per the root AGENTS.md testing
--- convention.
+-- Ped/control natives are module-specific, so mocked here rather than in test/mocks.lua.
 local dead = false
 local ragdoll = false
 local cuffed = false
