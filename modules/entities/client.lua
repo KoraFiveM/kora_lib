@@ -58,7 +58,6 @@ end)
 -- Scoped entities have their own id space: the id names a persistent scope registration,
 -- while the entity handle changes each time the player re-enters the scope.
 local nextScopeId = 0
-local scopeRegistry
 local scopes = {}
 
 ---Resolves an explicit boolean option against a preset's value for the same
@@ -170,7 +169,7 @@ local function destroyScope(scope)
     if scope.zone then scope.zone.remove() end
 end
 
-scopeRegistry = Kora.resources.registry(function(scopeId)
+local scopeRegistry = Kora.resources.registry(function(scopeId)
     local scope = scopes[scopeId]
     if scope then destroyScope(scope) end
 end)
