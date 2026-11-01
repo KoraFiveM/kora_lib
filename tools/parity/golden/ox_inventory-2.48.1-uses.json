@@ -1,0 +1,87 @@
+{
+  "cache": {
+    "ped": 43,
+    "playerId": 5,
+    "resource": 1,
+    "seat": 7,
+    "serverId": 11,
+    "vehicle": 27
+  },
+  "globals": {
+    "ClearInterval": 2,
+    "SetInterval": 7,
+    "locale": 77
+  },
+  "lib": {
+    "addCommand": 9,
+    "addKeybind": 5,
+    "array": 1,
+    "callback": 1,
+    "callback.await": 15,
+    "callback.register": 17,
+    "cancelProgress": 1,
+    "checkDependency": 11,
+    "context": 1,
+    "cron.new": 1,
+    "getLocales": 1,
+    "getNearbyPlayers": 1,
+    "hideTextUI": 2,
+    "inputDialog": 2,
+    "load": 20,
+    "logger": 13,
+    "math.clamp": 1,
+    "notify": 32,
+    "onCache": 3,
+    "player": 1,
+    "points.getClosestPoint": 1,
+    "points.new": 7,
+    "print.error": 2,
+    "print.info": 3,
+    "print.warn": 1,
+    "progressActive": 4,
+    "progressBar": 2,
+    "progressCircle": 1,
+    "registerHook": 2,
+    "registerMenu": 1,
+    "requestAnimDict": 2,
+    "requestModel": 3,
+    "showMenu": 1,
+    "showTextUI": 2,
+    "table.contains": 2,
+    "versionCheck": 1,
+    "waitFor": 1
+  },
+  "meta": {
+    "tool": "extract_ox_uses"
+  },
+  "mysql": {
+    "MySQL.insert": 1,
+    "MySQL.prepare.await": 15,
+    "MySQL.query": 5,
+    "MySQL.query.await": 11,
+    "MySQL.rawExecute.await": 1,
+    "MySQL.ready": 1,
+    "MySQL.scalar.await": 4,
+    "MySQL.update.await": 1
+  },
+  "oxTarget": {
+    "addBoxZone": 2,
+    "addGlobalVehicle": 1,
+    "addLocalEntity": 1,
+    "addModel": 2,
+    "removeLocalEntity": 1,
+    "removeModel": 1,
+    "removeZone": 3
+  },
+  "oxmysqlExports": [],
+  "summary": {
+    "cacheKeys": 6,
+    "libLoadCalls": 18,
+    "libModules": 32,
+    "libNames": 37,
+    "luaFiles": 42,
+    "mysqlForms": 8,
+    "oxTargetFunctions": 7,
+    "requireCalls": 66
+  }
+}
