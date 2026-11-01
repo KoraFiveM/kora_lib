@@ -10,10 +10,6 @@ local function copyCoords(value, label)
     return { x = value.x, y = value.y, z = value.z }
 end
 
-local function shiftHeld()
-    return IsControlPressed(0, 21)
-end
-
 local function optionNumber(value, fallback, label, allowZero)
     value = value == nil and fallback or value
     assert(isFinite(value) and (allowZero and value >= 0 or value > 0),
@@ -99,7 +95,7 @@ local function run(state)
             local forward = { x = -math.sin(yaw) * flat, y = math.cos(yaw) * flat, z = math.sin(pitch) }
             local right = { x = math.cos(yaw), y = math.sin(yaw), z = 0.0 }
             local forwardBack, strafe = -GetDisabledControlNormal(0, 31), GetDisabledControlNormal(0, 30)
-            local speed = state.moveSpeed * (shiftHeld() and state.fastMultiplier or 1) * GetFrameTime()
+            local speed = state.moveSpeed * (IsControlPressed(0, 21) and state.fastMultiplier or 1) * GetFrameTime()
             local moveForward, moveRight = forwardBack * speed, strafe * speed
             local moveUp = 0.0
             if state.upControl and IsDisabledControlPressed(0, state.upControl) then moveUp = moveUp + speed end
