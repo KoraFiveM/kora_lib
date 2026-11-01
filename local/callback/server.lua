@@ -230,7 +230,7 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
         or requestId == math.huge or requestId == -math.huge then
         return
     end
-    if tokens[src] == nil or tokens[src] ~= token then return end
+    if tokens[src] ~= token then return end
 
     local definition = registry[name]
     if definition == nil then
