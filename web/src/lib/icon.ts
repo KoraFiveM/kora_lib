@@ -71,6 +71,72 @@ import {
     Wallet,
     Wrench,
     X,
+    ArrowDownToLine,
+    ArrowUp,
+    ArrowUpFromLine,
+    Banknote,
+    Building2,
+    Circle,
+    CircleOff,
+    CircleX,
+    ClipboardList,
+    Coins,
+    Cpu,
+    DoorClosed,
+    DoorOpen,
+    Eraser,
+    ExternalLink,
+    Fish,
+    Flame,
+    FlaskConical,
+    Footprints,
+    HandHeart,
+    House,
+    Inbox,
+    KeyRound,
+    Landmark,
+    Languages,
+    Leaf,
+    Link,
+    LockKeyhole,
+    MapPinned,
+    MessageCircle,
+    Mic,
+    Music2,
+    Newspaper,
+    PackageCheck,
+    PackageOpen,
+    PackagePlus,
+    PanelsTopLeft,
+    Pen,
+    Recycle,
+    RefreshCw,
+    Repeat,
+    RotateCcw,
+    Route,
+    Ruler,
+    ScanFace,
+    ScanSearch,
+    Scissors,
+    ShieldCheck,
+    Shirt,
+    Siren,
+    Smile,
+    Sparkles,
+    Store,
+    Syringe,
+    Tag,
+    Terminal,
+    Timer,
+    TrendingDown,
+    TrendingUp,
+    Trophy,
+    Unlink,
+    UserMinus,
+    Warehouse,
+    Waves,
+    Wind,
+
 } from "lucide-react"
 
 // A curated, statically-imported subset of lucide-react rather than
@@ -148,6 +214,71 @@ const ICONS: Record<string, ComponentType<LucideProps>> = {
     Wallet,
     Wrench,
     X,
+    ArrowDownToLine,
+    ArrowUp,
+    ArrowUpFromLine,
+    Banknote,
+    Building2,
+    Circle,
+    CircleOff,
+    CircleX,
+    ClipboardList,
+    Coins,
+    Cpu,
+    DoorClosed,
+    DoorOpen,
+    Eraser,
+    ExternalLink,
+    Fish,
+    Flame,
+    FlaskConical,
+    Footprints,
+    HandHeart,
+    House,
+    Inbox,
+    KeyRound,
+    Landmark,
+    Languages,
+    Leaf,
+    Link,
+    LockKeyhole,
+    MapPinned,
+    MessageCircle,
+    Mic,
+    Music2,
+    Newspaper,
+    PackageCheck,
+    PackageOpen,
+    PackagePlus,
+    PanelsTopLeft,
+    Pen,
+    Recycle,
+    RefreshCw,
+    Repeat,
+    RotateCcw,
+    Route,
+    Ruler,
+    ScanFace,
+    ScanSearch,
+    Scissors,
+    ShieldCheck,
+    Shirt,
+    Siren,
+    Smile,
+    Sparkles,
+    Store,
+    Syringe,
+    Tag,
+    Terminal,
+    Timer,
+    TrendingDown,
+    TrendingUp,
+    Trophy,
+    Unlink,
+    UserMinus,
+    Warehouse,
+    Waves,
+    Wind,
 }
 
 // The full ox_lib Font Awesome catalog is split into fixed prefix chunks. Most
@@ -206,17 +337,24 @@ function lazyFontAwesomeIcon(prefix: IconPrefix, iconName: IconName): ComponentT
     const Icon = ({ className, style, "aria-hidden": ariaHidden }: LucideProps) => {
         const [definition, setDefinition] = useState<IconDefinition>()
         const [FontAwesomeIcon, setFontAwesomeIcon] = useState<typeof FontAwesomeIconType>()
+        const [missing, setMissing] = useState(false)
 
         useEffect(() => {
             let active = true
             void Promise.all([loadFontAwesomePack(prefix), import("@fortawesome/react-fontawesome")]).then(([pack, module]) => {
                 if (!active) return
+                if (!pack[iconName]) {
+                    warnUnknownIcon(iconName)
+                    setMissing(true)
+                    return
+                }
                 setDefinition(pack[iconName])
                 setFontAwesomeIcon(() => module.FontAwesomeIcon)
             }).catch(() => undefined)
             return () => { active = false }
         }, [])
 
+        if (missing) return createElement(Circle, { className, style, "aria-hidden": ariaHidden })
         return definition && FontAwesomeIcon ? createElement(FontAwesomeIcon, {
             icon: definition,
             className,
@@ -258,6 +396,27 @@ function toPascalCase(name: string): string {
  * would resolve truthy and get rendered as "components" -- a render-phase
  * crash that unmounts the whole React root.
  */
+// Lucide has no "Door"; kora resources use it for a closed door.
+const ALIASES: Record<string, string> = { door: "DoorClosed" }
+
+// Loose lookup for case/separator variants ("BriefCase", "brief_case", "Briefcase"
+// all collapse to "briefcase") so a casing typo in a caller still finds the icon.
+const looseIndex = new globalThis.Map<string, string>()
+for (const key of Object.keys(ICONS)) looseIndex.set(key.toLowerCase(), key)
+
+function looseIcon(name: string): ComponentType<LucideProps> | undefined {
+    const loose = name.toLowerCase().replace(/[-_\s]+/g, "")
+    const key = looseIndex.get(loose) ?? looseIndex.get((ALIASES[loose] ?? "").toLowerCase())
+    return key ? ICONS[key] : undefined
+}
+
+const warnedIcons = new Set<string>()
+function warnUnknownIcon(name: string) {
+    if (!import.meta.env.DEV || warnedIcons.has(name)) return
+    warnedIcons.add(name)
+    console.warn(`[kora_lib] unknown icon "${name}", rendering fallback`)
+}
+
 function ownIcon(key: string): ComponentType<LucideProps> | undefined {
     return Object.hasOwn(ICONS, key) ? ICONS[key] : undefined
 }
@@ -265,5 +424,13 @@ function ownIcon(key: string): ComponentType<LucideProps> | undefined {
 export function resolveIcon(name?: string): ComponentType<LucideProps> | null {
     if (!name) return null
     if (isIconImage(name)) return imageIcon(name)
-    return ownIcon(name) ?? ownIcon(toPascalCase(name)) ?? fontAwesomeIcon(name) ?? null
+    const known = ownIcon(name) ?? ownIcon(toPascalCase(name)) ?? looseIcon(name)
+    if (known) return known
+    // Font Awesome names are lowercase kebab-case, so an unknown PascalCase name
+    // is a missing Lucide icon: show the neutral fallback instead of an empty box.
+    if (/^[A-Z]/.test(name) && !name.includes(":")) {
+        warnUnknownIcon(name)
+        return Circle
+    }
+    return fontAwesomeIcon(name) ?? null
 }
