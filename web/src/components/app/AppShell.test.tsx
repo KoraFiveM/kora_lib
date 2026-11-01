@@ -444,6 +444,16 @@ describe("AppShell", () => {
         expect(container.querySelector('img[src="child.png"]')).toHaveStyle({ objectFit: "contain" })
     })
 
+    it("renders wide list thumbnails only when imageAspect is wide", () => {
+        const { container } = render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "list", layout: "list", imageAspect: "wide", items: [
+            { id: "wide", label: "Wide", image: "wide.png", imageFit: "contain" },
+            { id: "square", label: "Square", image: "square.png", imageAspect: "square" },
+        ] }] }))
+        expect(container.querySelector('img[src="wide.png"]')?.parentElement).toHaveClass("w-20")
+        expect(container.querySelector('img[src="square.png"]')?.parentElement).toHaveClass("w-9")
+    })
+
     it("supports fixed table widths and hover details on rich values", () => {
         const { container } = render(<AppShell />)
         openApp(baseApp({ blocks: [{

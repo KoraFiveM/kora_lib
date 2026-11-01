@@ -645,6 +645,7 @@
 ---@field value string|number|boolean
 ---@field tone? QBAppTone
 
+---@alias QBAppImageAspect 'square'|'wide'
 ---@alias QBAppImageFit 'cover'|'contain'|'fill'|'none'|'scale-down'
 
 ---@class QBAppListItem
@@ -658,6 +659,7 @@
 ---@field data? any
 ---@field image? string
 ---@field imageFit? QBAppImageFit Overrides the list block image fit.
+---@field imageAspect? QBAppImageAspect Overrides the list block image aspect.
 ---@field metadata? QBAppMetadataItem[]
 ---@field actions? QBAppAction[]
 ---@field children? QBAppListItem[]
@@ -724,6 +726,7 @@
 ---@field layout? 'list'|'grid'|'cards' List presentation.
 ---@field cardStyle? 'compact'|'media' Grid/card presentation; compact is the default, media uses a full-width image above the content.
 ---@field imageFit? QBAppImageFit List image fit; defaults to cover, individual items may override it.
+---@field imageAspect? QBAppImageAspect List thumbnail shape; defaults to 'square', 'wide' shows a 16:9 thumbnail (compact list/grid rows only), individual items may override it.
 ---@field searchable? boolean Enable client-side filtering.
 ---@field searchPlaceholder? string
 ---@field pageSize? integer Enable client-side paging when positive.

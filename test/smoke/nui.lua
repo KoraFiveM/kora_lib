@@ -676,6 +676,21 @@ harness.test("AppShell validates image fit on collections and nested items", fun
     end
 end)
 
+harness.test("AppShell validates image aspect on collections and items", function()
+    local item = { id = "car", label = "Car", image = "car.png", imageAspect = "wide" }
+    local block = { type = "list", imageAspect = "square", items = { item } }
+    local definition = { id = "smoke:image-aspect", title = "Images", navigation = {
+        { id = "home", label = "Home", content = { blocks = { block } } },
+    } }
+    harness.assertEqual(Kora.nui.registerApp(definition), definition.id, "square and wide aspects should be supported")
+    for _, invalid in ipairs({ "tall", "", false, 42, {} }) do
+        block.imageAspect, item.imageAspect = invalid, "wide"
+        harness.assertThrows(function() Kora.nui.registerApp(definition) end, "invalid collection image aspect must be rejected")
+        block.imageAspect, item.imageAspect = "wide", invalid
+        harness.assertThrows(function() Kora.nui.registerApp(definition) end, "invalid item image aspect must be rejected")
+    end
+end)
+
 harness.test("registerApp accepts bounded progress graph blocks", function()
     local definition = {
         id = "smoke:progress", title = "Progress", navigation = {
