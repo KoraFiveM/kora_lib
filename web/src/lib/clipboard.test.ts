@@ -33,4 +33,20 @@ describe("copyToClipboard", () => {
         expect(execCommand).toHaveBeenCalledWith("copy")
         expect(document.body.querySelector("textarea")).toBeNull()
     })
+
+    it("falls back to the Clipboard API when execCommand fails", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined)
+        Object.assign(navigator, { clipboard: { writeText } })
+        Object.defineProperty(document, "execCommand", { configurable: true, value: vi.fn().mockReturnValue(false) })
+
+        await expect(copyToClipboard("zone data")).resolves.toBe(true)
+        expect(writeText).toHaveBeenCalledWith("zone data")
+    })
+
+    it("resolves false instead of throwing when every path fails", async () => {
+        Object.defineProperty(document, "execCommand", { configurable: true, value: vi.fn().mockReturnValue(false) })
+
+        await expect(copyToClipboard("zone data")).resolves.toBe(false)
+        expect(document.body.querySelector("textarea")).toBeNull()
+    })
 })

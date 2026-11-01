@@ -95,7 +95,9 @@ Copies `text` to the system clipboard via the NUI — the browser is the only pa
 - `text: string`
 
 #### Returns
-- `true` once the browser confirms the write, or `nil` on timeout/error.
+- `true` once the browser confirms the write, `false` if every browser copy path failed or the request timed out. It never raises a script error for a failed copy.
+
+While copying, kora_lib holds a brief cursor-less, input-passthrough NUI focus lease so CEF lets the copy through. Set `Config.nui.clipboardFocus = false` in `config.lua` to copy without taking focus (default `true`).
 
 #### Example
 ```lua

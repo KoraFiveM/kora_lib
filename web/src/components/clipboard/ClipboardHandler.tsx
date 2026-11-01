@@ -12,8 +12,8 @@ import { useNuiEvent } from "@/lib/useNuiEvent"
 export function ClipboardHandler() {
     useNuiEvent<NuiRequestEnvelope<CopyToClipboardPayload>>("copyToClipboard", async (msg) => {
         try {
-            await copyToClipboard(msg.payload.text)
-            respondToNui(msg.requestId, msg.token, true, true)
+            const copied = await copyToClipboard(msg.payload.text)
+            respondToNui(msg.requestId, msg.token, true, copied)
         } catch (error) {
             respondToNui(msg.requestId, msg.token, false, "Failed to copy to clipboard: " + String(error))
         }

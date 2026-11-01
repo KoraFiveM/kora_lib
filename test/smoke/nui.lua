@@ -361,12 +361,32 @@ harness.test("openInputDialog releases focus even when the request is rejected",
     harness.assertFalse(release.mouse or release.keyboard, "a rejected request must still release focus")
 end)
 
-harness.test("copyToClipboard never touches focus", function()
+harness.test("copyToClipboard holds a brief passthrough focus lease and releases it", function()
+    local before = #focusCalls
+    local p = Kora.nui.copyToClipboard("focused")
+    harness.assertTrue(focusCalls[#focusCalls].mouse, "the copy should hold focus so CEF permits execCommand")
+    respondOk(lastRequestId(), true)
+
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "the focus lease should be released once the copy settles")
+    harness.assertTrue(#focusCalls > before, "focus should have been granted and released")
+    harness.assertEqual(p.value, true, "a successful copy resolves true")
+end)
+
+harness.test("copyToClipboard resolves false instead of rejecting when the browser copy fails", function()
+    local p = Kora.nui.copyToClipboard("nope")
+    respondOk(lastRequestId(), false)
+    harness.assertEqual(p.state, "resolved", "a failed copy must not reject")
+    harness.assertEqual(p.value, false, "a failed copy resolves false")
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after a failed copy")
+end)
+
+harness.test("copyToClipboard honours Config.nui.clipboardFocus = false", function()
+    _G.Config = { nui = { clipboardFocus = false } }
     local before = #focusCalls
     Kora.nui.copyToClipboard("invisible")
     respondOk(lastRequestId(), true)
-
-    harness.assertEqual(#focusCalls, before, "an invisible clipboard write should never grant or release focus")
+    _G.Config = nil
+    harness.assertEqual(#focusCalls, before, "no focus should be taken when the option is disabled")
 end)
 
 harness.test("openContextMenu forwards items and an (x, y) anchor", function()

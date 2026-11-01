@@ -2,6 +2,12 @@ Config = {}
 
 Config.third_party_notify = false
 
+Config.nui = {
+    -- Kora.nui.copyToClipboard holds a brief cursor-less NUI focus lease while the browser copies.
+    -- CEF execCommand copy returns false without document focus. Set false to copy unfocused.
+    clipboardFocus = true,
+}
+
 Config.ui = {
     interact = true, -- set false to disable the kora_lib interact-zone module entirely
 }

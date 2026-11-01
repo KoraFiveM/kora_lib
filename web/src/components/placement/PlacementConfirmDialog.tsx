@@ -30,7 +30,7 @@ export function PlacementConfirmDialog() {
         if (!payload) return false
 
         try {
-            await copyToClipboard(payload.snippet)
+            if (!(await copyToClipboard(payload.snippet))) throw new Error("copy failed")
             setCopyState("copied")
             return true
         } catch {

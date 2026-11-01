@@ -969,13 +969,29 @@ function Kora.nui.updateRequest(request, action, data)
 end
 
 ---Copies `text` to the system clipboard via the NUI (the only place with
----access to a real clipboard API). Never takes focus -- the operation is
----invisible.
+---access to a real clipboard API). While the browser copies it holds a brief
+---input-passthrough NUI focus lease (Config.nui.clipboardFocus), because CEF
+---refuses to copy without document focus. Never errors on a failed copy.
 ---@param text string
----@return promise|any result See Kora.nui.request's return doc.
+---@return promise|boolean copied true when the clipboard was written; false on failure or timeout. Exports return the settled boolean.
 function Kora.nui.copyToClipboard(text)
     assert(type(text) == "string", "copyToClipboard requires a string.")
-    return settleForExport(requestPromise("copyToClipboard", { text = text }))
+    local request = requestPromise("copyToClipboard", { text = text })
+
+    local release
+    if not (Config and Config.nui and Config.nui.clipboardFocus == false) then
+        release = acquireFocus(true, false, request.koraLibNuiOwner, true)
+    end
+
+    local result = promise.new()
+    request:next(function(value)
+        if release then release() end
+        result:resolve(value == true)
+    end, function()
+        if release then release() end
+        result:resolve(false)
+    end)
+    return settleForExport(result)
 end
 
 local isFiniteNumber = Kora.util.isFiniteNumber

@@ -1340,7 +1340,7 @@
 ---@field requestAsync fun(action: string, data?: any, timeout?: integer|false, owner?: string, focused?: boolean, onEvent?: fun(event: string, data: any)): promise [client; internal composition primitive]
 ---@field cancelRequest fun(request: promise, result?: any, rejection?: string): boolean [client; internal composition primitive]
 ---@field updateRequest fun(request: promise, action: string, data: any): boolean [client; internal composition primitive]
----@field copyToClipboard fun(text: string): promise|any [client]
+---@field copyToClipboard fun(text: string): promise|boolean [client] true when copied, false on failure
 ---@field openMenu fun(items: QBMenuItem[], title?: string, opts?: QBMenuOptions): QBMenuResult|promise [client]
 ---@field openContextMenu fun(items: QBMenuItem[], x?: number, y?: number): QBMenuResult|promise [client]
 ---@field openRadialMenu fun(items: QBMenuItem[], opts?: QBRadialMenuOptions): QBMenuResult|promise [client]
