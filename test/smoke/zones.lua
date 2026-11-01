@@ -108,7 +108,7 @@ dofile(repoRoot .. "modules/instructional/client.lua")
 -- draw path now reads Kora.theme.accentColor() (see zoneDebugColor in
 -- modules/zones/client.lua), and without this the Kora proxy in build/initiate.lua
 -- would auto-vivify Kora.theme as an empty table, leaving accentColor nil.
-_G.exports = { kora_theme = { getPrimaryColor = function() return "#DC143C" end } }
+_G.exports = { kora_theme = { getPrimaryColor = function() return "#95FF00" end } }
 dofile(repoRoot .. "modules/theme/shared.lua")
 dofile(repoRoot .. "modules/zones/client.lua")
 
