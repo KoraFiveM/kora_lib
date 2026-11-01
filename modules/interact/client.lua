@@ -467,7 +467,6 @@ function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
     assert(type(targetOptions) == "table",
         "interact target options require an options array.")
     size = {x = size.x or 3.0, y = size.y or 3.0, z = size.z or 4.0, w = size.w or GetEntityHeading(entity)}
-    if not size.w then size.w = GetEntityHeading(entity) end
     assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
         "interact target entity size must be vector-like.")
     local coords = GetEntityCoords(entity)
