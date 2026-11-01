@@ -127,14 +127,16 @@ The creator starts `Kora.freecam` without a distance limit rather than using you
 | Mouse | Look around through the shared freecam |
 | `W`/`A`/`S`/`D` | Fly the creator's camera |
 | `G` | Toggle camera-relative and world-grid movement |
-| `E` | Place a point at whatever you're aiming at |
-| `Backspace` | Undo the last placed point |
-| `Tab` (poly, cycled to "edit point") + `E` | Pick up the hovered point, fly anywhere, then `E` again to drop it at the new aim — `Backspace` cancels the pick-up instead of deleting a point while one is held |
+| `E` or Left click | Place a point at whatever the crosshair is aiming at |
+| `Backspace` or Right click | Undo the last placed point |
+| `Tab` (poly, cycled to "edit point") + `E` / Left click | Pick up the hovered point, fly anywhere, then `E` / Left click again to drop it at the new aim — `Backspace` / Right click cancels the pick-up instead of deleting a point while one is held |
 | `Tab` | Cycle which parameter the scroll wheel adjusts |
 | Scroll wheel | Adjust the active parameter |
 | `Shift` | Hold for faster camera movement, and to adjust the active parameter in bigger steps |
 | `Enter` | Confirm (once placement is valid) and open the summary dialog |
 | `X` | Cancel |
+
+Clicks aim with the freecam crosshair like `E` (no free cursor), and are separate `MOUSE_BUTTON` keybinds (`qblib_zonecreator_place_click` / `qblib_zonecreator_undo_click`) running the same handlers; the creator also disables attack/aim controls so a click never fires or punches.
 
 All discrete actions above are registered through `Kora.keybind`, so they're
 rebindable through FiveM's own keybind settings. Mouse-look/WASD, Shift, and

@@ -48,7 +48,8 @@ Kora.placement = {
 _G.GetGameplayCamCoord = function() return { x = 0, y = 0, z = 0 } end
 _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
 _G.StartShapeTestRay = function() return 1 end
-_G.GetShapeTestResult = function() return 2, 0, { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }, 0 end
+local rayHit, rayCoords = 0, { x = 0, y = 0, z = 0 }
+_G.GetShapeTestResult = function() return 2, rayHit, rayCoords, { x = 0, y = 0, z = 0 }, 0 end
 _G.IsControlJustPressed = function() return false end
 _G.IsControlPressed = function() return false end
 _G.CreateCamWithParams = function() return 1 end
@@ -779,6 +780,61 @@ harness.test("the creator holds and releases its camera control lease", function
 
     harness.assertEqual(p.state, "resolved", "the creator should cancel normally")
     harness.assertTrue(next(disabledControls) == nil, "cancel should release every creator control")
+end)
+
+harness.test("the creator lease disables attack and aim so clicks can't fire or punch", function()
+    disabledControls = {}
+    local p = Kora.zones.startCreator("box")
+    harness.assertTrue(disabledControls["0:24"] == true and disabledControls["0:25"] == true,
+        "attack (24) and aim (25) must be disabled while the creator is open")
+    registeredCommands["qblib_zonecreator_cancel"]()
+    net.step()
+    harness.assertEqual(p.state, "resolved", "the creator should cancel normally")
+end)
+
+harness.test("mouse clicks place, grab/drop and undo exactly like E and Backspace", function()
+    local mouse = { place = registeredCommands["qblib_zonecreator_place_click"], undo = registeredCommands["qblib_zonecreator_undo_click"] }
+    harness.assertTrue(mouse.place ~= nil and mouse.undo ~= nil, "click keybinds should be registered")
+    harness.assertTrue(registeredCommands["qblib_zonecreator_place"] ~= nil, "E keybind must still exist")
+
+    rayHit, rayCoords = 1, { x = 1.0, y = 2.0, z = 3.0 }
+    local p = Kora.zones.startCreator("poly")
+    local function placeAt(x, via)
+        rayCoords = { x = x, y = 0.0, z = 0.0 }
+        via()
+    end
+    placeAt(0.0, mouse.place)
+    placeAt(10.0, registeredCommands["qblib_zonecreator_place"]) -- E still works
+    placeAt(0.0, mouse.place)
+    placeAt(10.0, mouse.place)
+    mouse.undo() -- right click removes the last point
+    registeredCommands["qblib_zonecreator_undo"]() -- Backspace still works too
+
+    -- Two points left: (0,0) and (10,0). Cycle to editPoint, hover the first, grab and drop with clicks.
+    local cycle = registeredCommands["qblib_zonecreator_cycle"]
+    for _ = 1, 2 do cycle() end -- thickness -> zOffset -> editPoint
+    rayCoords = { x = 0.5, y = 0.0, z = 0.0 }
+    net.step() -- per-frame loop tracks the hovered point
+    mouse.place() -- grab
+    rayCoords = { x = -20.0, y = 5.0, z = 0.0 }
+    mouse.undo() -- right click cancels the grab (does not delete a point)
+    net.step()
+    mouse.place() -- grab again
+    rayCoords = { x = -20.0, y = 5.0, z = 0.0 }
+    mouse.place() -- drop
+
+    -- Add a third point and confirm to read the final geometry back.
+    cycle() -- editPoint -> thickness (back to normal placement)
+    placeAt(5.0, mouse.place)
+    nextNuiResponse = { confirmed = true }
+    registeredCommands["qblib_zonecreator_confirm"]()
+    nextNuiResponse = nil
+    harness.assertEqual(p.state, "resolved", "three points are enough to confirm")
+    local pts = p.value.opts.points
+    harness.assertEqual(#pts, 3, "cancelled grab must not delete a point; clicks added the third")
+    harness.assertEqual(pts[1].x, -20.0, "the dropped point should be at the click-time aim")
+    harness.assertEqual(pts[2].x, 10.0, "the other point must be untouched")
+    rayHit = 0
 end)
 
 harness.test("creator controls release when the owning resource stops", function()
