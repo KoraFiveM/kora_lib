@@ -174,7 +174,7 @@ local function dispatchGateway(token, name, ...)
         return
     end
     if type(token) ~= "string" or type(name) ~= "string" or #name > 128 then return end
-    if tokens[src] == nil or tokens[src] ~= token then return end
+    if tokens[src] ~= token then return end
 
     local definition = registry[name]
     if definition == nil then return end
