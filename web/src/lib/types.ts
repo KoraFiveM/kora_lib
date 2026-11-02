@@ -604,11 +604,17 @@ export interface AppDefinition {
     navigation: AppNavigationItem[]
     layout?: "standard" | "compact"
     /** Screen placement for compact, task-focused applications. */
-    placement?: "center" | "right"
+    placement?: "center" | "left" | "right"
     defaultView?: string
     width?: number
     height?: number
     footer?: string
+    /** The app header acts as a drag handle (kora_lib fills this from Config.ui.apps.draggableDefault when omitted). */
+    draggable?: boolean
+    /** Remember the dragged position in localStorage (only meaningful when draggable). */
+    rememberPosition?: boolean
+    /** localStorage key suffix for the remembered position; defaults to the app id. */
+    positionKey?: string
     /** #RRGGBB primary colour applied for this app's lifetime; omitted apps retain the player's /theme colour. */
     accent?: string
     /** Supplied by kora_lib from its active locale; consumers normally omit it. */

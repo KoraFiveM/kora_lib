@@ -70,6 +70,10 @@ local function browserApp(definition)
     end
     result.onChange = definition.onChange ~= nil or nil
     result.labels = appLabels()
+    -- Apps that do not say either way inherit the server-wide default (Config.ui.apps.draggableDefault).
+    if result.draggable == nil and Config and Config.ui and Config.ui.apps and Config.ui.apps.draggableDefault == true then
+        result.draggable = true
+    end
     return result
 end
 
@@ -545,8 +549,13 @@ local function assertBrowserApp(definition)
         "App navigation must contain at least one view.")
     assert(definition.layout == nil or definition.layout == "standard" or definition.layout == "compact",
         "App layout must be 'standard' or 'compact'.")
-    assert(definition.placement == nil or definition.placement == "center" or definition.placement == "right",
-        "App placement must be 'center' or 'right'.")
+    assert(definition.placement == nil or definition.placement == "center" or definition.placement == "right"
+        or definition.placement == "left", "App placement must be 'center', 'left' or 'right'.")
+    assert(definition.draggable == nil or type(definition.draggable) == "boolean", "App draggable must be a boolean.")
+    assert(definition.rememberPosition == nil or type(definition.rememberPosition) == "boolean",
+        "App rememberPosition must be a boolean.")
+    assert(definition.positionKey == nil or (type(definition.positionKey) == "string" and definition.positionKey ~= ""),
+        "App positionKey must be a non-empty string.")
     assert(definition.width == nil or (type(definition.width) == "number" and definition.width > 0),
         "App width must be a positive number.")
     assert(definition.height == nil or (type(definition.height) == "number" and definition.height > 0),

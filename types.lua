@@ -781,6 +781,9 @@
 ---@field width? number Pixels; clamped to 720-1600 in standard layout and 420-1600 in compact layout.
 ---@field height? number Pixels; clamped to 420-960.
 ---@field footer? string
+---@field draggable? boolean The header is a drag handle; the panel is clamped to the screen and double-clicking the header resets it. Defaults to Config.ui.apps.draggableDefault (false).
+---@field rememberPosition? boolean Remember the dragged position per player in NUI localStorage (draggable apps only).
+---@field positionKey? string Storage key suffix for the remembered position; defaults to the app id.
 ---@field accent? string #RRGGBB primary colour applied while this app is open; omitted apps retain the player's /theme colour.
 ---@field onAction? fun(actionId: string, context: QBAppActionContext): QBAppActionResult?
 ---@field onChange? fun(actionId: string, context: QBAppActionContext): table? Receives form drafts; returns a partial definition update without submitting.

@@ -1,0 +1,102 @@
+import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
+
+export interface PanelOffset { x: number; y: number }
+
+const ZERO: PanelOffset = { x: 0, y: 0 }
+const INTERACTIVE = "button, input, textarea, select, a, label, [role=button], [contenteditable=true]"
+
+export function loadPanelOffset(key: string | undefined): PanelOffset {
+    if (!key) return ZERO
+    try {
+        const parsed = JSON.parse(window.localStorage.getItem(key) ?? "null")
+        if (parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) return { x: parsed.x, y: parsed.y }
+    } catch { /* unreadable storage means default placement */ }
+    return ZERO
+}
+
+function savePanelOffset(key: string | undefined, offset: PanelOffset) {
+    if (!key) return
+    try {
+        if (offset.x === 0 && offset.y === 0) window.localStorage.removeItem(key)
+        else window.localStorage.setItem(key, JSON.stringify(offset))
+    } catch { /* storage may be unavailable; the position just is not remembered */ }
+}
+
+/**
+ * Clamps `target` so the panel stays inside the viewport. `rect` is the panel's current box,
+ * which already includes `current`; the default (offset 0) box is derived from it.
+ */
+export function clampPanelOffset(rect: { left: number; top: number; right: number; bottom: number }, current: PanelOffset, viewport: { width: number; height: number }, target: PanelOffset = current): PanelOffset {
+    const clamp = (value: number, min: number, max: number) => Math.round(Math.min(Math.max(value, Math.min(min, 0)), Math.max(max, 0)))
+    return {
+        x: clamp(target.x, -(rect.left - current.x), viewport.width - (rect.right - current.x)),
+        y: clamp(target.y, -(rect.top - current.y), viewport.height - (rect.bottom - current.y)),
+    }
+}
+
+/**
+ * Makes a panel draggable by a header. The panel keeps its normal layout and is shifted with
+ * relative left/top, so it never conflicts with entry animations (which own transform).
+ * storageKey (when set) remembers the offset in localStorage.
+ */
+export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options: { enabled: boolean; active: boolean; storageKey?: string }) {
+    const { enabled, active, storageKey } = options
+    const [offset, setOffset] = useState<PanelOffset>(ZERO)
+    const [dragging, setDragging] = useState(false)
+    const offsetRef = useRef(offset)
+    const drag = useRef<{ pointerId: number; startX: number; startY: number; origin: PanelOffset } | null>(null)
+    offsetRef.current = offset
+
+    const clampToViewport = useCallback((target?: PanelOffset) => {
+        const element = panel.current
+        const current = offsetRef.current
+        if (!element) return target ?? current
+        return clampPanelOffset(element.getBoundingClientRect(), current, { width: window.innerWidth, height: window.innerHeight }, target)
+    }, [panel])
+
+    useLayoutEffect(() => {
+        drag.current = null
+        setDragging(false)
+        setOffset(active && enabled ? loadPanelOffset(storageKey) : ZERO)
+    }, [active, enabled, storageKey])
+
+    // Re-clamp after a stored offset renders and whenever the viewport changes.
+    useLayoutEffect(() => {
+        if (!active || !enabled) return
+        // Clamp the queued offset (e.g. a just-loaded stored one), not the last rendered one, or it gets overwritten.
+        const reclamp = () => setOffset((current) => { const next = clampToViewport(current); return next.x === current.x && next.y === current.y ? current : next })
+        reclamp()
+        window.addEventListener("resize", reclamp)
+        return () => window.removeEventListener("resize", reclamp)
+    }, [active, enabled, clampToViewport, offset])
+
+    const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+        if (event.button !== 0 || (event.target as HTMLElement).closest(INTERACTIVE)) return
+        drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin: offsetRef.current }
+        event.currentTarget.setPointerCapture?.(event.pointerId)
+        setDragging(true)
+    }, [])
+    const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+        const state = drag.current
+        if (!state || state.pointerId !== event.pointerId) return
+        setOffset(clampToViewport({ x: state.origin.x + event.clientX - state.startX, y: state.origin.y + event.clientY - state.startY }))
+    }, [clampToViewport])
+    const endDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+        const state = drag.current
+        if (!state || state.pointerId !== event.pointerId) return
+        drag.current = null
+        setDragging(false)
+        event.currentTarget.releasePointerCapture?.(event.pointerId)
+        savePanelOffset(storageKey, offsetRef.current)
+    }, [storageKey])
+    const onDoubleClick = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+        if ((event.target as HTMLElement).closest(INTERACTIVE)) return
+        drag.current = null
+        setDragging(false)
+        setOffset(ZERO)
+        savePanelOffset(storageKey, ZERO)
+    }, [storageKey])
+
+    const handleProps = enabled ? { onPointerDown, onPointerMove, onPointerUp: endDrag, onPointerCancel: endDrag, onDoubleClick } : {}
+    return { offset, dragging, handleProps }
+}

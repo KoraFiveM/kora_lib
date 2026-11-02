@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AppShell } from "@/components/app/AppShell"
 import { InputDialogContainer } from "@/components/input/InputDialog"
@@ -352,6 +352,88 @@ describe("AppShell", () => {
         openApp({ id: "test:right", title: "Roster", layout: "compact", placement: "right", navigation: [{ id: "jobs", label: "Jobs" }] })
         expect(container.querySelector("main")).toHaveAttribute("data-placement", "right")
         expect(container.querySelector("main")?.parentElement).toHaveClass("justify-end")
+    })
+
+    it("can place a compact app against the left edge of the screen", () => {
+        const { container } = render(<AppShell />)
+        openApp({ id: "test:left", title: "Roster", layout: "compact", placement: "left", navigation: [{ id: "jobs", label: "Jobs" }] })
+        expect(container.querySelector("main")).toHaveAttribute("data-placement", "left")
+        expect(container.querySelector("main")?.parentElement).toHaveClass("justify-start")
+    })
+
+    describe("draggable panels", () => {
+        const rect = (left: number, top: number, width: number, height: number) => ({ left, top, right: left + width, bottom: top + height, width, height, x: left, y: top, toJSON() {} }) as DOMRect
+        // jsdom has no PointerEvent, so build mouse events under the pointer event names React listens for.
+        const pointer = (target: HTMLElement, type: string, x: number, y: number) => {
+            const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y })
+            Object.defineProperty(event, "pointerId", { value: 1 })
+            fireEvent(target, event)
+        }
+        const drag = (header: HTMLElement, from: [number, number], to: [number, number]) => {
+            pointer(header, "pointerdown", ...from)
+            pointer(header, "pointermove", ...to)
+            pointer(header, "pointerup", ...to)
+        }
+        beforeEach(() => {
+            window.localStorage.clear()
+            vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+                const style = this.style
+                if (this.tagName !== "MAIN") return rect(0, 0, 0, 0)
+                return rect(400 + (parseFloat(style.left) || 0), 300 + (parseFloat(style.top) || 0), 400, 300)
+            })
+        })
+        afterEach(() => vi.restoreAllMocks())
+
+        it("does not move apps that do not opt in", () => {
+            const { container } = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }))
+            const header = container.querySelector("section > header") as HTMLElement
+            drag(header, [10, 10], [60, 60])
+            expect(container.querySelector("main")?.style.left).toBe("")
+            expect(header.className).not.toContain("cursor-grab")
+        })
+
+        it("moves by the header, ignores buttons, clamps to the viewport and resets on double click", () => {
+            const { container } = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true }))
+            const main = container.querySelector("main") as HTMLElement
+            const header = container.querySelector("section > header") as HTMLElement
+            expect(header.className).toContain("cursor-grab")
+
+            drag(header, [10, 10], [60, 40])
+            expect(main.style.left).toBe("50px")
+            expect(main.style.top).toBe("30px")
+
+            drag(within(header).getByRole("button"), [10, 10], [200, 200])
+            expect(main.style.left).toBe("50px")
+
+            drag(header, [0, 0], [5000, 5000])
+            expect(main.style.left).toBe(`${window.innerWidth - 800}px`)
+            expect(main.style.top).toBe(`${window.innerHeight - 600}px`)
+
+            fireEvent.doubleClick(header)
+            expect(main.style.left).toBe("0px")
+            expect(main.style.top).toBe("0px")
+        })
+
+        it("remembers the position under positionKey only when rememberPosition is set", () => {
+            const { container, unmount } = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true, rememberPosition: true, positionKey: "shop" }))
+            drag(container.querySelector("section > header") as HTMLElement, [0, 0], [20, 10])
+            expect(JSON.parse(window.localStorage.getItem("kora_lib:app-position:shop") ?? "null")).toEqual({ x: 20, y: 10 })
+            unmount()
+
+            const again = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true, rememberPosition: true, positionKey: "shop" }))
+            expect((again.container.querySelector("main") as HTMLElement).style.left).toBe("20px")
+            again.unmount()
+
+            window.localStorage.clear()
+            const plain = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true }))
+            drag(plain.container.querySelector("section > header") as HTMLElement, [0, 0], [20, 10])
+            expect(window.localStorage.length).toBe(0)
+        })
     })
 
     it("keeps the game visible around the app shell", () => {

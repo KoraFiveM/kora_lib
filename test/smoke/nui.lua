@@ -594,6 +594,42 @@ harness.test("withFocus releases focus even when fn errors, then re-raises", fun
     harness.assertEqual(focusCalls[#focusCalls].mouse, false, "focus should still be released after an error")
 end)
 
+harness.test("registerApp forwards draggable fields and applies Config.ui.apps.draggableDefault", function()
+    local function sentApp(id, extra)
+        local definition = { id = id, title = "Drag", navigation = { { id = "home", label = "Home" } } }
+        for key, value in pairs(extra or {}) do definition[key] = value end
+        Kora.nui.registerApp(definition)
+        Kora.nui.openApp(id)
+        local app = sentMessages[#sentMessages].data.payload.app
+        local requestId, token = lastRequestId(), lastToken()
+        respond(requestId, token, true, { closed = true, reason = "close" })
+        return app
+    end
+
+    local optedIn = sentApp("smoke:drag-in", { draggable = true, rememberPosition = true, positionKey = "smoke-key" })
+    harness.assertEqual(optedIn.draggable, true, "draggable should reach the browser")
+    harness.assertEqual(optedIn.rememberPosition, true, "rememberPosition should reach the browser")
+    harness.assertEqual(optedIn.positionKey, "smoke-key", "positionKey should reach the browser")
+    harness.assertEqual(sentApp("smoke:drag-default").draggable, nil, "apps stay fixed unless they opt in")
+
+    _G.Config = { ui = { apps = { draggableDefault = true } } }
+    harness.assertEqual(sentApp("smoke:drag-cfg").draggable, true, "the config default should make apps draggable")
+    harness.assertEqual(sentApp("smoke:drag-off", { draggable = false }).draggable, false, "an explicit false beats the config default")
+    _G.Config = nil
+
+    harness.assertFalse(pcall(Kora.nui.registerApp, { id = "smoke:drag-bad", title = "Bad", draggable = "yes", navigation = { { id = "home", label = "Home" } } }),
+        "a non-boolean draggable should be rejected")
+end)
+
+harness.test("registerApp accepts left, right and center placement and rejects others", function()
+    for _, placement in ipairs({ "left", "right", "center" }) do
+        harness.assertTrue(pcall(Kora.nui.registerApp, { id = "smoke:place-" .. placement, title = "Place", placement = placement, navigation = { { id = "home", label = "Home" } } }),
+            placement .. " placement should be accepted")
+    end
+    harness.assertFalse(pcall(Kora.nui.registerApp, { id = "smoke:place-bad", title = "Place", placement = "top", navigation = { { id = "home", label = "Home" } } }),
+        "an unknown placement should be rejected")
+end)
+
 harness.test("registerApp stores a headless definition and openApp opens it by id", function()
     local handled
     local definition = {

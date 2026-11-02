@@ -329,6 +329,13 @@ local result = Kora.nui.openApp('qbmdt:police', {
 
 #### Lifecycle API
 
+- Draggable panels: `draggable = true` turns the app header into a drag handle
+  (grab/grabbing cursor, clamped to the screen, re-clamped on resize, double-click
+  the header to reset). `rememberPosition = true` stores the offset in NUI
+  localStorage under `positionKey` (default: the app id). Apps that omit
+  `draggable` inherit `Config.ui.apps.draggableDefault` (default `false`).
+- `placement` is `'center'` (default), `'left'` or `'right'`; the panel is
+  vertically centred against that edge and a drag offset is applied on top.
 - `Kora.nui.registerApp(definition)` registers or replaces its own owner-tracked
   app. A different resource cannot replace that id. The id should be namespaced
   (`resource:app`). A registration is removed

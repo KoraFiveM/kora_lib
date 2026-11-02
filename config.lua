@@ -10,6 +10,11 @@ Config.nui = {
 
 Config.ui = {
     interact = true, -- set false to disable the kora_lib interact-zone module entirely
+    apps = {
+        -- Apps opt in with draggable = true in Kora.nui.registerApp (plus rememberPosition / positionKey).
+        -- true: every app that does not set draggable itself becomes draggable by its header. Default false.
+        draggableDefault = false,
+    },
 }
 
 -- Output ceiling for screenshot capture, so ultrawide/4K clients don't allocate a second full-res
