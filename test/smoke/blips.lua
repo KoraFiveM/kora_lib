@@ -372,6 +372,28 @@ harness.test("a layout-changed event holds the card back while the map pans", fu
     resetFrontend()
 end)
 
+harness.test("an open pause map with nothing hovered skips the legend-focus natives", function()
+    local blip = Kora.blips.create({ x = 10, y = 10, z = 10 }, { info = { title = "Idle" } })
+    local reads = 0
+    local navigating, disabledNormal = _G.IsNavigatingMenuContent, _G.GetDisabledControlNormal
+    _G.IsNavigatingMenuContent = function() reads = reads + 1 return navigating() end
+    _G.GetDisabledControlNormal = function(...) reads = reads + 1 return disabledNormal(...) end
+
+    frontendReady = true
+    hoveringBlip = false
+    for _ = 1, 10 do net.step() end
+    harness.assertEqual(reads, 0, "per-frame pause-map polling must not read legend focus with no card to gate")
+
+    hoveringBlip = true
+    selectedBlip = blip
+    settleHover()
+    harness.assertTrue(reads > 0, "hovering a blip with a card still checks legend focus")
+
+    _G.IsNavigatingMenuContent, _G.GetDisabledControlNormal = navigating, disabledNormal
+    Kora.blips.clearInfo(blip)
+    resetFrontend()
+end)
+
 harness.test("a transient hover shorter than the stable time makes no frontend calls", function()
     local blip = Kora.blips.create({ x = 8, y = 8, z = 8 }, { info = { title = "Blip" } })
     frontendReady = true
