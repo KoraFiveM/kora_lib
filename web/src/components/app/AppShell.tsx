@@ -93,7 +93,7 @@ function ActionForm({ form, values, setValues, busy, submit, cancel, labels }: {
     return <form onSubmit={submitForm} className="rounded-lg border border-brand-border bg-brand-soft/30 p-4">
         <div className="mb-3"><h3 className="text-sm font-semibold">{form.action.label}</h3>{form.action.confirm ? <p className="mt-1 text-xs text-warning">{form.action.confirm}</p> : null}</div>
         <FormFields fields={fields} values={values} errors={errors} labels={labels} columns={2} idPrefix={`app-${form.source}-${form.action.id}`} onChange={setValues} />
-        <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" onClick={cancel} disabled={busy !== undefined}>{labels.cancel}</Button><Button type="submit" disabled={busy !== undefined || Object.keys(errors).length > 0}>{busy === form.action.id ? labels.working : form.action.confirm ? labels.confirm : labels.runAction}</Button></div>
+        <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" onClick={cancel} disabled={busy !== undefined}>{labels.cancel}</Button><Button type="submit" disabled={busy !== undefined || Object.keys(errors).length > 0}>{busy === form.action.id ? labels.working : form.action.submitLabel ?? (form.action.confirm ? labels.confirm : labels.runAction)}</Button></div>
     </form>
 }
 

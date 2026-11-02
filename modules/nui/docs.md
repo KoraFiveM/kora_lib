@@ -381,7 +381,10 @@ as `openInputDialog`. Header forms render once below the content header;
 action-block and item forms render only under the block/item that launched
 them. Drafts survive unrelated `updateApp` refreshes. The submitted
 `{ [field.id] = value }` becomes `context.value`. Set `confirm = '…'` to add an
-explicit acknowledgement, including for actions with no fields.
+explicit acknowledgement, including for actions with no fields. Set
+`submitLabel?` to name the form's submit button (for example `'Sell'`); it
+defaults to the translated Confirm label when `confirm` is set, otherwise Run
+action. This matches `submitLabel?` on a `form` block.
 
 Set `closeBeforeAction = true` when the handler launches another focused UI or
 world editor. kora_lib closes AppShell and releases its focus lease before calling

@@ -209,6 +209,23 @@ describe("AppShell", () => {
         expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:action", expect.objectContaining({ value: {} }))
     })
 
+    it("uses an action's submitLabel for its in-shell form button", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(baseApp({ actions: [
+            { id: "sell", label: "Sell materials", submitLabel: "Sell", fields: [{ id: "amount", label: "Amount", type: "number", min: 1 }] },
+            { id: "scrap", label: "Scrap", confirm: "Scrap it?", submitLabel: "Scrap now" },
+        ] }))
+
+        await user.click(screen.getByRole("button", { name: "Sell materials" }))
+        expect(screen.getByRole("button", { name: "Sell" })).toHaveAttribute("type", "submit")
+        expect(screen.queryByRole("button", { name: "Run action" })).not.toBeInTheDocument()
+        await user.click(screen.getByRole("button", { name: "Cancel" }))
+        await user.click(screen.getByRole("button", { name: "Scrap" }))
+        expect(screen.getByRole("button", { name: "Scrap now" })).toHaveAttribute("type", "submit")
+        expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument()
+    })
+
     it("renders a bounded progress graph with accessible values", () => {
         render(<AppShell />)
         openApp(baseApp({ blocks: [{ type: "progress", title: "Skills", items: [

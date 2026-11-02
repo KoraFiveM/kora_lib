@@ -397,6 +397,8 @@ export interface AppAction {
     fields?: InputField[]
     /** A short acknowledgement shown above destructive in-shell actions. */
     confirm?: string
+    /** Submit button text for this action's in-shell form. Defaults to Confirm/Run action. */
+    submitLabel?: string
     /** Release the shell before invoking actions which open another UI or world editor. */
     closeBeforeAction?: boolean
 }

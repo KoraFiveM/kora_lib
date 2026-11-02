@@ -295,6 +295,7 @@ local function assertAppAction(action, location, actionIds)
     assert(action.variant == nil or VALID_ACTION_VARIANTS[action.variant], ("%s action variant is invalid."):format(location))
     assert(action.disabled == nil or type(action.disabled) == "boolean", ("%s action disabled must be a boolean."):format(location))
     assert(action.confirm == nil or type(action.confirm) == "string", ("%s action confirm must be a string."):format(location))
+    assert(action.submitLabel == nil or type(action.submitLabel) == "string", ("%s action submitLabel must be a string."):format(location))
     assert(action.closeBeforeAction == nil or type(action.closeBeforeAction) == "boolean", ("%s action closeBeforeAction must be a boolean."):format(location))
     declareAction(actionIds, action.id, action.closeBeforeAction, location)
     if action.fields then actionIds[action.id].form = true end
