@@ -9,6 +9,7 @@ local events = {
 }
 
 local token = nil
+local TOKEN_POLL_INTERVAL = 50
 local pushRegistry = {}
 
 -- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
@@ -38,9 +39,11 @@ end)
 local function awaitToken()
     if token ~= nil then return true end
 
+    -- Polled every 50ms rather than every frame: a lost handshake would otherwise
+    -- spin a per-frame loop for the whole 10s timeout on every trigger.
     return Kora.loops.controlled(function()
         return token ~= nil
-    end, false) ~= false
+    end, false, nil, TOKEN_POLL_INTERVAL) ~= false
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx

@@ -418,12 +418,19 @@ ensureInfoThread = function()
                 -- Layout-change events last one frame, so they need a per-frame poll.
                 if (cfg.legendSuppressMs or 0) > 0 then sleep = 0 end
                 legendFocused = legendNavigated(cfg, now)
-                if not legendFocused then legendFocused = legendHasFocus(cfg) end
 
+                local candidate
                 if IsHoveringOverMissionCreatorBlip() then
                     blip = GetNewSelectedMissionCreatorBlip()
-                    if DoesBlipExist(blip) and not legendFocused then info = infoByBlip[blip] end
+                    if DoesBlipExist(blip) then candidate = infoByBlip[blip] end
                 end
+                -- This loop runs every frame while the pause menu is open, so the legend-focus
+                -- natives are only read when their answer is used: a hovered blip with a card,
+                -- or a card already drawn that legend focus must drop.
+                if not legendFocused and (candidate or selectedBlip ~= nil) then
+                    legendFocused = legendHasFocus(cfg)
+                end
+                if candidate and not legendFocused then info = candidate end
 
                 -- A legend click reports the blip for only a few frames while the map pans to
                 -- it. Require an unbroken hover on the same blip before the first render.

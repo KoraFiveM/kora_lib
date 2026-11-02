@@ -462,4 +462,33 @@ harness.test("the deprecated qblib: gateway and handshake names are still accept
         "a legacy handshake should answer on the legacy response event")
 end)
 
+-- Runs last: reloads the client file, replacing Kora.events.* with a copy that has no token.
+harness.test("a trigger waiting on the handshake polls every 50ms, not every frame", function()
+    local handshakeHandlers = net.netHandlers["kora_lib:events:handshake"]
+    net.netHandlers["kora_lib:events:handshake"] = {} -- the reloaded client's handshake goes unanswered
+    dofile(repoRoot .. "local/events/client.lua")
+    net.netHandlers["kora_lib:events:handshake"] = handshakeHandlers
+
+    local waits = {}
+    local wait = _G.Wait
+    _G.Wait = function(ms)
+        waits[#waits + 1] = ms
+        return wait(ms)
+    end
+
+    local ok
+    CreateThread(function() ok = Kora.events.trigger("smoke:late-token") end)
+    for _ = 1, 3 do net.step() end
+    harness.assertEqual(ok, nil, "trigger should still be waiting for the token")
+    harness.assertTrue(#waits > 0, "trigger should have yielded while waiting")
+    for index = 1, #waits do
+        harness.assertEqual(waits[index], 50, "each wait for the token should be 50ms")
+    end
+
+    TriggerClientEvent("kora_lib:events:handshake:response", mocks.SOURCE, "late-token")
+    net.step()
+    _G.Wait = wait
+    harness.assertTrue(ok, "trigger should complete once the token arrives")
+end)
+
 harness.report("events")

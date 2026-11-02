@@ -11,6 +11,7 @@ local events = {
 }
 
 local token = nil
+local TOKEN_POLL_INTERVAL = 50
 local registry = {}
 local pending = {}
 local requestCounter = 0
@@ -35,9 +36,10 @@ local function awaitToken()
     -- default: the handshake is the FIRST thing a consumer waits on, on the
     -- coldest a client will ever be, so it must get the same budget as the
     -- request it is gating rather than a shorter hidden one.
+    -- Polled every 50ms rather than every frame (see local/events/client.lua).
     return Kora.loops.controlled(function()
         return token ~= nil
-    end, false, Config.callback.timeout) ~= false
+    end, false, Config.callback.timeout, TOKEN_POLL_INTERVAL) ~= false
 end
 
 -- The private bootstrap helper normalizes native functions and every Cfx
