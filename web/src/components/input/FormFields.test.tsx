@@ -367,3 +367,28 @@ describe("FormFields required and optional date ranges", () => {
         expect(screen.queryByText("Required.")).not.toBeInTheDocument()
     })
 })
+
+describe("FormFields keypad presentation options", () => {
+    const pin = (extra: Partial<InputField> = {}): InputField[] => [{ id: "pin", type: "password", label: "PIN", maxLength: 4, numericOnly: true, keypad: true, ...extra }]
+
+    it("keeps the left-aligned label and borderless action keys by default", () => {
+        render(<FormFields fields={pin()} values={{ pin: "" }} errors={{}} onChange={() => undefined} />)
+        expect(screen.getByText("PIN")).not.toHaveClass("justify-center")
+        expect(screen.getByRole("button", { name: "Clear" })).not.toHaveClass("border")
+        expect(screen.getByRole("button", { name: "Backspace" })).not.toHaveClass("border")
+    })
+
+    it("centres the label and outlines Clear and Backspace like the digit keys when asked", () => {
+        render(<FormFields fields={pin({ labelAlign: "center", keypadActionVariant: "outline" })} values={{ pin: "" }} errors={{}} onChange={() => undefined} />)
+        expect(screen.getByText("PIN")).toHaveClass("justify-center", "text-center")
+        const digit = screen.getByRole("button", { name: "1" })
+        expect(digit).toHaveClass("border", "border-control-border")
+        for (const name of ["Clear", "Backspace"]) expect(screen.getByRole("button", { name })).toHaveClass("border", "border-control-border")
+    })
+
+    it("ignores unknown option values instead of changing the default look", () => {
+        render(<FormFields fields={pin({ labelAlign: "middle" as never, keypadActionVariant: "solid" as never })} values={{ pin: "" }} errors={{}} onChange={() => undefined} />)
+        expect(screen.getByText("PIN")).not.toHaveClass("justify-center")
+        expect(screen.getByRole("button", { name: "Clear" })).not.toHaveClass("border")
+    })
+})

@@ -9,6 +9,18 @@ import { cn } from "@/lib/cn"
 import type { AppShellLabels, FieldValue, InputField, InputOption, KeyValueEntry, VectorFieldValue } from "@/lib/types"
 import { resolveIcon } from "@/lib/icon"
 
+// Presentation-only field options, merged into InputField here so they stay
+// next to the component that renders them. Unknown values fall back to the
+// defaults, so older payloads and older bundles behave exactly as before.
+declare module "@/lib/types" {
+    interface InputField {
+        /** Horizontal alignment of the field label (default "start"). */
+        labelAlign?: "start" | "center"
+        /** Button variant for the keypad Clear/Backspace keys (default "ghost"); "outline" matches the digit keys. */
+        keypadActionVariant?: "ghost" | "outline"
+    }
+}
+
 const RANGE_FALLBACK_MIN = 0
 const RANGE_FALLBACK_MAX = 100
 const COMBOBOX_MAX_SUGGESTIONS = 8
@@ -389,7 +401,7 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
                     <input id={id} type="checkbox" className="h-4 w-4 shrink-0 rounded-sm border border-input bg-background accent-primary" checked={Boolean(values[field.id])} onChange={(event) => setValue(field.id, event.target.checked)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
                     {FieldIcon ? <FieldIcon aria-hidden className="h-4 w-4" style={{ color: field.iconColor }} /> : null}<span>{field.label}{field.required ? <span className="text-destructive"> *</span> : null}</span>
                 </label> : <>
-                    <label htmlFor={id} className="flex items-center gap-1.5 text-sm font-medium leading-5">{FieldIcon ? <FieldIcon aria-hidden className="h-4 w-4" style={{ color: field.iconColor }} /> : null}{field.label}{field.required ? <span className="text-destructive"> *</span> : null}</label>
+                    <label htmlFor={id} className={cn("flex items-center gap-1.5 text-sm font-medium leading-5", field.labelAlign === "center" && "justify-center text-center")}>{FieldIcon ? <FieldIcon aria-hidden className="h-4 w-4" style={{ color: field.iconColor }} /> : null}{field.label}{field.required ? <span className="text-destructive"> *</span> : null}</label>
                     {field.type === "key-value" ? <KeyValueField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} onChange={(value) => setValue(field.id, value)} />
                         : field.type === "vector" ? <VectorField id={id} field={field} value={values[field.id]} error={error} describedBy={describedBy} onChange={(value) => setValue(field.id, value)} />
                         : field.type === "textarea" ? <Textarea id={id} rows={field.minRows ?? field.rows ?? 3} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => setValue(field.id, event.target.value)} onInput={(event) => { if (!field.autosize) return; const area = event.currentTarget; area.style.height = "auto"; const lineHeight = Number.parseFloat(getComputedStyle(area).lineHeight) || 20; const maxHeight = field.maxRows ? lineHeight * field.maxRows + 16 : area.scrollHeight; area.style.height = `${Math.min(area.scrollHeight, maxHeight)}px` }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
@@ -404,7 +416,7 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
                         : field.type === "date" ? <Input id={id} type="date" min={dateInputConstraint(field.dateMin)} max={dateInputConstraint(field.dateMax)} value={String(values[field.id] ?? "")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />
                         : field.type === "time" ? <div className="flex items-center gap-1"><Input id={id} type="time" lang={field.timeFormat === "12" ? "en-US" : field.timeFormat === "24" ? "en-GB" : undefined} value={String(values[field.id] ?? "")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.clearable && values[field.id] !== "" ? <Button type="button" variant="ghost" size="icon" aria-label={`Clear ${field.label}`} onClick={() => setValue(field.id, "")}><X aria-hidden /></Button> : null}</div>
                         : field.type === "color" ? <div className="flex items-center gap-2"><Input id={id} type="color" value={formatColor(String(values[field.id] || "#ffffff"))} onChange={(event) => setValue(field.id, formatColor(event.target.value, field.colorFormat))} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="h-10 w-16 shrink-0 cursor-pointer p-1" /><Input aria-label={`${field.label} value`} value={String(values[field.id] || "#ffffff")} onChange={(event) => setValue(field.id, event.target.value)} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="min-w-0 font-mono text-xs" /></div>
-                        : <><Input id={id} type={field.type} inputMode={field.numericOnly ? "numeric" : undefined} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => { const cleaned = field.numericOnly ? event.target.value.replace(/\D/g, "") : event.target.value; setValue(field.id, field.maxLength === undefined ? cleaned : cleaned.slice(0, field.maxLength)) }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.keypad ? <NumericKeypad value={String(values[field.id] ?? "")} maxLength={field.maxLength} labels={labels} onChange={(value) => setValue(field.id, value)} /> : null}</>}
+                        : <><Input id={id} type={field.type} inputMode={field.numericOnly ? "numeric" : undefined} placeholder={field.placeholder} value={String(values[field.id] ?? "")} minLength={field.minLength} maxLength={field.maxLength} onChange={(event) => { const cleaned = field.numericOnly ? event.target.value.replace(/\D/g, "") : event.target.value; setValue(field.id, field.maxLength === undefined ? cleaned : cleaned.slice(0, field.maxLength)) }} aria-invalid={Boolean(error)} aria-describedby={describedBy} />{field.keypad ? <NumericKeypad value={String(values[field.id] ?? "")} maxLength={field.maxLength} labels={labels} actionVariant={field.keypadActionVariant === "outline" ? "outline" : "ghost"} onChange={(value) => setValue(field.id, value)} /> : null}</>}
                     {field.type === "number" && field.presets?.length ? <div className="grid grid-cols-4 gap-1.5">{field.presets.map((preset) => <Button key={preset.value} type="button" size="sm" variant="outline" className="font-mono text-xs" onClick={() => setValue(field.id, preset.value)}>{preset.label ?? preset.value}</Button>)}</div> : null}
                 </>}
                 {field.description ? <p id={`${id}-description`} className="text-xs leading-5 text-muted-foreground">{field.description}</p> : null}
@@ -539,9 +551,9 @@ function DateRangeField({ id, field, value, error, describedBy, onChange }: { id
     </div>
 }
 
-function NumericKeypad({ value, maxLength, labels, onChange }: { value: string; maxLength?: number; labels?: Partial<AppShellLabels>; onChange: (value: string) => void }) {
+function NumericKeypad({ value, maxLength, labels, actionVariant, onChange }: { value: string; maxLength?: number; labels?: Partial<AppShellLabels>; actionVariant: "ghost" | "outline"; onChange: (value: string) => void }) {
     const append = (digit: string) => { const next = `${value}${digit}`; onChange(maxLength === undefined ? next : next.slice(0, maxLength)) }
-    return <div className="grid grid-cols-3 gap-1.5">{["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => <Button key={digit} type="button" variant="outline" className="font-mono" onClick={() => append(digit)}>{digit}</Button>)}<Button type="button" variant="ghost" onClick={() => onChange("")}>{labels?.clear ?? "Clear"}</Button><Button type="button" variant="outline" className="font-mono" onClick={() => append("0")}>0</Button><Button type="button" variant="ghost" aria-label={labels?.backspace ?? "Backspace"} onClick={() => onChange(value.slice(0, -1))}>⌫</Button></div>
+    return <div className="grid grid-cols-3 gap-1.5">{["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => <Button key={digit} type="button" variant="outline" className="font-mono" onClick={() => append(digit)}>{digit}</Button>)}<Button type="button" variant={actionVariant} onClick={() => onChange("")}>{labels?.clear ?? "Clear"}</Button><Button type="button" variant="outline" className="font-mono" onClick={() => append("0")}>0</Button><Button type="button" variant={actionVariant} aria-label={labels?.backspace ?? "Backspace"} onClick={() => onChange(value.slice(0, -1))}>⌫</Button></div>
 }
 
 function NumberField({ id, field, value, error, describedBy, labels, onChange }: { id: string; field: InputField; value: FieldValue; error?: string; describedBy?: string; labels?: Partial<AppShellLabels>; onChange: (value: number | string) => void }) {
