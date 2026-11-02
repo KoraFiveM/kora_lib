@@ -1132,6 +1132,10 @@ local function releaseCreatorUi(state)
 end
 
 local function releaseCreatorCamera(state)
+    if state and state.controlLease then
+        Kora.compat.releaseControlLease(state.controlLease, state.resource)
+        state.controlLease = nil
+    end
     if state and state.freecam then
         state.freecam.stop()
         state.freecam = nil
@@ -1351,13 +1355,14 @@ end
 ---@param label string
 ---@param key string
 ---@param handler fun(state: table)
+---@param mapper? string RegisterKeyMapping input mapper, 'keyboard' by default ('MOUSE_BUTTON' for mouse clicks).
 local creatorBindings = {}
 
-local function registerCreatorKeybind(command, label, key, handler)
+local function registerCreatorKeybind(command, label, key, handler, mapper)
     local handle = Kora.keybind.add({
         name = command,
         description = label,
-        defaultMapper = 'keyboard',
+        defaultMapper = mapper or 'keyboard',
         defaultKey = key,
         onPressed = function()
             if creatorState then handler(creatorState) end
@@ -1369,6 +1374,11 @@ end
 
 registerCreatorKeybind("qblib_zonecreator_place", "Zone Creator: Place Point", "E", creatorPlace)
 registerCreatorKeybind("qblib_zonecreator_undo", "Zone Creator: Undo Last Point", "BACK", creatorUndo)
+-- Mouse clicks are extra rebindable keybinds running the exact same handlers as E/Backspace. They arrive as key-mapping
+-- commands (not control polling), so each click fires once; the creator's control lease keeps the click from also
+-- attacking/aiming.
+registerCreatorKeybind("qblib_zonecreator_place_click", "Zone Creator: Place Point (Mouse)", "MOUSE_LEFT", creatorPlace, "MOUSE_BUTTON")
+registerCreatorKeybind("qblib_zonecreator_undo_click", "Zone Creator: Undo Last Point (Mouse)", "MOUSE_RIGHT", creatorUndo, "MOUSE_BUTTON")
 registerCreatorKeybind("qblib_zonecreator_cycle", "Zone Creator: Cycle Adjustable Parameter (Shift reverses)", "TAB", creatorCycleParam)
 
 registerCreatorKeybind("qblib_zonecreator_confirm", "Zone Creator: Confirm / Open Summary", "RETURN", function(state)
@@ -1394,7 +1404,9 @@ local function updateCreatorInstructions(state)
         { control = 35, label = "Move right" },
         { keybind = creatorBindings.qblib_zonecreator_movement, label = "Movement: " .. movementLabel },
         { keybind = creatorBindings.qblib_zonecreator_place, label = placeLabel },
+        { keybind = creatorBindings.qblib_zonecreator_place_click, label = placeLabel },
         { keybind = creatorBindings.qblib_zonecreator_undo, label = "Undo" },
+        { keybind = creatorBindings.qblib_zonecreator_undo_click, label = "Undo" },
         { keybind = creatorBindings.qblib_zonecreator_cycle, label = "Adjust: " .. paramLabel },
         { keybind = creatorBindings.qblib_zonecreator_confirm, label = "Confirm" },
         { keybind = creatorBindings.qblib_zonecreator_cancel, label = "Cancel" },
@@ -1522,8 +1534,11 @@ AddEventHandler('onClientResourceStop', function(resourceName)
     restoreCreatorRadar(creatorState)
 end)
 
+-- Attack, aim, melee and alternate-attack controls (plus vehicle/weapon variants) held while the creator is open.
+local CREATOR_CLICK_CONTROLS = { 24, 25, 68, 69, 70, 91, 92, 140, 141, 142, 257, 263, 264 }
+
 -- The shared freecam owns camera/control/player restoration; the creator keeps only its handle for raycasts.
-local function startCreatorCamera()
+local function startCreatorCamera(resource)
     local freecam, err = Kora.freecam.start({
         moveSpeed = Config.zones.creator.cameraMoveSpeed,
         lookSensitivity = Config.zones.creator.cameraLookSensitivity,
@@ -1531,7 +1546,14 @@ local function startCreatorCamera()
         transitionMs = Config.zones.creator.cameraTransitionMs,
     })
     assert(freecam, err)
-    return freecam, freecam.getCamera()
+
+    -- Attack/aim/melee stay disabled so the placement clicks (delivered via keybinds) never swing or fire.
+    local leased, lease = pcall(Kora.compat.acquireControls, CREATOR_CLICK_CONTROLS, { disablePlayerFiring = true }, resource)
+    if not leased then
+        freecam.stop()
+        error(lease, 0)
+    end
+    return freecam, freecam.getCamera(), lease
 end
 
 local function beginCreator(zoneType, resource, existingOpts)
@@ -1539,12 +1561,12 @@ local function beginCreator(zoneType, resource, existingOpts)
     if existingOpts then seedCreatorState(state, existingOpts) end
     creatorState = state
 
-    local started, freecam, cam = pcall(startCreatorCamera)
+    local started, freecam, cam, lease = pcall(startCreatorCamera, resource)
     if not started then
         creatorState = nil
         error(freecam, 0)
     end
-    state.freecam, state.cam = freecam, cam
+    state.freecam, state.cam, state.controlLease = freecam, cam, lease
     state.instructions = Kora.instructional.show({
         { control = 32, label = "Move forward" },
     })
