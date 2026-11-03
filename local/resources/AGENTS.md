@@ -9,6 +9,8 @@ Shared infrastructure for the pattern nearly every owned-state module needs: tra
   - Waits for `started` with bounded `timeout` and `interval` options.
   - Returns immediately with `false, "missing"` for an unknown resource and
     `false, "timeout"` when a known dependency does not start in time.
+- `Kora.resources.onStart(name, fn, opts?)` / `onStop(name, fn)` / `off(id)` (shared)
+  - Implemented once in `shared.lua`; the realm (event names and ownership registry) is picked on first use because the registry factories are defined by the realm files that load after it. One start and one stop event handler serve every registration; handlers run in their own thread and are swept when their registering resource stops.
 - `Kora.resources.registry(onDispose)` (client)
 - `Kora.resources.serverRegistry(onDispose)` (server)
   - Same shape on both realms, swept on `onClientResourceStop` vs `onResourceStop` respectively. Each creates and returns a new, isolated registry: `{ track, untrack, owner }`.
