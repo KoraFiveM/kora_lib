@@ -1555,6 +1555,9 @@
 ---@class KoraLibResources
 ---@field isStarted fun(resourceName: string): boolean [shared]
 ---@field awaitStarted fun(resourceName: string, options?: QBResourceAwaitOptions): boolean, string? [shared]
+---@field onStart fun(resourceName: string, fn: fun(resourceName: string), opts?: {runNow?: boolean}): integer [shared]
+---@field onStop fun(resourceName: string, fn: fun(resourceName: string)): integer [shared]
+---@field off fun(id: integer): boolean [shared]
 ---@field registry fun(onDispose: fun(id: any)): QBResourcesRegistry [client]
 ---@field serverRegistry fun(onDispose: fun(id: any)): QBResourcesRegistry [server]
 

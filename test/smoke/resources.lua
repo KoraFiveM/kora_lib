@@ -256,4 +256,130 @@ harness.test("a disposal failure cannot abort the rest of a server registry swee
     harness.assertEqual(registry.owner("good"), nil, "the successful id should be untracked")
 end)
 
+-- H5: onStart / onStop / off. The realm is chosen on first use, so the client
+-- realm is pinned here and the server realm gets a fresh load further down.
+local resourceStates = {}
+_G.GetResourceState = function(name) return resourceStates[name] or "missing" end
+_G.IsDuplicityVersion = function() return false end
+
+local function asResource(name, fn)
+    local previous = _G.GetInvokingResource
+    _G.GetInvokingResource = function() return name end
+    local results = table.pack(fn())
+    _G.GetInvokingResource = previous
+    return table.unpack(results, 1, results.n)
+end
+
+harness.test("onStart runs now when the resource is started, then again on every restart", function()
+    resourceStates.kora_target = "started"
+    local runs = {}
+    asResource("consumer_a", function()
+        return Kora.resources.onStart("kora_target", function(name) runs[#runs + 1] = name end)
+    end)
+    harness.assertEqual(#runs, 1, "runNow defaults to true for a started resource")
+    harness.assertEqual(runs[1], "kora_target", "the handler receives the resource name")
+
+    net.fire("onClientResourceStart", "something_else")
+    harness.assertEqual(#runs, 1, "other resources must not trigger the handler")
+    net.fire("onClientResourceStart", "kora_target")
+    harness.assertEqual(#runs, 2)
+    net.fire("onClientResourceStart", "kora_target")
+    harness.assertEqual(#runs, 3)
+end)
+
+harness.test("onStart waits for a stopped resource and honours runNow = false", function()
+    resourceStates.late = "stopped"
+    resourceStates.early = "started"
+    local lateRuns, earlyRuns = 0, 0
+    asResource("consumer_b", function()
+        Kora.resources.onStart("late", function() lateRuns = lateRuns + 1 end)
+        Kora.resources.onStart("early", function() earlyRuns = earlyRuns + 1 end, { runNow = false })
+    end)
+    harness.assertEqual(lateRuns, 0, "a stopped resource does not run now")
+    harness.assertEqual(earlyRuns, 0, "runNow = false skips the immediate run")
+    net.fire("onClientResourceStart", "late")
+    net.fire("onClientResourceStart", "early")
+    harness.assertEqual(lateRuns, 1)
+    harness.assertEqual(earlyRuns, 1)
+end)
+
+harness.test("onStop runs when the watched resource stops", function()
+    local stops = 0
+    asResource("consumer_c", function()
+        Kora.resources.onStop("kora_inventory", function() stops = stops + 1 end)
+    end)
+    net.fire("onClientResourceStop", "kora_inventory")
+    harness.assertEqual(stops, 1)
+end)
+
+harness.test("handlers are dropped when the registering resource stops", function()
+    resourceStates.watched = "stopped"
+    local starts, stops = 0, 0
+    asResource("consumer_d", function()
+        Kora.resources.onStart("watched", function() starts = starts + 1 end)
+        Kora.resources.onStop("watched", function() stops = stops + 1 end)
+    end)
+    net.fire("onClientResourceStop", "consumer_d")
+    net.fire("onClientResourceStart", "watched")
+    net.fire("onClientResourceStop", "watched")
+    harness.assertEqual(starts, 0)
+    harness.assertEqual(stops, 0)
+end)
+
+harness.test("off removes one handler; only its owner can remove it", function()
+    resourceStates.watched2 = "stopped"
+    local runs = 0
+    local id = asResource("consumer_e", function()
+        return Kora.resources.onStart("watched2", function() runs = runs + 1 end)
+    end)
+    harness.assertFalse(asResource("intruder", function() return Kora.resources.off(id) end),
+        "another resource cannot remove the handler")
+    harness.assertTrue(asResource("consumer_e", function() return Kora.resources.off(id) end))
+    harness.assertFalse(asResource("consumer_e", function() return Kora.resources.off(id) end))
+    net.fire("onClientResourceStart", "watched2")
+    harness.assertEqual(runs, 0)
+end)
+
+harness.test("an erroring handler is logged and does not block the others", function()
+    resourceStates.flaky = "stopped"
+    local otherRuns = 0
+    asResource("consumer_f", function()
+        Kora.resources.onStart("flaky", function() error("boom") end)
+        Kora.resources.onStart("flaky", function() otherRuns = otherRuns + 1 end)
+    end)
+    local printed = {}
+    local originalPrint = print
+    _G.print = function(message) printed[#printed + 1] = tostring(message) end
+    net.fire("onClientResourceStart", "flaky")
+    _G.print = originalPrint
+    harness.assertEqual(otherRuns, 1)
+    harness.assertTrue(printed[1] and printed[1]:find("boom", 1, true) ~= nil)
+end)
+
+harness.test("onStart/onStop reject invalid arguments", function()
+    harness.assertThrows(function() Kora.resources.onStart("", function() end) end)
+    harness.assertThrows(function() Kora.resources.onStart("x", "nope") end)
+    harness.assertThrows(function() Kora.resources.onStart("x", function() end, { runNow = 1 }) end)
+    harness.assertThrows(function() Kora.resources.onStop("x", nil) end)
+end)
+
+harness.test("server realm listens to onResourceStart/onResourceStop", function()
+    local serverNet = mocks.install()
+    _G.GetResourceState = function() return "stopped" end
+    _G.IsDuplicityVersion = function() return true end
+    dofile(repoRoot .. "build/initiate.lua")
+    dofile(repoRoot .. "modules/util/shared.lua")
+    dofile(repoRoot .. "local/resources/shared.lua")
+    dofile(repoRoot .. "local/resources/server.lua")
+
+    local starts, stops = 0, 0
+    Kora.resources.onStart("kora_core", function() starts = starts + 1 end)
+    Kora.resources.onStop("kora_core", function() stops = stops + 1 end)
+    serverNet.fire("onClientResourceStart", "kora_core")
+    serverNet.fire("onResourceStart", "kora_core")
+    serverNet.fire("onResourceStop", "kora_core")
+    harness.assertEqual(starts, 1)
+    harness.assertEqual(stops, 1)
+end)
+
 harness.report("resources")

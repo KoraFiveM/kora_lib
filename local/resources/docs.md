@@ -28,6 +28,44 @@ local ready, reason = Kora.resources.awaitStarted('qbinventory', {
 if not ready then print(('qbinventory unavailable: %s'):format(reason)) end
 ```
 
+### `Kora.resources.onStart(resourceName, fn, opts?)` (shared)
+
+Runs `fn(resourceName)` right away if `resourceName` is already started, then
+again every time it starts (a restart included). Use it to (re-)register things
+with another resource, such as targets in kora_target or anything that must be
+redone after that resource restarts, instead of hand-writing an
+`onClientResourceStart`/`onResourceStart` handler plus a "wait until started"
+loop.
+
+- `opts.runNow` (default `true`) — set `false` to skip the immediate run.
+- Returns an integer id for `Kora.resources.off`.
+- The immediate run happens in the caller; later runs each get their own thread,
+  so `fn` may `Wait`. Errors are printed and do not stop other handlers.
+- Handlers are removed automatically when the calling resource stops.
+- They live in kora_lib, so a kora_lib restart drops them like any other
+  registration. Register them inside `Kora.onReady` if they must survive that
+  (see "kora_lib restarts" in `docs/using-the-api.md`); watching `kora_lib`
+  itself this way does not work, use `Kora.onReady` for that.
+
+```lua
+Kora.onReady(function()
+    Kora.resources.onStart('kora_target', function()
+        exports.kora_target:AddBoxZone('armory', coords, 1.5, 1.5, options)
+    end)
+end)
+```
+
+### `Kora.resources.onStop(resourceName, fn)` (shared)
+
+Runs `fn(resourceName)` every time `resourceName` stops, for example to drop
+cached handles that belonged to it. Same ownership and error handling as
+`onStart`. A resource is never told about its own stop. Returns an integer id.
+
+### `Kora.resources.off(id)` (shared)
+
+Removes an `onStart`/`onStop` handler early. Returns `true` when removed;
+`false` for an unknown id or one registered by another resource.
+
 ### `Kora.resources.registry(onDispose)` (client)
 ### `Kora.resources.serverRegistry(onDispose)` (server)
 Creates a new, isolated ownership registry. Identical shape on both realms — swept on `onClientResourceStop` (client) or `onResourceStop` (server).
