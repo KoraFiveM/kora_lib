@@ -9,9 +9,29 @@ local destroyZone
 local zoneOwnership
 local debugZones = {}
 
-local function interactionsLocked()
+-- Cached from a state-bag change handler so the zone tick doesn't read the bag every frame.
+local interactionLockValue = false
+local interactionLockRead = false
+
+local function readInteractionLock()
     local state = LocalPlayer and LocalPlayer.state
-    return state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false
+    local mode = state and state['qbmultichar:mode']
+    interactionLockValue = (mode and mode ~= false) and true or false
+    interactionLockRead = true
+end
+
+if type(AddStateBagChangeHandler) == 'function' then
+    AddStateBagChangeHandler('qbmultichar:mode', nil, function(bagName, _, value)
+        if bagName ~= ('player:%s'):format(GetPlayerServerId(PlayerId())) then return end
+        interactionLockValue = (value and value ~= false) and true or false
+        interactionLockRead = true
+    end)
+end
+
+local function interactionsLocked()
+    -- Without a change handler (older runtimes) fall back to polling the bag.
+    if type(AddStateBagChangeHandler) ~= 'function' or not interactionLockRead then readInteractionLock() end
+    return interactionLockValue
 end
 
 -- Forward-declared: buildHandle (via handle.setDebug) and Kora.zones.setDebug both need it before ensureDebugThread exists.
@@ -760,7 +780,7 @@ function Kora.zones.getInside(resource)
 end
 
 ---Toggles debug wireframe drawing on one zone (or every zone) at runtime. Also available as `zone.setDebug(enabled)`
----and via the `qb_zonedebug` command.
+---and via the `kora_zonedebug` command (dev only).
 ---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
 ---@param enabled boolean
 ---@return boolean changed
@@ -1627,7 +1647,7 @@ end
 
 -- No-args toggle: if any zone is drawing debug, turn everything off, else on. Reads debugZones directly so it
 -- stays correct when Kora.zones.setDebug was used per-zone.
-RegisterCommand("qb_zonedebug", function(_, args)
+local function zoneDebugCommand(_, args)
     local arg = args[1] and tostring(args[1]):lower() or nil
     local enabled
 
@@ -1638,13 +1658,32 @@ RegisterCommand("qb_zonedebug", function(_, args)
     elseif arg == nil then
         enabled = next(debugZones) == nil
     else
-        creatorLog(("qb_zonedebug: unrecognised argument '%s' -- use 'on', 'off', or no argument to toggle."):format(arg))
+        creatorLog(("kora_zonedebug: unrecognised argument '%s' -- use 'on', 'off', or no argument to toggle."):format(arg))
         return
     end
 
     Kora.zones.setDebug(nil, enabled)
     creatorLog(("zone debug drawing %s for every registered zone."):format(enabled and "enabled" or "disabled"))
-end, false)
+end
+
+-- Debug wireframes reveal hidden zone positions, so the command only works on dev setups (F#190):
+-- Config.zones.debugCommand = true, or `setr kora_lib_dev 1` in the server cfg. Checked per use, so
+-- flipping either needs no restart. `qb_zonedebug` stays as a legacy alias (F#191).
+local function debugCommandAllowed()
+    if Config.zones.debugCommand == true then return true end
+    return type(GetConvarInt) == "function" and GetConvarInt("kora_lib_dev", 0) == 1
+end
+
+local function guardedZoneDebugCommand(src, args)
+    if not debugCommandAllowed() then
+        creatorLog("kora_zonedebug is disabled. Set Config.zones.debugCommand = true or `setr kora_lib_dev 1` to enable it.")
+        return
+    end
+    return zoneDebugCommand(src, args)
+end
+
+RegisterCommand("kora_zonedebug", guardedZoneDebugCommand, false)
+RegisterCommand("qb_zonedebug", guardedZoneDebugCommand, false)
 
 ---@class QBZoneEditOptions
 ---@field coords? any New center coordinates. Only supported by box and sphere zones.
