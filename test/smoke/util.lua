@@ -341,4 +341,68 @@ harness.test("worldToScreenPixels scales by the active resolution", function()
     harness.assertEqual(y, 540, "0.5 of 1080 is 540")
 end)
 
+local function amount(value, opts)
+    return Kora.util.toAmount(value, opts)
+end
+
+harness.test("toAmount accepts whole numbers in the default 1..1000000 range", function()
+    harness.assertEqual(amount(1), 1)
+    harness.assertEqual(amount(1000000), 1000000)
+    local value = amount(1.0)
+    harness.assertEqual(value, 1, "1.0 is accepted")
+    harness.assertEqual(math.type(value), "integer", "a whole float comes back as an integer, never rounded")
+end)
+
+harness.test("toAmount rejects fractions, bounds, non-finite and non-numbers with stable reasons", function()
+    local cases = {
+        { 1.5, "not_integer" },
+        { 0, "below_min" },
+        { -1, "below_min" },
+        { 0 / 0, "not_finite" },
+        { math.huge, "not_finite" },
+        { -math.huge, "not_finite" },
+        { "5", "not_number" },
+        { nil, "not_number" },
+        { {}, "not_number" },
+        { true, "not_number" },
+        { 1e6 + 1, "above_max" },
+    }
+    for _, case in ipairs(cases) do
+        local value, reason = amount(case[1])
+        harness.assertEqual(value, nil, ("%s must be rejected"):format(tostring(case[1])))
+        harness.assertEqual(reason, case[2], ("reason for %s"):format(tostring(case[1])))
+    end
+end)
+
+harness.test("toAmount honours custom bounds, integer=false and allowString", function()
+    harness.assertEqual(amount(0, { min = 0 }), 0)
+    harness.assertEqual(select(2, amount(51, { max = 50 })), "above_max")
+    harness.assertEqual(select(2, amount(4, { min = 5, max = 10 })), "below_min")
+    harness.assertEqual(amount(2.5, { integer = false, max = 10 }), 2.5, "fractions pass when integer=false")
+    harness.assertEqual(select(2, amount(0 / 0, { integer = false })), "not_finite")
+    harness.assertEqual(amount("5", { allowString = true }), 5)
+    harness.assertEqual(select(2, amount("abc", { allowString = true })), "not_number")
+    harness.assertEqual(select(2, amount("1e999", { allowString = true })), "not_finite")
+    harness.assertEqual(select(2, amount("1.5", { allowString = true })), "not_integer")
+end)
+
+harness.test("toAmount rejects invalid options as programmer errors", function()
+    harness.assertThrows(function() amount(1, "nope") end)
+    harness.assertThrows(function() amount(1, { min = 5, max = 1 }) end)
+    harness.assertThrows(function() amount(1, { max = math.huge }) end)
+    harness.assertThrows(function() amount(1, { integer = "yes" }) end)
+end)
+
+harness.test("isAmount is the 1..max whole-number shorthand", function()
+    harness.assertTrue(Kora.util.isAmount(1))
+    harness.assertTrue(Kora.util.isAmount(5, 5))
+    harness.assertFalse(Kora.util.isAmount(6, 5))
+    harness.assertFalse(Kora.util.isAmount(0))
+    harness.assertFalse(Kora.util.isAmount(1.5))
+    harness.assertFalse(Kora.util.isAmount(0 / 0))
+    harness.assertFalse(Kora.util.isAmount(math.huge))
+    harness.assertFalse(Kora.util.isAmount("1"))
+    harness.assertFalse(Kora.util.isAmount(1e6 + 1))
+end)
+
 harness.report("util")

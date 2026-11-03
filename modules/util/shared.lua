@@ -131,6 +131,56 @@ function Kora.util.isInteger(value)
     return Kora.util.isFiniteNumber(value) and value % 1 == 0
 end
 
+---@class QBToAmountOptions
+---@field min? number Smallest accepted value. Defaults to 1.
+---@field max? number Largest accepted value. Defaults to 1000000.
+---@field integer? boolean Reject fractions. Defaults to true.
+---@field allowString? boolean Accept numeric strings such as '5'. Defaults to false.
+
+local AMOUNT_MIN, AMOUNT_MAX = 1, 1000000
+
+---Validates an untrusted amount (typically a client payload) without
+---rounding it. Rejects NaN, infinities, fractions (unless `integer = false`)
+---and strings (unless `allowString`). Pure: no logging, no allocation.
+---@param value any
+---@param opts? QBToAmountOptions
+---@return number|nil amount Integer subtype when `integer` is set.
+---@return string|nil reason 'not_number'|'not_finite'|'not_integer'|'below_min'|'above_max'
+function Kora.util.toAmount(value, opts)
+    local min, max, integer, allowString = AMOUNT_MIN, AMOUNT_MAX, true, false
+    if opts ~= nil then
+        assert(type(opts) == "table", "Kora.util.toAmount options must be a table.")
+        if opts.min ~= nil then min = opts.min end
+        if opts.max ~= nil then max = opts.max end
+        if opts.integer ~= nil then integer = opts.integer end
+        if opts.allowString ~= nil then allowString = opts.allowString end
+        assert(Kora.util.isFiniteNumber(min) and Kora.util.isFiniteNumber(max) and min <= max,
+            "Kora.util.toAmount requires finite bounds where min is at most max.")
+        assert(type(integer) == "boolean" and type(allowString) == "boolean",
+            "Kora.util.toAmount integer and allowString must be booleans.")
+    end
+
+    if allowString and type(value) == "string" then value = tonumber(value) end
+    if type(value) ~= "number" then return nil, "not_number" end
+    if not Kora.util.isFiniteNumber(value) then return nil, "not_finite" end
+    if integer then
+        if value % 1 ~= 0 then return nil, "not_integer" end
+        value = math.tointeger(value) or value
+    end
+    if value < min then return nil, "below_min" end
+    if value > max then return nil, "above_max" end
+    return value
+end
+
+---Shorthand for "a whole number from 1 to `max`" (default 1000000).
+---@param value any
+---@param max? number
+---@return boolean
+function Kora.util.isAmount(value, max)
+    assert(max == nil or Kora.util.isFiniteNumber(max), "Kora.util.isAmount max must be a finite number.")
+    return Kora.util.isInteger(value) and value >= 1 and value <= (max or AMOUNT_MAX)
+end
+
 ---Decodes JSON without throwing on malformed external data.
 ---@param value string
 ---@return any decoded

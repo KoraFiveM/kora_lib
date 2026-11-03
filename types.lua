@@ -134,6 +134,12 @@
 ---@field controlCharacters? 'remove'|'preserve'
 ---@field empty? 'nil'|'allow'
 
+---@class QBToAmountOptions
+---@field min? number Defaults to 1.
+---@field max? number Defaults to 1000000.
+---@field integer? boolean Reject fractions. Defaults to true.
+---@field allowString? boolean Accept numeric strings. Defaults to false.
+
 ---@class QBStreamLoadOptions
 ---@field timeout? integer Defaults to 10000 milliseconds.
 ---@field shouldContinue? fun(): boolean Cancels the wait when it returns false.
@@ -1648,6 +1654,8 @@
 ---@field truncateUtf8 fun(value: string, maximum: integer): string|nil, string? [shared]
 ---@field isFiniteNumber fun(value: any): boolean [shared]
 ---@field isInteger fun(value: any): boolean [shared]
+---@field toAmount fun(value: any, opts?: QBToAmountOptions): number|nil, string? [shared] reason: 'not_number'|'not_finite'|'not_integer'|'below_min'|'above_max'
+---@field isAmount fun(value: any, max?: number): boolean [shared]
 ---@field decodeJson fun(value: string): any, string? [shared]
 ---@field clamp fun(value: number, min: number, max: number): number [shared]
 ---@field round fun(value: number, decimals?: integer): number [shared]

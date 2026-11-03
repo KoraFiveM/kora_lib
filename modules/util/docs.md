@@ -20,6 +20,25 @@ Small shared, dependency-free helpers:
 - `Kora.util.isFiniteNumber(value)` accepts only real finite numbers, rejecting
   strings, NaN, and positive/negative infinity.
 - `Kora.util.isInteger(value)` accepts only finite whole numbers.
+- `Kora.util.toAmount(value, opts?)` → `amount | nil, reason?` validates an
+  untrusted amount, such as a quantity or price a client sent to a server
+  event. Defaults: `min = 1`, `max = 1000000`, `integer = true`,
+  `allowString = false`. It **never rounds**: `1.5` is rejected rather than
+  floored, and a whole float such as `1.0` comes back as the integer `1`. NaN,
+  infinities and (unless `allowString`) strings are rejected. Failure reasons
+  are stable codes, checked in this order: `'not_number'`, `'not_finite'`,
+  `'not_integer'`, `'below_min'`, `'above_max'`. Pure: no logging, no
+  allocation. Invalid options raise (programmer error).
+- `Kora.util.isAmount(value, max?)` → `boolean` is the shorthand for "a whole
+  number from 1 to `max`" (`max` defaults to `1000000`).
+
+```lua
+RegisterNetEvent('shop:buy', function(item, rawAmount)
+    local amount, reason = Kora.util.toAmount(rawAmount, { max = 100 })
+    if not amount then return print(('rejected amount from %d: %s'):format(source, reason)) end
+    -- amount is a whole number from 1 to 100
+end)
+```
 - `Kora.util.decodeJson(value)` decodes JSON without throwing on malformed
   external data; failures return `nil, "invalid_json"`. It deliberately does
   not choose a fallback value or log policy for the caller.
