@@ -1047,6 +1047,8 @@
 ---@field zones KoraLibZones
 ---@field lang fun(key: string, ...: any): string [shared]
 ---@field locale KoraLibLocale
+---@field onReady fun(fn: fun()): integer [client/server; consumer-local] Runs fn now and again after every kora_lib restart.
+---@field offReady fun(id: integer): boolean [client/server; consumer-local]
 
 ---@class KoraLibLocale
 ---@field getLanguage fun(): string [shared]

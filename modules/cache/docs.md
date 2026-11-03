@@ -112,4 +112,16 @@ end)
   listeners still receive that update. A listener added during an update begins
   receiving the next one.
 - `onChange` handlers are removed automatically when the resource that registered them stops.
+- **They are also lost when kora_lib restarts.** The listeners live inside
+  kora_lib, so restarting kora_lib while your resource keeps running leaves your
+  handlers silently unregistered (the same applies to callbacks, events, zones,
+  keybinds and every other registration made through kora_lib exports).
+  Register them inside `Kora.onReady`, which runs now and again after every
+  kora_lib restart (see "kora_lib restarts" in `docs/using-the-api.md`):
+
+  ```lua
+  Kora.onReady(function()
+      Kora.cache.onChange('vehicle', onVehicleChanged)
+  end)
+  ```
 - `Kora.cache.set`/`get`/`onChange` aren't limited to the built-in keys — use them for your own resource's local state if you want the same change-notification pattern without building it yourself. Namespace your own keys (e.g. `"myresource:something"`) to avoid colliding with another resource's.

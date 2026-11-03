@@ -150,6 +150,41 @@ Kora = setmetatable({}, {
 -- (QB.notify.send, QB.sql.query, ...) keep working. It is the same table.
 QB = Kora
 
+-- Registrations made through kora_lib exports (server callbacks and events,
+-- cache listeners, zones, keybinds, ...) are stored inside kora_lib, so a
+-- kora_lib restart drops them while this consumer keeps running. Handlers in
+-- this list re-run after every restart so the consumer can put them back.
+local readyHandlers = {}
+local nextReadyId = 0
+
+---Runs `fn` now, then again every time kora_lib restarts while this resource
+---keeps running. `fn` must be safe to run more than once.
+---@param fn fun()
+---@return integer id Pass to Kora.offReady to stop the re-runs.
+function Kora.onReady(fn)
+    assert(type(fn) == 'function', 'Kora.onReady requires a function.')
+
+    nextReadyId = nextReadyId + 1
+    local id = nextReadyId
+    readyHandlers[#readyHandlers + 1] = { id = id, fn = fn }
+
+    fn()
+    return id
+end
+
+---Stops a Kora.onReady handler from running after later kora_lib restarts.
+---@param id integer
+---@return boolean removed
+function Kora.offReady(id)
+    for index = 1, #readyHandlers do
+        if readyHandlers[index].id == id then
+            table.remove(readyHandlers, index).removed = true
+            return true
+        end
+    end
+    return false
+end
+
 -- kora_lib emits this after rebuilding its exports. Refresh only modules this
 -- consumer already touched; untouched modules remain lazy. Copying into the
 -- original table also keeps `local stream = Kora.stream` references current.
@@ -163,5 +198,20 @@ AddEventHandler(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updat
             for key, value in pairs(updated) do current[key] = value end
             rawset(Kora, name, current)
         end
+    end
+
+    -- One thread per handler, so one that waits (or errors) cannot hold up the
+    -- others. A snapshot keeps Kora.offReady inside a handler safe.
+    local handlers = table.move(readyHandlers, 1, #readyHandlers, 1, {})
+    for index = 1, #handlers do
+        local handler = handlers[index]
+        CreateThread(function()
+            if handler.removed then return end
+            local ok, err = pcall(handler.fn)
+            if not ok then
+                print(('[kora_lib] Kora.onReady handler %d in %s errored: %s')
+                    :format(handler.id, GetCurrentResourceName(), tostring(err)))
+            end
+        end)
     end
 end)
