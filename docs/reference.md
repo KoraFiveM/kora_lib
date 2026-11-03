@@ -7,6 +7,8 @@ permalink: /reference/
 
 Every public kora_lib namespace has a reference page. Each page is generated from the `docs.md` file beside its implementation, and every normal exported function is checked against both that guide and `types.lua` by the test suite.
 
+This site replaces the separate kora_docs_dom site, whose reference pages were hand-kept copies of these files. Edit the `docs.md` beside the module; `test/run.sh` checks every module page is generated and listed.
+
 ## Core
 
 - [Cache]({{ site.baseurl }}/reference/cache/) — fast local-player state and consumer-owned cached values

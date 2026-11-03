@@ -7,6 +7,50 @@ default radius is 15 metres.
 
 ## API
 
+### `Kora.closest.player(coords?, distance?)`
+Client: returns the nearest other player within the radius measured from `coords`, or from the local player's cached position when omitted. Server: pass `src` first; the origin is that player's server-side ped position when `coords` is omitted.
+
+#### Parameters
+- `src: integer` — Server only. Positive player server ID used as the search origin.
+- `coords: vector3 | vector4 | {x, y, z} | nil` — Optional finite search position. Server calls default to the source player's ped; client calls default to the local player's cached coordinates.
+- `distance: number?` — Optional positive finite radius in metres; defaults to `15`.
+
+#### Returns
+- `{ id: integer | nil, distance: number | nil }` — Nearest other player's server ID and distance, or both fields `nil` when none is within range.
+
+### `Kora.closest.vehicle(coords?, distance?)`
+Finds the nearest vehicle within the radius. Server calls take `src` as their first argument and use that player's ped as the default origin; client calls use the local player's cached coordinates.
+
+#### Parameters
+- `src: integer` — Server only. Positive player server ID.
+- `coords: vector3 | vector4 | {x, y, z} | nil` — Optional finite search origin.
+- `distance: number?` — Optional positive finite radius; defaults to `15` metres.
+
+#### Returns
+- `{ id: integer | nil, distance: number | nil }` — Entity handle and distance, or nil fields when there is no match.
+
+### `Kora.closest.ped(coords?, distance?)`
+Finds the nearest ped within the radius, excluding the origin player's own ped. The client and server default-origin behavior matches `Kora.closest.player`.
+
+#### Parameters
+- `src: integer` — Server only. Positive player server ID.
+- `coords: vector3 | vector4 | {x, y, z} | nil` — Optional finite search origin.
+- `distance: number?` — Optional positive finite radius; defaults to `15` metres.
+
+#### Returns
+- `{ id: integer | nil, distance: number | nil }` — Entity handle and distance, or nil fields when there is no match.
+
+### `Kora.closest.object(coords?, distance?)`
+Finds the nearest object within the radius. Unlike player and ped searches, it does not exclude an entity at the origin.
+
+#### Parameters
+- `src: integer` — Server only. Positive player server ID.
+- `coords: vector3 | vector4 | {x, y, z} | nil` — Optional finite search origin.
+- `distance: number?` — Optional positive finite radius; defaults to `15` metres.
+
+#### Returns
+- `{ id: integer | nil, distance: number | nil }` — Entity handle and distance, or nil fields when there is no match.
+
 Client calls search from `coords`, or from the local player's cached position
 when it is omitted (`nil`):
 

@@ -24,4 +24,11 @@ if ! (cd "$dir/.." && node --test tools/lookup/generate.test.mjs); then
 fi
 echo
 
+echo "== docs build =="
+# The Pages site generates one reference page per module docs.md (this replaced kora_docs_dom).
+if ! (cd "$dir/.." && bash test/check_docs.sh); then
+    status=1
+fi
+echo
+
 exit "$status"

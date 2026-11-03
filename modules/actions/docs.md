@@ -5,6 +5,57 @@ exclusive client progressbar or server-validated minigame. It does not grant
 items, validate locations, or decide rewards: those remain in the resource's
 `begin`/`complete` server handlers.
 
+## API
+
+### `Kora.actions.run(options, ...)`
+Runs `begin`, owns the progressbar or minigame interaction, then calls `complete` with the outcome. The library prevents overlapping actions on the client and resets its active state whether the flow succeeds, is declined, is cancelled, or raises an error.
+
+#### Parameters
+- `options: table` — Required configuration.
+  - `begin: function` — Required. Called first with every extra argument passed to `run`, unchanged. Return `token, reason?, authorization?`. A falsy token declines the action; `run` returns `false, reason` and does not open UI or call `complete`.
+  - `complete: function` — Required. Called after the UI finishes with a result table first, followed by the same extra arguments. The result contains `token`, `completed`, and optional `proof` and `authorization` fields.
+  - `label: string` — Required non-empty label for the progressbar.
+  - `duration: integer?` — Optional positive whole number of milliseconds. Progressbar actions default to 5000 ms; minigame actions pass the duration through as the minigame option.
+  - `minigame: string?` — Optional supported minigame type. When supplied, the interaction uses `Kora.minigames.play` instead of the progressbar and forwards the authorization returned by `begin`.
+  - `canCancel: boolean?` — Whether the progressbar can be cancelled. Defaults to `true` for the action's generated progressbar payload.
+  - `disable: table?` — Progressbar control-disable settings; validated with the same rules as `Kora.progressbar.start`.
+  - `anim: table?` — Progressbar animation settings; validated with the same rules as `Kora.progressbar.start`.
+- `...: any` — Any number of values forwarded unchanged to both `begin` and `complete`.
+
+#### Returns
+- `true, result` — `begin` accepted and `complete` was called; `result` is the value returned by `complete`.
+- `false, reason` — Another action was already active, or `begin` declined by returning a falsy token. In the overlap case the reason is `"Another action is already active."`.
+- Raises an error — Invalid configuration fails before `begin`; an error during the flow is re-raised after the active lock is released. If `begin` succeeded but `complete` had not yet run, the library makes a protected abort call to `complete` with `completed = false` before re-raising.
+
+#### Example
+```lua
+local started, result = Kora.actions.run({
+    label = 'Repairing vehicle',
+    duration = 8000,
+    canCancel = true,
+    disable = { move = true, combat = true },
+    begin = function(vehicleId)
+        local response = Kora.callback.trigger('my-resource:server:beginRepair', vehicleId)
+        return response.token, response.reason
+    end,
+    complete = function(outcome, vehicleId)
+        TriggerServerEvent('my-resource:server:finishRepair', vehicleId,
+            outcome.token, outcome.completed)
+        return outcome.completed
+    end,
+}, vehicleId)
+
+if not started then print(result) end
+```
+
+### `Kora.actions.isActive()`
+Checks whether this client currently owns an action flow. The value remains true across the server `begin` callback, UI step, and `complete` callback, then resets when the flow exits.
+
+#### Returns
+- `boolean` — `true` while `Kora.actions.run` is in progress; otherwise `false`.
+
+## Usage example
+
 ```lua
 Kora.actions.run({
     label = station.label,
