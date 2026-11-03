@@ -16,6 +16,7 @@ Every public kora_lib namespace has a reference page. Each page is generated fro
 - [Hash lookup]({{ site.baseurl }}/reference/lookup/) — GTA model, weapon, component, object, ped, and pickup names
 - [Locales]({{ site.baseurl }}/reference/locales/) — language selection, lookup, and interpolation
 - [Resources]({{ site.baseurl }}/reference/resources/) — owner tracking and automatic cleanup registries
+- [Sites]({{ site.baseurl }}/reference/sites/) — config sites and their interaction points, indexed once and validated per point
 - [State bags]({{ site.baseurl }}/reference/state/) — normalized state-bag subscriptions
 - [Streaming]({{ site.baseurl }}/reference/stream/) — models, animation data, effects, textures, audio, and collision
 

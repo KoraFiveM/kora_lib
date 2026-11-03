@@ -43,6 +43,10 @@ files {
     'modules/util/shared.lua',
     'modules/util/client.lua',
     'modules/stream/client.lua',
+    -- Kora.sites is consumer-local too (init.lua); its server.lua is read
+    -- server-side only, so it is not listed for client download.
+    'modules/sites/shared.lua',
+    'modules/sites/client.lua',
     'types.lua', -- annotation-only LuaLS API declarations; never loaded as a runtime script
     -- Lookup bundles are loaded on demand with LoadResourceFile; source JSON
     -- stays out of the runtime resource (source.json only records provenance).

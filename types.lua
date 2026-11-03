@@ -1064,6 +1064,7 @@
 ---@field resources KoraLibResources
 ---@field rewards KoraLibRewards
 ---@field screenshot KoraLibScreenshot
+---@field sites KoraLibSites
 ---@field sound KoraLibSound
 ---@field skills KoraLibSkills
 ---@field state KoraLibState
@@ -1590,6 +1591,28 @@
 ---@field requestScreenshot fun(options?: QBScreenshotOptions|fun(data: string?), callback?: fun(data: string?)) [client] screenshot-basic-compatible callback export.
 ---@field requestScreenshotUpload fun(url: string, field: string, options?: QBScreenshotOptions|fun(response: string?), callback?: fun(response: string?)) [client] screenshot-basic-compatible callback export.
 ---@field requestClient fun(player: integer, options?: QBScreenshotOptions, callback?: fun(err: string|false, result?: string)): string [server] Requests a one-time client upload.
+
+---@class QBSitesBuildOptions
+---@field childKey? string Field on each site holding its points. Defaults to 'children'.
+---@field inherit? string[] Point fields resolved point -> site -> globals (site/global values may be keyed by point type).
+---@field globals? table Fallback values for `inherit` fields.
+
+---@class QBSitesIndex
+---@field sites table<string, table> Site definitions by id.
+---@field children table<string, table> Resolved points by 'siteId:pointId'.
+---@field list table[] Resolved points in definition order.
+
+---@class QBSitesValidateOptions
+---@field maxDistance? number Player-to-point limit in metres; a point's own `radius` widens it.
+---@field types? string[] Accepted point types.
+---@field vehicleNetId? integer Also resolve this vehicle near the point.
+---@field vehicleDistance? number Vehicle-to-point limit in metres. Defaults to the player limit.
+
+---@class KoraLibSites
+---@field build fun(defs: table[], opts?: QBSitesBuildOptions): QBSitesIndex [shared; consumer-local]
+---@field get fun(index: QBSitesIndex, siteId: any, childId?: any): table|nil [shared; consumer-local]
+---@field validate fun(src: integer, index: QBSitesIndex, siteId: any, childId: any, opts: QBSitesValidateOptions): table|nil, string|integer|nil [server; consumer-local] reasons: unknown_site, unknown_child, disabled, wrong_type, player_unavailable, too_far, plus resolveNetworkEntity reasons
+---@field registerZones fun(index: QBSitesIndex, optionsByType: table<string, table|fun(child: table): table?>, opts?: {radius?: number, debug?: boolean}): {remove: fun(): integer} [client; consumer-local]
 
 ---@class QBSoundOptions
 ---@field network? boolean Play for nearby players too, rather than only locally. Defaults to false.

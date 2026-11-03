@@ -10,6 +10,9 @@ local compatModule
 local consumerModuleFiles = {
     loops = { 'modules/loops/shared.lua' },
     util = { 'modules/util/shared.lua' },
+    -- A sites index is consumer data; keeping it here means validate() never
+    -- re-serialises it across the exports boundary.
+    sites = { 'modules/sites/shared.lua' },
 }
 
 local isServer = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
@@ -17,6 +20,7 @@ if not isServer then
     consumerModuleFiles.stream = { 'modules/stream/client.lua' }
     consumerModuleFiles.util[#consumerModuleFiles.util + 1] = 'modules/util/client.lua'
 end
+consumerModuleFiles.sites[2] = isServer and 'modules/sites/server.lua' or 'modules/sites/client.lua'
 
 local function compileKoraFile(path)
     local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))

@@ -23,12 +23,12 @@ local entity = exports.kora_lib:entities_create(model, coords)
 
 Use the documented `Kora` form in Lua. It provides language-server types and keeps consumer code consistent when an implementation changes behind the proxy.
 
-`Kora.require`, `Kora.config`, `Kora.compat`, `Kora.util`, and `Kora.loops` are loaded
-lazily inside the consuming resource. `Kora.stream` is loaded the same way on
+`Kora.require`, `Kora.config`, `Kora.compat`, `Kora.util`, `Kora.loops`, and
+`Kora.sites` are loaded lazily inside the consuming resource. `Kora.stream` is loaded the same way on
 the client, so model and asset streaming natives execute in the resource that
 requested them. These modules are cached for the lifetime of that consumer.
 After kora_lib restarts, an update notification reloads already-used stateless
-helpers (`Kora.util`, `Kora.loops`, and client-side `Kora.stream`) in place;
+helpers (`Kora.util`, `Kora.loops`, `Kora.sites`, and client-side `Kora.stream`) in place;
 untouched modules remain lazy. `Kora.require`, `Kora.config`, and `Kora.compat`
 deliberately retain their consumer-local caches, registrations, and
 configuration state until that consumer restarts. Existing references to a
@@ -120,8 +120,8 @@ interact targets, keybinds, timers, state-bag listeners and so on. When kora_lib
 restarts, all of it is gone. A consumer that keeps running is **not** told
 which registrations it lost: its server callbacks answer "not registered" and
 its listeners stay silent until the consumer itself restarts. Only the
-consumer-local helpers (`Kora.util`, `Kora.loops`, client `Kora.stream`) are
-reloaded automatically.
+consumer-local helpers (`Kora.util`, `Kora.loops`, `Kora.sites`, client
+`Kora.stream`) are reloaded automatically.
 
 Put registrations that must survive a kora_lib restart inside `Kora.onReady`:
 

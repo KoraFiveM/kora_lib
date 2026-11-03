@@ -15,6 +15,7 @@
     - { title: Locales, url: /reference/locales/ }
     - { title: Hash lookup, url: /reference/lookup/ }
     - { title: Resources, url: /reference/resources/ }
+    - { title: Sites, url: /reference/sites/ }
     - { title: State bags, url: /reference/state/ }
     - { title: Streaming, url: /reference/stream/ }
 
