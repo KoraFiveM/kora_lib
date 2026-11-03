@@ -576,6 +576,101 @@ harness.test('[server] resolveNetworkEntity returns stable input and entity erro
     end, 'explicit non-table network entity options must be rejected')
 end)
 
+-- H2: plate / model / unoccupied / notPlayer / near.
+local function seedVehicle()
+    serverReset()
+    local source, ped, vehicle = 7, 70, 80
+    serverPlayerPeds[source] = ped
+    entityData[ped] = { coords = { x = 0, y = 0, z = 0 }, model = 1 }
+    entityData[vehicle] = { coords = { x = 3, y = 4, z = 0 }, model = joaat('adder') }
+    networkEntities[100] = vehicle
+    entityTypes[vehicle] = 2
+    return source, ped, vehicle
+end
+
+local plates = {}
+local seats = {}
+local playerPeds = {}
+_G.GetVehicleNumberPlateText = function(vehicle) return plates[vehicle] end
+_G.IsPedAPlayer = function(ped) return playerPeds[ped] == true end
+
+harness.test('[server] resolveNetworkEntity plate option trims and upper-cases both sides', function()
+    local source, _, vehicle = seedVehicle()
+    plates[vehicle] = ' ab12 cde  '
+
+    harness.assertEqual(resolveNetworkEntity(source, 100, { entityType = 'vehicle', plate = 'AB12 CDE' }), vehicle)
+    harness.assertEqual(resolveNetworkEntity(source, 100, { entityType = 'vehicle', plate = 'ab12 cde ' }), vehicle)
+    local _, reason = resolveNetworkEntity(source, 100, { entityType = 'vehicle', plate = 'ZZ99 ZZZ' })
+    harness.assertEqual(reason, 'plate_mismatch')
+    local _, badType = resolveNetworkEntity(source, 100, { entityType = 'vehicle', plate = { 'AB12' } })
+    harness.assertEqual(badType, 'plate_mismatch', 'a non-string plate (client data) fails instead of raising')
+    harness.assertThrows(function() resolveNetworkEntity(source, 100, { plate = 'AB12' }) end,
+        'plate requires entityType = vehicle')
+end)
+
+harness.test('[server] resolveNetworkEntity model option accepts a hash, a name or a list', function()
+    local source, _, vehicle = seedVehicle()
+    harness.assertEqual(resolveNetworkEntity(source, 100, { model = 'adder' }), vehicle)
+    harness.assertEqual(resolveNetworkEntity(source, 100, { model = joaat('adder') }), vehicle)
+    harness.assertEqual(resolveNetworkEntity(source, 100, { model = { 'zentorno', 'adder' } }), vehicle)
+    local _, reason = resolveNetworkEntity(source, 100, { model = { 'zentorno', joaat('t20') } })
+    harness.assertEqual(reason, 'wrong_model')
+
+    -- Server natives may report a model as signed while joaat() is unsigned (or the reverse).
+    entityData[vehicle].model = joaat('adder') - 4294967296
+    harness.assertEqual(resolveNetworkEntity(source, 100, { model = 'adder' }), vehicle,
+        'signed and unsigned hashes of the same model must match')
+    harness.assertThrows(function() resolveNetworkEntity(source, 100, { model = {} }) end)
+    harness.assertThrows(function() resolveNetworkEntity(source, 100, { model = true }) end)
+end)
+
+harness.test('[server] resolveNetworkEntity unoccupied option checks every seat', function()
+    local source, _, vehicle = seedVehicle()
+    local previous = _G.GetPedInVehicleSeat
+    _G.GetPedInVehicleSeat = function(veh, seat) return (seats[veh] or {})[seat] or 0 end
+
+    seats[vehicle] = {}
+    harness.assertEqual(resolveNetworkEntity(source, 100, { entityType = 'vehicle', unoccupied = true }), vehicle)
+    seats[vehicle] = { [6] = 555 }
+    local _, reason = resolveNetworkEntity(source, 100, { entityType = 'vehicle', unoccupied = true })
+    harness.assertEqual(reason, 'occupied', 'a passenger in a back seat still counts')
+
+    _G.GetPedInVehicleSeat = previous
+    harness.assertThrows(function()
+        resolveNetworkEntity(source, 100, { entityType = 'vehicle', unoccupied = true, requireDriver = true })
+    end, 'unoccupied and requireDriver contradict each other')
+end)
+
+harness.test('[server] resolveNetworkEntity notPlayer option rejects player peds', function()
+    serverReset()
+    serverPlayerPeds[7] = 70
+    entityData[70] = { coords = ORIGIN, model = 1 }
+    entityData[90] = { coords = { x = 1, y = 0, z = 0 }, model = 1 }
+    networkEntities[200] = 90
+    entityTypes[90] = 1
+
+    harness.assertEqual(resolveNetworkEntity(7, 200, { entityType = 'ped', notPlayer = true }), 90)
+    playerPeds[90] = true
+    local _, reason = resolveNetworkEntity(7, 200, { entityType = 'ped', notPlayer = true })
+    harness.assertEqual(reason, 'is_player')
+    playerPeds[90] = nil
+    harness.assertThrows(function() resolveNetworkEntity(7, 200, { notPlayer = true }) end,
+        'notPlayer requires entityType = ped')
+end)
+
+harness.test('[server] resolveNetworkEntity near option bounds the entity to a fixed point', function()
+    local source, _, vehicle = seedVehicle()
+    local garage = { x = 3, y = 0, z = 0 }
+
+    harness.assertEqual(resolveNetworkEntity(source, 100, { near = { coords = garage, radius = 5 } }), vehicle)
+    local _, reason = resolveNetworkEntity(source, 100, { near = { coords = garage, radius = 3 } })
+    harness.assertEqual(reason, 'too_far_from_point')
+    harness.assertThrows(function()
+        resolveNetworkEntity(source, 100, { near = { coords = garage, radius = 0 / 0 } })
+    end)
+    harness.assertThrows(function() resolveNetworkEntity(source, 100, { near = { radius = 3 } }) end)
+end)
+
 harness.test('[server] resolveNearbyPlayer validates peds, buckets, and distance', function()
     serverReset()
     serverPlayerPeds[7], serverPlayerPeds[8] = 70, 80

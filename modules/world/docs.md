@@ -113,6 +113,30 @@ is a stable code such as `invalid_network_id`, `entity_unavailable`,
 `wrong_entity_type`, `player_unavailable`, `routing_bucket_mismatch`,
 `too_far`, or `driver_required`.
 
+Further optional checks, each with its own failure reason:
+
+| Option | Checks | Reason |
+|---|---|---|
+| `plate = 'AB12 CDE'` | Vehicle plate equals this one after trimming and upper-casing both sides. Needs `entityType = 'vehicle'`. A non-string plate (client data) fails rather than raising. | `plate_mismatch` |
+| `model = 'adder'` / hash / list | Entity model is one of these names or hashes (signed and unsigned hashes both match). | `wrong_model` |
+| `unoccupied = true` | No ped in any seat (driver and passengers 0–14). Needs `entityType = 'vehicle'`; cannot be combined with `requireDriver`. | `occupied` |
+| `notPlayer = true` | The ped is not a player. Needs `entityType = 'ped'`. | `is_player` |
+| `near = { coords = vector3, radius = 10.0 }` | Entity is within `radius` metres of a fixed point, such as a garage. | `too_far_from_point` |
+
+Checks run in the order of the reasons listed above, after the existing ones;
+the defaults (`sameBucket = true`, everything else off) are unchanged.
+
+```lua
+local vehicle, reason = Kora.world.resolveNetworkEntity(source, netId, {
+    entityType = 'vehicle',
+    maxDistance = 10.0,
+    plate = plate,
+    unoccupied = true,
+    near = { coords = garage.coords, radius = 15.0 },
+})
+if not vehicle then return notify(source, ('Cannot store that vehicle (%s)'):format(reason)) end
+```
+
 ### `Kora.world.resolveNearbyPlayer(source, targetSource, options)` (server)
 
 Validates two live player peds using server-authoritative coordinates. Source

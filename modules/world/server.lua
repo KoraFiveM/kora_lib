@@ -205,6 +205,47 @@ end
 ---@field maxDistance? number Maximum distance from the player's ped in metres.
 ---@field sameBucket? boolean Require the entity and player to share a routing bucket. Defaults to true.
 ---@field requireDriver? boolean Require the player's ped to occupy the vehicle's driver seat.
+---@field plate? string Expected plate (vehicles); both sides are trimmed and upper-cased.
+---@field model? string|integer|(string|integer)[] Accepted model name(s) or hash(es).
+---@field unoccupied? boolean Require every seat of the vehicle to be empty.
+---@field notPlayer? boolean Require the ped not to be a player.
+---@field near? {coords: vector3|table, radius: number} Require the entity within `radius` metres of a fixed point.
+
+-- GTA vehicles have at most 16 seats: the driver (-1) and passengers 0..14.
+local LAST_SEAT_INDEX = 14
+
+-- Model hashes reach the server signed or unsigned depending on the native, so
+-- both sides are compared as unsigned 32-bit values.
+local function unsignedModel(model)
+    return (type(model) == "string" and joaat(model) or model) & 0xFFFFFFFF
+end
+
+local function buildAcceptedModels(model)
+    local models = type(model) == "table" and model or { model }
+    assert(#models > 0, "model must be a model name, a hash, or a non-empty list of either.")
+    local accepted = {}
+    for index = 1, #models do
+        local entry = models[index]
+        assert(type(entry) == "string" or isInteger(entry),
+            "model must be a model name, a hash, or a non-empty list of either.")
+        accepted[unsignedModel(entry)] = true
+    end
+    return accepted
+end
+
+local function normalizePlate(plate)
+    if type(plate) == "number" then plate = tostring(plate) end
+    if type(plate) ~= "string" then return nil end
+    return Kora.util.trim(plate):upper()
+end
+
+local function hasOccupant(vehicle)
+    for seat = -1, LAST_SEAT_INDEX do
+        local ped = GetPedInVehicleSeat(vehicle, seat)
+        if ped and ped ~= 0 then return true end
+    end
+    return false
+end
 
 ---Resolves and validates a client-supplied network entity before server code
 ---acts on it. Failure reasons are stable machine-readable codes so callers
@@ -231,6 +272,20 @@ function Kora.world.resolveNetworkEntity(src, networkId, options)
         "requireDriver must be a boolean.")
     assert(not options.requireDriver or options.entityType == "vehicle",
         "requireDriver requires entityType = 'vehicle'.")
+    -- plate is usually client data, so a wrong type fails as plate_mismatch below instead of raising here.
+    assert(options.plate == nil or options.entityType == "vehicle", "plate requires entityType = 'vehicle'.")
+    assert(options.unoccupied == nil or type(options.unoccupied) == "boolean", "unoccupied must be a boolean.")
+    assert(not options.unoccupied or options.entityType == "vehicle", "unoccupied requires entityType = 'vehicle'.")
+    assert(not (options.unoccupied and options.requireDriver), "unoccupied and requireDriver cannot both be set.")
+    assert(options.notPlayer == nil or type(options.notPlayer) == "boolean", "notPlayer must be a boolean.")
+    assert(not options.notPlayer or options.entityType == "ped", "notPlayer requires entityType = 'ped'.")
+    local acceptedModels = options.model ~= nil and buildAcceptedModels(options.model) or nil
+    local near = options.near
+    if near ~= nil then
+        assert(type(near) == "table" and isFiniteNumber(near.radius) and near.radius >= 0,
+            "near must be { coords = vector3, radius = non-negative number }.")
+        near = { coords = toVec3(near.coords), radiusSq = near.radius * near.radius }
+    end
 
     if not isInteger(networkId) or networkId < 1 then
         return nil, "invalid_network_id"
@@ -257,6 +312,24 @@ function Kora.world.resolveNetworkEntity(src, networkId, options)
     end
     if options.requireDriver and GetPedInVehicleSeat(entity, -1) ~= playerPed then
         return nil, "driver_required"
+    end
+    if acceptedModels and not acceptedModels[unsignedModel(GetEntityModel(entity))] then
+        return nil, "wrong_model"
+    end
+    if options.plate ~= nil then
+        local expected = normalizePlate(options.plate)
+        if not expected or expected ~= normalizePlate(GetVehicleNumberPlateText(entity)) then
+            return nil, "plate_mismatch"
+        end
+    end
+    if options.unoccupied and hasOccupant(entity) then
+        return nil, "occupied"
+    end
+    if options.notPlayer and IsPedAPlayer(entity) then
+        return nil, "is_player"
+    end
+    if near and distSq(near.coords, toVec3(GetEntityCoords(entity))) > near.radiusSq then
+        return nil, "too_far_from_point"
     end
 
     return entity
