@@ -1136,7 +1136,7 @@ end
 ---schema, including nested submenus; the NUI handles navigation and returns
 ---one MenuResult.
 ---@param items table[] Same shape as openMenu's `items`.
----@param opts? table `{ radius?: number }`
+---@param opts? table `{ radius?: number, labelLines?: integer }` -- labelLines (1-4, default 3) is how many lines a tile label may wrap onto before it is ellipsized; the full label stays available on hover/focus.
 ---@return promise|any result Resolves/returns `{ selectedId: string, path: string[] }` or `{ cancelled: true }`. See Kora.nui.request's return doc.
 function Kora.nui.openRadialMenu(items, opts)
     assertMenuItems(items, "openRadialMenu")
@@ -1145,11 +1145,14 @@ function Kora.nui.openRadialMenu(items, opts)
     opts = opts or {}
     assert(opts.radius == nil or (isFiniteNumber(opts.radius) and opts.radius > 0),
         "openRadialMenu radius must be a positive number.")
+    assert(opts.labelLines == nil or (isFiniteNumber(opts.labelLines) and opts.labelLines >= 1 and opts.labelLines <= 4),
+        "openRadialMenu labelLines must be a number from 1 to 4.")
 
     -- No timeout, see openMenu.
     return settleForExport(focusUntilSettled(requestPromise("openRadialMenu", {
         items = items,
         radius = opts.radius,
+        labelLines = opts.labelLines and math.floor(opts.labelLines),
     }, false)))
 end
 

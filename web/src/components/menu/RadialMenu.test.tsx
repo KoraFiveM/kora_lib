@@ -46,3 +46,23 @@ describe("RadialMenuContainer live updates", () => {
         expect(screen.queryByRole("menuitem", { name: "Repair updated" })).not.toBeInTheDocument()
     })
 })
+
+describe("RadialMenuContainer long labels", () => {
+    it("wraps and clamps tile labels, keeping the full label in title and the hub", () => {
+        render(<RadialMenuContainer />)
+        message("openRadialMenu", { items: [{ id: "emote", label: "TurtleDoeTest1.0" }, { id: "b", label: "Short" }] })
+        const tile = screen.getByRole("menuitem", { name: "TurtleDoeTest1.0" })
+        expect(tile).toHaveAttribute("title", "TurtleDoeTest1.0")
+        const label = tile.querySelector("span.overflow-hidden") as HTMLElement
+        expect(label.className).not.toContain("truncate")
+        expect(label.style.webkitLineClamp).toBe("3")
+        expect(screen.getAllByText("TurtleDoeTest1.0").length).toBe(2)
+    })
+
+    it("honours labelLines from the payload", () => {
+        render(<RadialMenuContainer />)
+        message("openRadialMenu", { labelLines: 2, items: [{ id: "v", label: "Vehicle Doors" }] })
+        const label = screen.getByRole("menuitem", { name: "Vehicle Doors" }).querySelector("span.overflow-hidden") as HTMLElement
+        expect(label.style.webkitLineClamp).toBe("2")
+    })
+})

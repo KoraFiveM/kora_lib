@@ -206,6 +206,8 @@ export interface OpenContextMenuPayload {
 export interface OpenRadialMenuPayload {
     items: MenuItem[]
     radius?: number
+    /** Max lines a tile label wraps onto before ellipsizing (1-4, default 3). */
+    labelLines?: number
     /** Internal live-update hint: preserve the deepest still-valid submenu path. */
     path?: string[]
 }

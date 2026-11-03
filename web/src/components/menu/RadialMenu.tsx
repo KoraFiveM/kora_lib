@@ -15,6 +15,15 @@ const PAGE_SIZE_WITH_MORE = MAX_RING_ITEMS - 1
 const DEFAULT_RADIUS = 156
 const ITEM_HALF_SIZE = 42
 const EDGE_GUTTER = 16
+const DEFAULT_LABEL_LINES = 3
+const LONG_LABEL_LENGTH = 14
+
+// Longer labels step down a size so they wrap onto fewer lines before clamping.
+function labelSizeClass(label: string): string {
+    if (label.length > 26) return "text-[10px] leading-3"
+    if (label.length > LONG_LABEL_LENGTH) return "text-[11px] leading-[13px]"
+    return "text-xs leading-4"
+}
 
 interface Level {
     title?: string
@@ -233,11 +242,15 @@ export function RadialMenuContainer() {
     const requestedRadius = payload.radius ?? DEFAULT_RADIUS
     const maximumRadius = Math.max(48, Math.min(viewport.width, viewport.height) / 2 - ITEM_HALF_SIZE - EDGE_GUTTER)
     const radius = Math.min(Math.max(96, requestedRadius), maximumRadius)
+    const labelLines = Math.min(4, Math.max(1, Math.floor(payload.labelLines ?? DEFAULT_LABEL_LINES)))
     const activeEntry = entries[activeIndex]
     const activeItem = activeEntry?.kind === "item" ? activeEntry.item : undefined
     // Disabled items carry no reason field, so fall back to a plain note.
     const activeDescriptionIsFallback = Boolean(activeItem?.disabled && !activeItem.description)
     const activeDescription = activeItem?.description ?? (activeItem?.disabled ? "Unavailable right now" : undefined)
+    // For long labels the hub doubles as a readout so a clamped tile label is always readable in full.
+    const hubShowsLabel = Boolean(activeItem && activeItem.label.length > LONG_LABEL_LENGTH)
+    const hubTitle = hubShowsLabel && activeItem ? activeItem.label : canGoBack ? "Back" : level.title ?? "Actions"
     const moreIcon = resolveIcon("ChevronRight")
     const CenterIcon = resolveIcon(canGoBack ? "ChevronLeft" : "X")
 
@@ -317,7 +330,7 @@ export function RadialMenuContainer() {
                             aria-disabled={disabled || undefined}
                             aria-haspopup={item?.submenu ? "menu" : undefined}
                             aria-label={item?.description ? `${label}: ${item.description}` : label}
-                            title={item?.description ?? label}
+                            title={item?.description ? `${label}: ${item.description}` : label}
                             onMouseEnter={() => setActiveIndex(index)}
                             onFocus={() => setActiveIndex(index)}
                             onClick={() => activateEntry(entry)}
@@ -333,7 +346,12 @@ export function RadialMenuContainer() {
                             }}
                         >
                             {iconIsImage ? <img aria-hidden src={item?.icon} className="max-h-16 max-w-16 shrink-0 object-contain" style={{ width: Math.max(0, Math.min(100, item?.iconWidth ?? 20)), height: Math.max(0, Math.min(100, item?.iconHeight ?? 20)) }} /> : Icon ? <Icon aria-hidden className={cn("h-5 w-5 shrink-0", iconAnimationClass(item?.iconAnimation))} style={{ color: item?.iconColor, width: item?.iconWidth, height: item?.iconHeight }} /> : <span aria-hidden className="font-mono text-sm">{index + 1}</span>}
-                            <span className="max-w-full truncate leading-4">{label}</span>
+                            <span
+                                className={cn("w-full min-w-0 overflow-hidden [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-box-orient:vertical]", labelSizeClass(label))}
+                                style={{ WebkitLineClamp: labelLines }}
+                            >
+                                {label}
+                            </span>
                             {item?.submenu ? <span aria-hidden className="absolute right-1.5 top-1.5 text-muted-foreground">›</span> : null}
                         </button>
                     )
@@ -356,9 +374,10 @@ export function RadialMenuContainer() {
                     >
                         {CenterIcon ? <CenterIcon aria-hidden className="h-4 w-4" /> : <span aria-hidden>×</span>}
                     </button>
-                    <span className="max-w-full truncate text-[10px] font-semibold text-foreground">{canGoBack ? "Back" : level.title ?? "Actions"}</span>
+                    <span className="line-clamp-2 max-w-full [overflow-wrap:anywhere] text-[10px] font-semibold leading-3 text-foreground">{hubTitle}</span>
                     {activeDescription ? (
-                        <span className={cn("mt-0.5 line-clamp-2 text-[9px] leading-3 text-muted-foreground", activeDescriptionIsFallback && "italic")}>
+                        <span className={cn(hubShowsLabel ? "mt-0.5 line-clamp-1 text-[9px]" : "mt-0.5 line-clamp-2 text-[9px]",
+                            " leading-3 text-muted-foreground", activeDescriptionIsFallback && "italic")}>
                             {activeDescription}
                         </span>
                     ) : null}
