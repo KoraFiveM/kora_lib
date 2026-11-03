@@ -1,6 +1,6 @@
 ---@class QBProgressBarDisable
----@field move? boolean Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to false.
----@field moveMode? 'freeze'|'controls' How move=true is enforced. Defaults to freeze; ox compatibility uses controls.
+---@field move? boolean Blocks the player's movement for the duration. Defaults to false.
+---@field moveMode? 'freeze'|'controls' How move=true is enforced: 'controls' disables movement input only, 'freeze' also calls `FreezeEntityPosition` (never while the ped is airborne). Defaults to `Config.progressbar.defaultMoveMode` ('controls').
 ---@field controlProfile? 'kora_lib'|'ox' Selects the exact control set. Defaults to kora_lib.
 ---@field sprint? boolean Disables sprinting. Defaults to false.
 ---@field combat? boolean Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to false.
@@ -240,6 +240,20 @@ local function ensureAnimDict(dict)
     return ok and loaded ~= false
 end
 
+---True while the ped is mid-air or out of control, where FreezeEntityPosition would leave it hanging
+---in place or cancel a fall/jump/ragdoll in progress.
+---@param ped integer
+---@return boolean
+local function isAirborne(ped)
+    return IsPedFalling(ped) or IsPedJumping(ped) or IsPedRagdoll(ped)
+        or IsEntityInAir(ped) or IsPedInParachuteFreeFall(ped)
+end
+
+local function resolveMoveMode(disable)
+    local mode = disable.moveMode or Config.progressbar.defaultMoveMode
+    return mode == 'freeze' and 'freeze' or 'controls'
+end
+
 local function safeCleanup(label, fn)
     local ok, err = pcall(fn)
     if not ok then
@@ -450,9 +464,9 @@ function Kora.progressbar.start(payload, owner, hooks)
         end
 
         if payload.disable and payload.disable.move then
-            if payload.disable.moveMode == 'controls' then
-                session.movementLease = Kora.compat.acquireControls(MOVEMENT_CONTROLS, nil, session.owner)
-            else
+            -- Controls are always blocked; freezing is opt-in and skipped while airborne.
+            session.movementLease = Kora.compat.acquireControls(MOVEMENT_CONTROLS, nil, session.owner)
+            if resolveMoveMode(payload.disable) == 'freeze' and not isAirborne(session.ped) then
                 FreezeEntityPosition(session.ped, true)
                 session.frozen = true
             end

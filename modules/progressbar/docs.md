@@ -24,7 +24,8 @@ Runs a progress bar for `payload.duration` ms.
   - `presentation?: "bar" | "circle"` and `position?: "middle" | "bottom"` — Select the visual used by ox-compatible progress-circle calls.
   - `useWhileDead?`, `allowRagdoll?`, `allowCuffed?`, `allowFalling?`, `allowSwimming?` — State-specific interruption overrides; all default to `false`.
   - `disable?: table`
-    - `move?: boolean` — Freezes the ped in place for the duration (`FreezeEntityPosition`). Defaults to `false`.
+    - `move?: boolean` — Blocks the player's movement controls for the duration. Defaults to `false`. By default (`Config.progressbar.defaultMoveMode = 'controls'`) the ped is **not** frozen, so a bar started from a target option while walking does not lock the character like an admin freeze. Set `moveMode = 'freeze'` (or change the config default) to also `FreezeEntityPosition`; the freeze is skipped while the ped is falling, jumping, ragdolling or airborne and is always undone on finish, cancel, death and resource stop.
+    - `moveMode?: 'freeze'|'controls'` — Per-bar override of `Config.progressbar.defaultMoveMode`.
     - `sprint?: boolean` — Disables sprinting.
     - `combat?: boolean` — Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to `false`.
     - `car?: boolean` — Disables vehicle driving controls while the ped is in a vehicle. Defaults to `false`.

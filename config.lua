@@ -118,6 +118,14 @@ Config.progressbar = {
     maxDuration = 600000, -- ms; the hard ceiling Kora.progressbar.start() enforces (10 minutes)
     maxProps = 2,         -- maximum number of local cosmetic props one progress bar may attach
     cancelControls = { 73, 322 }, -- checked when payload.canCancel is true -- X and Escape by default
+    -- How disable.move is enforced when the payload sets no disable.moveMode.
+    --   'controls' (default): only the movement controls are disabled; the ped is never
+    --     FreezeEntityPosition'd, so a player who triggers a bar from a third-eye/target option
+    --     while walking glides to a stop instead of locking solid like an admin freeze.
+    --   'freeze': legacy behaviour, FreezeEntityPosition for the duration (still skipped while
+    --     the ped is falling, jumping, ragdolling or otherwise airborne, where it falls back to 'controls').
+    -- A payload's own disable.moveMode always wins over this.
+    defaultMoveMode = 'controls',
 }
 
 -- Built-in wheel content for compat/client/qb-radialmenu.lua, ported from upstream qb-radialmenu's
@@ -199,6 +207,7 @@ Config.placement = {
 }
 
 Config.freecam = {
+    freezePlayer = true,   -- default for Kora.freecam.start({ freezePlayer }); never freezes a falling/jumping/ragdolling/airborne ped
     cameraMoveSpeed = 6.0,
     cameraLookSensitivity = 5.0,
     shiftMultiplier = 2.5,

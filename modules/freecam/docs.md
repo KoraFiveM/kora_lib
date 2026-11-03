@@ -16,7 +16,7 @@ cam.setMovementMode('grid')
 cam.stop()
 ```
 
-Mouse + WASD flies the camera; Shift accelerates it. `focusCoords` keeps the lens aimed at that point and suppresses mouse-look. Any movement step outside the optional radius or zone is ignored. Per-session `moveSpeed`, `lookSensitivity`, `fastMultiplier`, `transitionMs`, `upControl`, `downControl`, and `freezePlayer` options preserve specialized editor behavior without another camera loop.
+Mouse + WASD flies the camera; Shift accelerates it. `focusCoords` keeps the lens aimed at that point and suppresses mouse-look. Any movement step outside the optional radius or zone is ignored. Per-session `moveSpeed`, `lookSensitivity`, `fastMultiplier`, `transitionMs`, `upControl`, `downControl`, and `freezePlayer` options preserve specialized editor behavior without another camera loop. `freezePlayer` defaults to `Config.freecam.freezePlayer` (true); the ped is never frozen while falling, jumping, ragdolling or airborne (movement input is blocked regardless).
 
 The handle provides `stop(reason?)`, `isActive()`, `getCoords()`, `getRotation()`, `getCamera()`, `getMovementMode()`, `setMovementMode(mode)`, and `setFocus(coordsOrNil)`. `getCamera()` exposes the native handle for helpers such as `Kora.raycast.fromCam`.
 

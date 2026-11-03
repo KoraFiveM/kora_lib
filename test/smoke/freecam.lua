@@ -19,6 +19,12 @@ function _G.SetCamCoord() end
 function _G.SetCamRot() end
 function _G.RenderScriptCams(value) rendered = value end
 function _G.FreezeEntityPosition(_, value) frozen = value end
+local airborne = false
+function _G.IsPedFalling() return airborne end
+function _G.IsPedJumping() return false end
+function _G.IsPedRagdoll() return false end
+function _G.IsEntityInAir() return false end
+function _G.IsPedInParachuteFreeFall() return false end
 function _G.GetDisabledControlNormal(_, control) return input[control] or 0.0 end
 function _G.IsControlPressed() return false end
 function _G.GetFrameTime() return 0.1 end
@@ -49,6 +55,24 @@ harness.test('freecam moves, rejects boundary steps, changes mode/focus, and res
     harness.assertFalse(Kora.freecam.isActive())
     harness.assertFalse(frozen)
     input[31] = nil
+end)
+
+harness.test('freecam never freezes an airborne ped and honours Config.freecam.freezePlayer', function()
+    airborne = true
+    local cam = assert(Kora.freecam.start())
+    harness.assertFalse(frozen, 'a falling ped must not be frozen')
+    cam.stop()
+    airborne = false
+
+    Config.freecam.freezePlayer = false
+    cam = assert(Kora.freecam.start())
+    harness.assertFalse(frozen, 'the config default can turn the freeze off')
+    cam.stop()
+    cam = assert(Kora.freecam.start({ freezePlayer = true }))
+    harness.assertTrue(frozen, 'an explicit freezePlayer option wins over the config default')
+    cam.stop()
+    harness.assertFalse(frozen)
+    Config.freecam.freezePlayer = true
 end)
 
 harness.test('freecam validates zones and cleans up when its owner stops', function()

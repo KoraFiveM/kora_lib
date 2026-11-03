@@ -398,7 +398,7 @@
 
 ---@class QBProgressBarDisable
 ---@field move? boolean
----@field moveMode? 'freeze'|'controls' Defaults to freeze; controls matches ox_lib movement blocking.
+---@field moveMode? 'freeze'|'controls' Defaults to Config.progressbar.defaultMoveMode ('controls'); controls matches ox_lib movement blocking, freeze uses FreezeEntityPosition (skipped while airborne).
 ---@field controlProfile? 'kora_lib'|'ox' Exact disabled-control set; defaults to kora_lib.
 ---@field sprint? boolean
 ---@field combat? boolean

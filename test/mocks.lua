@@ -202,6 +202,12 @@ function M.install()
         end,
     }
 
+    -- Airborne checks used by modules that must never FreezeEntityPosition a falling ped (progressbar,
+    -- freecam). Tests that care override these after install().
+    for _, name in ipairs({ 'IsPedFalling', 'IsPedJumping', 'IsPedRagdoll', 'IsEntityInAir', 'IsPedInParachuteFreeFall' }) do
+        _G[name] = _G[name] or function() return false end
+    end
+
     _G.Citizen = {
         Await = function(p)
             if p.state == "resolved" then return p.value end

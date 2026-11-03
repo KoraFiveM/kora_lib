@@ -26,6 +26,8 @@ local dead = false
 local ragdoll = false
 local cuffed = false
 local falling = false
+local jumping = false
+local inAir = false
 local swimming = false
 local inVehicle = false
 local pressedControls = {}
@@ -76,6 +78,9 @@ function _G.IsPedRagdoll(_) return ragdoll end
 function _G.IsPedCuffed(_) return cuffed end
 function _G.IsPedFalling(_) return falling end
 function _G.IsPedSwimming(_) return swimming end
+function _G.IsPedJumping(_) return jumping end
+function _G.IsEntityInAir(_) return inAir end
+function _G.IsPedInParachuteFreeFall(_) return false end
 function _G.IsPedInAnyVehicle(_, _) return inVehicle end
 function _G.IsControlJustPressed(_, control) return pressedControls[control] == true end
 function _G.DisableControlAction(_, control, _) disabledControls[control] = true end
@@ -152,6 +157,8 @@ local function reset()
     ragdoll = false
     cuffed = false
     falling = false
+    jumping = false
+    inAir = false
     swimming = false
     inVehicle = false
     pressedControls = {}
@@ -583,7 +590,7 @@ harness.test("an internal error still tears down props, controls, animation, and
         Kora.progressbar.start({
             label = "Working...",
             duration = 500,
-            disable = { move = true, combat = true },
+            disable = { move = true, moveMode = "freeze", combat = true },
             anim = { dict = "anim@test", clip = "loop" },
             props = { { model = "prop_one" } },
         })
@@ -600,6 +607,91 @@ harness.test("an internal error still tears down props, controls, animation, and
     harness.assertTrue(next(disabledControls) == nil, "the combat control lease should be released")
 end)
 
+local function startMoveBar(disable)
+    local result
+    CreateThread(function()
+        result = Kora.progressbar.start({ label = "Working...", duration = 5000, disable = disable })
+    end)
+    return function() return result end
+end
+
+harness.test("disable.move alone blocks movement controls and never freezes the ped", function()
+    reset()
+    local result = startMoveBar({ move = true })
+    harness.assertTrue(Kora.progressbar.isActive(), "the bar should be running")
+    mockHandle.step()
+    harness.assertTrue(disabledControls[30] and disabledControls[31], "movement controls should be disabled")
+    harness.assertEqual(#freezeCalls, 0, "the default move mode must not call FreezeEntityPosition")
+    Kora.progressbar.cancel()
+    mockHandle.step()
+    harness.assertEqual(result(), false)
+    harness.assertEqual(#freezeCalls, 0, "cancel must not touch the freeze state either")
+end)
+
+harness.test("moveMode freeze still freezes a grounded ped and unfreezes on cancel", function()
+    reset()
+    local result = startMoveBar({ move = true, moveMode = "freeze" })
+    harness.assertEqual(#freezeCalls, 1)
+    harness.assertTrue(freezeCalls[1].frozen, "an explicit freeze should freeze the ped")
+    Kora.progressbar.cancel()
+    mockHandle.step()
+    harness.assertEqual(result(), false)
+    harness.assertEqual(freezeCalls[#freezeCalls].frozen, false, "cancel should unfreeze the ped")
+end)
+
+harness.test("Config.progressbar.defaultMoveMode = freeze restores freezing, payload moveMode wins", function()
+    reset()
+    local original = Config.progressbar.defaultMoveMode
+    Config.progressbar.defaultMoveMode = "freeze"
+    local result = startMoveBar({ move = true })
+    harness.assertTrue(#freezeCalls == 1 and freezeCalls[1].frozen, "the configured default should freeze")
+    Kora.progressbar.cancel()
+    mockHandle.step()
+    harness.assertEqual(freezeCalls[#freezeCalls].frozen, false)
+
+    freezeCalls = {}
+    startMoveBar({ move = true, moveMode = "controls" })
+    harness.assertEqual(#freezeCalls, 0, "an explicit controls mode overrides the freeze default")
+    Kora.progressbar.cancel()
+    mockHandle.step()
+    Config.progressbar.defaultMoveMode = original
+    harness.assertEqual(result(), false)
+end)
+
+harness.test("freeze mode never freezes a falling, jumping, ragdolling or airborne ped", function()
+    local cases = {
+        { name = "falling", set = function() falling = true end, opts = { allowFalling = true } },
+        { name = "jumping", set = function() jumping = true end },
+        { name = "airborne", set = function() inAir = true end },
+        { name = "ragdolling", set = function() ragdoll = true end, opts = { allowRagdoll = true } },
+    }
+    for _, case in ipairs(cases) do
+        reset()
+        case.set()
+        local payload = { label = "Working...", duration = 5000, disable = { move = true, moveMode = "freeze" } }
+        for k, v in pairs(case.opts or {}) do payload[k] = v end
+        CreateThread(function() Kora.progressbar.start(payload) end)
+        harness.assertTrue(Kora.progressbar.isActive(), case.name .. ": the bar should run")
+        harness.assertEqual(#freezeCalls, 0, case.name .. ": the ped must not be frozen mid-air")
+        mockHandle.step()
+        harness.assertTrue(disabledControls[30], case.name .. ": movement input is still blocked")
+        Kora.progressbar.cancel()
+        mockHandle.step()
+        harness.assertEqual(#freezeCalls, 0, case.name .. ": nothing to unfreeze")
+    end
+end)
+
+harness.test("a frozen bar unfreezes when the ped dies mid-bar", function()
+    reset()
+    local result = startMoveBar({ move = true, moveMode = "freeze" })
+    harness.assertTrue(freezeCalls[1].frozen)
+    dead = true
+    mockHandle.step()
+    harness.assertFalse(Kora.progressbar.isActive(), "death should end the bar")
+    harness.assertEqual(result(), false)
+    harness.assertEqual(freezeCalls[#freezeCalls].frozen, false, "death should unfreeze the ped")
+end)
+
 harness.test("the owning resource stopping cancels and tears down an active bar", function()
     reset()
     _G.GetInvokingResource = function() return "progress_consumer" end
@@ -608,7 +700,7 @@ harness.test("the owning resource stopping cancels and tears down an active bar"
         result = Kora.progressbar.start({
             label = "Working...",
             duration = 5000,
-            disable = { move = true, combat = true },
+            disable = { move = true, moveMode = "freeze", combat = true },
             props = { { model = "prop_one" } },
         })
     end)

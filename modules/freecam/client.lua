@@ -30,7 +30,7 @@ local function stop(state, immediate)
     active = nil
     ownership.untrack(state)
     Kora.compat.releaseControlLease(state.lease, state.owner)
-    if state.freezePlayer then
+    if state.frozen then
         FreezeEntityPosition(state.ped, false)
         local currentPed = PlayerPedId()
         if currentPed ~= state.ped then FreezeEntityPosition(currentPed, false) end
@@ -149,7 +149,7 @@ function Kora.freecam.start(options)
         transitionMs = optionNumber(options.transitionMs, Config.freecam.cameraTransitionMs, 'transitionMs', true),
         upControl = options.upControl,
         downControl = options.downControl,
-        freezePlayer = options.freezePlayer ~= false,
+        freezePlayer = options.freezePlayer == nil and Config.freecam.freezePlayer ~= false or options.freezePlayer == true,
     }
     state.cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', coords.x, coords.y, coords.z, state.pitch, 0.0, state.yaw, fov, false, 0)
     assert(state.cam and state.cam ~= 0 and DoesCamExist(state.cam), 'Freecam could not be created.')
@@ -157,7 +157,12 @@ function Kora.freecam.start(options)
     if state.upControl then controls[#controls + 1] = state.upControl end
     if state.downControl then controls[#controls + 1] = state.downControl end
     state.lease = Kora.compat.acquireControls(controls, nil, state.owner)
-    if state.freezePlayer then FreezeEntityPosition(state.ped, true) end
+    -- Movement input is already leased above; skip the hard freeze while airborne so the ped lands.
+    if state.freezePlayer and not (IsPedFalling(state.ped) or IsPedJumping(state.ped) or IsPedRagdoll(state.ped)
+        or IsEntityInAir(state.ped) or IsPedInParachuteFreeFall(state.ped)) then
+        FreezeEntityPosition(state.ped, true)
+        state.frozen = true
+    end
     SetCamActive(state.cam, true)
     RenderScriptCams(true, true, state.transitionMs, true, true)
     active = state
