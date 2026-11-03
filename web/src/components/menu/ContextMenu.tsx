@@ -142,7 +142,7 @@ export function ContextMenuContainer() {
             className="pointer-events-auto z-overlay max-h-[calc(100vh-1rem)] min-w-[10rem] max-w-[calc(100vw-1rem)] overflow-x-hidden overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-floating duration-popover ease-entry animate-in fade-in-0"
         >
             {payload.title ? (
-                <div className="title-rail mx-3 mb-1 mt-2 border-b border-border pb-2 text-sm font-semibold">
+                <div className="title-rail mx-3 mb-1 mt-2 border-b border-border pb-2 font-heading text-sm font-semibold">
                     <Markdown inline>{payload.title}</Markdown>
                 </div>
             ) : null}

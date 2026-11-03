@@ -11,3 +11,9 @@ end
 function Kora.theme.tokens(overrides)
     return exports.kora_theme:getTokens(overrides)
 end
+
+---Resolved server fonts (theme.json plus kora_theme's /config overrides).
+---@return { body: KoraLibThemeFont, heading: KoraLibThemeFont, mono: KoraLibThemeFont } fonts
+function Kora.theme.getFonts()
+    return exports.kora_theme:getFonts()
+end

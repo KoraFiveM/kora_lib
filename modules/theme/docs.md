@@ -17,6 +17,26 @@ the primary colour. A table may override kora_theme's approved semantic roles.
 The returned table is complete, including surfaces, text, controls, status
 colours, contrast foregrounds, focus, hover, pressed, and translucent variants.
 
+The map includes the resolved `font-sans`, `font-heading` and `font-mono`
+stacks.
+
+### `Kora.theme.getFonts()`
+
+Returns `exports.kora_theme:getFonts()`: `{ body, heading, mono }`, each
+`{ id, label, stack, source }`. `id` is a kora_theme catalog id such as
+`poppins`, `default` or `custom`; `stack` is the CSS font-family list;
+`source` is `config` (kora_theme's `/config` font settings), `theme.json` or
+`default`. A default heading uses the body font.
+
+### `Kora.theme.onFontsChanged(handler)`
+
+Client-only. Calls `handler(fonts)` with the new `getFonts()` result whenever an
+admin changes the server fonts in `/config` → kora_theme → fonts. Returns an
+unsubscribe function. Browser UIs that link kora_theme's `theme.css`/`theme.js`
+and import its bridge need no handler: their `--font-sans`, `--font-heading`
+and `--font-mono` variables update automatically. Use this hook for Lua-side
+work such as fonts drawn by natives or sent in custom NUI messages.
+
 ### `Kora.theme.push()`
 
 Client-only. Calls the imported `QBTheme.refresh()` bridge to reapply kora_theme to
@@ -24,4 +44,6 @@ kora_lib's own NUI frame.
 
 New UI resources should depend directly on `kora_theme`, import
 `@kora_theme/client/bridge.lua`, and link `theme.css` plus `theme.js`. They do not
-need kora_lib merely to obtain styling.
+need kora_lib merely to obtain styling. Use `var(--font-sans)`,
+`var(--font-heading)` and `var(--font-mono)` instead of hardcoded font
+families so the configured fonts apply.

@@ -1608,6 +1608,14 @@
 ---@field accentColor fun(): string [shared] Forwarded to qbtheme:getPrimaryColor().
 ---@field tokens fun(overrides?: string|table<string, string>): table<string, string> [shared] Forwarded to qbtheme:getTokens().
 ---@field push fun(): table<string, string> [client] Reapplies kora_theme to kora_lib's NUI.
+---@field getFonts fun(): { body: KoraLibThemeFont, heading: KoraLibThemeFont, mono: KoraLibThemeFont } [shared] Forwarded to qbtheme:getFonts().
+---@field onFontsChanged fun(handler: fun(fonts: table)): fun() [client] Runs handler after an admin changes the server fonts; returns an unsubscribe function.
+
+---@class KoraLibThemeFont
+---@field id string Catalog id (`poppins`), `default` or `custom`.
+---@field label string Display name.
+---@field stack string Resolved CSS font-family stack.
+---@field source 'config'|'theme.json'|'default' Where the choice came from.
 
 ---@class QBDebounced
 ---@field cancel fun(): boolean Drops a pending run without firing it.
