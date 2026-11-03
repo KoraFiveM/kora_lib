@@ -40,6 +40,40 @@ to `5.0` only when the argument is omitted; explicit invalid values reject.
 owns a named zone with that name. Named zones are also removed automatically
 when their invoking resource stops.
 
+### `Kora.interact.addScopedEntity(name, model, coords, opts)`
+
+Vendor peds, rocks, plants and other world props that offer an interaction
+should not be spawned (and targeted) across the whole map. This helper spawns
+the entity only while the player is within `opts.radius` metres
+(`Kora.entities.createScoped`: no model is loaded and no entity slot is used
+far away) and, while it exists, offers `opts.target` as a box-zone interaction
+around it (the same zone `addTargetEntity` creates). The zone is removed when
+the entity despawns. Everything is removed when the calling resource stops.
+
+`opts`:
+- `radius: number` — required spawn radius in metres.
+- `preset?`, `freeze?`, `invincible?`, `blockNonTempEvents?`, `heading?` —
+  passed to the spawn exactly as for `Kora.entities.create`.
+- `target?` — zone target options (`{ options = { ... } }` or an option array).
+  Omit it for a purely decorative entity.
+- `targetSize?: number` — width and depth of the interaction box (default
+  `3.0`; height `4.0`).
+- `onSpawn?: fun(entity)` / `onDespawn?: fun()` — your own hooks.
+
+Returns a handle `{ remove(): boolean, entity(): integer|nil, isSpawned(): boolean }`,
+or `nil` when `name` is already used by another resource. Re-using a name you own
+replaces the previous registration. If interact zones are disabled
+(`Config.ui.interact = false`), the entity still spawns but no zone is added.
+
+```lua
+local vendor = Kora.interact.addScopedEntity('mining:pickaxe_vendor', 's_m_m_miner_01',
+    vector4(2944.6, 2746.4, 43.3, 290.0), {
+        radius = 50.0,
+        preset = 'static',
+        target = { options = { { label = 'Buy a pickaxe', event = 'kora_mining:client:openShop' } } },
+    })
+```
+
 `Kora.interact.open(options)` opens the selector without a zone.
 `Kora.interact.close()` closes it, and `Kora.interact.isActive()` reports whether a
 selector is currently open.

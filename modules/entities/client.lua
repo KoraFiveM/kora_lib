@@ -148,6 +148,17 @@ function Kora.entities.create(model, coords, options)
     return createForResource(model, coords, options, GetInvokingResource() or GetCurrentResourceName())
 end
 
+-- onSpawn/onDespawn usually cross the exports boundary into the owning resource, which may
+-- already be stopping during cleanup; a failure is logged and never stops the scope's own work.
+local function runScopeHook(scope, hookName, ...)
+    local hook = scope[hookName]
+    if not hook then return end
+    local ok, err = pcall(hook, ...)
+    if not ok then
+        print(("[kora_lib:entities] scoped entity %d %s errored: %s"):format(scope.id, hookName, tostring(err)))
+    end
+end
+
 local function removeScopedEntity(scope)
     local entity = scope.entity
     if not entity then return end
@@ -157,6 +168,7 @@ local function removeScopedEntity(scope)
     entityRegistry.untrack(entity)
 
     if DoesEntityExist(entity) then DeleteEntity(entity) end
+    runScopeHook(scope, "onDespawn", entity)
 end
 
 local function destroyScope(scope)
@@ -195,6 +207,9 @@ function Kora.entities.createScoped(model, coords, options)
         "Scoped entity radius must be a finite number greater than zero.")
     assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
         "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
+    assert(options.onSpawn == nil or Kora.compat.isCallable(options.onSpawn), "Scoped entity onSpawn must be callable.")
+    assert(options.onDespawn == nil or Kora.compat.isCallable(options.onDespawn),
+        "Scoped entity onDespawn must be callable.")
     nextScopeId = nextScopeId + 1
 
     local scope = {
@@ -205,6 +220,8 @@ function Kora.entities.createScoped(model, coords, options)
         inside = false,
         spawning = false,
         removed = false,
+        onSpawn = options.onSpawn,
+        onDespawn = options.onDespawn,
     }
 
     local handle = {
@@ -262,6 +279,7 @@ function Kora.entities.createScoped(model, coords, options)
                 if entity then
                     scope.entity = entity
                     handle.entity = entity
+                    runScopeHook(scope, "onSpawn", entity)
                 end
             end)
         end,
@@ -286,6 +304,8 @@ end
 
 ---@class QBEntitiesScopedOptions : QBEntitiesCreateOptions
 ---@field radius number Spawn radius in metres; must be greater than zero.
+---@field onSpawn? fun(entity: number) Runs after each spawn, with the new local entity.
+---@field onDespawn? fun(entity: number) Runs after each despawn (radius exit, remove, owner stop).
 
 ---Deletes one tracked entity created by the calling resource, without waiting
 ---for that resource to stop.

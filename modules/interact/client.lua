@@ -375,21 +375,9 @@ function Kora.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     return zone
 end
 
----Adds a kora_lib box zone using qb-target-compatible length/width/minZ/maxZ arguments.
----@param name string
----@param coords any
----@param size vector4
----@param targetOptions QBInteractTargetOptions|QBInteractOption[]
----@param debug boolean
----@return QBZoneHandle? zone
-function Kora.interact.addBoxZone(name, coords, size, targetOptions, debug)
-    if not isEnabled() then return nil end
-    assert(type(name) == "string" and #name > 0, "interact zone name is required.")
-    local options = zoneOptionList(targetOptions)
-    assertCoords(coords, 'interact box coordinates')
-    assertBoxSize(size, 'interact box size')
-
-    local owner = GetInvokingResource() or GetCurrentResourceName()
+-- Shared by addBoxZone and addScopedEntity. The owner is passed in because a scoped
+-- entity's zone is created later, from a spawn thread where GetInvokingResource() is nil.
+local function createBoxZone(name, coords, size, options, debug, owner)
     if zonesByName[name] then
         if zoneOwners[name] ~= owner then return nil end
         removeNamedZone(name)
@@ -410,6 +398,23 @@ function Kora.interact.addBoxZone(name, coords, size, targetOptions, debug)
     reopenFns[name] = enter
     zoneOwners[name] = owner
     return zone
+end
+
+---Adds a kora_lib box zone using qb-target-compatible length/width/minZ/maxZ arguments.
+---@param name string
+---@param coords any
+---@param size vector4
+---@param targetOptions QBInteractTargetOptions|QBInteractOption[]
+---@param debug boolean
+---@return QBZoneHandle? zone
+function Kora.interact.addBoxZone(name, coords, size, targetOptions, debug)
+    if not isEnabled() then return nil end
+    assert(type(name) == "string" and #name > 0, "interact zone name is required.")
+    local options = zoneOptionList(targetOptions)
+    assertCoords(coords, 'interact box coordinates')
+    assertBoxSize(size, 'interact box size')
+
+    return createBoxZone(name, coords, size, options, debug, GetInvokingResource() or GetCurrentResourceName())
 end
 
 ---Removes a zone previously created by addCircleZone/addBoxZone.
@@ -472,6 +477,89 @@ function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
         "interact target entity size must be vector-like.")
     local coords = GetEntityCoords(entity)
     return Kora.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
+end
+
+-- name -> { owner, scope }. The spawned entity, its zone and the scope itself are cleaned
+-- up by Kora.entities' own owner sweep; this table is only the name index.
+local scopedEntities = {}
+
+local function assertScopedOptions(opts)
+    assert(type(opts) == "table", "interact scoped entity options must be a table.")
+    assert(opts.onSpawn == nil or isCallable(opts.onSpawn), "interact scoped entity onSpawn must be callable.")
+    assert(opts.onDespawn == nil or isCallable(opts.onDespawn), "interact scoped entity onDespawn must be callable.")
+    assert(opts.targetSize == nil or (Kora.util.isFiniteNumber(opts.targetSize) and opts.targetSize > 0),
+        "interact scoped entity targetSize must be a positive finite number.")
+end
+
+---Spawns a local entity only while the player is within `opts.radius` (Kora.entities.createScoped)
+---and, while it exists, offers `opts.target` as a box-zone interaction around it
+---(Kora.interact.addTargetEntity semantics). Nothing is loaded or registered while the player
+---is far away. Re-using a name you own replaces that registration; a name owned by another
+---resource returns nil. Removed automatically when the calling resource stops.
+---@param name string
+---@param model string|number
+---@param coords any
+---@param opts QBInteractScopedEntityOptions
+---@return QBInteractScopedEntityHandle|nil handle
+function Kora.interact.addScopedEntity(name, model, coords, opts)
+    assert(type(name) == "string" and #name > 0 and #name <= 128, "interact scoped entity name must be 1-128 bytes.")
+    assertScopedOptions(opts)
+    local options = opts.target ~= nil and zoneOptionList(opts.target) or nil
+
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    local existing = scopedEntities[name]
+    if existing then
+        if existing.owner ~= owner then return nil end
+        scopedEntities[name] = nil
+        existing.scope.remove()
+    end
+
+    local zoneName = ("scoped:%s"):format(name)
+    local size = opts.targetSize or 3.0
+    local userSpawn, userDespawn = opts.onSpawn, opts.onDespawn
+
+    -- Runs inside this export call, so createScoped attributes the scope to `owner` too.
+    local scope = Kora.entities.createScoped(model, coords, {
+        radius = opts.radius,
+        preset = opts.preset,
+        freeze = opts.freeze,
+        invincible = opts.invincible,
+        blockNonTempEvents = opts.blockNonTempEvents,
+        heading = opts.heading,
+        onSpawn = function(entity)
+            if options and isEnabled() then
+                createBoxZone(zoneName, GetEntityCoords(entity),
+                    { x = size, y = size, z = 4.0, w = GetEntityHeading(entity) }, options, false, owner)
+            end
+            if userSpawn then userSpawn(entity) end
+        end,
+        onDespawn = function()
+            if zoneOwners[zoneName] == owner then removeNamedZone(zoneName) end
+            if userDespawn then userDespawn() end
+        end,
+    })
+
+    local registration = { owner = owner, scope = scope }
+    scopedEntities[name] = registration
+
+    local handle = {}
+
+    function handle.remove()
+        local invoker = GetInvokingResource()
+        if scopedEntities[name] ~= registration or (invoker and invoker ~= owner) then return false end
+        scopedEntities[name] = nil
+        return scope.remove()
+    end
+
+    function handle.entity()
+        return scope.entity
+    end
+
+    function handle.isSpawned()
+        return scope.isSpawned()
+    end
+
+    return handle
 end
 
 -- Registers an aim-targeted entity via kora_target, keeping kora_lib's option vocabulary and resource-stop ownership. Follows a moving entity, unlike addTargetEntity.
@@ -608,4 +696,10 @@ AddEventHandler("onClientResourceStop", function(resourceName)
         end
     end
     for i = 1, #ownedNames do removeNamedZone(ownedNames[i]) end
+
+    for name, registration in pairs(scopedEntities) do
+        if registration.owner == resourceName or resourceName == GetCurrentResourceName() then
+            scopedEntities[name] = nil
+        end
+    end
 end)

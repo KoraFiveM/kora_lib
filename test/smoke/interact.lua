@@ -446,6 +446,121 @@ harness.test("target model and entity helpers create static box zones", function
     harness.assertEqual(boxOptions[1].size.z, 6, "model helper should preserve custom Z size")
 end)
 
+-- H6: addScopedEntity. Kora.entities.createScoped is faked so spawn/despawn can be driven directly.
+local scopedCalls = {}
+Kora.entities = {
+    createScoped = function(model, coords, options)
+        local scope = { entity = nil, removed = false }
+        local call = { model = model, coords = coords, options = options, scope = scope,
+            owner = GetInvokingResource() or GetCurrentResourceName() }
+        function call.spawn(entity) scope.entity = entity; options.onSpawn(entity) end
+        function call.despawn() local entity = scope.entity; scope.entity = nil; options.onDespawn(entity) end
+        function scope.remove()
+            if scope.removed then return false end
+            scope.removed = true
+            if scope.entity then call.despawn() end
+            return true
+        end
+        function scope.isSpawned() return scope.entity ~= nil end
+        scopedCalls[#scopedCalls + 1] = call
+        return scope
+    end,
+}
+
+harness.test("addScopedEntity spawns through createScoped and targets only while spawned", function()
+    reset()
+    local spawnedWith, despawns = nil, 0
+    _G.GetInvokingResource = function() return "vendor_resource" end
+    local handle = Kora.interact.addScopedEntity("pickaxe_vendor", "s_m_m_miner_01", { x = 1, y = 2, z = 3 }, {
+        radius = 40.0,
+        preset = "static",
+        heading = 90.0,
+        target = { { label = "Buy pickaxe", event = "mining:buy" } },
+        targetSize = 2.0,
+        onSpawn = function(entity) spawnedWith = entity end,
+        onDespawn = function() despawns = despawns + 1 end,
+    })
+    _G.GetInvokingResource = function() return nil end
+    local call = scopedCalls[#scopedCalls]
+
+    harness.assertTrue(handle ~= nil)
+    harness.assertEqual(call.owner, "vendor_resource", "the scope belongs to the calling resource")
+    harness.assertEqual(call.options.radius, 40.0)
+    harness.assertEqual(call.options.preset, "static")
+    harness.assertEqual(call.options.heading, 90.0)
+    harness.assertEqual(#boxOptions, 0, "nothing is targeted before the entity spawns")
+    harness.assertFalse(handle.isSpawned())
+
+    call.spawn(500)
+    harness.assertEqual(spawnedWith, 500)
+    harness.assertEqual(handle.entity(), 500)
+    harness.assertEqual(#boxOptions, 1, "spawning adds the interaction zone")
+    harness.assertEqual(boxOptions[1].size.x, 2.0, "targetSize sets the box footprint")
+    harness.assertEqual(boxOptions[1].coords.x, 500, "the zone sits on the spawned entity")
+
+    call.despawn()
+    harness.assertEqual(despawns, 1)
+    harness.assertEqual(removedZones, 1, "despawning removes the interaction zone")
+    harness.assertTrue(handle.entity() == nil)
+
+    call.spawn(501)
+    harness.assertEqual(#boxOptions, 2, "a later spawn targets the fresh entity")
+    _G.GetInvokingResource = function() return "intruder" end
+    harness.assertFalse(handle.remove(), "another resource cannot remove the registration")
+    _G.GetInvokingResource = function() return "vendor_resource" end
+    harness.assertTrue(handle.remove())
+    harness.assertFalse(handle.remove())
+    _G.GetInvokingResource = function() return nil end
+    harness.assertEqual(removedZones, 2, "removing a spawned registration removes its zone")
+    harness.assertTrue(call.scope.removed)
+end)
+
+harness.test("addScopedEntity names are owned: same owner replaces, another resource is refused", function()
+    reset()
+    _G.GetInvokingResource = function() return "owner_a" end
+    Kora.interact.addScopedEntity("shared_name", "prop_a", { x = 0, y = 0, z = 0 }, { radius = 10 })
+    local first = scopedCalls[#scopedCalls]
+    Kora.interact.addScopedEntity("shared_name", "prop_b", { x = 0, y = 0, z = 0 }, { radius = 10 })
+    harness.assertTrue(first.scope.removed, "re-using your own name replaces the old registration")
+    _G.GetInvokingResource = function() return "owner_b" end
+    harness.assertTrue(Kora.interact.addScopedEntity("shared_name", "prop_c", { x = 0, y = 0, z = 0 }, { radius = 10 }) == nil)
+    _G.GetInvokingResource = function() return nil end
+
+    mockHandle.fire("onClientResourceStop", "owner_a")
+    _G.GetInvokingResource = function() return "owner_b" end
+    harness.assertTrue(Kora.interact.addScopedEntity("shared_name", "prop_c", { x = 0, y = 0, z = 0 }, { radius = 10 }) ~= nil,
+        "the name is free once its owner stops")
+    _G.GetInvokingResource = function() return nil end
+end)
+
+harness.test("addScopedEntity without a target, or with interact disabled, still spawns but adds no zone", function()
+    reset()
+    Kora.interact.addScopedEntity("plain", "prop_a", { x = 0, y = 0, z = 0 }, { radius = 10 })
+    scopedCalls[#scopedCalls].spawn(600)
+    harness.assertEqual(#boxOptions, 0)
+
+    Config.ui.interact = false
+    Kora.interact.addScopedEntity("disabled", "prop_a", { x = 0, y = 0, z = 0 },
+        { radius = 10, target = { { label = "Use" } } })
+    scopedCalls[#scopedCalls].spawn(601)
+    harness.assertEqual(#boxOptions, 0)
+    Config.ui.interact = true
+end)
+
+harness.test("addScopedEntity rejects invalid arguments", function()
+    harness.assertThrows(function() Kora.interact.addScopedEntity("", "m", { x = 0, y = 0, z = 0 }, { radius = 1 }) end)
+    harness.assertThrows(function() Kora.interact.addScopedEntity("n", "m", { x = 0, y = 0, z = 0 }) end)
+    harness.assertThrows(function()
+        Kora.interact.addScopedEntity("n", "m", { x = 0, y = 0, z = 0 }, { radius = 1, targetSize = 0 })
+    end)
+    harness.assertThrows(function()
+        Kora.interact.addScopedEntity("n", "m", { x = 0, y = 0, z = 0 }, { radius = 1, target = {} })
+    end)
+    harness.assertThrows(function()
+        Kora.interact.addScopedEntity("n", "m", { x = 0, y = 0, z = 0 }, { radius = 1, onSpawn = "x" })
+    end)
+end)
+
 harness.test("disabled interact mode creates no zones or UI", function()
     reset()
     Config.ui.interact = false

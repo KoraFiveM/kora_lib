@@ -251,6 +251,51 @@ harness.test("only the owner can remove a scoped entity registration", function(
     _G.GetInvokingResource = function() return nil end
 end)
 
+harness.test("scoped onSpawn/onDespawn hooks fire for each spawn and despawn", function()
+    local spawned, despawned = {}, 0
+    local scope = Kora.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, {
+        radius = 10.0,
+        onSpawn = function(entity) spawned[#spawned + 1] = entity end,
+        onDespawn = function() despawned = despawned + 1 end,
+    })
+    local zone = scopedZones[#scopedZones]
+
+    zone.opts.onEnter()
+    harness.assertEqual(#spawned, 1)
+    harness.assertEqual(spawned[1], scope.entity, "onSpawn receives the live entity")
+    zone.opts.onExit()
+    harness.assertEqual(despawned, 1)
+
+    zone.opts.onEnter()
+    harness.assertEqual(#spawned, 2)
+    scope.remove()
+    harness.assertEqual(despawned, 2, "removing a spawned scope despawns through the hook")
+    scope.remove()
+    harness.assertEqual(despawned, 2, "a removed scope never despawns twice")
+end)
+
+harness.test("a failing scoped hook is logged and does not break the scope", function()
+    local scope = Kora.entities.createScoped(OBJECT_MODEL, { x = 20, y = 30, z = 40 }, {
+        radius = 10.0,
+        onSpawn = function() error("spawn hook boom") end,
+        onDespawn = function() error("despawn hook boom") end,
+    })
+    local zone = scopedZones[#scopedZones]
+    local originalPrint = print
+    _G.print = function() end
+    zone.opts.onEnter()
+    local entity = scope.entity
+    zone.opts.onExit()
+    _G.print = originalPrint
+
+    harness.assertTrue(entity ~= nil, "the entity still spawns when onSpawn errors")
+    harness.assertFalse(_G.DoesEntityExist(entity), "the entity still despawns when onDespawn errors")
+    harness.assertThrows(function()
+        Kora.entities.createScoped(OBJECT_MODEL, { x = 0, y = 0, z = 0 }, { radius = 1, onSpawn = 5 })
+    end)
+    scope.remove()
+end)
+
 harness.test("scoped entities require a positive radius", function()
     local ok = pcall(Kora.entities.createScoped, OBJECT_MODEL, { x = 0, y = 0, z = 0 }, {})
     harness.assertFalse(ok, "a scoped entity without a radius must be rejected")

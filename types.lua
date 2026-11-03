@@ -359,6 +359,25 @@
 
 ---@class QBEntitiesScopedOptions : QBEntitiesCreateOptions
 ---@field radius number Spawn radius in metres; must be greater than zero.
+---@field onSpawn? fun(entity: integer) Runs after each spawn, with the new local entity.
+---@field onDespawn? fun(entity: integer) Runs after each despawn (radius exit, remove, owner stop).
+
+---@class QBInteractScopedEntityOptions
+---@field radius number Spawn radius in metres; must be greater than zero.
+---@field preset? QBEntitiesPreset
+---@field freeze? boolean
+---@field invincible? boolean
+---@field blockNonTempEvents? boolean
+---@field heading? number
+---@field target? QBInteractTargetOptions|QBInteractOption[] Interaction offered while the entity exists.
+---@field targetSize? number Width/depth of the interaction box in metres. Defaults to 3.0 (height 4.0).
+---@field onSpawn? fun(entity: integer)
+---@field onDespawn? fun()
+
+---@class QBInteractScopedEntityHandle
+---@field remove fun(): boolean Despawns the entity, removes its interaction and unregisters it.
+---@field entity fun(): integer|nil Current local entity handle, or nil while outside the radius.
+---@field isSpawned fun(): boolean
 
 ---@class QBScopedEntityHandle
 ---@field id integer Stable scoped-registration id.
@@ -1291,6 +1310,7 @@
 ---@field removeZone fun(name: string): boolean [client]
 ---@field addTargetModel fun(models: string|integer|(string|integer)[], size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions|QBInteractOption[], debug?: boolean): QBZoneHandle[] [client]
 ---@field addTargetEntity fun(entity: integer, size: QBInteractSize|QBCoords, targetOptions: QBInteractTargetOptions|QBInteractOption[], debug?: boolean): QBZoneHandle [client]
+---@field addScopedEntity fun(name: string, model: string|integer, coords: QBCoords, opts: QBInteractScopedEntityOptions): QBInteractScopedEntityHandle|nil [client]
 ---@field addEntity fun(entity: integer, options: QBInteractOption[], distance?: number): integer [client]
 ---@field removeEntity fun(entity: integer, id?: integer): boolean [client]
 ---@field addModel fun(model: string|integer, options: QBInteractOption[], distance?: number): integer [client]

@@ -120,6 +120,12 @@ retry.
 - `model`, `coords` — Same as `create`.
 - `options` — All options accepted by `create`, plus:
   - `radius: number` — Required. A finite radius greater than zero, in metres.
+  - `onSpawn?: fun(entity)` — Runs after each spawn with the new local entity,
+    for example to add a target or start an animation.
+  - `onDespawn?: fun(entity)` — Runs after each despawn (radius exit,
+    `remove()`, or the owner stopping); the entity has already been deleted.
+    Both hooks run under `pcall`: an error is printed and never blocks the
+    spawn or cleanup. `Kora.interact.addScopedEntity` is built on them.
 
 #### Returns
 - `QBScopedEntityHandle` — A persistent registration handle:
