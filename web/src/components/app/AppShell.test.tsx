@@ -459,6 +459,25 @@ describe("AppShell", () => {
         expect(container.querySelector("main")?.parentElement).not.toHaveClass("bg-modal-overlay")
     })
 
+    it("right-aligns multi-action list rows beside the info block, leaving card layouts unchanged", () => {
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [
+            { type: "list", id: "jobs", items: [{ id: "police", label: "Police", actions: [{ id: "active", label: "Make active" }, { id: "leave", label: "Leave job" }] }] },
+            { type: "list", id: "cards", layout: "cards", items: [{ id: "tool", label: "Tool", actions: [{ id: "use", label: "Use tool" }] }] },
+        ] }))
+        const row = screen.getByText("Police").closest("article")!
+        expect(row).toHaveClass("flex-wrap", "gap-x-3", "gap-y-2")
+        expect(row.firstElementChild).toHaveClass("basis-40")
+        const actions = screen.getByRole("button", { name: "Leave job" }).parentElement!
+        expect(actions).toHaveClass("justify-end")
+        expect(actions.parentElement).toHaveClass("ml-auto", "shrink-0", "max-w-full")
+        const card = screen.getByText("Tool").closest("article")!
+        const cardActions = screen.getByRole("button", { name: "Use tool" }).parentElement!
+        expect(cardActions).not.toHaveClass("justify-end")
+        expect(cardActions.parentElement).not.toHaveClass("ml-auto")
+        expect(card.firstElementChild).not.toHaveClass("basis-40")
+    })
+
     it("supports searchable paged tables and nested card lists", async () => {
         const user = userEvent.setup()
         render(<AppShell />)

@@ -78,8 +78,8 @@ function BlockTitle({ children }: { children?: string }) {
     return children ? <h3 className="text-sm font-semibold text-foreground">{children}</h3> : null
 }
 
-function ActionButtons({ actions, busy, run, labels, compact }: { actions: AppAction[]; busy?: string; run: (action: AppAction) => void; labels: AppShellLabels; compact?: boolean }) {
-    return <div className="flex flex-wrap items-center gap-2">{actions.map((action) => {
+function ActionButtons({ actions, busy, run, labels, compact, end }: { actions: AppAction[]; busy?: string; run: (action: AppAction) => void; labels: AppShellLabels; compact?: boolean; end?: boolean }) {
+    return <div className={cn("flex flex-wrap items-center gap-2", end && "justify-end")}>{actions.map((action) => {
         const Icon = resolveIcon(action.icon)
         const stateLabel = action.state ? "On" : "Off"
         return <Button key={action.id} type="button" size={compact ? "sm" : "default"} variant={action.variant === "primary" ? "default" : action.variant ?? "secondary"} aria-pressed={action.state} data-state={action.state === undefined ? undefined : stateLabel.toLowerCase()} disabled={action.disabled || busy !== undefined} onClick={() => run(action)}>{Icon ? <Icon aria-hidden /> : null}{busy === action.id ? labels.working : action.label}{action.state !== undefined ? <span className={cn("rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold leading-none", action.state ? "border-success/45 bg-success/10 text-success" : "border-border bg-background/40 text-muted-foreground")} aria-label={`Current state: ${stateLabel}`}>{stateLabel}</span> : null}</Button>
@@ -187,9 +187,9 @@ function ListBlock({ block, index, busy, labels, runAction, openForm, activeForm
                 {!media && clickable ? <ChevronRight aria-hidden className="h-4 w-4 text-muted-foreground" /> : null}
             </>
             const source = `list-${block.id ?? index}-${item.id}`
-            return <article key={item.id} data-card-style={card ? media ? "media" : "compact" : undefined} className={cn("flex min-w-0", card ? "flex-col rounded-lg border border-border bg-background" : "min-h-14 items-center px-4 py-3", media ? "overflow-hidden" : "flex-wrap gap-3", card && !media && "p-4")}>
-                <div className={cn("flex min-w-0 flex-1", media ? "w-full flex-col items-start" : "items-center gap-3", !card && !media && "basis-56", clickable && "focus-ring cursor-pointer", media && clickable && "hover:bg-surface-hover")} role={clickable ? "button" : undefined} tabIndex={clickable ? 0 : undefined} onClick={() => busy === undefined && activate(item)} onKeyDown={(event) => { if (busy === undefined && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); activate(item) } }}>{body}</div>
-                {item.actions?.length ? <div className={cn(media && "mt-auto px-4 pb-4", !card && !media && "max-w-full")}><ActionButtons compact={!media} actions={item.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, source, { itemId: item.id, value: item.data }) : runAction(action, { itemId: item.id, value: item.data ?? action.data })} /></div> : null}
+            return <article key={item.id} data-card-style={card ? media ? "media" : "compact" : undefined} className={cn("flex min-w-0", card ? "flex-col rounded-lg border border-border bg-background" : "min-h-14 items-center px-4 py-3", media ? "overflow-hidden" : "flex-wrap gap-x-3 gap-y-2", card && !media && "p-4")}>
+                <div className={cn("flex min-w-0 flex-1", media ? "w-full flex-col items-start" : "items-center gap-3", !card && !media && "basis-40", clickable && "focus-ring cursor-pointer", media && clickable && "hover:bg-surface-hover")} role={clickable ? "button" : undefined} tabIndex={clickable ? 0 : undefined} onClick={() => busy === undefined && activate(item)} onKeyDown={(event) => { if (busy === undefined && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); activate(item) } }}>{body}</div>
+                {item.actions?.length ? <div className={cn(media && "mt-auto px-4 pb-4", !card && !media && "ml-auto max-w-full shrink-0")}><ActionButtons compact={!media} end={!card && !media} actions={item.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, source, { itemId: item.id, value: item.data }) : runAction(action, { itemId: item.id, value: item.data ?? action.data })} /></div> : null}
                 {activeForm?.source === source ? <div className={cn("w-full", media && "px-4 pb-4")}>{renderActiveForm()}</div> : null}
             </article>
         })}</div>}
