@@ -11,6 +11,13 @@ changing active state. It returns `true` or raises for invalid input. Use it
 when a resource must validate a future progress payload before beginning a
 server-authorized flow; `Kora.actions.run` uses it for that purpose.
 
+Unknown top-level keys and unknown `disable` keys are not errors (other
+progress-bar libraries use different names), but they are reported once per
+calling resource and key in the client console:
+`[kora_lib:progressbar] <resource> passed unknown progress bar option 'disable.driving'; it is ignored.`
+`start` validates the same way, so the warning appears the first time such a
+bar runs.
+
 ### `Kora.progressbar.start(payload)`
 Runs a progress bar for `payload.duration` ms.
 
@@ -28,6 +35,7 @@ Runs a progress bar for `payload.duration` ms.
     - `sprint?: boolean` — Disables sprinting.
     - `combat?: boolean` — Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to `false`.
     - `car?: boolean` — Disables vehicle driving controls while the ped is in a vehicle. Defaults to `false`.
+    - `vehicle?: boolean` — Alias of `car` (either one enables it). Earlier versions ignored `vehicle` silently.
     - `mouse?: boolean` — Disables look input.
   - `anim?: table` — Played for the duration, stopped and released automatically when the bar ends.
   - `strictAnim?: boolean` — Internal compatibility switch that raises if `anim.dict` cannot load. Normal kora_lib calls retain the graceful fallback below.

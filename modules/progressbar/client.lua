@@ -5,6 +5,7 @@
 ---@field sprint? boolean Disables sprinting. Defaults to false.
 ---@field combat? boolean Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to false.
 ---@field car? boolean Disables vehicle driving controls while the ped is in a vehicle. Defaults to false.
+---@field vehicle? boolean Alias of `car`.
 ---@field mouse? boolean Disables look input. Defaults to false.
 
 ---@class QBProgressBarAnim
@@ -71,7 +72,16 @@ local MOVEMENT_CONTROLS = { 21, 30, 31, 36 }
 local OX_COMBAT_CONTROLS = { 25 }
 local OX_CAR_CONTROLS = { 63, 64, 71, 72, 75 }
 local BEHAVIOUR_FIELDS = { 'useWhileDead', 'allowRagdoll', 'allowCuffed', 'allowFalling', 'allowSwimming' }
-local DISABLE_FIELDS = { 'move', 'sprint', 'combat', 'car', 'mouse' }
+-- `vehicle` is an alias of `car`: several resources were written against that name.
+local DISABLE_FIELDS = { 'move', 'sprint', 'combat', 'car', 'vehicle', 'mouse' }
+local KNOWN_PAYLOAD_KEYS = {
+    label = true, duration = true, maxDuration = true, canCancel = true, cancelControls = true,
+    useWhileDead = true, allowRagdoll = true, allowCuffed = true, allowFalling = true, allowSwimming = true,
+    presentation = true, position = true, disable = true, anim = true, strictAnim = true, scenario = true,
+    props = true, prop = true, proptwo = true, emote = true, maxProps = true,
+}
+local KNOWN_DISABLE_KEYS = { moveMode = true, controlProfile = true }
+for i = 1, #DISABLE_FIELDS do KNOWN_DISABLE_KEYS[DISABLE_FIELDS[i]] = true end
 local ANIM_LOCK_FIELDS = { 'lockX', 'lockY', 'lockZ' }
 local PROP_BOOLEAN_FIELDS = { 'softPinning', 'collision', 'syncRotation' }
 local LEASE_FIELDS = { 'carLease', 'combatLease', 'sprintLease', 'mouseLease', 'movementLease' }
@@ -225,11 +235,44 @@ local function assertPayload(payload)
     if payload.proptwo then assertProp(payload.proptwo, 2, true) end
 end
 
----Validates a progress-bar payload without starting a bar.
+-- resource -> key path -> true. An unknown key is usually a typo or another library's
+-- vocabulary (X7: disable.vehicle was ignored for months), so say so once instead of never.
+local warnedUnknownKeys = {}
+
+local function warnUnknownKey(resource, path)
+    local warned = warnedUnknownKeys[resource]
+    if not warned then
+        warned = {}
+        warnedUnknownKeys[resource] = warned
+    end
+    if warned[path] then return end
+    warned[path] = true
+    print(("[kora_lib:progressbar] %s passed unknown progress bar option '%s'; it is ignored."):format(resource, path))
+end
+
+local function warnUnknownKeys(payload)
+    local resource = GetInvokingResource() or GetCurrentResourceName()
+    for key in pairs(payload) do
+        if not KNOWN_PAYLOAD_KEYS[key] then warnUnknownKey(resource, tostring(key)) end
+    end
+    if type(payload.disable) == 'table' then
+        for key in pairs(payload.disable) do
+            if not KNOWN_DISABLE_KEYS[key] then warnUnknownKey(resource, 'disable.' .. tostring(key)) end
+        end
+    end
+end
+
+local function disablesVehicle(disable)
+    return disable ~= nil and (disable.car == true or disable.vehicle == true)
+end
+
+---Validates a progress-bar payload without starting a bar. Unknown top-level and `disable`
+---keys are reported once per calling resource and key.
 ---@param payload QBProgressBarPayload
 ---@return true
 function Kora.progressbar.validate(payload)
     assertPayload(payload)
+    warnUnknownKeys(payload)
     return true
 end
 
@@ -468,7 +511,7 @@ function Kora.progressbar.start(payload, owner, hooks)
         if payload.disable and payload.disable.mouse then
             session.mouseLease = Kora.compat.acquireControls(MOUSE_CONTROLS, nil, session.owner)
         end
-        updateVehicleControls(session, payload.disable and payload.disable.car == true,
+        updateVehicleControls(session, disablesVehicle(payload.disable),
             payload.disable and payload.disable.controlProfile)
 
         if session.cleaned then return false end
@@ -497,7 +540,7 @@ function Kora.progressbar.start(payload, owner, hooks)
                 or (not payload.allowSwimming and IsPedSwimming(session.ped))
                 or session.cancelRequested then return true end
 
-            updateVehicleControls(session, payload.disable and payload.disable.car == true,
+            updateVehicleControls(session, disablesVehicle(payload.disable),
                 payload.disable and payload.disable.controlProfile)
 
             if payload.canCancel and cancelControls then

@@ -350,6 +350,48 @@ harness.test("disable.combat and disable.car disable the expected controls", fun
     harness.assertTrue(firingCalls > 0, "combat suppression should also disable player firing")
 end)
 
+-- X7 / H8: several resources pass disable.vehicle, which used to be ignored silently.
+harness.test("disable.vehicle is accepted as an alias for disable.car", function()
+    reset()
+    inVehicle = true
+    Kora.progressbar.start({ label = "Working...", duration = 500, disable = { move = true, vehicle = true } })
+    harness.assertTrue(disabledControls[71] == true, "vehicle accelerate should be disabled through the alias")
+    harness.assertThrows(function()
+        Kora.progressbar.validate({ label = "Working...", duration = 500, disable = { vehicle = 'yes' } })
+    end, "the alias is type-checked like car")
+end)
+
+harness.test("validate warns once per resource about unknown payload and disable keys", function()
+    local printed = {}
+    local originalPrint = print
+    _G.print = function(message) printed[#printed + 1] = tostring(message) end
+    local previousInvoker = _G.GetInvokingResource
+    _G.GetInvokingResource = function() return "typo_resource" end
+
+    local payload = { label = "Working...", duration = 500, disbale = true, disable = { driving = true, car = true } }
+    Kora.progressbar.validate(payload)
+    Kora.progressbar.validate(payload)
+    _G.GetInvokingResource = function() return "other_resource" end
+    Kora.progressbar.validate(payload)
+    Kora.progressbar.validate({ label = "Working...", duration = 500, disable = { vehicle = true, moveMode = 'controls' } })
+
+    _G.GetInvokingResource = previousInvoker
+    _G.print = originalPrint
+
+    local function count(needle)
+        local n = 0
+        for _, line in ipairs(printed) do
+            if line:find(needle, 1, true) then n = n + 1 end
+        end
+        return n
+    end
+    harness.assertEqual(count("typo_resource"), 2, "one warning per unknown key for the first resource")
+    harness.assertEqual(count("other_resource"), 2, "each resource is warned once too")
+    harness.assertEqual(count("'disbale'"), 2)
+    harness.assertEqual(count("'disable.driving'"), 2)
+    harness.assertEqual(#printed, 4, "known keys (including vehicle) never warn")
+end)
+
 harness.test("disable.sprint and disable.mouse use the expected control leases", function()
     reset()
     Kora.progressbar.start({ label = "Working...", duration = 100, disable = { sprint = true, mouse = true } })
