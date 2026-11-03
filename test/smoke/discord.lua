@@ -221,7 +221,7 @@ harness.test("the console-only sync caches guild names and online member roles",
     harness.assertFalse(Kora.discord.hasAllRoles(USER_ID, { "Moderator", "Police" }), "hasAllRoles should require both")
 end)
 
-harness.test("sync migrates and persists its role directory when qbsql is available", function()
+harness.test("sync declares its schema and persists its role directory when qbsql is available", function()
     convars = {
         kora_lib_discord_bot_token = "secret-token",
         kora_lib_discord_guild_id = GUILD_ID,
@@ -233,18 +233,12 @@ harness.test("sync migrates and persists its role directory when qbsql is availa
         { status = 200, body = "sync_member" },
     }
 
-    local sqlCalls = { migrations = {}, queries = {}, transactions = {} }
-    _G.LoadResourceFile = function(_, path)
-        local file = assert(io.open(repoRoot .. path, "rb"))
-        local contents = file:read("*a")
-        file:close()
-        return contents
-    end
+    local sqlCalls = { schemas = {}, queries = {}, transactions = {} }
     _G.exports = { kora_sql = {} }
     function _G.exports.kora_sql:isReady() return true end
-    function _G.exports.kora_sql:migrate(resource, migrations, callback)
-        sqlCalls.migrations[#sqlCalls.migrations + 1] = { resource = resource, migrations = migrations }
-        callback({ ran = 1, total = 1 }, nil)
+    function _G.exports.kora_sql:ensureTables(specs, callback, resource)
+        sqlCalls.schemas[#sqlCalls.schemas + 1] = { resource = resource, specs = specs }
+        callback({}, nil)
     end
     function _G.exports.kora_sql:query(sql, params, callback)
         sqlCalls.queries[#sqlCalls.queries + 1] = { sql = sql, params = params }
@@ -259,7 +253,11 @@ harness.test("sync migrates and persists its role directory when qbsql is availa
     Kora.discord.syncRoles(function(ok) syncOk = ok end)
 
     harness.assertTrue(syncOk, "the qbsql-backed sync should complete")
-    harness.assertEqual(#sqlCalls.migrations, 1, "the Discord schema should use qbsql's migration runner")
+    harness.assertEqual(#sqlCalls.schemas, 1, "the Discord schema should be applied through qbsql's ensureTables")
+    local names = {}
+    for _, spec in ipairs(sqlCalls.schemas[1].specs) do names[#names + 1] = spec.name end
+    harness.assertEqual(table.concat(names, ","), "qblib_discord_roles,qblib_discord_members,qblib_discord_member_roles",
+        "the schema should declare all three tables, parents first")
     harness.assertEqual(#sqlCalls.queries, 3, "startup should load role, member, and assignment caches")
     harness.assertEqual(#sqlCalls.transactions, 2, "the catalog and member snapshot should each persist atomically")
 end)

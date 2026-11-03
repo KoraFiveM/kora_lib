@@ -46,8 +46,8 @@ its calls need. Role management requires `MANAGE_ROLES` and can only affect
 roles below the bot's highest role; channel management requires
 `MANAGE_CHANNELS`.
 
-When kora_sql is running, kora_lib applies `modules/discord/sql/001_discord.sql` with
-kora_sql's migration runner and persists the guild catalog, known members, and
+When kora_sql is running, kora_lib declares its tables in `modules/discord/server.lua` and applies them with
+kora_sql's declarative schema handler (`ensureTables`) and persists the guild catalog, known members, and
 their role assignments. If kora_sql is absent, all bot/cache functions still work
 in memory and the console reports that persistence is unavailable.
 

@@ -631,19 +631,61 @@ local function resolveCachedRole(guildId, role)
     return roleId, cache.byId[roleId]
 end
 
-local function fnv1a(value)
-    local hash = 0xCBF29CE484222325
-    local prime = 0x100000001B3
-    for index = 1, #value do
-        hash = hash ~ value:byte(index)
-        hash = (hash * prime) & 0xFFFFFFFFFFFFFFFF
-    end
-    return hash
+local function discordColumn(name, columnType, extra)
+    local column = { name = name, type = columnType }
+    for key, value in pairs(extra or {}) do column[key] = value end
+    return column
 end
 
-local function migrationChecksum(value)
-    return (('%016x%016x'):format(fnv1a(value), fnv1a(value:reverse())) .. string.rep('0', 32))
-end
+local DISCORD_SCHEMA = {
+    {
+        name = 'qblib_discord_roles',
+        collate = 'utf8mb4_unicode_ci',
+        columns = {
+            discordColumn('guild_id', 'varchar(32)'),
+            discordColumn('role_id', 'varchar(32)'),
+            discordColumn('name', 'varchar(100)'),
+            discordColumn('color', 'int', { unsigned = true, default = 0 }),
+            discordColumn('position', 'smallint', { default = 0 }),
+            discordColumn('permissions', 'varchar(32)', { default = '0' }),
+            discordColumn('managed', 'tinyint(1)', { default = 0 }),
+            discordColumn('mentionable', 'tinyint(1)', { default = 0 }),
+            discordColumn('updated_at', 'timestamp', {
+                default = { raw = 'CURRENT_TIMESTAMP' }, on_update = 'CURRENT_TIMESTAMP',
+            }),
+        },
+        primary = { 'guild_id', 'role_id' },
+        indexes = { { name = 'idx_qblib_discord_roles_name', columns = { 'guild_id', 'name' } } },
+    },
+    {
+        name = 'qblib_discord_members',
+        collate = 'utf8mb4_unicode_ci',
+        columns = {
+            discordColumn('guild_id', 'varchar(32)'),
+            discordColumn('user_id', 'varchar(32)'),
+            discordColumn('synced_at', 'bigint', { unsigned = true }),
+        },
+        primary = { 'guild_id', 'user_id' },
+        indexes = { { name = 'idx_qblib_discord_members_synced', columns = { 'synced_at' } } },
+    },
+    {
+        name = 'qblib_discord_member_roles',
+        collate = 'utf8mb4_unicode_ci',
+        columns = {
+            discordColumn('guild_id', 'varchar(32)'),
+            discordColumn('user_id', 'varchar(32)'),
+            discordColumn('role_id', 'varchar(32)'),
+        },
+        primary = { 'guild_id', 'user_id', 'role_id' },
+        indexes = { { name = 'idx_qblib_discord_member_roles_role', columns = { 'guild_id', 'role_id' } } },
+        foreign = {
+            { name = 'fk_qblib_discord_member', columns = { 'guild_id', 'user_id' }, ref_table = 'qblib_discord_members',
+              ref_columns = { 'guild_id', 'user_id' }, on_delete = 'CASCADE' },
+            { name = 'fk_qblib_discord_role', columns = { 'guild_id', 'role_id' }, ref_table = 'qblib_discord_roles',
+              ref_columns = { 'guild_id', 'role_id' }, on_delete = 'CASCADE' },
+        },
+    },
+}
 
 local function awaitSql(invoke)
     local pending = promise.new()
@@ -746,25 +788,18 @@ local function ensureDatabase()
     end
 
     local resource = GetCurrentResourceName()
-    local sql = LoadResourceFile(resource, 'modules/discord/sql/001_discord.sql')
-    if not sql then
-        databaseInitializing = false
-        return false, 'missing modules/discord/sql/001_discord.sql'
-    end
-
-    local migrated, migrateErr = awaitSql(function(callback)
-        exports.kora_sql:migrate(resource, {
-            {
-                version = 1,
-                name = 'discord_roles',
-                sql = sql,
-                checksum = migrationChecksum(sql),
-            },
-        }, callback, resource)
+    local reports, schemaErr = awaitSql(function(callback)
+        exports.kora_sql:ensureTables(DISCORD_SCHEMA, callback, resource)
     end)
-    if not migrated then
+    if not reports then
         databaseInitializing = false
-        return false, migrateErr
+        return false, schemaErr
+    end
+    for reportIndex = 1, #reports do
+        local report = reports[reportIndex]
+        for warningIndex = 1, #(report.warnings or {}) do
+            print(('^3[kora_lib:discord]^7 %s: %s'):format(tostring(report.table), tostring(report.warnings[warningIndex])))
+        end
     end
 
     local loaded, loadErr = loadDatabaseCache()
