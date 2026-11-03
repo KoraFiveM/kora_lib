@@ -621,6 +621,53 @@ harness.test("registerApp forwards draggable fields and applies Config.ui.apps.d
         "a non-boolean draggable should be rejected")
 end)
 
+harness.test("hold actions report one start and one end, and are released when the app closes", function()
+    local calls = {}
+    Kora.nui.registerApp({
+        id = "smoke:hold",
+        title = "Hold",
+        navigation = { { id = "home", label = "Home", content = { actions = {
+            { id = "horn", label = "Test horn", hold = true },
+            { id = "plain", label = "Plain" },
+        } } } },
+        onAction = function(actionId, context) calls[#calls + 1] = { id = actionId, hold = context.hold, itemId = context.itemId } end,
+    })
+    Kora.nui.openApp("smoke:hold")
+    local requestId, token = lastRequestId(), lastToken()
+    local function hold(actionId, state, sessionToken)
+        local response
+        nuiCallbacks["kora_lib:app:hold"]({ appId = "smoke:hold", token = sessionToken or token, actionId = actionId,
+            viewId = "home", itemId = "row-1", state = state }, function(result) response = result end)
+        return response
+    end
+
+    harness.assertFalse(hold("horn", "start", "wrong").ok, "a hold with the wrong token must be rejected")
+    harness.assertFalse(hold("plain", "start").ok, "an action without hold = true cannot be held")
+    harness.assertFalse(hold("horn", "sideways").ok, "an unknown hold state must be rejected")
+    harness.assertEqual(#calls, 0, "rejected holds never reach the handler")
+
+    harness.assertTrue(hold("horn", "start").ok, "a declared hold action should start")
+    harness.assertTrue(hold("horn", "start").ok, "a repeated start is accepted")
+    harness.assertTrue(hold("horn", "end").ok, "a declared hold action should end")
+    harness.assertTrue(hold("horn", "end").ok, "a repeated end is accepted")
+    harness.assertEqual(#calls, 2, "the handler sees exactly one start and one end")
+    harness.assertEqual(calls[1].hold, "start", "the first call is the press")
+    harness.assertEqual(calls[1].itemId, "row-1", "the item identity reaches the handler")
+    harness.assertEqual(calls[2].hold, "end", "the second call is the release")
+
+    hold("horn", "start")
+    respond(requestId, token, true, { closed = true, reason = "escape" })
+    harness.assertEqual(#calls, 4, "closing the app mid-hold releases the held action")
+    harness.assertEqual(calls[4].hold, "end", "the release on close is an end")
+
+    harness.assertFalse(pcall(Kora.nui.registerApp, { id = "smoke:hold-bad", title = "Bad", navigation = { { id = "home", label = "Home",
+        content = { actions = { { id = "x", label = "X", hold = true, confirm = "Sure?" } } } } } }),
+        "a hold action with confirm should be rejected")
+    harness.assertFalse(pcall(Kora.nui.registerApp, { id = "smoke:hold-type", title = "Bad", navigation = { { id = "home", label = "Home",
+        content = { actions = { { id = "x", label = "X", hold = "yes" } } } } } }),
+        "a non-boolean hold should be rejected")
+end)
+
 harness.test("registerApp accepts left, right and center placement and rejects others", function()
     for _, placement in ipairs({ "left", "right", "center" }) do
         harness.assertTrue(pcall(Kora.nui.registerApp, { id = "smoke:place-" .. placement, title = "Place", placement = placement, navigation = { { id = "home", label = "Home" } } }),

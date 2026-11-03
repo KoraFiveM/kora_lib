@@ -607,6 +607,7 @@
 ---@field fields? QBInputField[] Fields collected inline by AppShell before this action runs.
 ---@field confirm? string Acknowledgement shown before submitting this action.
 ---@field closeBeforeAction? boolean Close and release AppShell before invoking the action handler.
+---@field hold? boolean Press-and-hold button: onAction runs with context.hold = 'start' on press and 'end' on release (also when the app closes mid-hold); no click is sent.
 
 ---@class QBAppStat
 ---@field label string
@@ -800,6 +801,7 @@
 ---@field itemId? string
 ---@field value? any
 ---@field data? any The data supplied to openApp.
+---@field hold? 'start'|'end' Set only for `hold = true` actions; the handler's return value is ignored.
 
 ---@class QBAppActionResult
 ---@field update? table Partial QBAppDefinition to merge and render immediately.

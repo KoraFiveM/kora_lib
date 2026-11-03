@@ -386,6 +386,14 @@ explicit acknowledgement, including for actions with no fields. Set
 defaults to the translated Confirm label when `confirm` is set, otherwise Run
 action. This matches `submitLabel?` on a `form` block.
 
+Set `hold = true` for a press-and-hold button (for example "hold to test a
+horn"). It never sends a click: `onAction` runs with `context.hold = 'start'`
+when the button is pressed (mouse, Enter or Space) and once more with
+`context.hold = 'end'` when it is released, loses focus, is disabled or the app
+closes while it is held. Its return value is ignored. A hold action cannot have
+`fields`, `confirm` or `closeBeforeAction`. Older shells render it as a normal
+button whose click reaches `onAction` without `context.hold`.
+
 Set `closeBeforeAction = true` when the handler launches another focused UI or
 world editor. kora_lib closes AppShell and releases its focus lease before calling
 the owner handler; handler/result failures are reported as notifications

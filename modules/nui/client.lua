@@ -297,8 +297,12 @@ local function assertAppAction(action, location, actionIds)
     assert(action.confirm == nil or type(action.confirm) == "string", ("%s action confirm must be a string."):format(location))
     assert(action.submitLabel == nil or type(action.submitLabel) == "string", ("%s action submitLabel must be a string."):format(location))
     assert(action.closeBeforeAction == nil or type(action.closeBeforeAction) == "boolean", ("%s action closeBeforeAction must be a boolean."):format(location))
+    assert(action.hold == nil or type(action.hold) == "boolean", ("%s action hold must be a boolean."):format(location))
+    assert(not action.hold or (action.fields == nil and action.confirm == nil and not action.closeBeforeAction),
+        ("%s hold action cannot have fields, confirm or closeBeforeAction."):format(location))
     declareAction(actionIds, action.id, action.closeBeforeAction, location)
     if action.fields then actionIds[action.id].form = true end
+    if action.hold then actionIds[action.id].hold = true end
 end
 
 local function assertListItems(items, location, actionIds)
@@ -907,6 +911,7 @@ function Kora.nui.request(action, data, timeout, owner)
 end
 
 local focusUntilSettled
+local releaseHeldActions
 
 ---Starts a request without awaiting it across an enclosing export call.
 ---This is an internal composition primitive for kora_lib modules that need to
@@ -1307,6 +1312,29 @@ end
 ---@param id string
 ---@param opts? table `{ data?: any, viewId?: string, tabId?: string }`
 ---@return promise|any result `{ closed: true, reason: string, viewId?: string, tabId?: string }`
+-- Calls onAction(actionId, { hold = state, ... }) for a declared hold action; a hold never returns an update.
+local function runHoldAction(instance, registration, actionId, context, state)
+    local ok, err = pcall(registration.onAction, actionId, {
+        appId = instance.id, viewId = context.viewId, tabId = context.tabId,
+        itemId = context.itemId, value = context.value, data = instance.data, hold = state,
+    })
+    if not ok then
+        print(("[kora_lib:nui] app '%s' hold action '%s' errored: %s"):format(instance.id, actionId, tostring(err)))
+    end
+    return ok
+end
+
+-- The shell can close (Escape, an action, a crash) while a hold button is down; its release then
+-- never arrives with a valid token, so the owner gets the "end" from here instead.
+function releaseHeldActions(instance)
+    local held = instance.held
+    instance.held = nil
+    if not held then return end
+    local registration = registeredApps[instance.id]
+    if not registration or not registration.onAction then return end
+    for actionId, context in pairs(held) do runHoldAction(instance, registration, actionId, context, "end") end
+end
+
 function Kora.nui.openApp(id, opts)
     assertAppId(id)
     assert(opts == nil or type(opts) == "table", "openApp options must be a table.")
@@ -1339,6 +1367,7 @@ function Kora.nui.openApp(id, opts)
     activeApp = instance
 
     local function clear()
+        releaseHeldActions(instance)
         if activeApp ~= instance then return end
         activeApp = nil
         applyAppAccent(nil)
@@ -1447,6 +1476,41 @@ Kora.nui.registerCallback("kora_lib:app:change", function(data)
     end
     applyAppAccent(registration)
     return { ok = true, result = { app = registration.browser } }
+end)
+
+-- Press/release of a `hold = true` action. "start" is ignored while that action is already held and
+-- "end" while it is not, so the owner sees exactly one start and one end per press.
+Kora.nui.registerCallback("kora_lib:app:hold", function(data)
+    local current = activeApp
+    if not current or type(data) ~= "table" then
+        return { ok = false, error = "No app is open." }
+    end
+    if data.appId ~= current.id or type(data.token) ~= "string" or data.token ~= current.token then
+        return { ok = false, error = "Invalid app session." }
+    end
+    if data.state ~= "start" and data.state ~= "end" then
+        return { ok = false, error = "Invalid hold state." }
+    end
+    local registration = registeredApps[current.id]
+    local declared = type(data.actionId) == "string" and registration and registration.actionIds[data.actionId]
+    if not declared or not declared.hold or not registration.onAction then
+        return { ok = false, error = "This action cannot be held." }
+    end
+
+    current.held = current.held or {}
+    local context = current.held[data.actionId]
+    if data.state == "start" then
+        if context then return { ok = true } end
+        context = { viewId = data.viewId, tabId = data.tabId, itemId = data.itemId, value = data.value }
+        current.held[data.actionId] = context
+    else
+        if not context then return { ok = true } end
+        current.held[data.actionId] = nil
+    end
+    if not runHoldAction(current, registration, data.actionId, context, data.state) then
+        return { ok = false, error = "The app action failed." }
+    end
+    return { ok = true }
 end)
 
 local function notifyClosedAppError(message)

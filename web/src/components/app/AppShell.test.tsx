@@ -433,6 +433,69 @@ describe("AppShell", () => {
             expect(main.style.top).toBe("0px")
         })
 
+        it("stays on screen without a render loop when dragged past the left edge mid-transition", () => {
+            // While a left/top transition runs the browser reports the animated position: the box
+            // and the computed left/top both lag the offset React rendered until settle(). The panel
+            // starts on the right (left edge at 600) like the customs shop.
+            const visual = { x: 0, y: 0 }
+            vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+                if (this.tagName !== "MAIN") return rect(0, 0, 0, 0)
+                return rect(600 + visual.x, 300 + visual.y, 400, 300)
+            })
+            const computed = window.getComputedStyle.bind(window)
+            vi.spyOn(window, "getComputedStyle").mockImplementation((element: Element, pseudo?: string | null) => {
+                const style = computed(element, pseudo)
+                if ((element as HTMLElement).tagName !== "MAIN") return style
+                return new Proxy(style, { get: (target, key) => {
+                    if (key === "left") return `${visual.x}px`
+                    if (key === "top") return `${visual.y}px`
+                    const value = Reflect.get(target, key, target)
+                    return typeof value === "function" ? value.bind(target) : value
+                } })
+            })
+            const { container } = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true }))
+            const main = container.querySelector("main") as HTMLElement
+            const header = container.querySelector("section > header") as HTMLElement
+            const settle = () => { visual.x = parseFloat(main.style.left) || 0; visual.y = parseFloat(main.style.top) || 0 }
+
+            // Two quick moves past the left edge: the second is clamped against the box the first
+            // has not moved yet, so once drawn the panel sits 5 px off screen. Clamping that against
+            // the lagging box crept back 5 px per pass, past the React nested update limit (#185).
+            pointer(header, "pointerdown", 1000, 10)
+            pointer(header, "pointermove", 405, 10)
+            pointer(header, "pointermove", 395, 10)
+            settle()
+            expect(() => pointer(header, "pointermove", 394, 10)).not.toThrow()
+            pointer(header, "pointerup", 394, 10)
+            settle()
+
+            expect(main.style.left).toBe("-600px")
+            expect(main.getBoundingClientRect().left).toBe(0)
+            expect(container.querySelector("main")).toBe(main)
+            expect(main.className).toContain("transition-none")
+        })
+
+        it("clamps a remembered off-screen position on open and re-clamps when the window shrinks", () => {
+            window.localStorage.setItem("kora_lib:app-position:shop", JSON.stringify({ x: -5000, y: 9000 }))
+            const { container } = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true, rememberPosition: true, positionKey: "shop" }))
+            const main = container.querySelector("main") as HTMLElement
+            expect(main.style.left).toBe("-400px")
+            expect(main.style.top).toBe(`${window.innerHeight - 600}px`)
+
+            const width = window.innerWidth
+            try {
+                drag(container.querySelector("section > header") as HTMLElement, [0, 0], [5000, 0])
+                expect(main.style.left).toBe(`${width - 800}px`)
+                Object.defineProperty(window, "innerWidth", { configurable: true, value: width - 200 })
+                act(() => { window.dispatchEvent(new Event("resize")) })
+                expect(main.style.left).toBe(`${width - 1000}px`)
+            } finally {
+                Object.defineProperty(window, "innerWidth", { configurable: true, value: width })
+            }
+        })
+
         it("remembers the position under positionKey only when rememberPosition is set", () => {
             const { container, unmount } = render(<AppShell />)
             openApp(baseApp({ title: "Home" }, { draggable: true, rememberPosition: true, positionKey: "shop" }))
@@ -451,6 +514,57 @@ describe("AppShell", () => {
             drag(plain.container.querySelector("section > header") as HTMLElement, [0, 0], [20, 10])
             expect(window.localStorage.length).toBe(0)
         })
+    })
+
+    describe("hold actions", () => {
+        const holdApp = () => baseApp({ blocks: [{ type: "list", id: "rows", items: [{ id: "horn-row", label: "Horn", actions: [{ id: "horn:test", label: "Test horn", hold: true }] }] }] })
+        // jsdom has no PointerEvent, so build mouse events under the pointer event names React listens for.
+        const press = (target: HTMLElement, type: string) => {
+            const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })
+            Object.defineProperty(event, "pointerId", { value: 1 })
+            fireEvent(target, event)
+        }
+        const holdCalls = () => fetchNuiMock.mock.calls.filter(([name]) => name === "kora_lib:app:hold").map(([, data]) => data as Record<string, unknown>)
+
+        it("sends start on press and one end on release, never a click", () => {
+            render(<AppShell />)
+            const token = openApp(holdApp())
+            const button = screen.getByRole("button", { name: "Test horn" })
+
+            press(button, "pointerdown")
+            press(button, "pointerdown")
+            expect(button).toHaveAttribute("aria-pressed", "true")
+            press(button, "pointerup")
+            press(button, "pointerup")
+            fireEvent.click(button)
+
+            expect(holdCalls().map((call) => call.state)).toEqual(["start", "end"])
+            expect(holdCalls()[0]).toMatchObject({ appId: "test:app", token, actionId: "horn:test", itemId: "horn-row" })
+            expect(fetchNuiMock.mock.calls.some(([name]) => name === "kora_lib:app:action")).toBe(false)
+        })
+
+        it("supports the keyboard and releases when focus is lost or the shell goes away", () => {
+            const { unmount } = render(<AppShell />)
+            openApp(holdApp())
+            const button = screen.getByRole("button", { name: "Test horn" })
+
+            fireEvent.keyDown(button, { key: " " })
+            fireEvent.keyDown(button, { key: " ", repeat: true })
+            fireEvent.keyUp(button, { key: " " })
+            fireEvent.keyDown(button, { key: "Enter" })
+            fireEvent.blur(button)
+            press(button, "pointerdown")
+            unmount()
+
+            expect(holdCalls().map((call) => call.state)).toEqual(["start", "end", "start", "end", "start", "end"])
+        })
+    })
+
+    it("answers the open request when the shell unmounts while open, so Lua releases focus", () => {
+        const { unmount } = render(<AppShell />)
+        const token = openApp(baseApp({ title: "Home" }))
+        unmount()
+        expect(respondToNuiMock).toHaveBeenCalledWith(requestId, token, true, expect.objectContaining({ closed: true, reason: "unmounted" }))
     })
 
     it("keeps the game visible around the app shell", () => {

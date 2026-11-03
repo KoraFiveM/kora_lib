@@ -35,6 +35,30 @@ export function clampPanelOffset(rect: { left: number; top: number; right: numbe
 }
 
 /**
+ * The offset the browser is drawing right now, from the computed left/top. While left/top is
+ * mid-transition this is the animated value rather than the state the last render set, so the
+ * default box derived from it is right. Deriving it from the rendered state instead made the
+ * clamp chase a box that had not moved yet and set a new offset on every pass (React error
+ * #185) once the panel was dragged past the left edge.
+ */
+function appliedOffset(element: HTMLElement): PanelOffset {
+    const style = window.getComputedStyle(element)
+    const x = parseFloat(style.left)
+    const y = parseFloat(style.top)
+    return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 }
+}
+
+/** The panel's layout box; the entry animation scales it about its centre, so undo that. */
+function layoutBox(element: HTMLElement) {
+    const rect = element.getBoundingClientRect()
+    const width = element.offsetWidth || rect.width
+    const height = element.offsetHeight || rect.height
+    const centreX = (rect.left + rect.right) / 2
+    const centreY = (rect.top + rect.bottom) / 2
+    return { left: centreX - width / 2, right: centreX + width / 2, top: centreY - height / 2, bottom: centreY + height / 2 }
+}
+
+/**
  * Makes a panel draggable by a header. The panel keeps its normal layout and is shifted with
  * relative left/top, so it never conflicts with entry animations (which own transform).
  * storageKey (when set) remembers the offset in localStorage.
@@ -47,11 +71,12 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
     const drag = useRef<{ pointerId: number; startX: number; startY: number; origin: PanelOffset } | null>(null)
     offsetRef.current = offset
 
-    const clampToViewport = useCallback((target?: PanelOffset) => {
+    // Pure in `target`: the default box does not depend on the last rendered offset, so clamping
+    // an already clamped offset returns it unchanged and the re-clamp below cannot loop.
+    const clampToViewport = useCallback((target: PanelOffset) => {
         const element = panel.current
-        const current = offsetRef.current
-        if (!element) return target ?? current
-        return clampPanelOffset(element.getBoundingClientRect(), current, { width: window.innerWidth, height: window.innerHeight }, target)
+        if (!element) return target
+        return clampPanelOffset(layoutBox(element), appliedOffset(element), { width: window.innerWidth, height: window.innerHeight }, target)
     }, [panel])
 
     useLayoutEffect(() => {
@@ -60,15 +85,18 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
         setOffset(active && enabled ? loadPanelOffset(storageKey) : ZERO)
     }, [active, enabled, storageKey])
 
-    // Re-clamp after a stored offset renders and whenever the viewport changes.
+    // Keep the panel on screen after a stored offset loads (the updater clamps the queued value,
+    // not the rendered one), when the window or resolution changes and when the panel resizes.
     useLayoutEffect(() => {
-        if (!active || !enabled) return
-        // Clamp the queued offset (e.g. a just-loaded stored one), not the last rendered one, or it gets overwritten.
+        const element = panel.current
+        if (!active || !enabled || !element) return
         const reclamp = () => setOffset((current) => { const next = clampToViewport(current); return next.x === current.x && next.y === current.y ? current : next })
         reclamp()
         window.addEventListener("resize", reclamp)
-        return () => window.removeEventListener("resize", reclamp)
-    }, [active, enabled, clampToViewport, offset])
+        const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(reclamp)
+        observer?.observe(element)
+        return () => { window.removeEventListener("resize", reclamp); observer?.disconnect() }
+    }, [active, enabled, clampToViewport, panel])
 
     const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
         if (event.button !== 0 || (event.target as HTMLElement).closest(INTERACTIVE)) return

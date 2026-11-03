@@ -403,6 +403,8 @@ export interface AppAction {
     submitLabel?: string
     /** Release the shell before invoking actions which open another UI or world editor. */
     closeBeforeAction?: boolean
+    /** Press-and-hold button: onAction gets context.hold "start" on press and "end" on release, never a click. */
+    hold?: boolean
 }
 
 export interface AppStat {
