@@ -183,4 +183,119 @@ harness.test('foreign resources cannot remove server state listeners', function(
     invokingResource = nil
 end)
 
+-- H7: globalMap. GlobalState is a recording table so the test can see which keys were written.
+local globalWrites = {}
+local globalValues = {}
+_G.GlobalState = setmetatable({}, {
+    __index = function(_, key) return globalValues[key] end,
+    __newindex = function(_, key, value)
+        globalWrites[#globalWrites + 1] = key
+        globalValues[key] = value
+    end,
+})
+
+local function writesTo(key)
+    local count = 0
+    for _, written in ipairs(globalWrites) do
+        if written == key then count = count + 1 end
+    end
+    return count
+end
+
+local function realm(isServer)
+    _G.IsDuplicityVersion = function() return isServer end
+end
+
+harness.test('globalMap server writes one key per entry and rewrites the index only on add/remove', function()
+    realm(true)
+    local plants = Kora.state.globalMap('plants')
+    harness.assertEqual(writesTo('plants:__keys'), 1, 'creating a map publishes an empty index')
+    harness.assertEqual(#globalValues['plants:__keys'], 0)
+
+    plants.set('p1', { stage = 1 })
+    plants.set('p2', { stage = 1 })
+    harness.assertEqual(globalValues['plants:p1'].stage, 1)
+    harness.assertEqual(writesTo('plants:__keys'), 3, 'each new key rewrites the index once')
+
+    plants.set('p1', { stage = 2 })
+    plants.set('p1', { stage = 3 })
+    harness.assertEqual(writesTo('plants:__keys'), 3, 'updating an existing key must not resend the index')
+    harness.assertEqual(writesTo('plants:p2'), 1, 'other keys are never resent')
+    harness.assertEqual(plants.get('p1').stage, 3)
+
+    plants.remove('p2')
+    harness.assertEqual(globalValues['plants:p2'], nil)
+    harness.assertEqual(writesTo('plants:__keys'), 4)
+    harness.assertEqual(#globalValues['plants:__keys'], 1)
+    plants.remove('p2')
+    harness.assertEqual(writesTo('plants:__keys'), 4, 'removing a missing key is a no-op')
+
+    plants.set('p1', nil)
+    harness.assertEqual(#globalValues['plants:__keys'], 0, 'setting nil removes the key')
+end)
+
+harness.test('globalMap server handles share state per name and reseed from GlobalState', function()
+    realm(true)
+    local first = Kora.state.globalMap('corals')
+    first.set('c1', true)
+    local second = Kora.state.globalMap('corals')
+    second.set('c2', true)
+    local all = first.all()
+    harness.assertTrue(all.c1 and all.c2, 'two handles for one name see the same keys')
+    harness.assertEqual(#globalValues['corals:__keys'], 2)
+
+    -- A kora_lib restart loses in-memory state but GlobalState survives.
+    globalValues['restarted:__keys'] = { 'a' }
+    globalValues['restarted:a'] = 5
+    local reloaded = Kora.state.globalMap('restarted')
+    reloaded.set('b', 6)
+    harness.assertEqual(#globalValues['restarted:__keys'], 2, 'the existing index is kept, not overwritten')
+end)
+
+harness.test('globalMap client reads, waits and watches by prefix', function()
+    realm(true)
+    local server = Kora.state.globalMap('cases')
+    server.set('case1', 'closed')
+    server.set('case2', 'closed')
+
+    realm(false)
+    local client = Kora.state.globalMap('cases')
+    harness.assertTrue(client.ready(10))
+    harness.assertEqual(client.get('case1'), 'closed')
+    local all = client.all()
+    harness.assertEqual(all.case1, 'closed')
+    harness.assertEqual(all.case2, 'closed')
+    harness.assertFalse(Kora.state.globalMap('never_created').ready(10))
+
+    local seen = {}
+    invokingResource = 'jewellery'
+    local id = client.onChange(function(key, value, old) seen[#seen + 1] = { key, value, old } end)
+    invokingResource = nil
+    harness.assertTrue(type(id) == 'number')
+    local native = nativeHandlers[id]
+    harness.assertEqual(native.bagFilter, 'global', 'one handler on the global bag')
+
+    native.handler('global', 'cases:case1', 'smashed', 0, true)
+    native.handler('global', 'cases:__keys', { 'case1' }, 0, true)
+    native.handler('global', 'other:case1', 'x', 0, true)
+    native.handler('global', 'casesX:case1', 'x', 0, true)
+    harness.assertEqual(#seen, 1, 'only this map\'s entries reach the handler (not the index or other maps)')
+    harness.assertEqual(seen[1][1], 'case1')
+    harness.assertEqual(seen[1][2], 'smashed')
+    harness.assertEqual(seen[1][3], 'closed', 'the previous value is passed as old')
+    harness.assertThrows(function() client.set('x', 1) end, 'clients cannot write')
+end)
+
+harness.test('globalMap rejects invalid names and keys', function()
+    realm(true)
+    harness.assertThrows(function() Kora.state.globalMap('') end)
+    harness.assertThrows(function() Kora.state.globalMap('a:b') end)
+    local map = Kora.state.globalMap('valid')
+    harness.assertThrows(function() map.set('__keys', 1) end)
+    harness.assertThrows(function() map.set({}, 1) end)
+    harness.assertThrows(function() map.set(string.rep('k', 129), 1) end)
+    map.set(5.0, 'five')
+    harness.assertEqual(map.get(5), 'five', 'integer and float keys name the same entry')
+end)
+
 harness.report('state')

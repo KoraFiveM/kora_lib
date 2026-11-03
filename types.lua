@@ -1608,6 +1608,19 @@
 ---@field awaitGlobal fun(key: string, timeoutMs?: integer, pollIntervalMs?: integer): any, string? [shared]
 ---@field onChange fun(keyFilter: string?, bagFilter: string?, handler: fun(change: QBStateChange)): integer [client/server]
 ---@field offChange fun(listenerId: integer): boolean [client/server]
+---@field globalMap fun(name: string): QBGlobalMapServer|QBGlobalMapClient [shared; server writes, client reads]
+
+---@class QBGlobalMapServer
+---@field set fun(key: string|integer, value: any) Writes one entry; nil removes it.
+---@field remove fun(key: string|integer)
+---@field get fun(key: string|integer): any
+---@field all fun(): table<string, any>
+
+---@class QBGlobalMapClient
+---@field get fun(key: string|integer): any
+---@field all fun(): table<string, any>
+---@field ready fun(timeoutMs?: integer): boolean
+---@field onChange fun(fn: fun(key: string, value: any, old: any)): integer Listener id for Kora.state.offChange.
 
 ---@class KoraLibStatus
 ---@field assertName fun(name: string) [shared]
