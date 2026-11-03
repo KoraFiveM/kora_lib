@@ -79,8 +79,12 @@ export default {
         floating: "0 12px 32px rgb(0 0 0 / 42%)",
         modal: "0 24px 64px rgb(0 0 0 / 55%)",
       },
+      // kora_theme sets these variables from theme.json and /config; the
+      // fallbacks are its default stacks.
       fontFamily: {
-        mono: ['"SFMono-Regular"', "Consolas", '"Liberation Mono"', "monospace"],
+        sans: ['var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)'],
+        heading: ['var(--font-heading, var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif))'],
+        mono: ['var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", monospace)'],
       },
       transitionDuration: {
         fast: "120ms",

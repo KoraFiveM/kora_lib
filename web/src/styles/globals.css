@@ -248,7 +248,7 @@ body,
   inset: 0;
   z-index: 40;
   color: #f5f5f5;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", monospace);
   letter-spacing: 0.08em;
   pointer-events: none;
   user-select: none;
