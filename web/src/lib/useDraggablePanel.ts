@@ -48,13 +48,25 @@ function appliedOffset(element: HTMLElement): PanelOffset {
     return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 }
 }
 
-/** The panel's layout box; the entry animation scales it about its centre, so undo that. */
-function layoutBox(element: HTMLElement) {
+/**
+ * The NUI root is scaled with a CSS transform (main.tsx), so the panel's screen box, the window
+ * size and pointer moves are in screen px while left/top are in the root's unscaled px. This is
+ * the factor between them, read from the panel's full-screen host (1 when it cannot be measured).
+ */
+function rootScale(element: HTMLElement): number {
+    const host = element.parentElement
+    const width = host?.offsetWidth ?? 0
+    const scale = host && width > 0 ? host.getBoundingClientRect().width / width : 1
+    return Number.isFinite(scale) && scale > 0 ? scale : 1
+}
+
+/** The panel's layout box in unscaled px; the entry animation scales it about its centre, so undo that. */
+function layoutBox(element: HTMLElement, scale: number) {
     const rect = element.getBoundingClientRect()
-    const width = element.offsetWidth || rect.width
-    const height = element.offsetHeight || rect.height
-    const centreX = (rect.left + rect.right) / 2
-    const centreY = (rect.top + rect.bottom) / 2
+    const width = element.offsetWidth || rect.width / scale
+    const height = element.offsetHeight || rect.height / scale
+    const centreX = (rect.left + rect.right) / 2 / scale
+    const centreY = (rect.top + rect.bottom) / 2 / scale
     return { left: centreX - width / 2, right: centreX + width / 2, top: centreY - height / 2, bottom: centreY + height / 2 }
 }
 
@@ -68,7 +80,7 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
     const [offset, setOffset] = useState<PanelOffset>(ZERO)
     const [dragging, setDragging] = useState(false)
     const offsetRef = useRef(offset)
-    const drag = useRef<{ pointerId: number; startX: number; startY: number; origin: PanelOffset } | null>(null)
+    const drag = useRef<{ pointerId: number; startX: number; startY: number; scale: number; origin: PanelOffset } | null>(null)
     offsetRef.current = offset
 
     // Pure in `target`: the default box does not depend on the last rendered offset, so clamping
@@ -76,7 +88,8 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
     const clampToViewport = useCallback((target: PanelOffset) => {
         const element = panel.current
         if (!element) return target
-        return clampPanelOffset(layoutBox(element), appliedOffset(element), { width: window.innerWidth, height: window.innerHeight }, target)
+        const scale = rootScale(element)
+        return clampPanelOffset(layoutBox(element, scale), appliedOffset(element), { width: window.innerWidth / scale, height: window.innerHeight / scale }, target)
     }, [panel])
 
     useLayoutEffect(() => {
@@ -100,14 +113,14 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
 
     const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
         if (event.button !== 0 || (event.target as HTMLElement).closest(INTERACTIVE)) return
-        drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin: offsetRef.current }
+        drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, scale: panel.current ? rootScale(panel.current) : 1, origin: offsetRef.current }
         event.currentTarget.setPointerCapture?.(event.pointerId)
         setDragging(true)
-    }, [])
+    }, [panel])
     const onPointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
         const state = drag.current
         if (!state || state.pointerId !== event.pointerId) return
-        setOffset(clampToViewport({ x: state.origin.x + event.clientX - state.startX, y: state.origin.y + event.clientY - state.startY }))
+        setOffset(clampToViewport({ x: state.origin.x + (event.clientX - state.startX) / state.scale, y: state.origin.y + (event.clientY - state.startY) / state.scale }))
     }, [clampToViewport])
     const endDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
         const state = drag.current

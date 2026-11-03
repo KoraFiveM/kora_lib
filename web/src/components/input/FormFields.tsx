@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
-import { Minus, Plus, X } from "lucide-react"
+import { Crosshair, Minus, Plus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/cn"
+import { fetchNui } from "@/lib/fetchNui"
 import type { AppShellLabels, FieldValue, InputField, InputOption, KeyValueEntry, VectorFieldValue } from "@/lib/types"
 import { resolveIcon } from "@/lib/icon"
 
@@ -515,9 +516,31 @@ function VectorField({ id, field, value, error, describedBy, onChange }: {
 }) {
     const vector = vectorFieldValue(value) ?? { x: "", y: "", z: "", w: "" }
     const axes = ["x", "y", "z", "w"].slice(0, field.dimensions ?? 3) as Array<keyof VectorFieldValue>
-    return <div role="group" aria-label={field.label} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {axes.map((axis) => <VectorAxisField key={axis} id={axis === "x" ? id : `${id}-${axis}`} label={`${field.label} ${axis.toUpperCase()}`} axis={axis} value={vector[axis]} onChange={(nextValue) => onChange({ ...vector, [axis]: nextValue })} />)}
-    </div>
+    const [picking, setPicking] = useState(false)
+    const pick = field.pickPosition
+    // Lua (kora_lib:form:position) answers with the player's own position; an empty or partial
+    // answer (browser dev, no ped yet) leaves the field as it is.
+    const pickPosition = async () => {
+        setPicking(true)
+        try {
+            const position = await fetchNui<Partial<Record<keyof VectorFieldValue, number>>>("kora_lib:form:position", { vehicle: typeof pick === "object" && pick.vehicle === true })
+            const next: VectorFieldValue = { x: "", y: "" }
+            for (const axis of axes) {
+                const component = position?.[axis]
+                if (typeof component !== "number" || !Number.isFinite(component)) return
+                next[axis] = component
+            }
+            onChange(next)
+        } catch { /* position unavailable: keep the typed values */ } finally {
+            setPicking(false)
+        }
+    }
+    return <>
+        <div role="group" aria-label={field.label} aria-invalid={Boolean(error)} aria-describedby={describedBy} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {axes.map((axis) => <VectorAxisField key={axis} id={axis === "x" ? id : `${id}-${axis}`} label={`${field.label} ${axis.toUpperCase()}`} axis={axis} value={vector[axis]} onChange={(nextValue) => onChange({ ...vector, [axis]: nextValue })} />)}
+        </div>
+        {pick ? <Button type="button" size="sm" variant="outline" className="mt-1 self-start" disabled={picking} onClick={() => void pickPosition()}><Crosshair aria-hidden />{typeof pick === "object" && pick.label ? pick.label : "Use my position"}</Button> : null}
+    </>
 }
 
 function VectorAxisField({ id, label, axis, value, onChange }: {

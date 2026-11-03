@@ -496,6 +496,43 @@ describe("AppShell", () => {
             }
         })
 
+        it("clamps and follows the pointer in root px when the NUI root is scaled (above 1080p)", () => {
+            // main.tsx scales #root by the screen size over 1080p (2 at 4K): the screen box, the window
+            // and the pointer are in screen px while left/top are in root px (here 512x384).
+            const scale = 2
+            const rootWidth = window.innerWidth / scale
+            const rootHeight = window.innerHeight / scale
+            const box = { left: (rootWidth - 300) / 2, top: (rootHeight - 200) / 2 }
+            const isHost = (element: HTMLElement) => element.firstElementChild?.tagName === "MAIN"
+            vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+                return this.tagName === "MAIN" ? 300 : isHost(this) ? rootWidth : 0
+            })
+            vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+                return this.tagName === "MAIN" ? 200 : isHost(this) ? rootHeight : 0
+            })
+            vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+                if (isHost(this)) return rect(0, 0, window.innerWidth, window.innerHeight)
+                if (this.tagName !== "MAIN") return rect(0, 0, 0, 0)
+                return rect(scale * (box.left + (parseFloat(this.style.left) || 0)), scale * (box.top + (parseFloat(this.style.top) || 0)), scale * 300, scale * 200)
+            })
+            const { container } = render(<AppShell />)
+            openApp(baseApp({ title: "Home" }, { draggable: true }))
+            const main = container.querySelector("main") as HTMLElement
+            const header = container.querySelector("section > header") as HTMLElement
+
+            drag(header, [100, 100], [140, 120])
+            expect(main.style.left).toBe("20px")
+            expect(main.style.top).toBe("10px")
+
+            drag(header, [0, 0], [5000, 5000])
+            expect(main.style.left).toBe(`${box.left}px`)
+            expect(main.style.top).toBe(`${box.top}px`)
+
+            drag(header, [5000, 5000], [-5000, -5000])
+            expect(main.style.left).toBe(`${-box.left}px`)
+            expect(main.style.top).toBe(`${-box.top}px`)
+        })
+
         it("remembers the position under positionKey only when rememberPosition is set", () => {
             const { container, unmount } = render(<AppShell />)
             openApp(baseApp({ title: "Home" }, { draggable: true, rememberPosition: true, positionKey: "shop" }))

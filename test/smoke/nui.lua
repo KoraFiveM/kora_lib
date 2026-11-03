@@ -1459,6 +1459,36 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
     GetGameTimer = previousClock
 end)
 
+harness.test("pickPosition is vector-only and kora_lib:form:position answers the local position", function()
+    harness.assertThrows(function()
+        Kora.nui.openInputDialog({ { id = "name", label = "Name", type = "text", pickPosition = true } })
+    end, "pickPosition on a non-vector field should be rejected")
+    harness.assertThrows(function()
+        Kora.nui.openInputDialog({ { id = "spot", label = "Spot", type = "vector", dimensions = 4, pickPosition = { vehicle = "yes" } } })
+    end, "a non-boolean pickPosition.vehicle should be rejected")
+
+    local previous = { cache = Kora.cache, exists = _G.DoesEntityExist, coords = _G.GetEntityCoords, heading = _G.GetEntityHeading }
+    local seated = false
+    Kora.cache = { ped = function() return 11 end, vehicle = function() return seated and 22 or false end }
+    _G.DoesEntityExist = function(entity) return entity == 11 or entity == 22 end
+    _G.GetEntityCoords = function(entity) return entity == 22 and { x = 5.555, y = 6, z = 7 } or { x = 10.126, y = -20.5, z = 30.005 } end
+    _G.GetEntityHeading = function(entity) return entity == 22 and 270.456 or 90.114 end
+
+    local onFoot, inVehicle, vehicleOnFoot, plain
+    nuiCallbacks["kora_lib:form:position"]({ vehicle = false }, function(value) onFoot = value end)
+    nuiCallbacks["kora_lib:form:position"]({ vehicle = true }, function(value) vehicleOnFoot = value end)
+    seated = true
+    nuiCallbacks["kora_lib:form:position"]({ vehicle = true }, function(value) inVehicle = value end)
+    nuiCallbacks["kora_lib:form:position"]({}, function(value) plain = value end)
+
+    Kora.cache, _G.DoesEntityExist, _G.GetEntityCoords, _G.GetEntityHeading = previous.cache, previous.exists, previous.coords, previous.heading
+
+    harness.assertEqual(onFoot.x, 10.13); harness.assertEqual(onFoot.z, 30.01); harness.assertEqual(onFoot.w, 90.11)
+    harness.assertEqual(vehicleOnFoot.w, 90.11, "vehicle = true on foot falls back to the ped")
+    harness.assertEqual(inVehicle.x, 5.56); harness.assertEqual(inVehicle.w, 270.46)
+    harness.assertEqual(plain.w, 90.11, "the vehicle is only used when asked for")
+end)
+
 harness.test("internal NUI callbacks keep answering under their deprecated qblib: names", function()
     for _, name in ipairs({ "nui:response", "nui:event", "app:action", "app:change", "dispatchfeed:ready" }) do
         harness.assertTrue(nuiCallbacks["kora_lib:" .. name] ~= nil, "missing kora_lib:" .. name)

@@ -1,10 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
+import { fetchNui } from "@/lib/fetchNui"
 import type { FieldValue, InputField } from "@/lib/types"
+
+vi.mock("@/lib/fetchNui", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/fetchNui")>()), fetchNui: vi.fn() }))
 
 const fields: InputField[] = [{
     id: "vehicle",
@@ -264,6 +267,29 @@ describe("FormFields configuration types", () => {
         await user.clear(screen.getByRole("textbox", { name: "Spawn X" }))
         await user.type(screen.getByRole("textbox", { name: "Spawn X" }), "4.5")
         expect(screen.getByTestId("vector-values")).toHaveTextContent('"x":4.5')
+    })
+
+    it("fills a pickPosition vector from the player position, up to its dimensions", async () => {
+        const user = userEvent.setup()
+        vi.mocked(fetchNui).mockResolvedValueOnce({ x: 10.13, y: -20.5, z: 30.01, w: 270.46 }).mockResolvedValueOnce({})
+        function PickHarness() {
+            const fields: InputField[] = [{ id: "spawn", type: "vector", label: "Spawn", dimensions: 3, pickPosition: { label: "Use vehicle position", vehicle: true } }]
+            const [values, setValues] = useState<Record<string, FieldValue>>(createFieldValues(fields))
+            return <><FormFields fields={fields} values={values} errors={{}} onChange={setValues} /><output data-testid="vector-values">{JSON.stringify(values)}</output></>
+        }
+        render(<PickHarness />)
+        await user.click(screen.getByRole("button", { name: "Use vehicle position" }))
+        expect(fetchNui).toHaveBeenCalledWith("kora_lib:form:position", { vehicle: true })
+        expect(screen.getByRole("textbox", { name: "Spawn X" })).toHaveValue("10.13")
+        expect(JSON.parse(screen.getByTestId("vector-values").textContent ?? "{}").spawn).toEqual({ x: 10.13, y: -20.5, z: 30.01 })
+
+        await user.click(screen.getByRole("button", { name: "Use vehicle position" }))
+        expect(JSON.parse(screen.getByTestId("vector-values").textContent ?? "{}").spawn).toEqual({ x: 10.13, y: -20.5, z: 30.01 })
+    })
+
+    it("only shows the position button when pickPosition is set", () => {
+        render(<FormFields fields={[{ id: "spawn", type: "vector", label: "Spawn", dimensions: 2 }]} values={{ spawn: { x: 1, y: 2 } }} errors={{}} onChange={() => {}} />)
+        expect(screen.queryByRole("button", { name: "Use my position" })).not.toBeInTheDocument()
     })
 })
 

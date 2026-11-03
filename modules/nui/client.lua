@@ -216,6 +216,13 @@ local function assertInputFields(fields, location)
             assert(field[key] == nil or type(field[key]) == "string", fieldLocation .. " " .. key .. " must be a string.")
         end
         assert(field.type ~= "vector" or field.dimensions ~= nil, fieldLocation .. " vector requires dimensions.")
+        if field.pickPosition ~= nil then
+            local pick = field.pickPosition
+            assert(field.type == "vector", fieldLocation .. " pickPosition is only for vector fields.")
+            assert(type(pick) == "boolean" or (type(pick) == "table" and (pick.label == nil or type(pick.label) == "string")
+                and (pick.vehicle == nil or type(pick.vehicle) == "boolean")),
+                fieldLocation .. " pickPosition must be a boolean or { label?: string, vehicle?: boolean }.")
+        end
         if field.options ~= nil then assertOptions(field.options, fieldLocation .. " options") end
         if field.optionsByValue ~= nil then
             for key, options in pairs(field.optionsByValue) do
@@ -1435,6 +1442,19 @@ function Kora.nui.isAppOpen(id)
     if id ~= nil then assertAppId(id) end
     return activeApp ~= nil and (id == nil or activeApp.id == id)
 end
+
+-- "Use my position" on vector fields with pickPosition (apps and input dialogs): the local
+-- player's own position and heading, the vehicle's when asked and seated, rounded to 2 dp.
+-- It only reads the local player, so it needs no request token.
+Kora.nui.registerCallback("kora_lib:form:position", function(data)
+    local ped = Kora.cache.ped()
+    local vehicle = type(data) == "table" and data.vehicle == true and Kora.cache.vehicle() or false
+    local entity = vehicle or ped
+    if not entity or entity == 0 or not DoesEntityExist(entity) then return {} end
+    local coords = GetEntityCoords(entity)
+    local function round(value) return math.floor(value * 100 + 0.5) / 100 end
+    return { x = round(coords.x), y = round(coords.y), z = round(coords.z), w = round(GetEntityHeading(entity)) }
+end)
 
 -- Form edits don't submit, close or take focus; yielding handlers must not overwrite newer edits.
 Kora.nui.registerCallback("kora_lib:app:change", function(data)

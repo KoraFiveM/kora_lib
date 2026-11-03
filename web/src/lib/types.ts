@@ -274,6 +274,11 @@ export interface InputField {
     wholeNumber?: boolean
     /** Number of editable vector components. */
     dimensions?: 2 | 3 | 4
+    /**
+     * vector only: an inline button that fills the field with the local player's position
+     * (x/y/z, heading as w). `vehicle` uses the vehicle's position and heading while seated.
+     */
+    pickPosition?: boolean | { label?: string; vehicle?: boolean }
     // textarea only; ignored by every other field type.
     rows?: number
     // Validation, all optional and opt-in -- a field with none of these set
@@ -760,6 +765,8 @@ export type ZoneCreatorConfirmResult = { confirmed: boolean }
 // movement and keybinds; this component is instructional only.
 export interface NoclipHudPayload {
     active: boolean
+    /** What A/D do: "strafe" (default) slides sideways, "turn" turns the view. Only changes the hint. */
+    adMode?: "strafe" | "turn"
 }
 
 // action: "progressStart" (fire-and-forget) -- mount ProgressBar. See

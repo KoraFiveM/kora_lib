@@ -232,6 +232,12 @@ Opens a schema-driven input form. Manages focus the same way `openMenu` does.
   - `wholeNumber?: boolean` — rejects fractional number input.
   - `dimensions?: 2|3|4` — required by `vector`; the result is a component
     table with finite numeric `x`, `y`, and optional `z`/`w` values.
+  - `pickPosition?: true | { label?: string, vehicle?: boolean }` — `vector`
+    only: adds a "Use my position" button (or `label`) under the inputs that
+    fills `x`/`y`/`z` and heading as `w` (up to `dimensions`) from the local
+    player, rounded to 2 dp. `vehicle = true` uses the vehicle's position and
+    heading while the player is seated. The values stay editable and are only
+    sent on submit, like typed ones.
   - `valueField?: InputField` selects a scalar `text`, `number`, `checkbox`, or
     `select` control for table values. Rows still transport JSON strings; select
     option values must be the encoded JSON values. Nested controls are rejected.
