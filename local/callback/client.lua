@@ -49,7 +49,7 @@ local isCallable = Kora.compat.isCallable
 -- A promise doesn't survive an exports() crossing: only method calls reach the real promise, so the caller's
 -- Citizen.Await would silently resolve nil. GetInvokingResource() is nil for same-VM calls and the caller's
 -- name for cross-resource ones; same-VM callers get the promise, cross-resource callers get the awaited value
--- (or a raised error on rejection/timeout).
+-- (or no values at all on rejection/timeout: the reason is printed here, never raised in the caller).
 --
 -- Callers MUST capture GetInvokingResource() before anything can yield and pass it as `invoker`; it only
 -- reflects the cross-resource caller within the synchronous native-call frame.
@@ -57,9 +57,14 @@ local isCallable = Kora.compat.isCallable
 -- Unlike other modules' copies, this one also forwards every extra handler return value (e.g.
 -- `return false, "reason"`) via the p.koraLibCallbackResults side channel, since a promise resolves with one
 -- value. The promise itself still resolves with only the first return value.
-local function settleForExport(p, invoker)
+local function settleForExport(p, invoker, name)
     if invoker then
-        Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
+        -- suspends until settled; its own return value is deliberately unused, see above
+        local settled, reason = pcall(Citizen.Await, p)
+        if not settled then
+            print(("[kora_lib:callback] '%s' requested by '%s' failed: %s"):format(name, invoker, tostring(reason)))
+            return
+        end
         local packed = p.koraLibCallbackResults
         if packed == nil then return p.value end -- not a Kora.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
         return table.unpack(packed, 1, packed.n)
@@ -120,7 +125,7 @@ function Kora.callback.trigger(name, ...)
 
     if not awaitToken() then
         p:reject("Callback handshake did not complete in time.")
-        return settleForExport(p, invoker)
+        return settleForExport(p, invoker, name)
     end
 
     requestCounter = requestCounter + 1
@@ -137,7 +142,7 @@ function Kora.callback.trigger(name, ...)
 
     TriggerServerEvent(events.invoke, token, requestId, name, ...)
 
-    return settleForExport(p, invoker)
+    return settleForExport(p, invoker, name)
 end
 
 RegisterNetEvent(events.response, function(requestId, ok, ...)

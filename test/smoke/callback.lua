@@ -634,4 +634,77 @@ harness.test("cross-resource trigger during in-flight handshake resolves to the 
         "the result must not be a raw promise table")
 end)
 
+-- X12: the docs promise a cross-resource caller "no values" on failure. Citizen.Await raises on a
+-- rejected promise, so before the fix a rate limit or handler error surfaced as a script error in
+-- the consumer instead.
+local function crossResource(fn, ...)
+    local previous = _G.GetInvokingResource
+    _G.GetInvokingResource = function() return "consumer_resource" end
+    local printed = {}
+    local originalPrint = print
+    _G.print = function(message) printed[#printed + 1] = tostring(message) end
+    local results = table.pack(pcall(fn, ...))
+    _G.print = originalPrint
+    _G.GetInvokingResource = previous
+    return results, printed
+end
+
+harness.test("cross-resource client trigger returns nothing (no error) when rate limited", function()
+    local net2 = mocks.install()
+    dofile(repoRoot .. "local/callback/server.lua")
+    local register = Kora.callback.register
+    dofile(repoRoot .. "local/callback/client.lua")
+    local trigger = Kora.callback.trigger
+
+    register("smoke:x12:limited", function() return true, "ok" end, { rateLimit = { max = 1, window = 60000 } })
+
+    local first = crossResource(trigger, "smoke:x12:limited")
+    harness.assertTrue(first[1], "the first call must not raise")
+    harness.assertEqual(first[2], true)
+    harness.assertEqual(first[3], "ok")
+
+    local second, printed = crossResource(trigger, "smoke:x12:limited")
+    harness.assertTrue(second[1], ("a rate-limited call must not raise: %s"):format(tostring(second[2])))
+    harness.assertEqual(second.n, 1, "a rate-limited call must return no values")
+    harness.assertTrue(printed[1] and printed[1]:find("rate limit", 1, true) ~= nil,
+        "the reason should be printed to kora_lib's console")
+    harness.assertTrue(net2 ~= nil)
+end)
+
+harness.test("cross-resource client trigger returns nothing when the handler errors or is unknown", function()
+    mocks.install()
+    dofile(repoRoot .. "local/callback/server.lua")
+    local register = Kora.callback.register
+    dofile(repoRoot .. "local/callback/client.lua")
+    local trigger = Kora.callback.trigger
+
+    register("smoke:x12:boom", function() error("kaboom") end)
+    local errored = crossResource(trigger, "smoke:x12:boom")
+    harness.assertTrue(errored[1], "a handler error must not raise in the caller")
+    harness.assertEqual(errored.n, 1, "a handler error must return no values")
+
+    local unknown = crossResource(trigger, "smoke:x12:missing")
+    harness.assertTrue(unknown[1], "an unknown callback must not raise in the caller")
+    harness.assertEqual(unknown.n, 1)
+end)
+
+harness.test("cross-resource server trigger returns nothing when the client callback fails", function()
+    mocks.install()
+    dofile(repoRoot .. "local/callback/client.lua")
+    dofile(repoRoot .. "local/callback/server.lua")
+    local trigger = Kora.callback.trigger
+
+    local unknown = crossResource(trigger, mocks.SOURCE, "smoke:x12:client-missing")
+    harness.assertTrue(unknown[1], ("an unknown client callback must not raise: %s"):format(tostring(unknown[2])))
+    harness.assertEqual(unknown.n, 1, "it must return no values")
+end)
+
+harness.test("same-VM callers still get a promise that rejects", function()
+    mocks.install()
+    dofile(repoRoot .. "local/callback/server.lua")
+    dofile(repoRoot .. "local/callback/client.lua")
+    local p = Kora.callback.trigger("smoke:x12:missing")
+    harness.assertEqual(p.state, "rejected")
+end)
+
 harness.report("callback")
