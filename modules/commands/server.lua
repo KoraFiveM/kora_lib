@@ -259,9 +259,21 @@ function Kora.commands.list()
     return out
 end
 
+-- Per-source sliding-window limits for the keybind net events (F#188). Created on first use so the
+-- timers module is loaded; clearOnDrop forgets a player's bucket when they disconnect.
+local keybindLimits = { sync = { 3, 10000 }, execute = { 20, 1000 } }
+local function keybindAllowed(kind, src)
+    local limit = keybindLimits[kind]
+    if not limit.handle then
+        limit.handle = Kora.timers.limiter(limit[1], limit[2], { clearOnDrop = true })
+    end
+    return (limit.handle.hit(src))
+end
+
 RegisterNetEvent(keybindEvents.sync, function()
     local src = source
     if not isPlayerSource(src) then return end
+    if not keybindAllowed('sync', src) then return end
     for name, definition in pairs(commands) do
         sendKeybind(src, name, definition)
     end
@@ -270,6 +282,7 @@ end)
 RegisterNetEvent(keybindEvents.execute, function(name)
     local src = source
     if not isPlayerSource(src) or type(name) ~= 'string' then return end
+    if not keybindAllowed('execute', src) then return end
     local definition = commands[name]
     if not definition or not definition.keybind then return end
     dispatch(name, definition, src, {}, name)

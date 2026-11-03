@@ -12,12 +12,14 @@ local registeredCommands = {}
 _G.RegisterCommand = function(name, handler) registeredCommands[name] = handler end
 
 _G.GetPlayers = function() return { '1', '2' } end
+_G.IsDuplicityVersion = function() return true end
 
 local invokingResource = nil
 _G.GetInvokingResource = function() return invokingResource end
 
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
+dofile(repoRoot .. "modules/timers/shared.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 
 local notifyCalls = {}
@@ -460,6 +462,36 @@ harness.test('removing or replacing a bound command removes its client mapping',
     Kora.commands.remove('bindingcleanup')
     removed = mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:commands:keybind:remove')
     harness.assertEqual(removed[1], 'bindingcleanup')
+end)
+
+harness.test('keybind net events are rate limited per source (F#188)', function()
+    local runs = 0
+    Kora.commands.add('boundspam', '', nil, false, function() runs = runs + 1 end, {
+        keybind = { defaultKey = 'F9' },
+    })
+    _G.source = 2
+    for _ = 1, 30 do
+        for _, fn in ipairs(net.netHandlers['kora_lib:commands:keybind:execute']) do fn('boundspam') end
+    end
+    _G.source = nil
+    harness.assertEqual(runs, 20, 'execute allows 20 per second per source')
+
+    local function syncCount()
+        local count = 0
+        for _, event in ipairs(net.triggeredClientEvents) do
+            if event.name == 'kora_lib:commands:keybind:add' and event.target == 1 and event[1] == 'boundspam' then
+                count = count + 1
+            end
+        end
+        return count
+    end
+    local before = syncCount()
+    _G.source = 1
+    for _ = 1, 10 do
+        for _, fn in ipairs(net.netHandlers['kora_lib:commands:keybind:sync']) do fn() end
+    end
+    _G.source = nil
+    harness.assertTrue(syncCount() - before <= 3, 'sync allows at most 3 per 10 seconds per source')
 end)
 
 harness.report("commands")
