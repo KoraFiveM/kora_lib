@@ -133,7 +133,7 @@ reportMelee.run()  -- correct everywhere
 value are identical. Test mocks must mirror the shape — returning a bare
 function from a mocked `throttle` hides this class of bug.
 
-### `Kora.timers.cooldown(interval)`
+### `Kora.timers.cooldown(interval, opts?)`
 
 Creates independent leading-edge cooldowns within one handle. Use a player
 source, action name, or composite scalar as the key. Keys must be finite
@@ -144,12 +144,45 @@ long-lived cooldown cannot retain arbitrary object graphs.
 - `.remaining(key)` → `integer` returns milliseconds until ready.
 - `.reset(key?)` clears one key, or every key when omitted.
 
-The handle deliberately does not guess key lifecycle. Long-lived server code
-using player sources should reset that source from `playerDropped`.
+By default the handle does not guess key lifecycle: long-lived server code
+using player sources should reset that source from `playerDropped`. Pass
+`opts.clearOnDrop = true` (server; default `false` for compatibility) and the
+handle does it for you — the disconnecting player's numeric source key is
+cleared. The option is ignored on the client.
 
 ```lua
-local requests = Kora.timers.cooldown(1000)
+local requests = Kora.timers.cooldown(1000, { clearOnDrop = true })
 if not requests.use(source) then return end
+```
+
+### `Kora.timers.limiter(max, window, opts?)`
+
+A per-key **sliding-window** rate limiter: at most `max` accepted hits per key
+within any `window` milliseconds. Use it where a single cooldown is too strict
+(for example "5 purchases a minute"). Same key rules and `clearOnDrop` option
+as `cooldown`.
+
+- `.hit(key)` → `true`, or `false, retryMs` when the window is full. A refused
+  hit is not counted, so spamming does not extend the lockout.
+- `.remaining(key)` → `integer` hits the key may still make right now.
+- `.reset(key?)` clears one key, or every key when omitted.
+
+`max` is an integer from 1 to 10000 and `window` an integer from 1 to 86400000
+ms. Each key keeps at most `max` timestamps (the same ring buffer as the
+`opts.rateLimit` option of `Kora.events.register` / `Kora.callback.register`),
+and a key that stops hitting is dropped once its newest hit leaves the window,
+so storage does not grow with idle players.
+
+```lua
+local purchases = Kora.timers.limiter(5, 60000, { clearOnDrop = true })
+
+RegisterNetEvent('shop:buy', function(item, amount)
+    local allowed, retryMs = purchases.hit(source)
+    if not allowed then
+        return notify(source, ('Slow down; try again in %ds'):format(math.ceil(retryMs / 1000)))
+    end
+    -- ...
+end)
 ```
 
 ### `Kora.timers.count()`

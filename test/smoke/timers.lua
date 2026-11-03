@@ -263,6 +263,114 @@ harness.test('keyed cooldowns reject retaining non-scalar or unbounded keys', fu
     harness.assertThrows(function() cooldown.reset(string.rep('x', 257)) end)
 end)
 
+-- H3: clearOnDrop and the sliding-window limiter. Both drop handling paths are
+-- server-only, so the realm is flipped while those handles are created.
+local function asServer(fn)
+    local previous = _G.IsDuplicityVersion
+    _G.IsDuplicityVersion = function() return true end
+    local ok, result = pcall(fn)
+    _G.IsDuplicityVersion = previous
+    assert(ok, result)
+    return result
+end
+
+local function dropPlayer(src)
+    local previous = _G.source
+    _G.source = src
+    net.fire('playerDropped', 'quit')
+    _G.source = previous
+end
+
+harness.test('cooldown clearOnDrop clears a player key on disconnect (server)', function()
+    local cleared = asServer(function() return Kora.timers.cooldown(60000, { clearOnDrop = true }) end)
+    local kept = asServer(function() return Kora.timers.cooldown(60000) end)
+
+    harness.assertTrue(cleared.use(5))
+    harness.assertTrue(kept.use(5))
+    harness.assertFalse(cleared.use(5))
+
+    dropPlayer(5)
+    harness.assertEqual(cleared.remaining(5), 0, 'the dropped player key should be gone')
+    harness.assertTrue(cleared.use(5), 'a reconnecting source starts fresh')
+    harness.assertTrue(kept.remaining(5) > 0, 'without clearOnDrop the default behaviour is unchanged')
+end)
+
+harness.test('cooldown rejects invalid options', function()
+    harness.assertThrows(function() Kora.timers.cooldown(1000, 'yes') end)
+    harness.assertThrows(function() Kora.timers.cooldown(1000, { clearOnDrop = 1 }) end)
+end)
+
+harness.test('limiter allows max hits per sliding window and reports the retry delay', function()
+    local limiter = Kora.timers.limiter(3, 1000)
+    harness.assertEqual(limiter.remaining('a'), 3)
+    harness.assertTrue(limiter.hit('a'))
+    Wait(100)
+    harness.assertTrue(limiter.hit('a'))
+    harness.assertTrue(limiter.hit('a'))
+    harness.assertEqual(limiter.remaining('a'), 0)
+
+    local ok, retryMs = limiter.hit('a')
+    harness.assertFalse(ok, 'the fourth hit inside the window is refused')
+    harness.assertTrue(retryMs > 0 and retryMs <= 1000, ('retry delay should be within the window, got %s'):format(tostring(retryMs)))
+    harness.assertTrue(limiter.hit('b'), 'keys are independent')
+
+    -- Slide past the first hit only: one slot frees up, the other two are still inside the window.
+    Wait(retryMs)
+    harness.assertEqual(limiter.remaining('a'), 1)
+    harness.assertTrue(limiter.hit('a'))
+    harness.assertFalse(limiter.hit('a'))
+end)
+
+harness.test('limiter refused hits do not consume quota and storage stays bounded', function()
+    local limiter = Kora.timers.limiter(2, 1000)
+    limiter.hit('a')
+    limiter.hit('a')
+    for _ = 1, 50 do limiter.hit('a') end
+
+    local bucket
+    local index = 1
+    while true do
+        local name, value = debug.getupvalue(limiter.hit, index)
+        if not name then break end
+        if name == 'buckets' then bucket = value.a end
+        index = index + 1
+    end
+    harness.assertTrue(bucket ~= nil, 'could not inspect limiter buckets')
+    local stored = 0
+    for _ in pairs(bucket.timestamps) do stored = stored + 1 end
+    harness.assertEqual(stored, 2, 'a key keeps at most max timestamps')
+end)
+
+harness.test('limiter reset clears one key or every key', function()
+    local limiter = Kora.timers.limiter(1, 60000)
+    limiter.hit('a')
+    limiter.hit('b')
+    limiter.reset('a')
+    harness.assertTrue(limiter.hit('a'))
+    harness.assertFalse(limiter.hit('b'))
+    limiter.reset()
+    harness.assertTrue(limiter.hit('b'))
+end)
+
+harness.test('limiter clearOnDrop clears a player key on disconnect (server)', function()
+    local limiter = asServer(function() return Kora.timers.limiter(1, 60000, { clearOnDrop = true }) end)
+    harness.assertTrue(limiter.hit(9))
+    harness.assertFalse(limiter.hit(9))
+    dropPlayer(9)
+    harness.assertTrue(limiter.hit(9))
+end)
+
+harness.test('limiter rejects invalid arguments and keys', function()
+    harness.assertThrows(function() Kora.timers.limiter(0, 1000) end)
+    harness.assertThrows(function() Kora.timers.limiter(1.5, 1000) end)
+    harness.assertThrows(function() Kora.timers.limiter(1, 0) end)
+    harness.assertThrows(function() Kora.timers.limiter(1, 0 / 0) end)
+    harness.assertThrows(function() Kora.timers.limiter(1, 1000, { clearOnDrop = 'yes' }) end)
+    local limiter = Kora.timers.limiter(1, 1000)
+    harness.assertThrows(function() limiter.hit({}) end)
+    harness.assertThrows(function() limiter.hit(0 / 0) end)
+end)
+
 -- The `__call` metamethod does not cross the export boundary, so every handle
 -- must also expose a plain `.run` field -- funcrefs DO cross. Dropping `.run`
 -- is what broke kora_police's melee detector with "attempt to call a table value".

@@ -58,6 +58,14 @@
 ---@field remaining fun(key: any): integer
 ---@field reset fun(key?: any)
 
+---@class QBKeyedTimerOptions
+---@field clearOnDrop? boolean Server only: forget a player's key when they disconnect. Defaults to false.
+
+---@class QBLimiterHandle
+---@field hit fun(key: any): boolean, integer? Allowed, or false plus milliseconds until the next allowed hit.
+---@field remaining fun(key: any): integer Hits still allowed right now.
+---@field reset fun(key?: any)
+
 ---@class QBKeybindOptions
 ---@field name string Stable command name without whitespace.
 ---@field description string FiveM settings label.
@@ -1642,7 +1650,8 @@
 ---@field clearTimeout fun(id: integer): boolean [shared]
 ---@field debounce fun(fn: fun(...), wait: integer): QBDebounced [shared]
 ---@field throttle fun(fn: fun(...), interval: integer): QBThrottled [shared]
----@field cooldown fun(interval: integer): QBCooldownHandle [shared]
+---@field cooldown fun(interval: integer, opts?: QBKeyedTimerOptions): QBCooldownHandle [shared]
+---@field limiter fun(max: integer, window: integer, opts?: QBKeyedTimerOptions): QBLimiterHandle [shared]
 ---@field count fun(): integer [shared]
 
 ---@class KoraLibUtil

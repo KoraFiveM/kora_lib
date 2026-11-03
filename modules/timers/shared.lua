@@ -275,13 +275,45 @@ function Kora.timers.throttle(fn, interval)
     })
 end
 
+-- clearOnDrop handles, keyed weakly by a function the caller keeps alive (the handle's
+-- first method). A handle passed to another resource is held by that resource's funcrefs,
+-- so the entry disappears once nobody can call the handle any more. Values are the
+-- per-handle "forget this player" function.
+local dropClearers = setmetatable({}, { __mode = 'k' })
+local dropHandlerInstalled = false
+
+local function assertKeyedOptions(opts, label)
+    assert(opts == nil or type(opts) == 'table', ('%s options must be a table.'):format(label))
+    local clearOnDrop = opts and opts.clearOnDrop
+    assert(clearOnDrop == nil or type(clearOnDrop) == 'boolean', ('%s clearOnDrop must be a boolean.'):format(label))
+    return clearOnDrop == true
+end
+
+---Server only: forgets player `src`'s key in this handle when they disconnect. Ignored on the client,
+---which has no other players' disconnects to observe.
+local function clearKeyOnDrop(anchor, clear)
+    if not IsDuplicityVersion() then return end
+    dropClearers[anchor] = clear
+
+    if dropHandlerInstalled then return end
+    dropHandlerInstalled = true
+    AddEventHandler('playerDropped', function()
+        local src = tonumber(source)
+        if not src then return end
+        for _, forget in pairs(dropClearers) do forget(src) end
+    end)
+end
+
 ---Creates independent leading-edge cooldowns keyed by player, action, or any
----other scalar identity. The handle contains no cleanup policy: callers reset
----player keys on disconnect when the handle is retained by long-lived code.
+---other scalar identity. By default the handle contains no cleanup policy:
+---callers reset player keys on disconnect when the handle is retained by
+---long-lived code, or pass `{ clearOnDrop = true }` (server) to have it done.
 ---@param interval number Minimum milliseconds between accepted uses.
+---@param opts? {clearOnDrop?: boolean}
 ---@return table cooldown `.use(key)`, `.remaining(key)`, and `.reset(key?)` survive the export boundary.
-function Kora.timers.cooldown(interval)
+function Kora.timers.cooldown(interval, opts)
     interval = assertInterval(interval, 'Kora.timers.cooldown')
+    local clearOnDrop = assertKeyedOptions(opts, 'Kora.timers.cooldown')
     local usedAt = {}
     local cooldown = {}
 
@@ -310,7 +342,108 @@ function Kora.timers.cooldown(interval)
         usedAt[key] = nil
     end
 
+    if clearOnDrop then
+        clearKeyOnDrop(cooldown.use, function(src) usedAt[src] = nil end)
+    end
+
     return cooldown
+end
+
+local MAX_LIMIT = 10000
+local MAX_LIMIT_WINDOW = 86400000
+
+-- Ring buffer of the last `max` accepted hit times, the same bucket shape local/events
+-- and local/callback use for opts.rateLimit (separate chunks can't share those locals).
+local function pruneTimestamps(bucket, cutoff)
+    while bucket.count > 0 and bucket.timestamps[bucket.head] <= cutoff do
+        bucket.timestamps[bucket.head] = nil
+        bucket.head = bucket.head % bucket.max + 1
+        bucket.count = bucket.count - 1
+    end
+    return bucket.count
+end
+
+---Creates a per-key sliding-window rate limiter: at most `max` accepted hits
+---per key within any `window` ms. Refused hits are not counted. Each key keeps
+---at most `max` timestamps and an idle key is dropped once its window passes.
+---@param max integer Hits allowed per window (1..10000).
+---@param window integer Window length in milliseconds (1..86400000).
+---@param opts? {clearOnDrop?: boolean}
+---@return table limiter `.hit(key)`, `.remaining(key)`, and `.reset(key?)` survive the export boundary.
+function Kora.timers.limiter(max, window, opts)
+    assert(Kora.util.isInteger(max) and max >= 1 and max <= MAX_LIMIT,
+        ('Kora.timers.limiter max must be an integer from 1 to %d.'):format(MAX_LIMIT))
+    assert(Kora.util.isInteger(window) and window >= 1 and window <= MAX_LIMIT_WINDOW,
+        ('Kora.timers.limiter window must be an integer from 1 to %d milliseconds.'):format(MAX_LIMIT_WINDOW))
+    local clearOnDrop = assertKeyedOptions(opts, 'Kora.timers.limiter')
+
+    local buckets = {}
+    local limiter = {}
+
+    -- One pending cleanup per bucket: drops the key once its newest hit leaves the window,
+    -- so a key that stops hitting does not keep its table forever.
+    local function scheduleCleanup(key, bucket, delay)
+        if bucket.cleanupScheduled then return end
+        bucket.cleanupScheduled = true
+
+        SetTimeout(delay, function()
+            if buckets[key] ~= bucket then return end
+            if pruneTimestamps(bucket, GetGameTimer() - window) == 0 then
+                buckets[key] = nil
+                return
+            end
+            bucket.cleanupScheduled = false
+            scheduleCleanup(key, bucket, math.max(1, window - (GetGameTimer() - bucket.timestamps[bucket.head])))
+        end)
+    end
+
+    ---Records a hit for `key` if the window has room.
+    ---@return boolean allowed
+    ---@return integer|nil retryMs Milliseconds until the next hit would be allowed, when refused.
+    function limiter.hit(key)
+        key = assertCooldownKey(key)
+        local bucket = buckets[key]
+        if not bucket then
+            bucket = { timestamps = {}, head = 1, tail = 0, count = 0, max = max }
+            buckets[key] = bucket
+        end
+
+        local now = GetGameTimer()
+        local count = pruneTimestamps(bucket, now - window)
+        if count >= max then
+            return false, math.max(1, window - (now - bucket.timestamps[bucket.head]))
+        end
+
+        bucket.tail = bucket.tail % max + 1
+        bucket.timestamps[bucket.tail] = now
+        bucket.count = count + 1
+        scheduleCleanup(key, bucket, window)
+        return true
+    end
+
+    ---Hits `key` may still make right now.
+    ---@return integer
+    function limiter.remaining(key)
+        key = assertCooldownKey(key)
+        local bucket = buckets[key]
+        if not bucket then return max end
+        return max - pruneTimestamps(bucket, GetGameTimer() - window)
+    end
+
+    function limiter.reset(key)
+        if key == nil then
+            buckets = {}
+            return
+        end
+        key = assertCooldownKey(key)
+        buckets[key] = nil
+    end
+
+    if clearOnDrop then
+        clearKeyOnDrop(limiter.hit, function(src) buckets[src] = nil end)
+    end
+
+    return limiter
 end
 
 ---Live timer count, for diagnostics and tests. Debounce/throttle wrappers are
