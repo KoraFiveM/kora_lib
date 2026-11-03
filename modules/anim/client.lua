@@ -180,12 +180,43 @@ function Kora.anim.isPlaying(entity)
     return IsEntityPlayingAnim(entity, handle.dict, handle.clip, 3)
 end
 
+-- Ped bone ids (tags) for common ped bone names. GetEntityBoneIndexByName does
+-- not reliably resolve these on MP freemode peds, so a ped falls back to
+-- GetPedBoneIndex with the id when the name lookup fails.
+local PED_BONE_IDS = {
+    SKEL_ROOT = 0, SKEL_Pelvis = 11816, SKEL_Spine2 = 24817, SKEL_Spine3 = 24818,
+    SKEL_Neck_1 = 39317, SKEL_Head = 31086, IK_Head = 12844,
+    SKEL_L_Hand = 18905, SKEL_R_Hand = 57005,
+    PH_L_Hand = 60309, PH_R_Hand = 28422,
+    IK_L_Hand = 36029, IK_R_Hand = 6286,
+}
+
+---Resolves `bone` (a bone name, or a ped bone id on a ped) to a bone index.
+---@return integer|false boneIndex
+---@return string? error
+local function resolveBone(entity, bone)
+    local isPed = IsEntityAPed(entity)
+    if type(bone) == "number" then
+        if not isPed then return false, ("Numeric bone %d is a ped bone id but the target entity is not a ped."):format(bone) end
+        local index = GetPedBoneIndex(entity, bone)
+        if index == nil or index < 0 then return false, ("Ped bone id %d does not exist on the target ped."):format(bone) end
+        return index
+    end
+
+    local index = GetEntityBoneIndexByName(entity, bone)
+    if index == -1 and isPed and PED_BONE_IDS[bone] then
+        index = GetPedBoneIndex(entity, PED_BONE_IDS[bone])
+    end
+    if index == nil or index < 0 then return false, ("Bone '%s' does not exist on the target entity."):format(bone) end
+    return index
+end
+
 ---Creates a local, non-networked prop (`CreateObjectNoOffset`, same
 ---placement native `modules/entities` uses for objects) and attaches it to
 ---`entity` at `bone`, streaming `model` first via `Kora.stream.loadModel`.
 ---@param entity number
 ---@param model string | number
----@param bone string Bone name resolved via `GetEntityBoneIndexByName` -- works for both ped and non-ped target entities.
+---@param bone string | integer Bone name resolved via `GetEntityBoneIndexByName` (ped and non-ped targets; common ped bone names fall back to their ped bone id), or a ped bone id (e.g. 28422) resolved via `GetPedBoneIndex` (ped targets only).
 ---@param offset? vector3 | {x: number, y: number, z: number} Defaults to zero offset.
 ---@param rotation? vector3 | {x: number, y: number, z: number} Defaults to zero rotation.
 ---@param opts? QBAnimAttachOptions
@@ -193,7 +224,8 @@ end
 ---@return string? error
 function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)
     assert(type(entity) == "number" and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
-    assert(type(bone) == "string" and #bone > 0, "Kora.anim.attachProp requires a string bone name.")
+    assert((type(bone) == "string" and #bone > 0) or (isInteger(bone) and bone >= 0),
+        "Kora.anim.attachProp requires a bone name or a non-negative integer ped bone id.")
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
@@ -213,9 +245,9 @@ function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)
     assert(opts.vertexIndex == nil or (isInteger(opts.vertexIndex) and opts.vertexIndex >= 0 and opts.vertexIndex <= 5),
         'Animation prop vertexIndex must be an integer from 0 to 5.')
 
-    local boneIndex = GetEntityBoneIndexByName(entity, bone)
-    if boneIndex == -1 then
-        return false, ("Bone '%s' does not exist on the target entity."):format(bone)
+    local boneIndex, boneErr = resolveBone(entity, bone)
+    if not boneIndex then
+        return false, boneErr
     end
 
     local prop

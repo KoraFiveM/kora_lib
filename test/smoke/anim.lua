@@ -51,7 +51,11 @@ function _G.IsModelValid() return true end
 function _G.HasModelLoaded() return true end
 function _G.RequestModel() end
 function _G.SetModelAsNoLongerNeeded() end
-function _G.GetEntityBoneIndexByName(entity, bone) return bone == "missing_bone" and -1 or 5 end
+function _G.GetEntityBoneIndexByName(entity, bone)
+    if bone == "missing_bone" or bone == "PH_R_Hand" then return -1 end
+    return 5
+end
+function _G.GetPedBoneIndex(entity, boneId) return boneId == 28422 and 77 or boneId == 999 and -1 or 9 end
 
 function _G.CreateObjectNoOffset()
     nextProp = nextProp + 1
@@ -193,6 +197,27 @@ harness.test("attachProp forwards the complete native signature for ped and obje
         harness.assertEqual(args[12], false, "rotation synchronization")
         Kora.anim.detachProp(prop)
     end
+end)
+
+harness.test("attachProp takes a ped bone id, and falls back to it for a known ped bone name", function()
+    local prop, err = Kora.anim.attachProp(1, "test_prop", 57005)
+    harness.assertTrue(prop ~= false, "a numeric ped bone id should attach: " .. tostring(err))
+    harness.assertEqual(propAttach[prop].boneIndex, 9, "numeric ids resolve through GetPedBoneIndex")
+    Kora.anim.detachProp(prop)
+
+    prop, err = Kora.anim.attachProp(1, "test_prop", "PH_R_Hand")
+    harness.assertTrue(prop ~= false, "PH_R_Hand should fall back to its ped bone id: " .. tostring(err))
+    harness.assertEqual(propAttach[prop].boneIndex, 77, "the fallback uses GetPedBoneIndex(ped, 28422)")
+    Kora.anim.detachProp(prop)
+
+    prop, err = Kora.anim.attachProp(2, "test_prop", 57005)
+    harness.assertFalse(prop, "a ped bone id on a non-ped entity must fail")
+    harness.assertTrue(err ~= nil, "should explain the failure")
+
+    prop = Kora.anim.attachProp(1, "test_prop", 999)
+    harness.assertFalse(prop, "an unknown ped bone id must fail")
+    harness.assertThrows(function() Kora.anim.attachProp(1, "test_prop", 1.5) end)
+    harness.assertThrows(function() Kora.anim.attachProp(1, "test_prop", -1) end)
 end)
 
 harness.test("attachProp refuses an unknown bone", function()

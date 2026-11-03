@@ -1063,7 +1063,7 @@
 ---@field stop fun(entity: integer, blendOutSpeed?: number): boolean [client]
 ---@field stopHandle fun(handle: QBAnimHandle, blendOutSpeed?: number): boolean [client]
 ---@field isPlaying fun(entity: integer): boolean [client]
----@field attachProp fun(entity: integer, model: string|integer, bone: string, offset?: QBCoords, rotation?: QBCoords, opts?: QBAnimAttachOptions): integer|false, string? [client]
+---@field attachProp fun(entity: integer, model: string|integer, bone: string|integer, offset?: QBCoords, rotation?: QBCoords, opts?: QBAnimAttachOptions): integer|false, string? [client]
 ---@field detachProp fun(prop: integer): boolean, string? [client]
 ---@field playScenario fun(entity: integer, scenario: string, enterVehicle?: boolean) [client]
 ---@field clear fun(entity: integer, immediate?: boolean) [client]

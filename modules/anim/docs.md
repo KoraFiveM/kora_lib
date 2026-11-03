@@ -54,6 +54,8 @@ end
 
 `Kora.anim.attachProp(entity, model, bone, offset?, rotation?, opts?)` creates a local, non-networked object and attaches it to the named bone. It returns the prop entity, or `false, reason` if the model cannot load, the bone is absent, or object creation fails.
 
+`bone` is a bone name (`'PH_R_Hand'`, resolved with `GetEntityBoneIndexByName` on any entity) or, on a ped, a ped bone id (`28422`, resolved with `GetPedBoneIndex`). Name lookups do not always resolve on MP freemode peds, so common ped bone names (`SKEL_*_Hand`, `PH_*_Hand`, `IK_*_Hand`, `SKEL_Head`, `IK_Head`, `SKEL_Neck_1`, `SKEL_Spine2/3`, `SKEL_Pelvis`, `SKEL_ROOT`) fall back to their ped bone id. A numeric bone on a non-ped entity returns `false, reason`.
+
 `offset` and `rotation` default to zero vectors. Options map to `AttachEntityToEntity`:
 
 - `softPin` defaults to `false`.
