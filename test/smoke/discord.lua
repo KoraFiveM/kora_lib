@@ -256,7 +256,7 @@ harness.test("sync declares its schema and persists its role directory when qbsq
     harness.assertEqual(#sqlCalls.schemas, 1, "the Discord schema should be applied through qbsql's ensureTables")
     local names = {}
     for _, spec in ipairs(sqlCalls.schemas[1].specs) do names[#names + 1] = spec.name end
-    harness.assertEqual(table.concat(names, ","), "qblib_discord_roles,qblib_discord_members,qblib_discord_member_roles",
+    harness.assertEqual(table.concat(names, ","), "kora_lib_discord_roles,kora_lib_discord_members,kora_lib_discord_member_roles",
         "the schema should declare all three tables, parents first")
     harness.assertEqual(#sqlCalls.queries, 3, "startup should load role, member, and assignment caches")
     harness.assertEqual(#sqlCalls.transactions, 2, "the catalog and member snapshot should each persist atomically")

@@ -639,7 +639,7 @@ end
 
 local DISCORD_SCHEMA = {
     {
-        name = 'qblib_discord_roles',
+        name = 'kora_lib_discord_roles',
         collate = 'utf8mb4_unicode_ci',
         columns = {
             discordColumn('guild_id', 'varchar(32)'),
@@ -655,10 +655,10 @@ local DISCORD_SCHEMA = {
             }),
         },
         primary = { 'guild_id', 'role_id' },
-        indexes = { { name = 'idx_qblib_discord_roles_name', columns = { 'guild_id', 'name' } } },
+        indexes = { { name = 'idx_kora_lib_discord_roles_name', columns = { 'guild_id', 'name' } } },
     },
     {
-        name = 'qblib_discord_members',
+        name = 'kora_lib_discord_members',
         collate = 'utf8mb4_unicode_ci',
         columns = {
             discordColumn('guild_id', 'varchar(32)'),
@@ -666,10 +666,10 @@ local DISCORD_SCHEMA = {
             discordColumn('synced_at', 'bigint', { unsigned = true }),
         },
         primary = { 'guild_id', 'user_id' },
-        indexes = { { name = 'idx_qblib_discord_members_synced', columns = { 'synced_at' } } },
+        indexes = { { name = 'idx_kora_lib_discord_members_synced', columns = { 'synced_at' } } },
     },
     {
-        name = 'qblib_discord_member_roles',
+        name = 'kora_lib_discord_member_roles',
         collate = 'utf8mb4_unicode_ci',
         columns = {
             discordColumn('guild_id', 'varchar(32)'),
@@ -677,11 +677,11 @@ local DISCORD_SCHEMA = {
             discordColumn('role_id', 'varchar(32)'),
         },
         primary = { 'guild_id', 'user_id', 'role_id' },
-        indexes = { { name = 'idx_qblib_discord_member_roles_role', columns = { 'guild_id', 'role_id' } } },
+        indexes = { { name = 'idx_kora_lib_discord_member_roles_role', columns = { 'guild_id', 'role_id' } } },
         foreign = {
-            { name = 'fk_qblib_discord_member', columns = { 'guild_id', 'user_id' }, ref_table = 'qblib_discord_members',
+            { name = 'fk_kora_lib_discord_member', columns = { 'guild_id', 'user_id' }, ref_table = 'kora_lib_discord_members',
               ref_columns = { 'guild_id', 'user_id' }, on_delete = 'CASCADE' },
-            { name = 'fk_qblib_discord_role', columns = { 'guild_id', 'role_id' }, ref_table = 'qblib_discord_roles',
+            { name = 'fk_kora_lib_discord_role', columns = { 'guild_id', 'role_id' }, ref_table = 'kora_lib_discord_roles',
               ref_columns = { 'guild_id', 'role_id' }, on_delete = 'CASCADE' },
         },
     },
@@ -732,7 +732,7 @@ end
 local function loadDatabaseCache()
     local roleRows, roleErr = sqlQuery([[
         SELECT `guild_id`,`role_id` AS `id`,`name`,`color`,`position`,`permissions`,`managed`,`mentionable`
-        FROM `qblib_discord_roles`
+        FROM `kora_lib_discord_roles`
     ]])
     if not roleRows then return false, roleErr end
 
@@ -746,7 +746,7 @@ local function loadDatabaseCache()
         if not guildRoleCache[guildId] then cacheGuildRoles(guildId, roles, 0) end
     end
 
-    local memberRows, memberErr = sqlQuery('SELECT `guild_id`,`user_id`,`synced_at` FROM `qblib_discord_members`')
+    local memberRows, memberErr = sqlQuery('SELECT `guild_id`,`user_id`,`synced_at` FROM `kora_lib_discord_members`')
     if not memberRows then return false, memberErr end
     local loadedMembers = {}
     for memberIndex = 1, #memberRows do
@@ -759,7 +759,7 @@ local function loadDatabaseCache()
     end
 
     local assignmentRows, assignmentErr = sqlQuery(
-        'SELECT `guild_id`,`user_id`,`role_id` FROM `qblib_discord_member_roles`')
+        'SELECT `guild_id`,`user_id`,`role_id` FROM `kora_lib_discord_member_roles`')
     if not assignmentRows then return false, assignmentErr end
     for assignmentIndex = 1, #assignmentRows do
         local assignment = assignmentRows[assignmentIndex]
@@ -829,7 +829,7 @@ local function persistGuildRoles(guildId, roles)
         end
         statements[#statements + 1] = {
             query = [[
-                INSERT INTO `qblib_discord_roles`
+                INSERT INTO `kora_lib_discord_roles`
                     (`guild_id`,`role_id`,`name`,`color`,`position`,`permissions`,`managed`,`mentionable`)
                 VALUES ]] .. table.concat(values, ',') .. [[
                 ON DUPLICATE KEY UPDATE
@@ -842,7 +842,7 @@ local function persistGuildRoles(guildId, roles)
     end
 
     local deleteParams = { guildId }
-    local deleteSql = 'DELETE FROM `qblib_discord_roles` WHERE `guild_id` = ?'
+    local deleteSql = 'DELETE FROM `kora_lib_discord_roles` WHERE `guild_id` = ?'
     if #roles > 0 then
         local placeholders = {}
         for roleIndex = 1, #roles do
@@ -863,13 +863,13 @@ local function persistMemberRoles(guildId, userId, entry)
     local statements = {
         {
             query = [[
-                INSERT INTO `qblib_discord_members` (`guild_id`,`user_id`,`synced_at`) VALUES (?,?,?)
+                INSERT INTO `kora_lib_discord_members` (`guild_id`,`user_id`,`synced_at`) VALUES (?,?,?)
                 ON DUPLICATE KEY UPDATE `synced_at`=VALUES(`synced_at`)
             ]],
             values = { guildId, userId, entry.syncedAt },
         },
         {
-            query = 'DELETE FROM `qblib_discord_member_roles` WHERE `guild_id` = ? AND `user_id` = ?',
+            query = 'DELETE FROM `kora_lib_discord_member_roles` WHERE `guild_id` = ? AND `user_id` = ?',
             values = { guildId, userId },
         },
     }
@@ -887,7 +887,7 @@ local function persistMemberRoles(guildId, userId, entry)
             params[#params + 1] = roleId
         end
         statements[#statements + 1] = {
-            query = 'INSERT INTO `qblib_discord_member_roles` (`guild_id`,`user_id`,`role_id`) VALUES '
+            query = 'INSERT INTO `kora_lib_discord_member_roles` (`guild_id`,`user_id`,`role_id`) VALUES '
                 .. table.concat(values, ','),
             values = params,
         }
