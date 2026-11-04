@@ -1243,6 +1243,7 @@
 
 ---@class KoraLibDistance
 ---@field player fun(srcOrCoords: integer|QBCoords, coordsOrDistance?: QBCoords|number, distance?: number): boolean [client/server]
+---@field playerNearAny fun(src: integer, list: any[], opts: {radius?: number, coordsOf: fun(entry: any): QBCoords}): boolean, any [server]
 ---@field coords fun(coords1: QBCoords, coords2: QBCoords, distance: number): boolean [client/server]
 ---@field entity fun(srcOrEntity: integer, entityOrDistance: integer|number, distance?: number): boolean [client/server]
 ---@field x fun(srcOrPoint: integer|QBCoords, pointOrDistance: QBCoords|number, distance?: number): boolean [client/server]

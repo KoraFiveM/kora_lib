@@ -79,6 +79,30 @@ function Kora.distance.x(src, point, distance)
     return withinRadius(playerCoords.x - point.x, 0, 0, distance)
 end
 
+---Whether any entry in `list` is within `opts.radius` (defaults to 5.0, like
+---every other Kora.distance check) of the player, using `opts.coordsOf` to
+---read each entry's coordinates. Built on `Kora.util.nearest` -- the common
+---"is the player near any of these known locations" shape used by several
+---resources (door, vendor, pickup spot lists).
+---@param src integer
+---@param list any[]
+---@param opts {radius?: number, coordsOf: fun(entry: any): QBCoords}
+---@return boolean found
+---@return any entry
+function Kora.distance.playerNearAny(src, list, opts)
+    assertPlayerSource(src)
+    assert(type(list) == 'table', 'Kora.distance.playerNearAny requires a list.')
+    assert(type(opts) == 'table' and Kora.util.isCallable(opts.coordsOf),
+        'Kora.distance.playerNearAny requires opts.coordsOf.')
+
+    local playerCoords = getPlayerCoords(src)
+    local entry = Kora.util.nearest(list, playerCoords, {
+        radius = assertRadius(opts.radius),
+        coordsOf = opts.coordsOf,
+    })
+    return entry ~= nil, entry
+end
+
 ---@param src integer
 ---@param point {y: number}
 ---@param distance? number

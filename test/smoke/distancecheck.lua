@@ -11,6 +11,11 @@ local h = dofile('test/harness.lua')
 
 -- Auto-vivifying Kora, as build/initiate.lua creates it.
 _G.Kora = setmetatable({}, { __index = function(t, k) local m = {}; rawset(t, k, m); return m end })
+-- modules/util/shared.lua wires Kora.util.isCallable to this directly; playerNearAny (and the
+-- Kora.util.nearest it's built on) needs a real isCallable, not an auto-vivified empty table.
+Kora.compat.isCallable = function(value)
+    return type(value) == 'function' or (type(value) == 'table' and type((getmetatable(value) or {}).__call) == 'function')
+end
 dofile('modules/util/shared.lua')
 
 -- Local player sits at the origin for the client tests.
@@ -108,6 +113,35 @@ end)
 
 h.test('server coordinates reject non-finite values before distance arithmetic', function()
     h.assertThrows(function() Kora.distance.player(1, { x = 0, y = math.huge, z = 0 }, 5) end)
+end)
+
+h.test('playerNearAny() finds the nearest in-range entry and reports none out of range', function()
+    _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
+    local list = {
+        { id = 'far', coords = { x = 100, y = 0, z = 0 } },
+        { id = 'near', coords = { x = 2, y = 0, z = 0 } },
+    }
+
+    local found, entry = Kora.distance.playerNearAny(1, list, { radius = 5, coordsOf = function(e) return e.coords end })
+    h.assertTrue(found)
+    h.assertEqual(entry.id, 'near')
+
+    local foundNone, entryNone = Kora.distance.playerNearAny(1, {}, { radius = 5, coordsOf = function(e) return e.coords end })
+    h.assertFalse(foundNone)
+    h.assertEqual(entryNone, nil)
+end)
+
+h.test('playerNearAny() defaults to a radius of 5, like every other distance check', function()
+    _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
+    local list = { { coords = { x = 4, y = 0, z = 0 } } }
+    local list2 = { { coords = { x = 6, y = 0, z = 0 } } }
+
+    h.assertTrue((Kora.distance.playerNearAny(1, list, { coordsOf = function(e) return e.coords end })))
+    h.assertFalse((Kora.distance.playerNearAny(1, list2, { coordsOf = function(e) return e.coords end })))
+end)
+
+h.test('playerNearAny() requires opts.coordsOf', function()
+    h.assertThrows(function() Kora.distance.playerNearAny(1, {}, {}) end)
 end)
 
 h.report('distancecheck')

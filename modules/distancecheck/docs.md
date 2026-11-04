@@ -37,6 +37,20 @@ Kora.distance.x(src, point, distance?)   -- and y / xy
 Kora.distance.coords(coords1, coords2, distance?)   -- no src; pure point-to-point
 ```
 
+### Kora.distance.playerNearAny(src, list, opts) [server only]
+True if `src` is within `opts.radius` (default `5.0`) of any entry in `list`,
+using `opts.coordsOf(entry)` to read that entry's coordinates. Returns the
+matching entry (the nearest one, if several qualify) as a second value, or
+`nil` when nothing matched. Built on `Kora.util.nearest` — the common "is the
+player near any of these configured locations" check used by door, vendor and
+pickup-spot lists instead of each resource hand-rolling the same loop:
+```lua
+local found, location = Kora.distance.playerNearAny(src, Config.locations, {
+    radius = 2.5,
+    coordsOf = function(entry) return entry.coords end,
+})
+```
+
 ## Notes
 - Distance uses squared components, avoiding temporary vector allocations and
   square roots in these frequent checks while preserving Euclidean-radius
