@@ -312,6 +312,64 @@ harness.test("bearing points from origin to target", function()
         "a target due west is bearing 90")
 end)
 
+harness.test("nearest finds the closest entry within range", function()
+    local list = {
+        { id = "a", coords = { x = 0, y = 0, z = 0 } },
+        { id = "b", coords = { x = 10, y = 0, z = 0 } },
+        { id = "c", coords = { x = 2, y = 0, z = 0 } },
+    }
+
+    local entry, distance = Kora.util.nearest(list, { x = 0, y = 0, z = 0 }, {
+        coordsOf = function(item) return item.coords end,
+    })
+    harness.assertEqual(entry.id, "a", "the exact match is nearest")
+    harness.assertEqual(distance, 0)
+
+    local other = Kora.util.nearest(list, { x = 3, y = 0, z = 0 }, {
+        coordsOf = function(item) return item.coords end,
+    })
+    harness.assertEqual(other.id, "c", "the closer of two remaining candidates wins")
+end)
+
+harness.test("nearest respects radius and bucket filters", function()
+    local list = {
+        { id = "far", coords = { x = 100, y = 0, z = 0 }, bucket = 1 },
+        { id = "wrongBucket", coords = { x = 1, y = 0, z = 0 }, bucket = 2 },
+        { id = "match", coords = { x = 1, y = 0, z = 0 }, bucket = 1 },
+    }
+    local options = {
+        coordsOf = function(item) return item.coords end,
+        bucketOf = function(item) return item.bucket end,
+        bucket = 1,
+        radius = 5,
+    }
+
+    local entry = Kora.util.nearest(list, { x = 0, y = 0, z = 0 }, options)
+    harness.assertEqual(entry.id, "match", "only the in-radius, matching-bucket entry qualifies")
+
+    local none = Kora.util.nearest({ list[1] }, { x = 0, y = 0, z = 0 }, options)
+    harness.assertEqual(none, nil, "an out-of-radius entry is not a match")
+end)
+
+harness.test("rateLimiter allows up to max within a window, then blocks", function()
+    local limiter = Kora.util.rateLimiter(2, 1000)
+
+    harness.assertTrue(limiter:consume("a", 0))
+    harness.assertTrue(limiter:consume("a", 100))
+    local ok, retryAfter = limiter:consume("a", 200)
+    harness.assertFalse(ok, "a third request within the window is blocked")
+    harness.assertTrue(retryAfter > 0, "a blocked request reports a positive retry delay")
+end)
+
+harness.test("rateLimiter tracks keys independently and recovers once the window passes", function()
+    local limiter = Kora.util.rateLimiter(1, 1000)
+
+    harness.assertTrue(limiter:consume("a", 0))
+    harness.assertTrue(limiter:consume("b", 0), "a different key has its own bucket")
+    harness.assertFalse(limiter:consume("a", 500))
+    harness.assertTrue(limiter:consume("a", 1001), "the window has fully elapsed")
+end)
+
 harness.test("worldToScreen reports normalised coordinates and on-screen state", function()
     projection.onScreen, projection.x, projection.y = true, 0.25, 0.75
 

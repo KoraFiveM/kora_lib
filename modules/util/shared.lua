@@ -337,6 +337,41 @@ function Kora.util.vecDistance2d(a, b)
     return magnitude(dx, dy, 0, "Kora.util.vecDistance2d")
 end
 
+---@class KoraNearestOptions
+---@field coordsOf fun(entry: any): (vector3|{x:number,y:number,z:number}) Required. Extracts coordinates from a list entry.
+---@field radius? number Maximum distance to count as a match. Unbounded if omitted.
+---@field bucketOf? fun(entry: any): any Extracts a routing bucket (or any other filter key) from a list entry.
+---@field bucket? any Value `bucketOf` must match. Required alongside `bucketOf`.
+
+---Finds the entry in a plain-data `list` (not live entities -- see
+---`Kora.world`/`Kora.closest` for those) whose coordinates are nearest to
+---`position`, optionally bounded by `opts.radius` and filtered to entries
+---whose `opts.bucketOf` result matches `opts.bucket`.
+---@param list any[]
+---@param position vector3 | {x: number, y: number, z: number}
+---@param opts KoraNearestOptions
+---@return any entry, number? distance
+function Kora.util.nearest(list, position, opts)
+    assert(type(list) == "table", "Kora.util.nearest requires a list.")
+    assert(type(opts) == "table" and Kora.util.isCallable(opts.coordsOf),
+        "Kora.util.nearest requires opts.coordsOf.")
+    assert(opts.bucketOf == nil or Kora.util.isCallable(opts.bucketOf),
+        "Kora.util.nearest opts.bucketOf must be callable when provided.")
+
+    local bestEntry, bestDistance
+    for _, entry in pairs(list) do
+        if opts.bucketOf == nil or opts.bucketOf(entry) == opts.bucket then
+            local distance = Kora.util.vecDistance(position, opts.coordsOf(entry))
+            if (opts.radius == nil or distance <= opts.radius)
+                and (bestDistance == nil or distance < bestDistance) then
+                bestEntry, bestDistance = entry, distance
+            end
+        end
+    end
+
+    return bestEntry, bestDistance
+end
+
 ---Unit vector in the same direction. A zero-length vector is returned as
 ---`{0, 0, 0}` rather than producing NaNs.
 ---@param v vector3 | {x: number, y: number, z: number}
@@ -374,4 +409,56 @@ end
 ---@return number heading
 function Kora.util.bearing(origin, target)
     return Kora.util.directionToHeading(Kora.util.vecSub(target, origin))
+end
+
+---@class KoraRateLimiter
+---@field consume fun(self: KoraRateLimiter, key: any, now: number): boolean ok, number? retryAfter
+
+---Returns a bounded ring-buffer sliding-window rate limiter. `max` and
+---`window` (same unit as `now`, typically milliseconds) bound how many
+---`consume` calls succeed per `key` within any `window`-sized span. `now` is
+---supplied by the caller (e.g. `GetGameTimer()`) rather than read internally,
+---so the limiter works identically in client, server, and the plain-Lua test
+---harness.
+---@param max integer
+---@param window number
+---@return KoraRateLimiter
+function Kora.util.rateLimiter(max, window)
+    assert(Kora.util.isInteger(max) and max >= 1, "Kora.util.rateLimiter requires a positive integer max.")
+    assert(Kora.util.isFiniteNumber(window) and window > 0, "Kora.util.rateLimiter requires a positive finite window.")
+
+    local buckets = {}
+
+    local function prune(bucket, cutoff)
+        while bucket.count > 0 and bucket.timestamps[bucket.head] <= cutoff do
+            bucket.timestamps[bucket.head] = nil
+            bucket.head = bucket.head % bucket.max + 1
+            bucket.count = bucket.count - 1
+        end
+    end
+
+    local limiter = {}
+
+    function limiter:consume(key, now)
+        assert(Kora.util.isFiniteNumber(now), "Kora.util.rateLimiter:consume requires a finite now.")
+
+        local bucket = buckets[key]
+        if not bucket then
+            bucket = { timestamps = {}, head = 1, tail = 0, count = 0, max = max }
+            buckets[key] = bucket
+        end
+
+        prune(bucket, now - window)
+
+        if bucket.count >= max then
+            return false, math.max(0, math.ceil(window - (now - bucket.timestamps[bucket.head])))
+        end
+
+        bucket.tail = bucket.tail % bucket.max + 1
+        bucket.timestamps[bucket.tail] = now
+        bucket.count = bucket.count + 1
+        return true
+    end
+
+    return limiter
 end

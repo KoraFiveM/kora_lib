@@ -66,6 +66,21 @@ would be invisible to every other resource.
 - `Kora.util.bearing(origin, target)` — compass bearing from one point to another.
   Pair it with `Kora.world.getCardinalDirection(heading)` for an `"N"`/`"NE"`/…
   label; there is no compass-point helper here because that one already exists.
+- `Kora.util.nearest(list, position, opts)` — finds the entry in a plain-data
+  `list` (not live entities — see `Kora.world`/`Kora.closest` for those) whose
+  `opts.coordsOf(entry)` is closest to `position`, optionally bounded by
+  `opts.radius` and filtered to entries whose `opts.bucketOf(entry)` matches
+  `opts.bucket`. Returns `entry, distance`, or `nil` if nothing qualifies.
+
+## Rate limiting (shared)
+
+- `Kora.util.rateLimiter(max, window)` returns a bounded ring-buffer
+  sliding-window limiter. Call `limiter:consume(key, now)` — `now` is supplied
+  by the caller (typically `GetGameTimer()`) rather than read internally, so
+  the same limiter code runs identically client-side, server-side, and inside
+  the plain-Lua test harness. Returns `true` when the call is allowed, or
+  `false, retryAfter` (milliseconds) when `key` has hit `max` within the last
+  `window`. Each `key` gets its own independent bucket.
 
 ## Screen projection (client only)
 

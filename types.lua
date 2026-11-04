@@ -134,6 +134,15 @@
 ---@field controlCharacters? 'remove'|'preserve'
 ---@field empty? 'nil'|'allow'
 
+---@class KoraNearestOptions
+---@field coordsOf fun(entry: any): QBSpatialVector
+---@field radius? number Maximum distance to count as a match. Unbounded if omitted.
+---@field bucketOf? fun(entry: any): any
+---@field bucket? any Value `bucketOf` must match. Required alongside `bucketOf`.
+
+---@class KoraRateLimiter
+---@field consume fun(self: KoraRateLimiter, key: any, now: number): boolean, number?
+
 ---@class QBStreamLoadOptions
 ---@field timeout? integer Defaults to 10000 milliseconds.
 ---@field shouldContinue? fun(): boolean Cancels the wait when it returns false.
@@ -1663,6 +1672,8 @@
 ---@field headingToDirection fun(heading: number): QBCoords [shared]
 ---@field directionToHeading fun(v: QBSpatialVector): number [shared]
 ---@field bearing fun(origin: QBSpatialVector, target: QBSpatialVector): number [shared]
+---@field nearest fun(list: any[], position: QBSpatialVector, opts: KoraNearestOptions): any, number? [shared]
+---@field rateLimiter fun(max: integer, window: number): KoraRateLimiter [shared]
 ---@field worldToScreen fun(coords: QBCoords): number, number, boolean [client]
 ---@field worldToScreenPixels fun(coords: QBCoords): number, number, boolean [client]
 
