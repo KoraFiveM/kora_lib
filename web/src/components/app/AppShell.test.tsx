@@ -324,6 +324,51 @@ describe("AppShell", () => {
         expect(screen.getByRole("heading", { name: "Home" })).toBeInTheDocument()
     })
 
+    const tabbedApp = (tabs: NonNullable<AppDefinition["navigation"][number]["tabs"]>): AppDefinition => ({ id: "test:app", title: "Test App", navigation: [
+        { id: "players", label: "Online player management", tabs },
+        { id: "reports", label: "Reports", content: { title: "Open reports" } },
+    ] })
+    const playerTabs = [
+        { id: "list", label: "Online Players", content: { title: "Players list" } },
+        { id: "profile", label: "Profile", content: { title: "Player profile" } },
+    ]
+
+    it("steps back to the tab the tab bar switched away from", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(tabbedApp(playerTabs))
+
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+        await user.click(screen.getByRole("tab", { name: "Profile" }))
+        expect(screen.getByText("Player profile")).toBeInTheDocument()
+        await user.click(screen.getByRole("button", { name: "Back" }))
+        expect(screen.getByText("Players list")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+    })
+
+    it("hides the back arrow when the recorded tab no longer exists", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        const token = openApp(tabbedApp(playerTabs))
+
+        await user.click(screen.getByRole("tab", { name: "Profile" }))
+        expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument()
+        dispatch("updateApp", { appId: "test:app", token, app: tabbedApp([playerTabs[1]]) })
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+    })
+
+    it("drops the back trail when another top-level view is picked", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(tabbedApp(playerTabs))
+
+        await user.click(screen.getByRole("tab", { name: "Profile" }))
+        expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument()
+        await user.click(screen.getAllByRole("button", { name: "Reports" })[0])
+        expect(screen.getByText("Open reports")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+    })
+
     it.each([true, false])("sends the destination context for a lazy-load view with tabs=%s", async (withTabs) => {
         const user = userEvent.setup()
         render(<AppShell />)
