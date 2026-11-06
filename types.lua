@@ -717,7 +717,7 @@
 ---@field expiresAt? number
 ---@field fadeDuration? number Marker-specific fade window before expiresAt; overrides the block default.
 
----@alias QBAppBlockType 'text'|'stats'|'progress'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'
+---@alias QBAppBlockType 'text'|'stats'|'progress'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'|'chat'
 
 ---@class QBAppBlock
 ---@field type QBAppBlockType
@@ -754,6 +754,25 @@
 ---@field recenter? QBAppPoint
 ---@field now? number
 ---@field fadeDuration? number
+---@field messages? QBAppChatMessage[] Chat block messages, oldest first.
+---@field composer? QBAppChatComposer Chat block message box; omit for a read-only conversation.
+
+---@class QBAppChatMessage
+---@field id string Stable message id (used for scroll and unread tracking).
+---@field author string
+---@field text string Rendered as plain text, never HTML.
+---@field timestamp? string
+---@field mine? boolean Right-aligned bubble for the viewer's own messages.
+---@field unread? boolean A "New" divider is drawn before the first unread message.
+---@field badge? string Small label next to the author (for example 'Staff').
+---@field tone? QBAppTone
+
+---@class QBAppChatComposer
+---@field action QBAppAction Plain action; onAction gets context.value = { message = string }.
+---@field placeholder? string
+---@field maxLength? integer
+---@field disabled? boolean
+---@field note? string Shown instead of the input when disabled (for example 'This report is closed.').
 
 ---@class QBAppContent
 ---@field title? string

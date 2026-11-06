@@ -559,6 +559,10 @@ export interface AppShellLabels {
     value: string
     decrease: string
     increase: string
+    send?: string
+    newMessages?: string
+    newDivider?: string
+    message?: string
 }
 
 export type AppBlock =
@@ -573,6 +577,31 @@ export type AppBlock =
     | { type: "timeline"; id?: string; title?: string; items: AppTimelineItem[]; empty?: string }
     | { type: "map"; id?: string; title?: string; tiles: AppMapTiles; markers: AppMapMarker[]; selectedId?: string; action?: string; minZoom?: number; maxZoom?: number; initialZoom?: number; follow?: boolean; captureWheel?: boolean; recenter?: { x: number; y: number }; now?: number; fadeDuration?: number; empty?: string }
     | { type: "empty"; title: string; description?: string; icon?: string }
+    | { type: "chat"; id: string; title?: string; messages: AppChatMessage[]; composer?: AppChatComposer; empty?: string }
+
+export interface AppChatMessage {
+    id: string
+    author: string
+    /** Plain text. Rendered as a React text node, never as HTML. */
+    text: string
+    timestamp?: string
+    /** The viewer's own message: drawn as a right-aligned bubble. */
+    mine?: boolean
+    /** A "New" divider is drawn before the first unread message. */
+    unread?: boolean
+    badge?: string
+    tone?: AppTone
+}
+
+export interface AppChatComposer {
+    /** Plain action: onAction receives context.value = { message }. */
+    action: AppAction
+    placeholder?: string
+    maxLength?: number
+    disabled?: boolean
+    /** Shown in place of the input while disabled. */
+    note?: string
+}
 
 export interface AppContent {
     title?: string

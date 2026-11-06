@@ -1,16 +1,17 @@
-import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
-import { AlertCircle, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
+import { AlertCircle, ArrowDown, ChevronLeft, ChevronRight, Search, Send, X } from "lucide-react"
 
 import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/cn"
 import { fetchNui } from "@/lib/fetchNui"
 import { resolveIcon } from "@/lib/icon"
 import type {
-    AppAction, AppActionResponse, AppBlock, AppContent, AppDefinition, AppListItem, AppMapMarker,
+    AppAction, AppActionResponse, AppActionResult, AppBlock, AppContent, AppDefinition, AppListItem, AppMapMarker,
     AppResult, AppRichValue, AppShellLabels, AppTableRow, AppTableValue, AppTone, CloseAppPayload,
-    FieldValue, OpenAppPayload, UpdateAppPayload,
+    FieldValue, InputField, OpenAppPayload, UpdateAppPayload,
 } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 import { useDraggablePanel } from "@/lib/useDraggablePanel"
@@ -28,6 +29,7 @@ const defaultLabels: AppShellLabels = {
     page: "Page %{current} of %{total}", recenter: "Recenter map", clear: "Clear", backspace: "Backspace",
     back: "Back", open: "Open", yes: "Yes", no: "No", map: "Map", zoomIn: "Zoom in", zoomOut: "Zoom out", value: "value",
     decrease: "Decrease %{field}", increase: "Increase %{field}",
+    send: "Send", newMessages: "%{count} new message(s)", newDivider: "New", message: "Message",
 }
 
 const toneClasses: Record<AppTone, string> = {
@@ -239,7 +241,69 @@ function AlwaysFormBlock({ block, values, setValues, busy, labels, runAction }: 
     return <form onSubmit={submit} className="rounded-lg border border-border bg-card p-4"><BlockTitle>{block.title}</BlockTitle>{block.description ? <p className="mb-4 mt-1 text-sm text-muted-foreground">{block.description}</p> : <div className="mb-3" />}<FormFields fields={block.fields} values={values} errors={errors} labels={labels} columns={2} idPrefix={`app-form-${block.id}`} onChange={setValues} /><div className="mt-4 flex justify-end"><Button type="submit" disabled={busy !== undefined || Object.keys(errors).length > 0}>{busy === block.action.id ? labels.working : block.submitLabel ?? block.action.label}</Button></div></form>
 }
 
-function ContentBlock({ block, index, busy, labels, runAction, openForm, activeForm, renderActiveForm, formDraft, setFormDraft, runChange }: { block: AppBlock; index: number; busy?: string; labels: AppShellLabels; runAction: (action: AppAction, context?: ActionContext) => void; openForm: (action: AppAction, source: string, context?: ActionContext) => void; activeForm?: ActiveForm; renderActiveForm: () => React.ReactNode; formDraft: (source: string, fields: NonNullable<AppAction["fields"]>) => Record<string, FieldValue>; setFormDraft: (source: string, values: Record<string, FieldValue>) => void; runChange: (action: AppAction, values: Record<string, FieldValue>, context?: ActionContext) => void }) {
+const CHAT_FIELDS: InputField[] = [{ id: "message", label: "Message", type: "textarea" }]
+type RunAction = (action: AppAction, context?: ActionContext) => Promise<AppActionResult | undefined> | void
+
+// A live conversation: bubbles oldest-first, a "New" divider before the first unread message, and a
+// message box. It sticks to the newest message unless the reader has scrolled up, in which case new
+// arrivals are counted in a jump pill instead of moving the view. Text is always a React text node.
+function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block: Extract<AppBlock, { type: "chat" }>; busy?: string; labels: AppShellLabels; runAction: RunAction; draft: string; setDraft: (value: string) => void }) {
+    const scroller = useRef<HTMLDivElement>(null)
+    const atBottom = useRef(true)
+    const seen = useRef<Set<string> | null>(null)
+    const [pending, setPending] = useState(0)
+    const composer = block.composer
+    const maxLength = composer?.maxLength
+    const toBottom = useCallback(() => { const node = scroller.current; if (node) node.scrollTop = node.scrollHeight; atBottom.current = true; setPending(0) }, [])
+    useLayoutEffect(() => {
+        const ids = block.messages.map((message) => message.id)
+        if (seen.current === null) {
+            seen.current = new Set(ids)
+            const node = scroller.current
+            const divider = node?.querySelector<HTMLElement>("[data-chat-divider]")
+            if (node && divider) { node.scrollTop = Math.max(0, divider.offsetTop - node.offsetTop - 8); atBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48 } else toBottom()
+            return
+        }
+        const known = seen.current
+        const fresh = block.messages.filter((message) => !known.has(message.id))
+        seen.current = new Set(ids)
+        if (!fresh.length) return
+        if (atBottom.current || fresh.some((message) => message.mine)) toBottom()
+        else setPending((count) => count + fresh.length)
+    }, [block.messages, toBottom])
+    const onScroll = () => { const node = scroller.current; if (!node) return; atBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; if (atBottom.current) setPending(0) }
+    const text = draft.trim()
+    const tooLong = maxLength !== undefined && draft.length > maxLength
+    const canSend = Boolean(composer && !composer.disabled && text && !tooLong && busy === undefined && !composer.action.disabled)
+    const send = async () => {
+        if (!composer || !canSend) return
+        const result = await runAction(composer.action, { value: { message: text } })
+        // Keep the draft when the owner rejected the message (failed action or a destructive notice).
+        if (result && result.notice?.tone !== "destructive") setDraft("")
+    }
+    const firstUnread = block.messages.findIndex((message) => message.unread)
+    return <section data-chat-block={block.id} className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+        {block.title ? <div className="border-b border-border px-4 py-3"><BlockTitle>{block.title}</BlockTitle></div> : null}
+        <div className="relative">
+            <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-label={block.title ?? labels.message} className="scroll-thin flex max-h-[420px] min-h-40 flex-col gap-3 overflow-y-auto px-4 py-4">
+                {block.messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{block.empty ?? labels.nothingHere}</p> : block.messages.map((message, messageIndex) => <div key={message.id} className="contents">
+                    {messageIndex === firstUnread ? <div data-chat-divider className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-primary"><span className="h-px flex-1 bg-brand-border" />{labels.newDivider ?? "New"}<span className="h-px flex-1 bg-brand-border" /></div> : null}
+                    <article data-chat-message={message.id} data-mine={message.mine ? "true" : undefined} className={cn("flex max-w-[80%] flex-col gap-1", message.mine ? "items-end self-end" : "items-start self-start")}>
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"><span className="font-medium text-foreground">{message.author}</span>{message.badge ? <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] leading-none", toneClasses[message.tone ?? "neutral"])}>{message.badge}</span> : null}{message.timestamp ? <time className="tabular-nums">{message.timestamp}</time> : null}</div>
+                        <p className={cn("whitespace-pre-wrap break-words rounded-lg border px-3 py-2 text-sm leading-5", message.mine ? "border-brand-border bg-brand-soft text-foreground" : "border-border bg-surface-raised text-foreground")}>{message.text}</p>
+                    </article>
+                </div>)}
+            </div>
+            {pending > 0 ? <Button type="button" size="sm" className="absolute bottom-3 left-1/2 -translate-x-1/2 shadow-modal" onClick={toBottom}><ArrowDown aria-hidden />{(labels.newMessages ?? "%{count} new message(s)").replace("%{count}", String(pending))}</Button> : null}
+        </div>
+        {composer ? composer.disabled ? <p className="border-t border-border px-4 py-3 text-sm text-muted-foreground">{composer.note ?? ""}</p> : <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); void send() }}>
+            <div className="min-w-0 flex-1"><Textarea aria-label={composer.placeholder ?? labels.message} rows={2} value={draft} maxLength={maxLength} placeholder={composer.placeholder} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send() } }} className="max-h-32 min-h-[44px] resize-none" />{maxLength !== undefined && draft.length > maxLength * 0.8 ? <p className={cn("mt-1 text-right text-[10px] tabular-nums", tooLong ? "text-destructive" : "text-muted-foreground")}>{draft.length}/{maxLength}</p> : null}</div>
+            <Button type="submit" disabled={!canSend}><Send aria-hidden />{busy === composer.action.id ? labels.working : composer.action.label || labels.send}</Button>
+        </form> : null}
+    </section>
+}
+
+function ContentBlock({ block, index, busy, labels, runAction, openForm, activeForm, renderActiveForm, formDraft, setFormDraft, runChange }: { block: AppBlock; index: number; busy?: string; labels: AppShellLabels; runAction: RunAction; openForm: (action: AppAction, source: string, context?: ActionContext) => void; activeForm?: ActiveForm; renderActiveForm: () => React.ReactNode; formDraft: (source: string, fields: NonNullable<AppAction["fields"]>) => Record<string, FieldValue>; setFormDraft: (source: string, values: Record<string, FieldValue>) => void; runChange: (action: AppAction, values: Record<string, FieldValue>, context?: ActionContext) => void }) {
     if (block.type === "text") return <section className="rounded-lg border border-border bg-card p-4"><BlockTitle>{block.title}</BlockTitle><p className={cn("whitespace-pre-wrap text-sm leading-6 text-muted-foreground", block.title && "mt-3")}>{block.text}</p></section>
     if (block.type === "stats") return <section><BlockTitle>{block.title}</BlockTitle><div className={cn("grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3", block.title && "mt-3")}>{block.items.map((item, itemIndex) => { const Icon = resolveIcon(item.icon); return <article key={`${item.label}-${itemIndex}`} className={cn("rounded-lg border p-4", toneClasses[item.tone ?? "neutral"])}><div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-muted-foreground">{item.label}</p>{Icon ? <Icon aria-hidden className="h-4 w-4" /> : null}</div><p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-foreground">{item.value}</p>{item.description ? <p className="mt-1 text-xs text-muted-foreground">{item.description}</p> : null}</article> })}</div></section>
     if (block.type === "progress") return <section><BlockTitle>{block.title}</BlockTitle><div className={cn("grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3", block.title && "mt-3")}>{block.items.map((item, itemIndex) => { const Icon = resolveIcon(item.icon); const percent = Math.max(0, Math.min(100, item.value / item.max * 100)); const fill = item.tone === "success" ? "bg-success" : item.tone === "warning" ? "bg-warning" : item.tone === "destructive" ? "bg-destructive" : "bg-primary"; return <article key={`${item.label}-${itemIndex}`} className="rounded-lg border border-border bg-card p-4"><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-2.5">{Icon ? <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md border", toneClasses[item.tone ?? "neutral"])}><Icon aria-hidden className="h-4 w-4" /></span> : null}<div className="min-w-0"><h3 className="truncate text-sm font-semibold">{item.label}</h3>{item.description ? <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p> : null}</div></div><span className="shrink-0 font-mono text-sm font-semibold tabular-nums">{Math.round(percent)}%</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-label={item.label} aria-valuemin={0} aria-valuemax={item.max} aria-valuenow={item.value}><div className={cn("h-full rounded-full transition-[width] duration-150", fill)} style={{ width: `${percent}%` }} /></div><div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="font-mono tabular-nums">{item.detail ?? `${item.value} / ${item.max}`}</span><span>{item.max - item.value === 0 ? "Complete" : `${Math.ceil(item.max - item.value)} remaining`}</span></div></article> })}</div></section>
@@ -249,6 +313,7 @@ function ContentBlock({ block, index, busy, labels, runAction, openForm, activeF
     if (block.type === "form") { const source = `always-${block.id}`; return <AlwaysFormBlock block={block} values={formDraft(source, block.fields)} setValues={(values) => { setFormDraft(source, values); runChange(block.action, values) }} busy={busy} labels={labels} runAction={runAction} /> }
     if (block.type === "details") return <section className="rounded-lg border border-border bg-card p-4"><BlockTitle>{block.title}</BlockTitle><dl className={cn("grid gap-x-6 gap-y-4", block.title && "mt-4", block.columns === 1 ? "grid-cols-1" : block.columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>{block.items.map((item, itemIndex) => { const Icon = resolveIcon(item.icon); return <div key={`${item.label}-${itemIndex}`} className="min-w-0"><dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">{Icon ? <Icon aria-hidden className="h-3.5 w-3.5" /> : null}{item.label}</dt><dd className={cn("mt-1 break-words text-sm", item.tone && toneClasses[item.tone])}>{item.value === null || item.value === undefined || item.value === "" ? "—" : String(item.value)}</dd>{item.description ? <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p> : null}</div> })}</dl></section>
     if (block.type === "timeline") return <section className="rounded-lg border border-border bg-card p-4"><BlockTitle>{block.title}</BlockTitle>{block.items.length ? <ol className={cn("relative ml-2 border-l border-border", block.title && "mt-4")}>{block.items.map((item) => { const Icon = resolveIcon(item.icon); const source = `timeline-${block.id ?? index}-${item.id}`; return <li key={item.id} className="relative mb-5 ml-6 last:mb-0"><span className={cn("absolute -left-[35px] flex h-5 w-5 items-center justify-center rounded-full border", toneClasses[item.tone ?? "neutral"])}>{Icon ? <Icon aria-hidden className="h-3 w-3" /> : null}</span><div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="text-sm font-medium">{item.title}</h4>{item.description ? <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.description}</p> : null}</div>{item.timestamp ? <time className="text-xs tabular-nums text-muted-foreground">{item.timestamp}</time> : null}</div>{item.metadata?.length ? <div className="mt-2 flex flex-wrap gap-1.5">{item.metadata.map((entry) => <span key={entry.label} className={cn("rounded-full border px-2 py-0.5 text-[10px]", toneClasses[entry.tone ?? "neutral"])}>{entry.label}: {String(entry.value)}</span>)}</div> : null}{item.actions?.length ? <div className="mt-3"><ActionButtons compact itemId={item.id} actions={item.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, source, { itemId: item.id }) : runAction(action, { itemId: item.id, value: action.data })} /></div> : null}{activeForm?.source === source ? <div className="mt-3">{renderActiveForm()}</div> : null}</li> })}</ol> : <p className="py-8 text-center text-sm text-muted-foreground">{block.empty ?? labels.nothingHere}</p>}</section>
+    if (block.type === "chat") { const source = `chat-${block.id}`; return <ChatBlock block={block} busy={busy} labels={labels} runAction={runAction} draft={String(formDraft(source, CHAT_FIELDS).message ?? "")} setDraft={(message) => setFormDraft(source, { message })} /> }
     if (block.type === "map") return <Suspense fallback={<section className="h-80 animate-pulse rounded-lg border border-border bg-card" />}><AppMapBlock block={block} labels={labels} disabled={busy !== undefined} onSelect={(marker: AppMapMarker) => { const actionId = marker.action ?? block.action; if (actionId) runAction({ id: actionId, label: marker.label }, { itemId: marker.id, value: marker.data }) }} /></Suspense>
     const Icon = resolveIcon(block.icon)
     return <section className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 py-12 text-center">{Icon ? <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface-raised text-muted-foreground"><Icon aria-hidden className="h-5 w-5" /></span> : null}<h3 className="text-base font-semibold">{block.title}</h3>{block.description ? <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">{block.description}</p> : null}</section>
@@ -334,13 +399,13 @@ export function AppShell() {
     useEffect(() => { if (!app) return; const next = enabledView(app, viewId); if (!next) return; if (next.id !== viewId) setViewId(next.id); const nextTab = selectedTabId(next, tabId); if (nextTab !== tabId) setTabId(nextTab) }, [app, tabId, viewId])
     useEffect(() => { if (!isOpen) return; const keydown = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); close("escape") } }; window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown) }, [close, isOpen])
 
-    const runAction = useCallback(async (action: AppAction, context?: ActionContext, destination?: NavigationPoint) => {
-        if (!app || !token || busy !== undefined || action.disabled) return
+    const runAction = useCallback(async (action: AppAction, context?: ActionContext, destination?: NavigationPoint): Promise<AppActionResult | undefined> => {
+        if (!app || !token || busy !== undefined || action.disabled) return undefined
         const version = ++changeVersion.current
         setBusy(action.id); setError(undefined); setNotice(undefined)
         try {
             const response = await fetchNui<AppActionResponse>("kora_lib:app:action", { appId: app.id, token, actionId: action.id, viewId: destination?.viewId ?? viewId, tabId: destination ? destination.tabId : tabId, itemId: context?.itemId, value: context?.value ?? action.data })
-            if (version !== changeVersion.current) return
+            if (version !== changeVersion.current) return undefined
             if (response.ok === false) throw new Error(response.error ?? "The action failed.")
             const resultApp = response.result?.app
             if (resultApp) applyApp(resultApp)
@@ -348,8 +413,10 @@ export function AppShell() {
             if (response.result?.notice) setNotice(response.result.notice)
             if (response.result?.close) close("action")
             setActiveForm(undefined)
+            return response.result ?? {}
         } catch (actionError) {
             if (version === changeVersion.current) setError(actionError instanceof Error ? actionError.message : "The action failed.")
+            return undefined
         } finally {
             if (version === changeVersion.current) setBusy(undefined)
         }

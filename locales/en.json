@@ -32,6 +32,10 @@
     "zoom_out": "Zoom out",
     "value": "value",
     "decrease": "Decrease %{field}",
-    "increase": "Increase %{field}"
+    "increase": "Increase %{field}",
+    "send": "Send",
+    "new_messages": "%{count} new message(s)",
+    "new_divider": "New",
+    "message": "Message"
   }
 }

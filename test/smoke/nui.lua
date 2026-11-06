@@ -668,6 +668,37 @@ harness.test("hold actions report one start and one end, and are released when t
         "a non-boolean hold should be rejected")
 end)
 
+harness.test("chat blocks validate messages and declare their composer action", function()
+    local calls = {}
+    local function chatApp(id, block)
+        return { id = id, title = "Chat", navigation = { { id = "home", label = "Home", content = { blocks = { block } } } },
+            onAction = function(actionId, context) calls[#calls + 1] = { id = actionId, value = context.value } end }
+    end
+    Kora.nui.registerApp(chatApp("smoke:chat", { type = "chat", id = "conv", messages = {
+        { id = "1", author = "Player", text = "hi", timestamp = "12:00", unread = true },
+        { id = "2", author = "Staff", text = "hello", mine = true, badge = "Staff", tone = "success" },
+    }, composer = { action = { id = "send", label = "Send" }, maxLength = 500, placeholder = "Reply" } }))
+    Kora.nui.openApp("smoke:chat")
+    local token = lastToken()
+    local response
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:chat", token = token, actionId = "send", viewId = "home",
+        value = { message = "typed" } }, function(result) response = result end)
+    harness.assertTrue(response.ok, "the composer action is declared")
+    harness.assertEqual(calls[1].value.message, "typed", "the composed message reaches onAction")
+
+    harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-noid", { type = "chat", messages = {} })),
+        "a chat block needs an id")
+    harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-dup", { type = "chat", id = "c", messages = {
+        { id = "1", author = "A", text = "x" }, { id = "1", author = "B", text = "y" } } })), "duplicate message ids are rejected")
+    harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-text", { type = "chat", id = "c", messages = {
+        { id = "1", author = "A", text = 5 } } })), "message text must be a string")
+    harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-fields", { type = "chat", id = "c", messages = {},
+        composer = { action = { id = "send", label = "Send", fields = { { id = "x", label = "X", type = "text" } } } } })),
+        "a composer action cannot carry fields")
+    harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-max", { type = "chat", id = "c", messages = {},
+        composer = { action = { id = "send", label = "Send" }, maxLength = 0 } })), "maxLength must be positive")
+end)
+
 harness.test("registerApp accepts left, right and center placement and rejects others", function()
     for _, placement in ipairs({ "left", "right", "center" }) do
         harness.assertTrue(pcall(Kora.nui.registerApp, { id = "smoke:place-" .. placement, title = "Place", placement = placement, navigation = { { id = "home", label = "Home" } } }),

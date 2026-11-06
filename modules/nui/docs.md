@@ -500,6 +500,22 @@ labels, and content remain the consumer's responsibility.
   `true`) makes the mouse wheel zoom the map without scrolling the surrounding
   page; set `false` to let wheel events scroll the page instead.
 - `empty`: `title`, `description?`, `icon?`
+- `chat`: `id`, `title?`, `empty?`, `messages = { { id, author, text, timestamp?,
+  mine?, unread?, badge?, tone? } }` (oldest first) and an optional
+  `composer = { action, placeholder?, maxLength?, disabled?, note? }`. Text is
+  rendered as plain text (never HTML). Own messages (`mine`) are right-aligned;
+  a "New" divider precedes the first `unread` message and the view opens there.
+  The view sticks to the newest message unless the reader has scrolled up, in
+  which case new arrivals are counted in a "N new messages" jump button. The
+  composer is a message box plus Send button (Enter sends, Shift+Enter adds a
+  line); it calls `onAction(composer.action.id, { value = { message } })`.
+  Its draft survives `updateApp` pushes and is cleared only when the action
+  succeeds without a `destructive` notice, so return
+  `{ notice = { tone = 'destructive', message = err } }` to reject a message
+  and keep the text. `composer.action` must be a plain action (no `fields`,
+  `confirm`, `hold` or `closeBeforeAction`). With `disabled = true` the box is
+  replaced by `note`. Push new messages with `Kora.nui.updateApp`; still
+  validate and rate-limit every message in the owning resource's server code.
 
 Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.
 

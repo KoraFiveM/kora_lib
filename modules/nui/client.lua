@@ -20,6 +20,7 @@ local APP_LABEL_FALLBACKS = {
     page = 'Page %{current} of %{total}', recenter = 'Recenter map', clear = 'Clear', backspace = 'Backspace',
     back = 'Back', open = 'Open', yes = 'Yes', no = 'No', map = 'Map', zoom_in = 'Zoom in', zoom_out = 'Zoom out',
     value = 'value', decrease = 'Decrease %{field}', increase = 'Increase %{field}',
+    send = 'Send', new_messages = '%{count} new message(s)', new_divider = 'New', message = 'Message',
 }
 local MENU_ITEM_STRING_FIELDS = { 'description', 'icon', 'image' }
 local MENU_SIZE_FIELDS = { 'maxWidth', 'maxHeight' }
@@ -59,6 +60,8 @@ local function appLabels()
         back = translateAppLabel('back'), open = translateAppLabel('open'), yes = translateAppLabel('yes'), no = translateAppLabel('no'),
         map = translateAppLabel('map'), zoomIn = translateAppLabel('zoom_in'), zoomOut = translateAppLabel('zoom_out'),
         value = translateAppLabel('value'), decrease = translateAppLabel('decrease'), increase = translateAppLabel('increase'),
+        send = translateAppLabel('send'), newMessages = translateAppLabel('new_messages'),
+        newDivider = translateAppLabel('new_divider'), message = translateAppLabel('message'),
     }
 end
 
@@ -360,7 +363,7 @@ local function assertAppContent(content, location, actionIds)
     if content.blocks == nil then return end
     assert(type(content.blocks) == "table", ("%s blocks must be a table."):format(location))
     local blockTypes = { text = true, stats = true, progress = true, table = true, list = true, actions = true,
-        form = true, details = true, timeline = true, map = true, empty = true }
+        form = true, details = true, timeline = true, map = true, empty = true, chat = true }
 
     local blockIds = {}
     for index = 1, #content.blocks do
@@ -487,6 +490,38 @@ local function assertAppContent(content, location, actionIds)
                     end
                 end
                 itemIds[item.id] = true
+            end
+        elseif block.type == "chat" then
+            assert(type(block.id) == "string" and block.id ~= "", blockLocation .. " requires an id.")
+            assert(type(block.messages) == "table", blockLocation .. " requires a messages table.")
+            assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
+            local messageIds = {}
+            for messageIndex = 1, #block.messages do
+                local message = block.messages[messageIndex]
+                local messageLocation = ("%s message %d"):format(blockLocation, messageIndex)
+                assert(type(message) == "table" and type(message.id) == "string" and message.id ~= ""
+                    and type(message.author) == "string" and type(message.text) == "string",
+                    messageLocation .. " requires string id, author and text.")
+                assert(not messageIds[message.id], ("%s message id '%s' is duplicated."):format(blockLocation, message.id))
+                assert(message.timestamp == nil or type(message.timestamp) == "string", messageLocation .. " timestamp must be a string.")
+                assert(message.mine == nil or type(message.mine) == "boolean", messageLocation .. " mine must be a boolean.")
+                assert(message.unread == nil or type(message.unread) == "boolean", messageLocation .. " unread must be a boolean.")
+                assert(message.badge == nil or type(message.badge) == "string", messageLocation .. " badge must be a string.")
+                assert(message.tone == nil or VALID_TONES[message.tone], messageLocation .. " has an invalid tone.")
+                messageIds[message.id] = true
+            end
+            if block.composer ~= nil then
+                local composer = block.composer
+                assert(type(composer) == "table", blockLocation .. " composer must be a table.")
+                assert(composer.placeholder == nil or type(composer.placeholder) == "string", blockLocation .. " composer placeholder must be a string.")
+                assert(composer.note == nil or type(composer.note) == "string", blockLocation .. " composer note must be a string.")
+                assert(composer.disabled == nil or type(composer.disabled) == "boolean", blockLocation .. " composer disabled must be a boolean.")
+                assert(composer.maxLength == nil or (Kora.util.isFiniteNumber(composer.maxLength) and composer.maxLength >= 1
+                    and composer.maxLength % 1 == 0), blockLocation .. " composer maxLength must be a positive integer.")
+                assert(type(composer.action) == "table" and composer.action.fields == nil and composer.action.confirm == nil
+                    and not composer.action.hold and not composer.action.closeBeforeAction,
+                    blockLocation .. " composer action must be a plain action without fields, confirm, hold or closeBeforeAction.")
+                assertAppAction(composer.action, blockLocation .. " composer", actionIds)
             end
         elseif block.type == "map" then
             assert(type(block.tiles) == "table" and type(block.tiles.url) == "string" and block.tiles.url ~= "",

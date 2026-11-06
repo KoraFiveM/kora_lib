@@ -309,6 +309,35 @@ describe("AppShell", () => {
         expect(fetchNuiMock).not.toHaveBeenCalled()
     })
 
+    it("renders a chat block as text, sends with Enter, keeps rejected drafts and clears accepted ones", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        const chat = (messages: { id: string; author: string; text: string; mine?: boolean; unread?: boolean }[]) => baseApp({ blocks: [{ type: "chat", id: "conv", title: "Conversation", messages, composer: { action: { id: "send", label: "Send" }, placeholder: "Write a reply", maxLength: 20 } }] })
+        const token = openApp(chat([{ id: "1", author: "Player", text: "<b>hi</b>" }, { id: "2", author: "Staff", text: "hello", mine: true, unread: true }]))
+        expect(screen.getByText("<b>hi</b>")).toBeInTheDocument()
+        expect(document.querySelector("b")).toBeNull()
+        expect(screen.getByText("New")).toBeInTheDocument()
+        fetchNuiMock.mockResolvedValueOnce({ ok: true, result: { notice: { tone: "destructive", message: "Slow down" } } })
+        await user.type(screen.getByLabelText("Write a reply"), "first{enter}")
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "send", value: { message: "first" } }))
+        expect(screen.getByLabelText("Write a reply")).toHaveValue("first")
+        fetchNuiMock.mockResolvedValueOnce({ ok: true, result: {} })
+        await user.click(screen.getByRole("button", { name: "Send" }))
+        expect(screen.getByLabelText("Write a reply")).toHaveValue("")
+        await user.type(screen.getByLabelText("Write a reply"), "draft")
+        dispatch("updateApp", { appId: "test:app", token, app: chat([{ id: "1", author: "Player", text: "<b>hi</b>" }, { id: "3", author: "Player", text: "new one" }]) })
+        expect(screen.getByText("new one")).toBeInTheDocument()
+        expect(screen.getByLabelText("Write a reply")).toHaveValue("draft")
+    })
+
+    it("shows a closed chat composer as its note", () => {
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "chat", id: "conv", messages: [], empty: "No messages yet", composer: { action: { id: "send", label: "Send" }, disabled: true, note: "This report is closed." } }] }))
+        expect(screen.getByText("No messages yet")).toBeInTheDocument()
+        expect(screen.getByText("This report is closed.")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument()
+    })
+
     it("applies navigation and notices returned by actions", async () => {
         const user = userEvent.setup()
         fetchNuiMock.mockResolvedValue({ ok: true, result: { navigate: { viewId: "records", tabId: "recent" }, notice: { tone: "success", message: "Moved" } } })
