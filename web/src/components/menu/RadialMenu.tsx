@@ -80,6 +80,7 @@ export function RadialMenuContainer() {
             setStack([{ items: open.items, page: 0 }])
             setActiveIndex(-1)
         }, []),
+        { cancelled: true },
     )
 
     const level = stack[stack.length - 1]

@@ -292,6 +292,17 @@ harness.test("dying cancels the bar immediately", function()
     harness.assertEqual(nuiMessages[2].action, "progressCancel", "a cancelled bar should hide the NUI bar early")
 end)
 
+harness.test("a bar finished early by its owner hides the NUI bar", function()
+    reset()
+    local completed = Kora.progressbar.start({ label = "Working...", duration = 5000 }, nil, {
+        isFinished = function() return true end,
+    })
+
+    harness.assertTrue(completed, "an owner-finished bar should report completion")
+    harness.assertEqual(nuiMessages[#nuiMessages].action, "progressCancel",
+        "the NUI bar must not keep filling after the owner finished it early")
+end)
+
 harness.test("ox interruption flags allow or reject ped states", function()
     reset()
     dead, ragdoll, cuffed, falling, swimming = true, true, true, true, true

@@ -94,6 +94,7 @@ export function MenuContainer() {
     const { requestId, token, isOpen, respond } = useNuiRequest<OpenMenuPayload, MenuResult>(
         "openMenu",
         seedMenu,
+        { cancelled: true },
     )
 
     const level = stack[stack.length - 1]

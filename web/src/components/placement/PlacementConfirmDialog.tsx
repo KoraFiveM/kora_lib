@@ -12,6 +12,8 @@ export function PlacementConfirmDialog() {
     const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
     const { payload, isOpen, respond } = useNuiRequest<PlacementConfirmPayload, PlacementConfirmResult>(
         "placement:confirm",
+        undefined,
+        { confirmed: false },
     )
 
     useNuiEvent<null | undefined>("placement:closeConfirm", () => {

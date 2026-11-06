@@ -246,7 +246,8 @@ type RunAction = (action: AppAction, context?: ActionContext) => Promise<AppActi
 
 // A live conversation: bubbles oldest-first, a "New" divider before the first unread message, and a
 // message box. It sticks to the newest message unless the reader has scrolled up, in which case new
-// arrivals are counted in a jump pill instead of moving the view. Text is always a React text node.
+// arrivals are counted in a jump pill instead of moving the view (`follow` always jumps to the newest
+// message instead). Text is always a React text node.
 function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block: Extract<AppBlock, { type: "chat" }>; busy?: string; labels: AppShellLabels; runAction: RunAction; draft: string; setDraft: (value: string) => void }) {
     const scroller = useRef<HTMLDivElement>(null)
     const atBottom = useRef(true)
@@ -268,9 +269,9 @@ function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block:
         const fresh = block.messages.filter((message) => !known.has(message.id))
         seen.current = new Set(ids)
         if (!fresh.length) return
-        if (atBottom.current || fresh.some((message) => message.mine)) toBottom()
+        if (block.follow || atBottom.current || fresh.some((message) => message.mine)) toBottom()
         else setPending((count) => count + fresh.length)
-    }, [block.messages, toBottom])
+    }, [block.follow, block.messages, toBottom])
     const onScroll = () => { const node = scroller.current; if (!node) return; atBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48; if (atBottom.current) setPending(0) }
     const text = draft.trim()
     const tooLong = maxLength !== undefined && draft.length > maxLength
@@ -282,10 +283,12 @@ function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block:
         if (result && result.notice?.tone !== "destructive") setDraft("")
     }
     const firstUnread = block.messages.findIndex((message) => message.unread)
-    return <section data-chat-block={block.id} className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
-        {block.title ? <div className="border-b border-border px-4 py-3"><BlockTitle>{block.title}</BlockTitle></div> : null}
-        <div className="relative">
-            <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-label={block.title ?? labels.message} className="scroll-thin flex max-h-[420px] min-h-40 flex-col gap-3 overflow-y-auto px-4 py-4">
+    // `scrollable`: the block fills the rest of a fixed (content.scrollable = false) layout and only
+    // the message list scrolls; the title and the message box never move.
+    return <section data-chat-block={block.id} className={cn("flex flex-col overflow-hidden rounded-lg border border-border bg-card", block.scrollable && "min-h-0 flex-1")}>
+        {block.title ? <div className="shrink-0 border-b border-border px-4 py-3"><BlockTitle>{block.title}</BlockTitle></div> : null}
+        <div className={cn("relative", block.scrollable && "flex min-h-0 flex-1 flex-col")}>
+            <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-label={block.title ?? labels.message} className={cn("scroll-thin flex flex-col gap-3 overflow-y-auto px-4 py-4", block.scrollable ? "min-h-0 flex-1" : "max-h-[420px] min-h-40")}>
                 {block.messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{block.empty ?? labels.nothingHere}</p> : block.messages.map((message, messageIndex) => <div key={message.id} className="contents">
                     {messageIndex === firstUnread ? <div data-chat-divider className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-primary"><span className="h-px flex-1 bg-brand-border" />{labels.newDivider ?? "New"}<span className="h-px flex-1 bg-brand-border" /></div> : null}
                     <article data-chat-message={message.id} data-mine={message.mine ? "true" : undefined} className={cn("flex max-w-[80%] flex-col gap-1", message.mine ? "items-end self-end" : "items-start self-start")}>
@@ -296,7 +299,7 @@ function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block:
             </div>
             {pending > 0 ? <Button type="button" size="sm" className="absolute bottom-3 left-1/2 -translate-x-1/2 shadow-modal" onClick={toBottom}><ArrowDown aria-hidden />{(labels.newMessages ?? "%{count} new message(s)").replace("%{count}", String(pending))}</Button> : null}
         </div>
-        {composer ? composer.disabled ? <p className="border-t border-border px-4 py-3 text-sm text-muted-foreground">{composer.note ?? ""}</p> : <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); void send() }}>
+        {composer ? composer.disabled ? <p className="shrink-0 border-t border-border px-4 py-3 text-sm text-muted-foreground">{composer.note ?? ""}</p> : <form className="flex shrink-0 items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); void send() }}>
             <div className="min-w-0 flex-1"><Textarea aria-label={composer.placeholder ?? labels.message} rows={2} value={draft} maxLength={maxLength} placeholder={composer.placeholder} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send() } }} className="max-h-32 min-h-[44px] resize-none" />{maxLength !== undefined && draft.length > maxLength * 0.8 ? <p className={cn("mt-1 text-right text-[10px] tabular-nums", tooLong ? "text-destructive" : "text-muted-foreground")}>{draft.length}/{maxLength}</p> : null}</div>
             <Button type="submit" disabled={!canSend}><Send aria-hidden />{busy === composer.action.id ? labels.working : composer.action.label || labels.send}</Button>
         </form> : null}
@@ -319,6 +322,8 @@ function ContentBlock({ block, index, busy, labels, runAction, openForm, activeF
     return <section className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 py-12 text-center">{Icon ? <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface-raised text-muted-foreground"><Icon aria-hidden className="h-5 w-5" /></span> : null}<h3 className="text-base font-semibold">{block.title}</h3>{block.description ? <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">{block.description}</p> : null}</section>
 }
 
+const unmountedAppResult: AppResult = { closed: true, reason: "unmounted" }
+
 export function AppShell() {
     const [app, setApp] = useState<AppDefinition | null>(null)
     // Navigation resolves against the freshest definition we have been handed, not the one captured
@@ -334,15 +339,14 @@ export function AppShell() {
     const [activeForm, setActiveForm] = useState<ActiveForm>()
     const [drafts, setDrafts] = useState<Record<string, Record<string, FieldValue>>>({})
     const changeVersion = useRef(0)
+    // A render crash unmounts the shell (the ErrorBoundary renders nothing); useNuiRequest then answers the open
+    // request with `unmounted` so Lua releases NUI focus and the owner can roll back.
     const { payload, token, isOpen, respond } = useNuiRequest<OpenAppPayload, AppResult>("openApp", useCallback((open: OpenAppPayload) => {
         changeVersion.current += 1
         const view = enabledView(open.app, open.viewId)
         applyApp(open.app); setViewId(view?.id ?? ""); setTabId(selectedTabId(view, open.tabId)); setHistory([]); setBusy(undefined); setError(undefined); setNotice(undefined); setActiveForm(undefined); setDrafts({})
-    }, [applyApp]))
+    }, [applyApp]), unmountedAppResult)
     useEffect(() => { changeVersion.current += 1; return () => { changeVersion.current += 1 } }, [isOpen, token])
-    // A render crash unmounts the shell (the ErrorBoundary renders nothing). Answer the open request
-    // so Lua releases NUI focus and the owner can roll back, instead of an invisible app keeping the cursor.
-    useEffect(() => () => respond({ closed: true, reason: "unmounted" }), [respond])
     const labels = useMemo(() => ({ ...defaultLabels, ...app?.labels }), [app?.labels])
     const panelRef = useRef<HTMLElement>(null)
     const draggable = app?.draggable === true
@@ -367,9 +371,12 @@ export function AppShell() {
         if (!next) return
         const nextTabId = selectedTabId(next, target.tabId)
         // Navigating to the point we are already on must not record a step, or leaving it would
-        // take two back presses.
+        // take two back presses. Neither must re-recording the point the trail already ends on.
         const moved = next.id !== viewId || nextTabId !== tabId
-        if (!target.replace && moved) setHistory((current) => [...current, { viewId, tabId }])
+        if (!target.replace && moved) setHistory((current) => {
+            const last = current[current.length - 1]
+            return last && last.viewId === viewId && last.tabId === tabId ? current : [...current, { viewId, tabId }]
+        })
         setViewId(next.id); setTabId(nextTabId); setActiveForm(undefined); setError(undefined)
     }, [app, tabId, viewId])
     // The newest recorded point the arrow can actually reach: not the point we are on, and still
@@ -467,9 +474,9 @@ export function AppShell() {
     const sideJustify = app.placement === "right" ? "justify-end" : app.placement === "left" ? "justify-start" : "justify-center"
     return <HoldContext.Provider value={holdAction}><div className={cn("pointer-events-auto fixed inset-0 z-overlay flex items-center p-2 sm:p-4", sideJustify)}><main ref={panelRef} aria-label={app.title} data-layout={app.layout ?? "standard"} data-placement={app.placement ?? "center"} className={cn("relative flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-modal duration-dialog ease-entry animate-in fade-in-0 zoom-in-95 sm:max-h-[calc(100dvh-2rem)] sm:max-w-[calc(100vw-2rem)]", draggable && "transition-none")} style={draggable ? { width, height, left: offset.x, top: offset.y } : { width, height }}>
         {!compact ? <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-card max-[800px]:hidden"><header {...dragHandle} className={cn("flex min-h-[76px] items-center gap-3 border-b border-border px-4 py-4", dragClasses)}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-border bg-brand-soft text-primary">{AppIcon ? <AppIcon aria-hidden className="h-5 w-5" /> : app.title.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><span className="block truncate text-sm font-semibold">{app.title}</span>{app.description ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{app.description}</span> : null}</span></header><nav aria-label={`${app.title} navigation`} className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">{app.navigation.map((item, index) => { const Icon = resolveIcon(item.icon); const active = item.id === view.id; const previousGroup = app.navigation[index - 1]?.group; return <div key={item.id}>{item.group && item.group !== previousGroup ? <p className="px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">{item.group}</p> : null}<button type="button" disabled={item.disabled} aria-current={active ? "page" : undefined} onClick={() => switchView(item.id)} className={cn("focus-ring relative mb-1 flex min-h-10 w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left text-sm font-medium disabled:opacity-[.48]", active ? "border-brand-border bg-brand-soft text-foreground before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:bg-primary" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground")}>{Icon ? <Icon aria-hidden className="h-4 w-4" /> : null}<span className="min-w-0 flex-1 truncate">{item.label}</span>{item.badge !== undefined ? <span className="rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-[10px]">{item.badge}</span> : null}</button></div> })}</nav>{app.footer ? <footer className="border-t border-border px-4 py-3 text-xs text-muted-foreground">{app.footer}</footer> : null}</aside> : null}
-            <section className="flex min-w-0 flex-1 flex-col"><header {...dragHandle} className={cn("flex min-h-[68px] items-center gap-3 border-b border-border px-4 py-3 sm:min-h-[76px] sm:px-5", dragClasses)}>{backTarget ? <Button type="button" variant="ghost" size="icon" onClick={back} aria-label={labels.back}><ChevronLeft aria-hidden /></Button> : null}{compact && AppIcon ? <span className="flex h-9 w-9 items-center justify-center rounded-md border border-brand-border bg-brand-soft text-primary"><AppIcon aria-hidden className="h-4 w-4" /></span> : ViewIcon ? <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground"><ViewIcon aria-hidden className="h-4 w-4" /></span> : null}<div className="min-w-0 flex-1"><h1 className="truncate text-lg font-semibold">{compact && app.navigation.length === 1 ? app.title : view.label}</h1>{view.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{view.description}</p> : compact && app.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{app.description}</p> : null}</div><Button type="button" variant="ghost" size="icon" onClick={() => close("close")} aria-label={`${labels.close} ${app.title}`} title={labels.close}><X aria-hidden /></Button></header>
+            <section className="flex min-w-0 flex-1 flex-col"><header {...dragHandle} className={cn("flex min-h-[68px] items-center gap-3 border-b border-border px-4 py-3 sm:min-h-[76px] sm:px-5", dragClasses)}>{tab?.back || backTarget ? <Button type="button" variant="ghost" size="icon" onClick={tab?.back ? () => { void runAction({ id: tab.back as string, label: labels.back }) } : back} disabled={tab?.back ? busy !== undefined : undefined} aria-label={labels.back}><ChevronLeft aria-hidden /></Button> : null}{compact && AppIcon ? <span className="flex h-9 w-9 items-center justify-center rounded-md border border-brand-border bg-brand-soft text-primary"><AppIcon aria-hidden className="h-4 w-4" /></span> : ViewIcon ? <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground"><ViewIcon aria-hidden className="h-4 w-4" /></span> : null}<div className="min-w-0 flex-1"><h1 className="truncate text-lg font-semibold">{compact && app.navigation.length === 1 ? app.title : view.label}</h1>{view.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{view.description}</p> : compact && app.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{app.description}</p> : null}</div><Button type="button" variant="ghost" size="icon" onClick={() => close("close")} aria-label={`${labels.close} ${app.title}`} title={labels.close}><X aria-hidden /></Button></header>
             {app.navigation.length > 1 ? <div className={cn("scroll-thin flex min-h-11 gap-1 overflow-x-auto border-b border-border px-4", !compact && "min-[801px]:hidden")}>{app.navigation.map((item) => <button key={item.id} type="button" disabled={item.disabled} onClick={() => switchView(item.id)} className={cn("focus-ring relative h-10 shrink-0 px-3 text-sm font-medium", item.id === view.id ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground")}>{item.label}</button>)}</div> : null}
-            {view.tabs?.length ? <div role="tablist" aria-label={`${view.label} sections`} className="scroll-thin flex min-h-11 items-end gap-1 overflow-x-auto border-b border-border px-4 sm:px-5">{view.tabs.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === tabId} onClick={() => { if (item.id === tabId) return; setHistory((current) => [...current, { viewId, tabId }]); setTabId(item.id); setActiveForm(undefined); setError(undefined) }} className={cn("focus-ring relative h-10 shrink-0 px-3 text-sm font-medium", item.id === tabId ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground")}>{item.label}{item.badge !== undefined ? <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-[10px]">{item.badge}</span> : null}</button>)}</div> : null}
+            {view.tabs?.length ? <div role="tablist" aria-label={`${view.label} sections`} className="scroll-thin flex min-h-11 items-end gap-1 overflow-x-auto border-b border-border px-4 sm:px-5">{view.tabs.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === tabId} onClick={() => { if (item.id === tabId) return; /* Tabs are siblings, not steps: the header arrow returns to where an action navigated from in one press instead of walking every tab visited. */ setTabId(item.id); setActiveForm(undefined); setError(undefined) }} className={cn("focus-ring relative h-10 shrink-0 px-3 text-sm font-medium", item.id === tabId ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground")}>{item.label}{item.badge !== undefined ? <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-[10px]">{item.badge}</span> : null}</button>)}</div> : null}
             <div className={cn("scroll-thin min-h-0 flex-1 p-3 sm:p-5", content?.scrollable === false ? "flex flex-col overflow-hidden" : "overflow-y-auto")}>{content?.title || content?.description || content?.actions?.length ? <div className="mb-5 flex flex-wrap items-start justify-between gap-4"><div className="min-w-0">{content.title ? <h2 className="text-base font-semibold">{content.title}</h2> : null}{content.description ? <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{content.description}</p> : null}</div>{content.actions?.length ? <ActionButtons actions={content.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, "header") : runAction(action)} /> : null}</div> : null}
                 {activeForm?.source === "header" ? <div className="mb-4">{renderActiveForm()}</div> : null}
                 {error ? <div role="alert" className="mb-4 flex items-center gap-2 rounded-md border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm text-destructive"><AlertCircle aria-hidden className="h-4 w-4" />{error}</div> : null}

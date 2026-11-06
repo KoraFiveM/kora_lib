@@ -103,7 +103,11 @@ local function openMenu(menu, sort, skipFirst)
     local mine = openSerial
     menuOpen = true
     local result = Kora.nui.openMenu(items)
-    if not calledFromExport then result = Citizen.Await(result) end
+    if not calledFromExport then
+        -- A superseded or crashed menu rejects; treat it as a silent close instead of a script error.
+        local ok, value = pcall(Citizen.Await, result)
+        result = ok and value or nil
+    end
     if mine == openSerial then menuOpen = false end
     if not result or result.cancelled then
         if silenced[mine] then

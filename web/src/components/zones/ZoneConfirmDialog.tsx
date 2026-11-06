@@ -19,6 +19,8 @@ export function ZoneConfirmDialog() {
     const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
     const { payload, isOpen, respond } = useNuiRequest<ZoneCreatorConfirmPayload, ZoneCreatorConfirmResult>(
         "zoneCreator:confirm",
+        undefined,
+        { confirmed: false },
     )
 
     useEffect(() => {

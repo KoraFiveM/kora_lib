@@ -27,7 +27,7 @@ import { dialogSizeClass } from "@/lib/dialogSize"
  * without pulling in another dependency.
  */
 export function AlertDialogContainer() {
-    const { payload, isOpen, respond } = useNuiRequest<OpenAlertPayload, AlertResult>("openAlert")
+    const { payload, isOpen, respond } = useNuiRequest<OpenAlertPayload, AlertResult>("openAlert", undefined, { confirmed: false })
     const [imageFailed, setImageFailed] = useState(false)
     const locale = useOxLocale()
 

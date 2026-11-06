@@ -22,6 +22,7 @@ Runs a progress bar for `payload.duration` ms.
   - `canCancel?: boolean` — Lets the player abort early with `Config.progressbar.cancelControls` (`73` / X or `322` / Escape by default). Defaults to `false`.
   - `cancelControls?: integer[]|false` — Internal compatibility override for the controls polled by kora_lib; `false` delegates cancellation to a compatibility resource's remappable command.
   - `presentation?: "bar" | "circle"` and `position?: "middle" | "bottom"` — Select the visual used by ox-compatible progress-circle calls.
+    The bar (and a circle at `"bottom"`) sits `Config.progressbar.bottomOffset` rem (default `10`) above the screen bottom, clear of kora_hud's vitals.
   - `useWhileDead?`, `allowRagdoll?`, `allowCuffed?`, `allowFalling?`, `allowSwimming?` — State-specific interruption overrides; all default to `false`.
   - `disable?: table`
     - `move?: boolean` — Blocks the player's movement controls for the duration. Defaults to `false`. By default (`Config.progressbar.defaultMoveMode = 'controls'`) the ped is **not** frozen, so a bar started from a target option while walking does not lock the character like an admin freeze. Set `moveMode = 'freeze'` (or change the config default) to also `FreezeEntityPosition`; the freeze is skipped while the ped is falling, jumping, ragdolling or airborne and is always undone on finish, cancel, death and resource stop.

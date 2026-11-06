@@ -15,6 +15,7 @@ export function InputDialogContainer() {
     const { payload, isOpen, respond } = useNuiRequest<OpenInputDialogPayload, InputDialogResult>(
         "openInputDialog",
         useCallback((open: OpenInputDialogPayload) => setValues(createFieldValues(open.fields)), []),
+        { cancelled: true },
     )
     const fields = payload?.fields ?? []
     const errors = useMemo(() => validateFields(fields, values, payload?.labels), [fields, payload?.labels, values])

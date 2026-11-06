@@ -308,7 +308,8 @@ local function cleanupSession(session, cancelled)
     end
     session.props = {}
 
-    if cancelled and session.nuiStarted then
+    -- A compat bar finished early by its owner must hide too; a full-length bar hides itself.
+    if (cancelled or session.finishedEarly) and session.nuiStarted then
         safeCleanup("NUI", function() Kora.nui.send("progressCancel") end)
     end
 end
@@ -493,6 +494,7 @@ function Kora.progressbar.start(payload, owner, hooks)
             duration = payload.duration,
             presentation = payload.presentation or 'bar',
             position = payload.position,
+            bottomOffset = tonumber(Config.progressbar.bottomOffset),
         })
 
         if hooks and hooks.onStart then hooks.onStart() end
@@ -502,6 +504,7 @@ function Kora.progressbar.start(payload, owner, hooks)
             if hooks and hooks.onTick then hooks.onTick() end
             if hooks and hooks.isFinished and hooks.isFinished() then
                 finishedEarly = true
+                session.finishedEarly = true
                 return true
             end
             if (not payload.useWhileDead and IsEntityDead(session.ped))

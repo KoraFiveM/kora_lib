@@ -330,6 +330,24 @@ describe("AppShell", () => {
         expect(screen.getByLabelText("Write a reply")).toHaveValue("draft")
     })
 
+    it("lets a scrollable chat fill a fixed layout and follow every new message", () => {
+        render(<AppShell />)
+        const chat = (ids: string[]) => baseApp({ scrollable: false, blocks: [{ type: "chat", id: "conv", title: "Conversation", scrollable: true, follow: true, messages: ids.map((id) => ({ id, author: "Player", text: `message ${id}` })), composer: { action: { id: "send", label: "Send" }, placeholder: "Write a reply" } }] })
+        const token = openApp(chat(["1", "2"]))
+        const log = screen.getByRole("log")
+        expect(log).toHaveClass("min-h-0", "flex-1", "overflow-y-auto")
+        expect(log).not.toHaveClass("max-h-[420px]")
+        expect(log.closest("[data-chat-block]")).toHaveClass("min-h-0", "flex-1")
+        expect(screen.getByLabelText("Write a reply").closest("form")).toHaveClass("shrink-0")
+        Object.defineProperty(log, "scrollHeight", { configurable: true, value: 900 })
+        Object.defineProperty(log, "clientHeight", { configurable: true, value: 200 })
+        log.scrollTop = 100
+        fireEvent.scroll(log)
+        dispatch("updateApp", { appId: "test:app", token, app: chat(["1", "2", "3"]) })
+        expect(log.scrollTop).toBe(900)
+        expect(screen.queryByRole("button", { name: /new message/ })).not.toBeInTheDocument()
+    })
+
     it("shows a closed chat composer as its note", () => {
         render(<AppShell />)
         openApp(baseApp({ blocks: [{ type: "chat", id: "conv", messages: [], empty: "No messages yet", composer: { action: { id: "send", label: "Send" }, disabled: true, note: "This report is closed." } }] }))
@@ -358,18 +376,53 @@ describe("AppShell", () => {
         { id: "reports", label: "Reports", content: { title: "Open reports" } },
     ] })
     const playerTabs = [
-        { id: "list", label: "Online Players", content: { title: "Players list" } },
+        { id: "list", label: "Online Players", content: { title: "Players list", actions: [{ id: "open-player", label: "Open player" }] } },
         { id: "profile", label: "Profile", content: { title: "Player profile" } },
+        { id: "tools", label: "Player Tools", content: { title: "Player tools" } },
+        { id: "moderation", label: "Moderation", content: { title: "Player moderation" } },
     ]
+    // The admin menu's shape: opening a player is an action that navigates to the profile tab.
+    async function openPlayer(user: ReturnType<typeof userEvent.setup>) {
+        fetchNuiMock.mockResolvedValueOnce({ ok: true, result: { navigate: { viewId: "players", tabId: "profile" } } })
+        await user.click(screen.getByRole("button", { name: "Open player" }))
+        expect(await screen.findByText("Player profile")).toBeInTheDocument()
+    }
 
-    it("steps back to the tab the tab bar switched away from", async () => {
+    it("tab bar switches are not back steps", async () => {
         const user = userEvent.setup()
         render(<AppShell />)
         openApp(tabbedApp(playerTabs))
 
-        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
         await user.click(screen.getByRole("tab", { name: "Profile" }))
-        expect(screen.getByText("Player profile")).toBeInTheDocument()
+        await user.click(screen.getByRole("tab", { name: "Player Tools" }))
+        expect(screen.getByText("Player tools")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+    })
+
+    it("returns from any profile tab to the list in one press", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(tabbedApp(playerTabs))
+
+        await openPlayer(user)
+        await user.click(screen.getByRole("tab", { name: "Player Tools" }))
+        await user.click(screen.getByRole("tab", { name: "Moderation" }))
+        await user.click(screen.getByRole("tab", { name: "Profile" }))
+        await user.click(screen.getByRole("tab", { name: "Moderation" }))
+        expect(screen.getByText("Player moderation")).toBeInTheDocument()
+        await user.click(screen.getByRole("button", { name: "Back" }))
+        expect(screen.getByText("Players list")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+    })
+
+    it("opening players repeatedly from the list keeps one back step", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(tabbedApp(playerTabs))
+
+        await openPlayer(user)
+        await user.click(screen.getByRole("tab", { name: "Online Players" }))
+        await openPlayer(user)
         await user.click(screen.getByRole("button", { name: "Back" }))
         expect(screen.getByText("Players list")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
@@ -380,9 +433,31 @@ describe("AppShell", () => {
         render(<AppShell />)
         const token = openApp(tabbedApp(playerTabs))
 
-        await user.click(screen.getByRole("tab", { name: "Profile" }))
+        await openPlayer(user)
         expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument()
-        dispatch("updateApp", { appId: "test:app", token, app: tabbedApp([playerTabs[1]]) })
+        dispatch("updateApp", { appId: "test:app", token, app: tabbedApp(playerTabs.slice(1)) })
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+    })
+
+    it("runs a tab's own back action from the header arrow and shows no arrow on tabs without one", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        const listOnly = tabbedApp([playerTabs[0]])
+        const selected = tabbedApp([playerTabs[0], ...playerTabs.slice(1).map((tab) => ({ ...tab, back: "player:back" }))])
+        openApp(listOnly)
+        fetchNuiMock.mockResolvedValueOnce({ ok: true, result: { app: selected, navigate: { viewId: "players", tabId: "profile", replace: true } } })
+        await user.click(screen.getByRole("button", { name: "Open player" }))
+        expect(await screen.findByText("Player profile")).toBeInTheDocument()
+        await user.click(screen.getByRole("tab", { name: "Moderation" }))
+        await user.click(screen.getByRole("tab", { name: "Online Players" }))
+        expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
+        await user.click(screen.getByRole("tab", { name: "Player Tools" }))
+
+        fetchNuiMock.mockResolvedValueOnce({ ok: true, result: { app: listOnly, navigate: { viewId: "players", tabId: "list", replace: true } } })
+        await user.click(screen.getByRole("button", { name: "Back" }))
+        expect(fetchNuiMock).toHaveBeenLastCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "player:back", tabId: "tools" }))
+        expect(await screen.findByText("Players list")).toBeInTheDocument()
+        expect(screen.queryByRole("tab", { name: "Player Tools" })).not.toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument()
     })
 
@@ -391,7 +466,7 @@ describe("AppShell", () => {
         render(<AppShell />)
         openApp(tabbedApp(playerTabs))
 
-        await user.click(screen.getByRole("tab", { name: "Profile" }))
+        await openPlayer(user)
         expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument()
         await user.click(screen.getAllByRole("button", { name: "Reports" })[0])
         expect(screen.getByText("Open reports")).toBeInTheDocument()

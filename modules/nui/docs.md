@@ -97,7 +97,7 @@ Copies `text` to the system clipboard via the NUI — the browser is the only pa
 #### Returns
 - `true` once the browser confirms the write, `false` if every browser copy path failed or the request timed out. It never raises a script error for a failed copy.
 
-While copying, kora_lib holds a brief cursor-less, input-passthrough NUI focus lease so CEF lets the copy through. Set `Config.nui.clipboardFocus = false` in `config.lua` to copy without taking focus (default `true`).
+Like ox_lib's `lib.setClipboard`, the first try takes no NUI focus: the page selects a temporary textarea and runs `execCommand("copy")` (the async Clipboard API is never used; NUI's permissions policy blocks it). If the browser refuses, the copy is retried once under a brief cursor-less, input-passthrough NUI focus lease. `Config.nui.clipboardFocus = false` never takes focus; `Config.nui.clipboardUnfocusedFirst = false` takes the lease for every copy instead of only for the retry (both default `true`).
 
 #### Example
 ```lua
@@ -446,7 +446,10 @@ An action handler may combine these result fields:
   view or tab. For asynchronous pushes, call `updateApp` directly.
 - `navigate = { viewId, tabId?, replace? }` — navigate without rebuilding the
   definition. Unless `replace` is true, AppShell exposes Back to return to the
-  prior view/tab.
+  prior view/tab. A tab may instead declare `back = 'action-id'`: while that
+  tab is shown, the header Back runs that action (like any other action, so it
+  can `update` the tabs away and `navigate` with `replace`), and the shell's
+  own history step is not used there.
 - `notice = { tone, message }` — persistent in-shell feedback. If the action
   also closes the shell, kora_lib routes the notice through notifications.
 - `close = true` — close AppShell after the action.
@@ -506,7 +509,11 @@ labels, and content remain the consumer's responsibility.
   rendered as plain text (never HTML). Own messages (`mine`) are right-aligned;
   a "New" divider precedes the first `unread` message and the view opens there.
   The view sticks to the newest message unless the reader has scrolled up, in
-  which case new arrivals are counted in a "N new messages" jump button. The
+  which case new arrivals are counted in a "N new messages" jump button;
+  `follow = true` always jumps to the newest message instead. With
+  `scrollable = true` (pair it with content-level `scrollable = false`) the
+  block fills the remaining height: only its message list scrolls, while its
+  title and message box stay in place. The
   composer is a message box plus Send button (Enter sends, Shift+Enter adds a
   line); it calls `onAction(composer.action.id, { value = { message } })`.
   Its draft survives `updateApp` pushes and is cleared only when the action

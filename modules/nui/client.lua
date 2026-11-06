@@ -495,6 +495,8 @@ local function assertAppContent(content, location, actionIds)
             assert(type(block.id) == "string" and block.id ~= "", blockLocation .. " requires an id.")
             assert(type(block.messages) == "table", blockLocation .. " requires a messages table.")
             assert(block.empty == nil or type(block.empty) == "string", blockLocation .. " empty must be a string.")
+            assert(block.scrollable == nil or type(block.scrollable) == "boolean", blockLocation .. " scrollable must be a boolean.")
+            assert(block.follow == nil or type(block.follow) == "boolean", blockLocation .. " follow must be a boolean.")
             local messageIds = {}
             for messageIndex = 1, #block.messages do
                 local message = block.messages[messageIndex]
@@ -634,6 +636,8 @@ local function assertBrowserApp(definition)
                 assert(type(tab.id) == "string" and tab.id ~= "", tabLocation .. " requires an id.")
                 assert(not tabIds[tab.id], ("App view '%s' tab id '%s' is duplicated."):format(view.id, tab.id))
                 assert(type(tab.label) == "string" and tab.label ~= "", tabLocation .. " requires a label.")
+                -- Optional header "<" action for this tab (replaces the shell's history step there).
+                if tab.back ~= nil then declareAction(actionIds, tab.back, false, tabLocation .. " back") end
                 tabIds[tab.id] = true
                 assertAppContent(tab.content, ("App view '%s' tab '%s'"):format(view.id, tab.id), actionIds)
             end
@@ -1021,29 +1025,59 @@ function Kora.nui.updateRequest(request, action, data)
     return true
 end
 
+local CLIPBOARD_FOCUS_SETTLE_MS = 150
+
 ---Copies `text` to the system clipboard via the NUI (the only place with
----access to a real clipboard API). While the browser copies it holds a brief
----input-passthrough NUI focus lease (Config.nui.clipboardFocus), because CEF
----refuses to copy without document focus. Never errors on a failed copy.
+---access to a real clipboard API). Like ox_lib's lib.setClipboard, the first
+---try takes no NUI focus at all: the page selects a temporary textarea and runs
+---execCommand("copy"). Only if the browser refuses, and Config.nui.clipboardFocus
+---is on, is the copy retried once under a brief cursor-less, input-passthrough
+---focus lease. Config.nui.clipboardUnfocusedFirst = false takes that lease for
+---every copy instead. Never errors on a failed copy.
 ---@param text string
 ---@return promise|boolean copied true when the clipboard was written; false on failure or timeout. Exports return the settled boolean.
 function Kora.nui.copyToClipboard(text)
     assert(type(text) == "string", "copyToClipboard requires a string.")
-    local request = requestPromise("copyToClipboard", { text = text })
-
-    local release
-    if not (Config and Config.nui and Config.nui.clipboardFocus == false) then
-        release = acquireFocus(true, false, request.koraLibNuiOwner, true)
-    end
+    local owner = GetInvokingResource() or GetCurrentResourceName()
+    local nuiConfig = Config and Config.nui or {}
+    local useFocus = nuiConfig.clipboardFocus ~= false
+    local unfocusedFirst = nuiConfig.clipboardUnfocusedFirst ~= false
 
     local result = promise.new()
-    request:next(function(value)
+    local release
+    local function finish(copied)
         if release then release() end
-        result:resolve(value == true)
-    end, function()
-        if release then release() end
-        result:resolve(false)
-    end)
+        release = nil
+        result:resolve(copied == true)
+    end
+
+    local function send(onRefused)
+        local ok = pcall(function()
+            requestPromise("copyToClipboard", { text = text }, nil, owner):next(function(value)
+                -- Only a browser that answered "refused" earns the focused retry.
+                if value ~= false or not onRefused then return finish(value) end
+                onRefused()
+            end, function()
+                finish(false)
+            end)
+        end)
+        if not ok then finish(false) end
+    end
+
+    -- One focused attempt: take the lease, give SetNuiFocus a few frames to reach the
+    -- browser, copy, release. Never cycled: the earlier release/re-acquire retries never succeeded.
+    local function sendFocused()
+        release = acquireFocus(true, false, owner, true)
+        SetTimeout(CLIPBOARD_FOCUS_SETTLE_MS, function() send(nil) end)
+    end
+
+    if not useFocus then
+        send(nil)
+    elseif unfocusedFirst then
+        send(sendFocused)
+    else
+        sendFocused()
+    end
     return settleForExport(result)
 end
 
@@ -1282,6 +1316,14 @@ end)
 focusOwnership = Kora.resources.registry(function(id)
     if not focusLeases[id] then return end
     focusLeases[id] = nil
+    refreshFocus()
+end)
+
+-- The registry only sweeps leases kora_lib itself owns; a consumer's open menu/app lease would
+-- otherwise outlive the frame on a kora_lib restart and leave the player with a stuck cursor.
+AddEventHandler('onClientResourceStop', function(resource)
+    if resource ~= GetCurrentResourceName() or next(focusLeases) == nil then return end
+    for id in pairs(focusLeases) do focusLeases[id] = nil end
     refreshFocus()
 end)
 

@@ -577,7 +577,7 @@ export type AppBlock =
     | { type: "timeline"; id?: string; title?: string; items: AppTimelineItem[]; empty?: string }
     | { type: "map"; id?: string; title?: string; tiles: AppMapTiles; markers: AppMapMarker[]; selectedId?: string; action?: string; minZoom?: number; maxZoom?: number; initialZoom?: number; follow?: boolean; captureWheel?: boolean; recenter?: { x: number; y: number }; now?: number; fadeDuration?: number; empty?: string }
     | { type: "empty"; title: string; description?: string; icon?: string }
-    | { type: "chat"; id: string; title?: string; messages: AppChatMessage[]; composer?: AppChatComposer; empty?: string }
+    | { type: "chat"; id: string; title?: string; messages: AppChatMessage[]; composer?: AppChatComposer; empty?: string; scrollable?: boolean; follow?: boolean }
 
 export interface AppChatMessage {
     id: string
@@ -617,6 +617,8 @@ export interface AppTab {
     label: string
     badge?: string | number
     content?: AppContent
+    /** Action the header "<" runs while this tab is shown, instead of the shell's own history step. */
+    back?: string
 }
 
 export interface AppNavigationItem {
@@ -807,6 +809,8 @@ export interface ProgressStartPayload {
     duration: number
     presentation?: "bar" | "circle"
     position?: "middle" | "bottom"
+    /** rem from the screen bottom (Config.progressbar.bottomOffset); clears kora_hud's vitals. */
+    bottomOffset?: number
 }
 
 // action: "progressCancel" (fire-and-forget, no payload) -- hides the bar

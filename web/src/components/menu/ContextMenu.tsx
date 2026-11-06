@@ -33,6 +33,7 @@ export function ContextMenuContainer() {
         useCallback((openPayload: OpenContextMenuPayload) => {
             setActiveIndex(openPayload.items.findIndex((item) => !item.disabled))
         }, []),
+        { cancelled: true },
     )
 
     const items = useMemo(() => payload?.items ?? [], [payload])

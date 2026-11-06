@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { respondToNui } from "./fetchNui"
 import type { NuiRequestEnvelope } from "./types"
@@ -33,16 +33,35 @@ interface CancelledRequest {
  * need to seed their own local state from the payload (e.g. InputDialog's
  * editable `values`) -- it is NOT a dependency of the returned callbacks, so
  * an inline arrow is fine to pass here.
+ *
+ * If the component unmounts with a request still unanswered (a render crash:
+ * the ErrorBoundary renders nothing), the request is answered with
+ * `unmountResult` (the surface's own cancel shape), or an error when none is
+ * given, so Lua releases NUI focus instead of an invisible surface keeping
+ * the cursor.
  */
 export function useNuiRequest<TPayload, TResult = unknown>(
     action: string,
-    onOpen?: (payload: TPayload) => void
+    onOpen?: (payload: TPayload) => void,
+    unmountResult?: TResult
 ) {
     const [request, setRequest] = useState<PendingRequest<TPayload> | null>(null)
     const respondedRef = useRef(false)
     const pendingRef = useRef<PendingRequest<TPayload> | null>(null)
     const onOpenRef = useRef(onOpen)
     onOpenRef.current = onOpen
+    const unmountResultRef = useRef(unmountResult)
+    unmountResultRef.current = unmountResult
+
+    useEffect(() => () => {
+        const pending = pendingRef.current
+        if (respondedRef.current || !pending) return
+        respondedRef.current = true
+        pendingRef.current = null
+        const result = unmountResultRef.current
+        if (result === undefined) respondToNui(pending.requestId, pending.token, false, "The NUI surface closed unexpectedly.")
+        else respondToNui<TResult>(pending.requestId, pending.token, true, result)
+    }, [])
 
     const handleOpen = useCallback((msg: NuiRequestEnvelope<TPayload>) => {
         const previous = pendingRef.current

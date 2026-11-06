@@ -9,7 +9,12 @@ interface ProgressState {
     duration: number
     presentation: "bar" | "circle"
     position: "middle" | "bottom"
+    bottomOffset: number
 }
+
+// rem from the screen bottom. kora_hud's vitals row sits low in the screen and its NUI frame draws
+// over kora_lib's, so z-index cannot lift the bar above it: it has to sit higher instead.
+const DEFAULT_BOTTOM_OFFSET_REM = 10
 
 let nextProgressId = 0
 
@@ -54,6 +59,7 @@ export function ProgressBar() {
             duration,
             presentation: payload.presentation === "circle" ? "circle" : "bar",
             position: payload.position === "bottom" ? "bottom" : "middle",
+            bottomOffset: typeof payload.bottomOffset === "number" && Number.isFinite(payload.bottomOffset) && payload.bottomOffset >= 0 ? payload.bottomOffset : DEFAULT_BOTTOM_OFFSET_REM,
         })
         timeoutRef.current = setTimeout(() => {
             setState((prev) => (prev?.id === id ? null : prev))
@@ -82,9 +88,9 @@ export function ProgressBar() {
     if (!state) return null
 
     if (state.presentation === "circle") {
-        const placement = state.position === "bottom" ? "bottom-20" : "top-1/2 -translate-y-1/2"
+        const bottom = state.position === "bottom"
         return (
-            <div className={`pointer-events-none fixed left-1/2 z-hud -translate-x-1/2 select-none ${placement}`}>
+            <div className={`pointer-events-none fixed left-1/2 z-hud -translate-x-1/2 select-none ${bottom ? "" : "top-1/2 -translate-y-1/2"}`} style={bottom ? { bottom: `${state.bottomOffset}rem` } : undefined}>
                 <div className="hud-chip overlay-text flex min-w-28 flex-col items-center gap-2 px-4 py-3">
                     <div
                         ref={progressRef}
@@ -119,7 +125,7 @@ export function ProgressBar() {
     }
 
     return (
-        <div className="pointer-events-none fixed bottom-24 left-1/2 z-hud w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none">
+        <div className="pointer-events-none fixed left-1/2 z-hud w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none" style={{ bottom: `${state.bottomOffset}rem` }}>
             <div className="hud-chip overlay-text px-3 py-2">
                 {state.label && (
                     <p className="mb-1.5 truncate text-center text-xs font-medium text-foreground">{state.label}</p>

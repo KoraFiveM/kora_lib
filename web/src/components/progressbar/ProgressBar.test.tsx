@@ -45,4 +45,16 @@ describe("ProgressBar", () => {
         expect(progress.closest(".fixed")).toHaveClass("top-1/2")
         expect(progress.querySelector(".progress-circle")).toBeInTheDocument()
     })
+
+    it("sits above kora_hud's vitals by default and follows Config.progressbar.bottomOffset", () => {
+        render(<ProgressBar />)
+        startProgress({ label: "Repairing", duration: 1000 })
+        expect(screen.getByRole("progressbar", { name: "Repairing" }).closest(".fixed")).toHaveStyle({ bottom: "10rem" })
+
+        startProgress({ label: "Lockpicking", duration: 1000, bottomOffset: 12 })
+        expect(screen.getByRole("progressbar", { name: "Lockpicking" }).closest(".fixed")).toHaveStyle({ bottom: "12rem" })
+
+        startProgress({ label: "Searching", duration: 1000, presentation: "circle", position: "bottom", bottomOffset: 8 })
+        expect(screen.getByRole("progressbar", { name: "Searching" }).closest(".fixed")).toHaveStyle({ bottom: "8rem" })
+    })
 })

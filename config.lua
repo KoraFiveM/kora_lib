@@ -3,9 +3,12 @@ Config = {}
 Config.third_party_notify = false
 
 Config.nui = {
-    -- Kora.nui.copyToClipboard holds a brief cursor-less NUI focus lease while the browser copies.
-    -- CEF execCommand copy returns false without document focus. Set false to copy unfocused.
+    -- Kora.nui.copyToClipboard may take a brief cursor-less NUI focus lease while the browser copies.
+    -- CEF execCommand copy can return false without document focus. Set false to never take focus.
     clipboardFocus = true,
+    -- true: copy without focus first (like ox_lib) and take the lease above only for one retry
+    -- when the browser refuses. false: take the lease for every copy (the old behaviour).
+    clipboardUnfocusedFirst = true,
 }
 
 Config.ui = {
@@ -126,6 +129,9 @@ Config.progressbar = {
     --     the ped is falling, jumping, ragdolling or otherwise airborne, where it falls back to 'controls').
     -- A payload's own disable.moveMode always wins over this.
     defaultMoveMode = 'controls',
+    -- rem from the bottom of the screen for the bar (and the circle's 'bottom' position). 10 keeps it
+    -- above kora_hud's vitals row, whose NUI frame draws over kora_lib's. The old spot was 6.
+    bottomOffset = 10,
 }
 
 -- Built-in wheel content for compat/client/qb-radialmenu.lua, ported from upstream qb-radialmenu's

@@ -361,23 +361,60 @@ harness.test("openInputDialog releases focus even when the request is rejected",
     harness.assertFalse(release.mouse or release.keyboard, "a rejected request must still release focus")
 end)
 
-harness.test("copyToClipboard holds a brief passthrough focus lease and releases it", function()
-    local before = #focusCalls
-    local p = Kora.nui.copyToClipboard("focused")
-    harness.assertTrue(focusCalls[#focusCalls].mouse, "the copy should hold focus so CEF permits execCommand")
-    respondOk(lastRequestId(), true)
+-- The focused retry waits a short SetTimeout; the shared mock never fires it, so run short
+-- delays inline here (the 30s request timeout stays unfired).
+local function withImmediateTimeouts(fn)
+    local original = _G.SetTimeout
+    _G.SetTimeout = function(ms, cb) if ms < 1000 then cb() end end
+    local ok, err = pcall(fn)
+    _G.SetTimeout = original
+    if not ok then error(err, 0) end
+end
 
-    harness.assertFalse(focusCalls[#focusCalls].mouse, "the focus lease should be released once the copy settles")
-    harness.assertTrue(#focusCalls > before, "focus should have been granted and released")
+harness.test("copyToClipboard takes no focus when the unfocused copy succeeds", function()
+    local before = #focusCalls
+    local p = Kora.nui.copyToClipboard("unfocused")
+    respondOk(lastRequestId(), true)
+    harness.assertEqual(#focusCalls, before, "a copy the browser accepts first time needs no focus lease")
     harness.assertEqual(p.value, true, "a successful copy resolves true")
 end)
 
+harness.test("copyToClipboard retries once under a passthrough focus lease when the browser refuses", function()
+    withImmediateTimeouts(function()
+        local before = #focusCalls
+        local p = Kora.nui.copyToClipboard("focused")
+        local first = lastRequestId()
+        respondOk(first, false)
+        harness.assertTrue(focusCalls[#focusCalls].mouse, "the retry should hold focus so CEF permits execCommand")
+        harness.assertTrue(lastRequestId() ~= first, "the retry should send a fresh request")
+        respondOk(lastRequestId(), true)
+        harness.assertFalse(focusCalls[#focusCalls].mouse, "the focus lease should be released once the copy settles")
+        harness.assertTrue(#focusCalls > before, "focus should have been granted and released")
+        harness.assertEqual(p.value, true, "a successful retry resolves true")
+    end)
+end)
+
 harness.test("copyToClipboard resolves false instead of rejecting when the browser copy fails", function()
-    local p = Kora.nui.copyToClipboard("nope")
-    respondOk(lastRequestId(), false)
-    harness.assertEqual(p.state, "resolved", "a failed copy must not reject")
-    harness.assertEqual(p.value, false, "a failed copy resolves false")
-    harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after a failed copy")
+    withImmediateTimeouts(function()
+        local p = Kora.nui.copyToClipboard("nope")
+        respondOk(lastRequestId(), false)
+        respondOk(lastRequestId(), false)
+        harness.assertEqual(p.state, "resolved", "a failed copy must not reject")
+        harness.assertEqual(p.value, false, "a failed copy resolves false")
+        harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after a failed copy")
+    end)
+end)
+
+harness.test("copyToClipboard with clipboardUnfocusedFirst = false copies once under the lease", function()
+    withImmediateTimeouts(function()
+        _G.Config = { nui = { clipboardUnfocusedFirst = false } }
+        local p = Kora.nui.copyToClipboard("leased")
+        _G.Config = nil
+        harness.assertTrue(focusCalls[#focusCalls].mouse, "the lease is taken before the only attempt")
+        respondOk(lastRequestId(), false)
+        harness.assertEqual(p.value, false, "a refused leased copy resolves false without another attempt")
+        harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after the attempt")
+    end)
 end)
 
 harness.test("copyToClipboard honours Config.nui.clipboardFocus = false", function()
@@ -1525,6 +1562,15 @@ harness.test("internal NUI callbacks keep answering under their deprecated qblib
         harness.assertTrue(nuiCallbacks["kora_lib:" .. name] ~= nil, "missing kora_lib:" .. name)
         harness.assertTrue(nuiCallbacks["qblib:" .. name] ~= nil, "missing deprecated qblib:" .. name)
     end
+end)
+
+-- Runs last: it simulates kora_lib itself stopping.
+harness.test("kora_lib stopping releases focus still leased by a consumer", function()
+    Kora.nui.requestAsync("openAlert", { message = "Held" }, false, "consumer_shop", true)
+    harness.assertTrue(focusCalls[#focusCalls].mouse, "sanity: the consumer request holds focus")
+    net.fire("onClientResourceStop", GetCurrentResourceName())
+    harness.assertFalse(focusCalls[#focusCalls].mouse, "the cursor must not outlive kora_lib's frame")
+    harness.assertFalse(focusCalls[#focusCalls].keyboard, "keyboard focus must be released too")
 end)
 
 harness.report("nui")

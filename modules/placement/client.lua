@@ -111,6 +111,8 @@ local function releaseStateResources(state)
     if state.entity then
         -- Called even if another path already deleted the entity; remove() also drops ownership tracking.
         pcall(Kora.entities.remove, state.entity)
+        -- remove() refuses when the tracked owner differs from the current caller context; never leave the preview behind.
+        if DoesEntityExist(state.entity) then pcall(DeleteEntity, state.entity) end
         state.entity = nil
     end
 
