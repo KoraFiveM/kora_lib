@@ -335,6 +335,10 @@ local result = Kora.nui.openApp('qbmdt:police', {
 
 #### Lifecycle API
 
+- `Kora.nui.supportsAppTableHeaderControls()` returns whether table blocks
+  support declared header actions such as filters and refresh buttons. Consumers
+  that also run with older kora_lib versions can call it under `pcall`; an
+  unavailable export indicates those controls should be omitted.
 - Draggable panels: `draggable = true` turns the app header into a drag handle
   (grab/grabbing cursor, clamped to the screen, re-clamped on resize, double-click
   the header to reset). `rememberPosition = true` stores the offset in NUI
