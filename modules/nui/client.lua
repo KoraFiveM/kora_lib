@@ -1360,6 +1360,12 @@ function Kora.nui.registerApp(definition)
     return definition.id
 end
 
+---Reports whether AppShell table blocks support declared header actions.
+---@return boolean supported
+function Kora.nui.supportsAppTableHeaderControls()
+    return true
+end
+
 ---Unregisters an application. An open instance is closed before its
 ---definition is removed so the awaiting openApp call and NUI focus settle.
 ---@param id string
