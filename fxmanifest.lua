@@ -6,7 +6,7 @@ name 'kora_lib'
 -- Keep the legacy resource name resolvable for exports['qblib'] callers.
 provide 'qblib'
 author 'Jamie'
-version '1.1.2'
+version '1.1.3'
 description 'Lightweight Lua library exposing a shared Kora namespace over FiveM exports'
 
 dependency 'kora_theme'

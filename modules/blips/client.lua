@@ -61,10 +61,15 @@ end
 
 -- Cleanup on resource stop guards with DoesBlipExist: RemoveBlip on an
 -- already-gone handle is undefined behavior, not a no-op.
+local function notifyBlipsChanged()
+    TriggerEvent('kora_lib:blips:changed')
+end
+
 local blipRegistry = Kora.resources.registry(function(blip)
     registeredByBlip[blip] = nil
     clearStoredInfo(blip)
     if DoesBlipExist(blip) then RemoveBlip(blip) end
+    notifyBlipsChanged()
 end)
 
 ---@param value string | number | nil
@@ -221,6 +226,7 @@ local function applyVisibility(record)
     SetBlipRoute(record.handle, visible and record.route or false)
     if visible and record.routeColor ~= nil then SetBlipRouteColour(record.handle, record.routeColor) end
     record.visible = visible
+    notifyBlipsChanged()
     return visible
 end
 
@@ -757,11 +763,9 @@ function Kora.blips.remove(blip)
     registeredByBlip[blip] = nil
     clearStoredInfo(blip)
 
-    if not DoesBlipExist(blip) then
-        return false, "Blip does not exist."
-    end
-
-    RemoveBlip(blip)
-
+    local exists = DoesBlipExist(blip)
+    if exists then RemoveBlip(blip) end
+    notifyBlipsChanged()
+    if not exists then return false, "Blip does not exist." end
     return true
 end
