@@ -1,7 +1,14 @@
 import path from "path"
+import { existsSync } from "node:fs"
+import { pathToFileURL } from "node:url"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
-import qbtheme from "../../kora_theme/vite-plugin.mjs"
+
+const themePlugin = ["../../kora_theme/vite-plugin.mjs", "../../../[standalone]/kora_theme/vite-plugin.mjs"]
+    .map((candidate) => path.resolve(__dirname, candidate))
+    .find(existsSync)
+if (!themePlugin) throw new Error("Could not find kora_theme/vite-plugin.mjs")
+const { default: qbtheme } = await import(pathToFileURL(themePlugin).href)
 
 // FiveM's CEF NUI browser loads this page from a local resource path, not
 // from a domain root -- asset URLs must be relative ("./assets/..") or every
