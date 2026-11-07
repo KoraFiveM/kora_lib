@@ -1129,6 +1129,13 @@ local function releaseCreatorUi(state)
         state.instructions.hide()
         state.instructions = nil
     end
+    -- Hand the HUD back only if this creator hid it; show() just clears the force-hide override.
+    if state and state.hudHidden then
+        state.hudHidden = nil
+        if GetResourceState("kora_hud") == "started" then
+            pcall(function() exports.kora_hud:show() end)
+        end
+    end
 end
 
 local function releaseCreatorCamera(state)
@@ -1572,6 +1579,11 @@ local function beginCreator(zoneType, resource, existingOpts)
     })
     updateCreatorInstructions(state)
 
+    -- kora_hud's panels sit where the instructional buttons draw, so hide them for the session.
+    if Config.zones.creator.hideHud and GetResourceState("kora_hud") == "started" then
+        state.hudHidden = pcall(function() exports.kora_hud:hide() end) or nil
+    end
+
     if Config.zones.creator.hideRadar then
         state.radarManaged = true
         DisplayRadar(false)
@@ -1645,6 +1657,14 @@ RegisterCommand("qb_zonedebug", function(_, args)
     Kora.zones.setDebug(nil, enabled)
     creatorLog(("zone debug drawing %s for every registered zone."):format(enabled and "enabled" or "disabled"))
 end, false)
+
+local function suggestZoneDebug()
+    TriggerEvent("chat:addSuggestion", "/qb_zonedebug", "Toggle zone debug drawing", {
+        { name = "on|off", help = "Optional; omit to toggle" },
+    })
+end
+suggestZoneDebug()
+AddEventHandler("chat:init", suggestZoneDebug)
 
 ---@class QBZoneEditOptions
 ---@field coords? any New center coordinates. Only supported by box and sphere zones.

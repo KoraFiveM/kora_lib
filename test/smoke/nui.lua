@@ -397,23 +397,37 @@ end)
 harness.test("copyToClipboard resolves false instead of rejecting when the browser copy fails", function()
     withImmediateTimeouts(function()
         local p = Kora.nui.copyToClipboard("nope")
-        respondOk(lastRequestId(), false)
-        respondOk(lastRequestId(), false)
+        for _ = 1, 4 do respondOk(lastRequestId(), false) end
         harness.assertEqual(p.state, "resolved", "a failed copy must not reject")
         harness.assertEqual(p.value, false, "a failed copy resolves false")
         harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after a failed copy")
     end)
 end)
 
-harness.test("copyToClipboard with clipboardUnfocusedFirst = false copies once under the lease", function()
+harness.test("copyToClipboard with clipboardUnfocusedFirst = false copies under the lease", function()
     withImmediateTimeouts(function()
         _G.Config = { nui = { clipboardUnfocusedFirst = false } }
         local p = Kora.nui.copyToClipboard("leased")
         _G.Config = nil
-        harness.assertTrue(focusCalls[#focusCalls].mouse, "the lease is taken before the only attempt")
-        respondOk(lastRequestId(), false)
-        harness.assertEqual(p.value, false, "a refused leased copy resolves false without another attempt")
-        harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after the attempt")
+        harness.assertTrue(focusCalls[#focusCalls].mouse, "the lease is taken before the first attempt")
+        for _ = 1, 3 do respondOk(lastRequestId(), false) end
+        harness.assertEqual(p.value, false, "a leased copy refused every time resolves false")
+        harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released after the attempts")
+    end)
+end)
+
+harness.test("copyToClipboard keeps asking under the same lease when the first focused try is refused", function()
+    withImmediateTimeouts(function()
+        local before = #focusCalls
+        local p = Kora.nui.copyToClipboard("slow focus")
+        respondOk(lastRequestId(), false) -- unfocused try refused
+        respondOk(lastRequestId(), false) -- first focused try refused
+        harness.assertEqual(p.state, "pending", "a refused focused try should be asked again before giving up")
+        harness.assertTrue(focusCalls[#focusCalls].mouse, "the lease stays held between focused tries")
+        harness.assertEqual(#focusCalls, before + 1, "the lease is taken once, not cycled")
+        respondOk(lastRequestId(), true)
+        harness.assertEqual(p.value, true, "a later focused try can succeed")
+        harness.assertFalse(focusCalls[#focusCalls].mouse, "focus is released once the copy settles")
     end)
 end)
 

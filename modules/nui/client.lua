@@ -1026,13 +1026,14 @@ function Kora.nui.updateRequest(request, action, data)
 end
 
 local CLIPBOARD_FOCUS_SETTLE_MS = 150
+local CLIPBOARD_FOCUS_ATTEMPTS = 3
 
 ---Copies `text` to the system clipboard via the NUI (the only place with
 ---access to a real clipboard API). Like ox_lib's lib.setClipboard, the first
 ---try takes no NUI focus at all: the page selects a temporary textarea and runs
 ---execCommand("copy"). Only if the browser refuses, and Config.nui.clipboardFocus
----is on, is the copy retried once under a brief cursor-less, input-passthrough
----focus lease. Config.nui.clipboardUnfocusedFirst = false takes that lease for
+---is on, is the copy retried (up to CLIPBOARD_FOCUS_ATTEMPTS times) under one brief cursor-less,
+---input-passthrough focus lease. Config.nui.clipboardUnfocusedFirst = false takes that lease for
 ---every copy instead. Never errors on a failed copy.
 ---@param text string
 ---@return promise|boolean copied true when the clipboard was written; false on failure or timeout. Exports return the settled boolean.
@@ -1064,11 +1065,20 @@ function Kora.nui.copyToClipboard(text)
         if not ok then finish(false) end
     end
 
-    -- One focused attempt: take the lease, give SetNuiFocus a few frames to reach the
-    -- browser, copy, release. Never cycled: the earlier release/re-acquire retries never succeeded.
+    -- Focused attempts: take the lease once, give SetNuiFocus a few frames to reach the
+    -- browser, copy, and if the browser still refuses give it more time and ask again on
+    -- the same lease (one slow focus hand-off made every later copy fail), then release.
+    -- The lease is never cycled: the earlier release/re-acquire retries never succeeded.
     local function sendFocused()
         release = acquireFocus(true, false, owner, true)
-        SetTimeout(CLIPBOARD_FOCUS_SETTLE_MS, function() send(nil) end)
+        local attempt = 0
+        local function try()
+            attempt = attempt + 1
+            SetTimeout(CLIPBOARD_FOCUS_SETTLE_MS * attempt, function()
+                send(attempt < CLIPBOARD_FOCUS_ATTEMPTS and try or nil)
+            end)
+        end
+        try()
     end
 
     if not useFocus then

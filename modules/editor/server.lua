@@ -22,8 +22,28 @@ local function allowed(src)
         or (prefix == 'kora_lib' and Kora.permissions.hasPermission(src, permission, 'qblib'))
 end
 
-local function register(name, eventName, resolve)
+local suggestions = {}
+
+-- Client-registered commands open to every player. The client cannot publish these itself: its
+-- chat:addSuggestion at resource load runs before the chat UI exists, and chat:init is a server event.
+local publicSuggestions = {
+    { name = 'qb_zonedebug', help = 'Toggle zone debug drawing', params = { { name = 'on|off', help = 'Optional; omit to toggle' } } },
+}
+
+local function suggest(src)
+    if src <= 0 then return end
+    for _, s in ipairs(publicSuggestions) do
+        TriggerClientEvent('chat:addSuggestion', src, '/' .. s.name, s.help, s.params)
+    end
+    if not allowed(src) then return end
+    for _, s in ipairs(suggestions) do
+        TriggerClientEvent('chat:addSuggestion', src, '/' .. s.name, s.help, s.params)
+    end
+end
+
+local function register(name, eventName, resolve, help, params)
     if type(name) ~= 'string' or name == '' then return end
+    suggestions[#suggestions + 1] = { name = name, help = help or '', params = params or {} }
     RegisterCommand(name, function(src, args)
         if src <= 0 then return print(('%s is an in-game player command.'):format(name)) end
         if not allowed(src) then return notify(src, 'You do not have access to the developer editors.') end
@@ -40,7 +60,7 @@ register(C.zoneCommand or 'qb_zonecreator', 'kora_lib:editor:startZoneCreator', 
         return nil, 'Usage: /qb_zonecreator [box|sphere|poly]'
     end
     return zoneType
-end)
+end, 'Start the in-world zone creator (admin)', { { name = 'type', help = 'box | sphere | poly (default box)' } })
 
 register(C.placementCommand or 'qb_place', 'kora_lib:editor:startPlacement', function(args)
     local model = args[1]
@@ -48,4 +68,24 @@ register(C.placementCommand or 'qb_place', 'kora_lib:editor:startPlacement', fun
         return nil, 'Usage: /qb_place <model>'
     end
     return model
+end, 'Start the entity placement tool (admin)', { { name = 'model', help = 'Model name to place' } })
+
+-- Chat suggestions: only players with editor access see these commands.
+AddEventHandler('onResourceStart', function(resource)
+    if resource ~= GetCurrentResourceName() then return end
+    for _, playerId in ipairs(GetPlayers()) do suggest(tonumber(playerId)) end
+end)
+
+AddEventHandler('playerJoining', function()
+    local src = source
+    -- The chat UI is not ready the instant a player joins.
+    SetTimeout(10000, function()
+        if GetPlayerName(src) then suggest(src) end
+    end)
+end)
+
+-- The chat UI triggers this server event once it has loaded, which is the reliable moment to publish.
+AddEventHandler('chat:init', function()
+    local src = source
+    if src and src > 0 then suggest(src) end
 end)

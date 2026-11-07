@@ -210,6 +210,7 @@ Config.placement = {
     confirmTimeout = 120000,
     hudUpdateInterval = 100,     -- ms; caps live coordinate/rotation NUI updates at 10Hz
     hideRadar = true,
+    hideHud = true,              -- hide the kora_hud vitals/job/bank/voice HUD while a placement session is active, restoring it afterwards
 }
 
 Config.freecam = {
@@ -248,6 +249,7 @@ Config.zones = {
         maxPolyPoints = 64,      -- hard cap so placement can't run away
         confirmTimeout = 120000, -- ms the confirm dialog waits for a response before the promise rejects
         hideRadar = true,        -- hide the minimap while placing, so it can't cover the shape you're drawing
+        hideHud = true,          -- hide kora_hud (vitals, job/bank, voice) while the creator is open, so it can't overlap the control prompts
         enabled = true,          -- set false to disable Kora.zones.startCreator()/`/qb_zonecreator` server-wide
     },
 }

@@ -112,13 +112,23 @@ local function releaseStateResources(state)
         -- Called even if another path already deleted the entity; remove() also drops ownership tracking.
         pcall(Kora.entities.remove, state.entity)
         -- remove() refuses when the tracked owner differs from the current caller context; never leave the preview behind.
-        if DoesEntityExist(state.entity) then pcall(DeleteEntity, state.entity) end
+        if DoesEntityExist(state.entity) then
+            -- Non-mission entities can be refused by DeleteEntity; claim it first so the preview is really gone.
+            pcall(SetEntityAsMissionEntity, state.entity, true, true)
+            pcall(DeleteEntity, state.entity)
+            if DoesEntityExist(state.entity) and IsEntityAVehicle(state.entity) then pcall(DeleteVehicle, state.entity) end
+        end
         state.entity = nil
     end
 
     if state.instructions then
         pcall(state.instructions.hide)
         state.instructions = nil
+    end
+
+    if state.hudHidden then
+        state.hudHidden = nil
+        pcall(function() exports.kora_hud:show() end)
     end
 
     pcall(Kora.nui.send, "placement:hud", nil)
@@ -505,6 +515,9 @@ function Kora.placement.start(model, options)
 
     activeState = state
     clearHeld()
+    if Config.placement.hideHud and GetResourceState("kora_hud") == "started" then
+        state.hudHidden = pcall(function() exports.kora_hud:hide() end)
+    end
     state.instructions = Kora.instructional.show({ { control = 32, label = "Move camera forward" } })
     updatePlacementInstructions(state)
     Kora.nui.send("placement:start", {
