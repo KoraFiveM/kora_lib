@@ -1,7 +1,14 @@
 import path from "path"
+import { existsSync } from "node:fs"
+import { pathToFileURL } from "node:url"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
-import kora_theme from "../../kora_theme/vite-plugin.mjs"
+
+const themePlugin = ["../../kora_theme/vite-plugin.mjs", "../../../[standalone]/kora_theme/vite-plugin.mjs"]
+    .map((candidate) => path.resolve(__dirname, candidate))
+    .find(existsSync)
+if (!themePlugin) throw new Error("Could not find kora_theme/vite-plugin.mjs")
+const { default: kora_theme } = await import(pathToFileURL(themePlugin).href)
 
 export default defineConfig({
     plugins: [kora_theme(), react()],

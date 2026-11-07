@@ -458,6 +458,12 @@ local function assertAppContent(content, location, actionIds)
             end
             assert(block.idKey == nil or type(block.idKey) == "string", blockLocation .. " idKey must be a string.")
             if block.action ~= nil then declareAction(actionIds, block.action, false, blockLocation) end
+            if block.headerToggle ~= nil then
+                assert(type(block.headerToggle) == "table" and type(block.headerToggle.label) == "string" and block.headerToggle.label ~= ""
+                    and type(block.headerToggle.checked) == "boolean", blockLocation .. " headerToggle requires a label and checked state.")
+                declareAction(actionIds, block.headerToggle.action, false, blockLocation .. " headerToggle")
+            end
+            if block.refreshAction ~= nil then declareAction(actionIds, block.refreshAction, false, blockLocation .. " refresh") end
         elseif block.type == "actions" then
             assert(type(block.actions) == "table", blockLocation .. " requires an actions table.")
             for actionIndex = 1, #block.actions do
