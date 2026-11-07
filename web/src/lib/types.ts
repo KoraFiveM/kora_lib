@@ -1142,3 +1142,12 @@ export interface DispatchFeedPayload {
     keybinds: { previous: string; next: string; respond: string; toggle: string; tablet: string }
     theme?: Record<string, string>
 }
+
+// action: "instructional:set" (fire-and-forget) -- rows merged by Kora.instructional; empty = hide.
+export interface InstructionalRow {
+    label: string
+    keys: string[]
+}
+export interface InstructionalPayload {
+    buttons: InstructionalRow[]
+}

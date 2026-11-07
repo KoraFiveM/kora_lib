@@ -22,6 +22,7 @@ import { DispatchFeed } from "@/components/dispatch/DispatchFeed"
 import { AppShell } from "@/components/app/AppShell"
 import { ScreenshotCapture } from "@/components/screenshot/ScreenshotCapture"
 import { CameraHud } from "@/components/camera/CameraHud"
+import { InstructionalKeysSource, StandaloneKeyHints } from "@/components/editor/InstructionalKeys"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { OxLocaleProvider } from "@/lib/oxLocale"
 
@@ -59,6 +60,7 @@ export default function App() {
             <ErrorBoundary surface="placement HUD"><PlacementHud /></ErrorBoundary>
             <ErrorBoundary surface="placement dialog"><PlacementConfirmDialog /></ErrorBoundary>
             <ErrorBoundary surface="minigames"><MinigameContainer /></ErrorBoundary>
+            <ErrorBoundary surface="instructional keys"><InstructionalKeysSource /><StandaloneKeyHints /></ErrorBoundary>
             <ErrorBoundary surface="development harness"><DevHarness /></ErrorBoundary>
         </OxLocaleProvider>
     )

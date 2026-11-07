@@ -1,4 +1,4 @@
-local displays, nextId, movie, running = {}, 0, nil, false
+local displays, nextId = {}, 0
 local ownership
 local activeIds = {}
 
@@ -24,40 +24,47 @@ local function validate(buttons)
     end
 end
 
-local function drawText(value)
-    BeginTextCommandScaleformString('STRING') AddTextComponentSubstringPlayerName(value) EndTextCommandScaleformString()
+-- Native icon codes (b_*) have no readable name, so the NUI gets a short key label instead.
+-- Text keys come back as t_<NAME> and need no entry. Unmapped codes fall through as the raw token.
+local ICONS = {
+    b_1004 = 'LMB', b_1005 = 'RMB', b_1006 = 'MMB',
+}
+
+local function keyLabel(button)
+    local value = token(button)
+    if type(value) ~= 'string' or value == '' then return '?' end
+    local name = value:gsub('^t_', '', 1)
+    return ICONS[name] or ICONS[value] or (name:gsub('^b_', '', 1))
 end
 
-local function draw()
-    if not movie then movie = RequestScaleformMovie('INSTRUCTIONAL_BUTTONS') end
-    if not movie or not HasScaleformMovieLoaded(movie) then return end
-    BeginScaleformMovieMethod(movie, 'CLEAR_ALL') EndScaleformMovieMethod()
-    local slot = 0
+local lastPayload
+
+-- Merges every active display into rows; buttons sharing a label collapse into one row with several keys.
+local function publish()
+    local rows, byLabel = {}, {}
     for index = 1, #activeIds do
         local display = displays[activeIds[index]]
         if display then
-            for index = 1, #display.buttons do
-                local button = display.buttons[index]
-                BeginScaleformMovieMethod(movie, 'SET_DATA_SLOT')
-                ScaleformMovieMethodAddParamInt(slot)
-                drawText(token(button)) drawText(button.label)
-                EndScaleformMovieMethod()
-                slot = slot + 1
+            for _, button in ipairs(display.buttons) do
+                local row = byLabel[button.label]
+                if not row then
+                    row = { label = button.label, keys = {} }
+                    byLabel[button.label] = row
+                    rows[#rows + 1] = row
+                end
+                local key = keyLabel(button)
+                local seen = false
+                for _, existing in ipairs(row.keys) do if existing == key then seen = true break end end
+                if not seen then row.keys[#row.keys + 1] = key end
             end
         end
     end
-    BeginScaleformMovieMethod(movie, 'DRAW_INSTRUCTIONAL_BUTTONS') EndScaleformMovieMethod()
-    DrawScaleformMovieFullscreen(movie, 255, 255, 255, 255, 0)
-end
-
-local function ensureThread()
-    if running then return end
-    running = true
-    CreateThread(function()
-        while #activeIds > 0 do draw() Wait(0) end
-        if movie then SetScaleformMovieAsNoLongerNeeded(movie) movie = nil end
-        running = false
-    end)
+    local parts = {}
+    for _, row in ipairs(rows) do parts[#parts + 1] = row.label .. '=' .. table.concat(row.keys, '+') end
+    local encoded = table.concat(parts, '\n')
+    if encoded == lastPayload then return end
+    lastPayload = encoded
+    Kora.nui.send('instructional:set', { buttons = rows })
 end
 
 local function hide(id)
@@ -67,6 +74,7 @@ local function hide(id)
         if activeIds[index] == id then table.remove(activeIds, index) break end
     end
     ownership.untrack(id)
+    publish()
     return true
 end
 
@@ -81,9 +89,9 @@ function Kora.instructional.show(buttons)
     displays[id] = display
     activeIds[#activeIds + 1] = id
     ownership.track(GetInvokingResource() or GetCurrentResourceName(), id)
-    ensureThread()
+    publish()
     return {
-        setButtons = function(updated) validate(updated) if displays[id] ~= display then return false end display.buttons = updated return true end,
+        setButtons = function(updated) validate(updated) if displays[id] ~= display then return false end display.buttons = updated publish() return true end,
         hide = function() return hide(id) end,
         isVisible = function() return displays[id] == display end,
     }

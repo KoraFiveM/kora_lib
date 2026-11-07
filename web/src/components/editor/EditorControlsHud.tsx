@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { KeyHints, useClaimInstructionalHost, useInstructionalRows } from "@/components/editor/InstructionalKeys"
 import { cn } from "@/lib/cn"
 
 interface EditorControlsHudProps {
@@ -18,12 +19,14 @@ export function EditorControlsHud({
     controls,
     width = "sm",
 }: EditorControlsHudProps) {
+    useClaimInstructionalHost()
+    const hasKeys = useInstructionalRows().length > 0
     return (
         <section
             aria-label="Editor controls"
             className={cn(
                 "pointer-events-none fixed bottom-4 left-4 z-hud max-w-[calc(100vw-2rem)] select-none rounded-xl border bg-hud p-3 text-card-foreground shadow-low",
-                width === "md" ? "w-80" : "w-72"
+                width === "md" || hasKeys ? "w-80" : "w-72"
             )}
         >
             <header className="flex min-w-0 items-center justify-between gap-3">
@@ -32,6 +35,12 @@ export function EditorControlsHud({
             </header>
 
             {children}
+
+            {hasKeys && (
+                <div className="mt-3 border-t pt-2">
+                    <KeyHints />
+                </div>
+            )}
 
             {controls && (
                 <div className="mt-3 border-t pt-2">
