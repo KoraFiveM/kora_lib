@@ -44,6 +44,7 @@ export interface NuiResponseEnvelope<T = unknown> {
 // game controls, focus, or selection state outside the visible row.
 export interface InteractOption {
     label: string
+    icon?: string
 }
 
 // action: "openInteract". `scroll` carries -1 or 1; `select` confirms the

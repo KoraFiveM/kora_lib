@@ -19,11 +19,11 @@ const DEFAULT_POSITION: NotifyPosition = "top-right"
 // positions: the cap exists to bound total DOM, not per-corner density.
 const MAX_TOASTS = 6
 
-const TYPE_STYLES: Record<NotifyType, { accent: string; icon: string; chip: string; progress: string }> = {
-    info: { accent: "border-l-info", icon: "Info", chip: "bg-info/10 text-info", progress: "bg-info" },
-    success: { accent: "border-l-success", icon: "CheckCircle", chip: "bg-success/10 text-success", progress: "bg-success" },
-    warning: { accent: "border-l-warning", icon: "AlertTriangle", chip: "bg-warning/10 text-warning", progress: "bg-warning" },
-    error: { accent: "border-l-destructive", icon: "AlertCircle", chip: "bg-destructive/10 text-destructive", progress: "bg-destructive" },
+const TYPE_STYLES: Record<NotifyType, { icon: string; tone: string; progress: string }> = {
+    info: { icon: "Info", tone: "text-info", progress: "bg-info" },
+    success: { icon: "CheckCircle", tone: "text-success", progress: "bg-success" },
+    warning: { icon: "AlertTriangle", tone: "text-warning", progress: "bg-warning" },
+    error: { icon: "AlertCircle", tone: "text-destructive", progress: "bg-destructive" },
 }
 
 // Anchor + stack direction per position. Newest toast renders last in the
@@ -227,20 +227,19 @@ function ToastCard({ toast }: { toast: ToastEntry }) {
             aria-atomic="true"
             style={{ ...toast.style, "--toast-duration": `${toast.duration}ms` } as CSSProperties}
             className={cn(
-                "animate-in fade-in-0 relative flex w-full gap-2 overflow-hidden rounded-lg border border-l-4 bg-popover p-3 shadow-floating duration-popover ease-entry",
+                "animate-in fade-in-0 relative flex w-full gap-3 overflow-hidden rounded-lg bg-surface-raised p-3 shadow-floating duration-popover ease-entry",
                 ENTER_ANIMATION[toast.position],
-                variant.accent,
             )}
         >
             {Icon ? (
-                <span className={cn("inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md", toast.alignIcon === "top" ? "self-start" : "self-center", variant.chip)}>
-                    <Icon aria-hidden className={cn("h-4 w-4", iconAnimationClass(toast.iconAnimation))} style={{ color: toast.iconColor }} />
+                <span className={cn("inline-flex h-5 w-5 shrink-0 items-center justify-center", toast.alignIcon === "top" ? "self-start" : "self-center", variant.tone)}>
+                    <Icon aria-hidden className={cn("h-[18px] w-[18px]", iconAnimationClass(toast.iconAnimation))} style={{ color: toast.iconColor }} />
                 </span>
             ) : null}
             <div className="min-w-0 flex-1 text-popover-foreground">
                 {toast.title && <p className="text-sm font-semibold leading-tight" style={toast.titleStyle as CSSProperties}>{toast.title}</p>}
                 {toast.message && (
-                    <Markdown className={cn("break-words text-xs text-muted-foreground", toast.title && "mt-1")} style={toast.messageStyle as CSSProperties}>{toast.message}</Markdown>
+                    <Markdown className={cn("break-words text-[13px] text-muted-foreground", toast.title && "mt-1")} style={toast.messageStyle as CSSProperties}>{toast.message}</Markdown>
                 )}
             </div>
             {toast.showDuration !== false ? <span

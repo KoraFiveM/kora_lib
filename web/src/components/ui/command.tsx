@@ -23,12 +23,12 @@ const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input> & { containerClassName?: string }
 >(({ className, containerClassName, ...props }, ref) => (
-  <div className={cn("search-focus flex h-11 items-center border-b border-border px-3 transition-[border-color,box-shadow] duration-fast ease-entry", containerClassName)} cmdk-input-wrapper="">
+  <div className={cn("search-focus mx-2 mt-1 flex h-10 items-center rounded-sm bg-surface-raised px-3 transition-shadow duration-fast ease-entry", containerClassName)} cmdk-input-wrapper="">
     <Search aria-hidden className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
-        "flex h-full w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-[0.48]",
+        "flex h-full w-full rounded-none border-0 bg-transparent p-0 text-sm shadow-none outline-none focus-visible:shadow-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-[0.48]",
         className
       )}
       {...props}
@@ -99,7 +99,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "focus-ring relative flex min-h-10 cursor-default select-none items-center gap-2 rounded-sm px-3 py-1.5 text-sm outline-none transition-colors duration-fast data-[disabled=true]:pointer-events-none data-[selected=true]:bg-surface-hover data-[selected=true]:before:absolute data-[selected=true]:before:bottom-1.5 data-[selected=true]:before:left-0 data-[selected=true]:before:top-1.5 data-[selected=true]:before:w-0.5 data-[selected=true]:before:rounded-full data-[selected=true]:before:bg-primary data-[disabled=true]:opacity-[0.48] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+      "focus-ring relative flex min-h-10 cursor-default select-none items-center gap-2 rounded-sm px-3 py-1.5 text-sm outline-none transition-colors duration-fast data-[disabled=true]:pointer-events-none data-[selected=true]:bg-brand-soft data-[disabled=true]:opacity-[0.48] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       className
     )}
     {...props}

@@ -26,7 +26,7 @@ export function EditorControlsHud({
                 width === "md" ? "w-80" : "w-72"
             )}
         >
-            <header className="title-rail flex min-w-0 items-center justify-between gap-3">
+            <header className="flex min-w-0 items-center justify-between gap-3">
                 <div className="min-w-0 text-sm font-semibold">{title}</div>
                 {status && <div className="shrink-0 text-xs text-muted-foreground">{status}</div>}
             </header>

@@ -289,10 +289,10 @@ export function MenuContainer() {
                 role="dialog"
                 aria-modal="false"
                 aria-label={level.title ?? "Menu"}
-                className={cn("pointer-events-auto fixed z-overlay grid w-[24rem] max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border bg-popover shadow-floating duration-popover ease-entry animate-in fade-in-0", placement.className)}
+                className={cn("pointer-events-auto fixed z-overlay grid w-[24rem] max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-popover shadow-floating duration-popover ease-entry animate-in fade-in-0", placement.className)}
                 style={placement.style}
             >
-                <header className={cn("title-rail mx-3 mt-2 flex min-h-9 items-center gap-1 border-b border-border pb-2 font-heading text-sm font-semibold", !level.title && !headerBack && "sr-only")}>
+                <header className={cn("mx-3 mt-2 flex min-h-9 items-center gap-1 pb-1 font-heading text-sm font-semibold", !level.title && !headerBack && "sr-only")}>
                     {headerBack && (
                         <button
                             type="button"

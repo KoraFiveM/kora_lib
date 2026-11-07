@@ -9,7 +9,7 @@
 ---@field gang? string|string[]|table<string, integer>
 ---@field citizenid? string|string[]|table<string, boolean>
 ---@field item? string|string[]
----@field icon? string UI consumers may use this; kora_lib's compact selector currently renders labels only.
+---@field icon? string UI consumers may use this; kora_lib's compact selector draws it left of the label when it resolves.
 
 local active
 local callbackRegistered = false
@@ -267,7 +267,7 @@ local function open(options, source, owner)
     local labels = {}
     for index = 1, #available do
         local option = available[index]
-        labels[index] = { label = option.label }
+        labels[index] = { label = option.label, icon = option.icon }
     end
 
     Kora.nui.send("openInteract", labels)

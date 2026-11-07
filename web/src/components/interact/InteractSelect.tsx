@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react"
 
 import { fetchNui } from "@/lib/fetchNui"
-import type { InteractOpenPayload } from "@/lib/types"
+import { resolveIcon } from "@/lib/icon"
+import type { InteractOpenPayload, InteractOption } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 
 interface InteractState {
@@ -20,7 +21,7 @@ export function InteractSelect() {
 
     useNuiEvent<InteractOpenPayload>("openInteract", (payload) => {
         const options = Array.isArray(payload)
-            ? payload.filter((option): option is { label: string } => typeof option?.label === "string" && option.label.length > 0)
+            ? payload.filter((option): option is InteractOption => typeof option?.label === "string" && option.label.length > 0)
             : []
 
         submittingRef.current = false
@@ -60,29 +61,28 @@ export function InteractSelect() {
     // kora_hud owns the bottom-centre gauge/vehicle stack in a separate NUI page,
     // so keep this selector above that reserved gameplay-HUD band.
     //
-    // Two elements deep, and deliberately no deeper: the panel, and one row per
-    // option. The selected row's "E" key chip is the row's own `::before`
-    // pseudo-element rather than a nested <span>, and the accent bar is a left
-    // border rather than a second absolutely-positioned one -- three layers of
-    // boxed chrome (panel, row, badge) around one line of text read as a stack
-    // of panels rather than a menu.
+    // One panel and one row per option. The selected row is a brand-soft fill with
+    // the key hint at its right; an option's icon, when it resolves, sits left of
+    // the label.
     return (
-        <div className="pointer-events-none fixed bottom-36 left-1/2 z-hud w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none rounded-xl border bg-hud p-2 text-card-foreground shadow-low">
+        <div className="pointer-events-none fixed bottom-36 left-1/2 z-hud grid w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none gap-0.5 rounded-lg bg-popover p-1.5 text-card-foreground shadow-floating">
             {state.options.map((option, index) => {
                 const selected = index === state.selectedIndex
+                const Icon = resolveIcon(option.icon)
 
                 return (
                     <div
                         key={`${option.label}-${index}`}
-                        className={`my-1 flex min-h-10 items-center rounded-md border-l-2 px-3 py-2 text-sm transition-colors duration-fast ${selected ? "border-primary bg-brand-soft text-foreground before:mr-2 before:flex before:h-7 before:w-7 before:shrink-0 before:items-center before:justify-center before:rounded-md before:bg-primary before:text-xs before:font-bold before:text-primary-foreground before:content-['E']" : "border-transparent text-muted-foreground"}`}
+                        className={`flex min-h-9 items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm transition-colors duration-fast ${selected ? "bg-brand-soft text-foreground" : "text-muted-foreground"}`}
                     >
+                        {Icon ? <Icon aria-hidden className="h-4 w-4 shrink-0" /> : null}
                         {/* The label keeps its own element: `truncate` is
                             text-overflow, which does not apply to a bare text
-                            node inside a flex container -- the anonymous flex
-                            item it becomes is not a block box. Removing this
-                            span would let a long option overflow the panel
-                            instead of ellipsising. */}
-                        <span className="min-w-0 truncate font-medium">{option.label}</span>
+                            node inside a flex container. Removing this span
+                            would let a long option overflow the panel instead
+                            of ellipsising. */}
+                        <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
+                        {selected ? <kbd className="shrink-0 rounded-sm bg-surface-hover px-1.5 py-0.5 font-mono text-xs text-muted-foreground">E</kbd> : null}
                     </div>
                 )
             })}

@@ -21,25 +21,7 @@
   }
 
   .search-focus:has(:focus-visible) {
-    border-color: hsl(var(--primary));
-    box-shadow: inset 0 -2px 0 hsl(var(--primary));
-  }
-
-  /* A compact brand detail for dialog and menu headings, never a filled bar. */
-  .title-rail {
-    position: relative;
-    padding-left: 0.75rem;
-  }
-
-  .title-rail::before {
-    position: absolute;
-    top: 0.125rem;
-    bottom: 0.125rem;
-    left: 0;
-    width: 0.1875rem;
-    border-radius: 9999px;
-    background: hsl(var(--primary));
-    content: "";
+    box-shadow: 0 0 0 1.5px hsl(var(--primary));
   }
 
   /* Gameplay overlays need legibility over changing scenes, not a backdrop. */
@@ -48,44 +30,38 @@
   }
 
   .hud-chip {
-    border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     background: hsl(var(--hud));
-    box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+    box-shadow: var(--shadow-low);
   }
 
   .hud-chip-accent {
-    border-color: hsl(var(--brand-border));
     background: hsl(var(--brand-soft));
   }
 
-  /* qbtarget is display-only NUI: compact neutral geometry with the brand colour only
-     when a valid option is under the crosshair. No blur or opaque backdrop. */
+  /* qbtarget is display-only NUI: a plain ring and dot at screen centre, brand
+     colour only while a valid option is under the crosshair. No blur or backdrop. */
   .target-reticle {
     display: grid;
-    width: 1.35rem;
-    height: 1.35rem;
+    width: 1.5rem;
+    height: 1.5rem;
     place-items: center;
-    border: 1px solid hsl(var(--border-strong));
-    border-radius: 0.375rem;
+    border-radius: 9999px;
     background: hsl(var(--hud));
-    box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
-    transform: rotate(45deg);
-    transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+    box-shadow: 0 0 0 1px hsl(var(--foreground) / 0.3);
+    transition: background-color 120ms ease, box-shadow 120ms ease;
   }
 
   .target-reticle-active {
-    border-color: hsl(var(--brand-border));
     background: hsl(var(--brand-soft));
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2), 0 2px 10px rgb(0 0 0 / 50%);
+    box-shadow: 0 0 0 1.5px hsl(var(--primary));
   }
 
   .target-reticle-dot {
     width: 0.25rem;
     height: 0.25rem;
     border-radius: 9999px;
-    background: hsl(var(--muted-foreground));
-    transform: rotate(-45deg);
+    background: hsl(var(--foreground));
   }
 
   .target-reticle-active .target-reticle-dot {
@@ -93,11 +69,9 @@
   }
 
   .target-prompt {
-    border: 1px solid hsl(var(--border));
-    border-left: 3px solid hsl(var(--primary));
     border-radius: var(--radius);
     background: hsl(var(--hud));
-    box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+    box-shadow: var(--shadow-low);
   }
 
   .code-frame {

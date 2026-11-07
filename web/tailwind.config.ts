@@ -63,11 +63,12 @@ export default {
         },
       },
       borderRadius: {
-        xs: "0.25rem",
-        sm: "0.375rem",
-        md: "0.5rem",
+        // All corners follow theme.json "shape.radius" through kora_theme.
+        xs: "calc(var(--radius) * 0.5)",
+        sm: "var(--radius-sm)",
+        md: "calc(var(--radius) * 0.8)",
         lg: "var(--radius)",
-        xl: "0.875rem",
+        xl: "var(--radius-lg)",
       },
       zIndex: {
         hud: "40",
@@ -75,9 +76,9 @@ export default {
         dev: "100",
       },
       boxShadow: {
-        low: "0 4px 12px rgb(0 0 0 / 28%)",
-        floating: "0 12px 32px rgb(0 0 0 / 42%)",
-        modal: "0 24px 64px rgb(0 0 0 / 55%)",
+        low: "var(--shadow-low)",
+        floating: "var(--shadow-floating)",
+        modal: "var(--shadow-modal)",
       },
       // kora_theme sets these variables from theme.json and /config; the
       // fallbacks are its default stacks.

@@ -223,9 +223,9 @@ const actions: { label: string; run: () => void }[] = [
     {
         label: "Interact selector",
         run: () => post<InteractOpenPayload>("openInteract", [
-            { label: "Inspect vehicle" },
-            { label: "Open storage" },
-            { label: "Cancel interaction" },
+            { label: "Inspect vehicle", icon: "Search" },
+            { label: "Open storage", icon: "Lock" },
+            { label: "Cancel interaction", icon: "X" },
         ]),
     },
     {
@@ -480,7 +480,7 @@ export function DevHarness() {
 
     return (
         <div className="pointer-events-auto fixed bottom-4 right-4 z-dev flex max-h-[calc(100vh-2rem)] w-56 flex-col gap-1 overflow-y-auto rounded-xl border bg-card p-3 text-card-foreground shadow-floating">
-            <p className="title-rail mb-1 text-xs font-semibold text-muted-foreground">Dev harness</p>
+            <p className="mb-1 text-xs font-semibold text-muted-foreground">Dev harness</p>
             {actions.map((action) => (
                 <Button key={action.label} size="sm" variant="secondary" onClick={action.run}>
                     {action.label}

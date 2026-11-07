@@ -13,9 +13,9 @@ export function MenuHeader() {
     if (!items?.length) return null
 
     return (
-        <aside className="pointer-events-none absolute left-6 top-6 grid w-80 gap-1 rounded-[var(--radius)] border border-border bg-popover/95 p-2 shadow-[0_8px_24px_rgb(0_0_0_/_45%)]">
+        <aside className="pointer-events-none absolute left-6 top-6 grid w-80 gap-1 rounded-lg bg-popover p-2 shadow-floating">
             {items.map((item) => (
-                <div key={item.id} className="grid min-h-10 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md px-2 py-2 text-sm font-medium">
+                <div key={item.id} className="grid min-h-10 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-sm px-2 py-2 text-sm font-medium">
                     <MenuItemLabel item={item} />
                 </div>
             ))}
