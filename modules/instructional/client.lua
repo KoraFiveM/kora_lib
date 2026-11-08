@@ -31,6 +31,9 @@ local ICONS = {
     -- Confirmed in game: b_100/101 are the mouse buttons, b_1002/1003/1004 are Tab/Enter/Backspace.
     b_100 = 'LMB', b_101 = 'RMB', b_102 = 'MMB',
     b_1002 = '⇥', b_1003 = '↵', b_1004 = '⌫',
+    -- NOT confirmed in game yet: arrow Up/Down (b_194/b_195) and Page Up/Down (b_1009/b_1010).
+    -- Verify with an F8 print of GetControlInstructionalButton for the placement bindings before relying on these.
+    b_194 = '↑', b_195 = '↓', b_1009 = 'PgUp', b_1010 = 'PgDn',
 }
 
 local function keyLabel(button)
