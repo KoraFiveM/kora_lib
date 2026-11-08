@@ -19,6 +19,7 @@ local function validate(buttons)
         local button = buttons[index]
         assert(type(button) == 'table' and type(button.label) == 'string' and button.label ~= '', ('Instructional button %d requires a non-empty label.'):format(index))
         local count = (button.control ~= nil and 1 or 0) + (button.command ~= nil and 1 or 0) + (button.keybind ~= nil and 1 or 0)
+        assert(button.group == nil or (type(button.group) == 'string' and button.group ~= ''), ('Instructional button %d group must be a non-empty string.'):format(index))
         assert(count == 1, ('Instructional button %d requires exactly one input source.'):format(index))
         token(button)
     end
@@ -27,7 +28,9 @@ end
 -- Native icon codes (b_*) have no readable name, so the NUI gets a short key label instead.
 -- Text keys come back as t_<NAME> and need no entry. Unmapped codes fall through as the raw token.
 local ICONS = {
-    b_1004 = 'LMB', b_1005 = 'RMB', b_1006 = 'MMB',
+    -- Confirmed in game: b_100/101 are the mouse buttons, b_1002/1003/1004 are Tab/Enter/Backspace.
+    b_100 = 'LMB', b_101 = 'RMB', b_102 = 'MMB',
+    b_1002 = '⇥', b_1003 = '↵', b_1004 = '⌫',
 }
 
 local function keyLabel(button)
@@ -46,10 +49,11 @@ local function publish()
         local display = displays[activeIds[index]]
         if display then
             for _, button in ipairs(display.buttons) do
-                local row = byLabel[button.label]
+                local label = button.group or button.label
+                local row = byLabel[label]
                 if not row then
-                    row = { label = button.label, keys = {} }
-                    byLabel[button.label] = row
+                    row = { label = label, keys = {} }
+                    byLabel[label] = row
                     rows[#rows + 1] = row
                 end
                 local key = keyLabel(button)

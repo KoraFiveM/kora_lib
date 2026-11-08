@@ -397,10 +397,10 @@ local function updatePlacementInstructions(state)
     if not state.instructions then return end
     local movementLabel = state.movementMode == "camera" and "Camera" or "Grid"
     local buttons = {
-        { control = 32, label = "Move camera forward" },
-        { control = 33, label = "Move camera backward" },
-        { control = 34, label = "Move camera left" },
-        { control = 35, label = "Move camera right" },
+        { control = 32, label = "Move camera forward", group = "Move camera" },
+        { control = 33, label = "Move camera backward", group = "Move camera" },
+        { control = 34, label = "Move camera left", group = "Move camera" },
+        { control = 35, label = "Move camera right", group = "Move camera" },
         { keybind = bindingHandles.movement, label = "Camera movement: " .. movementLabel },
         { keybind = bindingHandles.forward, label = "Move entity forward" },
         { keybind = bindingHandles.backward, label = "Move entity backward" },

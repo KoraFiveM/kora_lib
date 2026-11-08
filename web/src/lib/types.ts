@@ -312,6 +312,8 @@ export interface InputField {
     maxRows?: number
     icon?: string
     iconColor?: string
+    /** text only: show a "Copy Text" button right of the input that copies its current value. */
+    copyButton?: boolean | { label?: string }
     /** Optional compact numeric keypad, primarily for short PIN entry. */
     keypad?: boolean
     /** Strip non-digits from textual input and request a numeric keyboard. */
