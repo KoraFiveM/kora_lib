@@ -4,9 +4,11 @@ import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
+import { copyToClipboard } from "@/lib/clipboard"
 import { fetchNui } from "@/lib/fetchNui"
 import type { FieldValue, InputField } from "@/lib/types"
 
+vi.mock("@/lib/clipboard", () => ({ copyToClipboard: vi.fn(async () => true) }))
 vi.mock("@/lib/fetchNui", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/fetchNui")>()), fetchNui: vi.fn() }))
 
 const fields: InputField[] = [{
@@ -416,5 +418,18 @@ describe("FormFields keypad presentation options", () => {
         render(<FormFields fields={pin({ labelAlign: "middle" as never, keypadActionVariant: "solid" as never })} values={{ pin: "" }} errors={{}} onChange={() => undefined} />)
         expect(screen.getByText("PIN")).not.toHaveClass("justify-center")
         expect(screen.getByRole("button", { name: "Clear" })).not.toHaveClass("border")
+    })
+})
+
+describe("FormFields copyButton", () => {
+    it("renders Copy Text only when opted in and copies the current value", async () => {
+        const plain: InputField[] = [{ id: "m", type: "text", label: "Model" }]
+        const { unmount } = render(<FormFields fields={plain} values={{ m: "prop_a" }} errors={{}} onChange={() => undefined} />)
+        expect(screen.queryByRole("button", { name: "Copy Text" })).toBeNull()
+        unmount()
+        render(<FormFields fields={[{ ...plain[0], copyButton: true }]} values={{ m: "prop_a" }} errors={{}} onChange={() => undefined} />)
+        await userEvent.click(screen.getByRole("button", { name: "Copy Text" }))
+        expect(copyToClipboard).toHaveBeenCalledWith("prop_a")
+        expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy()
     })
 })

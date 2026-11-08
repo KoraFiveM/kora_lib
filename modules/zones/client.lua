@@ -1405,10 +1405,10 @@ local function updateCreatorInstructions(state)
     if state.lastInstructionKey == key then return end
     state.lastInstructionKey = key
     state.instructions.setButtons({
-        { control = 32, label = "Move forward" },
-        { control = 33, label = "Move backward" },
-        { control = 34, label = "Move left" },
-        { control = 35, label = "Move right" },
+        { control = 32, label = "Move forward", group = "Move" },
+        { control = 33, label = "Move backward", group = "Move" },
+        { control = 34, label = "Move left", group = "Move" },
+        { control = 35, label = "Move right", group = "Move" },
         { keybind = creatorBindings.qblib_zonecreator_movement, label = "Movement: " .. movementLabel },
         { keybind = creatorBindings.qblib_zonecreator_place, label = placeLabel },
         { keybind = creatorBindings.qblib_zonecreator_place_click, label = placeLabel },

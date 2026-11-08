@@ -194,6 +194,12 @@ local function assertInputFields(fields, location)
             and (type(field.visibleWhen.equals) == "string" or type(field.visibleWhen.equals) == "number"
                 or type(field.visibleWhen.equals) == "boolean")),
             fieldLocation .. " visibleWhen must contain fieldId and equals.")
+        if field.copyButton ~= nil then
+            assert(field.type == "text", fieldLocation .. " copyButton is only for text fields.")
+            assert(type(field.copyButton) == "boolean"
+                or (type(field.copyButton) == "table" and (field.copyButton.label == nil or type(field.copyButton.label) == "string")),
+                fieldLocation .. " copyButton must be a boolean or { label?: string }.")
+        end
         assert(field.keypad == nil or type(field.keypad) == "boolean", fieldLocation .. " keypad must be a boolean.")
         assert(field.numericOnly == nil or type(field.numericOnly) == "boolean", fieldLocation .. " numericOnly must be a boolean.")
         assert(field.wholeNumber == nil or type(field.wholeNumber) == "boolean", fieldLocation .. " wholeNumber must be a boolean.")

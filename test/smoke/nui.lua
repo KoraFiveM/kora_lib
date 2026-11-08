@@ -531,6 +531,9 @@ harness.test("openInputDialog applies the shared field schema before taking focu
         Kora.nui.openInputDialog({ { id = "child", label = "Child", type = "text", dependsOn = "missing" } })
     end, "standalone dependent fields should reference a declared field")
 
+    harness.assertThrows(function()
+        Kora.nui.openInputDialog({ { id = "n", label = "N", type = "number", copyButton = true } })
+    end, "copyButton is only for text fields")
     harness.assertEqual(#sentMessages, beforeMessages, "invalid standalone fields must not reach the browser")
     harness.assertEqual(#focusCalls, beforeFocus, "invalid standalone fields must not acquire a focus lease")
 end)

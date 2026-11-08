@@ -589,6 +589,7 @@
 ---@field icon? string
 ---@field iconColor? string
 ---@field step? number Number/range increment; defaults to 1.
+---@field copyButton? boolean|{label?: string} text fields only: show a "Copy Text" button right of the input.
 ---@field keypad? boolean Render a compact numeric keypad for textual PIN entry.
 ---@field numericOnly? boolean Strip non-digit input in the browser.
 ---@field presets? {label?: string, value: number}[] Quick amount values.
@@ -1511,6 +1512,7 @@
 
 ---@class QBInstructionalButton
 ---@field label string
+---@field group? string rows sharing a group collapse into one row labelled by the group
 ---@field control? integer
 ---@field command? string
 ---@field keybind? QBKeybindHandle

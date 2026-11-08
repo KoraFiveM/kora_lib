@@ -43,15 +43,15 @@ export function KeyHints() {
     const list = useInstructionalRows()
     if (list.length === 0) return null
     return (
-        <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+        <ul className="grid grid-cols-[1fr_max-content] items-center gap-x-4 gap-y-1.5">
             {list.map((row) => (
-                <li key={row.label} className="flex min-w-0 items-center gap-2 text-xs text-card-foreground/80">
-                    <KbdGroup>
+                <li key={row.label} className="contents text-xs text-card-foreground/80">
+                    <span className="min-w-0 text-xs leading-4">{row.label}</span>
+                    <KbdGroup className="justify-self-end">
                         {row.keys.map((k) => (
                             <Kbd key={k}>{k}</Kbd>
                         ))}
                     </KbdGroup>
-                    <span className="truncate">{row.label}</span>
                 </li>
             ))}
         </ul>

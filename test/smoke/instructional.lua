@@ -7,7 +7,7 @@ local mocks = require('mocks')
 local net = mocks.install()
 
 local sent = {}
-function _G.GetControlInstructionalButton(_, control) return control == 99 and 'b_1004' or 't_' .. tostring(control) end
+function _G.GetControlInstructionalButton(_, control) return control == 99 and 'b_100' or 't_' .. tostring(control) end
 
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'compat/shared.lua')
@@ -73,6 +73,19 @@ harness.test('multiple displays keep their order across removals and owners', fu
     harness.assertEqual(#last(), 1)
     harness.assertTrue(lastDisplay.hide())
     harness.assertEqual(#last(), 0)
+end)
+
+harness.test('grouped buttons collapse into one row', function()
+    local display = Kora.instructional.show({
+        { control = 32, label = 'Move forward', group = 'Move' },
+        { control = 33, label = 'Move backward', group = 'Move' },
+        { control = 177, label = 'Cancel' },
+    })
+    harness.assertEqual(#last(), 2)
+    harness.assertEqual(last()[1].label, 'Move')
+    harness.assertEqual(#last()[1].keys, 2)
+    harness.assertThrows(function() Kora.instructional.show({ { control = 1, label = 'x', group = '' } }) end)
+    display.hide()
 end)
 
 harness.report('instructional')

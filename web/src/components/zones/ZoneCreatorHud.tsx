@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { Kbd } from "@/components/ui/kbd"
 import { EditorControlsHud } from "@/components/editor/EditorControlsHud"
 import type { ZoneCreatorHudSnapshot, ZoneCreatorStartPayload, ZoneType } from "@/lib/types"
 import { cn } from "@/lib/cn"
@@ -105,7 +106,9 @@ function ShapeStatus({ type, snapshot }: { type: ZoneType; snapshot: ZoneCreator
             {snapshot.hasCenter ? (
                 <span className="text-success">Center placed</span>
             ) : (
-                <span className="text-warning">Aim and press E to place</span>
+                <span className="inline-flex items-center gap-1 text-warning">
+                    Aim and press <Kbd>E</Kbd> to place
+                </span>
             )}
         </span>
     )
