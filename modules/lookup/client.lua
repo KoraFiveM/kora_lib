@@ -147,7 +147,6 @@ local function receiveBatch(version, index, total, records)
         assembly = { total = total, received = 0, batches = {} }
         assemblies[version] = assembly
     elseif assembly.total ~= total then
-        -- Versions are immutable; discard conflicting framing rather than publish a mixed snapshot.
         assemblies[version] = nil
         return
     end
@@ -161,7 +160,6 @@ end
 state.receiveBatch = receiveBatch
 Kora.events.onPush(SYNC_PUSH, receiveBatch)
 
--- Kora.events.trigger waits for the secure handshake; re-request periodically until an atomic snapshot is published.
 CreateThread(function()
     while not state.overlayReady do
         Kora.events.trigger(SYNC_REQUEST)

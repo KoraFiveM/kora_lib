@@ -4,7 +4,6 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import type { InstructionalPayload, InstructionalRow } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 
-// Module-level store: Kora.instructional pushes rows once and any HUD can read them.
 let rows: InstructionalRow[] = []
 let hosts = 0
 const listeners = new Set<() => void>()

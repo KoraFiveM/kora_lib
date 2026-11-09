@@ -1,10 +1,7 @@
--- Kora.logging (server): ring-buffered event log with an optional Discord webhook and aggregate counters.
--- Webhook messages are attributed to the resource that logged the event.
-
 local RING = 500
 local ring = {}
 local head = 0
-local counts = {}   -- category -> count
+local counts = {}
 
 local function assertEvent(category, src, data)
     assert(type(category) == 'string' and category ~= '' and #category <= 64,
@@ -26,7 +23,6 @@ function Kora.logging.event(category, src, data)
     if #ring < RING then ring[#ring + 1] = entry else ring[head + 1] = entry; head = (head + 1) % RING end
     counts[category] = (counts[category] or 0) + 1
 
-    -- 'qblib_log_webhook' and 'qbcore_log_webhook' are legacy fallbacks.
     local url = GetConvar('kora_lib_log_webhook', '')
     if url == '' then url = GetConvar('qblib_log_webhook', GetConvar('qbcore_log_webhook', '')) end
     if url ~= '' then
@@ -41,14 +37,12 @@ function Kora.logging.event(category, src, data)
         local payloadEncoded, payload = pcall(json.encode, {
             username = resource,
             content = content,
-            -- Log data contains player-supplied text; this stops a crafted "@everyone" pinging the channel.
             allowed_mentions = { parse = {} },
         })
         if not payloadEncoded then
             print(('[kora_lib:logging] webhook envelope for %q could not be encoded: %s'):format(category, tostring(payload)))
             return
         end
-        -- Fire-and-forget; never blocks the caller.
         pcall(PerformHttpRequest, url, function() end, 'POST', payload, { ['Content-Type'] = 'application/json' })
     end
 end

@@ -8,10 +8,6 @@ local mocks = require("mocks")
 
 local net = mocks.install()
 
--- Kora.timers is a shared module that picks its ownership registry by realm at
--- first use. mocks.lua deliberately doesn't define IsDuplicityVersion (it is a
--- realm marker, not a module native), so this file pins the client realm and
--- loads local/resources/client.lua to match.
 function _G.IsDuplicityVersion() return false end
 
 dofile(repoRoot .. "config.lua")
@@ -45,9 +41,6 @@ harness.test("clearInterval stops the timer without firing one extra tick", func
     local cancelled = Kora.timers.clearInterval(id)
     harness.assertTrue(cancelled, "clearInterval should report that it cancelled a live timer")
 
-    -- The coroutine is parked inside Wait() at this point. Resuming it must
-    -- observe the flag and return rather than run the body one last time --
-    -- that post-wait re-check is the whole point of the record indirection.
     net.step()
     harness.assertEqual(runs, 1, "a cancelled interval must not fire again after its parked Wait resumes")
 end)
@@ -140,9 +133,6 @@ end)
 
 harness.test("setInterval accepts a cross-resource callable table", function()
     local runs = 0
-    -- What FXServer actually hands back for a function that crossed an exports
-    -- boundary: a table with a __call metamethod, which type(x) == "function"
-    -- would reject outright.
     local callable = setmetatable({}, { __call = function() runs = runs + 1 end })
 
     local id = Kora.timers.setInterval(callable, 100)
@@ -211,8 +201,6 @@ harness.test("throttle passes the first call and drops the rest of the window", 
     harness.assertFalse(alert(), "still inside the cooldown")
     harness.assertEqual(runs, 1, "dropped calls must not run, and must not be queued for later either")
 
-    -- Wait() outside a coroutine just advances the mock clock, which is what
-    -- GetGameTimer (and therefore the cooldown) reads.
     Wait(1000)
 
     harness.assertTrue(alert(), "the next window should let a call through again")
@@ -263,9 +251,6 @@ harness.test('keyed cooldowns reject retaining non-scalar or unbounded keys', fu
     harness.assertThrows(function() cooldown.reset(string.rep('x', 257)) end)
 end)
 
--- The `__call` metamethod does not cross the export boundary, so every handle
--- must also expose a plain `.run` field -- funcrefs DO cross. Dropping `.run`
--- is what broke kora_police's melee detector with "attempt to call a table value".
 harness.test("throttle and debounce handles expose a plain .run field", function()
     local throttled = Kora.timers.throttle(function() end, 1000)
     local debounced = Kora.timers.debounce(function() end, 100)

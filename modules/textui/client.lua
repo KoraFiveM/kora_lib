@@ -1,14 +1,3 @@
----@alias QBTextUIPosition 'left-center'|'right-center'|'top-center'|'bottom-center'
-
----@class QBTextUIOptions
----@field key? string Short key/control label displayed beside the text.
----@field icon? string Lucide icon name.
----@field position? QBTextUIPosition Defaults to `right-center`.
----@field iconColor? string CSS colour applied to the icon.
----@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
----@field alignIcon? 'top'|'center' Defaults to `center`.
----@field style? string|table<string, string|number> Scoped CSS declarations or properties applied to the prompt surface.
-
 local entries = {}
 local order = {}
 local nextId = 0

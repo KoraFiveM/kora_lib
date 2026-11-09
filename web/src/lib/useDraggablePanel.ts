@@ -10,7 +10,7 @@ export function loadPanelOffset(key: string | undefined): PanelOffset {
     try {
         const parsed = JSON.parse(window.localStorage.getItem(key) ?? "null")
         if (parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) return { x: parsed.x, y: parsed.y }
-    } catch { /* unreadable storage means default placement */ }
+    } catch {  }
     return ZERO
 }
 
@@ -19,7 +19,7 @@ function savePanelOffset(key: string | undefined, offset: PanelOffset) {
     try {
         if (offset.x === 0 && offset.y === 0) window.localStorage.removeItem(key)
         else window.localStorage.setItem(key, JSON.stringify(offset))
-    } catch { /* storage may be unavailable; the position just is not remembered */ }
+    } catch {  }
 }
 
 /**
@@ -83,8 +83,6 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
     const drag = useRef<{ pointerId: number; startX: number; startY: number; scale: number; origin: PanelOffset } | null>(null)
     offsetRef.current = offset
 
-    // Pure in `target`: the default box does not depend on the last rendered offset, so clamping
-    // an already clamped offset returns it unchanged and the re-clamp below cannot loop.
     const clampToViewport = useCallback((target: PanelOffset) => {
         const element = panel.current
         if (!element) return target
@@ -98,8 +96,6 @@ export function useDraggablePanel(panel: RefObject<HTMLElement | null>, options:
         setOffset(active && enabled ? loadPanelOffset(storageKey) : ZERO)
     }, [active, enabled, storageKey])
 
-    // Keep the panel on screen after a stored offset loads (the updater clamps the queued value,
-    // not the rendered one), when the window or resolution changes and when the panel resizes.
     useLayoutEffect(() => {
         const element = panel.current
         if (!active || !enabled || !element) return

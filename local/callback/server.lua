@@ -1,6 +1,3 @@
--- Wire-protocol event names. Deliberately mirrored verbatim in
--- local/callback/client.lua (separate Lua chunks can't share a local table) --
--- any change here must be made there too, or the two realms stop talking.
 local events = {
     handshake = 'kora_lib:callback:handshake',
     handshakeResponse = 'kora_lib:callback:handshake:response',
@@ -18,8 +15,6 @@ local requestCounter = 0
 local isInteger = Kora.util.isInteger
 local MAX_RATE_LIMIT = 10000
 local MAX_RATE_WINDOW = 86400000
--- A client handshakes once per session; anything faster is abuse of the
--- token issuer (each reply is a network event back to the sender).
 local HANDSHAKE_LIMIT = { max = 5, window = 60000 }
 
 local function normalizeRateLimit(opts)
@@ -93,7 +88,6 @@ local function consumeRateLimit(name, src, limit)
     return true
 end
 
--- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local callbackOwnership = Kora.resources.serverRegistry(function(name)
     registry[name] = nil
     clearRateLimit(name)
@@ -101,26 +95,13 @@ end)
 
 local generateToken = Kora.compat.generateToken
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
--- A promise doesn't survive an exports() crossing: only method calls reach the real promise, so the caller's
--- Citizen.Await would silently resolve nil. GetInvokingResource() is nil for same-VM calls and the caller's
--- name for cross-resource ones; same-VM callers get the promise, cross-resource callers get the awaited value
--- (or a raised error on rejection/timeout).
---
--- Callers MUST capture GetInvokingResource() before anything can yield and pass it as `invoker`; it only
--- reflects the cross-resource caller within the synchronous native-call frame.
---
--- Unlike other modules' copies, this one also forwards every extra handler return value (e.g.
--- `return false, "reason"`) via the p.koraLibCallbackResults side channel, since a promise resolves with one
--- value. The promise itself still resolves with only the first return value.
 local function settleForExport(p)
     if GetInvokingResource() then
-        Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
+        Citizen.Await(p)
         local packed = p.koraLibCallbackResults
-        if packed == nil then return p.value end -- not a Kora.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
+        if packed == nil then return p.value end
         return table.unpack(packed, 1, packed.n)
     end
     return p
@@ -137,13 +118,10 @@ function Kora.callback.register(name, handler, opts)
     Kora.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")
     local rateLimit = normalizeRateLimit(opts)
-    -- Some compatibility resources intentionally replace a placeholder owned
-    -- by another resource; make that handoff explicit without hiding accidents.
     local replace = opts and opts.replace == true
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    -- Warn on cross-resource overwrite; see local/events/server.lua register.
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner and not replace then
         print(("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
@@ -245,15 +223,10 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
         return
     end
 
-    -- table.pack: a handler may return multiple values; results[1] is pcall's own success flag.
     local results = table.pack(pcall(definition.handler, src, ...))
     local ok = results[1]
 
     if not ok then
-        -- Handlers run on untrusted client input, so a raised error is logged
-        -- for the server owner rather than vanishing. Only the message goes
-        -- back to the client: the leading "path/file.lua:123: " position is
-        -- dropped so internal paths and line numbers are not disclosed.
         print(("[kora_lib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
         if type(results[2]) == 'string' then
             results[2] = (results[2]:gsub('^[^%s:]+%.lua:%d+: ', '', 1))
@@ -278,12 +251,10 @@ RegisterNetEvent(events.clientResponse, function(requestId, ok, ...)
     pendingClientCallbacks[requestId] = nil
 
     if ok then
-        -- Stash the full result on the promise table for settleForExport; the promise still resolves with only the first value.
         local packed = table.pack(...)
         pending.promise.koraLibCallbackResults = packed
         pending.promise:resolve(packed[1])
     else
-        -- Error path carries a single value (the pcall message); nothing to unpack.
         pending.promise:reject((...))
     end
 end)

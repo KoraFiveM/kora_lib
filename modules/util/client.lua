@@ -1,6 +1,3 @@
--- Client-only additions to Kora.util (anything needing a rendering native). Both files populate the same
--- table, so smoke tests must capture each realm's functions right after its own dofile (see AGENTS.md).
-
 ---Projects a world position onto normalised 0..1 screen space (as FiveM's draw natives use), NOT pixels.
 ---The third return says whether the point is on screen; `x`/`y` are meaningless when it isn't, so gate on it.
 ---@param coords vector3 | {x: number, y: number, z: number}

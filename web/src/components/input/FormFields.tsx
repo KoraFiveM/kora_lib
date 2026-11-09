@@ -11,9 +11,6 @@ import { fetchNui } from "@/lib/fetchNui"
 import type { AppShellLabels, FieldValue, InputField, InputOption, KeyValueEntry, VectorFieldValue } from "@/lib/types"
 import { resolveIcon } from "@/lib/icon"
 
-// Presentation-only field options, merged into InputField here so they stay
-// next to the component that renders them. Unknown values fall back to the
-// defaults, so older payloads and older bundles behave exactly as before.
 declare module "@/lib/types" {
     interface InputField {
         /** Horizontal alignment of the field label (default "start"). */
@@ -281,7 +278,6 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
                 try {
                     if (!new RegExp(field.pattern).test(value)) errors[field.id] = labels.invalidFormat
                 } catch {
-                    // Invalid caller patterns are ignored; authoritative validation remains server-side.
                 }
             }
         }
@@ -360,9 +356,6 @@ export function FormFields({ fields, values, errors, onChange, labels, idPrefix 
         const changed = [id]
         const visited = new Set<string>()
 
-        // Reset dependent controls in the same state update as their parent.
-        // This keeps AppShell forms and standalone dialogs identical, even
-        // when a country -> state -> city chain changes several fields.
         while (changed.length) {
             const parentId = changed.shift()!
             if (visited.has(parentId)) continue
@@ -441,9 +434,6 @@ function validKeyValueDraft(value: string) {
     try {
         return JSON.parse(draft) !== null
     } catch {
-        // Bare text is accepted as a string. Text that starts like JSON must
-        // be valid JSON so a mistyped object, array, quote, or scalar cannot
-        // silently turn into a different value type.
         return !/^[\[{\"]/.test(draft) && !/^(?:true|false|null|-?(?:\d|\.\d))/i.test(draft)
     }
 }
@@ -520,8 +510,6 @@ function VectorField({ id, field, value, error, describedBy, onChange }: {
     const axes = ["x", "y", "z", "w"].slice(0, field.dimensions ?? 3) as Array<keyof VectorFieldValue>
     const [picking, setPicking] = useState(false)
     const pick = field.pickPosition
-    // Lua (kora_lib:form:position) answers with the player's own position; an empty or partial
-    // answer (browser dev, no ped yet) leaves the field as it is.
     const pickPosition = async () => {
         setPicking(true)
         try {
@@ -533,7 +521,7 @@ function VectorField({ id, field, value, error, describedBy, onChange }: {
                 next[axis] = component
             }
             onChange(next)
-        } catch { /* position unavailable: keep the typed values */ } finally {
+        } catch {  } finally {
             setPicking(false)
         }
     }

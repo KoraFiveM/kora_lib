@@ -8,7 +8,6 @@ local mocks = require("mocks")
 
 mocks.install()
 
--- src -> set of granted principal strings, e.g. { ["qbcore.admin"] = true }
 local grants = {}
 _G.IsPlayerAceAllowed = function(src, principal)
     return grants[src] ~= nil and grants[src][principal] == true

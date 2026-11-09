@@ -13,13 +13,6 @@ dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- RegisterNUICallback/SendNUIMessage/SetNuiFocus are module-specific, so mocked here.
--- `nuiCallbacks` captures callbacks by name to simulate the NUI calling back;
--- `sentMessages` records every SendNUIMessage payload.
---
--- SendNUIMessage (capital NUI) is the table-accepting wrapper the module must call, NOT
--- the SendNuiMessage native (pre-encoded JSON string). It is deliberately not mocked, so a
--- regression to the native fails loudly here instead of stringifying tables in-game.
 local nuiCallbacks = {}
 local sentMessages = {}
 local focusCalls = {}
@@ -43,10 +36,6 @@ _G.SetNuiFocusKeepInput = function(keepInput)
 end
 _G.IsNuiFocusKeepingInput = function() return currentKeepInput end
 
--- kora_lib imports kora_theme's bridge before this module in production. Model the
--- bridge's important contract here: a nil app accent restores the player's
--- saved /theme colour rather than clearing the browser back to the server
--- default.
 local playerAccent = "#7C3AED"
 _G.QBTheme = {
     apply = function(accent)
@@ -62,8 +51,6 @@ _G.exports = function(name, callback)
 end
 dofile(repoRoot .. "build/finalise.lua")
 
--- Simulates the NUI responding to the given request id/token via the shared
--- `kora_lib:nui:response` channel every Kora.nui.request call resolves through.
 local function respond(requestId, token, ok, resultOrError)
     local field = ok and "result" or "error"
     nuiCallbacks["kora_lib:nui:response"](
@@ -72,9 +59,6 @@ local function respond(requestId, token, ok, resultOrError)
     )
 end
 
--- Every Kora.nui.request call sends { action, data = { requestId, token, payload } };
--- these pull the id/token back out of the most recently sent message, which is
--- exactly what a well-behaved NUI does to answer it.
 local function lastRequestId()
     return sentMessages[#sentMessages].data.requestId
 end
@@ -83,8 +67,6 @@ local function lastToken()
     return sentMessages[#sentMessages].data.token
 end
 
--- Shorthand for the common case: respond using the real token from the last
--- sent request, so most tests don't need to thread lastToken() through by hand.
 local function respondOk(requestId, result)
     respond(requestId, lastToken(), true, result)
 end
@@ -242,7 +224,6 @@ harness.test("malformed browser callback payloads are ignored", function()
 end)
 
 harness.test("a response for an unknown requestId is a no-op", function()
-    -- Must not error even though nothing is pending for this id.
     respond(999999, "irrelevant", true, "orphaned")
 end)
 
@@ -361,8 +342,6 @@ harness.test("openInputDialog releases focus even when the request is rejected",
     harness.assertFalse(release.mouse or release.keyboard, "a rejected request must still release focus")
 end)
 
--- The focused retry waits a short SetTimeout; the shared mock never fires it, so run short
--- delays inline here (the 30s request timeout stays unfired).
 local function withImmediateTimeouts(fn)
     local original = _G.SetTimeout
     _G.SetTimeout = function(ms, cb) if ms < 1000 then cb() end end
@@ -420,8 +399,8 @@ harness.test("copyToClipboard keeps asking under the same lease when the first f
     withImmediateTimeouts(function()
         local before = #focusCalls
         local p = Kora.nui.copyToClipboard("slow focus")
-        respondOk(lastRequestId(), false) -- unfocused try refused
-        respondOk(lastRequestId(), false) -- first focused try refused
+        respondOk(lastRequestId(), false)
+        respondOk(lastRequestId(), false)
         harness.assertEqual(p.state, "pending", "a refused focused try should be asked again before giving up")
         harness.assertTrue(focusCalls[#focusCalls].mouse, "the lease stays held between focused tries")
         harness.assertEqual(#focusCalls, before + 1, "the lease is taken once, not cycled")
@@ -636,7 +615,6 @@ harness.test("the final focus lease restores a pre-existing keep-input state", f
     Kora.nui.releaseFocus(release)
     harness.assertTrue(keepInputCalls[#keepInputCalls], "releasing the final lease should restore the prior keep-input state")
 
-    -- Keep later smoke tests independent from this simulated external overlay.
     SetNuiFocusKeepInput(false)
 end)
 
@@ -730,7 +708,7 @@ harness.test("chat blocks validate messages and declare their composer action", 
     end
     Kora.nui.registerApp(chatApp("smoke:chat", { type = "chat", id = "conv", messages = {
         { id = "1", author = "Player", text = "hi", timestamp = "12:00", unread = true },
-        { id = "2", author = "Staff", text = "hello", mine = true, badge = "Staff", tone = "success" },
+        { id = "2", author = "Staff", text = "hello", mine = true, badge = "Staff", tone = "success", status = "seen" },
     }, composer = { action = { id = "send", label = "Send" }, maxLength = 500, placeholder = "Reply" } }))
     Kora.nui.openApp("smoke:chat")
     local token = lastToken()
@@ -746,6 +724,12 @@ harness.test("chat blocks validate messages and declare their composer action", 
         { id = "1", author = "A", text = "x" }, { id = "1", author = "B", text = "y" } } })), "duplicate message ids are rejected")
     harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-text", { type = "chat", id = "c", messages = {
         { id = "1", author = "A", text = 5 } } })), "message text must be a string")
+    for _, status in ipairs({ "sent", "delivered", "seen" }) do
+        harness.assertTrue(pcall(Kora.nui.registerApp, chatApp("smoke:chat-status-" .. status, { type = "chat", id = "c", messages = {
+            { id = "1", author = "A", text = "x", mine = true, status = status } } })), status .. " is a valid message status")
+    end
+    harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-status-bad", { type = "chat", id = "c", messages = {
+        { id = "1", author = "A", text = "x", mine = true, status = "read" } } })), "an unknown message status is rejected")
     harness.assertFalse(pcall(Kora.nui.registerApp, chatApp("smoke:chat-fields", { type = "chat", id = "c", messages = {},
         composer = { action = { id = "send", label = "Send", fields = { { id = "x", label = "X", type = "text" } } } } })),
         "a composer action cannot carry fields")
@@ -1581,7 +1565,6 @@ harness.test("internal NUI callbacks keep answering under their deprecated qblib
     end
 end)
 
--- Runs last: it simulates kora_lib itself stopping.
 harness.test("kora_lib stopping releases focus still leased by a consumer", function()
     Kora.nui.requestAsync("openAlert", { message = "Held" }, false, "consumer_shop", true)
     harness.assertTrue(focusCalls[#focusCalls].mouse, "sanity: the consumer request holds focus")

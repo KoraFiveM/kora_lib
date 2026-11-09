@@ -1,6 +1,3 @@
--- Compatibility surface: kora_theme owns validation and token derivation, while
--- existing consumers can keep using Kora.theme without a breaking migration.
-
 ---@return string hex `#RRGGBB`
 function Kora.theme.accentColor()
     return exports.kora_theme:getPrimaryColor()

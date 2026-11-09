@@ -1,8 +1,3 @@
----@class QBStatusApplyOptions
----@field duration? integer Overrides the effect def's own default duration for this application.
----@field severity? integer 1..def.severityLevels. Ignored if the def has no `severityLevels`.
-
--- active[target][name] = {expiresAt: integer?, severity: integer?}
 local active = {}
 local expirySweepRunning = false
 local ensureExpirySweep
@@ -117,11 +112,6 @@ function Kora.status.isActive(target, name)
     return true
 end
 
----@class QBStatusActiveEntry
----@field name string
----@field severity? integer
----@field expiresAt? integer
-
 ---@param target integer
 ---@return QBStatusActiveEntry[]
 function Kora.status.getActive(target)
@@ -150,7 +140,6 @@ AddEventHandler("playerDropped", function()
     active[source] = nil
 end)
 
--- Periodic sweep drops expired effects nobody polls; 30s matches modules/minigames' session sweep.
 local function hasExpiringEntries()
     for _, bucket in pairs(active) do
         for _, entry in pairs(bucket) do

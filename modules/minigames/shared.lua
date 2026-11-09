@@ -1,4 +1,3 @@
--- Shared set for validating minigame type strings. A table, not a function, so build/finalise.lua's export walk skips it.
 Kora.minigames.GAME_TYPES = {
     lockpick = true,
     skillbar = true,

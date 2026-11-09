@@ -1,23 +1,12 @@
----@class QBPlacementRotation
----@field pitch number Rotation around X, in degrees.
----@field roll number Rotation around Y, in degrees.
----@field yaw number Rotation around Z, in degrees.
-
----@class QBPlacementResult
----@field model string | number Original model name/hash passed to `Kora.placement.start`.
----@field coords {x: number, y: number, z: number}
----@field heading number Native entity heading, read independently from Euler yaw.
----@field rotation QBPlacementRotation
-
 local ROTATION_ORDER = 2
 local ROTATION_AXES = { "yaw", "pitch", "roll" }
 local PLACEMENT_CONTROLS = {
-    172, 173, 174, 175, -- cellphone arrows
-    187, 188, 189, 190, -- frontend arrows
-    207, 208,           -- frontend Page Down / Page Up
-    312, 313,           -- replay [ / ]
-    191, 192,           -- Enter / Tab
-    73,                 -- X
+    172, 173, 174, 175,
+    187, 188, 189, 190,
+    207, 208,
+    312, 313,
+    191, 192,
+    73,
 }
 
 local activeState = nil
@@ -109,11 +98,8 @@ local function releaseStateResources(state)
     end
 
     if state.entity then
-        -- Called even if another path already deleted the entity; remove() also drops ownership tracking.
         pcall(Kora.entities.remove, state.entity)
-        -- remove() refuses when the tracked owner differs from the current caller context; never leave the preview behind.
         if DoesEntityExist(state.entity) then
-            -- Non-mission entities can be refused by DeleteEntity; claim it first so the preview is really gone.
             pcall(SetEntityAsMissionEntity, state.entity, true, true)
             pcall(DeleteEntity, state.entity)
             if DoesEntityExist(state.entity) and IsEntityAVehicle(state.entity) then pcall(DeleteVehicle, state.entity) end
@@ -132,7 +118,6 @@ local function releaseStateResources(state)
     end
 
     pcall(Kora.nui.send, "placement:hud", nil)
-    -- If the owner stops while the summary holds NUI focus, answer the pending request with "keep editing" so Kora.nui releases focus; no-op when no dialog is open.
     pcall(Kora.nui.send, "placement:closeConfirm", nil)
     if state.radarManaged and not state.radarWasHidden then pcall(DisplayRadar, true) end
 
@@ -145,7 +130,6 @@ local function releaseStateResources(state)
         state.bounds = nil
     end
 end
-
 
 local function settleState(state, value, rejection)
     if activeState == state then activeState = nil end
@@ -160,29 +144,24 @@ local function settleState(state, value, rejection)
     end
 end
 
-
 local function resolveState(state, value)
     settleState(state, value, false)
 end
 
-
 local function rejectState(state, message)
     settleState(state, tostring(message), true)
 end
-
 
 local function settleForCaller(promiseValue, externalCaller)
     if externalCaller then return Citizen.Await(promiseValue) end
     return promiseValue
 end
 
-
 local function rejectedForCaller(message, externalCaller)
     local p = promise.new()
     p:reject(message)
     return settleForCaller(p, externalCaller)
 end
-
 
 local function hudSnapshot(state)
     return {
@@ -201,7 +180,6 @@ local function hudSnapshot(state)
     }
 end
 
-
 local function captureResult(state)
     local coords = GetEntityCoords(state.entity)
     local rotation = GetEntityRotation(state.entity, ROTATION_ORDER)
@@ -217,7 +195,6 @@ local function captureResult(state)
         },
     }
 end
-
 
 local function openConfirmDialog(state)
     if activeState ~= state or state.dialogOpen then return end
@@ -293,11 +270,9 @@ local function numericInput(state)
     SetEntityRotation(state.entity, state.rotation.pitch, state.rotation.roll, state.rotation.yaw, ROTATION_ORDER, true)
 end
 
-
 local function movementInput(positive, negative)
     return (held[positive] and 1 or 0) - (held[negative] and 1 or 0)
 end
-
 
 local function updateEntityPlacement(state, multiplier)
     local forwardInput = movementInput("forward", "backward")
@@ -328,7 +303,6 @@ local function updateEntityPlacement(state, multiplier)
             ROTATION_ORDER, true)
     end
 end
-
 
 local function ensurePlacementThread(state)
     CreateThread(function()
@@ -365,7 +339,6 @@ local function ensurePlacementThread(state)
     end)
 end
 
-
 local function startCamera(state, camCoord, camRot)
     local freecam, err = Kora.freecam.start({
         coords = camCoord,
@@ -383,7 +356,6 @@ local function startCamera(state, camCoord, camRot)
     end
     state.camYaw = camRot.z
 end
-
 
 local function validateModel(model)
     assert(type(model) == "string" or type(model) == "number", "Placement model must be a string or number.")
@@ -416,7 +388,6 @@ local function updatePlacementInstructions(state)
     if state.options.raycast ~= nil then buttons[#buttons + 1] = { keybind = bindingHandles.raycast, label = 'Toggle surface placement' } end
     state.instructions.setButtons(buttons)
 end
-
 
 ---Starts a temporary local entity placement session. Same-resource callers get a promise; cross-resource export calls block and return the settled result (Cfx can't marshal a promise).
 ---@param model string | number
@@ -508,7 +479,6 @@ function Kora.placement.start(model, options)
     startingState = nil
     if not ok then
         releaseStateResources(state)
-        -- A caller stop can settle the promise mid model-streaming; the resumed path still cleans up the entity but must not reject the already-resolved cancel.
         if not state.aborted then p:reject(err) end
         return settleForCaller(p, externalCaller)
     end
@@ -528,7 +498,6 @@ function Kora.placement.start(model, options)
     return settleForCaller(p, externalCaller)
 end
 
-
 ---@return boolean
 function Kora.placement.isActive()
     return activeState ~= nil or startingState ~= nil
@@ -545,7 +514,6 @@ function Kora.placement.cancel()
     return true
 end
 
-
 local function registerHeldBinding(id, description, defaultKey)
     bindingHandles[id] = Kora.keybind.add({
         name = "qblib_placement_" .. id,
@@ -558,7 +526,6 @@ local function registerHeldBinding(id, description, defaultKey)
         onReleased = function() held[id] = false end,
     })
 end
-
 
 registerHeldBinding("forward", "Entity Placement: Move Forward", "UP")
 registerHeldBinding("backward", "Entity Placement: Move Backward", "DOWN")
@@ -678,5 +645,4 @@ local function onStartPlacement(model)
 end
 
 RegisterNetEvent("kora_lib:editor:startPlacement", onStartPlacement)
--- Deprecated alias for callers that predate the rename.
 RegisterNetEvent("qblib:editor:startPlacement", onStartPlacement)

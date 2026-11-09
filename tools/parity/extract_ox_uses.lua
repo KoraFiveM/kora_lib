@@ -1,8 +1,4 @@
 package.path = (debug.getinfo(1, "S").source:match("^@(.*/)") or "./") .. "?.lua;" .. package.path
--- extract_ox_uses: which ox_lib / oxmysql / ox_target APIs a consumer resource
--- calls. Emits names and occurrence counts only, never source text.
---
---   lua5.4 tools/parity/extract_ox_uses.lua <consumer dir> > uses.json
 local common = require("common")
 
 local M = {}
@@ -49,7 +45,6 @@ function M.extract(root)
         end)
         eachChain(code, "cache", 1, function(parts) bump(cache, parts[1]) end)
         eachChain(code, "MySQL", 3, function(parts)
-            -- `MySQL.lua` is the "@oxmysql/lib/MySQL.lua" manifest path, not an API.
             if parts[1] ~= "lua" then bump(mysql, "MySQL." .. table.concat(parts, ".")) end
         end)
         for _, name in ipairs({ "locale", "SetInterval", "ClearInterval" }) do

@@ -1,7 +1,3 @@
----@class QBRewardItem : table
----@field chance? number Weighted mode: a relative weight (> 0). Percent mode: a probability in (0, 100]. Items that omit this share an equal chance with every other item that also omits it.
----@field amount? number | { min: number, max: number } Flat amount, or a `{ min, max }` range to roll. Defaults to `1`. Any other fields (name, label, ...) are passed through untouched.
-
 local DEFAULT_MODE = "weighted"
 local MAX_REWARD_RESULTS = 10000
 
@@ -148,7 +144,6 @@ function Kora.rewards.generate(items, opts)
         end
     end
 
-    -- Percent mode (or a mis-tuned weighted table) can come up empty; force one pick unless allowNone.
     if #rewards == 0 and not opts.allowNone then
         rewards[1] = toReward(Kora.util.weightedChoice(weightedPairs))
     end

@@ -1,5 +1,3 @@
--- Categories are fixed: GTA reserves a small numeric range for script legend groups,
--- and allocating ids in creation order would shuffle them across resource restarts.
 local DEFINITIONS = {
     { key = 'Other', name = 'Other', label = 'Other', id = 12 },
     { key = 'Bank', name = 'Bank', label = 'Bank', id = 13 },
@@ -94,8 +92,6 @@ local function resolve(category)
     return definition
 end
 
--- Nested table: build/finalise only exports direct module functions, so this
--- catalogue stays out of the exports.
 Kora.blips._categoryCatalog = {
     definitions = DEFINITIONS,
     byId = byId,

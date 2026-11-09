@@ -1,16 +1,9 @@
--- Consumer-local configuration runtime, loaded by @kora_lib/init.lua into the consuming
--- resource's own Lua environment: Config and SaveResourceFile are resource-local, so kora_lib
--- never needs permission to write another resource's files.
-
 return function(library)
     local RESOURCE = GetCurrentResourceName()
-    -- Some FXServer builds return numeric 1 for this native instead of true.
     local serverFlag = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
     local isServer = serverFlag == true or serverFlag == 1
     local MARKER = '__koraLibConfigDescriptor'
     local STORAGE_MARKER = '__koraLibConfigType'
-    -- Deprecated pre-rename marker. Existing config.local.lua overrides and
-    -- resources started before the rename still carry it, so decoding accepts both.
     local LEGACY_STORAGE_MARKER = '__qblibConfigType'
     local config = {}
     local state
@@ -232,9 +225,6 @@ return function(library)
         if wrapped then value = wrapped.value end
         local valueType = type(value)
         if not wrapped and skipUnsupported and #path > 0 and valueType == 'table' and next(value) == nil then
-            -- Empty untyped tables in legacy Config files are generally
-            -- resource-populated registries. Explicit object/list/map fields
-            -- remain available for intentional editable empty collections.
             return nil
         end
         if not wrapped and skipUnsupported and valueType ~= 'boolean' and valueType ~= 'string'
@@ -249,9 +239,6 @@ return function(library)
             advanced = kind == 'list' or kind == 'map' or kind:match('^vector') ~= nil
         end
         local scope = options.scope or inheritedScope or 'shared'
-        -- A leaf name such as `max`, `enabled`, or `timeout` is meaningless in
-        -- isolation in the editor. Keep its owning path in the inferred label;
-        -- explicitly authored labels remain untouched.
         local label = options.label or pathLabel(path)
         local schema = {
             kind = kind,
@@ -630,8 +617,6 @@ return function(library)
     local function pruneOverrides(schema, current, defaults)
         if schema.kind ~= 'object' then
             if equal(current, defaults) then return nil end
-            -- Absence means use the authored default; clearing an optional
-            -- value needs an explicit representation in the override file.
             if schema.kind == 'optional' and current == nil then return { [STORAGE_MARKER] = 'nil' } end
             return encodeStorage(current)
         end
@@ -776,11 +761,6 @@ return function(library)
         return encodeStorage(configured)
     end
 
-    -- `adopt` deliberately leaves unsupported legacy members (for example,
-    -- callbacks and resource-populated registries) on the resource's public
-    -- Config table. Only project the registered schema when returning running
-    -- values to kora_lib; otherwise one such member makes the whole editor read
-    -- fail even though it was correctly omitted from the editable catalog.
     local function projectValues(schema, value)
         if schema.kind == 'optional' then
             if value == nil then return nil end
@@ -874,10 +854,6 @@ return function(library)
         })
     end
 
-    -- A consumer's shared config can execute while kora_lib is still finishing
-    -- its own server bootstrap. Re-announce after the resource start event so
-    -- the catalog cannot remain empty when the initial export call raced
-    -- kora_lib's finalise step.
     if isServer and type(AddEventHandler) == 'function' then
         AddEventHandler('onResourceStart', function(resource)
             if resource ~= RESOURCE and resource ~= 'kora_lib' then return end
@@ -1146,10 +1122,6 @@ return function(library)
         end
     end
 
-    -- Server-side consumers such as kora_admin use the same Kora.config namespace
-    -- to reach kora_lib's catalog. Individual resources still cannot write one
-    -- another's files: kora_lib sends every mutation back through the target's
-    -- own bridge export below.
     function config.catalog()
         assert(isServer, 'Kora.config.catalog is server-only.')
         return library:config_catalog()
@@ -1255,7 +1227,6 @@ return function(library)
             if isServer and schema.scope ~= 'server' then
                 local encodedValue = encodeStorage(value)
                 TriggerClientEvent('kora_lib:client:configUpdated', -1, RESOURCE, path, encodedValue, state.revision)
-                -- Deprecated alias for clients still running a pre-rename consumer.
                 TriggerClientEvent('qblib:client:configUpdated', -1, RESOURCE, path, encodedValue, state.revision)
             end
         end
@@ -1302,16 +1273,11 @@ return function(library)
         exports('kora_lib_configRead', bridgeRead)
         exports('kora_lib_configCommit', bridgeCommit)
         exports('kora_lib_configReset', bridgeReset)
-        -- Deprecated pre-rename export names, still served for callers that
-        -- predate the rename (for example a kora_lib that has not restarted yet).
         exports('qblib_configRead', bridgeRead)
         exports('qblib_configCommit', bridgeCommit)
         exports('qblib_configReset', bridgeReset)
     end
 
-    -- Listens on the kora_lib: name and its deprecated qblib: alias. Both can
-    -- arrive for one change, which is harmless: every handler discards stale
-    -- revisions and request ids.
     local function registerNetEventWithLegacyAlias(name, handler)
         RegisterNetEvent(name, handler)
         RegisterNetEvent((name:gsub('^kora_lib:', 'qblib:')), handler)
@@ -1414,14 +1380,9 @@ return function(library)
 
     if not isServer and type(AddEventHandler) == 'function' then
         AddEventHandler('onClientResourceStart', function(resource)
-            -- A kora_lib restart replaces the server registry without necessarily restarting
-            -- consumers; re-request the active snapshot so clients don't stay on authored defaults.
             if (resource == RESOURCE or resource == 'kora_lib') and state then requestSnapshot() end
         end)
 
-        -- `Kora.config` is consumer-local so resource-owned Config tables stay
-        -- local. Keep the standalone editor reachable from that same API by
-        -- forwarding this one client convenience call to kora_lib's export.
         function config.open(resource)
             assert(resource == nil or type(resource) == 'string', 'Configuration resource must be a string.')
             assert(type(library) == 'table' and type(library.config_open) == 'function',

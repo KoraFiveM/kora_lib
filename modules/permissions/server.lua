@@ -1,6 +1,3 @@
--- Kora.permissions (server): one gateway over FiveM ACEs and, opt-in, Kora.discord's fail-closed role cache.
--- ACE grants win immediately; Discord roles can add a grant but never disable an ACE grant such as group.admin.
-
 local MAX_LEVELS = 32
 
 local function resolveOptions(prefixOrOptions)
@@ -39,8 +36,6 @@ local function assertLevels(levels)
     assert(count == #levels, 'Permission levels must be a dense array.')
 end
 
--- Normalizes IsPlayerAceAllowed to a real boolean: hasPermission is an export and a consumer's `== true` would silently deny a non-boolean.
--- (A numeric 0 would be truthy in Lua and over-permit, so look at identifiers/principals for "no permissions" reports.)
 local function aceAllowed(src, object)
     local allowed = IsPlayerAceAllowed(src, object)
     return allowed == true or allowed == 1
@@ -74,7 +69,6 @@ local function discordAllows(src, permission, discordRoles)
             ('Discord roles for permission %q must be a non-empty dense string array.'):format(permission))
     end
 
-    -- hasAnyRole rejects disabled bots and stale member snapshots; a lookup failure fails closed without touching the ACE result.
     local hasAnyRole = Kora.discord and Kora.discord.hasAnyRole
     if type(hasAnyRole) ~= 'function' then return false end
     local ok, allowed = pcall(hasAnyRole, src, roles)
@@ -131,7 +125,6 @@ function Kora.permissions.hasPermission(src, permission, prefixOrOptions)
     assert(type(permission) == 'string' and permission ~= '', 'Permission must be a non-empty string.')
     if permission == 'user' then return true end
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
-    -- Strict boolean: this is an export and callers may compare with `== true`.
     return aceAllows(src, permission, prefix, true) == true
         or discordAllows(src, permission, discordRoles) == true
 end

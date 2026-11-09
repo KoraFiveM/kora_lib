@@ -43,10 +43,6 @@ export function MinigameContainer() {
     const { payload, isOpen, respond } = useNuiRequest<MinigamesRoundPayload, MinigameAttempt>("minigames:round")
     const [closed, setClosed] = useState(false)
 
-    // Force-hides even mid-round, when no respond() was ever called -- the
-    // one case that happens is a cancelled session (resource-stop cleanup on
-    // the Lua side, see client.lua's minigameOwnership), where the round
-    // request the player was still looking at simply never gets an answer.
     useNuiEvent<MinigamesClosePayload | undefined>("minigames:close", () => {
         setClosed(true)
     })

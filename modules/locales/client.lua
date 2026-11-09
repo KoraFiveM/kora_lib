@@ -31,7 +31,6 @@ function Kora.locale.setLanguage(language)
     SetResourceKvp(KVP_KEY, language)
     Kora.locale._language = language
     TriggerEvent('kora_lib:client:localeChanged', language, oldLanguage)
-    -- Deprecated alias for listeners that predate the kora_lib rename.
     TriggerEvent('qblib:client:localeChanged', language, oldLanguage)
     return true
 end

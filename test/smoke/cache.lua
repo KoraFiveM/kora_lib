@@ -19,8 +19,6 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- Scenario: player 5 (server id 42), ped 100, in vehicle 200 seat 1 (not driver, not seat 0,
--- so computeSeat's scan is exercised), weapon hash 999.
 local playerIdReads, serverIdReads, seatReads, pedReads = 0, 0, 0, 0
 local networkReady = false
 local occupiedSeat = 1
@@ -39,8 +37,8 @@ _G.GetSeatPedIsTryingToEnter = function() return -1 end
 _G.GetVehicleMaxNumberOfPassengers = function() return 2 end
 _G.GetPedInVehicleSeat = function(vehicle, seat)
     seatReads = seatReads + 1
-    if seat == occupiedSeat then return 100 end -- our ped
-    return 999999 -- someone/something else, or nobody
+    if seat == occupiedSeat then return 100 end
+    return 999999
 end
 _G.GetSelectedPedWeapon = function() return 999 end
 _G.GetEntityHealth = function() return 175 end
@@ -179,9 +177,6 @@ harness.test("isDead follows IsPedFatallyInjured and notifies on the death edge"
 end)
 
 harness.test("stamina is read from the PLAYER index, not the ped", function()
-    -- The one built-in keyed off PlayerId() rather than PlayerPedId(); a HUD
-    -- reads it every tick while sprinting, so a wrong argument here would be a
-    -- silently constant bar rather than an error.
     harness.assertEqual(Kora.cache.stamina(), 87.5, "stamina should come from GetPlayerStamina(playerId)")
 end)
 
@@ -301,7 +296,6 @@ harness.test("offChange removes the calling resource's handlers for that key", f
     harness.assertEqual(calls, 0, "a removed handler must not fire")
 end)
 
--- Placed last: onClientResourceStop sweeps handlers still registered by earlier tests.
 harness.test("onChange handlers are swept when their owning resource stops", function()
     local calls = 0
     Kora.cache.onChange("sweep-target", function() calls = calls + 1 end)

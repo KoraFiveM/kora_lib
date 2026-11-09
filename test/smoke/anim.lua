@@ -13,7 +13,7 @@ dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 local ANIM_DICT = "test@anim"
-local STUCK_DICT = "test@stuck" -- never reports as loaded, to exercise the failure path
+local STUCK_DICT = "test@stuck"
 
 local loadedDicts = {}
 local playCalls = {}
@@ -32,7 +32,7 @@ function _G.RemoveAnimDict(dict) loadedDicts[dict] = nil end
 
 function _G.TaskPlayAnim(entity, dict, clip, blendIn, blendOut, duration, flag)
     playCalls[entity] = { dict = dict, clip = clip, blendIn = blendIn, blendOut = blendOut, duration = duration, flag = flag }
-    stopCalls[entity] = nil -- starting a new anim un-stops the entity, same as the real native
+    stopCalls[entity] = nil
 end
 
 function _G.StopAnimTask(entity, dict, clip, blendOut)
@@ -46,7 +46,6 @@ end
 
 function _G.DoesEntityExist(e) return existingEntities[e] == true or existingProps[e] == true end
 
--- Prop/streaming natives, for attachProp.
 function _G.IsModelValid() return true end
 function _G.HasModelLoaded() return true end
 function _G.RequestModel() end

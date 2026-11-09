@@ -1,10 +1,3 @@
----@class QBResourcesRegistry
----@field track fun(resource: string, id: any) Marks `id` as owned by `resource`.
----@field untrack fun(id: any): string? resource The resource `id` was tracked under, if any; drops the tracking either way.
----@field owner fun(id: any): string? resource The resource currently tracking `id`, without dropping it.
-
--- One onClientResourceStop handler per registry: each owns its id space and onDispose behavior.
-
 local function assertId(id)
     assert(id ~= nil, 'Registry id must not be nil.')
 end
@@ -30,7 +23,6 @@ function Kora.resources.registry(onDispose)
         assert(not sweeping[resource], 'Cannot track an id for a resource while it is stopping.')
         local previousOwner = ownerOf[id]
 
-        -- Re-tracking an id owned by a different resource must move it, or the old owner stopping would dispose an id it no longer owns.
         if previousOwner and previousOwner ~= resource then
             local previouslyOwned = byResource[previousOwner]
             if previouslyOwned then previouslyOwned[id] = nil end

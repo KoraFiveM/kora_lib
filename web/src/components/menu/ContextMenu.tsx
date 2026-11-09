@@ -8,9 +8,6 @@ import { getNuiViewport } from "@/lib/viewport"
 import { MenuItemLabel } from "@/components/menu/MenuItemLabel"
 import { Markdown } from "@/components/ui/markdown"
 
-// Rough per-item footprint used only to decide whether the popup needs to be
-// flipped onto screen -- doesn't need to be exact, just close enough that the
-// menu never renders (even partially) past the viewport edge.
 const ESTIMATED_WIDTH = 220
 const ESTIMATED_ITEM_HEIGHT = 36
 
@@ -45,9 +42,6 @@ export function ContextMenuContainer() {
     const selectItem = useCallback(
         (item: MenuItem) => {
             if (item.disabled || item.readOnly) return
-            // Always a single-element path: the context menu is a flat,
-            // anchored one-shot list and ignores `submenu` (there's nowhere
-            // sensible to put a back row) -- see MenuItem in lib/types.ts.
             respond({ selectedId: item.id, path: [item.id] })
         },
         [respond],
@@ -57,9 +51,6 @@ export function ContextMenuContainer() {
         if (payload?.canClose !== false) respond({ cancelled: true })
     }, [payload?.canClose, respond])
 
-    // Outside-click / Escape / arrow-key dismissal+navigation -- there's no
-    // Radix popover here to do this for us, so it's wired up by hand for as
-    // long as a menu is open.
     useEffect(() => {
         if (!isOpen) return
 
@@ -104,8 +95,6 @@ export function ContextMenuContainer() {
         }
     }, [isOpen, activeIndex, enabledIndexes, items, selectItem, dismiss])
 
-    // Keep DOM focus on the active item so screen readers/keyboard users
-    // track roving focus the same way the ARIA role="menu" semantics imply.
     useEffect(() => {
         if (isOpen) itemRefs.current[activeIndex]?.focus()
     }, [isOpen, activeIndex])
@@ -113,8 +102,6 @@ export function ContextMenuContainer() {
     if (!isOpen || !payload) return null
 
     const viewport = getNuiViewport()
-    // Lua supplies screen pixels. The root is scaled above 1080p, so convert
-    // those coordinates before positioning inside its virtual viewport.
     const x = (payload.x ?? window.innerWidth / 2) / viewport.scale
     const y = (payload.y ?? window.innerHeight / 2) / viewport.scale
     const estimatedHeight = items.reduce(

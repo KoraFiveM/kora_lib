@@ -18,8 +18,6 @@ dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
 
--- Client module fixtures: NUI requests resolve immediately so this plain Lua
--- test can verify the capture wrapper without a browser or native texture.
 Kora.nui = {
     request = function(action, payload)
         nuiRequests[#nuiRequests + 1] = { action = action, payload = payload }
@@ -281,9 +279,6 @@ harness.test('server capture retains its safe upload limit when maxBytes is malf
 end)
 
 harness.test('server capture writes a caller-controlled server path when requested', function()
-    -- requestClient's fileName is a server API value, never data supplied by
-    -- the player/browser. Use the OS temporary directory here so this smoke
-    -- path proves kora_lib-playground's PDF attachment flow receives real bytes.
     local destination = os.tmpname()
     local callbackErr, callbackResult
     Kora.screenshot.requestClient(mocks.SOURCE, { fileName = destination, encoding = 'jpg' }, function(err, result)

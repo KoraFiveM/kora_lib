@@ -1,16 +1,3 @@
----@class QBInteractOption
----@field label string
----@field action? fun()
----@field event? string
----@field args? any[]
----@field type? "client"|"server"
----@field canInteract? fun(): boolean
----@field job? string|string[]|table<string, integer>
----@field gang? string|string[]|table<string, integer>
----@field citizenid? string|string[]|table<string, boolean>
----@field item? string|string[]
----@field icon? string UI consumers may use this; kora_lib's compact selector draws it left of the label when it resolves.
-
 local active
 local callbackRegistered = false
 local zonesByName = {}
@@ -30,7 +17,6 @@ local isCallable = Kora.compat.isCallable
 
 local function isEnabled()
     local state = LocalPlayer and LocalPlayer.state
-    -- Character/scene selection is a camera preview; don't open a selector over that NUI.
     if state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false then return false end
     return Config.ui and Config.ui.interact == true
 end
@@ -152,8 +138,6 @@ local function dispatch(option)
     end
 end
 
--- Selecting an option only hides the selector and never resets the zone's isInside, so onEnter can't refire while the player stays inside.
--- Polls IsNuiFocused() so any option works; the grace period lets an externally-opened menu (e.g. after a server roundtrip) take focus first.
 local function watchForReopen(name)
     local zone = zonesByName[name]
     if not zone then return end
@@ -173,7 +157,6 @@ local function watchForReopen(name)
     end)
 end
 
--- interact loads before nui (alphabetical glob), so callbacks register lazily once a zone opens.
 local function ensureCallbacks()
     if callbackRegistered then return end
     callbackRegistered = true
@@ -474,7 +457,6 @@ function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
     return Kora.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
 end
 
--- Registers an aim-targeted entity via kora_target, keeping kora_lib's option vocabulary and resource-stop ownership. Follows a moving entity, unlike addTargetEntity.
 local function assertTargetDistance(distance)
     assert(distance == nil or (Kora.util.isFiniteNumber(distance) and distance > 0),
         'interact target distance must be a positive finite number.')
@@ -505,7 +487,6 @@ function Kora.interact.addEntity(entity, options, distance)
         }
     end
     local id = exports.kora_target:addEntity(entity, translated, distance)
-    -- kora_target's removeEntity takes one entity; removing by id tears down the whole registration.
     local handle = { kind = 'entity', value = type(entity) == 'table' and entity[1] or entity, id = id }
     targetHandles.entity[id] = handle
     targetRegistry.track(owner, handle)

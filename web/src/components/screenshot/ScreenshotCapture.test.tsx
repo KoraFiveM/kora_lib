@@ -78,7 +78,6 @@ beforeEach(() => {
     vi.stubGlobal("innerWidth", 8); vi.stubGlobal("innerHeight", 4)
 })
 afterEach(() => {
-    // Remove any leaked mock canvas after assertions so original/partial failures stay isolated.
     for (const renderer of graphics.renderers) renderer.domElement.remove()
     vi.restoreAllMocks(); vi.unstubAllGlobals()
 })

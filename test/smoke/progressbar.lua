@@ -14,14 +14,12 @@ dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 
--- progressbar talks to the NUI only through Kora.nui.send, so modules/nui/client.lua is loaded too.
 local nuiMessages = {}
 function _G.SendNUIMessage(msg) table.insert(nuiMessages, msg) end
 _G.RegisterNUICallback = function() end
 _G.SetNuiFocus = function() end
 dofile(repoRoot .. "modules/nui/client.lua")
 
--- Ped/control natives are module-specific, so mocked here rather than in test/mocks.lua.
 local dead = false
 local ragdoll = false
 local cuffed = false
@@ -439,7 +437,6 @@ end)
 
 harness.test("a bar still completes if its anim dict never loads", function()
     reset()
-    -- animDictsLoaded left empty: HasAnimDictLoaded stays false the whole poll.
     local completed = Kora.progressbar.start({
         label = "Working...",
         duration = 500,

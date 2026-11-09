@@ -11,10 +11,6 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Controllable mock kora_core shared-item registry -- imageFor (in
--- compat/client/qb-menu.lua) reads item definitions via
--- exports.kora_core:getShared('items', key), pcall-guarded, same pattern as
--- compat_qb_radialmenu.lua's exports.kora_core mock.
 local sharedItems = {}
 _G.exports = {
     kora_core = {
@@ -25,8 +21,6 @@ _G.exports = {
     },
 }
 
--- Mock Kora.nui directly and resolve synchronously: openMenu must consume
--- Kora.nui.openMenu's result itself to know which legacy event to fire.
 local sentItems = nil
 local nextMenuResult = nil
 local sentActions = {}
@@ -51,7 +45,6 @@ end }
 dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-menu.lua")
 
--- Mirrors a cross-resource exports['qb-menu']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -86,7 +79,6 @@ harness.test("isMenuHeader rows map onto disabled, matching real qb-menu's unsel
     harness.assertTrue(sentItems[1].disabled, "isMenuHeader should map to disabled")
 end)
 
--- TriggerEvent isn't recorded by test/mocks.lua, so listen via AddEventHandler.
 harness.test("selecting an item with a client event passes qb-menu's args table as one value", function()
     local received
     AddEventHandler("vehicle:repair", function(args) received = args end)
@@ -108,8 +100,6 @@ harness.test("selecting an item with isServer fires TriggerServerEvent", functio
     harness.assertEqual(sent[1][1], "water", "args should remain one server-event table")
 end)
 
--- A `function` on `item.action` from ANOTHER resource crosses the export boundary as a table
--- with a __call metamethod (FXServer funcref marshalling). A masked action must still fire.
 harness.test("selecting an item with a masked cross-resource function action still fires it", function()
     local fired = 0
     local maskedAction = setmetatable({}, { __call = function(_) fired = fired + 1 end })
@@ -120,9 +110,6 @@ harness.test("selecting an item with a masked cross-resource function action sti
     harness.assertEqual(fired, 1, "a masked cross-resource function action should still be invoked")
 end)
 
--- Some CFX versions expose the export-boundary callable through the legacy
--- marker field too. The real runtime makes that object invocable; the mock
--- adds __call so we can exercise both recognition and dispatch here.
 harness.test('a __cfx_functionReference action remains compatible', function()
     local fired = 0
     local funcref = setmetatable({ __cfx_functionReference = 'smoke-ref' }, {
@@ -133,8 +120,6 @@ harness.test('a __cfx_functionReference action remains compatible', function()
     harness.assertEqual(fired, 1, 'a CFX funcref action should still be invoked')
 end)
 
--- Same masking, but through the isAction/params.event path (dispatch's
--- second, independent callable check) rather than item.action directly.
 harness.test("selecting an item with isAction and a masked cross-resource event function still fires it", function()
     local receivedArgs
     local maskedEvent = setmetatable({}, { __call = function(_, args) receivedArgs = args end })
@@ -162,11 +147,6 @@ harness.test("a cancelled result fires nothing", function()
     harness.assertEqual(#net.triggeredServerEvents, before, "cancelling should never dispatch an event")
 end)
 
--- Real qb-menu's openMenu/showHeader do `if not data or not next(data) then
--- return end` -- a nil (or non-table) menu is a silent no-op, not an error.
--- A script that conditionally builds a menu and passes nil when there's
--- nothing to show must keep working exactly like it does against the real
--- resource, not crash.
 harness.test("openMenu silently no-ops on a non-table menu, matching real qb-menu", function()
     sentItems = nil
     local ok = pcall(openMenu, "not a table")
@@ -227,10 +207,6 @@ harness.test("the qb-menu:client:closeMenu net event does not error", function()
     harness.assertTrue(ok, "the closeMenu net event should not error")
 end)
 
--- Real qb-menu items sometimes carry a shared-item NAME as `icon`; imageFor looks it up via
--- exports.kora_core:getShared('items', icon). A definition with only the legacy local-file
--- `image` (no `imageUrl`) has its icon dropped: the nui://qb-inventory/html/images URL
--- would always 404, since kora_inventory ships no such files.
 harness.test("an icon naming a shared item with only a legacy `image` field is dropped, not translated to a dead nui:// URL", function()
     sharedItems = { bread = { name = "bread", image = "bread.png" } }
     nextMenuResult = { cancelled = true }
@@ -247,10 +223,6 @@ harness.test("an icon naming a shared item with a real imageUrl is used directly
     harness.assertEqual(sentItems[1].image, "https://example.com/bread.png", "a real imageUrl should be used as-is")
 end)
 
--- During a genuine export call, Kora.nui.openMenu has already awaited its own
--- promise before returning here. A second Citizen.Await on this plain result
--- would return nil in CfxLua, so the compatibility layer must consume it
--- directly. The event-path test above separately covers the promise path.
 harness.test("the export path consumes Kora.nui.openMenu's already-settled result directly", function()
     local received
     AddEventHandler("export:test:fired", function() received = true end)

@@ -21,17 +21,6 @@ import type {
 } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 
-// Dev-only: fires the exact `window` message shape Lua's SendNUIMessage
-// produces (NuiWireMessage, see lib/types.ts), so every component can be
-// exercised by running `pnpm dev` in a plain browser instead of needing a
-// running game. The import.meta.env.DEV gate below means Vite dead-code-
-// eliminates this whole component (and its sample payloads) from the
-// production bundle; isBrowserEnv additionally keeps it hidden if a dev
-// build ever ends up inside the real CEF frame.
-//
-// Every payload here is TYPED against lib/types.ts -- if the contract
-// changes, these samples fail the type-check instead of silently testing a
-// stale shape.
 function post<T>(action: string, data: T) {
     const message: NuiWireMessage<T> = { action, data }
     window.postMessage(message, "*")
@@ -388,7 +377,7 @@ const actions: { label: string; run: () => void }[] = [
             post<ZoneCreatorHudSnapshot>("zoneCreator:hud", {
                 ...SAMPLE_HUD_SNAPSHOT,
                 isShiftHeld: true,
-                stepSize: 0.625, // sizeStep (0.25) * shiftMultiplier (2.5), per config.lua
+                stepSize: 0.625,
             })
         },
     },
@@ -408,8 +397,6 @@ const actions: { label: string; run: () => void }[] = [
         },
     },
     {
-        // Mirrors the real teardown wire shape: Lua sends data = nil, which
-        // arrives as an ABSENT field (undefined), never a literal null.
         label: "Zone HUD teardown",
         run: () => post<undefined>("zoneCreator:hud", undefined),
     },

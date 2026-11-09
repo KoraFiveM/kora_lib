@@ -52,12 +52,6 @@ function Kora.util.trim(value)
     return value:match("^%s*(.-)%s*$")
 end
 
----@class QBCleanTextOptions
----@field maxLength? integer Maximum UTF-8 character count.
----@field whitespace? 'collapse'|'preserve' Collapses all whitespace to single spaces by default.
----@field controlCharacters? 'remove'|'preserve' Removes ASCII control characters by default.
----@field empty? 'nil'|'allow' Returns nil for empty text by default.
-
 ---Cleans external text using one explicit, reusable policy.
 ---@param value any
 ---@param options? QBCleanTextOptions
@@ -212,7 +206,7 @@ function Kora.util.weightedChoice(list)
         if roll <= cumulative then return entry[1] end
     end
 
-    return list[#list][1] -- floating-point fallback for a roll == total edge case
+    return list[#list][1]
 end
 
 ---@param t table
@@ -224,11 +218,6 @@ function Kora.util.tableContains(t, value)
     end
     return false
 end
-
--- Vector helpers accept vector2/3/4 and coordinate tables interchangeably and always RETURN a plain
--- `{x, y, z}` table: this file loads in the plain-Lua test harness where `vector3` doesn't exist, and a
--- plain table survives json.encode and the exports boundary. Names are flat (`vecAdd`) because
--- build/finalise.lua only exports functions directly on the module table.
 
 ---@param v any
 ---@param label? string
@@ -337,12 +326,6 @@ function Kora.util.vecDistance2d(a, b)
     return magnitude(dx, dy, 0, "Kora.util.vecDistance2d")
 end
 
----@class KoraNearestOptions
----@field coordsOf fun(entry: any): (vector3|{x:number,y:number,z:number}) Required. Extracts coordinates from a list entry.
----@field radius? number Maximum distance to count as a match. Unbounded if omitted.
----@field bucketOf? fun(entry: any): any Extracts a routing bucket (or any other filter key) from a list entry.
----@field bucket? any Value `bucketOf` must match. Required alongside `bucketOf`.
-
 ---Finds the entry in a plain-data `list` (not live entities -- see
 ---`Kora.world`/`Kora.closest` for those) whose coordinates are nearest to
 ---`position`, optionally bounded by `opts.radius` and filtered to entries
@@ -410,9 +393,6 @@ end
 function Kora.util.bearing(origin, target)
     return Kora.util.directionToHeading(Kora.util.vecSub(target, origin))
 end
-
----@class KoraRateLimiter
----@field consume fun(self: KoraRateLimiter, key: any, now: number): boolean ok, number? retryAfter
 
 ---Returns a bounded ring-buffer sliding-window rate limiter. `max` and
 ---`window` (same unit as `now`, typically milliseconds) bound how many

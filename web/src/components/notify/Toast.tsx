@@ -7,16 +7,10 @@ import type { NotifyPayload, NotifyPosition, NotifyType } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 import { Markdown } from "@/components/ui/markdown"
 
-// Lua's Kora.notify.send resolves these from Config.notify before sending, but
-// this component must stay renderable from a bare payload too -- any resource
-// can post straight to the "notify" action.
 const DEFAULT_DURATION = 5000
 const DEFAULT_TYPE: NotifyType = "info"
 const DEFAULT_POSITION: NotifyPosition = "top-right"
 
-// Oldest toasts are dropped past this, so a notify-spamming caller degrades
-// to a rotating stack instead of unbounded DOM growth. Counted across all
-// positions: the cap exists to bound total DOM, not per-corner density.
 const MAX_TOASTS = 6
 
 const TYPE_STYLES: Record<NotifyType, { icon: string; tone: string; progress: string }> = {
@@ -26,8 +20,6 @@ const TYPE_STYLES: Record<NotifyType, { icon: string; tone: string; progress: st
     error: { icon: "AlertCircle", tone: "text-destructive", progress: "bg-destructive" },
 }
 
-// Anchor + stack direction per position. Newest toast renders last in the
-// array, so bottom-anchored stacks reverse to keep the newest nearest the edge.
 const POSITION_STYLES: Record<NotifyPosition, string> = {
     "top-left": "left-4 top-4 flex-col items-start",
     "top-center": "left-1/2 top-4 -translate-x-1/2 flex-col items-center",
@@ -129,10 +121,6 @@ export function Toast() {
     )
 
     useNuiEvent<NotifyPayload>("notify", (payload) => {
-        // Normalized on ingestion: Kora.notify.assert type-checks these Lua-side,
-        // but this component must not be crashable by a raw Kora.nui.send from
-        // some other caller -- a non-string field renders as nothing rather
-        // than becoming an invalid React child that unmounts the whole root.
         const title = typeof payload.title === "string" ? payload.title : undefined
         const message = typeof payload.message === "string" ? payload.message : undefined
         if (!title && !message) return
@@ -178,8 +166,6 @@ export function Toast() {
         timeoutsRef.current.set(id, setTimeout(() => dismiss(id), duration))
     })
 
-    // Clear every pending auto-dismiss timer on unmount so none of them fire
-    // (and call setState) after the component's gone.
     useEffect(() => {
         const timeouts = timeoutsRef.current
         return () => {

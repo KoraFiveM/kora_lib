@@ -57,9 +57,6 @@ const MIME_TYPES: Record<ScreenshotEncoding, string> = {
 let threeRuntime: Promise<ThreeRuntime> | undefined
 
 function loadThree() {
-    // The CfxTexture renderer is sizeable and unused by all normal menus/HUD
-    // flows. Vite therefore places it in a separate chunk that downloads only
-    // for the first actual screenshot request.
     threeRuntime ??= import("@citizenfx/three") as Promise<ThreeRuntime>
     return threeRuntime
 }
@@ -131,8 +128,6 @@ async function createResources(width: number, height: number): Promise<CaptureRe
         type: three.UnsignedByteType,
     })
     const renderer = new three.WebGLRenderer()
-    // The target resolution is explicitly capped above; using DPR here would
-    // silently allocate another oversized buffer on high-DPI clients.
     renderer.setPixelRatio(1)
     renderer.setSize(width, height, false)
     renderer.autoClear = false
@@ -211,9 +206,6 @@ export function ScreenshotCapture() {
             resourcesRef.current = resources
         }
 
-        // CfxTexture is fed by the game view. Waiting for two browser frames
-        // lets the requested game frame reach the texture without keeping a
-        // permanent render loop alive between captures.
         await waitForFrame()
         if (!mountedRef.current) throw new Error("Screenshot capture is no longer mounted.")
         resources.renderer.clear()
@@ -231,9 +223,6 @@ export function ScreenshotCapture() {
 
         const encoding = normalizedEncoding(payload.encoding)
         const blob = await blobFromCanvas(canvas, MIME_TYPES[encoding], normalizedQuality(payload.quality))
-        // Server-initiated uploads and multipart uploads consume the Blob
-        // directly. Avoid creating a second base64-sized copy unless the API
-        // actually needs the legacy data-URI result.
         return { blob, data: includeDataUrl ? await dataUrlFromBlob(blob) : undefined }
     }, [])
 
@@ -260,7 +249,6 @@ export function ScreenshotCapture() {
             }
         }
         const next = queueRef.current.then(run, run)
-        // A failed capture must not poison the next request in the queue.
         queueRef.current = next.catch(() => undefined)
         return next
     }, [releaseCapture])
@@ -285,8 +273,6 @@ export function ScreenshotCapture() {
                     headers["Content-Type"] = blob.type
                     body = blob
                 } else if (payload.field) {
-                    // Let the browser supply multipart's boundary even when a
-                    // caller provided unrelated authentication headers.
                     delete headers["Content-Type"]
                     const formData = new FormData()
                     formData.append(payload.field, blob, `screenshot.${normalizedEncoding(payload.encoding)}`)

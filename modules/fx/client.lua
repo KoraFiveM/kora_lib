@@ -1,29 +1,7 @@
----@class QBFxPtfxDef
----@field dict string Particle effect asset (ptfx) dictionary name, streamed via `Kora.stream.loadPtfx`.
----@field name string Effect name within `dict`.
----@field bone? string Bone name to attach to, resolved via `GetEntityBoneIndexByName`. Only honored when `entity` is also given and `looped` is true -- see the function doc comment.
----@field entity? number Attaches the effect to this entity. Mutually exclusive with `coords` -- `entity` wins if both are given.
----@field coords? vector3 | {x: number, y: number, z: number} World-space effect origin. Ignored when `entity` is given.
----@field offset? vector3 | {x: number, y: number, z: number} Defaults to zero.
----@field rot? vector3 | {x: number, y: number, z: number} Defaults to zero.
----@field scale? number Defaults to 1.0.
----@field duration? integer ms after which a `looped` effect auto-stops. Ignored for non-looped effects, which have their own baked-in lifetime.
----@field looped? boolean Defaults to false (fire-and-forget, plays out on its own).
-
----@class QBFxPtfxHandle
----@field looped boolean
----@field particleId? number Set only when `looped` is true -- the handle `StopParticleFxLooped` needs.
-
----@class QBFxScreenHandle
----@field id integer Opaque per-call identifier; use the whole handle with `Kora.fx.stopScreenEffect`.
----@field name string
-
--- Looped particle handles only; non-looped effects end on their own and Kora.fx.stop is a no-op for them.
 local ptfxRegistry = Kora.resources.registry(function(particleId)
     StopParticleFxLooped(particleId, false)
 end)
 
--- Per-call handle plus a name refcount, so one resource stopping its copy doesn't cancel another's live copy of a name-keyed effect.
 local nextScreenId = 0
 local screenHandles = {}
 local screenRefcounts = {}
@@ -133,7 +111,7 @@ function Kora.fx.playPtfx(def)
             local myParticleId = particleId
             CreateThread(function()
                 Wait(duration)
-                if ptfxRegistry.owner(myParticleId) then -- not already stopped
+                if ptfxRegistry.owner(myParticleId) then
                     ptfxRegistry.untrack(myParticleId)
                     StopParticleFxLooped(myParticleId, false)
                 end

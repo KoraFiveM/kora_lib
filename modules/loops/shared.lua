@@ -50,12 +50,10 @@ function Kora.loops.controlled(call, tries, timeout, backoff)
         end
 
         if isExponential or fixedInterval then
-            -- ^ instead of math.pow (removed in 5.3); min() before floor() so an overflowed 2^n (inf) clamps to 1000.
             local delay = isExponential
                 and math.floor(math.min(1000, 2 ^ (attempt - 1) * 25))
                 or fixedInterval or 0
 
-            -- Never sleep past the deadline.
             if timeout then
                 local remaining = timeout - (GetGameTimer() - timer)
                 if remaining <= 0 then

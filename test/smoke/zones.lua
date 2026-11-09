@@ -12,11 +12,6 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- The mock player starts at the origin. ensureTickThread only ever
--- starts one CreateThread for the life of the module, and our CreateThread
--- mock resumes it exactly once -- so only the very first zone created below
--- (the box at the origin) actually gets ticked; later zones are checked via
--- their pure `contains` function instead.
 _G.PlayerPedId = function() return 1 end
 local playerCoords = { x = 0, y = 0, z = 0 }
 _G.GetEntityCoords = function() return playerCoords end
@@ -29,9 +24,6 @@ _G.DrawLine = function() drawLineCalls = drawLineCalls + 1 end
 _G.DrawMarker = function() drawMarkerCalls = drawMarkerCalls + 1 end
 _G.DrawPoly = function() drawPolyCalls = drawPolyCalls + 1 end
 
--- Zone creator natives. Placement goes through the real Kora.raycast.fromCamera, loaded here;
--- the mock camera never aims at anything, so the ray misses (hit = 0).
--- `registeredCommands` captures RegisterCommand handlers so tests can drive the creator like a keybind.
 local registeredCommands = {}
 _G.RegisterCommand = function(name, handler) registeredCommands[name] = handler end
 _G.RegisterKeyMapping = function() end
@@ -83,10 +75,6 @@ _G.AddTextComponentSubstringPlayerName = function() end
 _G.EndTextCommandScaleformString = function() end
 _G.DrawScaleformMovieFullscreen = function() end
 _G.GetControlInstructionalButton = function() return 't_mock' end
--- Recorded rather than ignored: hiding the minimap during placement is only
--- correct if it's also restored on teardown, and a creator that leaves a
--- player with no map is exactly the kind of thing that goes unnoticed in a
--- manual test.
 local radarCalls = {}
 local radarHidden = false
 _G.IsRadarHidden = function() return radarHidden end
@@ -100,18 +88,10 @@ dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/controls/client.lua")
 dofile(repoRoot .. "modules/freecam/client.lua")
 dofile(repoRoot .. "modules/instructional/client.lua")
--- Kora.theme isn't otherwise loaded; without this the Kora proxy auto-vivifies an empty
--- table and zoneDebugColor's Kora.theme.accentColor() is nil.
 _G.exports = { kora_theme = { getPrimaryColor = function() return "#95FF00" end } }
 dofile(repoRoot .. "modules/theme/shared.lua")
 dofile(repoRoot .. "modules/zones/client.lua")
 
--- Real Kora.nui isn't loaded here (that's modules/nui's own smoke test) -- the
--- creator only needs somewhere to send/request against, so this is a minimal
--- stand-in rather than the full request/response bridge. `nextNuiResponse`
--- lets a test drive the confirm dialog to a specific outcome: since the mock
--- Citizen.Await only supports an already-settled promise (see mocks.lua), the
--- response has to be resolved synchronously, before Kora.nui.request returns.
 local nextNuiResponse = nil
 Kora.nui = {
     send = function() end,
@@ -268,8 +248,6 @@ harness.test("poly zone rejects sparse point arrays before creation", function()
 end)
 
 harness.test("poly thickness extends upward from the lowest point, not centred on the average", function()
-    -- Deliberately sloped (z=0 to z=6): an average-centred band (z=1 to z=5) would leave the
-    -- lowest corner's ground outside the zone and bury the bottom half at the high end.
     local zone = Kora.zones.poly({
         points = {
             { x = 0,  y = 0,  z = 0 },
@@ -387,9 +365,6 @@ end)
 harness.test("getInside reports the zones the player is currently standing in", function()
     harness.assertEqual(#Kora.zones.getInside(), 0, "nothing should be inside before any zone exists here")
 
-    -- The mock player sits at the origin: the box contains it, the sphere is
-    -- far away. net.step() advances the (already-running) tick loop one more
-    -- iteration so enter/exit tracking sees these newly created zones.
     local zone = Kora.zones.box({ coords = { x = 0, y = 0, z = 0 }, size = { x = 10, y = 10, z = 10 } })
     local far = Kora.zones.sphere({ coords = { x = 500, y = 500, z = 0 }, radius = 2 })
     net.step()
@@ -427,10 +402,6 @@ harness.test("Kora.zones.edit moves a box zone's coords, updating containment an
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "contains() should reflect the new coords")
     harness.assertFalse(zone.contains({ x = 300, y = 300, z = 0 }), "contains() should no longer match the old coords")
 
-    -- The mock player sits at the origin. isInside() only flips true if the
-    -- zone was actually reinserted into the grid at its new position -- the
-    -- tick loop's candidate search is grid-cell based, not a full scan -- so
-    -- this proves the grid was updated, not just zone.coords/aabb.
     net.step()
     harness.assertTrue(zone.isInside(), "the zone should now be tracked as containing the player at its new position")
 
@@ -463,14 +434,12 @@ harness.test("Kora.zones.edit can attach onEnter/onExit to a zone, and false det
         onExit = function() exitCount = exitCount + 1 end,
     })
 
-    Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } }) -- move it onto the player
+    Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
     net.step()
     harness.assertEqual(enterCount, 1, "the newly attached onEnter should fire once the player is inside")
 
-    Kora.zones.edit(zone, { onExit = false }) -- detach onExit while still inside
+    Kora.zones.edit(zone, { onExit = false })
 
-    -- Move it just outside its own radius, but still within the same grid
-    -- cell as the player so this specifically covers detaching the callback.
     Kora.zones.edit(zone, { coords = { x = 20, y = 0, z = 0 } })
     net.step()
     harness.assertFalse(zone.isInside(), "the zone should be tracked as exited even with no onExit callback attached")
@@ -499,15 +468,9 @@ harness.test("leaving a grid neighbourhood still fires onExit and clears isInsid
     zone.remove()
 end)
 
--- The tick memoises its 3x3 candidate scan, since the answer only changes when
--- the player crosses a cell boundary or the grid itself does. That cache is
--- keyed off a grid epoch, and these are the three ways the grid can move under
--- it: a zone appearing, a zone being destroyed, and a zone being relocated.
--- Get the invalidation wrong and a newly created zone is invisible until the
--- player happens to walk into a different cell and back.
 harness.test("a zone created after the candidate cache was warmed is still seen", function()
     local warm = Kora.zones.sphere({ coords = { x = 0, y = 0, z = 0 }, radius = 5 })
-    net.step() -- warms the candidate cache for the player's cell
+    net.step()
 
     local entered = 0
     local late = Kora.zones.sphere({
@@ -528,14 +491,6 @@ harness.test("a zone created after the candidate cache was warmed is still seen"
 end)
 
 harness.test("a zone destroyed mid-tick is skipped by the rest of that same tick", function()
-    -- The cached candidate list is a snapshot, so a handler that destroys
-    -- another zone leaves a dead reference in the array the loop is still
-    -- walking. That must be skipped, not ticked.
-    --
-    -- Written so it does not depend on which of the two the loop reaches
-    -- first: EACH removes the other, so whichever wins, the loser must never
-    -- fire. Asserting "exactly one of them entered" is true under both
-    -- orderings, where naming a specific victim would be a coin flip.
     local first, second
     local enters = 0
     local function onEnter(other)
@@ -603,9 +558,6 @@ harness.test("Kora.zones.edit with unchanged coords is a no-op that doesn't dist
     net.step()
     harness.assertTrue(zone.isInside(), "the zone should start out containing the player")
 
-    -- A fresh table with the same numeric values, not the same Lua object --
-    -- exercises the value-equality short-circuit rather than trivially
-    -- skipping via reference equality.
     Kora.zones.edit(zone, { coords = { x = 0, y = 0, z = 0 } })
 
     harness.assertTrue(zone.contains({ x = 0, y = 0, z = 0 }), "the zone should still contain the origin")
@@ -711,8 +663,6 @@ harness.test("startCreator rejects a second call while a creator is already runn
     local second = Kora.zones.startCreator("box")
     harness.assertEqual(second.state, "rejected", "a second concurrent creator should be rejected immediately")
 
-    -- Cancel the first via the same handler its keybind would call, so it
-    -- doesn't leak state into later tests.
     registeredCommands["qblib_zonecreator_cancel"]()
     harness.assertEqual(first.state, "resolved", "cancelling should resolve the first creator's promise")
     harness.assertEqual(first.value, nil, "a cancelled creator should resolve with nil, not an error")
@@ -742,12 +692,12 @@ harness.test("the creator restores the minimap when it ends", function()
     radarCalls = {}
 
     local p = Kora.zones.startCreator("box")
-    net.step() -- run one iteration of the creator's per-frame thread
+    net.step()
 
     harness.assertTrue(radarCalls[1] == false, "the minimap should be hidden while placing")
 
     registeredCommands["qblib_zonecreator_cancel"]()
-    net.step() -- let the loop observe creatorState changing and fall through to teardown
+    net.step()
 
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
     harness.assertTrue(radarCalls[#radarCalls] == true,
@@ -804,27 +754,25 @@ harness.test("mouse clicks place, grab/drop and undo exactly like E and Backspac
         via()
     end
     placeAt(0.0, mouse.place)
-    placeAt(10.0, registeredCommands["qblib_zonecreator_place"]) -- E still works
+    placeAt(10.0, registeredCommands["qblib_zonecreator_place"])
     placeAt(0.0, mouse.place)
     placeAt(10.0, mouse.place)
-    mouse.undo() -- right click removes the last point
-    registeredCommands["qblib_zonecreator_undo"]() -- Backspace still works too
+    mouse.undo()
+    registeredCommands["qblib_zonecreator_undo"]()
 
-    -- Two points left: (0,0) and (10,0). Cycle to editPoint, hover the first, grab and drop with clicks.
     local cycle = registeredCommands["qblib_zonecreator_cycle"]
-    for _ = 1, 2 do cycle() end -- thickness -> zOffset -> editPoint
+    for _ = 1, 2 do cycle() end
     rayCoords = { x = 0.5, y = 0.0, z = 0.0 }
-    net.step() -- per-frame loop tracks the hovered point
-    mouse.place() -- grab
-    rayCoords = { x = -20.0, y = 5.0, z = 0.0 }
-    mouse.undo() -- right click cancels the grab (does not delete a point)
     net.step()
-    mouse.place() -- grab again
+    mouse.place()
     rayCoords = { x = -20.0, y = 5.0, z = 0.0 }
-    mouse.place() -- drop
+    mouse.undo()
+    net.step()
+    mouse.place()
+    rayCoords = { x = -20.0, y = 5.0, z = 0.0 }
+    mouse.place()
 
-    -- Add a third point and confirm to read the final geometry back.
-    cycle() -- editPoint -> thickness (back to normal placement)
+    cycle()
     placeAt(5.0, mouse.place)
     nextNuiResponse = { confirmed = true }
     registeredCommands["qblib_zonecreator_confirm"]()
@@ -899,7 +847,6 @@ harness.test("startCreator raises synchronously on malformed seed opts", functio
         Kora.zones.startCreator("box", { rotation = math.huge })
     end, "a non-finite seeded rotation should raise before the creator starts")
 
-    -- Neither failed seed may leave a half-started creator behind.
     local p = Kora.zones.startCreator("box")
     harness.assertEqual(p.state, "pending", "a fresh creator should start cleanly after failed seeds")
     registeredCommands["qblib_zonecreator_cancel"]()
@@ -928,8 +875,6 @@ harness.test("startCreator(type, existingOpts) seeds the creator from an existin
     local p = Kora.zones.startCreator("box", existing)
     harness.assertEqual(p.state, "pending", "the creator should be running, seeded from the existing zone")
 
-    -- Confirming works immediately (no placement keypress first) precisely
-    -- because seeding already gave the creator a center.
     nextNuiResponse = { confirmed = true }
     registeredCommands["qblib_zonecreator_confirm"]()
     nextNuiResponse = nil
@@ -959,8 +904,6 @@ harness.test("confirming a poly creator returns its coordinates without register
     harness.assertEqual(p.state, "resolved", "confirming should return the completed poly definition")
     harness.assertEqual(#p.value.opts.points, 3, "all captured poly coordinates should be returned")
 
-    -- The mock player is at the origin, inside the polygon; confirming must not register it
-    -- as a live zone (the creator is only a builder).
     net.step()
     harness.assertEqual(#Kora.zones.getInside(), 0,
         "the creator preview must disappear without leaving a registered zone behind")
@@ -970,15 +913,9 @@ harness.test("a debug box zone draws one wireframe line per edge plus wall faces
     drawLineCalls = 0
     drawPolyCalls = 0
 
-    -- Creating the zone starts the debug thread, and the mock CreateThread
-    -- resumes it once immediately -- one draw pass happens synchronously,
-    -- no net.step() needed.
     local zone = Kora.zones.box({ coords = { x = 100, y = 100, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = true })
 
-    -- 12 box edges, one line each -- no thickness faking, the wall fill
-    -- below is what carries visibility.
     harness.assertEqual(drawLineCalls, 12, "each of the box's 12 edges should be drawn once")
-    -- 6 faces, 2 triangles each, drawn twice (both windings) for double-sided visibility.
     harness.assertEqual(drawPolyCalls, 24, "each of the box's 6 faces should draw 2 triangles x 2 windings")
 
     zone.remove()
@@ -995,25 +932,15 @@ harness.test("a debug poly zone draws a wall face per edge", function()
         debug = true,
     })
 
-    -- The debug thread is one long-lived coroutine started by the earlier
-    -- box-zone test and already suspended at its Wait(0) -- it only notices
-    -- this new zone (and stops seeing the earlier, since-removed box zone)
-    -- on its next resumed iteration, not immediately on creation.
     drawPolyCalls = 0
     net.step()
 
-    -- 3 edges, 2 triangles each, drawn twice (both windings).
     harness.assertEqual(drawPolyCalls, 12, "each of the poly's 3 edges should draw one wall x 2 triangles x 2 windings")
 
     zone.remove()
 end)
 
 harness.test("Kora.zones.setDebug(id, true) makes an already-created zone start drawing", function()
-    -- Drain the debug thread the poly test above left running (suspended at
-    -- its Wait(0)): that test's zone is already removed, so this resumed
-    -- iteration finds debugZones empty and the thread quietly stops itself
-    -- -- leaving debugThreadStarted false again before this test relies on
-    -- setDebug starting a fresh one.
     net.step()
 
     local zone = Kora.zones.box({ coords = { x = 300, y = 300, z = 30 }, size = { x = 4, y = 4, z = 3 }, debug = false })
@@ -1021,10 +948,6 @@ harness.test("Kora.zones.setDebug(id, true) makes an already-created zone start 
     drawLineCalls = 0
     zone.setDebug(true)
 
-    -- setDebug(true) starts a fresh debug thread (none was running), and the
-    -- mock CreateThread resumes it once immediately -- same as a zone
-    -- created with debug = true directly, no net.step() needed for this
-    -- first draw pass.
     harness.assertEqual(drawLineCalls, 12, "turning debug on for an existing zone should draw its 12 box edges")
 
     zone.setDebug(false)
@@ -1032,11 +955,8 @@ harness.test("Kora.zones.setDebug(id, true) makes an already-created zone start 
 end)
 
 harness.test("Kora.zones.setDebug(nil, true) flips every registered zone at once", function()
-    net.step() -- drain the previous test's now-empty debug thread, same as above
+    net.step()
 
-    -- Measure the existing registry's drawing baseline before adding this
-    -- test's two zones. The assertions then check the delta they contribute
-    -- rather than depending on global test state.
     Kora.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
@@ -1047,13 +967,6 @@ harness.test("Kora.zones.setDebug(nil, true) flips every registered zone at once
     local a = Kora.zones.box({ coords = { x = 320, y = 320, z = 30 }, size = { x = 4, y = 4, z = 3 } })
     local b = Kora.zones.box({ coords = { x = 340, y = 340, z = 30 }, size = { x = 4, y = 4, z = 3 } })
 
-    -- setDebug(nil, true) starts a fresh debug thread mid-loop, over
-    -- whichever zone it had already flipped into debugZones at that exact
-    -- point -- so its own synchronous first draw pass can legitimately miss
-    -- some of them. Every zone is unconditionally in debugZones by the time
-    -- the call returns though, so resetting the counter and letting the
-    -- now-running thread's next resumed iteration draw is what actually
-    -- proves "every zone".
     Kora.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
@@ -1072,7 +985,7 @@ harness.test("Kora.zones.setDebug(nil, true) flips every registered zone at once
 end)
 
 harness.test("Config.zones.debug defaults new zones into debug drawing without opts.debug", function()
-    net.step() -- drain again, same reasoning as above
+    net.step()
 
     local priorDefault = Config.zones.debug
     Config.zones.debug = true
@@ -1088,10 +1001,8 @@ harness.test("Config.zones.debug defaults new zones into debug drawing without o
 end)
 
 harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", function()
-    net.step() -- drain again, same reasoning as above
+    net.step()
 
-    -- Same reasoning as the Kora.zones.setDebug(nil, ...) test above: capture
-    -- the current baseline, then assert the delta from this test's own zone.
     Kora.zones.setDebug(nil, true)
     drawLineCalls = 0
     net.step()
@@ -1147,11 +1058,6 @@ harness.test("starting the creator activates a scripted camera with an eased tra
 end)
 
 harness.test("cancelling the creator eventually destroys its scripted camera", function()
-    -- Only a positive claim ("it does get destroyed"), not a timing claim
-    -- ("not yet") -- net.step() resumes every still-suspended coroutine ever
-    -- created in this file, including leftover ease-out threads from earlier
-    -- start/cancel tests above, so asserting an exact call count/timing here
-    -- would be testing thread-pool leakage rather than this feature.
     local destroyedCams = {}
     local originalDestroy = DestroyCam
     _G.DestroyCam = function(cam) table.insert(destroyedCams, cam) end
@@ -1160,8 +1066,8 @@ harness.test("cancelling the creator eventually destroys its scripted camera", f
     net.step()
 
     registeredCommands["qblib_zonecreator_cancel"]()
-    net.step() -- outer thread falls through to teardown, spawns the ease-out thread
-    net.step() -- the ease-out thread's Wait(cameraTransitionMs) elapses, DestroyCam runs
+    net.step()
+    net.step()
 
     harness.assertTrue(#destroyedCams >= 1, "the camera should eventually be destroyed once the ease-out finishes")
 

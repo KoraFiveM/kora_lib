@@ -12,8 +12,6 @@ interface ProgressState {
     bottomOffset: number
 }
 
-// rem from the screen bottom. kora_hud's vitals row sits low in the screen and its NUI frame draws
-// over kora_lib's, so z-index cannot lift the bar above it: it has to sit higher instead.
 const DEFAULT_BOTTOM_OFFSET_REM = 10
 
 let nextProgressId = 0
@@ -41,11 +39,6 @@ export function ProgressBar() {
     }, [])
 
     useNuiEvent<ProgressStartPayload>("progressStart", (payload) => {
-        // Normalized on ingestion, same reasoning as Toast: Lua's own
-        // validation (modules/progressbar/client.lua's assertPayload)
-        // guarantees these are well-formed in practice, but any resource can
-        // post straight to this action, and a non-string/non-positive value
-        // must not become an invalid render or a bar that never disappears.
         const label = typeof payload?.label === "string" ? payload.label : ""
         const duration = typeof payload?.duration === "number" && payload.duration > 0 ? payload.duration : 0
         if (!duration) return

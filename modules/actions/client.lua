@@ -1,13 +1,3 @@
----@class QBActionsOptions
----@field begin fun(...): any, string?, string? Starts the server-authorized action and returns an opaque action token, optional failure reason, and optional minigame proof authorization.
----@field complete fun(result: {token: any, completed: boolean, proof?: string, authorization?: string}, ...): any Reports the UX result to the owning resource.
----@field label string
----@field duration? integer
----@field minigame? string
----@field canCancel? boolean
----@field disable? QBProgressBarDisable
----@field anim? QBProgressBarAnim
-
 local active = false
 
 local isCallable = Kora.compat.isCallable

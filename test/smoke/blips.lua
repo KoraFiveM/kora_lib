@@ -20,7 +20,6 @@ local scaleformCalls = {}
 local textureRequests = {}
 local textureReleases = {}
 local textEntryCalls = 0
--- Only the deprecated qblib: key exists, so the category stays hidden via the fallback.
 local resourceKvps = { ['qblib:blips:category:31'] = '0' }
 local nextBlip = 0
 local frontendReady = false
@@ -63,7 +62,6 @@ local layoutChanged = false
 local pauseActive = true
 local pauseState = 15
 local pauseRestarting = false
--- Frontend controls are disabled, so the normal read reports 0 and only the disabled read has the cursor.
 function _G.GetControlNormal(_, _) return 0.0 end
 function _G.GetDisabledControlNormal(_, control) return control == 239 and cursorX or 0.5 end
 function _G.IsUsingKeyboard(_) return usingKeyboard end
@@ -212,7 +210,7 @@ harness.test("route without an explicit color does not set a route color", funct
 end)
 
 local function settleHover()
-    for _ = 1, 12 do net.step() end -- 12 * 16ms mock frames > Config.blips.info.hoverStableMs
+    for _ = 1, 12 do net.step() end
 end
 
 local function countSince(start, name)
@@ -309,18 +307,18 @@ harness.test("legend selection by mouse never draws and never blanks the legend"
     hoveringBlip = true
     selectedBlip = blip
 
-    cursorX = 0.85 -- cursor over the legend column
+    cursorX = 0.85
     local start = #scaleformCalls
     settleHover()
     net.step()
     harness.assertEqual(#scaleformCalls, start, "legend-focused selection must make no frontend calls")
 
-    cursorX = 0.3 -- cursor moved onto the map
+    cursorX = 0.3
     settleHover()
     harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1, "a stable map hover should render the card")
 
     start = #scaleformCalls
-    cursorX = 0.85 -- legend clicked while the card was up
+    cursorX = 0.85
     for _ = 1, 4 do net.step() end
     harness.assertEqual(countSince(start, "SHOW_COLUMN"), 0, "the legend column must never be hidden")
     harness.assertEqual(countSince(start, "DISPLAY_DATA_SLOT"), 0, "no card is drawn over the legend")
@@ -335,7 +333,7 @@ harness.test("keyboard or gamepad legend navigation draws nothing", function()
     frontendReady = true
     hoveringBlip = true
     selectedBlip = blip
-    usingKeyboard = false -- gamepad: the mouse cursor value is stale and must not matter
+    usingKeyboard = false
     navigatingContent = true
 
     local start = #scaleformCalls
@@ -343,7 +341,7 @@ harness.test("keyboard or gamepad legend navigation draws nothing", function()
     harness.assertEqual(#scaleformCalls, start, "legend navigation must make zero frontend calls")
 
     navigatingContent = false
-    cursorX = 0.9 -- stale mouse position while the gamepad is active
+    cursorX = 0.9
     settleHover()
     harness.assertTrue(countSince(start, "DISPLAY_DATA_SLOT") >= 1,
         "a gamepad map hover is not blocked by a stale mouse position")
@@ -362,7 +360,7 @@ harness.test("a layout-changed event holds the card back while the map pans", fu
     net.step()
     layoutChanged = false
     local start = #scaleformCalls
-    for _ = 1, 20 do net.step() end -- 20 * 16ms < 400ms hold, longer than the stable time
+    for _ = 1, 20 do net.step() end
     harness.assertEqual(#scaleformCalls, start, "no draw during the post-navigation hold")
 
     for _ = 1, 40 do net.step() end
@@ -423,7 +421,7 @@ harness.test("the card needs a ready pause menu", function()
     pauseRestarting = true
     settleHover()
     pauseRestarting = false
-    pauseState = 10 -- PM_RESTARTING
+    pauseState = 10
     settleHover()
     pauseState = 15
     pauseActive = false

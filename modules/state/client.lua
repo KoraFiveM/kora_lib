@@ -1,5 +1,3 @@
--- Kora.state (client realm) -- owner-tracked state-bag change handlers.
-
 local listeners = {}
 
 local isCallable = Kora.compat.isCallable

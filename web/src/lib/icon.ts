@@ -139,12 +139,6 @@ import {
 
 } from "lucide-react"
 
-// A curated, statically-imported subset of lucide-react rather than
-// `import * as Icons from "lucide-react"` -- a wildcard import pulls in every
-// icon in the package regardless of which ones are actually referenced by
-// name at runtime (the bundler can't tree-shake a dynamic property lookup),
-// which bloated this NUI's bundle by roughly 1MB for a handful of menu icons.
-// Add more entries here as real menus need them.
 const ICONS: Record<string, ComponentType<LucideProps>> = {
     Armchair,
     Camera,
@@ -281,10 +275,6 @@ const ICONS: Record<string, ComponentType<LucideProps>> = {
     Wind,
 }
 
-// The full ox_lib Font Awesome catalog is split into fixed prefix chunks. Most
-// kora_lib screens use the small Lucide set above and never download one; an
-// unprefixed ox icon loads solid only, while regular/brand packs are loaded
-// solely for explicit `far:name`/`fab:name` requests.
 const fontAwesomePacks = new globalThis.Map<IconPrefix, Promise<IconPack>>()
 const fontAwesomeComponents = new globalThis.Map<string, ComponentType<LucideProps>>()
 const imageComponents = new globalThis.Map<string, ComponentType<LucideProps>>()
@@ -396,11 +386,8 @@ function toPascalCase(name: string): string {
  * would resolve truthy and get rendered as "components" -- a render-phase
  * crash that unmounts the whole React root.
  */
-// Lucide has no "Door"; kora resources use it for a closed door.
 const ALIASES: Record<string, string> = { door: "DoorClosed" }
 
-// Loose lookup for case/separator variants ("BriefCase", "brief_case", "Briefcase"
-// all collapse to "briefcase") so a casing typo in a caller still finds the icon.
 const looseIndex = new globalThis.Map<string, string>()
 for (const key of Object.keys(ICONS)) looseIndex.set(key.toLowerCase(), key)
 
@@ -426,8 +413,6 @@ export function resolveIcon(name?: string): ComponentType<LucideProps> | null {
     if (isIconImage(name)) return imageIcon(name)
     const known = ownIcon(name) ?? ownIcon(toPascalCase(name)) ?? looseIcon(name)
     if (known) return known
-    // Font Awesome names are lowercase kebab-case, so an unknown PascalCase name
-    // is a missing Lucide icon: show the neutral fallback instead of an empty box.
     if (/^[A-Z]/.test(name) && !name.includes(":")) {
         warnUnknownIcon(name)
         return Circle

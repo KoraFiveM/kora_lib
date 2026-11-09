@@ -15,8 +15,8 @@ dofile(repoRoot .. "modules/loops/shared.lua")
 local PED_MODEL = 1001
 local VEHICLE_MODEL = 2001
 local OBJECT_MODEL = 3001
-local STUCK_MODEL = 9999 -- never reports as loaded, to exercise entities.create's failure path
-local DELAYED_MODEL = 4001 -- streams after the scope exits, to exercise the async cleanup path
+local STUCK_MODEL = 9999
+local DELAYED_MODEL = 4001
 local THROW_MODEL = 5001
 
 local modelType = { [PED_MODEL] = "ped", [VEHICLE_MODEL] = "vehicle" }
@@ -74,9 +74,6 @@ function _G.SetEntityAsMissionEntity() end
 dofile(repoRoot .. "modules/stream/client.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 
--- Scoped entities delegate distance tracking to zones. Keep this test focused
--- on the entity lifecycle by using a tiny zone double and triggering its
--- enter/exit callbacks explicitly; zones.lua covers the real spatial grid.
 local scopedZones = {}
 Kora.zones = {
     sphere = function(opts)

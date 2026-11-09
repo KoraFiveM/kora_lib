@@ -3,9 +3,6 @@ local TOGGLE_ACTION = 'kora_lib:blips:toggleCategory'
 local BLIP_DOCS_URL = 'https://docs.fivem.net/docs/game-references/blips/'
 local BLIP_ASSET_URL = 'https://docs-backend.fivem.net/blips/'
 
--- FiveM's image backend is keyed by the documented radar name, not the
--- numeric sprite id. Keep this deliberately curated to the sprites used by
--- first-party resources so an unknown/custom id never produces a broken URL.
 local spriteDocs = {
     [1] = { name = 'radar_level', extension = 'png' },
     [8] = { name = 'radar_waypoint', extension = 'png' },
@@ -32,8 +29,6 @@ local spriteDocs = {
     [617] = { name = 'radar_bat_hack_jewel', extension = 'png' },
 }
 
--- SetBlipColour uses FiveM's documented blip-colour table. These ids are not
--- interchangeable with the same-numbered entries in the separate HUD table.
 local blipColours = {
     [0] = { name = 'White', hex = '#FEFEFE' },
     [1] = { name = 'Red', hex = '#E03232' },

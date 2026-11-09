@@ -1,6 +1,3 @@
--- Wire-protocol event names. Deliberately mirrored verbatim in
--- local/callback/server.lua (separate Lua chunks can't share a local table) --
--- any change here must be made there too, or the two realms stop talking.
 local events = {
     handshake = 'kora_lib:callback:handshake',
     handshakeResponse = 'kora_lib:callback:handshake:response',
@@ -16,7 +13,6 @@ local registry = {}
 local pending = {}
 local requestCounter = 0
 
--- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local callbackOwnership = Kora.resources.registry(function(name)
     registry[name] = nil
 end)
@@ -32,36 +28,18 @@ end)
 local function awaitToken()
     if token ~= nil then return true end
 
-    -- Explicitly Config.callback.timeout, not Kora.loops.controlled's own 10s
-    -- default: the handshake is the FIRST thing a consumer waits on, on the
-    -- coldest a client will ever be, so it must get the same budget as the
-    -- request it is gating rather than a shorter hidden one.
-    -- Polled every 50ms rather than every frame (see local/events/client.lua).
     return Kora.loops.controlled(function()
         return token ~= nil
     end, false, Config.callback.timeout, TOKEN_POLL_INTERVAL) ~= false
 end
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
--- A promise doesn't survive an exports() crossing: only method calls reach the real promise, so the caller's
--- Citizen.Await would silently resolve nil. GetInvokingResource() is nil for same-VM calls and the caller's
--- name for cross-resource ones; same-VM callers get the promise, cross-resource callers get the awaited value
--- (or a raised error on rejection/timeout).
---
--- Callers MUST capture GetInvokingResource() before anything can yield and pass it as `invoker`; it only
--- reflects the cross-resource caller within the synchronous native-call frame.
---
--- Unlike other modules' copies, this one also forwards every extra handler return value (e.g.
--- `return false, "reason"`) via the p.koraLibCallbackResults side channel, since a promise resolves with one
--- value. The promise itself still resolves with only the first return value.
 local function settleForExport(p, invoker)
     if invoker then
-        Citizen.Await(p) -- suspends until settled; its own return value is deliberately unused, see above
+        Citizen.Await(p)
         local packed = p.koraLibCallbackResults
-        if packed == nil then return p.value end -- not a Kora.callback.trigger promise (or nothing to unpack) -- fall back to the bare resolved value
+        if packed == nil then return p.value end
         return table.unpack(packed, 1, packed.n)
     end
     return p
@@ -78,7 +56,6 @@ function Kora.callback.register(name, handler)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    -- Warn on cross-resource overwrite; see local/events/server.lua register.
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
         print(("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
@@ -113,7 +90,6 @@ end
 function Kora.callback.trigger(name, ...)
     Kora.callback.assertName(name)
 
-    -- Captured first: calling it after awaitToken() yields would lose the cross-resource caller's identity.
     local invoker = GetInvokingResource()
 
     local p = promise.new()
@@ -152,18 +128,14 @@ RegisterNetEvent(events.response, function(requestId, ok, ...)
     pending[requestId] = nil
 
     if ok then
-        -- Stash the full result on the promise table for settleForExport; the promise still resolves with only the first value.
         local packed = table.pack(...)
         p.koraLibCallbackResults = packed
         p:resolve(packed[1])
     else
-        -- Error path carries a single value (the pcall message); nothing to pack.
         p:reject((...))
     end
 end)
 
--- No token check here: the server is always the trusted party for its own
--- TriggerClientEvent calls, same reasoning as Kora.events.push/onPush.
 RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
     if type(requestId) ~= "number" or requestId < 1 or requestId % 1 ~= 0 or requestId ~= requestId
         or requestId == math.huge or requestId == -math.huge or type(name) ~= "string" or #name > 128 then
@@ -177,7 +149,6 @@ RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
         return
     end
 
-    -- table.pack: a handler may return multiple values; `local ok, result = pcall(...)` would drop the rest.
     local results = table.pack(pcall(handler, ...))
     local ok = results[1]
 

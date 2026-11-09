@@ -1,5 +1,5 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
-import { AlertCircle, ArrowDown, ChevronLeft, ChevronRight, Search, Send, X } from "lucide-react"
+import { AlertCircle, ArrowDown, Check, CheckCheck, ChevronLeft, ChevronRight, Search, Send, X } from "lucide-react"
 
 import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
 import { Button, type ButtonProps } from "@/components/ui/button"
@@ -30,6 +30,7 @@ const defaultLabels: AppShellLabels = {
     back: "Back", open: "Open", yes: "Yes", no: "No", map: "Map", zoomIn: "Zoom in", zoomOut: "Zoom out", value: "value",
     decrease: "Decrease %{field}", increase: "Increase %{field}",
     send: "Send", newMessages: "%{count} new message(s)", newDivider: "New", message: "Message",
+    statusSent: "Sent", statusDelivered: "Delivered", statusSeen: "Seen",
 }
 
 const toneClasses: Record<AppTone, string> = {
@@ -50,8 +51,6 @@ function enabledView(app: AppDefinition, requested?: string) {
         ?? app.navigation.find((view) => !view.disabled)
 }
 
-// `enabledView` always falls back to another view, so it cannot answer "does this view still
-// exist?" — asking that needs an exact lookup.
 function availableView(app: AppDefinition, id: string) {
     return app.navigation.find((view) => view.id === id && !view.disabled)
 }
@@ -89,8 +88,6 @@ function BlockTitle({ children }: { children?: string }) {
 type HoldState = "start" | "end"
 const HoldContext = createContext<((action: AppAction, state: HoldState, itemId?: string) => void) | undefined>(undefined)
 
-// A `hold` action reports press and release instead of a click: "start" on pointer/Enter/Space
-// down, then exactly one "end" on release, cancel, focus loss, disabling or unmount.
 function HoldButton({ action, itemId, disabled, ...props }: ButtonProps & { action: AppAction; itemId?: string }) {
     const hold = useContext(HoldContext)
     const [held, setHeld] = useState(false)
@@ -195,7 +192,6 @@ function ListBlock({ block, index, busy, labels, runAction, openForm, activeForm
     const shown = filtered.slice(page * pageSize, page * pageSize + pageSize)
     const card = block.layout === "grid" || block.layout === "cards"
     const media = card && block.cardStyle === "media"
-    // Keep configured columns even with few items, and collapse below 260px per card.
     const gridStyle = card && block.columns ? { gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, max(260px, calc((100% - ${(block.columns - 1) * 12}px) / ${block.columns}))), 1fr))` } : undefined
     const activate = (item: AppListItem) => {
         if (item.children?.length) { setPath((current) => [...current, item.id]); setPage(0); setSearch(""); return }
@@ -244,10 +240,13 @@ function AlwaysFormBlock({ block, values, setValues, busy, labels, runAction }: 
 const CHAT_FIELDS: InputField[] = [{ id: "message", label: "Message", type: "textarea" }]
 type RunAction = (action: AppAction, context?: ActionContext) => Promise<AppActionResult | undefined> | void
 
-// A live conversation: bubbles oldest-first, a "New" divider before the first unread message, and a
-// message box. It sticks to the newest message unless the reader has scrolled up, in which case new
-// arrivals are counted in a jump pill instead of moving the view (`follow` always jumps to the newest
-// message instead). Text is always a React text node.
+/** Sent = one muted tick, delivered = two muted ticks, seen = two brand-colour ticks. The label keeps it from being colour-only. */
+function MessageStatus({ status, labels }: { status: "sent" | "delivered" | "seen"; labels: AppShellLabels }) {
+    const label = status === "seen" ? labels.statusSeen ?? "Seen" : status === "delivered" ? labels.statusDelivered ?? "Delivered" : labels.statusSent ?? "Sent"
+    const Icon = status === "sent" ? Check : CheckCheck
+    return <span data-chat-status={status} title={label} className={cn("inline-flex items-center", status === "seen" ? "text-primary" : "text-muted-foreground")}><Icon aria-hidden className="h-3.5 w-3.5" /><span className="sr-only">{label}</span></span>
+}
+
 function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block: Extract<AppBlock, { type: "chat" }>; busy?: string; labels: AppShellLabels; runAction: RunAction; draft: string; setDraft: (value: string) => void }) {
     const scroller = useRef<HTMLDivElement>(null)
     const atBottom = useRef(true)
@@ -279,12 +278,9 @@ function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block:
     const send = async () => {
         if (!composer || !canSend) return
         const result = await runAction(composer.action, { value: { message: text } })
-        // Keep the draft when the owner rejected the message (failed action or a destructive notice).
         if (result && result.notice?.tone !== "destructive") setDraft("")
     }
     const firstUnread = block.messages.findIndex((message) => message.unread)
-    // `scrollable`: the block fills the rest of a fixed (content.scrollable = false) layout and only
-    // the message list scrolls; the title and the message box never move.
     return <section data-chat-block={block.id} className={cn("flex flex-col overflow-hidden rounded-lg bg-card", block.scrollable && "min-h-0 flex-1")}>
         {block.title ? <div className="shrink-0 border-b border-border px-4 py-3"><BlockTitle>{block.title}</BlockTitle></div> : null}
         <div className={cn("relative", block.scrollable && "flex min-h-0 flex-1 flex-col")}>
@@ -292,7 +288,7 @@ function ChatBlock({ block, busy, labels, runAction, draft, setDraft }: { block:
                 {block.messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">{block.empty ?? labels.nothingHere}</p> : block.messages.map((message, messageIndex) => <div key={message.id} className="contents">
                     {messageIndex === firstUnread ? <div data-chat-divider className="flex items-center gap-2 text-xs font-medium text-primary"><span className="h-px flex-1 bg-brand-border" />{labels.newDivider ?? "New"}<span className="h-px flex-1 bg-brand-border" /></div> : null}
                     <article data-chat-message={message.id} data-mine={message.mine ? "true" : undefined} className={cn("flex max-w-[80%] flex-col gap-1", message.mine ? "items-end self-end" : "items-start self-start")}>
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"><span className="font-medium text-foreground">{message.author}</span>{message.badge ? <span className={cn("rounded-sm px-1.5 py-0.5 text-xs leading-none", toneClasses[message.tone ?? "neutral"])}>{message.badge}</span> : null}{message.timestamp ? <time className="tabular-nums">{message.timestamp}</time> : null}</div>
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"><span className="font-medium text-foreground">{message.author}</span>{message.badge ? <span className={cn("rounded-sm px-1.5 py-0.5 text-xs leading-none", toneClasses[message.tone ?? "neutral"])}>{message.badge}</span> : null}{message.timestamp ? <time className="tabular-nums">{message.timestamp}</time> : null}{message.mine && message.status ? <MessageStatus status={message.status} labels={labels} /> : null}</div>
                         <p className={cn("whitespace-pre-wrap break-words rounded-lg border px-3 py-2 text-sm leading-5", message.mine ? "border-brand-border bg-brand-soft text-foreground" : "border-border bg-surface-raised text-foreground")}>{message.text}</p>
                     </article>
                 </div>)}
@@ -326,8 +322,6 @@ const unmountedAppResult: AppResult = { closed: true, reason: "unmounted" }
 
 export function AppShell() {
     const [app, setApp] = useState<AppDefinition | null>(null)
-    // Navigation resolves against the freshest definition we have been handed, not the one captured
-    // by the render that built the callback: an `updateApp` can land between the two.
     const appRef = useRef<AppDefinition | null>(null)
     const applyApp = useCallback((next: AppDefinition) => { appRef.current = next; setApp(next) }, [])
     const [viewId, setViewId] = useState("")
@@ -339,8 +333,6 @@ export function AppShell() {
     const [activeForm, setActiveForm] = useState<ActiveForm>()
     const [drafts, setDrafts] = useState<Record<string, Record<string, FieldValue>>>({})
     const changeVersion = useRef(0)
-    // A render crash unmounts the shell (the ErrorBoundary renders nothing); useNuiRequest then answers the open
-    // request with `unmounted` so Lua releases NUI focus and the owner can roll back.
     const { payload, token, isOpen, respond } = useNuiRequest<OpenAppPayload, AppResult>("openApp", useCallback((open: OpenAppPayload) => {
         changeVersion.current += 1
         const view = enabledView(open.app, open.viewId)
@@ -370,8 +362,6 @@ export function AppShell() {
         const next = enabledView(destinationApp, target.viewId)
         if (!next) return
         const nextTabId = selectedTabId(next, target.tabId)
-        // Navigating to the point we are already on must not record a step, or leaving it would
-        // take two back presses. Neither must re-recording the point the trail already ends on.
         const moved = next.id !== viewId || nextTabId !== tabId
         if (!target.replace && moved) setHistory((current) => {
             const last = current[current.length - 1]
@@ -379,10 +369,6 @@ export function AppShell() {
         })
         setViewId(next.id); setTabId(nextTabId); setActiveForm(undefined); setError(undefined)
     }, [app, tabId, viewId])
-    // The newest recorded point the arrow can actually reach: not the point we are on, and still
-    // present in the current definition. An app can replace or drop the view/tab behind an entry,
-    // and `setTabId` on a tab that no longer exists is silently undone by the reconciler below —
-    // which is what made the arrow look dead or send you somewhere unrelated.
     const backTarget = useMemo(() => {
         if (!app) return undefined
         for (let index = history.length - 1; index >= 0; index -= 1) {
@@ -465,8 +451,6 @@ export function AppShell() {
         const next = availableView(app, id)
         if (!next) return
         const nextTabId = selectedTabId(next)
-        // Picking an unrelated top-level view drops the trail from the view we are leaving, so the
-        // arrow can never point back into it from here.
         setViewId(next.id); setTabId(nextTabId); setHistory([]); setActiveForm(undefined); setError(undefined)
         if (next.onOpen) void runAction({ id: next.onOpen, label: next.label }, { itemId: next.id }, { viewId: next.id, tabId: nextTabId })
     }
@@ -476,7 +460,7 @@ export function AppShell() {
         {!compact ? <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-card max-[800px]:hidden"><header {...dragHandle} className={cn("flex min-h-[76px] items-center gap-3 border-b border-border px-4 py-4", dragClasses)}><span className="flex h-10 w-10 shrink-0 items-center justify-center text-primary">{AppIcon ? <AppIcon aria-hidden className="h-5 w-5" /> : app.title.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><span className="block truncate text-sm font-semibold">{app.title}</span>{app.description ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{app.description}</span> : null}</span></header><nav aria-label={`${app.title} navigation`} className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">{app.navigation.map((item, index) => { const Icon = resolveIcon(item.icon); const active = item.id === view.id; const previousGroup = app.navigation[index - 1]?.group; return <div key={item.id}>{item.group && item.group !== previousGroup ? <p className="px-2 pb-1 pt-3 text-xs font-medium text-muted-foreground">{item.group}</p> : null}<button type="button" disabled={item.disabled} aria-current={active ? "page" : undefined} onClick={() => switchView(item.id)} className={cn("focus-ring relative mb-1 flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium disabled:opacity-[.48]", active ? "bg-brand-soft text-foreground" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground")}>{Icon ? <Icon aria-hidden className="h-4 w-4" /> : null}<span className="min-w-0 flex-1 truncate">{item.label}</span>{item.badge !== undefined ? <span className="rounded-sm bg-surface-raised px-1.5 py-0.5 text-xs">{item.badge}</span> : null}</button></div> })}</nav>{app.footer ? <footer className="border-t border-border px-4 py-3 text-xs text-muted-foreground">{app.footer}</footer> : null}</aside> : null}
             <section className="flex min-w-0 flex-1 flex-col"><header {...dragHandle} className={cn("flex min-h-[68px] items-center gap-3 border-b border-border px-4 py-3 sm:min-h-[76px] sm:px-5", dragClasses)}>{tab?.back || backTarget ? <Button type="button" variant="ghost" size="icon" onClick={tab?.back ? () => { void runAction({ id: tab.back as string, label: labels.back }) } : back} disabled={tab?.back ? busy !== undefined : undefined} aria-label={labels.back}><ChevronLeft aria-hidden /></Button> : null}{compact && AppIcon ? <span className="flex h-9 w-9 items-center justify-center text-primary"><AppIcon aria-hidden className="h-4 w-4" /></span> : ViewIcon ? <span className="flex h-9 w-9 items-center justify-center text-muted-foreground"><ViewIcon aria-hidden className="h-4 w-4" /></span> : null}<div className="min-w-0 flex-1"><h1 className="truncate text-lg font-semibold">{compact && app.navigation.length === 1 ? app.title : view.label}</h1>{view.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{view.description}</p> : compact && app.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{app.description}</p> : null}</div><Button type="button" variant="ghost" size="icon" onClick={() => close("close")} aria-label={`${labels.close} ${app.title}`} title={labels.close}><X aria-hidden /></Button></header>
             {app.navigation.length > 1 ? <div className={cn("scroll-thin flex min-h-11 gap-1 overflow-x-auto border-b border-border px-4", !compact && "min-[801px]:hidden")}>{app.navigation.map((item) => <button key={item.id} type="button" disabled={item.disabled} onClick={() => switchView(item.id)} className={cn("focus-ring relative h-10 shrink-0 px-3 text-sm font-medium", item.id === view.id ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground")}>{item.label}</button>)}</div> : null}
-            {view.tabs?.length ? <div role="tablist" aria-label={`${view.label} sections`} className="scroll-thin flex min-h-11 items-end gap-1 overflow-x-auto border-b border-border px-4 sm:px-5">{view.tabs.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === tabId} onClick={() => { if (item.id === tabId) return; /* Tabs are siblings, not steps: the header arrow returns to where an action navigated from in one press instead of walking every tab visited. */ setTabId(item.id); setActiveForm(undefined); setError(undefined) }} className={cn("focus-ring relative h-10 shrink-0 px-3 text-sm font-medium", item.id === tabId ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground")}>{item.label}{item.badge !== undefined ? <span className="ml-2 rounded-sm bg-surface-raised px-1.5 py-0.5 text-xs">{item.badge}</span> : null}</button>)}</div> : null}
+            {view.tabs?.length ? <div role="tablist" aria-label={`${view.label} sections`} className="scroll-thin flex min-h-11 items-end gap-1 overflow-x-auto border-b border-border px-4 sm:px-5">{view.tabs.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === tabId} onClick={() => { if (item.id === tabId) return;  setTabId(item.id); setActiveForm(undefined); setError(undefined) }} className={cn("focus-ring relative h-10 shrink-0 px-3 text-sm font-medium", item.id === tabId ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground")}>{item.label}{item.badge !== undefined ? <span className="ml-2 rounded-sm bg-surface-raised px-1.5 py-0.5 text-xs">{item.badge}</span> : null}</button>)}</div> : null}
             <div className={cn("scroll-thin min-h-0 flex-1 p-3 sm:p-5", content?.scrollable === false ? "flex flex-col overflow-hidden" : "overflow-y-auto")}>{content?.title || content?.description || content?.actions?.length ? <div className="mb-5 flex flex-wrap items-start justify-between gap-4"><div className="min-w-0">{content.title ? <h2 className="text-base font-semibold">{content.title}</h2> : null}{content.description ? <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{content.description}</p> : null}</div>{content.actions?.length ? <ActionButtons actions={content.actions} busy={busy} labels={labels} run={(action) => action.fields?.length || action.confirm ? openForm(action, "header") : runAction(action)} /> : null}</div> : null}
                 {activeForm?.source === "header" ? <div className="mb-4">{renderActiveForm()}</div> : null}
                 {error ? <div role="alert" className="mb-4 flex items-center gap-2 rounded-md border border-destructive/45 bg-destructive/10 px-3 py-2 text-sm text-destructive"><AlertCircle aria-hidden className="h-4 w-4" />{error}</div> : null}

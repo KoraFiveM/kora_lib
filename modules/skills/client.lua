@@ -1,5 +1,3 @@
--- Optional client bridge to kora_skills; without it callers get no skill data or modifier.
-
 local RESOURCE = 'kora_skills'
 
 local function isStarted()

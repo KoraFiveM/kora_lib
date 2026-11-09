@@ -6,14 +6,6 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
--- Same dual-realm-in-one-process trick test/smoke/callback.lua uses: load the
--- server half of local/callback while Kora.callback.register/trigger still
--- resolve to the server versions (so modules/minigames/server.lua's
--- Kora.callback.register(...) calls, made at load time, bind into the SERVER's
--- own registry), then load the client half (which overwrites the same table
--- slot) before modules/minigames/client.lua loads, so Kora.minigames.play's
--- Kora.callback.trigger calls -- made later, at CALL time -- resolve to the
--- CLIENT version instead.
 local net = mocks.install()
 local browserElapsed = 0
 local mockGameTimer = GetGameTimer
@@ -38,16 +30,8 @@ Kora.skills = {
 }
 dofile(repoRoot .. "modules/minigames/server.lua")
 
-dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread completes the client->server handshake synchronously
+dofile(repoRoot .. "local/callback/client.lua")
 
--- Real Kora.nui isn't loaded here (that's modules/nui's own smoke test) --
--- minigames only needs somewhere to send/request against. `roundResponder`,
--- when set, is called synchronously with the "minigames:round" request data
--- and its return value settles the request immediately -- since every
--- Kora.callback.trigger call in this mock environment ALSO resolves
--- synchronously (see mocks.lua), an entire multi-round Kora.minigames.playAsync()
--- flow runs to completion within one CreateThread resume, with no need for
--- net.step(). Left nil, a "minigames:round" request is simply never answered.
 local sentMessages = {}
 local roundResponder = nil
 
@@ -57,8 +41,6 @@ Kora.nui = {
         local p = promise.new()
         if action == "minigames:round" and roundResponder then
             local attempt = roundResponder(data)
-            -- Simulate time spent in the browser without suspending the
-            -- synchronous request fixture. Direct server tests control time.
             browserElapsed = browserElapsed + data.timeLimit
             p:resolve(attempt)
         end
@@ -77,9 +59,6 @@ Kora.nui = {
 
 dofile(repoRoot .. "modules/minigames/client.lua")
 
--- Each test starts outside every configured callback window so the production
--- quotas stay enabled without unrelated test cases sharing one mock player's
--- bucket. Dedicated tests below still exercise a full window deliberately.
 local rawTest = harness.test
 harness.test = function(name, fn)
     rawTest(name, function()
@@ -125,10 +104,6 @@ local function mashAttempt(required)
     return { pressTimestamps = timestamps }
 end
 
--- Inverts Kora.minigames.triangleWave for a known target: pos = phase*2 for
--- phase < 0.5, so phase = target/2 always lands on the rising branch (target
--- is always < 1, so phase is always < 0.5) -- lets a test hit an exact,
--- server-generated random target without needing to predict or mock the RNG.
 local function elapsedForTarget(target, speed)
     return (target / 2) * 1000 / speed
 end
@@ -201,7 +176,7 @@ harness.test("lockpick: a malformed first attempt fails gracefully and a correct
     roundResponder = function(data)
         round = round + 1
         if round == 1 then
-            return { presses = {} } -- wrong shape (no pins pressed at all)
+            return { presses = {} }
         end
         local pin = data.puzzle.pins[1]
         return { presses = { { index = 1, elapsed = elapsedForTarget(pin.target, data.puzzle.speed) } } }
@@ -253,18 +228,12 @@ harness.test("cancelling a round ends the session immediately without consuming 
     end
     harness.assertTrue(closedWithCancelled, "the overlay should close with result = cancelled")
 
-    -- Proves the SERVER session was actually freed right away rather than
-    -- left for expiresAt/the 30s sweep -- a fresh session must be obtainable
-    -- immediately, not rejected by the per-player concurrency guard.
     local fresh = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
     harness.assertTrue(fresh.sessionId ~= nil, "a fresh session should start immediately after cancelling, proving the old one was freed")
     Citizen.Await(Kora.callback.trigger("kora_lib:minigames:submit", fresh.sessionId, { pressTimestamps = {} }))
 end)
 
 harness.test("skillbar: succeeds when the reported elapsed lands in the target zone", function()
-    -- Slowed speed keeps the required elapsed comfortably above
-    -- Config.minigames.skillbar.minReactionTime regardless of where the
-    -- randomly-placed zone ends up.
     roundResponder = function(data)
         local mid = (data.puzzle.zoneStart + data.puzzle.zoneEnd) / 2
         return { elapsed = elapsedForTarget(mid, data.puzzle.speed) }
@@ -368,14 +337,8 @@ harness.test("start opportunistically reclaims an expired session before its con
 end)
 
 harness.test("submit rejects a request from a player who doesn't own the session", function()
-    -- attempts = 1 so the cleanup submit below unconditionally ends the
-    -- session (pass or fail) rather than leaking it into later tests.
     local round = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
 
-    -- Register a second simulated player with its own real handshake token,
-    -- then drive the server's raw invoke handler directly as that player --
-    -- this is testing session.src ~= src, not the token gate local/callback's
-    -- own smoke test already covers.
     local otherSrc = mocks.SOURCE + 1
     _G.source = otherSrc
     for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
@@ -396,8 +359,6 @@ harness.test("submit rejects a request from a player who doesn't own the session
     harness.assertEqual(responseEntry.target, otherSrc, "the response should be addressed to the attacking player")
     harness.assertFalse(responseEntry[2], "a submit from a non-owning player must be rejected (ok = false)")
 
-    -- The mock's TriggerClientEvent doesn't filter by target, so the second player's handshake
-    -- overwrote the shared client's cached token; replay mocks.SOURCE's handshake to resync.
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
     _G.source = nil
@@ -416,8 +377,6 @@ harness.test("submit and cancel reject malformed session IDs before lookup", fun
 end)
 
 harness.test("server rejects a second concurrent session for the same player, independent of the client-side guard", function()
-    -- attempts = 1 so the cleanup submit below unconditionally ends the
-    -- session (pass or fail) rather than leaking it into later tests.
     local first = Citizen.Await(Kora.callback.trigger("kora_lib:minigames:start", "mash", { attempts = 1 }))
     harness.assertTrue(first.sessionId ~= nil, "sanity check: the first session should start")
 
@@ -430,10 +389,6 @@ end)
 harness.test("play rejects a concurrent call while one is already in flight", function()
     local innerP = nil
 
-    -- Still "in flight" at this point -- CreateThread's mock runs the whole
-    -- body synchronously, so this responder call happens WHILE the outer
-    -- play() call's CreateThread is still executing, before it has cleared
-    -- its own activeSession guard.
     roundResponder = function()
         innerP = Kora.minigames.playAsync("mash", {})
         return { pressTimestamps = {} }
@@ -477,10 +432,6 @@ harness.test("resource-stop cleanup clears the client-side guard and closes the 
     roundResponder = function()
         net.fire("onClientResourceStop", "kora_lib_test")
 
-        -- Swap in a plain (non-reentrant) responder for the inner call's own
-        -- round -- reusing the outer responder here would have it fire
-        -- onClientResourceStop and recurse into Kora.minigames.play again,
-        -- unboundedly, since the mock resolves everything synchronously.
         local outerResponder = roundResponder
         roundResponder = function() return { pressTimestamps = {} } end
         innerP = Kora.minigames.playAsync("mash", { requiredPresses = 1000, attempts = 1 })
@@ -493,11 +444,6 @@ harness.test("resource-stop cleanup clears the client-side guard and closes the 
     roundResponder = nil
 
     harness.assertTrue(innerP ~= nil, "the responder should have attempted a fresh call")
-    -- The outer session is still alive SERVER-side -- the server has no idea
-    -- the client gave up (see this module's AGENTS.md "best-effort" note) --
-    -- so the fresh attempt is still rejected, but by the SERVER's per-player
-    -- check rather than the CLIENT's activeSession guard, which proves the
-    -- guard itself was actually cleared rather than left stuck forever.
     harness.assertEqual(innerP.state, "rejected", "a fresh call still can't get a server session while the outer one is unresolved")
     harness.assertTrue(tostring(innerP.value):find("for this player", 1, true) ~= nil,
         "should be rejected by the SERVER's per-player check, not a stuck CLIENT-side activeSession guard")
@@ -613,7 +559,6 @@ harness.test("keys: always succeeds and reports a faults count", function()
     roundResponder = function(data)
         local presses = {}
         for i, key in ipairs(data.puzzle.pattern) do
-            -- Deliberately get the first key wrong to prove faults is counted.
             local wrongOnFirst = (i == 1) and (key == "up" and "down" or "up") or key
             presses[i] = { key = wrongOnFirst, elapsed = i * (Config.minigames.keys.minTimePerPress + 10) }
         end
@@ -890,8 +835,6 @@ harness.test("playerDropped removes every minigame capability and active session
     local fresh = serverCall("kora_lib:minigames:start", mocks.SOURCE, "mash", { attempts = 1 })
     serverCall("kora_lib:minigames:cancel", mocks.SOURCE, fresh.sessionId)
 
-    -- playerDropped also clears the callback layer's handshake token; restore
-    -- the simulated player's token for any future test appended to this file.
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
     _G.source = nil

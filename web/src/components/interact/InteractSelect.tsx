@@ -58,12 +58,6 @@ export function InteractSelect() {
 
     if (!state) return null
 
-    // kora_hud owns the bottom-centre gauge/vehicle stack in a separate NUI page,
-    // so keep this selector above that reserved gameplay-HUD band.
-    //
-    // One panel and one row per option. The selected row is a brand-soft fill with
-    // the key hint at its right; an option's icon, when it resolves, sits left of
-    // the label.
     return (
         <div className="pointer-events-none fixed bottom-36 left-1/2 z-hud grid w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 select-none gap-0.5 rounded-lg bg-popover p-1.5 text-card-foreground shadow-floating">
             {state.options.map((option, index) => {
@@ -76,11 +70,6 @@ export function InteractSelect() {
                         className={`flex min-h-9 items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm transition-colors duration-fast ${selected ? "bg-brand-soft text-foreground" : "text-muted-foreground"}`}
                     >
                         {Icon ? <Icon aria-hidden className="h-4 w-4 shrink-0" /> : null}
-                        {/* The label keeps its own element: `truncate` is
-                            text-overflow, which does not apply to a bare text
-                            node inside a flex container. Removing this span
-                            would let a long option overflow the panel instead
-                            of ellipsising. */}
                         <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
                         {selected ? <kbd className="shrink-0 rounded-sm bg-surface-hover px-1.5 py-0.5 font-mono text-xs text-muted-foreground">E</kbd> : null}
                     </div>

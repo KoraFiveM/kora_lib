@@ -28,11 +28,6 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
     const pressesRef = useRef<LockpickPress[]>([])
     const indicatorRef = useRef<HTMLDivElement>(null)
     const [pinIndex, setPinIndex] = useState(0)
-    // Purely cosmetic: which already-locked pins landed inside their target
-    // zone, keyed by pin index. The server independently re-derives real
-    // pass/fail from the same triangleWave formula and never trusts this --
-    // see modules/minigames/AGENTS.md's "report timestamps, never positions"
-    // note. This only decides whether a track glows green or amber.
     const [pinHits, setPinHits] = useState<Record<number, boolean>>({})
 
     useEffect(() => {

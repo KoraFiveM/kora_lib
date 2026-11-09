@@ -1,8 +1,4 @@
 package.path = (debug.getinfo(1, "S").source:match("^@(.*/)") or "./") .. "?.lua;" .. package.path
--- extract_ox_surface: regex-based public-surface snapshot of an ox_lib tree
--- (upstream checkout or the shim). Emits names only, never source text.
---
---   lua5.4 tools/parity/extract_ox_surface.lua <ox_lib dir> > surface.json
 local common = require("common")
 
 local M = {}
@@ -32,7 +28,6 @@ function M.extract(root)
     local events, convars = {}, {}
     local nuiActions, nuiCallbacks = {}, {}
 
-    -- imports/ directories are the lazily loadable `lib.<name>` modules.
     local p = io.popen(("cd '%s' && ls -1 imports 2>/dev/null"):format(root))
     for line in p:lines() do imports[line] = true end
     p:close()
@@ -44,8 +39,6 @@ function M.extract(root)
         local inResource = path:find("^resource/") or path == "init.lua"
         local inImports = path:find("^imports/")
 
-        -- Top-level lib.X definitions under resource/ and init.lua are
-        -- auto-exported by the __newindex rule in resource/init.lua.
         if inResource then
             for name in code:gmatch("function%s+lib%.([%w_]+)%s*%(") do
                 resourceLib[name] = true
@@ -57,7 +50,6 @@ function M.extract(root)
             end
         end
 
-        -- Explicit exports('name', fn) calls; a %s template is a dynamic family.
         for name in code:gmatch("exports%s*%(%s*%(?%s*[\"']([^\"']+)[\"']") do
             if name:find("%%s") then
                 dynamicExports[name] = true
@@ -66,7 +58,6 @@ function M.extract(root)
             end
         end
 
-        -- Sub-keys: lib.<mod>.<fn> / lib.<mod>:<method>, plus class-file locals.
         if inImports or path == "init.lua" then
             local mod = inImports and path:match("^imports/([^/]+)/") or "init"
             subkeys[mod] = subkeys[mod] or {}
@@ -93,7 +84,6 @@ function M.extract(root)
         addAll(nuiCallbacks, code, "RegisterNUICallback%s*%(%s*[\"']([^\"']+)[\"']")
     end
 
-    -- fxmanifest metadata
     local manifestText = common.readFile(root .. "/fxmanifest.lua")
     local manifestKeys, oxLibValues, version = {}, {}, nil
     if manifestText then
@@ -102,7 +92,6 @@ function M.extract(root)
         for key in lines:gmatch("\n([%a_][%w_]*)[ \t]*[%({'\"]") do manifestKeys[key] = true end
         for key in lines:gmatch("\n([%a_][%w_]*)[ \t]*\n") do manifestKeys[key] = true end
         version = mcode:match("\nversion%s*[%(]?%s*[\"']([^\"']+)[\"']")
-        -- ox_lib 'x' / ox_libs { 'x', ... }
         for value in mcode:gmatch("\nox_lib%s+[\"']([^\"']+)[\"']") do oxLibValues[value] = true end
         for block in mcode:gmatch("\nox_libs%s*(%b{})") do addAll(oxLibValues, block, "[\"']([^\"']+)[\"']") end
     end

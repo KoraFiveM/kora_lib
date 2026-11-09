@@ -5,7 +5,7 @@ function textSelection(element: Element | null): TextSelection | undefined {
     try {
         return { start: element.selectionStart, end: element.selectionEnd, direction: element.selectionDirection }
     } catch {
-        return undefined // input types without a text selection (number, email, ...)
+        return undefined
     }
 }
 
@@ -36,11 +36,8 @@ export async function copyToClipboard(text: string): Promise<boolean> {
         event.preventDefault()
         written = true
     }
-    // Cancelling beforecopy tells the browser a page handler supplies the data, which enables
-    // the copy command even when the selection is empty.
     const onBeforeCopy = (event: Event) => event.preventDefault()
 
-    // Laid out (never display:none or off-DOM) so select() produces a real selection.
     const textarea = document.createElement("textarea")
     textarea.value = text
     textarea.setAttribute("aria-hidden", "true")
@@ -68,7 +65,6 @@ export async function copyToClipboard(text: string): Promise<boolean> {
                     ;(previous as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(previousSelection.start, previousSelection.end, previousSelection.direction ?? undefined)
                 }
             } catch {
-                // the previous element may no longer accept focus; nothing else to restore
             }
         }
     }

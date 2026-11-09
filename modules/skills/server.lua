@@ -1,5 +1,3 @@
--- Optional server bridge to kora_skills; all writes stay server-only.
-
 local RESOURCE = 'kora_skills'
 
 local function isStarted()

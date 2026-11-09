@@ -35,9 +35,6 @@ export function AlertDialogContainer() {
         setImageFailed(false)
     }, [payload?.image])
 
-    // Escape and backdrop clicks route here. For a non-cancellable alert they
-    // must NOT resolve: the whole point is that the player has to pick the
-    // button, so silently answering "no" for them would defeat it.
     const handleOpenChange = useCallback(
         (open: boolean) => {
             if (open) return
@@ -63,8 +60,6 @@ export function AlertDialogContainer() {
                     payload.centered === false && "top-8 translate-y-0",
                     payload.overflow && "grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden",
                 )}
-                // Radix renders a close "X" in the corner; for a
-                // non-cancellable alert that's another way out we don't want.
                 hideClose={!showClose}
                 onPointerDownOutside={(event) => {
                     if (!cancellable || payload.dismissOnBackdrop === false) event.preventDefault()

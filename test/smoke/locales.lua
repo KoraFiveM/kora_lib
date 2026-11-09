@@ -13,8 +13,6 @@ local events = {}
 local files = {
     ['example/locales/en.lua'] = "return { greeting = 'Hello %{name}', positional = 'Hello %s', fallback = 'English', literal = 'Value: %{a.b}' }",
     ['example/locales/de.lua'] = "return { greeting = 'Hallo %{name}', positional = 'Hallo %s' }",
-    -- This is the shape used by legacy qb-core locale files after the
-    -- compatibility migration: runtime registration plus a returned table.
     ['legacy/locales/en.lua'] = "local Translations = { greeting = 'Legacy English' }\nLang = Lang or Locale:new({ warnOnMissing = true })\nLang:addLocale('en', Translations)\nreturn Translations",
 }
 

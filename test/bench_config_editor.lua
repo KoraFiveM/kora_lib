@@ -1,5 +1,3 @@
--- Presentation-only benchmark. No FiveM client or browser is required.
--- Run from the repository root: lua test/bench_config_editor.lua
 local definition
 local entries = {}
 for resourceIndex = 1, 60 do

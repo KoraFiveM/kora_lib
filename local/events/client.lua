@@ -1,6 +1,3 @@
--- Wire-protocol event names. Deliberately mirrored verbatim in
--- local/events/server.lua (separate Lua chunks can't share a local table) --
--- any change here must be made there too, or the two realms stop talking.
 local events = {
     gateway = 'kora_lib:events:invoke',
     handshake = 'kora_lib:events:handshake',
@@ -12,7 +9,6 @@ local token = nil
 local TOKEN_POLL_INTERVAL = 50
 local pushRegistry = {}
 
--- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local pushOwnership = Kora.resources.registry(function(name)
     pushRegistry[name] = nil
 end)
@@ -39,15 +35,11 @@ end)
 local function awaitToken()
     if token ~= nil then return true end
 
-    -- Polled every 50ms rather than every frame: a lost handshake would otherwise
-    -- spin a per-frame loop for the whole 10s timeout on every trigger.
     return Kora.loops.controlled(function()
         return token ~= nil
     end, false, nil, TOKEN_POLL_INTERVAL) ~= false
 end
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
 ---Triggers a registered server event through kora_lib's session-correlated gateway.
@@ -80,8 +72,6 @@ function Kora.events.onPush(name, handler)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    -- See local/events/server.lua's register for why a cross-resource
-    -- overwrite is worth warning about rather than silently accepting.
     local previousOwner = pushOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
         print(("[kora_lib:events] push handler '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your push names.")

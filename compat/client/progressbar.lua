@@ -1,5 +1,3 @@
--- qbcore-framework/progressbar @ 6e9381de6637bd443a8eaf1a6da0d339d8cebb15.
--- Keep callbacks in the native bar's loop so there is only one timer/owner.
 local active, manuallyBusy
 local isCallable = Kora.compat.isCallable
 local controls = {
@@ -48,7 +46,6 @@ local function start(action, onStart, onTick, onFinish, owner)
     end
     Kora.progressbar.validate(payload)
     local invoker = GetInvokingResource() or GetCurrentResourceName()
-    -- Only the core may forward ownership across its additional export boundary.
     owner = invoker == 'kora_core' and owner or nil
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progressbar owner must be a resource name.')
     local session = { owner = owner or invoker, leases = {},

@@ -1,6 +1,3 @@
--- AppShell presentation for kora_lib's configuration service. The server owns
--- authorization; this client file never treats a locally opened app as access.
-
 local catalog = {}
 local entriesByResource = {}
 local resourcesByView = {}
@@ -18,8 +15,6 @@ local function objectTableKey(schema, key)
     return schema.fieldKeys and schema.fieldKeys[key] or key
 end
 
--- Calls made from kora_lib itself receive the raw callback promise. Consumer
--- resources get the auto-awaited export result, so normalize both paths here.
 local function triggerCallback(name, ...)
     local direct = table.pack(Kora.callback.trigger(name, ...))
     local response = direct[1]
@@ -218,9 +213,6 @@ fieldForSchema = function(schema, value, id, label, description)
         common.required = schema.minLength ~= nil and schema.minLength > 0
         common.minLength = schema.minLength
         common.maxLength = schema.maxLength
-        -- Config patterns are Lua patterns, not JavaScript regular
-        -- expressions. The owner validates them on save; passing one to the
-        -- browser would incorrectly reject valid Lua-pattern input.
         return { common }
     end
     if schema.kind == 'color' then
@@ -504,9 +496,6 @@ local function editContent(entry, setting)
                 items = details,
             },
             {
-                -- AppShell retains drafts by block id. Include the resource
-                -- setting identity and revision so navigation/save/reset rebuilds the form from the freshly
-                -- read value instead of leaving the previous draft visible.
                 id = 'config-edit-form-' .. entry.resource .. ':' .. setting.id .. ':' .. tostring(entry.revision), type = 'form',
                 title = appliesNow and 'New value' or 'New value (applies after restart)',
                 description = appliesNow and 'No resource restart is needed. See the setting description for when existing gameplay or new actions use the change.'
@@ -746,5 +735,4 @@ local function onConfigOpened(resource)
 end
 
 RegisterNetEvent('kora_lib:client:configOpened', onConfigOpened)
--- Deprecated alias: older kora_admin releases open the editor with this name.
 RegisterNetEvent('qblib:client:configOpened', onConfigOpened)

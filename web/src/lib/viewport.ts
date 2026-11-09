@@ -1,7 +1,3 @@
-// NUI is designed at 1080p, then enlarged as the available physical viewport
-// grows. Keeping these calculations in one place means components that receive
-// screen-pixel coordinates can convert them into the scaled root's coordinate
-// space before positioning themselves.
 const DESIGN_WIDTH = 1920
 const DESIGN_HEIGHT = 1080
 const MIN_SCALE = 0.5

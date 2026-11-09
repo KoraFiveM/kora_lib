@@ -1,5 +1,3 @@
--- Kora.state (server realm) -- twin of client.lua, kept separate so the listener registry matches its realm.
-
 local listeners = {}
 
 local isCallable = Kora.compat.isCallable

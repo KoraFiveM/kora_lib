@@ -12,7 +12,6 @@ end
 
 local function screenshotDebug(session, stage, detail)
     local config = (Config and Config.screenshot) or {}
-    -- qblib_screenshot_debug is the deprecated name of the default debug convar.
     if GetConvarInt(config.debugConvar or 'kora_lib_screenshot_debug', 0) ~= 1
         and GetConvarInt('qblib_screenshot_debug', 0) ~= 1 then return end
 
@@ -186,7 +185,6 @@ function Kora.screenshot.requestClient(player, options, callback)
         quality = normalized.quality,
         maxWidth = normalized.maxWidth,
         maxHeight = normalized.maxHeight,
-        -- Kept for screenshot-basic compatibility; game-view capture never includes CEF layers.
         includeNui = normalized.includeNui,
         timeout = timeout,
     })
@@ -195,8 +193,6 @@ function Kora.screenshot.requestClient(player, options, callback)
     return token
 end
 
--- GetCurrentServerEndpoint is client-only: the client builds the upload URL and reports failure here
--- so the report doesn't wait out the capture timeout.
 RegisterNetEvent('kora_lib:server:screenshotFailed', function(token, clientReason)
     if type(token) ~= 'string' then return end
 

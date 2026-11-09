@@ -1,7 +1,5 @@
 ---@diagnostic disable: duplicate-doc-field
 
--- Kora.world.getClosestEntity('player') returns a PED; Kora.closest.player's contract is a
--- player id, so the ped is mapped back to its owning player.
 local function pedToPlayerId(ped)
     local players = GetActivePlayers()
     for playerIndex = 1, #players do

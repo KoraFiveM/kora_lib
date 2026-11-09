@@ -59,7 +59,6 @@ export default function AppMapBlock({ block, labels, disabled, onSelect }: { blo
     const zoomBy = useCallback((factor: number) => setScale((current) => Math.min(4, Math.max(0.12, current * factor))), [])
     const captureWheel = block.captureWheel ?? true
 
-    // React registers wheel listeners as passive, so preventDefault() there is ignored; attach a native non-passive one.
     useEffect(() => {
         const element = container.current
         if (!element || !captureWheel) return

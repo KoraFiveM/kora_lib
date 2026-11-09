@@ -1,12 +1,3 @@
--- Compat bridge: translates exports['qb-minigames'] (Hacking/KeyMinigame/Lockpick/StartPinpad/Quiz/Skillbar/
--- WordGuess/WordScramble) onto Kora.minigames.play. Unlike upstream's client-trust model every call is
--- validated server-side; see the "Divergences" notes below and modules/minigames/docs.md "Legacy compat".
-
--- Registers the hidden CFX export event under the legacy `qb-minigames` identity; `provide` alone only satisfies dependency checks.
-
--- Kora.minigames.play errors (never returns plain falsy) on an in-progress game, bad gameType or a failed
--- round trip; upstream always resolves, so pcall and treat failure as a losing round. Capture the invoking
--- context before anything can yield (play already awaits for external export callers).
 local function playSafely(gameType, opts)
     local calledFromExport = GetInvokingResource() ~= nil
     local ok, result = pcall(function()
@@ -30,8 +21,6 @@ local function playKeyMinigame(amount)
     return { quit = result.cancelled or false, faults = result.faults or 0 }
 end
 
--- Divergence: upstream's Lockpick(pins) is a different tumbler mechanic (`pins` = number of tries);
--- it is mapped onto pinCount (more pins = harder) without claiming mechanic parity.
 local function playLockpick(pins)
     local result = playSafely('lockpick', { pinCount = pins })
     return result.success
@@ -47,8 +36,6 @@ local function playQuiz(questions, correctRequired, timer)
     return result.success
 end
 
--- Divergence: upstream's Skillbar(difficulty, validKeys) is a key-sequence game; `validKeys` has no analogue
--- in kora_lib's triangle-wave skillbar and is dropped (warned once). `difficulty` maps to zoneSize (smaller = harder).
 local SKILLBAR_ZONE_SIZE = { easy = 0.20, medium = 0.14, hard = 0.08 }
 
 local function playSkillbar(difficulty, validKeys)

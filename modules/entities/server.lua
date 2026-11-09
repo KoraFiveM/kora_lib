@@ -1,5 +1,3 @@
----@alias QBServerVehicleType "automobile" | "bike" | "boat" | "heli" | "plane" | "submarine" | "trailer" | "train"
-
 local isFiniteNumber = Kora.util.isFiniteNumber
 
 local vehicleTypes = {

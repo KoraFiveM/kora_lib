@@ -20,27 +20,6 @@ export function useNuiEvent<T = unknown>(action: string, handler: (data: T) => v
 
     useEffect(() => {
         function listener(event: MessageEvent<NuiWireMessage<T>>) {
-            // DELIBERATELY no event.source / event.origin check here.
-            //
-            // FiveM does NOT deliver SendNUIMessage from this frame: it posts
-            // from the game's own NUI window, which arrives with
-            // origin "nui://game" and an event.source that is a real window
-            // object but is NOT this one. Verified in-game -- the same message
-            // posted in-page arrives as { origin: "https://cfx-nui-<res>",
-            // source: window } while the identical message from Lua arrives as
-            // { origin: "nui://game", source: <other window> }.
-            //
-            // So ANY form of source/origin gate (`!== window`, or a
-            // null-tolerant `source && source !== window`) silently discards
-            // every real message from Lua while still letting in-page test
-            // posts through -- which presents in-game as "the NUI is
-            // completely broken" with no error anywhere, and is exactly the
-            // trap this comment exists to stop someone re-introducing.
-            //
-            // Nothing is lost by omitting it: another resource's NUI page has
-            // no window handle to post here with, and the actual
-            // response-spoofing concern is handled by the per-request token in
-            // lib/fetchNui.ts (see modules/nui/AGENTS.md).
             if (event.data?.action === action) {
                 handlerRef.current(event.data.data)
             }

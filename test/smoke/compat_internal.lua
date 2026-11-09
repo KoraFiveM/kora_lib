@@ -45,7 +45,6 @@ harness.test('internal token generation does not repeat and works without os', f
         seen[token] = true
     end
 
-    -- The client realm has no os library; stirring must still work there.
     local realOs = os
     os = nil
     local ok, token = pcall(Kora.compat.generateToken, 16)

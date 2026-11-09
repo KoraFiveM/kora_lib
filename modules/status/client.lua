@@ -1,4 +1,3 @@
--- name -> {def, severity, expiresAt, rendered = {screenHandle?, ptfxHandle?, animEntity?}}
 local active = {}
 local changeListeners = {}
 local nextListenerId = 0
@@ -6,7 +5,6 @@ local movementMultiplier = 1.0
 local movementLoopRunning = false
 local isInteger = Kora.util.isInteger
 
--- Normalizes native functions and Cfx funcref proxies consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
 local statusRegistry = Kora.resources.registry(function(name)
@@ -176,7 +174,6 @@ function Kora.status.apply(name, opts)
         CreateThread(function()
             Wait(remainingDuration)
             local current = active[name]
-            -- Only remove if this is still the same application and due: a "replace" re-apply resets expiresAt.
             if current and current.expiresAt and current.expiresAt <= GetGameTimer() then
                 Kora.status.remove(name)
             end

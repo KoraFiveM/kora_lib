@@ -11,14 +11,10 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Mock Kora.nui directly and resolve synchronously: openRegisteredRadial consumes
--- Kora.nui.openRadialMenu's result itself to dispatch the chosen option.
 local sentItems = nil
 local nextRadialResult = nil
 
 Kora.nui = {
-    -- Each call consumes `nextRadialResult` and resets it to a cancel; a shouldClose=false
-    -- selection reopens the wheel, which would otherwise repeat the same answer forever.
     openRadialMenu = function(items)
         sentItems = items
         local answer = nextRadialResult
@@ -29,8 +25,6 @@ Kora.nui = {
     end,
 }
 
--- Stub for Kora.progressbar.start (flip-vehicle action); modules/progressbar isn't loaded.
--- Controlled via `progressCompletes`.
 local progressCompletes = true
 Kora.progressbar = { start = function() return progressCompletes end }
 Kora.keybind = {
@@ -42,8 +36,6 @@ Kora.keybind = {
 
 dofile(repoRoot .. "compat/shared.lua")
 
--- Controllable kora_core PlayerData mock for the built-in job/vehicle content, which reads
--- it via pcall-guarded exports.kora_core calls (the degraded path is "qbcore isn't running").
 local playerJob = { name = nil, onduty = false }
 local playerMetadata = {}
 local jobDefs = { police = { type = "leo" }, ambulance = { type = "ems" }, unemployed = { type = "civ" } }
@@ -62,17 +54,16 @@ _G.exports = {
     },
 }
 
--- Controllable vehicle state; native names/shapes match what the Vehicle submenu calls.
 local vehicleState = {
-    pedVehicle = 0,     -- GetVehiclePedIsIn: 0 means "not in a vehicle"
-    nearestVehicle = 0, -- getNearestVeh's own raycast result
+    pedVehicle = 0,
+    nearestVehicle = 0,
     onAllWheels = true,
     seatCount = 4,
-    speed = 0,          -- m/s, matches GetEntitySpeed's real unit (the compat file converts to km/h itself)
-    doorAngle = {},     -- [doorIndex] -> float; unset means "closed" (0.0), same as a fresh vehicle
-    extraExists = {},   -- [extraIndex] -> bool; unset means "exists" (true), matching most vehicles having all 13 slots
-    extraOn = {},       -- [extraIndex] -> bool; unset means "off" (false)
-    seatFree = {},      -- [seatIndex] -> bool; unset means "free" (true)
+    speed = 0,
+    doorAngle = {},
+    extraExists = {},
+    extraOn = {},
+    seatFree = {},
 }
 
 _G.PlayerPedId = function() return 1 end
@@ -91,7 +82,7 @@ _G.SetVehicleDoorShut = function(_, door) vehicleState.doorAngle[door] = 0.0 end
 _G.SetVehicleDoorOpen = function(_, door) vehicleState.doorAngle[door] = 1.0 end
 _G.DoesExtraExist = function(_, extra) return vehicleState.extraExists[extra] ~= false end
 _G.IsVehicleExtraTurnedOn = function(_, extra) return vehicleState.extraOn[extra] == true end
-_G.SetVehicleExtra = function(_, extra, state) vehicleState.extraOn[extra] = (state == 0) end -- real native: 0 = on, 1 = off
+_G.SetVehicleExtra = function(_, extra, state) vehicleState.extraOn[extra] = (state == 0) end
 _G.SetVehicleAutoRepairDisabled = function() end
 _G.IsVehicleSeatFree = function(_, seat) return vehicleState.seatFree[seat] ~= false end
 _G.GetEntitySpeed = function() return vehicleState.speed end
@@ -100,7 +91,6 @@ _G.SetVehicleOnGroundProperly = function() end
 
 dofile(repoRoot .. "compat/client/qb-radialmenu.lua")
 
--- Mirrors a cross-resource exports['qb-radialmenu']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -120,8 +110,6 @@ local function itemById(items, id)
     return nil
 end
 
--- The wheel only opens via its Kora.keybind handler, not a direct export. The
--- keybind stub above records that callback in the mock command registry.
 local function openRadial()
     harness.assertTrue(net.commands ~= nil and net.commands["qblib_radialmenu_open"] ~= nil,
         "qblib_radialmenu_open should be registered")
@@ -129,10 +117,6 @@ local function openRadial()
 end
 
 harness.test("AddOption returns a generated id and RemoveOption clears it from the wheel", function()
-    -- A second, always-present option keeps the registry non-empty after
-    -- removing the first, so the wheel actually reopens (and sentItems gets
-    -- refreshed) instead of openRegisteredRadial's own `#order == 0` early
-    -- return leaving sentItems stale from before the removal.
     local anchorId = AddOption({ title = "Anchor" })
     local id = AddOption({ title = "Repair" })
     harness.assertTrue(id ~= nil, "AddOption should return an id")
@@ -150,16 +134,10 @@ harness.test("AddOption returns a generated id and RemoveOption clears it from t
     RemoveOption(anchorId)
 end)
 
--- Real qbcore-framework/qb-radialmenu's own signature is AddOption(data, id)
--- -- id, not shouldClose -- used internally to update an existing slot in
--- place. A non-boolean second argument must be honoured as that explicit id.
 harness.test("AddOption's non-boolean second argument is an explicit id, matching real qb-radialmenu", function()
     local id = AddOption({ title = "Job Menu" }, "jobinteractions")
     harness.assertEqual(id, "jobinteractions", "a string second argument should become the option's id")
 
-    -- Re-registering at the same explicit id updates in place rather than
-    -- appending a duplicate entry, mirroring upstream's SetupJobMenu/
-    -- SetupVehicleMenu update-in-place pattern.
     local id2 = AddOption({ title = "Job Menu (on duty)" }, "jobinteractions")
     harness.assertEqual(id2, "jobinteractions")
 
@@ -176,15 +154,9 @@ harness.test("AddOption's non-boolean second argument is an explicit id, matchin
     RemoveOption("jobinteractions")
 end)
 
--- Other forks use the second positional argument as `shouldClose` instead --
--- a genuine boolean is unambiguous (real qb-radialmenu never passes a
--- boolean as `id`), so it must still be honoured that way.
 harness.test("AddOption's boolean second argument is still honoured as shouldClose", function()
     local id = AddOption({ title = "Stay Open" }, false)
     local option = nil
-    -- shouldClose isn't exposed directly; confirm indirectly via the
-    -- reopen-after-select behaviour further down instead. Here just confirm
-    -- a boolean second argument doesn't get stringified into the id.
     harness.assertTrue(id ~= "false" and id ~= "true", "a boolean second argument should not become the id")
     RemoveOption(id)
 end)
@@ -209,12 +181,6 @@ harness.test("selecting an option with an event fires TriggerEvent/TriggerServer
     RemoveOption(serverId)
 end)
 
--- Real qb-radialmenu options can carry their own nested `items[]` to form a
--- submenu (upstream's own "Work"/"Vehicle" branches work this way).
--- Kora.nui.openRadialMenu natively supports `item.submenu = {title, items}`,
--- so a registered option with nested items must translate onto that instead
--- of being flattened or dropped, and a NESTED leaf's selection must still
--- dispatch correctly even though it was never in the top-level registry.
 harness.test("a registered option's nested items[] becomes a submenu, and a nested leaf still dispatches", function()
     local fired = false
     net.eventHandlers["test:nested:repair"] = { function() fired = true end }
@@ -246,9 +212,6 @@ harness.test("a registered option's nested items[] becomes a submenu, and a nest
 end)
 
 harness.test("the qb-radialmenu:client:AddOption/RemoveOption net events mirror the exports", function()
-    -- Same reasoning as the export-level removal test above: an always-present
-    -- anchor keeps the registry non-empty so the wheel actually reopens (and
-    -- sentItems refreshes) after the net-event removal.
     local anchorId = AddOption({ title = "Anchor" })
     local id
 
@@ -293,9 +256,6 @@ harness.test("no Vehicle/Work submenu appears with no nearby vehicle and no job"
     resetVehicleState()
     resetPlayerData()
 
-    -- openRegisteredRadial returns early (never calling Kora.nui.openRadialMenu
-    -- at all) when there's nothing to show, which would otherwise leave
-    -- sentItems stale from whatever the previous test last sent.
     sentItems = nil
     nextRadialResult = { cancelled = true }
     openRadial()
@@ -432,9 +392,6 @@ end)
 harness.test("an 'leo'-type job collapses onto the 'police' JobInteractions key", function()
     resetVehicleState()
     resetPlayerData()
-    -- Any job registered with type='leo' should reach the 'police' key, not
-    -- a literal job named 'police' -- jobDefs above registers 'police' as
-    -- the leo-typed job, so this also exercises the getJobType lookup path.
     playerJob.name = "police"
     playerJob.onduty = true
 
@@ -482,7 +439,7 @@ harness.test("a downed police/EMS player sees only the emergency button, bypassi
     playerJob.name = "ambulance"
     playerJob.onduty = true
     playerMetadata.inlaststand = true
-    vehicleState.nearestVehicle = 99 -- would normally also produce a Vehicle option
+    vehicleState.nearestVehicle = 99
 
     local backupCalled = false
     net.commands["backup"] = function() backupCalled = true end

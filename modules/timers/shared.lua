@@ -1,20 +1,9 @@
--- Kora.timers -- owner-tracked repeating/deferred callbacks, plus debounce/throttle.
---
--- Unlike Kora.loops.controlled (which stops once a predicate goes truthy) this runs "every N ms until I
--- say stop". Bare SetTimeout/CreateThread would keep ticking in kora_lib's VM after the owner stops, so
--- every timer is tracked against GetInvokingResource() and swept on stop (same contract as blips/zones).
---
--- One shared file: the logic is realm-identical, only the ownership registry differs.
-
--- The registry is created lazily: fxmanifest.lua loads every modules/**/shared.lua before
--- local/resources/{client,server}.lua, so Kora.resources.registry/serverRegistry don't exist at load time.
 local timerRegistry
 
 local function registry()
     if not timerRegistry then
         local factory = IsDuplicityVersion() and Kora.resources.serverRegistry or Kora.resources.registry
 
-        -- onDispose only flips the flag; the coroutine is parked in Wait() and notices on its next wake (no native kills it).
         timerRegistry = factory(function(id)
             local record = Kora.timers._records[id]
             if record then
@@ -27,8 +16,6 @@ local function registry()
     return timerRegistry
 end
 
--- id -> { cancelled = boolean }. The running coroutine holds the record itself, so cancelling is one field
--- write and a recycled id can't cancel a still-sleeping timer. Underscore-prefixed: module state, not API.
 Kora.timers._records = {}
 
 local nextId = 0
@@ -82,7 +69,6 @@ local function scheduleTimeout(owner, fn, delay)
         Wait(delay)
         if record.cancelled then return end
 
-        -- Untracked before running: a one-shot has no further schedule, so staying tracked would leak a registry entry.
         Kora.timers._records[id] = nil
         registry().untrack(id)
 
@@ -116,7 +102,6 @@ function Kora.timers.setInterval(fn, interval)
     CreateThread(function()
         while not record.cancelled do
             Wait(interval)
-            -- Re-check after the wait: cancellation lands while parked, which would otherwise fire one extra tick.
             if record.cancelled then return end
 
             local ok, err = pcall(fn)

@@ -41,7 +41,6 @@ local function restoreStamina(chance)
     end
 end
 
--- Overlapping effects share one native sprint multiplier: the newest live effect wins, and finishing an older one leaves it alone.
 local sprintEffectGeneration = 0
 local sprintEffects = {}
 local currentSprintToken = nil
@@ -74,17 +73,6 @@ local function endSprintEffect(playerId, token)
     currentSprintToken = newestToken
     SetRunSprintMultiplierForPlayer(playerId, newestToken and sprintEffects[newestToken] or 1.0)
 end
-
----@class QBVisualsStaminaEffectOptions
----@field prefix string playDrugEffect prefix (`<prefix>In`/`<prefix>`/`<prefix>Out`).
----@field multiplier number Sprint multiplier applied for the duration of the effect.
----@field ticks integer Number of 1-second stamina ticks the effect runs for.
----@field restoreChance integer Chance out of 100, rolled each tick, to restore stamina.
----@field replayChance integer Chance, rolled each tick against replayScale, to replay the drug screen effect.
----@field replayScale? integer Denominator replayChance is rolled against. Default 100 -- coke uses 300, preserve exactly.
----@field replayExtraWait? {min: integer, max: integer} Extra Wait(math.random(min,max)) after a successful replay (coke only).
----@field perTickRagdoll? {chance: integer, minTime: integer, maxTime: integer} Chance out of 100, each tick, to ragdoll if running.
----@field finalRagdoll? {minTime: integer, maxTime: integer} Ragdoll unconditionally once the tick loop ends.
 
 ---Shared stamina-tick loop behind Kora.visuals.meth/crack/coke. Reads the ped fresh each tick so a death/respawn mid-loop doesn't ragdoll a stale handle.
 ---@param options QBVisualsStaminaEffectOptions
@@ -122,8 +110,6 @@ local function runStaminaDrugEffect(options, duration)
     endSprintEffect(playerId, token)
 end
 
--- Cross-resource function references arrive as callable tables rather than
--- plain Lua functions. Public callback-taking APIs must accept both shapes.
 local isCallable = Kora.compat.isCallable
 
 local function isCoords(value)
@@ -155,8 +141,6 @@ function Kora.visuals.fade(duration, fn)
     local ok, err = true
     if isCallable(fn) then ok, err = pcall(fn) end
 
-    -- Never strand the player behind a black screen when work performed at
-    -- full fade errors. Restore the display first, then preserve the error.
     DoScreenFadeIn(duration)
     if not ok then error(err, 0) end
 end
@@ -196,7 +180,6 @@ function Kora.visuals.ecstacy(duration)
             end
             stamina = stamina - 1
         end
-        -- Read fresh: this loop can outlive a death/respawn.
         ragdollIfRunning(Kora.cache.ped(), 1000, 3000)
     end)
 end

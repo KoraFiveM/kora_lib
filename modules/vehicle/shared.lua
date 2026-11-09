@@ -1,8 +1,3 @@
----@class QBVehicleNormalizePlateOptions
----@field maxLength? integer Defaults to 8.
----@field whitespace? 'collapse'|'remove'|'preserve' Keeps single internal spaces, removes all whitespace, or preserves internal whitespace. Defaults to collapse.
----@field characters? 'alphanumeric'|'any' Restricts the result to A-Z, 0-9, and optional spaces by default.
-
 ---Normalizes a vehicle plate into the canonical uppercase form used for lookups.
 ---@param value any
 ---@param options? QBVehicleNormalizePlateOptions

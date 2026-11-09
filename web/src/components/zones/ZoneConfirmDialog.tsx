@@ -29,23 +29,14 @@ export function ZoneConfirmDialog() {
 
     const handleOpenChange = useCallback(
         (open: boolean) => {
-            // Closed via Escape/backdrop/X, or "Keep Editing" -- either way the
-            // creator session itself isn't cancelled, just this dialog.
             if (!open) respond({ confirmed: false })
         },
         [respond],
     )
 
-    // The snippet IS the output of the creator, so copying it is the primary
-    // action -- but it still confirms, because `confirmed: true` is what
-    // resolves Kora.zones.startCreator's promise (and builds the real zone).
-    // Splitting those apart would mean a player who clicked the obvious button
-    // got their text and silently threw the zone away.
     const copySnippet = useCallback(async () => {
         if (!payload) return false
 
-        // The snippet is still visible, so copy failure is feedback rather
-        // than a reason to trap the player in this confirmation dialog.
         const copied = await copyToClipboard(payload.snippet)
         setCopyState(copied ? "copied" : "failed")
         return copied

@@ -1,4 +1,3 @@
--- Only one minigame per player at a time; a concurrent play() is rejected rather than queued.
 local activeSession = nil
 local activeRoundRequest
 local nextSessionToken = 0
@@ -8,9 +7,6 @@ local function newSessionToken()
     return nextSessionToken
 end
 
--- Tracks the LOCAL overlay/focus only; the server session owner is captured earlier by authorizeProof.
--- If the calling resource stops mid-round, the beginPlay coroutine is abandoned (a suspended Citizen.Await can't be unwound);
--- onDispose drops the guard and closes the overlay. The coroutine ends once its finite-timeout promises settle.
 local minigameOwnership = Kora.resources.registry(function(token)
     if activeSession == token then
         if activeRoundRequest then
@@ -38,7 +34,6 @@ local function beginPlay(gameType, opts, authorization, resource)
                 local lastResult = nil
 
                 while true do
-                    -- roundTimeoutBuffer only absorbs latency/an abandoned overlay; the NUI auto-submits well before this safety net fires.
                     local roundRequest = Kora.nui.requestAsync("minigames:round", {
                         type = gameType,
                         sessionId = round.sessionId,
@@ -52,8 +47,6 @@ local function beginPlay(gameType, opts, authorization, resource)
                     local attempt = Citizen.Await(roundRequest)
                     if activeRoundRequest == roundRequest then activeRoundRequest = nil end
 
-                    -- Escape/backdrop (cancelled = true), distinct from a timeout (attempt == nil) which submits as a failed attempt.
-                    -- Ends the server session immediately and doesn't consume an attempt.
                     if attempt ~= nil and attempt.cancelled then
                         Citizen.Await(Kora.callback.trigger("kora_lib:minigames:cancel", round.sessionId))
                         serverSessionId = nil
@@ -64,7 +57,6 @@ local function beginPlay(gameType, opts, authorization, resource)
 
                     if submitResult.done then
                         serverSessionId = nil
-                        -- `faults` is nil except for `keys`.
                         return {
                             success = submitResult.success,
                             attempts = submitResult.attemptsUsed,
@@ -73,7 +65,6 @@ local function beginPlay(gameType, opts, authorization, resource)
                         }
                     end
 
-                    -- The server regenerated the round (anti-farming); render it in the same overlay.
                     lastResult = "fail"
                     round = submitResult
                 end
@@ -88,7 +79,6 @@ local function beginPlay(gameType, opts, authorization, resource)
 
         if not ok then
             if serverSessionId then
-                -- A later NUI/callback request failed; cancel the server session so an immediate retry isn't blocked.
                 pcall(function()
                     Citizen.Await(Kora.callback.trigger("kora_lib:minigames:cancel", serverSessionId))
                 end)
@@ -139,7 +129,6 @@ function Kora.minigames.playAsync(gameType, opts, authorization, owner)
         return p
     end
 
-    -- Captured synchronously while GetInvokingResource() still reflects the exports caller (see modules/zones/client.lua startCreator).
     local resource = owner or GetInvokingResource() or GetCurrentResourceName()
 
     return beginPlay(gameType, opts, authorization, resource)

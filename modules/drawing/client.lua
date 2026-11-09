@@ -1,12 +1,3 @@
----@class QBDrawingText3DOptions
----@field font? integer
----@field scale? number
----@field color? {r: integer, g: integer, b: integer, a: integer}
----@field maxDistance? number Meters from PlayerPedId(); beyond this, every native call is skipped.
----@field outline? boolean
-
--- Plain { x, y, z } table, not glm.vec3 -- see the identical note in
--- modules/raycast/client.lua, modules/world/client.lua, and modules/zones/client.lua.
 local function toVec3(v)
     assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z),
         "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
@@ -52,7 +43,6 @@ function Kora.drawing.text3d(coords, text, options)
         'text3d color must have integer r, g, b, and a components from 0 to 255.')
     assert(type(outline) == 'boolean', 'text3d outline must be a boolean.')
 
-    -- Distance-cull before any native call so dozens of prompts per frame stay cheap.
     if not withinDistance(toVec3(GetEntityCoords(PlayerPedId())), point, maxDistance) then
         return
     end

@@ -6,9 +6,6 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
--- Each direction has its own handshake token and request registry, but register/trigger
--- are defined on both realms under the same names, so the second dofile wins the table
--- slot. Each direction's pair is captured by reference right after its own file loads.
 local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
@@ -24,7 +21,7 @@ local serverRegister = Kora.callback.register
 local serverTrigger = Kora.callback.trigger
 local serverUnregister = Kora.callback.unregister
 
-dofile(repoRoot .. "local/callback/client.lua") -- its startup CreateThread completes the client->server handshake synchronously
+dofile(repoRoot .. "local/callback/client.lua")
 local clientRegister = Kora.callback.register
 local clientTrigger = Kora.callback.trigger
 
@@ -94,8 +91,6 @@ harness.test("callback handshake is rate limited per player", function()
     end
     harness.assertEqual(issued, 5, "only five handshakes per minute may be answered")
 
-    -- The single-process mock delivers every client event to the simulated
-    -- client, so give it back its own token.
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
     _G.source = nil
@@ -373,7 +368,6 @@ harness.test('callback quotas are independent per player', function()
     _G.source = nil
     harness.assertEqual(calls, 2, 'a different source should have its own quota')
 
-    -- Restore the simulated client's token for later round trips.
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers['kora_lib:callback:handshake']) do fn() end
     _G.source = nil
@@ -486,8 +480,6 @@ harness.test("server asks client: an unknown callback rejects immediately", func
 end)
 
 harness.test("server asks client: a response is only accepted from the addressed player", function()
-    -- Hold the client response so the request remains pending while the
-    -- authorization check is exercised below.
     clientRegister("smoke:manual-client-response", function() return "ignored" end)
     local responseHandlers = net.netHandlers["kora_lib:callback:clientResponse"]
     net.netHandlers["kora_lib:callback:clientResponse"] = {}
@@ -548,10 +540,6 @@ harness.test("foreign resources cannot unregister callbacks in either realm", fu
     _G.GetInvokingResource = function() return nil end
 end)
 
--- Placed last: these fire onResourceStop/onClientResourceStop for "kora_lib_test", which
--- sweeps every handler it owns. They also need a working client->server token; the earlier
--- "playerDropped clears the token" test cleared it server-side only, so replaying the
--- handshake (like a real reconnect) resyncs both sides.
 _G.source = mocks.SOURCE
 for _, fn in ipairs(net.netHandlers["kora_lib:callback:handshake"]) do fn() end
 _G.source = nil
@@ -586,14 +574,6 @@ harness.test("server asks client: a handler is dropped when its owning resource 
 end)
 
 harness.test("cross-resource trigger during in-flight handshake resolves to the real value, not a raw promise", function()
-    -- Regression: a cross-resource caller's first call, made before the handshake completes,
-    -- got the bare unresolved promise back across exports() instead of the awaited value.
-    -- GetInvokingResource() is only valid in the same synchronous frame as the exports() call;
-    -- awaitToken() yields while the token is missing, so the invoker must be captured before
-    -- that and passed to settleForExport.
-    --
-    -- Needs fresh mocks and client.lua loaded BEFORE server.lua: its startup handshake then
-    -- finds no server handler and leaves the token unset instead of resolving synchronously.
     mocks.install()
 
     ---@type string?
@@ -618,7 +598,6 @@ harness.test("cross-resource trigger during in-flight handshake resolves to the 
     harness.assertEqual(coroutine.status(co), "suspended",
         "expected the trigger call to yield inside awaitToken() while the handshake token is still missing")
 
-    -- The exports() call frame has ended: GetInvokingResource() reverts to nil, as after a real yield.
     invokerName = nil
 
     _G.TriggerServerEvent("kora_lib:callback:handshake")

@@ -504,10 +504,14 @@ labels, and content remain the consumer's responsibility.
   page; set `false` to let wheel events scroll the page instead.
 - `empty`: `title`, `description?`, `icon?`
 - `chat`: `id`, `title?`, `empty?`, `messages = { { id, author, text, timestamp?,
-  mine?, unread?, badge?, tone? } }` (oldest first) and an optional
+  mine?, unread?, status?, badge?, tone? } }` (oldest first) and an optional
   `composer = { action, placeholder?, maxLength?, disabled?, note? }`. Text is
   rendered as plain text (never HTML). Own messages (`mine`) are right-aligned;
   a "New" divider precedes the first `unread` message and the view opens there.
+  `status = 'sent'|'delivered'|'seen'` on a `mine` message draws messenger-style
+  ticks after its time: one tick sent, two delivered, two in the brand colour
+  seen (the neutral palette has no blue, and each state also carries a text label
+  for screen readers and a tooltip). The sender owns the meaning of each state.
   The view sticks to the newest message unless the reader has scrolled up, in
   which case new arrivals are counted in a "N new messages" jump button;
   `follow = true` always jumps to the newest message instead. With

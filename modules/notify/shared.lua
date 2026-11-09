@@ -1,21 +1,3 @@
----@alias QBNotifyType "info" | "success" | "warning" | "error"
----@alias QBNotifyPosition "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right" | "center-left" | "center-right" | "top" | "bottom"
-
----@class QBNotifyPayload
----@field title? string Notification title.
----@field message? string Notification body. At least one of `title` or `message` is required.
----@field duration? integer Milliseconds to display for. Defaults to Config.notify.defaultDuration, must be > 0 and <= Config.notify.maxDuration.
----@field type? QBNotifyType Visual variant (accent colour + icon). Defaults to Config.notify.defaultType.
----@field position? QBNotifyPosition Screen corner/edge to show in. Defaults to Config.notify.defaultPosition.
----@field icon? string Overrides the variant's default icon. A lucide icon name from web/src/lib/icon.ts's curated set; an unknown name renders no icon.
----@field id? string|number Replaces an existing toast with the same id.
----@field iconColor? string CSS colour for the icon.
----@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
----@field alignIcon? 'top'|'center' Defaults to center.
----@field style? table<string, any> Trusted scalar root styles and vetted title/description child styles.
----@field showDuration? boolean Set false to hide the lifetime indicator.
-
--- Validation sets; keep in sync with the aliases above and NotifyPayload in web/src/lib/types.ts.
 local NOTIFY_TYPES = {
     info = true,
     success = true,
@@ -23,7 +5,6 @@ local NOTIFY_TYPES = {
     error = true,
 }
 
--- Aliases from other notify APIs (ox_lib's `inform`), resolved by Kora.notify.normalizeType; anything else must be a NOTIFY_TYPES key.
 local NOTIFY_TYPE_ALIASES = {
     inform = "info",
     warn = "warning",
@@ -85,7 +66,6 @@ function Kora.notify.assert(payload)
     local duration = payload.duration
     if duration == nil then duration = Config.notify.defaultDuration end
 
-    -- Type-checked: a non-string rendered as a React child would crash the whole NUI root.
     assert(title == nil or type(title) == "string", "Notification title must be a string.")
     assert(message == nil or type(message) == "string", "Notification message must be a string.")
     assert(title or message, "Notifications require a title or message.")

@@ -25,12 +25,10 @@ local function validate(buttons)
     end
 end
 
--- Native icon codes (b_*) have no readable name, so the NUI gets a short key label instead.
--- Text keys come back as t_<NAME> and need no entry. Unmapped codes fall through as the raw token.
 local ICONS = {
-    -- Confirmed in game: b_100/101 are the mouse buttons, b_1002/1003/1004 are Tab/Enter/Backspace.
     b_100 = 'LMB', b_101 = 'RMB', b_102 = 'MMB',
     b_1002 = '⇥', b_1003 = '↵', b_1004 = '⌫',
+    b_194 = '↑', b_195 = '↓', b_1009 = 'PgUp', b_1010 = 'PgDn',
 }
 
 local function keyLabel(button)
@@ -42,7 +40,6 @@ end
 
 local lastPayload
 
--- Merges every active display into rows; buttons sharing a label collapse into one row with several keys.
 local function publish()
     local rows, byLabel = {}, {}
     for index = 1, #activeIds do

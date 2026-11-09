@@ -1,24 +1,11 @@
--- Smoke test for the distancecheck module (Kora.distance.*), both realms. Client
--- functions measure from the local player (Kora.cache.get('coords')); server
--- functions take `src` first and measure from that player's ped. Plain
--- coordinate tables prove the hot path does not need temporary vectors.
---
--- Client and server both define Kora.distance.*, so -- per kora_lib's
--- same-name-across-realms rule -- the client functions are captured before the
--- server file overwrites them.
-
 local h = dofile('test/harness.lua')
 
--- Auto-vivifying Kora, as build/initiate.lua creates it.
 _G.Kora = setmetatable({}, { __index = function(t, k) local m = {}; rawset(t, k, m); return m end })
--- modules/util/shared.lua wires Kora.util.isCallable to this directly; playerNearAny (and the
--- Kora.util.nearest it's built on) needs a real isCallable, not an auto-vivified empty table.
 Kora.compat.isCallable = function(value)
     return type(value) == 'function' or (type(value) == 'table' and type((getmetatable(value) or {}).__call) == 'function')
 end
 dofile('modules/util/shared.lua')
 
--- Local player sits at the origin for the client tests.
 Kora.cache.get = function(key) if key == 'coords' then return { x = 0, y = 0, z = 0 } end end
 
 dofile('modules/distancecheck/client.lua')
@@ -71,7 +58,6 @@ h.test('client coordinates reject non-finite values before distance arithmetic',
     h.assertThrows(function() cCoords({ x = 0, y = 0, z = 0 }, { x = 0, y = 0 / 0, z = 0 }, 5) end)
 end)
 
--- Server realm: src-first, position from GetPlayerPed(src) + GetEntityCoords.
 _G.GetPlayerPed = function(src) return src end
 _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
 dofile('modules/distancecheck/server.lua')

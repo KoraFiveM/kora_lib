@@ -1,9 +1,6 @@
 return function()
     local compat = {}
 
-    -- Consumer-local Kora.util uses the same callable rules as kora_lib's own VM.
-    -- Keep this here to avoid routing callback validation back through an
-    -- export when the surrounding module is deliberately local.
     local function isCallable(value, seen)
         if type(value) == 'function' then return true end
         if type(value) ~= 'table' then return false end

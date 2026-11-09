@@ -1,9 +1,3 @@
----@class QBVehicleDeleteOptions
----@field timeout? integer Maximum time to acquire network control. Defaults to 1000ms.
-
----@class QBVehicleSetPropertiesOptions
----@field timeout? integer Maximum time to acquire network control. Defaults to 1000ms.
-
 local MOD_FIELDS = {
     modSpoilers = 0, modFrontBumper = 1, modRearBumper = 2, modSideSkirt = 3,
     modExhaust = 4, modFrame = 5, modGrille = 6, modHood = 7,

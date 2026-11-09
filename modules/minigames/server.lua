@@ -24,7 +24,6 @@ local proofOwnership = Kora.resources.serverRegistry(function(token)
     proofs[token] = nil
 end)
 
--- Only authorized sessions have a resource owner; legacy sessions are player-scoped and cleaned up on cancel, expiry or playerDropped.
 local authorizedSessionOwnership = Kora.resources.serverRegistry(function(sessionId)
     local session = sessions[sessionId]
     if session then endSession(session) end
@@ -78,7 +77,6 @@ local function boundedString(value, label, maxBytes, allowEmpty)
     return value
 end
 
--- `#`/ipairs alone can miss sparse, hash-keyed or huge attacker-provided tables: cap the key count, require positive array indices, check for gaps.
 local function denseArrayLength(value, label, maxLength, minLength)
     assert(type(value) == "table", label .. " must be an array.")
     local count = 0
@@ -97,13 +95,9 @@ end
 local function assertElapsed(value, session, label)
     assert(isFiniteNumber(value), label .. " must be a finite number.")
     assert(value >= 0 and value <= session.timeLimit, label .. " is outside the round's time limit.")
-    -- The browser starts after the server sends the round; allow only a small clock-quantization margin.
     assert(value <= GetGameTimer() - session.roundStartedAt + 50,
         label .. " exceeds the time elapsed on the server.")
 end
-
--- Per-type difficulty resolution. Legacy `opts` comes from the client, trusted `opts` from authorizeProof's server caller;
--- both get the same clamps and bounds, and anti-cheat timing floors are never exposed.
 
 local resolveConfig = {}
 
@@ -167,9 +161,6 @@ function resolveConfig.fishing(opts)
         timeLimit = clampNumber(opts and opts.timeLimit, cfg.timeLimit, 3000, 30000),
     }
 end
-
--- The six types below back compat/client/qb-minigames.lua; their puzzle content (PIN, word, quiz) comes from the caller's opts,
--- so resolveConfig validates and carries it through as well as clamping difficulty/timing.
 
 function resolveConfig.pinpad(opts)
     local cfg = Config.minigames.pinpad
@@ -270,7 +261,7 @@ function resolveConfig.keys(opts)
     local cfg = Config.minigames.keys
     local amount = clampInt(opts and opts.amount, cfg.amount, 1, 30)
     return {
-        attempts = 1, -- upstream's KeyMinigame always runs to completion once, never retries
+        attempts = 1,
         amount = amount,
         timeLimit = amount * cfg.perKeyWindow,
     }
@@ -280,7 +271,7 @@ function resolveConfig.hacking(opts)
     local cfg = Config.minigames.hacking
     local timeout = clampNumber(opts and opts.timeout, cfg.timeout, 5, 120)
     return {
-        attempts = 1, -- upstream's Hacking is a single pass/fail against a countdown, not a multi-attempt puzzle
+        attempts = 1,
         solutionsize = clampInt(opts and opts.solutionsize, cfg.solutionsize, 2, 10),
         timeLimit = timeout * 1000,
     }
@@ -383,15 +374,9 @@ function Kora.minigames.consumeProof(src, token, gameType, authorization)
     return true
 end
 
--- Per-type generation/validation. `generate` returns the server-only solution plus the public payload sent to the NUI;
--- `validate` recomputes correctness from raw attempt data, never a client-computed result.
--- validate may assert on a malformed attempt; submit pcalls it and treats that as a failed attempt.
-
 local generate = {}
 local validate = {}
 
--- One random target per pin in [tolerance, 1 - tolerance] plus a shared speed. Targets are rendered, so sending them leaks nothing;
--- a computed position at any instant is what's never sent.
 function generate.lockpick(cfg)
     local pins = {}
     for i = 1, cfg.pinCount do
@@ -453,7 +438,6 @@ function validate.skillbar(session, attempt)
     return position >= solution.zoneStart and position <= solution.zoneEnd
 end
 
--- Inputs and outputs share one random color set, so the answer key is visual and needs no secret mapping.
 local CIRCUIT_COLORS = { "red", "blue", "green", "yellow", "purple", "orange", "cyan", "pink" }
 
 function generate.circuit(cfg)
@@ -462,7 +446,6 @@ function generate.circuit(cfg)
 
     local colors = {}
     for i = 1, count do colors[i] = CIRCUIT_COLORS[i] end
-    -- Fisher-Yates: randomizes which color lands on which pair.
     for i = count, 2, -1 do
         local j = math.random(1, i)
         colors[i], colors[j] = colors[j], colors[i]
@@ -584,7 +567,6 @@ function validate.fishing(session, attempt)
     return true
 end
 
--- Digits are shown on the keypad anyway; what's never sent is which digits the player has entered.
 function generate.pinpad(cfg)
     local digits = {}
     if cfg.numbers ~= nil then
@@ -627,7 +609,6 @@ function validate.pinpad(session, attempt)
     return allMatch
 end
 
--- Questions/options are rendered by the client; each question's `answer` stays only in `solution`.
 function generate.quiz(cfg)
     local publicQuestions = {}
     for i = 1, #cfg.questions do
@@ -666,7 +647,6 @@ function validate.quiz(session, attempt)
     return correct >= solution.correctRequired
 end
 
--- Only `hint` and the word length are sent; letters are revealed one at a time as the player guesses correctly.
 function generate.wordguess(cfg)
     local solution = { word = cfg.word, guesses = cfg.guesses }
     local public = { hint = cfg.hint, length = #cfg.word, guesses = cfg.guesses }
@@ -716,7 +696,6 @@ function validate.wordguess(session, attempt)
     return true
 end
 
--- The scramble is generated server-side; only the scrambled form + hint are sent.
 function generate.wordscramble(cfg)
     local letters = {}
     for i = 1, #cfg.word do letters[i] = cfg.word:sub(i, i) end
@@ -743,7 +722,6 @@ end
 
 local ARROW_KEYS = { "up", "down", "left", "right" }
 
--- The prompt sequence is public (the player must see the next key); what can't be forged is human-plausible reaction timing.
 function generate.keys(cfg)
     local pattern = {}
     for i = 1, cfg.amount do pattern[i] = ARROW_KEYS[math.random(1, #ARROW_KEYS)] end
@@ -754,7 +732,6 @@ function generate.keys(cfg)
     return solution, public
 end
 
--- Always "passes" like upstream KeyMinigame; `faults` rides back as the submit handler's `extra` return value.
 function validate.keys(session, attempt)
     assert(type(attempt) == "table" and type(attempt.presses) == "table", "malformed keys attempt.")
 
@@ -792,7 +769,6 @@ local function randomHex(length)
     return table.concat(chars)
 end
 
--- Simplified vs upstream's dual hex-grid: one code, revealed in `public`; the skill is submitting before the countdown.
 function generate.hacking(cfg)
     local code = randomHex(cfg.solutionsize)
 
@@ -826,7 +802,6 @@ endSession = function(session)
     end
 end
 
--- Legacy sessions are player-owned; authorized ones also keep the issuing resource as owner, so stopping it invalidates its authorizations, sessions and proofs.
 AddEventHandler("playerDropped", function()
     local src = source
     for _, session in pairs(sessions) do
@@ -840,7 +815,6 @@ AddEventHandler("playerDropped", function()
     end
 end)
 
--- Backstop for abandoned sessions (expiresAt is only checked on submit); 30s is coarse because it only reclaims memory.
 local function hasExpiringState()
     return next(sessions) ~= nil or next(authorizations) ~= nil or next(proofs) ~= nil
 end
@@ -871,7 +845,6 @@ ensureExpirySweep = function()
     end)
 end
 
--- Registered under both kora_lib: and the deprecated qblib: names.
 local function registerWithLegacyAlias(name, handler, options)
     Kora.callback.register(name, handler, options)
     Kora.callback.register((name:gsub("^kora_lib:", "qblib:")), handler, options)
@@ -880,7 +853,6 @@ end
 registerWithLegacyAlias("kora_lib:minigames:start", function(src, gameType, opts, authorizationToken)
     assert(type(gameType) == "string" and Kora.minigames.GAME_TYPES[gameType], "invalid minigame type.")
 
-    -- Reclaim this player's expired session first so a valid retry isn't rejected by stale state.
     local current = GetGameTimer()
     for _, session in pairs(sessions) do
         if session.src == src and current > session.expiresAt then endSession(session) end
@@ -914,11 +886,9 @@ registerWithLegacyAlias("kora_lib:minigames:start", function(src, gameType, opts
     local sessionId = nextSessionId
     ensureExpirySweep()
     local now = GetGameTimer()
-    -- `sessionTTL` is the minimum abandoned-round lifetime; long rounds/retries get their own window, bounded by an absolute cap.
     local overallExpiresAt = now + Config.minigames.sessionTTL
         + (cfg.timeLimit + Config.minigames.roundTimeoutBuffer) * cfg.attempts
 
-    -- Consume only after every check and generation step succeeds, so a mismatched request can't burn a valid authorization.
     if authorization then removeAuthorization(authorizationToken) end
 
     sessions[sessionId] = {
@@ -959,7 +929,6 @@ registerWithLegacyAlias("kora_lib:minigames:submit", function(src, sessionId, at
         return { done = true, success = false, attemptsUsed = attemptsUsed }
     end
 
-    -- `extra` is only set by validate.keys (faults); absent for other types.
     local ok, passed, extra = pcall(validate[session.gameType], session, attempt)
     session.attemptsUsed = session.attemptsUsed + 1
 
@@ -976,7 +945,6 @@ registerWithLegacyAlias("kora_lib:minigames:submit", function(src, sessionId, at
         return { done = true, success = false, attemptsUsed = attemptsUsed }
     end
 
-    -- Anti-farming: every failed attempt regenerates the solution so a target can't be memorized.
     local solution, public = generate[session.gameType](session.cfg)
     session.solution = solution
     session.roundStartedAt = GetGameTimer()
@@ -992,7 +960,6 @@ registerWithLegacyAlias("kora_lib:minigames:submit", function(src, sessionId, at
     }
 end, { rateLimit = Config.minigames.callbackRateLimits.submit })
 
--- Player-initiated early exit (Escape). Ends the session immediately so a cancel-and-retry doesn't hit maxConcurrentPerPlayer; does not consume an attempt.
 registerWithLegacyAlias("kora_lib:minigames:cancel", function(src, sessionId)
     if not isInteger(sessionId) or sessionId < 1 then return false end
 

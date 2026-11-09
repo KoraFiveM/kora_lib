@@ -1,4 +1,3 @@
--- Plain { x, y, z } tables, not glm.vec3: the `glm` global isn't guaranteed on every client build.
 local function toVec3(v)
     assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z),
         "Coordinates must have finite x, y, and z values.")
@@ -23,8 +22,6 @@ local function rotationToDirection(rot)
     return { x = -math.sin(z) * flatLength, y = math.cos(z) * flatLength, z = math.sin(x) }
 end
 
--- Shape tests are asynchronous: reading right after StartShapeTestRay can return status 1 (pending)
--- with stale entity handles in the other slots. The wait is bounded so a bad test can't strand its caller.
 local SHAPE_TEST_TIMEOUT_MS = 1000
 local COORD_GRABBER_CONTROLS = { 38, 174, 175, 177 }
 local COORD_GRABBER_DISTANCE = 50.0
@@ -205,7 +202,6 @@ local function drawCoordMarker(coords)
         0.1, 0.1, 0.1, 255, 255, 255, 255,
         false, true, 2, false, false, false, false)
 end
-
 
 local function runCoordGrabber(state)
     state.controlLease = Kora.compat.acquireControls(COORD_GRABBER_CONTROLS, nil, state.owner)

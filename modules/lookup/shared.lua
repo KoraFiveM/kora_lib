@@ -1,5 +1,3 @@
----@alias QBLookupNamespace 'vehicle'|'ped'|'object'|'weapon'|'weapon_component'|'pickup'
-
 local UINT32 = 4294967296
 local INT32_MIN = -2147483648
 local UINT32_MAX = 4294967295
@@ -36,7 +34,6 @@ for namespaceIndex = 1, #NAMESPACE_ORDER do
     state.overlay[namespace] = {}
 end
 
--- Shared state between realm files; non-exported because build/finalise.lua only exports function values.
 Kora.lookup._state = state
 
 local trim = Kora.util.trim

@@ -1,5 +1,3 @@
--- Shared helpers for the ox_lib parity tools: file walking, comment stripping,
--- and a small deterministic JSON encoder/decoder (no external dependencies).
 local M = {}
 
 ---Directory containing the calling script, with trailing slash.
@@ -79,8 +77,6 @@ function M.keys(t)
     table.sort(list)
     return list
 end
-
--- JSON ---------------------------------------------------------------------
 
 local escapes = { ['"'] = '\\"', ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "\\r", ["\t"] = "\\t" }
 

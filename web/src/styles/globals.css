@@ -24,7 +24,6 @@
     box-shadow: 0 0 0 1.5px hsl(var(--primary));
   }
 
-  /* Gameplay overlays need legibility over changing scenes, not a backdrop. */
   .overlay-text {
     text-shadow: 0 1px 2px rgb(0 0 0 / 90%);
   }
@@ -39,8 +38,6 @@
     background: hsl(var(--brand-soft));
   }
 
-  /* qbtarget is display-only NUI: a plain ring and dot at screen centre, brand
-     colour only while a valid option is under the crosshair. No blur or backdrop. */
   .target-reticle {
     display: grid;
     width: 1.5rem;
@@ -196,14 +193,6 @@
   }
 }
 
-/*
- * NUI headless overlay requirement -- this page is composited over live
- * gameplay in the CEF browser at all times, not just while a menu/dialog is
- * open. It must render fully transparent and click-through by default so it
- * never blocks the player's view or mouse/keyboard input. Individual mounted
- * components (menu, input dialog, zone creator HUD, etc.) are responsible for
- * opting themselves back into `pointer-events: auto` once visible.
- */
 html,
 body,
 #root {
@@ -216,7 +205,6 @@ body,
   overflow: hidden;
 }
 
-/* Camera HUD: a transparent, broadcast-style layer over the live game view. */
 .camera-hud {
   position: fixed;
   inset: 0;

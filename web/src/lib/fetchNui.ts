@@ -7,8 +7,6 @@ declare global {
     }
 }
 
-// True when running outside the CEF NUI frame (e.g. `pnpm dev` in a normal
-// browser) -- lets components render/develop without a game to talk to.
 export const isBrowserEnv = typeof window.invokeNative !== "function"
 
 function resourceName(): string {

@@ -1,16 +1,3 @@
--- Kora.sound -- frontend/world/entity sound playback with managed sound ids.
---
--- GTA's sound-id pool is small: a GetSoundId() slot stays claimed until ReleaseSoundId(), and leaking
--- them silently stops audio mid-session. Every id here is auto-released on a timer, released early by
--- Kora.sound.stop, and swept when the owning resource stops. (Passing -1 would need no bookkeeping,
--- but yields a handle that can never be stopped.)
-
----@class QBSoundOptions
----@field network? boolean Play for nearby players too, rather than only locally. Defaults to `false`.
----@field range? number Audible range in metres, world sounds only. Defaults to `Config.sound.defaultRange`.
----@field bank? string Audio bank to request before playing (e.g. `"DLC_MPHEIST/HEIST_FLEECA_BANK"`). Waits for the load.
----@field releaseAfter? number Milliseconds before the sound id is auto-released. Defaults to `Config.sound.defaultReleaseAfter`.
-
 local live = {}
 local bankRefs = {}
 local nextClaimGeneration = 0
@@ -37,8 +24,6 @@ local function disposeSound(soundId)
     return true
 end
 
--- soundId -> claim metadata. Ids still held when their owning resource stops are swept; StopSound
--- comes before ReleaseSoundId because releasing a playing id leaves audio running with no handle.
 local soundRegistry = Kora.resources.registry(function(soundId)
     disposeSound(soundId)
 end)
@@ -70,7 +55,6 @@ local function claim(owner, options)
         'Sound releaseAfter must be a finite non-negative number.')
 
     if options.bank then
-        -- Playing before the bank is resident is a silent no-op, not an error.
         if bankRefs[options.bank] then
             bankRefs[options.bank] = bankRefs[options.bank] + 1
         else

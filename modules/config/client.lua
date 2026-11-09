@@ -1,7 +1,3 @@
--- kora_lib's own client-side configuration consumer. The server-side catalog
--- bridge lives in server.lua; this counterpart receives only the shared and
--- client-scoped portion of kora_lib's configuration.
-
 if type(Config) == 'table' and type(GetCurrentResourceName) == 'function' and GetCurrentResourceName() == 'kora_lib' then
     local source = assert(LoadResourceFile('kora_lib', 'modules/config/consumer.lua'))
     local factory = assert(load(source, '@@kora_lib/modules/config/consumer.lua', 't', _ENV))()

@@ -1,11 +1,3 @@
----@class QBStatusEffectDef
----@field duration? integer Default ms an application lasts when the caller's `opts.duration` doesn't override it. `nil` means "until explicitly removed."
----@field stacking? "replace"|"extend"|"stack" How a second `Kora.status.apply` for the same name, while one is already active, combines with it. `"replace"` restarts the timer/severity from the new call; `"extend"` adds the new duration onto whatever's left; `"stack"` adds the new severity onto the existing one (capped at `severityLevels`). Defaults to `"replace"`.
----@field severityLevels? integer Number of discrete severity tiers `opts.severity` may select between (1..severityLevels). `nil` means this effect doesn't use severity.
----@field fx? {screen?: string, ptfx?: QBFxPtfxDef} Played via `Kora.fx` on the client while the effect is active. A `ptfx` entry needs `dict`/`name` at minimum -- `entity` defaults to the local ped if neither `entity` nor `coords` is set, and `looped` is always forced true regardless of what's given (a status effect's visual runs for the effect's own lifetime, not the ptfx's independent one).
----@field anim? {dict: string, clip: string} Played on the local ped via `Kora.anim.play` while the effect is active.
----@field movement? {speedMultiplier: number} Applied every frame via `SetPedMoveRateOverride` while active. Simultaneous effects compose multiplicatively; the frame loop exists only while a movement effect is active.
-
 local registry = {}
 local definitionOwners = {}
 

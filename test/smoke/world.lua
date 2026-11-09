@@ -33,8 +33,6 @@ end
 
 dofile(repoRoot .. "modules/world/client.lua")
 
--- Clears every mock entity/pool between tests so one test's fixtures can't
--- leak into the next.
 local function reset()
     entityData = {}
     pools = { CPed = {}, CVehicle = {}, CObject = {} }
@@ -130,7 +128,7 @@ end)
 
 harness.test("the local player's own ped is excluded from ped queries by default", function()
     reset()
-    addToPool("CPed", 1, 0, 0, 0) -- PlayerPedId() == 1
+    addToPool("CPed", 1, 0, 0, 0)
     addToPool("CPed", 10, 5, 0, 0)
 
     local matches = Kora.world.getNearbyEntities("ped", ORIGIN, 50.0)
@@ -341,11 +339,6 @@ harness.test('isSpawnClear sees invisible vehicles and honours exclusions', func
         'explicitly excluded vehicles should not block spawning')
 end)
 
--- Every client-realm test has already run, so dofile-ing server.lua (which overwrites
--- Kora.world.getNearbyEntities/getClosestEntity) is safe.
-
--- Server has no GetGamePool/GetActivePlayers/own-ped concept -- one native
--- per entity kind instead, plus GetPlayers for the connected-player list.
 local serverPools = { CPed = {}, CVehicle = {}, CObject = {} }
 local serverPlayers = {}
 local serverPlayerPeds = {}

@@ -235,14 +235,6 @@
 ---@field modKit49? integer
 
 ---@alias QBTextUIPosition 'left-center'|'right-center'|'top-center'|'bottom-center'
----@class QBTextUIOptions
----@field key? string
----@field icon? string
----@field position? QBTextUIPosition
----@field iconColor? string
----@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
----@field alignIcon? 'top'|'center'
----@field style? string|table<string, string|number>
 
 ---@class QBStateChange
 ---@field entity integer Entity resolved from the bag name, or 0 for global/player/unavailable bags.
@@ -253,13 +245,6 @@
 ---@field replicated boolean
 
 ---@alias QBWorldEntityType 'ped'|'vehicle'|'object'|'player'
----@class QBWorldQueryOptions
----@field models? (integer|string)[]
----@field predicate? fun(entity: integer, coords: QBCoords, distance: number): boolean
----@field includeInvisible? boolean Client only.
----@field includeOwnPed? boolean Client only.
----@field excludeEntities? integer[]
----@field radius? number Used by `getClosestEntity`.
 
 ---@class QBWorldMatch
 ---@field entity integer
@@ -765,6 +750,7 @@
 ---@field timestamp? string
 ---@field mine? boolean Right-aligned bubble for the viewer's own messages.
 ---@field unread? boolean A "New" divider is drawn before the first unread message.
+---@field status? 'sent'|'delivered'|'seen' Delivery ticks, shown on `mine` messages only: one tick sent, two delivered, two in the brand colour seen.
 ---@field badge? string Small label next to the author (for example 'Staff').
 ---@field tone? QBAppTone
 
@@ -1743,3 +1729,64 @@
 ---@field startCreator fun(zoneType: 'box'|'sphere'|'poly', existingOpts?: QBZoneCreatorOptions): promise|QBZoneCreatorResult|nil [client]
 ---@field isCreatorActive fun(): boolean [client]
 ---@field edit fun(handle: QBZoneHandle, opts?: QBZoneOptions): QBZoneHandle|nil, string? [client]
+
+---@class QBDrawingText3DOptions
+---@field font? integer
+---@field scale? number
+---@field color? {r: integer, g: integer, b: integer, a: integer}
+---@field maxDistance? number Meters from PlayerPedId(); beyond this, every native call is skipped.
+---@field outline? boolean
+
+---@alias QBEntitiesType "ped" | "object" | "vehicle"
+---@alias QBEntitiesPreset "static"
+
+---@alias QBServerVehicleType "automobile" | "bike" | "boat" | "heli" | "plane" | "submarine" | "trailer" | "train"
+
+---@alias QBNotifyType "info" | "success" | "warning" | "error"
+---@alias QBNotifyPosition "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right" | "center-left" | "center-right" | "top" | "bottom"
+
+---@class QBWaypointTeleportOptions : QBTeleportOptions
+---@field entity? number Entity to move. Defaults to the current vehicle when driving, otherwise the player ped.
+---@field launchHeight? number Initial Z used while collision is loaded.
+---@field collisionTimeout? integer Maximum milliseconds to wait for world collision.
+---@field groundAttempts? integer Maximum ground probes.
+---@field groundRetryDelay? integer Milliseconds between ground probes.
+
+---@class QBTextUIOptions
+---@field key? string Short key/control label displayed beside the text.
+---@field icon? string Lucide icon name.
+---@field position? QBTextUIPosition Defaults to `right-center`.
+---@field iconColor? string CSS colour applied to the icon.
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field alignIcon? 'top'|'center' Defaults to `center`.
+---@field style? string|table<string, string|number> Scoped CSS declarations or properties applied to the prompt surface.
+
+---@class QBVisualsStaminaEffectOptions
+---@field prefix string playDrugEffect prefix (`<prefix>In`/`<prefix>`/`<prefix>Out`).
+---@field multiplier number Sprint multiplier applied for the duration of the effect.
+---@field ticks integer Number of 1-second stamina ticks the effect runs for.
+---@field restoreChance integer Chance out of 100, rolled each tick, to restore stamina.
+---@field replayChance integer Chance, rolled each tick against replayScale, to replay the drug screen effect.
+---@field replayScale? integer Denominator replayChance is rolled against. Default 100 -- coke uses 300, preserve exactly.
+---@field replayExtraWait? {min: integer, max: integer} Extra Wait(math.random(min,max)) after a successful replay (coke only).
+---@field perTickRagdoll? {chance: integer, minTime: integer, maxTime: integer} Chance out of 100, each tick, to ragdoll if running.
+---@field finalRagdoll? {minTime: integer, maxTime: integer} Ragdoll unconditionally once the tick loop ends.
+
+---@class QBWorldQueryOptions
+---@field models? (number|string)[] Restrict to these models. Strings are joaat-hashed. Ignored for "player".
+---@field predicate? fun(entity: number, coords: table, distance: number): boolean Runs last, after the cheaper filters below.
+---@field includeInvisible? boolean Include entities IsEntityVisible reports as hidden. Defaults to false.
+---@field includeOwnPed? boolean Include the local player's own ped/player entry. Defaults to false.
+---@field excludeEntities? number[] Entity handles to skip outright.
+---@field radius? number getClosestEntity only -- search radius, meters. Defaults to Config.world.defaultRadius.
+
+---@class QBWorldNetworkEntityOptions
+---@field entityType? "ped" | "vehicle" | "object" Required live entity type.
+---@field maxDistance? number Maximum distance from the player's ped in metres.
+---@field sameBucket? boolean Require the entity and player to share a routing bucket. Defaults to true.
+---@field requireDriver? boolean Require the player's ped to occupy the vehicle's driver seat.
+
+---@class QBZoneEditOptions
+---@field coords? any New center coordinates. Only supported by box and sphere zones.
+---@field onEnter? fun(zone: table)|false New enter callback, or false to remove it.
+---@field onExit? fun(zone: table)|false New exit callback, or false to remove it.

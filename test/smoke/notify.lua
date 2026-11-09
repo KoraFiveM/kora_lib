@@ -23,17 +23,13 @@ local thirdPartyClientPayloads = {}
 
 function _G.SendNUIMessage(msg) lastNui = msg end
 
--- notify sends via Kora.nui.send, so modules/nui/client.lua must be loaded too.
 _G.RegisterNUICallback = function() end
 _G.SetNuiFocus = function() end
 dofile(repoRoot .. "modules/nui/client.lua")
 
--- A stand-in for whatever a consumer's own third-party notify resource would
--- register on the client for this event.
 _G.RegisterNetEvent("kora_lib:notify:send", function(payload)
     table.insert(thirdPartyClientPayloads, payload)
 end)
--- A third-party handler written before the rename still listens on the old name.
 local legacyClientPayloads = {}
 _G.RegisterNetEvent("qblib:notify:send", function(payload)
     table.insert(legacyClientPayloads, payload)
@@ -42,7 +38,6 @@ end)
 dofile(repoRoot .. "modules/notify/shared.lua")
 dofile(repoRoot .. "modules/notify/client.lua")
 
--- Capture the client Kora.notify.send now; server.lua overwrites the same table slot.
 local clientNotifySend = Kora.notify.send
 
 dofile(repoRoot .. "modules/notify/server.lua")

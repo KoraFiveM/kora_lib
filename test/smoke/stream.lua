@@ -12,9 +12,6 @@ dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- A model only "loads" after RequestModel has been called for it, except
--- entries in neverLoads, which stay unloaded forever (to exercise the
--- request -> poll -> timeout path deterministically).
 local loadedModels = {}
 local neverLoads = { [9999] = true }
 local removedModels = {}
@@ -57,9 +54,6 @@ function _G.RequestWeaponAsset() end
 function _G.HasWeaponAssetLoaded() return true end
 function _G.RemoveWeaponAsset() end
 
--- Audio banks have no separate Has...Loaded native: RequestScriptAudioBank
--- itself reports readiness, so the mock counts calls to prove the module uses
--- it as both request and poll predicate. "never_loads" never reports ready.
 local audioBankRequests = 0
 local releasedAudioBanks = {}
 function _G.RequestScriptAudioBank(bank)
@@ -68,8 +62,6 @@ function _G.RequestScriptAudioBank(bank)
 end
 function _G.ReleaseNamedScriptAudioBank(bank) releasedAudioBanks[bank] = true end
 
--- Collision reports ready only after RequestCollisionAtCoord has been called
--- for the coords below, so the poll loop has to actually issue the request.
 local requestedCollisionAt = nil
 function _G.RequestCollisionAtCoord(x, y, z) requestedCollisionAt = { x = x, y = y, z = z } end
 function _G.HasCollisionLoadedAroundEntity() return requestedCollisionAt ~= nil end

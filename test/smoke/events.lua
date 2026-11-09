@@ -6,8 +6,6 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
--- server.lua and client.lua register under disjoint event names, so loading both
--- into one mocked process gives a real client <-> server round trip.
 local net = mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
@@ -17,7 +15,7 @@ dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/events/shared.lua")
 dofile(repoRoot .. "local/events/server.lua")
-dofile(repoRoot .. "local/events/client.lua") -- its startup CreateThread completes the handshake synchronously
+dofile(repoRoot .. "local/events/client.lua")
 
 local GATEWAY = "kora_lib:events:invoke"
 
@@ -301,7 +299,6 @@ harness.test('event quotas are independent per player and handler name', functio
     _G.source = nil
     harness.assertEqual(firstCalls, 2, 'a different player should retain independent quota')
 
-    -- Restore the single-process client's token to its ordinary source.
     _G.source = mocks.SOURCE
     for _, fn in ipairs(net.netHandlers['kora_lib:events:handshake']) do fn() end
     _G.source = nil
@@ -368,7 +365,6 @@ harness.test("register warns when a different resource clobbers an existing name
     _G.GetInvokingResource = function() return "resource_a" end
     Kora.events.register("smoke:contested", function() end)
 
-    -- Same resource re-registering (a restart) is normal, not a collision.
     Kora.events.register("smoke:contested", function() end)
     harness.assertEqual(#logged, 0, "re-registering your own name should not warn")
 
@@ -411,10 +407,6 @@ harness.test("foreign resources cannot unregister events or push handlers", func
     _G.GetInvokingResource = function() return nil end
 end)
 
--- Placed last: these fire onResourceStop/onClientResourceStop for "kora_lib_test", which
--- sweeps every handler it owns. They also need a working token; the earlier
--- "playerDropped clears the token" test cleared it server-side only, so replay the
--- handshake (like a real reconnect) to resync both sides.
 _G.source = mocks.SOURCE
 for _, fn in ipairs(net.netHandlers["kora_lib:events:handshake"]) do fn() end
 _G.source = nil
@@ -462,10 +454,9 @@ harness.test("the deprecated qblib: gateway and handshake names are still accept
         "a legacy handshake should answer on the legacy response event")
 end)
 
--- Runs last: reloads the client file, replacing Kora.events.* with a copy that has no token.
 harness.test("a trigger waiting on the handshake polls every 50ms, not every frame", function()
     local handshakeHandlers = net.netHandlers["kora_lib:events:handshake"]
-    net.netHandlers["kora_lib:events:handshake"] = {} -- the reloaded client's handshake goes unanswered
+    net.netHandlers["kora_lib:events:handshake"] = {}
     dofile(repoRoot .. "local/events/client.lua")
     net.netHandlers["kora_lib:events:handshake"] = handshakeHandlers
 

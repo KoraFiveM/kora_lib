@@ -1,7 +1,3 @@
--- Registration wrapper over RegisterCommand with pluggable permission gating and chat
--- suggestions. Owner-tracked via Kora.resources.serverRegistry (keyed by command name).
-
--- name -> { help, args, argsRequired, handler, permission, resource, checkPermission, notify }
 local commands = {}
 
 local MAX_SUGGESTIONS = 20
@@ -52,8 +48,6 @@ local function isAllowed(source, definition)
     return allowed == true
 end
 
--- Functions cannot be serialized into chat:addSuggestion. Publish only the
--- descriptive shape and a marker telling richer chat UIs that values exist.
 local function publicArgs(args)
     if type(args) ~= 'table' then return args end
 
@@ -94,9 +88,6 @@ local function normalizeKeybind(keybind, description, owner)
 end
 
 local function dispatch(name, definition, source, rawArgs, raw)
-    -- No checkPermission with a non-'user' permission fails closed. A denial from a broken
-    -- check is logged here (dispatch only, not suggestion filtering) since it is otherwise
-    -- indistinguishable from the player lacking the permission.
     local allowed, denyReason = isAllowed(source, definition)
     if not allowed then
         if denyReason then
@@ -139,8 +130,6 @@ local function removeCommand(name)
     if definition.keybind then TriggerClientEvent(keybindEvents.remove, -1, name) end
 end
 
--- Registry id == command name: re-registering transfers ownership; a resource stop
--- disposes exactly the names it still owns.
 local cmdRegistry = Kora.resources.serverRegistry(removeCommand)
 
 local function defaultNotify(src, message, type_)

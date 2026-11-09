@@ -1,27 +1,3 @@
----@class QBAnimPlayOptions
----@field duration? integer ms passed to `TaskPlayAnim` as its own duration argument. Defaults to -1 (plays for the clip's natural length, or loops indefinitely if `flag` sets the loop bit).
----@field flag? number AnimFlags bitmask passed to `TaskPlayAnim`. Defaults to 1 (loop).
----@field blendInSpeed? number Defaults to 8.0.
----@field blendOutSpeed? number Defaults to 8.0.
----@field playbackRate? number 0..1, passed to `TaskPlayAnim`. Defaults to 0.0 (the clip's own baked-in rate).
----@field lockX? boolean Defaults to false.
----@field lockY? boolean Defaults to false.
----@field lockZ? boolean Defaults to false.
----@field onFinish? fun(entity: number) Called once, after `duration` ms have elapsed and the anim was stopped by this module (not called on an explicit `Kora.anim.stop`, and not called at all when `duration` is omitted -- see the function doc comment).
-
----@class QBAnimHandle
----@field entity number
----@field dict string
----@field clip string
-
----@class QBAnimAttachOptions
----@field softPin? boolean Passed to `AttachEntityToEntity`'s useSoftPinning. Defaults to false.
----@field collision? boolean Passed to `AttachEntityToEntity`'s collision. Defaults to false.
----@field vertexIndex? number Legacy option name for the native's rotationOrder. Defaults to 0.
----@field fixedRot? boolean Defaults to true.
-
--- Keyed by entity. A per-entity `generation` counter stops a delayed auto-stop
--- thread from stopping a LATER anim that replaced the one it was scheduled for.
 local activeByEntity = {}
 local generationByEntity = {}
 local isInteger = Kora.util.isInteger
@@ -38,14 +14,10 @@ local function resolveBlendOutSpeed(value)
     return value or 8.0
 end
 
--- Ownership/cleanup on resource stop is delegated to the shared registry
--- (local/resources/AGENTS.md); id = entity.
 local animRegistry = Kora.resources.registry(function(entity)
     Kora.anim.stop(entity)
 end)
 
--- Separate from animRegistry: mixing entity and prop id spaces in one registry
--- would corrupt reverse lookup (local/resources/AGENTS.md).
 local propRegistry = Kora.resources.registry(function(prop)
     if DoesEntityExist(prop) then
         DetachEntity(prop, true, false)
@@ -66,7 +38,6 @@ function Kora.anim.play(entity, dict, clip, opts)
     assert(type(entity) == "number" and entity ~= 0, ("Invalid entity: %s"):format(entity))
     assert(type(dict) == "string" and type(clip) == "string", "Kora.anim.play requires string dict/clip.")
 
-    -- Capture before loadAnimDict yields: the invoking resource is only valid at the call boundary.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     assert(opts == nil or type(opts) == "table", "Animation options must be a table.")
@@ -97,8 +68,6 @@ function Kora.anim.play(entity, dict, clip, opts)
         return false, loadErr
     end
 
-    -- Release the OLD dict unless the new anim reuses it. Bumping `generation`
-    -- turns the old anim's in-flight duration timer into a no-op.
     local previous = activeByEntity[entity]
     if previous and previous.dict ~= dict then
         RemoveAnimDict(previous.dict)
@@ -180,9 +149,6 @@ function Kora.anim.isPlaying(entity)
     return IsEntityPlayingAnim(entity, handle.dict, handle.clip, 3)
 end
 
--- Ped bone ids (tags) for common ped bone names. GetEntityBoneIndexByName does
--- not reliably resolve these on MP freemode peds, so a ped falls back to
--- GetPedBoneIndex with the id when the name lookup fails.
 local PED_BONE_IDS = {
     SKEL_ROOT = 0, SKEL_Pelvis = 11816, SKEL_Spine2 = 24817, SKEL_Spine3 = 24818,
     SKEL_Neck_1 = 39317, SKEL_Head = 31086, IK_Head = 12844,

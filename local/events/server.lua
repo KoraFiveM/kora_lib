@@ -1,6 +1,3 @@
--- Wire-protocol event names. Deliberately mirrored verbatim in
--- local/events/client.lua (separate Lua chunks can't share a local table) --
--- any change here must be made there too, or the two realms stop talking.
 local events = {
     gateway = 'kora_lib:events:invoke',
     handshake = 'kora_lib:events:handshake',
@@ -8,8 +5,6 @@ local events = {
     push = 'kora_lib:events:push',
 }
 
--- Deprecated pre-rename names of the public gateway and its handshake, still
--- accepted so third-party callers keep working.
 local legacyEvents = {
     gateway = 'qblib:events:invoke',
     handshake = 'qblib:events:handshake',
@@ -22,8 +17,6 @@ local rateBuckets = {}
 local isInteger = Kora.util.isInteger
 local MAX_RATE_LIMIT = 10000
 local MAX_RATE_WINDOW = 86400000
--- A client handshakes once per session; anything faster is abuse of the
--- token issuer (each reply is a network event back to the sender).
 local HANDSHAKE_LIMIT = { max = 5, window = 60000 }
 
 local function normalizeRateLimit(opts)
@@ -97,7 +90,6 @@ local function consumeRateLimit(name, src, limit)
     return true
 end
 
--- Ownership tracking is delegated to the shared registry (see local/resources/AGENTS.md).
 local eventOwnership = Kora.resources.serverRegistry(function(name)
     registry[name] = nil
     clearRateLimit(name)
@@ -105,8 +97,6 @@ end)
 
 local generateToken = Kora.compat.generateToken
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
 ---Registers a handler callable from the client via Kora.events.trigger.
@@ -123,8 +113,6 @@ function Kora.events.register(name, handler, opts)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    -- One name, one handler: a second registration replaces the first and ownership moves with it.
-    -- Cross-resource collisions are almost always a namespacing mistake, so warn (own-resource restarts are normal).
     local previousOwner = eventOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
         print(("[kora_lib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
@@ -180,9 +168,6 @@ local function dispatchGateway(token, name, ...)
     if definition == nil then return end
     if not consumeRateLimit(name, src, definition.rateLimit) then return end
 
-    -- pcall-and-log like every other dispatch site in the codebase: the
-    -- payload is untrusted client input, and a handler that chokes on it
-    -- shouldn't produce an unhandled server error a client can trigger at will.
     local ok, err = pcall(definition.handler, src, ...)
     if not ok then
         print(("[kora_lib:events] handler for '%s' errored: %s"):format(name, tostring(err)))

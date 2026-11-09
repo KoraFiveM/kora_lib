@@ -1,7 +1,3 @@
--- Parity harness smoke test (tools/parity). Always self-tests the extractor and
--- diff on a tiny fixture. If OX_LIB_SHIM_PATH points at an ox_lib-shaped tree
--- (the shim or an upstream checkout), also diffs it against the committed
--- 3.39.0 golden; if OX_INVENTORY_PATH is set, diffs ox_inventory's API usage.
 local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
 local testDir = scriptDir .. "../"
 local repoRoot = testDir .. "../"
@@ -98,8 +94,6 @@ harness.test("committed goldens decode and keep their headline numbers", functio
     harness.assertTrue(inv.mysql["MySQL.query.await"] ~= nil, "ox_inventory uses MySQL.query.await")
 end)
 
--- The shim is headless: its UI is forwarded to kora_lib, so the NUI contract,
--- the NUI-only convars and the web manifest keys are reported, not enforced.
 local SHIM_SOFT = { "nui.", "manifest.keys:", "convars:ox:primary" }
 
 harness.test("target ox_lib tree has no regressions against the 3.39.0 golden", function()

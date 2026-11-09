@@ -12,12 +12,6 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/minigames/shared.lua")
 
--- compat/client/qb-minigames.lua only ever calls Kora.minigames.play -- mocked
--- directly here (same "resolve synchronously" trick test/smoke/minigames.lua
--- and compat_qb_menu.lua both use) rather than loading the real
--- server-authoritative implementation, since this file is exercising the
--- TRANSLATION layer (opts mapping, return-shape reshaping), not the puzzle
--- logic itself -- that's covered by test/smoke/minigames.lua.
 local lastCall = nil
 local nextResult = nil
 
@@ -31,7 +25,6 @@ end
 dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-minigames.lua")
 
--- Mirrors a cross-resource exports['qb-minigames']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -152,8 +145,6 @@ harness.test("a Kora.minigames.play rejection is treated as a losing round, not 
     harness.assertFalse(ok, "a rejected play() call should surface as success = false, not error the caller")
 end)
 
--- Kora.minigames.play already waits when reached through a compatibility export.
--- A second Citizen.Await on its plain result would yield nil under CfxLua.
 harness.test("the export path consumes Kora.minigames.play's plain result directly", function()
     _G.GetInvokingResource = function() return "consumer-resource" end
     Kora.minigames.play = function()

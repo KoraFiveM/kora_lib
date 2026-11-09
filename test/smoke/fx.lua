@@ -13,7 +13,7 @@ dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 local DICT = "test_ptfx"
-local STUCK_DICT = "test_stuck_ptfx" -- never reports as loaded
+local STUCK_DICT = "test_stuck_ptfx"
 
 local loadedDicts = {}
 local usedAssetNextCall = nil
@@ -180,7 +180,6 @@ harness.test("looped effects are auto-stopped when their owning resource stops",
 
     net.fire("onClientResourceStop", "some_other_resource")
 
-    -- No direct "is stopped" query for a particle handle; assert via the stop call log instead.
     local found = false
     for _, id in ipairs(stopCalls) do if id == handle.particleId then found = true end end
     harness.assertTrue(found, "the looped effect should have been stopped when its resource stopped")

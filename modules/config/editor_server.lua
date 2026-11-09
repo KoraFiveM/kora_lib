@@ -1,12 +1,6 @@
--- kora_lib owns the configuration editor boundary so an administrator can swap
--- kora_admin without also replacing configuration authorization or transport.
-
 local ACE = 'kora_lib.config.edit'
--- Deprecated pre-rename ACE, still honoured for servers that already granted it.
 local LEGACY_ACE = 'qblib.config.edit'
 
--- The permission check runs first inside each handler, but it can call into
--- kora_admin and the ACE system, so cap what a non-admin can make the server do.
 local READ_LIMIT = { rateLimit = { max = 30, window = 10000 } }
 local WRITE_LIMIT = { rateLimit = { max = 10, window = 10000 } }
 local RESTART_LIMIT = { rateLimit = { max = 3, window = 30000 } }
@@ -46,7 +40,6 @@ local function allowed(source)
     if type(GetResourceState) == 'function' and GetResourceState('kora_admin') == 'started' then
         local ok, permitted = pcall(function() return exports.kora_admin:canEditConfig(source) end)
         if ok and type(permitted) == 'boolean' then return permitted end
-        -- Older kora_admin releases have no bridge; retain their standalone ACE path.
         if not ok and not tostring(permitted):find('No such export canEditConfig', 1, true) then return false end
     end
     if type(IsPlayerAceAllowed) == 'function'
@@ -155,8 +148,6 @@ local function requireEditor(source)
     return true
 end
 
--- Registers the callback under its kora_lib: name and under the deprecated
--- qblib: alias, so callers that predate the rename keep working.
 local function registerWithLegacyAlias(name, handler, options)
     Kora.callback.register(name, handler, options)
     Kora.callback.register((name:gsub('^kora_lib:', 'qblib:')), handler, options)
@@ -249,10 +240,6 @@ registerWithLegacyAlias('kora_lib:configReset', function(source, request)
     return result
 end, WRITE_LIMIT)
 
--- kora_admin provides the server's owner-gated `/config` presentation layer. Do
--- not re-register the same command when it is running: kora_lib resources can
--- restart independently, and taking the name back would route the command
--- through kora_lib's different ACE boundary and editor callbacks.
 local function registerFallbackCommand()
     if type(GetResourceState) == 'function' and GetResourceState('kora_admin') == 'started' then return end
 
@@ -268,8 +255,6 @@ end
 
 registerFallbackCommand()
 
--- If kora_admin is stopped after kora_lib, restore the standalone fallback. The
--- deferred registration lets kora_admin finish releasing its command ownership.
 if type(AddEventHandler) == 'function' then
     AddEventHandler('onResourceStop', function(resource)
         if resource ~= 'kora_admin' or type(SetTimeout) ~= 'function' then return end

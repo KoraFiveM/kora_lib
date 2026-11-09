@@ -47,7 +47,6 @@ local function loadLocaleFile(resource, language)
     local luaRaw = LoadResourceFile(resource, luaPath)
     if not luaRaw then return nil end
 
-    -- Legacy qb-core locale files register via `Locale:new` as a side effect; stub it so their `return Translations` is readable on demand.
     local noopLocale = { new = function() return { addLocale = function() end } end }
     local chunk = load(luaRaw, ('@@%s/%s'):format(resource, luaPath), 't', {
         Locale = noopLocale,

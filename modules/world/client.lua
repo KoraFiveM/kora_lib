@@ -1,14 +1,3 @@
----@alias QBWorldEntityType "ped" | "vehicle" | "object" | "player"
-
----@class QBWorldQueryOptions
----@field models? (number|string)[] Restrict to these models. Strings are joaat-hashed. Ignored for "player".
----@field predicate? fun(entity: number, coords: table, distance: number): boolean Runs last, after the cheaper filters below.
----@field includeInvisible? boolean Include entities IsEntityVisible reports as hidden. Defaults to false.
----@field includeOwnPed? boolean Include the local player's own ped/player entry. Defaults to false.
----@field excludeEntities? number[] Entity handles to skip outright.
----@field radius? number getClosestEntity only -- search radius, meters. Defaults to Config.world.defaultRadius.
-
--- Plain { x, y, z } tables, not glm.vec3 (see modules/raycast/client.lua).
 local isFiniteNumber = Kora.util.isFiniteNumber
 local isInteger = Kora.util.isInteger
 
@@ -41,7 +30,6 @@ local poolTypeByEntityType = {
     object = "CObject",
 }
 
--- "player" isn't a GetGamePool type: it's enumerated via the active player list (the local ped is excluded like "ped").
 local function poolEntities(entityType)
     if entityType == "player" then
         local peds = {}
@@ -137,7 +125,6 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
 
             if dSq <= radiusSq then
                 local distance = options.predicate and math.sqrt(dSq) or nil
-                -- Only predicates have a public coordinate-table contract; internal visitors ignore or copy coords.
                 if not options.predicate or options.predicate(entity, toVec3(entityCoords), distance) then
                     local result = visit(entity, entityCoords, dSq, distance)
                     if result ~= nil then return result end
@@ -204,11 +191,6 @@ function Kora.world.getClosestEntity(entityType, coords, options)
     if not closestEntity then return false end
     return closestEntity, closestCoords, math.sqrt(closestDistanceSq)
 end
-
----@class QBWorldGroundOptions
----@field height? number Z height used for the collision/ground probes.
----@field attempts? integer Maximum number of probes.
----@field retryDelay? integer Milliseconds between probes.
 
 ---Resolves the ground Z below an XY coordinate after requesting collision.
 ---@param coords vector3|{x:number,y:number,z:number}
@@ -311,7 +293,6 @@ function Kora.world.isSpawnClear(coords, radius, options)
     assert(options == nil or type(options) == "table", "World query options must be a table.")
     options = options or {}
 
-    -- Hidden streamed vehicles still block a spawn point. Copy the options so the caller's table isn't mutated.
     local query = {}
     for key, value in pairs(options) do query[key] = value end
     query.includeInvisible = true

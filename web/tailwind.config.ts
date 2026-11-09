@@ -1,7 +1,5 @@
 import type { Config } from "tailwindcss"
 
-// No darkMode/class toggle -- this is a fixed game overlay with exactly one
-// permanent theme (see globals.css), not a user-configurable light/dark app.
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -63,7 +61,6 @@ export default {
         },
       },
       borderRadius: {
-        // All corners follow theme.json "shape.radius" through kora_theme.
         xs: "calc(var(--radius) * 0.5)",
         sm: "var(--radius-sm)",
         md: "calc(var(--radius) * 0.8)",
@@ -80,8 +77,6 @@ export default {
         floating: "var(--shadow-floating)",
         modal: "var(--shadow-modal)",
       },
-      // kora_theme sets these variables from theme.json and /config; the
-      // fallbacks are its default stacks.
       fontFamily: {
         sans: ['var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)'],
         heading: ['var(--font-heading, var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif))'],

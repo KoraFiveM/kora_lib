@@ -45,7 +45,6 @@ local function jsonEncode(value)
     return '{' .. table.concat(parts, ',') .. '}'
 end
 
--- Shared API, normalization, lazy loading, and permanent caching.
 local net = mocks.install()
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
@@ -204,8 +203,6 @@ harness.test('awaitReady succeeds immediately when ready and reports bounded tim
     coreState.setOverlay({}, 2)
 end)
 
--- Resource scanner fixtures: streamed names, metadata, overrides, exclusions,
--- unreadable/binary inputs, duplicate sources, and conflicting names.
 _G.joaat = actualJoaat
 local realIoOpen = io.open
 local directories = {
@@ -406,8 +403,6 @@ io.readdir = nil
 io.open = realIoOpen
 _G.LoadResourceFile = oldLoadResourceFile
 
--- Fresh client realm for synchronization ordering, duplicate/stale handling,
--- retries, atomic readiness, and authoritative replacement.
 net = mocks.install()
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')

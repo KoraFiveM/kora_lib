@@ -1,6 +1,4 @@
--- kora_lib bootstraps its own configuration bridge directly rather than through
 -- @kora_lib/init.lua, which is the consumer-facing export proxy. Keep that
--- bootstrap path covered so kora_lib remains the platform's first consumer.
 
 local scriptDir = debug.getinfo(1, 'S').source:match('@?(.*/)') or './'
 local testDir = scriptDir .. '../'
@@ -80,7 +78,6 @@ H.test('configuration snapshot requests are rate limited per player', function()
     _G.source = 43
     local before = #clientEvents
     for requestId = 1, 40 do netEvents['kora_lib:server:configRequested']('kora_lib', requestId) end
-    -- Each accepted request answers on the kora_lib: name and its deprecated alias.
     H.assertEqual(#clientEvents - before, 60)
 end)
 

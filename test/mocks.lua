@@ -5,7 +5,6 @@
 ---module's own smoke test instead of here.
 local M = {}
 
--- The one simulated player every smoke test triggers server events as.
 M.SOURCE = 1
 
 ---Scans a recorded event list (triggeredServerEvents/triggeredClientEvents)
@@ -25,7 +24,7 @@ end
 ---state so tests can inspect what was sent/registered or fire an event directly.
 function M.install()
     local mockClock = 0
-    local FRAME_MS = 16 -- nominal ms per Wait(), so timers/timeouts still progress without a real sleep
+    local FRAME_MS = 16
 
     local netHandlers = {}
     local eventHandlers = {}
@@ -64,17 +63,12 @@ function M.install()
         end
     end
 
-    -- RegisterCommand handlers are stored as-is so tests can invoke them directly;
-    -- `restricted` is accepted but never enforced (no ACE system here).
     function _G.RegisterCommand(name, cb, restricted)
         commands[name] = cb
     end
 
-    -- Keymappings are recorded only so dofile'd code calling RegisterKeyMapping doesn't error.
     function _G.RegisterKeyMapping(_, _, _, _) end
 
-    -- ExecuteCommand parses the string (whitespace split, no quoting) and invokes the matching
-    -- RegisterCommand handler synchronously, so `type = "command"` dispatch is testable end-to-end.
     local executedCommands = {}
     function _G.ExecuteCommand(command)
         table.insert(executedCommands, command)
@@ -89,7 +83,6 @@ function M.install()
         for _, fn in ipairs(netHandlers[name] or {}) do fn(...) end
     end
 
-    -- Client -> server. Sets `source` as FiveM does, then dispatches into any loaded server.lua.
     function _G.TriggerServerEvent(name, ...)
         table.insert(triggeredServerEvents, { name = name, ... })
 
@@ -105,16 +98,12 @@ function M.install()
         _G.TriggerServerEvent(name, ...)
     end
 
-    -- Server -> client. `target` is recorded but not used to filter delivery --
-    -- these tests only ever simulate a single connected client.
     function _G.TriggerClientEvent(name, target, ...)
         table.insert(triggeredClientEvents, { name = name, target = target, ... })
 
         for _, fn in ipairs(netHandlers[name] or {}) do fn(...) end
     end
 
-    -- Resumes the thread body once: one-shot threads finish, `while true ... Wait()` loops run
-    -- one iteration and stay suspended (no hang). Threads are retained for `step` below.
     function _G.CreateThread(fn)
         local co = coroutine.create(fn)
         table.insert(threads, co)
@@ -136,7 +125,6 @@ function M.install()
         return mockClock
     end
 
-    -- SetTimeout callbacks are never fired: the mock network settles before any timeout matters.
     function _G.SetTimeout(_, _) end
 
     function _G.GetInvokingResource()
@@ -151,8 +139,6 @@ function M.install()
         return default
     end
 
-    -- Not a real joaat -- just deterministic, so the same string always hashes
-    -- the same way within a test run.
     function _G.joaat(str)
         local hash = 0
         for i = 1, #str do
@@ -178,7 +164,6 @@ function M.install()
         for _, cb in ipairs(self.onRejected) do cb(err) end
     end
 
-    -- Mirrors CfxLua's next(onResolved, onRejected), including callbacks registered while pending.
     function promiseMt:next(onResolved, onRejected)
         if self.state == "resolved" then
             if onResolved then onResolved(self.value) end
@@ -202,8 +187,6 @@ function M.install()
         end,
     }
 
-    -- Airborne checks used by modules that must never FreezeEntityPosition a falling ped (progressbar,
-    -- freecam). Tests that care override these after install().
     for _, name in ipairs({ 'IsPedFalling', 'IsPedJumping', 'IsPedRagdoll', 'IsEntityInAir', 'IsPedInParachuteFreeFall' }) do
         _G[name] = _G[name] or function() return false end
     end
@@ -223,12 +206,9 @@ function M.install()
         triggeredClientEvents = triggeredClientEvents,
         commands = commands,
         executedCommands = executedCommands,
-        -- Fires AddEventHandler and RegisterNetEvent handlers for `name` (playerDropped, onResourceStop, ...).
         fire = function(name, ...)
             _G.TriggerEvent(name, ...)
         end,
-        -- Resumes every still-suspended CreateThread coroutine once, advancing each tick loop by one
-        -- iteration (CreateThread itself only resumes each thread once).
         step = function()
             for _, co in ipairs(threads) do
                 if coroutine.status(co) == "suspended" then

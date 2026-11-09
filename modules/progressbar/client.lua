@@ -1,63 +1,3 @@
----@class QBProgressBarDisable
----@field move? boolean Blocks the player's movement for the duration. Defaults to false.
----@field moveMode? 'freeze'|'controls' How move=true is enforced: 'controls' disables movement input only, 'freeze' also calls `FreezeEntityPosition` (never while the ped is airborne). Defaults to `Config.progressbar.defaultMoveMode` ('controls').
----@field controlProfile? 'kora_lib'|'ox' Selects the exact control set. Defaults to kora_lib.
----@field sprint? boolean Disables sprinting. Defaults to false.
----@field combat? boolean Disables attack/aim/weapon-switch/melee controls for the duration. Defaults to false.
----@field car? boolean Disables vehicle driving controls while the ped is in a vehicle. Defaults to false.
----@field mouse? boolean Disables look input. Defaults to false.
-
----@class QBProgressBarAnim
----@field dict string Animation dictionary to play, requested and released automatically.
----@field clip string Clip name within `dict`.
----@field flag? number AnimFlags bitmask passed to `TaskPlayAnim`. Defaults to 1 (loop).
----@field blendIn? number Defaults to 8.0.
----@field blendOut? number Defaults to 8.0.
----@field stopBlendOut? number Cleanup blend-out override; ox_lib compatibility uses 1.0.
----@field duration? integer Animation duration; defaults to -1.
----@field playbackRate? number Animation playback rate; defaults to 0.
----@field lockX? boolean
----@field lockY? boolean
----@field lockZ? boolean
-
----@class QBProgressBarScenario
----@field name string Scenario name to play, e.g. `"WORLD_HUMAN_HAMMERING"`.
----@field playEnter? boolean Whether to play the scenario's enter animation. Defaults to true.
-
----@class QBProgressBarProp
----@field model string|integer Model name or hash.
----@field bone? string|integer Ped bone name or ID. Defaults to 60309.
----@field offset? vector3|table Local attachment offset. Defaults to vector3(0, 0, 0).
----@field coords? vector3 Legacy `prop`/`proptwo` attachment offset.
----@field rotation? vector3|table Local attachment rotation. Defaults to vector3(0, 0, 0).
----@field softPinning? boolean Defaults to true.
----@field collision? boolean Defaults to false.
----@field rotationOrder? integer Defaults to 0.
----@field syncRotation? boolean Defaults to true.
-
----@class QBProgressBarPayload
----@field label string Text shown above the bar.
----@field duration integer Milliseconds the bar takes to fill. Must be > 0 and <= Config.progressbar.maxDuration.
----@field maxDuration? integer|false Override the duration cap; false matches ox_lib's unbounded positive durations.
----@field canCancel? boolean Lets the player abort early with one of Config.progressbar.cancelControls. Defaults to false.
----@field cancelControls? integer[]|false Override the local cancel controls; false delegates cancellation to a compatibility command.
----@field useWhileDead? boolean Defaults to false.
----@field allowRagdoll? boolean Defaults to false.
----@field allowCuffed? boolean Defaults to false.
----@field allowFalling? boolean Defaults to false.
----@field allowSwimming? boolean Defaults to false.
----@field presentation? 'bar'|'circle' Defaults to bar.
----@field position? 'middle'|'bottom' Circle placement; defaults to middle.
----@field disable? QBProgressBarDisable
----@field anim? QBProgressBarAnim Played for the duration, stopped and released automatically when the bar ends. Mutually exclusive with `scenario`.
----@field strictAnim? boolean Raise when an animation dictionary cannot load; ox_lib compatibility enables this.
----@field scenario? QBProgressBarScenario Played in place for the duration, stopped automatically when the bar ends. Mutually exclusive with `anim`.
----@field props? QBProgressBarProp[] Local cosmetic props attached to the player for the duration.
----@field prop? QBProgressBarProp Local cosmetic prop using `coords`.
----@field proptwo? QBProgressBarProp Second local cosmetic prop using `coords`.
----@field emote? string Played when neither `anim` nor `scenario` is supplied.
----@field maxProps? integer|false Override the local prop cap; false matches ox_lib's uncapped local props.
-
 local busy = false
 local activeSession = nil
 local isInteger = Kora.util.isInteger
@@ -173,7 +113,6 @@ local function assertPayload(payload)
         assert(payload.disable.moveMode == nil or payload.disable.moveMode == 'freeze' or payload.disable.moveMode == 'controls',
             "Progress bar disable.moveMode must be 'freeze' or 'controls'.")
         assert(payload.disable.controlProfile == nil or payload.disable.controlProfile == 'kora_lib'
-            -- 'qblib' is the deprecated name of the default profile.
             or payload.disable.controlProfile == 'qblib' or payload.disable.controlProfile == 'ox',
             "Progress bar disable.controlProfile must be 'kora_lib' or 'ox'.")
     end
@@ -308,7 +247,6 @@ local function cleanupSession(session, cancelled)
     end
     session.props = {}
 
-    -- A compat bar finished early by its owner must hide too; a full-length bar hides itself.
     if (cancelled or session.finishedEarly) and session.nuiStarted then
         safeCleanup("NUI", function() Kora.nui.send("progressCancel") end)
     end
@@ -465,7 +403,6 @@ function Kora.progressbar.start(payload, owner, hooks)
         end
 
         if payload.disable and payload.disable.move then
-            -- Controls are always blocked; freezing is opt-in and skipped while airborne.
             session.movementLease = Kora.compat.acquireControls(MOVEMENT_CONTROLS, nil, session.owner)
             if resolveMoveMode(payload.disable) == 'freeze' and not isAirborne(session.ped) then
                 FreezeEntityPosition(session.ped, true)

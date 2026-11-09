@@ -1,7 +1,3 @@
--- kora_lib's server-side configuration catalog. The catalog intentionally owns
--- no resource configuration files: commits are sent back to the target
--- resource's consumer-local bridge, where SaveResourceFile is permitted.
-
 local registry = {}
 local discoverRegistrations
 
@@ -45,13 +41,6 @@ local function isRegistrationFrom(resource, definition)
         and validRevision(definition.revision)
 end
 
--- A resource normally announces its schema while starting. Catalog discovery
--- also reads the owner-local bridge directly, so a transient startup/export
--- race cannot leave the in-game editor permanently empty. The bridge cannot
--- forge another resource's entry because the returned owner must match the
--- resource whose export was queried. Probe every started resource: an
--- `@kora_lib/init.lua` import is a valid consumer even when the manifest does not
--- repeat kora_lib as an explicit dependency metadata entry.
 discoverRegistrations = function()
     if type(GetNumResources) ~= 'function' or type(GetResourceByFindIndex) ~= 'function'
         or type(GetResourceState) ~= 'function' then return end
@@ -63,7 +52,6 @@ discoverRegistrations = function()
             if target then
                 local ok, definition = pcall(function() return target:kora_lib_configRead() end)
                 if not ok then
-                    -- Started before the rename: only the deprecated export exists.
                     ok, definition = pcall(function() return target:qblib_configRead() end)
                 end
                 if ok and isRegistrationFrom(resource, definition) then registry[resource] = copy(definition) end
@@ -75,8 +63,6 @@ end
 local function callResource(resource, method, request)
     local target = exports[resource]
     assert(target, ('Resource %q is unavailable.'):format(resource))
-    -- FXServer export dispatch requires genuine colon bytecode; dynamic
-    -- `target[method](target, ...)` can shift arguments (see init.lua).
     local ok, result = pcall(function()
         if method == 'kora_lib_configRead' then return target:kora_lib_configRead() end
         if method == 'kora_lib_configCommit' then return target:kora_lib_configCommit(request) end
@@ -84,8 +70,6 @@ local function callResource(resource, method, request)
         error(('Unknown configuration bridge method %q.'):format(method), 0)
     end)
     if ok then return result end
-    -- A resource started before the rename only exports the deprecated qblib_*
-    -- bridge names.
     if not tostring(result):find('No such export', 1, true) then error(result, 0) end
     if method == 'kora_lib_configRead' then return target:qblib_configRead() end
     if method == 'kora_lib_configCommit' then return target:qblib_configCommit(request) end
@@ -158,10 +142,7 @@ function Kora.config.commit(resource, request)
         entry.revision = result.revision
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
-        -- Local server event: subscribers refresh their in-memory copy without a cross-resource
-        -- export call in a gameplay loop. The target has already applied its handler.
         TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
-        -- Deprecated alias for listeners that predate the rename.
         TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
@@ -184,15 +165,11 @@ function Kora.config.reset(resource, request)
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
         TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
-        -- Deprecated alias for listeners that predate the rename.
         TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
 end
 
--- Any player may request the client-safe snapshot, and each request deep-copies
--- it, so cap the rate per player. A client legitimately asks once per adopting
--- resource at join, hence the generous allowance.
 local SNAPSHOT_MAX_REQUESTS = 30
 local SNAPSHOT_WINDOW = 10000
 local snapshotRequests = {}
@@ -223,7 +200,6 @@ local function onConfigRequested(resource, requestId)
     if not entry then return end
     local client = copy(entry.client)
     TriggerClientEvent('kora_lib:client:configSnapshot', src, resource, client, entry.revision, requestId)
-    -- Deprecated alias: the requester may be a consumer started before the rename.
     TriggerClientEvent('qblib:client:configSnapshot', src, resource, client, entry.revision, requestId)
 end
 
@@ -234,11 +210,6 @@ AddEventHandler('onResourceStop', function(resource)
     registry[resource] = nil
 end)
 
--- kora_lib uses the same consumer-local bridge as every adopting resource. It
--- cannot import @kora_lib/init.lua into itself because that file is the external
--- proxy, so it loads the bridge factory directly during its own bootstrap.
--- Config.discord is declared by server/config.lua and is deliberately added
--- after the shared table so it never enters the client snapshot.
 local function registerKoraLibConfig()
     if type(Config) ~= 'table' or type(GetCurrentResourceName) ~= 'function' or GetCurrentResourceName() ~= 'kora_lib' then return end
 
@@ -246,8 +217,6 @@ local function registerKoraLibConfig()
     local factory = assert(load(source, '@@kora_lib/modules/config/consumer.lua', 't', _ENV))()
     local bridge = factory({
         config_register = function(_, definition)
-            -- A resource-driven start retains the starter as the ambient invoker.
-            -- This private same-VM bridge owns kora_lib; public calls still prove ownership.
             return register(definition, 'kora_lib')
         end,
     })
@@ -267,8 +236,6 @@ local function registerKoraLibConfig()
             options = { 'top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right' },
         })
     end
-    -- Infrastructure tuning is useful to developers, but is rarely part of
-    -- day-to-day server administration. Children may explicitly opt back in.
     for _, key in ipairs({ 'callback', 'cache', 'screenshot', 'drawing', 'zones', 'radialmenuCompat' }) do
         if type(Config[key]) == 'table' then
             Config[key] = bridge.object(Config[key], { advanced = true })

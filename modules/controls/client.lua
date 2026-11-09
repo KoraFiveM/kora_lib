@@ -1,14 +1,3 @@
----@class QBControlsOptions
----@field inputGroup? integer Input group passed to DisableControlAction. Defaults to 0.
----@field disablePlayerFiring? boolean Calls DisablePlayerFiring every frame while the lease is active. Defaults to false.
----@field ignoreWeaponWheel? boolean Calls HudWeaponWheelIgnoreSelection every frame while active.
-
----@class QBControlLease
----@field inputGroup integer
----@field controls integer[]
----@field disablePlayerFiring boolean
----@field ignoreWeaponWheel boolean
-
 local nextLeaseId = 0
 local leases = {}
 local controlCounts = {}
@@ -148,8 +137,6 @@ local function acquire(controlIds, options, owner)
 
     leaseRegistry.track(owner or GetInvokingResource() or GetCurrentResourceName(), leaseId)
 
-    -- Apply once before returning so callers can immediately use
-    -- IsDisabledControlJustPressed/GetDisabledControlNormal in the same tick.
     local applied, applyErr = pcall(applyControls)
     if not applied then
         releaseLease(leaseId)

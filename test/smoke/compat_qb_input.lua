@@ -11,8 +11,6 @@ local net = mocks.install()
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 
--- Mock Kora.nui directly and resolve synchronously: ShowInput must consume
--- Kora.nui.openInputDialog's result itself to return the legacy table-or-nil shape.
 local sentFields = nil
 local sentTitle = nil
 local nextResult = nil
@@ -30,7 +28,6 @@ Kora.nui = {
 dofile(repoRoot .. "compat/shared.lua")
 dofile(repoRoot .. "compat/client/qb-input.lua")
 
--- Mirrors a cross-resource exports['qb-input']:Fn(): fire __cfx_export_ with a setCB stub.
 local function getExport(providedResource, exportName)
     local handlers = net.eventHandlers[("__cfx_export_%s_%s"):format(providedResource, exportName)]
     harness.assertTrue(handlers ~= nil and handlers[1] ~= nil, exportName .. " should be registered")
@@ -88,12 +85,6 @@ harness.test("checkbox honours 'checked' over 'default' when both are set", func
     harness.assertTrue(fieldById("flag").default, "checked should win over default")
 end)
 
--- Real qb-input's "checkbox" type is a GROUP of checkboxes, each carrying
--- its own `options[]` entry, and the submitted result is keyed by EACH
--- OPTION'S value -- not by the input's own `name` at all (see
--- qbcore-framework/qb-input's html/script.js renderCheckboxInput). This must
--- expand into one InputField per option, keyed by that option's value, so a
--- script written against the real resource gets the same result shape back.
 harness.test("a checkbox WITH options expands into one field per option, keyed by option value", function()
     nextResult = { cancelled = true }
     ShowInput({ inputs = { {
@@ -131,7 +122,6 @@ harness.test("submitting a checkbox group returns each option's value as its own
     harness.assertFalse(result.canClose)
 end)
 
--- A checkbox with no `options` (simplified qb-input forks use a scalar boolean) stays keyed by name.
 harness.test("a checkbox with no options stays a single field keyed by name", function()
     nextResult = { cancelled = true }
     ShowInput({ inputs = { { name = "flag", type = "checkbox", default = true } } })
@@ -207,9 +197,6 @@ harness.test("a field with no name is rejected", function()
     end, "an input with no name should be rejected")
 end)
 
--- Kora.nui.openInputDialog returns an already-awaited result while the
--- compatibility export is handling a call from another resource. Awaiting
--- that table a second time would silently turn it into nil in real CfxLua.
 harness.test("the export path consumes Kora.nui.openInputDialog's plain result directly", function()
     _G.GetInvokingResource = function() return "consumer-resource" end
     Kora.nui.openInputDialog = function()

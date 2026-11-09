@@ -12,8 +12,6 @@ const positions: Record<string, string> = {
     "top-left": "left-4 top-4",
     "top-center": "left-1/2 top-4 -translate-x-1/2",
 }
-// Preserve the original call vocabulary/fallback, using the shared resolver
-// for icons already in its curated set and six fixed Lucides for the rest.
 const sharedIcons: Record<string, string> = {
     car: "Car",
     crosshair: "Crosshair",
@@ -162,8 +160,6 @@ export function DispatchFeed() {
     if (!payload) return null
     const configuredPosition = payload.config?.feed?.position ?? "left-center"
     const position = positions[Object.hasOwn(positions, configuredPosition) ? configuredPosition : "left-center"]
-    // Scope only the approved service brand tokens; the shared frame's palette,
-    // other prompts and AppShell must retain their own theme.
     const style = Object.fromEntries(
         ["primary", "brand-soft", "brand-border"].flatMap((key) => payload.theme?.[key] ? [[`--${key}`, payload.theme[key]]] : []),
     ) as CSSProperties

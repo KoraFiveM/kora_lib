@@ -18,9 +18,6 @@ _G.GetGameplayCamRot = function() return { x = 0, y = 0, z = 0 } end
 _G.GetCamCoord = function(cam) return { x = 0, y = 0, z = 0 } end
 _G.GetCamRot = function(cam, order) return { x = 0, y = 0, z = 0 } end
 
--- Configurable per-test: what the next StartShapeTestRay/GetShapeTestResult
--- pair reports, and the raw args StartShapeTestRay was called with (so a
--- test can assert on the flags/ignoreEntity actually passed through).
 local nextResult = { hit = 0 }
 local pendingReads = 0
 local lastRayArgs
@@ -182,9 +179,6 @@ harness.test("two rays started together settle in one wait instead of two", func
         entityHit = 11,
     }
 
-    -- Both rays are in flight before either is awaited, which is the whole
-    -- point of the split API: the engine settles shape tests once per frame,
-    -- so the second await finds its result already there.
     local first = Kora.raycast.startFromCamera(10.0, 511)
     local second = Kora.raycast.startFromCamera(10.0, 26)
     harness.assertTrue(first ~= second, "each started ray should get its own handle")

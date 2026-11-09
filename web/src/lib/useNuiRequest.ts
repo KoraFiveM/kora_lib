@@ -82,10 +82,6 @@ export function useNuiRequest<TPayload, TResult = unknown>(
         const pending = pendingRef.current
         if (!pending || pending.requestId !== message.requestId || pending.token !== message.token) return
 
-        // Lua has already rejected and removed this owned request. Clear the
-        // surface without posting a second response to a request that no longer
-        // exists, and mark it responded so a same-tick superseding open cannot
-        // answer the cancelled request either.
         respondedRef.current = true
         pendingRef.current = null
         setRequest(null)
@@ -93,9 +89,6 @@ export function useNuiRequest<TPayload, TResult = unknown>(
 
     useNuiEvent<CancelledRequest>("cancelNuiRequest", handleCancellation)
 
-    // Deliberately NOT inside the setState updater below -- respondToNui is a
-    // side effect, and setState updaters must stay pure (React can, and in
-    // StrictMode's dev-only double-invoke does, call them more than once).
     const settle = useCallback(
         (ok: boolean, resultOrError: TResult | string) => {
             const pending = pendingRef.current

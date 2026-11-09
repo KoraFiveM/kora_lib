@@ -1,12 +1,3 @@
----@alias QBWorldEntityType "ped" | "vehicle" | "object" | "player"
-
----@class QBWorldQueryOptions
----@field models? (number|string)[] Restrict to these models. Strings are joaat-hashed. Ignored for "player".
----@field predicate? fun(entity: number, coords: table, distance: number): boolean Runs last, after the cheaper filters below.
----@field excludeEntities? number[] Entity handles to skip outright -- the only way to exclude a caller's own ped server-side, since there's no single-player concept to default that on (contrast client's includeOwnPed).
----@field radius? number getClosestEntity only -- search radius, meters. Defaults to Config.world.defaultRadius.
-
--- Plain { x, y, z } tables, not glm.vec3 (see modules/world/client.lua).
 local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function toVec3(v)
@@ -28,14 +19,12 @@ local ENTITY_TYPES = { ped = true, vehicle = true, object = true, player = true 
 local ENTITY_TYPE_IDS = { ped = 1, vehicle = 2, object = 3 }
 local isInteger = Kora.util.isInteger
 
--- GetGamePool is client-only; the server has one native per entity kind.
 local poolFnByEntityType = {
     ped = GetAllPeds,
     vehicle = GetAllVehicles,
     object = GetAllObjects,
 }
 
--- "player" is enumerated via GetPlayers (GetActivePlayers is client-only), one ped per player.
 local function poolEntities(entityType)
     if entityType == "player" then
         local peds = {}
@@ -121,7 +110,6 @@ local function visitCandidates(entityType, coords, radiusSq, options, visit)
 
             if dSq <= radiusSq then
                 local distance = options.predicate and math.sqrt(dSq) or nil
-                -- Predicates receive the documented plain coordinate table; internal visitors copy only a returned candidate.
                 if not options.predicate or options.predicate(entity, toVec3(entityCoords), distance) then
                     local result = visit(entity, entityCoords, dSq, distance)
                     if result ~= nil then return result end
@@ -200,12 +188,6 @@ function Kora.world.isSpawnClear(coords, radius, options)
     return occupied ~= true
 end
 
----@class QBWorldNetworkEntityOptions
----@field entityType? "ped" | "vehicle" | "object" Required live entity type.
----@field maxDistance? number Maximum distance from the player's ped in metres.
----@field sameBucket? boolean Require the entity and player to share a routing bucket. Defaults to true.
----@field requireDriver? boolean Require the player's ped to occupy the vehicle's driver seat.
-
 ---Resolves and validates a client-supplied network entity before server code
 ---acts on it. Failure reasons are stable machine-readable codes so callers
 ---retain ownership of player-facing messages.
@@ -261,11 +243,6 @@ function Kora.world.resolveNetworkEntity(src, networkId, options)
 
     return entity
 end
-
----@class QBWorldNearbyPlayerOptions
----@field maxDistance number Maximum distance between the players in metres.
----@field sameBucket? boolean Require both players to share a routing bucket. Defaults to true.
----@field allowSelf? boolean Permit `src` and `targetSrc` to be equal. Defaults to false.
 
 ---Resolves a player-controlled target and verifies server-authoritative
 ---proximity before gameplay code acts on it.

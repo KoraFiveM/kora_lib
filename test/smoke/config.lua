@@ -1,7 +1,3 @@
--- Kora.config's consumer bridge is deliberately plain-Lua testable: config
--- ownership and persistence happen in the consuming VM, rather than through a
--- kora_lib export with hidden cross-resource filesystem access.
-
 local scriptDir = debug.getinfo(1, 'S').source:match('@?(.*/)') or './'
 local testDir = scriptDir .. '../'
 local repoRoot = testDir .. '../'

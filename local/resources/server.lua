@@ -1,11 +1,3 @@
----@class QBResourcesRegistry
----@field track fun(resource: string, id: any) Marks `id` as owned by `resource`.
----@field untrack fun(id: any): string? resource The resource `id` was tracked under, if any; drops the tracking either way.
----@field owner fun(id: any): string? resource The resource currently tracking `id`, without dropping it.
-
--- Server-side twin of registry() in client.lua, swept on 'onResourceStop'. Duplicated because client.lua and
--- server.lua are separate Lua chunks.
-
 local function assertId(id)
     assert(id ~= nil, 'Registry id must not be nil.')
 end

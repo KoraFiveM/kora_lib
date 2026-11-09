@@ -15,7 +15,6 @@ _G.json = {
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- Client and server define disjoint names, so both realms can load into one Kora.util.
 local projection = { onScreen = true, x = 0.25, y = 0.75 }
 function _G.World3dToScreen2d(_, _, _) return projection.onScreen, projection.x, projection.y end
 function _G.GetActiveScreenResolution() return 1920, 1080 end
@@ -239,7 +238,6 @@ harness.test("vector arithmetic returns plain tables, never a vector3", function
 end)
 
 harness.test("a missing z is treated as zero", function()
-    -- 2D points are common; defaulting z avoids arithmetic-on-nil.
     local length = Kora.util.vecLength({ x = 3, y = 4 })
     harness.assertEqual(length, 5, "a 3-4-5 triangle with an implicit z=0")
 end)
@@ -290,7 +288,6 @@ harness.test("vecNormalize produces a unit vector and survives a zero vector", f
 end)
 
 harness.test("heading and direction round-trip in GTA's convention", function()
-    -- Heading 0 is north (+Y), increasing counter-clockwise (90 = west, -X).
     local north = Kora.util.headingToDirection(0)
     assertClose(north.x, 0, "north has no x component")
     assertClose(north.y, 1, "north is +Y")

@@ -255,9 +255,6 @@ harness.test("selectOption dispatches the selected client event once and hides",
     harness.assertTrue(type(response) == "table", "the NUI callback should always respond")
 end)
 
--- A `function` another resource puts on `option.action`/`option.canInteract` crosses
--- exports.kora_lib:addCircleZone/addBoxZone as a table with a __call metamethod
--- (FXServer funcref marshalling; same pattern as compat/client/qb-menu.lua).
 harness.test("dispatch still invokes a masked cross-resource function action", function()
     reset()
     local fired = 0
@@ -287,7 +284,7 @@ harness.test("game controls and mouse scroll/select without NUI focus", function
     reset()
     Kora.interact.open({ { label = "First" }, { label = "Second" } })
 
-    pressedControls[22] = true -- INPUT_JUMP / Space
+    pressedControls[22] = true
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "openInteract", "Space must not select the highlighted option")
 
@@ -300,17 +297,17 @@ harness.test("game controls and mouse scroll/select without NUI focus", function
     harness.assertEqual(lastMessage().action, "scroll", "down control should send a scroll message")
     harness.assertEqual(lastMessage().data, 1, "down control should move forward")
 
-    pressedControls = { [15] = true } -- INPUT_WEAPON_WHEEL_PREV / Mouse wheel up
+    pressedControls = { [15] = true }
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "scroll", "mouse wheel up should send a scroll message")
     harness.assertEqual(lastMessage().data, -1, "mouse wheel up should move backward")
 
-    pressedControls = { [14] = true } -- INPUT_WEAPON_WHEEL_NEXT / Mouse wheel down
+    pressedControls = { [14] = true }
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "scroll", "mouse wheel down should send a scroll message")
     harness.assertEqual(lastMessage().data, 1, "mouse wheel down should move forward")
 
-    pressedControls = { [24] = true } -- INPUT_ATTACK / Left mouse button
+    pressedControls = { [24] = true }
     mockHandle.step()
     harness.assertEqual(lastMessage().action, "select", "left-click should select the highlighted option")
 

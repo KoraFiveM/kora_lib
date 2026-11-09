@@ -1,7 +1,6 @@
 local state = Kora.lookup._state
 local SYNC_REQUEST = 'kora_lib:lookup:sync'
 local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
--- Headroom for event framing so the whole encoded payload stays under the 24 KiB boundary, not just the JSON array.
 local MAX_BATCH_BYTES = 23 * 1024
 local MAX_SCANNED_FILE_BYTES = 16 * 1024 * 1024
 local MAX_OVERRIDE_BYTES = 1024 * 1024
@@ -254,7 +253,6 @@ local function decodeOverride(resource)
     local fileName = 'kora_lib.lookup.json'
     local raw, readError = readResourceFile(resource, fileName, MAX_OVERRIDE_BYTES)
     if raw == nil and readError ~= 'file is too large' then
-        -- qblib.lookup.json is the deprecated pre-rename file name.
         local legacyRaw, legacyError = readResourceFile(resource, 'qblib.lookup.json', MAX_OVERRIDE_BYTES)
         if legacyRaw ~= nil or legacyError == 'file is too large' then
             fileName, raw, readError = 'qblib.lookup.json', legacyRaw, legacyError
@@ -573,7 +571,6 @@ local function flattenOverlay()
                 if #resources <= MAX_RESOURCES_PER_WIRE_RECORD then
                     records[#records + 1] = record
                 else
-                    -- A popular model can have many contributing resources; split its attribution list so no record exceeds the batch bound (client re-merges).
                     for first = 1, #resources, MAX_RESOURCES_PER_WIRE_RECORD do
                         local fragment = copyTable(record)
                         fragment.resources = {}

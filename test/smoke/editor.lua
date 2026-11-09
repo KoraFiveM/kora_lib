@@ -17,7 +17,6 @@ Kora.permissions = {
     hasPermission = function(src, permission, prefix)
         harness.assertEqual(src, mocks.SOURCE)
         harness.assertEqual(permission, Config.editor.permission)
-        -- The deprecated qblib.editor ACE is consulted after the kora_lib one.
         if prefix == 'qblib' then return legacyGranted end
         harness.assertEqual(prefix, Config.editor.permissionPrefix)
         return granted

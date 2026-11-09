@@ -1,14 +1,4 @@
 package.path = (debug.getinfo(1, "S").source:match("^@(.*/)") or "./") .. "?.lua;" .. package.path
--- diff: compare a golden snapshot against an actual extraction.
---
---   lua5.4 tools/parity/diff.lua <golden.json> <actual.json>
---       [--fail-on missing|extra|both] [--soft prefix,prefix]
---
--- Both files are flattened to "path:name" entries (the top-level `meta` and
--- `summary` blocks are ignored). `missing` = in golden but not actual (a
--- regression for a shim vs ox_lib golden); `extra` = in actual but not golden
--- (new, unreviewed API on an upstream/consumer bump). Entries whose path starts
--- with a --soft prefix are reported but never fail the run. Exit 1 on failure.
 local common = require("common")
 
 local M = {}

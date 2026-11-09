@@ -8,8 +8,6 @@ local mocks = require("mocks")
 
 local net = mocks.install()
 
--- Kora.timers is a shared module that resolves its ownership registry by realm;
--- Kora.sound uses it for the auto-release timer, so both realms have to agree.
 function _G.IsDuplicityVersion() return false end
 
 dofile(repoRoot .. "config.lua")
@@ -53,7 +51,6 @@ function _G.DoesEntityExist(entity) return entity == 55 end
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/timers/shared.lua")
 
--- Stubbed: loading modules/stream/client.lua would pull in a much larger native surface for one boolean.
 local requestedBanks = {}
 local bankLoads = true
 Kora.stream.loadAudioBank = function(bank)
@@ -173,8 +170,6 @@ harness.test("the id is auto-released once its release timer fires", function()
     local id = Kora.sound.playFrontend("Lose_1st", "SET")
     harness.assertTrue(Kora.sound.isLive(id), "sanity: live immediately after play")
 
-    -- The auto-release is a Kora.timers.setTimeout, so it is parked in a Wait()
-    -- until the mock steps its coroutine.
     net.step()
 
     harness.assertFalse(Kora.sound.isLive(id), "the id must be released without an explicit stop")

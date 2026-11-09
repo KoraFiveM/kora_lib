@@ -3,10 +3,6 @@ local requireModule
 local configModule
 local compatModule
 
--- These modules are intentionally instantiated inside each consumer. They
--- contain no shared registry or long-lived ownership state, and their native
--- calls should be attributed to the script that uses them. Everything else
--- stays behind kora_lib's exports so there remains one authoritative instance.
 local consumerModuleFiles = {
     loops = { 'modules/loops/shared.lua' },
     util = { 'modules/util/shared.lua' },
@@ -29,9 +25,6 @@ local function loadConsumerModule(namespace, name, paths)
     local module = {}
     local previous = rawget(namespace, name)
 
-    -- Install the table before executing the files: module chunks populate it
-    -- through Kora.<name>, which must resolve back here rather than recurse into
-    -- this loader.
     rawset(namespace, name, module)
 
     local ok, loadError = pcall(function()
@@ -50,10 +43,6 @@ local function loadConsumerModule(namespace, name, paths)
     return module
 end
 
--- Requiring Lua files is deliberately consumer-local. Running this through a
--- kora_lib export would execute the required chunk in kora_lib's Lua environment,
--- leaking globals between resources and making the cache survive a consumer
--- restart. Load the factory into this resource's environment instead.
 local function getRequireModule()
     if requireModule then return requireModule end
 
@@ -65,10 +54,6 @@ local function getRequireModule()
     return requireModule
 end
 
--- Configuration has to run inside the CONSUMING resource: its Config table,
--- override file, and live handlers are all local to that resource. The normal
--- exported-module path deliberately routes calls into kora_lib instead, so config
--- uses its own consumer factory rather than the module loader above.
 local function getConfigModule()
     if configModule then return configModule end
 
@@ -86,14 +71,9 @@ local function getCompatModule()
     return compatModule
 end
 
--- FXServer export dispatch bug (citizenfx/fivem#2408): dot-style `t[k](t, ...)` can
--- drop/shift arguments, while colon-call syntax (SELF opcode) works. Colon sugar needs a
--- literal name, so load() compiles a chunk with a literal `lib:name(...)` call instead.
--- `name` is validated because it is spliced into load()'s source string.
 local function makeColonCall(name)
     assert(name:match("^[%a_][%w_]*$"), ("Invalid Kora export name: %s"):format(name))
 
-    -- select(1, ...) in parens = receiver only; select(2, ...) in the last slot expands to every call argument.
     local chunk = assert(load(("return (select(1, ...)):%s(select(2, ...))"):format(name)))
 
     return function(...)
@@ -126,14 +106,10 @@ Kora = setmetatable({}, {
             return loadConsumerModule(t, k, consumerFiles)
         end
 
-        -- __call always receives the proxy as self; strip it before forwarding.
         local moduleCall = makeColonCall(k)
 
-        -- Memoized via rawset so __index only fires once per module.
         local proxy = setmetatable({}, {
-            -- Bare function: Kora.foo(...) -> exports.kora_lib:foo(...)
             __call = function(_, ...) return moduleCall(...) end,
-            -- Module function: Kora.notify.send(...) -> exports.kora_lib:notify_send(...); memoized so load() runs once.
             __index = function(subProxy, k2)
                 local wrapper = makeColonCall(("%s_%s"):format(k, k2))
                 rawset(subProxy, k2, wrapper)
@@ -146,13 +122,8 @@ Kora = setmetatable({}, {
     end,
 })
 
--- Keep the original global name so resources written before the Kora rename
--- (QB.notify.send, QB.sql.query, ...) keep working. It is the same table.
 QB = Kora
 
--- kora_lib emits this after rebuilding its exports. Refresh only modules this
--- consumer already touched; untouched modules remain lazy. Copying into the
--- original table also keeps `local stream = Kora.stream` references current.
 AddEventHandler(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated', function()
     for name, paths in pairs(consumerModuleFiles) do
         local current = rawget(Kora, name)

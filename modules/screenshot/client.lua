@@ -47,7 +47,6 @@ local function normalizeOptions(options)
     assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1),
         'Screenshot maxHeight must be a positive integer or false.')
 
-    -- Accepted for screenshot-basic compatibility; capture never contained CEF layers (see docs.md).
     assert(options.includeNui == nil or type(options.includeNui) == 'boolean',
         'Screenshot includeNui must be a boolean.')
 
@@ -82,7 +81,6 @@ local function beginCapture(options, timeout)
     return p
 end
 
--- A promise doesn't survive a cross-resource export: internal callers get a promise, external callers its settled value (as Kora.nui does).
 local function settleForExport(p)
     if GetInvokingResource() then return Citizen.Await(p) end
     return p
@@ -176,8 +174,6 @@ function Kora.screenshot.requestScreenshotUpload(url, field, options, callback)
     end)
 end
 
--- Direct aliases serve resources that depend on kora_lib; the provided-resource hooks keep the
--- exports['screenshot-basic']:requestScreenshot(...) call shape.
 if exports then
     exports('requestScreenshot', Kora.screenshot.requestScreenshot)
     exports('requestScreenshotUpload', Kora.screenshot.requestScreenshotUpload)
@@ -229,9 +225,7 @@ RegisterNetEvent('kora_lib:client:screenshotRequested', function(payload)
 
         TriggerServerEvent('kora_lib:server:screenshotProgressed', token, 'sending')
         Kora.nui.request('screenshot:upload', options, captureTimeout):next(function()
-            -- The HTTP handler completes the request; nothing to acknowledge.
         end, function()
-            -- Secure NUI pages can't always fetch a plain-HTTP endpoint; fall back to the bounded latent-event receiver.
             sendLatentScreenshot(token, options, captureTimeout)
         end)
         return

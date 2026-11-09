@@ -12,10 +12,6 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- Kora.closest is a thin wrapper over Kora.world.getClosestEntity -- stubbed out
--- here so these tests cover the wrapper's own argument-mapping and
--- ped-to-player-id logic, not Kora.world's entity-scanning (already covered by
--- test/smoke/world.lua).
 local lastWorldCall
 local worldReturn
 
@@ -121,8 +117,6 @@ harness.test("ped queries rely on Kora.world's default local-ped exclusion", fun
         "a redundant exclusion table should not be allocated")
 end)
 
--- client.lua and server.lua both define Kora.closest.player/vehicle/ped/object; dofile-ing
--- server.lua overwrites the client versions, safe since all client tests already ran.
 Kora.world.getClosestEntity = stubWorld
 
 local serverPlayers = { "10", "11" }

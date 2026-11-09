@@ -1,14 +1,7 @@
--- Kora.discord (server realm) -- Discord webhook delivery and a small REST bot
--- client. Webhooks do not need the bot token; every bot operation is gated by
--- kora_lib_discord_bot_token (or the deprecated qblib_discord_bot_token) and
--- fails locally when that convar is empty.
-
 local API_BASE = 'https://discord.com/api/v10'
 local USER_AGENT = 'DiscordBot (https://github.com/qbcore2/qblib, 1.0.0)'
 local MAX_RATE_LIMIT_RETRIES = 1
 
--- The kora_lib_* convars supersede the deprecated qblib_* names, which stay
--- readable as a fallback for servers that configured them before the rename.
 local function getConvar(name, legacyName, default)
     local value = GetConvar(name, '')
     if value ~= '' then return value end
@@ -53,9 +46,6 @@ local function performJsonRequest(url, method, payload, headers, callback)
         PerformHttpRequest(url, function(statusCode, responseBody, responseHeaders, errorData)
             local response = decodeResponse(statusCode, responseBody, responseHeaders, errorData)
 
-            -- Discord tells clients exactly how long a 429 bucket is closed.
-            -- Retry once without blocking the resource thread, then surface a
-            -- second 429 normally so callers retain control of persistent load.
             local retryAfter = response.status == 429 and type(response.data) == 'table'
                 and tonumber(response.data.retry_after) or nil
             if Kora.util.isFiniteNumber(retryAfter) and retryAfter >= 0 and attempt < MAX_RATE_LIMIT_RETRIES then
@@ -241,8 +231,6 @@ local function botDisabled(callback)
 end
 
 local function requireSnowflake(value, label)
-    -- Discord snowflakes exceed Lua/JSON's safe integer range. Requiring a
-    -- decimal string prevents silent precision loss in routes.
     assert(type(value) == 'string' and value:match('^%d+$'),
         ('Discord %s must be a decimal string.'):format(label))
     return value
@@ -507,11 +495,8 @@ function Kora.discord.deleteMessage(channelId, messageId, callback, auditReason)
     return Kora.discord.botRequest('DELETE', route, nil, callback, auditReason)
 end
 
--- Cached/persisted role directory
--- Caches are guild-keyed so low-level calls to another guild can't contaminate the
--- default guild's authorization data.
-local guildRoleCache = {}   -- guildId -> { byId, byName, list, syncedAt }
-local guildMemberCache = {} -- guildId -> userId -> { roles = set, syncedAt, stale }
+local guildRoleCache = {}
+local guildMemberCache = {}
 local databaseReady = false
 local databaseInitializing = false
 local databaseWarningPrinted = false
@@ -553,8 +538,6 @@ local function cacheGuildRoles(guildId, roles, syncedAt)
             if cache.byName[key] == nil then
                 cache.byName[key] = role.id
             else
-                -- Discord permits duplicate role names. Name-based mutation is
-                -- unsafe in that case, so retain an explicit ambiguity marker.
                 cache.byName[key] = false
             end
         end
@@ -960,8 +943,6 @@ function Kora.discord.refreshMember(id, callback)
             local entry = cacheMemberRoles(guildId, userId, response.data.roles)
             persistMemberSoon(guildId, userId, entry)
         elseif response.status == 404 then
-            -- A confirmed non-member has a fresh, empty role set. This makes
-            -- authorization fail closed while preserving a useful lookup.
             local entry = cacheMemberRoles(guildId, userId, {})
             persistMemberSoon(guildId, userId, entry)
         else
@@ -1078,8 +1059,6 @@ local function mutateCachedRole(action, id, role, callback, auditReason)
             return
         end
 
-        -- A delta cannot make an absent/stale snapshot complete. Re-fetch the
-        -- whole member before declaring the local authorization cache current.
         Kora.discord.refreshMember(userId, function(refreshOk, refreshResponse)
             response.cacheRefreshed = refreshOk
             if not refreshOk then response.cacheError = refreshResponse and refreshResponse.error end
@@ -1203,8 +1182,6 @@ function Kora.discord.syncRoles(callback)
     return true
 end
 
--- Console-only on purpose: role names/IDs and sync diagnostics should not be
--- exposed through a player command merely because an ACE wildcard permits it.
 local function discordSyncCommand(source)
     if source ~= 0 then return end
     if not Kora.discord.botEnabled() then
@@ -1230,7 +1207,6 @@ local function discordSyncCommand(source)
 end
 
 RegisterCommand('kora_lib_discord_sync', discordSyncCommand, false)
--- Deprecated alias for the pre-rename console command.
 RegisterCommand('qblib_discord_sync', discordSyncCommand, false)
 
 AddEventHandler('playerJoining', function()
@@ -1249,9 +1225,6 @@ AddEventHandler('playerJoining', function()
     end)
 end)
 
--- The token convar is intentionally sampled at resource start for background
--- work. Explicit bot functions still read it per call, but enabling the bot's
--- heartbeat requires a kora_lib restart after setting the convar.
 CreateThread(function()
     if not Kora.discord.botEnabled() then return end
 

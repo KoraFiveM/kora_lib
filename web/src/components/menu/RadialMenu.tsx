@@ -18,7 +18,6 @@ const EDGE_GUTTER = 16
 const DEFAULT_LABEL_LINES = 3
 const LONG_LABEL_LENGTH = 14
 
-// Longer labels step down a size so they wrap onto fewer lines before clamping.
 function labelSizeClass(label: string): string {
     if (label.length > 26) return "text-[10px] leading-3"
     if (label.length > LONG_LABEL_LENGTH) return "text-[11px] leading-[13px]"
@@ -246,10 +245,8 @@ export function RadialMenuContainer() {
     const labelLines = Math.min(4, Math.max(1, Math.floor(payload.labelLines ?? DEFAULT_LABEL_LINES)))
     const activeEntry = entries[activeIndex]
     const activeItem = activeEntry?.kind === "item" ? activeEntry.item : undefined
-    // Disabled items carry no reason field, so fall back to a plain note.
     const activeDescriptionIsFallback = Boolean(activeItem?.disabled && !activeItem.description)
     const activeDescription = activeItem?.description ?? (activeItem?.disabled ? "Unavailable right now" : undefined)
-    // For long labels the hub doubles as a readout so a clamped tile label is always readable in full.
     const hubShowsLabel = Boolean(activeItem && activeItem.label.length > LONG_LABEL_LENGTH)
     const hubTitle = hubShowsLabel && activeItem ? activeItem.label : canGoBack ? "Back" : level.title ?? "Actions"
     const moreIcon = resolveIcon("ChevronRight")
@@ -323,11 +320,6 @@ export function RadialMenuContainer() {
                             type="button"
                             role="menuitem"
                             tabIndex={index === activeIndex ? 0 : -1}
-                            // aria-disabled instead of the native `disabled` attribute:
-                            // a natively-disabled button suppresses mouse/focus events
-                            // entirely, so hovering a disabled item could never explain
-                            // why it's unavailable. selectItem()/activateEntry() already
-                            // no-op for disabled items, so this stays inert to clicks.
                             aria-disabled={disabled || undefined}
                             aria-haspopup={item?.submenu ? "menu" : undefined}
                             aria-label={item?.description ? `${label}: ${item.description}` : label}
@@ -361,8 +353,6 @@ export function RadialMenuContainer() {
                 <div
                     className={cn(
                         "pointer-events-auto absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-xl border bg-card p-2 text-center shadow-low transition-colors duration-fast",
-                        // Ties the hub visually to whichever spoke is highlighted,
-                        // instead of only updating the description text below.
                         activeItem && !activeItem.disabled ? "border-brand-border" : "border-border",
                     )}
                 >

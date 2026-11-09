@@ -330,6 +330,24 @@ describe("AppShell", () => {
         expect(screen.getByLabelText("Write a reply")).toHaveValue("draft")
     })
 
+    it("draws sent, delivered and seen ticks on the viewer's own messages only", () => {
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "chat", id: "conv", messages: [
+            { id: "1", author: "Staff", text: "a", mine: true, status: "sent" },
+            { id: "2", author: "Staff", text: "b", mine: true, status: "delivered" },
+            { id: "3", author: "Staff", text: "c", mine: true, status: "seen" },
+            { id: "4", author: "Player", text: "d", status: "seen" },
+        ] }] }))
+        const status = (id: string) => document.querySelector(`[data-chat-message="${id}"] [data-chat-status]`)
+        expect(status("1")).toHaveAttribute("data-chat-status", "sent")
+        expect(status("2")).toHaveAttribute("data-chat-status", "delivered")
+        expect(status("3")).toHaveAttribute("data-chat-status", "seen")
+        expect(status("3")).toHaveClass("text-primary")
+        expect(status("2")).not.toHaveClass("text-primary")
+        expect(status("3")).toHaveTextContent("Seen")
+        expect(status("4")).toBeNull()
+    })
+
     it("lets a scrollable chat fill a fixed layout and follow every new message", () => {
         render(<AppShell />)
         const chat = (ids: string[]) => baseApp({ scrollable: false, blocks: [{ type: "chat", id: "conv", title: "Conversation", scrollable: true, follow: true, messages: ids.map((id) => ({ id, author: "Player", text: `message ${id}` })), composer: { action: { id: "send", label: "Send" }, placeholder: "Write a reply" } }] })
@@ -381,7 +399,6 @@ describe("AppShell", () => {
         { id: "tools", label: "Player Tools", content: { title: "Player tools" } },
         { id: "moderation", label: "Moderation", content: { title: "Player moderation" } },
     ]
-    // The admin menu's shape: opening a player is an action that navigates to the profile tab.
     async function openPlayer(user: ReturnType<typeof userEvent.setup>) {
         fetchNuiMock.mockResolvedValueOnce({ ok: true, result: { navigate: { viewId: "players", tabId: "profile" } } })
         await user.click(screen.getByRole("button", { name: "Open player" }))
@@ -529,7 +546,6 @@ describe("AppShell", () => {
 
     describe("draggable panels", () => {
         const rect = (left: number, top: number, width: number, height: number) => ({ left, top, right: left + width, bottom: top + height, width, height, x: left, y: top, toJSON() {} }) as DOMRect
-        // jsdom has no PointerEvent, so build mouse events under the pointer event names React listens for.
         const pointer = (target: HTMLElement, type: string, x: number, y: number) => {
             const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y })
             Object.defineProperty(event, "pointerId", { value: 1 })
@@ -583,9 +599,6 @@ describe("AppShell", () => {
         })
 
         it("stays on screen without a render loop when dragged past the left edge mid-transition", () => {
-            // While a left/top transition runs the browser reports the animated position: the box
-            // and the computed left/top both lag the offset React rendered until settle(). The panel
-            // starts on the right (left edge at 600) like the customs shop.
             const visual = { x: 0, y: 0 }
             vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
                 if (this.tagName !== "MAIN") return rect(0, 0, 0, 0)
@@ -608,9 +621,6 @@ describe("AppShell", () => {
             const header = container.querySelector("section > header") as HTMLElement
             const settle = () => { visual.x = parseFloat(main.style.left) || 0; visual.y = parseFloat(main.style.top) || 0 }
 
-            // Two quick moves past the left edge: the second is clamped against the box the first
-            // has not moved yet, so once drawn the panel sits 5 px off screen. Clamping that against
-            // the lagging box crept back 5 px per pass, past the React nested update limit (#185).
             pointer(header, "pointerdown", 1000, 10)
             pointer(header, "pointermove", 405, 10)
             pointer(header, "pointermove", 395, 10)
@@ -646,8 +656,6 @@ describe("AppShell", () => {
         })
 
         it("clamps and follows the pointer in root px when the NUI root is scaled (above 1080p)", () => {
-            // main.tsx scales #root by the screen size over 1080p (2 at 4K): the screen box, the window
-            // and the pointer are in screen px while left/top are in root px (here 512x384).
             const scale = 2
             const rootWidth = window.innerWidth / scale
             const rootHeight = window.innerHeight / scale
@@ -704,7 +712,6 @@ describe("AppShell", () => {
 
     describe("hold actions", () => {
         const holdApp = () => baseApp({ blocks: [{ type: "list", id: "rows", items: [{ id: "horn-row", label: "Horn", actions: [{ id: "horn:test", label: "Test horn", hold: true }] }] }] })
-        // jsdom has no PointerEvent, so build mouse events under the pointer event names React listens for.
         const press = (target: HTMLElement, type: string) => {
             const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })
             Object.defineProperty(event, "pointerId", { value: 1 })

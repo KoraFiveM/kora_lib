@@ -12,9 +12,6 @@ dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
--- crack/coke's ragdoll fix depends on Kora.cache.ped(), so cache's own
--- prerequisites need mocking too -- currentPed is mutable so a test can
--- change it mid-effect and assert the module picked up the new value.
 local currentPed = 100
 _G.PlayerId = function() return 5 end
 _G.GetPlayerServerId = function() return 42 end
@@ -32,12 +29,7 @@ _G.GetEntityCoords = function() return { x = 0, y = 0, z = 0 } end
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/cache/client.lua")
 
--- visuals-specific natives, recorded rather than mocked as pure no-ops so
--- tests can assert on what was actually called.
 local screenEffectCalls, ragdollCalls, multiplierCalls, restoreStaminaCalls, randomCalls = {}, {}, {}, {}, {}
--- When set, every math.random(a, b) call returns this instead of rolling,
--- so a test can force every probability check to succeed or fail
--- deterministically. Every call is still logged in randomCalls either way.
 local forcedRandom = nil
 
 local originalRandom = math.random
@@ -66,8 +58,6 @@ _G.SetEntityCoords = function() end
 
 dofile(repoRoot .. "modules/visuals/client.lua")
 
--- Generous upper bound on net.step() calls to finish any 8-20 tick effect loop;
--- harmless once threads finish (mocks.step() skips non-suspended coroutines).
 local function runToCompletion(steps)
     for _ = 1, (steps or 60) do
         net.step()
@@ -81,11 +71,11 @@ end
 
 harness.test("crack's final ragdoll uses the ped current when it fires, not the one from when the effect started", function()
     resetRecorders()
-    forcedRandom = 999999 -- fails every probability check (per-tick ragdoll, replay) deterministically
+    forcedRandom = 999999
 
     currentPed = 100
     Kora.visuals.crack(2000)
-    net.step() -- let the cache's own tick loop pick up currentPed once before it changes
+    net.step()
     currentPed = 777
     runToCompletion()
 
@@ -111,12 +101,12 @@ end)
 
 harness.test("a shorter effect finishing after a longer effect started does not reset the sprint multiplier out from under it", function()
     resetRecorders()
-    forcedRandom = 999999 -- no replays/ragdolls, keeps this deterministic and short
+    forcedRandom = 999999
     currentPed = 100
 
-    Kora.visuals.crack(2000) -- claims 1.3
-    for _ = 1, 3 do net.step() end -- well short of crack's 8 ticks
-    Kora.visuals.meth(2000) -- claims 1.49 before crack's loop ends
+    Kora.visuals.crack(2000)
+    for _ = 1, 3 do net.step() end
+    Kora.visuals.meth(2000)
     runToCompletion()
 
     local resetCount = 0
@@ -149,7 +139,7 @@ harness.test("a newer short effect restores the older effect still running under
 
     Kora.visuals.coke(2000)
     net.step()
-    net.step() -- coke now owns the multiplier and has entered its 20-tick loop
+    net.step()
     Kora.visuals.meth(2000)
     runToCompletion(80)
 
@@ -170,7 +160,7 @@ end)
 
 harness.test("meth applies its tuned multiplier and tick count, and never ragdolls", function()
     resetRecorders()
-    forcedRandom = 1 -- every probability check succeeds
+    forcedRandom = 1
     currentPed = 100
 
     Kora.visuals.meth(2000)
@@ -202,14 +192,14 @@ harness.test("coke applies its tuned multiplier and distinct 20-tick count", fun
     currentPed = 100
 
     Kora.visuals.coke(2000)
-    runToCompletion(120) -- coke's forced-success replay adds an extra Wait(3000-6000) every tick
+    runToCompletion(120)
 
     harness.assertEqual(multiplierCalls[1].multiplier, 1.1, "coke's sprint multiplier should be 1.1")
     harness.assertEqual(#restoreStaminaCalls, 20, "coke should run 20 stamina ticks, distinct from crack's 8")
 end)
 
 harness.test("coke rolls its replay chance out of 300, not 100", function()
-    resetRecorders() -- real randomness: only the {a,b} bounds passed to math.random matter here
+    resetRecorders()
 
     Kora.visuals.coke(2000)
     runToCompletion(120)

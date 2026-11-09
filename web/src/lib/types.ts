@@ -1,21 +1,3 @@
-// The full Lua <-> NUI message contract. Every message from Lua arrives as a
-// `window` `message` event shaped like NuiWireMessage below (see
-// useNuiEvent.ts). Fire-and-forget messages (Kora.nui.send) put the raw payload
-// directly in `data`; request/response messages (Kora.nui.request) wrap it as
-// NuiRequestEnvelope, and expect the reply POSTed to the "kora_lib:nui:response"
-// NUI callback (see respondToNui in fetchNui.ts) as a NuiResponseEnvelope.
-//
-// Keep this file in sync with every Lua-side Kora.nui.send/request call site:
-// modules/nui/client.lua (the bridge itself and the openMenu/openContextMenu/
-// openRadialMenu/openInputDialog/copyToClipboard wrappers), modules/zones/client.lua (the
-// zoneCreator:* actions), modules/placement/client.lua (the placement:* actions),
-// modules/notify/client.lua (the "notify" action),
-// and modules/minigames/client.lua (the minigames:* actions),
-// modules/screenshot/client.lua (the screenshot:* actions), plus
-// kora_target/client/loop.lua (the qbtarget:target display action) -- this file is
-// the one place the whole contract is written down on the NUI side.
-
-// The outer wire envelope every Lua->NUI message travels in.
 export interface NuiWireMessage<T = unknown> {
     action: string
     data: T
@@ -23,11 +5,6 @@ export interface NuiWireMessage<T = unknown> {
 
 export interface NuiRequestEnvelope<T = unknown> {
     requestId: number
-    // Random per-request secret that must be echoed back in the response --
-    // FiveM's NUI callback routing isn't scoped to the frame that issued a
-    // given request, so this is what stops another resource's NUI page from
-    // spoofing a response for a guessable sequential requestId. See
-    // modules/nui/AGENTS.md.
     token: string
     payload: T
 }
@@ -40,29 +17,19 @@ export interface NuiResponseEnvelope<T = unknown> {
     error?: string
 }
 
-// kora_lib interact contract. The browser renders the selector but never owns
-// game controls, focus, or selection state outside the visible row.
 export interface InteractOption {
     label: string
     icon?: string
 }
 
-// action: "openInteract". `scroll` carries -1 or 1; `select` confirms the
-// highlighted row; `hideInteract` closes it. The selection POSTs its one-based
-// index straight to the `selectOption` NUI callback.
 export type InteractOpenPayload = InteractOption[]
 
-// action: "qbtarget:target" (fire-and-forget) -- a transparent, game-input
-// driven target reticle/prompt. kora_target owns raycasts, eligibility, controls,
-// and selection; this payload is display-only and never requests NUI focus.
 export interface TargetHudPayload {
     active: boolean
     label?: string
     optionCount?: number
 }
 
-// action: "camera:open" / "camera:update" (fire-and-forget). The game owns
-// the camera and controls; this payload only paints the display overlay.
 export interface CameraHudPayload {
     active: boolean
     mode: "cctv" | "recording" | "helicam" | "operator"
@@ -77,7 +44,6 @@ export interface CameraHudPayload {
     elapsed: number
 }
 
-// action: "textui:set" (fire-and-forget). `false` hides the display.
 export interface TextUiPayload {
     id: number
     text: string
@@ -153,7 +119,6 @@ export interface MenuItem {
     submenu?: { title?: string; items: MenuItem[] }
 }
 
-// action: "openMenu" (request)
 export interface OpenMenuPayload {
     title?: string
     items: MenuItem[]
@@ -190,10 +155,8 @@ export interface OpenMenuPayload {
  */
 export type UpdateMenuPayload = NuiRequestEnvelope<OpenMenuPayload>
 
-// action: "closeMenu" (fire-and-forget)
 export type CloseMenuPayload = Record<string, never>
 
-// action: "openContextMenu" (request)
 export interface OpenContextMenuPayload {
     title?: string
     items: MenuItem[]
@@ -202,8 +165,6 @@ export interface OpenContextMenuPayload {
     canClose?: boolean
 }
 
-// action: "openRadialMenu" (request). Items and results deliberately reuse
-// openMenu's schema so callers can share their item trees between both views.
 export interface OpenRadialMenuPayload {
     items: MenuItem[]
     radius?: number
@@ -213,10 +174,6 @@ export interface OpenRadialMenuPayload {
     path?: string[]
 }
 
-// `path` is every id walked through to reach the selection, root-first, so a
-// leaf inside a submenu is unambiguous even when two branches reuse an id
-// (a "remove" under both "vehicle" and "player", say). For a top-level pick
-// it's just { selectedId }. Flat callers can keep reading selectedId alone.
 export type MenuResult = { selectedId: string; path: string[]; valueIndex?: number; checked?: boolean } | { cancelled: true; keyPressed?: "Escape" | "Backspace" }
 
 export interface NuiRequestEventEnvelope<T = unknown> {
@@ -252,8 +209,6 @@ export interface InputField {
     id: string
     label: string
     type: InputFieldType
-    // `select` (fixed choice) and `combobox` (free text + filtered
-    // suggestions from this same list) both use this.
     options?: InputOption[]
     /** Select options keyed by another select field's current value. */
     optionsByValue?: Record<string, InputOption[]>
@@ -280,12 +235,7 @@ export interface InputField {
      * (x/y/z, heading as w). `vehicle` uses the vehicle's position and heading while seated.
      */
     pickPosition?: boolean | { label?: string; vehicle?: boolean }
-    // textarea only; ignored by every other field type.
     rows?: number
-    // Validation, all optional and opt-in -- a field with none of these set
-    // behaves exactly as before. Checked client-side before Confirm is
-    // allowed to respond; Lua-side validation is still the caller's job for
-    // anything that actually matters (this only saves a round trip).
     required?: boolean
     /** Prevent interaction while retaining the field and its submitted value. */
     disabled?: boolean
@@ -330,7 +280,6 @@ export interface InputField {
     step?: number
 }
 
-// action: "openInputDialog" (request)
 export interface OpenInputDialogPayload {
     title?: string
     description?: string
@@ -346,7 +295,6 @@ export interface OpenInputDialogPayload {
 
 export type InputDialogResult = { values: Record<string, FieldValue> } | { cancelled: true }
 
-// action: "openAlert" (request) -- mount AlertDialog.
 export interface OpenAlertPayload {
     title?: string
     message: string
@@ -377,21 +325,12 @@ export interface OpenAlertPayload {
     overflow?: boolean
 }
 
-// `confirmed: false` covers every "no" -- cancel button, Escape, backdrop --
-// deliberately NOT a separate `cancelled` shape like the menu/input results:
-// a confirmation only ever has two outcomes for the caller, and collapsing
-// them means no call site can forget to handle one of them.
 export type AlertResult = { confirmed: boolean }
 
-// action: "copyToClipboard" (request) -- resolves `result: true` on success.
 export interface CopyToClipboardPayload {
     text: string
 }
 
-// Registered AppShell contract. kora_lib owns this frame and its standard
-// content primitives; consumer resources own the definition, data, and Lua
-// action handler. The deliberately small discriminated block set keeps the
-// wire format JSON-safe while leaving room to add richer primitives later.
 export type AppTone = "neutral" | "primary" | "success" | "warning" | "destructive"
 
 export interface AppAction {
@@ -566,6 +505,9 @@ export interface AppShellLabels {
     newMessages?: string
     newDivider?: string
     message?: string
+    statusSent?: string
+    statusDelivered?: string
+    statusSeen?: string
 }
 
 export type AppBlock =
@@ -592,6 +534,8 @@ export interface AppChatMessage {
     mine?: boolean
     /** A "New" divider is drawn before the first unread message. */
     unread?: boolean
+    /** Delivery ticks on the viewer's own (`mine`) messages: one tick sent, two delivered, two in the brand colour seen. */
+    status?: "sent" | "delivered" | "seen"
     badge?: string
     tone?: AppTone
 }
@@ -666,7 +610,6 @@ export interface AppDefinition {
     labels?: Partial<AppShellLabels>
 }
 
-// action: "openApp" (request)
 export interface OpenAppPayload {
     app: AppDefinition
     data?: unknown
@@ -674,9 +617,6 @@ export interface OpenAppPayload {
     tabId?: string
 }
 
-// action: "updateApp" / "closeApp" (fire-and-forget). Both carry the
-// per-open token, so a stale update from an earlier instance cannot touch the
-// currently visible app even when the same id is reopened quickly.
 export interface UpdateAppPayload {
     appId: string
     token: string
@@ -721,13 +661,10 @@ export interface AppActionResponse {
 
 export type PlacementRotationAxis = "yaw" | "pitch" | "roll"
 
-// action: "placement:start" (fire-and-forget) -- mount PlacementHud.
 export interface PlacementStartPayload {
     model: string
 }
 
-// action: "placement:hud" (fire-and-forget) -- update PlacementHud, or
-// unmount it when the payload is nullish. Lua's nil payload arrives undefined.
 export interface PlacementHudSnapshot {
     coords: { x: number; y: number; z: number }
     rotation: { pitch: number; roll: number; yaw: number }
@@ -735,35 +672,21 @@ export interface PlacementHudSnapshot {
     isShiftHeld: boolean
 }
 
-// action: "placement:confirm" (request) -- mount PlacementConfirmDialog.
 export interface PlacementConfirmPayload {
     model: string
     snippet: string
 }
 
 export type PlacementConfirmResult = { confirmed: boolean }
-// action: "placement:closeConfirm" (fire-and-forget, no payload) -- answer
-// any open confirmation as Keep Editing so Lua's request releases NUI focus.
 
 export type ZoneType = "box" | "sphere" | "poly"
 
-// action: "zoneCreator:start" (fire-and-forget) -- mount ZoneCreatorHud.
 export interface ZoneCreatorStartPayload {
     type: ZoneType
 }
 
-// Which numeric parameter the scroll wheel currently adjusts -- mirrors
-// creatorParamCycles in modules/zones/client.lua.
-// "editPoint" is the odd one out: a MODE, not a numeric value (the placement
-// key moves the grabbed poly point instead of appending one), so there's no
-// matching number on the snapshot -- ZoneCreatorHud special-cases it.
 export type ZoneCreatorParam = "size" | "height" | "rotation" | "radius" | "thickness" | "zOffset" | "editPoint"
 
-// action: "zoneCreator:hud" (fire-and-forget) -- update ZoneCreatorHud, or
-// unmount it when the payload is nullish (the creator session ended). NOTE:
-// Lua sends the teardown as `data = nil`, and a nil-valued Lua table key is
-// simply absent when serialized -- so the teardown arrives as `undefined`,
-// never a literal `null`. Always check with `== null`/`!snapshot`, not `=== null`.
 export interface ZoneCreatorHudSnapshot {
     type: ZoneType
     pointCount: number
@@ -786,7 +709,6 @@ export interface ZoneCreatorHudSnapshot {
     stepSize: number
 }
 
-// action: "zoneCreator:confirm" (request) -- mount ZoneConfirmDialog.
 export interface ZoneCreatorConfirmPayload {
     type: ZoneType
     snippet: string
@@ -794,19 +716,12 @@ export interface ZoneCreatorConfirmPayload {
 
 export type ZoneCreatorConfirmResult = { confirmed: boolean }
 
-// action: "noclip:hud" (fire-and-forget) -- show the noclip control HUD, or
-// unmount it when the payload is nullish. The owning resource controls the
-// movement and keybinds; this component is instructional only.
 export interface NoclipHudPayload {
     active: boolean
     /** What A/D do: "strafe" (default) slides sideways, "turn" turns the view. Only changes the hint. */
     adMode?: "strafe" | "turn"
 }
 
-// action: "progressStart" (fire-and-forget) -- mount ProgressBar. See
-// modules/progressbar/. Lua owns the actual timing/completion decision (a
-// per-frame poll, not this component) -- this payload only drives the
-// visual fill, which is why there is no response to send back.
 export interface ProgressStartPayload {
     label: string
     duration: number
@@ -815,13 +730,6 @@ export interface ProgressStartPayload {
     /** rem from the screen bottom (Config.progressbar.bottomOffset); clears kora_hud's vitals. */
     bottomOffset?: number
 }
-
-// action: "progressCancel" (fire-and-forget, no payload) -- hides the bar
-// immediately instead of waiting for its own fill animation to finish.
-// Lua sends this on every early-exit path (death, the cancel key,
-// Kora.progressbar.cancel(), or Kora.progressbar.start itself erroring), so the
-// visual can never keep filling past the point the real bar it represents
-// already ended.
 
 export type NotifyType = "info" | "success" | "warning" | "error"
 
@@ -837,19 +745,12 @@ export type NotifyPosition =
     | "top"
     | "bottom"
 
-// action: "notify" (fire-and-forget) -- see modules/notify/. Kora.notify.send
-// resolves duration/type/position from Config.notify before sending (see
-// Kora.notify.withDefaults), so they arrive populated in practice; they stay
-// optional here because the Toast component must not trust that -- any
-// resource can post a bare payload straight to this action.
 export interface NotifyPayload {
     title?: string
     message?: string
     duration?: number
     type?: NotifyType
     position?: NotifyPosition
-    // Overrides the variant's default icon; resolved against the curated set
-    // in lib/icon.ts, so an unknown name simply renders no icon.
     icon?: string
     id?: string | number
     iconColor?: string
@@ -912,8 +813,6 @@ export interface SkillbarAttempt {
 
 export type OxSkillCheckDifficulty = "easy" | "medium" | "hard" | { areaSize: number; speedMultiplier: number }
 
-// action: "oxSkillCheck" (request). This is intentionally client-local like
-// upstream ox_lib; kora_lib's proof-producing minigames use the separate round API.
 export interface OxSkillCheckPayload {
     difficulty: OxSkillCheckDifficulty | OxSkillCheckDifficulty[]
     inputs?: string[]
@@ -970,12 +869,6 @@ export interface FishingAttempt {
 export interface CancelledAttempt {
     cancelled: true
 }
-
-// The six types below back the qb-minigames compat shim
-// (compat/client/qb-minigames.lua). Their puzzle CONTENT (the PIN, the word,
-// the quiz questions) comes from the calling script via opts, so -- unlike
-// lockpick/skillbar/circuit/mash's purely config-randomized puzzles -- the
-// Puzzle types below carry that content straight through from the server.
 
 export interface PinpadPuzzle {
     digitCount: number
@@ -1092,13 +985,6 @@ export type MinigameAttempt =
     | HackingAttempt
     | CancelledAttempt
 
-// action: "minigames:round" (request) -- mount/update MinigameContainer. Sent
-// once per round: the FIRST round after Kora.minigames.play() starts, and again
-// after every failed-but-not-exhausted attempt, in the SAME mounted overlay
-// (Lua never closes and reopens it between rounds -- see
-// modules/minigames/AGENTS.md). `puzzle` is the server-generated round to
-// render; it is NEVER the pass/fail answer itself -- see the per-type Puzzle
-// comments above for what's actually visible vs. hidden.
 export interface MinigamesRoundPayload {
     type: MinigameType
     sessionId: number
@@ -1113,12 +999,10 @@ export interface MinigamesRoundPayload {
     puzzle: MinigamePuzzle
 }
 
-// action: "minigames:close" (fire-and-forget) -- unmount MinigameContainer.
 export interface MinigamesClosePayload {
     result?: "success" | "exhausted" | "cancelled"
 }
 
-// Persistent, display-only qbdispatch:feed payload from Kora.nui.setDispatchFeed.
 export interface DispatchFeedCall {
     id: number
     code?: string
@@ -1145,7 +1029,6 @@ export interface DispatchFeedPayload {
     theme?: Record<string, string>
 }
 
-// action: "instructional:set" (fire-and-forget) -- rows merged by Kora.instructional; empty = hide.
 export interface InstructionalRow {
     label: string
     keys: string[]

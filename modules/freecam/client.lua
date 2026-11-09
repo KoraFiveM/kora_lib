@@ -157,7 +157,6 @@ function Kora.freecam.start(options)
     if state.upControl then controls[#controls + 1] = state.upControl end
     if state.downControl then controls[#controls + 1] = state.downControl end
     state.lease = Kora.compat.acquireControls(controls, nil, state.owner)
-    -- Movement input is already leased above; skip the hard freeze while airborne so the ped lands.
     if state.freezePlayer and not (IsPedFalling(state.ped) or IsPedJumping(state.ped) or IsPedRagdoll(state.ped)
         or IsEntityInAir(state.ped) or IsPedInParachuteFreeFall(state.ped)) then
         FreezeEntityPosition(state.ped, true)

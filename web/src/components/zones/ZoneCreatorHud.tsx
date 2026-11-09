@@ -13,23 +13,16 @@ interface CreatorState {
 
 function formatParamValue(param: string, value: number): string {
     if (param === "rotation") return `${value.toFixed(1)}°`
-    // zOffset is the one signed parameter, and its sign is the whole point
-    // (up vs down from where it was placed) -- an explicit + makes "raised"
-    // legible at a glance instead of being inferred from the absence of a -.
     if (param === "zOffset") return `${value >= 0 ? "+" : ""}${value.toFixed(2)}m`
     return value.toFixed(2)
 }
 
-// Same units as formatParamValue, but a step is never signed (it's always a
-// positive per-scroll-tick amount), so this deliberately skips the zOffset
-// "+" branch above.
 function formatStepValue(param: string, value: number): string {
     if (param === "rotation") return `${value.toFixed(1)}°`
     if (param === "zOffset") return `${value.toFixed(2)}m`
     return value.toFixed(2)
 }
 
-// "zOffset" reads as a field name, not a thing you're adjusting.
 const PARAM_LABELS: Record<string, string> = {
     zOffset: "height offset",
 }
@@ -48,10 +41,6 @@ export function ZoneCreatorHud() {
     })
 
     useNuiEvent<ZoneCreatorHudSnapshot | null | undefined>("zoneCreator:hud", (snapshot) => {
-        // Nullish check, NOT === null: Lua's teardown send("zoneCreator:hud",
-        // nil) serializes to an ABSENT data field (a nil-valued Lua table key
-        // doesn't exist), so the teardown arrives here as undefined -- a
-        // strict null comparison would leave the HUD mounted forever.
         if (snapshot == null) {
             setState(null)
             return
@@ -115,8 +104,6 @@ function ShapeStatus({ type, snapshot }: { type: ZoneType; snapshot: ZoneCreator
 }
 
 function ActiveParam({ snapshot }: { snapshot: ZoneCreatorHudSnapshot }) {
-    // editPoint is a mode rather than a value -- it has no matching number on
-    // the snapshot, and what matters is which vertex is currently grabbed.
     if (snapshot.activeParam === "editPoint") {
         return (
             <span className="rounded-sm border border-brand-border border-l-[3px] border-l-primary bg-brand-soft px-2 py-1 text-xs">
@@ -134,8 +121,6 @@ function ActiveParam({ snapshot }: { snapshot: ZoneCreatorHudSnapshot }) {
         )
     }
 
-    // Every other member of the union IS a numeric snapshot field, so the
-    // lookup needs no runtime mapping table.
     const value = snapshot[snapshot.activeParam]
     if (typeof value !== "number") return null
 
@@ -143,9 +128,6 @@ function ActiveParam({ snapshot }: { snapshot: ZoneCreatorHudSnapshot }) {
         <span className="rounded-sm border border-brand-border border-l-[3px] border-l-primary bg-brand-soft px-2 py-1 text-xs">
             <span className="capitalize">{PARAM_LABELS[snapshot.activeParam] ?? snapshot.activeParam}</span>:{" "}
             <span className="font-mono tabular-nums">{formatParamValue(snapshot.activeParam, value)}</span>
-            {/* Makes Shift's effect visible rather than a silent multiplier
-                the player has to take on faith -- this is what one scroll
-                tick moves the value by right now, shiftMultiplier included. */}
             <span className="ml-1 text-muted-foreground">
                 (±{formatStepValue(snapshot.activeParam, snapshot.stepSize)}/scroll)
             </span>

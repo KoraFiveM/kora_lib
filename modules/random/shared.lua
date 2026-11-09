@@ -1,7 +1,3 @@
----@class QBRandomPickOptions
----@field count? integer Number of independent picks. Defaults to 1.
----@field maxIndex? integer Highest array index eligible for selection. Defaults to `#list`.
-
 local MAX_PICK_COUNT = 10000
 
 ---Picks one or more random values from an array. Multiple picks are made with

@@ -1,15 +1,3 @@
----@class QBBlipsCreateOptions
----@field sprite? number Blip sprite id. Defaults to `Config.blips.defaultSprite`.
----@field color? number Blip color index. Defaults to `Config.blips.defaultColor`.
----@field scale? number Blip scale. Defaults to `Config.blips.defaultScale`.
----@field name? string Location/name shown after GTA's category heading.
----@field label? string Backwards-compatible explicit map-label override.
----@field shortRange? boolean Whether the blip only shows near the player. Defaults to `Config.blips.defaultShortRange`.
----@field category? number | string Fixed category name/alias or numeric native category. Defaults to `Other`.
----@field display? integer Native blip display mode restored after the blip/category is shown. Defaults to `Config.blips.defaultDisplay`.
----@field route? boolean Draws a waypoint route line to the blip. Defaults to `false`.
----@field info? QBBlipInfo Optional detail panel shown when this blip is highlighted in the pause map.
-
 local INFO_ROW_STYLE = {
     text = 1,
     icon = 2,
@@ -24,7 +12,7 @@ local selectedBlip = nil
 local renderedInfo = nil
 local missedSelectionPolls = 0
 local SELECTION_GRACE_POLLS = 3
-local PAUSE_MENU_READY = 15 -- ePauseMenuState.PM_READY
+local PAUSE_MENU_READY = 15
 local hoverBlip = nil
 local hoverSince = 0
 local legendSuppressUntil = 0
@@ -59,8 +47,6 @@ local function clearStoredInfo(blip)
     infoByBlip[blip] = nil
 end
 
--- Cleanup on resource stop guards with DoesBlipExist: RemoveBlip on an
--- already-gone handle is undefined behavior, not a no-op.
 local function notifyBlipsChanged()
     TriggerEvent('kora_lib:blips:changed')
 end
@@ -275,9 +261,6 @@ local function nativeTrue(value)
     return value == true or (type(value) == "number" and value ~= 0)
 end
 
--- The card is only drawn while the pause menu is open, fully started and not rebuilding.
--- Before that the frontend has not laid its columns out, so a column write lands unpositioned
--- in the top-left corner.
 local function frontendReadyForCard()
     if not IsFrontendReadyForControl() then return false end
     if not IsPauseMenuActive() or IsPauseMenuRestarting() then return false end
@@ -285,10 +268,6 @@ local function frontendReadyForCard()
     return GetPauseMenuState() == PAUSE_MENU_READY
 end
 
--- Clicking a legend entry makes IsHoveringOverMissionCreatorBlip report that blip exactly like
--- a map hover does. Fallback only: while the mouse is the active input, a cursor at or right
--- of legendMinX is over the legend. Gameplay controls are disabled in the frontend, so the
--- disabled-control read is taken too (GetControlNormal can report 0 there).
 local function cursorOverLegend(cfg)
     local minX = cfg.legendMinX
     if type(minX) ~= "number" or minX <= 0 or minX > 1 then return false end
@@ -297,17 +276,12 @@ local function cursorOverLegend(cfg)
     return x >= minX
 end
 
--- True when the highlighted blip came from the legend rather than the map cursor. Navigating
--- the legend with keyboard or gamepad keeps the mouse where it was, so the primary signal is
--- the frontend's own "navigating menu content" state; the cursor position is the fallback.
 local function legendHasFocus(cfg)
     if cfg.showOnLegendSelect == true then return false end
     if cfg.blockWhileNavigatingContent ~= false and nativeTrue(IsNavigatingMenuContent()) then return true end
     return cursorOverLegend(cfg)
 end
 
--- Menu layout changes fire when a list (the legend) is navigated, by any input device, and
--- the map then pans to the entry. Hold the card back for legendSuppressMs after each one.
 local function legendNavigated(cfg, now)
     local holdMs = cfg.legendSuppressMs
     if type(holdMs) ~= "number" or holdMs <= 0 then return false end
@@ -421,7 +395,6 @@ ensureInfoThread = function()
                 local cfg = infoConfig()
                 local now = GetGameTimer()
                 sleep = 50
-                -- Layout-change events last one frame, so they need a per-frame poll.
                 if (cfg.legendSuppressMs or 0) > 0 then sleep = 0 end
                 legendFocused = legendNavigated(cfg, now)
 
@@ -430,16 +403,11 @@ ensureInfoThread = function()
                     blip = GetNewSelectedMissionCreatorBlip()
                     if DoesBlipExist(blip) then candidate = infoByBlip[blip] end
                 end
-                -- This loop runs every frame while the pause menu is open, so the legend-focus
-                -- natives are only read when their answer is used: a hovered blip with a card,
-                -- or a card already drawn that legend focus must drop.
                 if not legendFocused and (candidate or selectedBlip ~= nil) then
                     legendFocused = legendHasFocus(cfg)
                 end
                 if candidate and not legendFocused then info = candidate end
 
-                -- A legend click reports the blip for only a few frames while the map pans to
-                -- it. Require an unbroken hover on the same blip before the first render.
                 if info then
                     if hoverBlip ~= blip then
                         hoverBlip = blip
@@ -460,10 +428,6 @@ ensureInfoThread = function()
                 local imageReady = not info.image or HasStreamedTextureDictLoaded(info.image.dictionary)
                 if not imageReady then RequestStreamedTextureDict(info.image.dictionary) end
 
-                -- The pause-map frontend rebuilds its columns continuously and can
-                -- discard a one-shot update. Reassert the populated slots every
-                -- frame, but only empty the column when its content actually
-                -- changes; clearing a stable column every frame makes it flash.
                 sleep = 0
                 missedSelectionPolls = 0
                 local contentChanged = selectedBlip ~= blip or renderedInfo ~= info
@@ -471,18 +435,12 @@ ensureInfoThread = function()
                 renderedInfo = info
                 renderInfo(blip, info, contentChanged)
             elseif selectedBlip then
-                -- Frontend selection natives can report a transient false result
-                -- while the pause map refreshes. Require consecutive misses so a
-                -- single bad frame cannot repeatedly hide and show the column.
-                -- Legend focus is not transient: drop the card at once.
                 sleep = math.min(sleep, 50)
                 missedSelectionPolls = missedSelectionPolls + 1
                 if legendFocused or missedSelectionPolls >= SELECTION_GRACE_POLLS then
                     selectedBlip = nil
                     renderedInfo = nil
                     missedSelectionPolls = 0
-                    -- Empty only the card we drew; SHOW_COLUMN(false) would hide the legend
-                    -- the game keeps in this column.
                     clearDisplay()
                 end
             end
@@ -504,7 +462,6 @@ end
 ---@return number | false blip The created blip handle, or false if it failed to create.
 ---@return string? error
 function Kora.blips.create(coords, options)
-    -- Capture before any native calls: the invoking resource is only valid at the call boundary.
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     if options == nil then options = {} end

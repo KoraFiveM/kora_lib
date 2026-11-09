@@ -50,8 +50,6 @@ harness.test("items without a chance default to an equal weight", function()
         { name = "b" },
     }
 
-    -- Both unspecified, so each should get weight 1 -- roll enough times that
-    -- both effectively always show up across the sample.
     local seen = {}
     for _ = 1, 50 do
         local rewards = Kora.rewards.generate(items)
@@ -93,8 +91,6 @@ harness.test("percent mode defaults an unspecified item's chance to an equal spl
         { name = "d" },
     }
 
-    -- 4 unspecified items -> 25% each. Roll many times and expect roughly a
-    -- quarter of individual item checks to hit, not none and not all.
     local hits, checks = 0, 0
     for _ = 1, 100 do
         local rewards = Kora.rewards.generate(items, { mode = "percent", allowNone = true })

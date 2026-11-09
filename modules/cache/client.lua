@@ -6,8 +6,6 @@ local refreshInterval = Config.cache.tickInterval
 assert(Kora.util.isInteger(refreshInterval) and refreshInterval > 0,
     'Config.cache.tickInterval must be a positive finite integer.')
 
--- Built-in keys this module owns. Kora.cache.set rejects writes to them outright,
--- so no consumer can observe even a transient poisoned value.
 local RESERVED_KEYS = {
     playerId = true,
     serverId = true,
@@ -24,13 +22,9 @@ local RESERVED_KEYS = {
     coords = true,
 }
 
--- listenersById[id] = { key, entry }: lets the registry's onDispose (which only knows
--- an id) find one listener without scanning. A key can have several listeners from
--- several resources, so each onChange registration gets its own synthetic id.
 local listenersById = {}
 local nextListenerId = 0
 
--- Forward-declared: Kora.cache.onChange references it as an upvalue before it is created.
 local listenerRegistry
 
 local function assertKey(key)
@@ -38,12 +32,8 @@ local function assertKey(key)
         "Cache key must be a non-empty string up to 256 bytes.")
 end
 
--- The private bootstrap helper normalizes native functions and every Cfx
--- cross-resource funcref proxy shape consistently across kora_lib modules.
 local isCallable = Kora.compat.isCallable
 
--- No-op when the value hasn't actually changed, so setting the same vehicle/
--- weapon/etc. every tick doesn't spam onChange handlers.
 local function setValue(key, value)
     local old = cache[key]
     if old == value then return end
@@ -52,9 +42,6 @@ local function setValue(key, value)
     local handlers = listeners[key]
     if not handlers then return end
 
-    -- A handler may remove itself (or its resource may stop) while it runs.
-    -- Walk the original range by identity so a shifted next entry is neither
-    -- skipped nor called through a stale slot.
     local entryIndex = 1
     local lastEntryIndex = #handlers
     while entryIndex <= lastEntryIndex do
@@ -72,11 +59,9 @@ local function setValue(key, value)
     end
 end
 
--- No single native answers "what seat am I in": scan seats (-1 = driver, 0+ = passenger).
 local function computeSeat(vehicle, ped, cachedSeat)
     if not vehicle then return false end
 
-    -- Check the previous seat first; only scan the vehicle when the ped has left it.
     if type(cachedSeat) == "number" and GetPedInVehicleSeat(vehicle, cachedSeat) == ped then
         return cachedSeat
     end
@@ -90,8 +75,6 @@ local function computeSeat(vehicle, ped, cachedSeat)
     return false
 end
 
--- Player indices are session constants, resolved outside refresh(). GetPlayerServerId
--- may still be -1 early in resource start; a short startup worker replaces it.
 local playerId = PlayerId()
 setValue("playerId", playerId)
 
@@ -108,7 +91,6 @@ if serverId == -1 and NetworkIsSessionStarted then
                     return
                 end
             end
-            -- Networking can stay unavailable through a long loading screen; don't poll every frame.
             Wait(SERVER_ID_RETRY_INTERVAL)
         end
     end)
@@ -119,13 +101,8 @@ local function refresh()
     setValue("ped", ped)
     setValue("health", GetEntityHealth(ped))
     setValue("armour", GetPedArmour(ped))
-    -- Keyed off the PLAYER index (GetPlayerStamina takes a player). Cached here because it
-    -- changes continuously while sprinting, so HUDs can use onChange instead of their own thread.
     setValue("stamina", GetPlayerStamina(playerId))
 
-    -- Track the attempted-entry state alongside the actual vehicle so consumers can follow
-    -- Entering -> Entered/Aborted without a second polling loop.
-    -- Native guard keeps this smoke-testable under minimal mocks.
     local enteringVehicle = GetVehiclePedIsTryingToEnter and GetVehiclePedIsTryingToEnter(ped) or 0
     if enteringVehicle == 0 then enteringVehicle = false end
     local enteringSeat = enteringVehicle and GetSeatPedIsTryingToEnter and GetSeatPedIsTryingToEnter(ped) or false
@@ -134,9 +111,6 @@ local function refresh()
     if vehicle == 0 then vehicle = false end
     local seat = computeSeat(vehicle, ped, cache.seat)
 
-    -- Order matters to onChange consumers: an entering attempt is reported
-    -- before an actual entry, while the current seat is updated before the
-    -- vehicle change so an "Entered" handler sees the correct seat directly.
     setValue("enteringSeat", enteringSeat)
     setValue("enteringVehicle", enteringVehicle)
     setValue("seat", seat)
@@ -147,8 +121,6 @@ local function refresh()
     if not oldCoords or oldCoords.x ~= coords.x or oldCoords.y ~= coords.y or oldCoords.z ~= coords.z then
         setValue('coords', coords)
     end
-    -- Engine death predicate, not a health threshold. Set after coords so an isDead
-    -- observer gets this refresh's location on the alive -> dead edge.
     setValue("isDead", IsPedFatallyInjured and IsPedFatallyInjured(ped) or false)
 end
 
@@ -223,8 +195,6 @@ local function removeListener(id)
     if #handlers == 0 then listeners[record.key] = nil end
 end
 
--- Ownership/cleanup on resource stop is delegated to the shared registry
--- (local/resources/AGENTS.md); id = the synthetic per-listener id above.
 listenerRegistry = Kora.resources.registry(removeListener)
 
 ---Removes every onChange handler the calling resource registered for `key`.

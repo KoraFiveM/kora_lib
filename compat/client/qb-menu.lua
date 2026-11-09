@@ -1,18 +1,9 @@
--- Compat bridge: translates exports['qb-menu']:openMenu/closeMenu and the 'qb-menu:client:*' net events
--- onto Kora.nui.openMenu. Field mapping and caveats: see modules/nui/docs.md "Legacy compat".
-
 local function imageFor(item)
     if type(item.icon) ~= 'string' or item.icon == '' then return nil end
     if item.icon:find('://', 1, true) then return item.icon end
-    -- Resolve at render time through the registry getter. Capturing the whole
-    -- Items map here would miss definitions registered after this resource
-    -- started (and getShared expects a lowercase registry plus a record key).
     local ok, definition = pcall(function() return exports.kora_core:getShared('items', item.icon) end)
     definition = ok and definition or nil
     if definition and type(definition.imageUrl) == 'string' and definition.imageUrl ~= '' then return definition.imageUrl end
-    -- `definition.image` is the legacy local-file field served from qb-inventory's html/images/, which
-    -- kora_inventory doesn't ship, so that URL would always 404. kora_core's seed already resolves
-    -- `imageUrl` when real artwork exists; if it's missing, drop the image.
     return nil
 end
 
@@ -26,10 +17,7 @@ local function sorted(menu, sort, skipFirst)
     return copy
 end
 
--- Upstream items have no stable `id`; MenuItem requires one, so the 1-based array position is used.
--- `isMenuHeader` rows (unselectable section labels) map onto `disabled = true`.
 local function translateItems(menu, sort, skipFirst)
-    -- Upstream no-ops on nil/empty data; translate a non-table menu to zero items instead of asserting.
     if type(menu) ~= "table" then return {}, {} end
 
     local items, byId = {}, {}
@@ -54,12 +42,8 @@ local function translateItems(menu, sort, skipFirst)
     return items, byId
 end
 
--- Functions that crossed an exports boundary arrive as __call tables, so a bare `type(x) == 'function'`
--- would reject items/actions built by another resource.
 local isCallable = Kora.compat.isCallable
 
--- Selecting an item fires `params.event` (server event if `params.isServer`) with `params.args` unpacked;
--- an item without params/event just closes the menu, as upstream.
 local function dispatch(item)
     if isCallable(item.action) then
         item.action()
@@ -81,9 +65,6 @@ local function dispatch(item)
     end
 end
 
--- Fire-and-forget like upstream (selection is event-driven). Through the compat export Kora.nui.openMenu
--- already awaits for the external caller (a second Await would turn the result into nil); the net-event
--- path has no external caller and must await the pending promise here.
 local headerShown = false
 local headerMenu
 local openSerial, menuOpen = 0, false
@@ -94,9 +75,6 @@ local function openMenu(menu, sort, skipFirst)
     if #items == 0 then return end
     if headerShown then Kora.nui.send('hideMenuHeader', {}); headerShown = false end
 
-    -- Capture this before Kora.nui.openMenu can yield. Once the coroutine resumes,
-    -- the original export runtime is no longer necessarily on FiveM's runtime
-    -- stack, so querying GetInvokingResource afterwards is not reliable.
     local calledFromExport = GetInvokingResource() ~= nil
     if menuOpen then silenced[openSerial] = true end
     openSerial = openSerial + 1
@@ -104,7 +82,6 @@ local function openMenu(menu, sort, skipFirst)
     menuOpen = true
     local result = Kora.nui.openMenu(items)
     if not calledFromExport then
-        -- A superseded or crashed menu rejects; treat it as a silent close instead of a script error.
         local ok, value = pcall(Citizen.Await, result)
         result = ok and value or nil
     end
@@ -120,8 +97,6 @@ local function openMenu(menu, sort, skipFirst)
     dispatch(byId[result.selectedId])
 end
 
--- Force-dismiss the open menu; the container answers its pending request as cancelled, same path as Escape.
--- The programmatic close is silenced: upstream fires menuClosed only for a user close.
 local function closeMenu()
     if headerShown then
         Kora.nui.send('hideMenuHeader', {})

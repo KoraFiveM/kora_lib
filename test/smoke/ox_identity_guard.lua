@@ -1,7 +1,3 @@
--- Guard: kora_lib must never claim the `ox_lib` identity. The separate `ox_lib`
--- shim resource owns it; a second registration here would double-run handlers
--- and let `dependency 'ox_lib'` resolve without the shim being started.
--- Calling the shim through `exports.kora_lib:ox_*` is allowed and not scanned for.
 local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
 local testDir = scriptDir .. "../"
 local repoRoot = testDir .. "../"

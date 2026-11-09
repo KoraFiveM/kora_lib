@@ -75,9 +75,6 @@ export function MenuContainer() {
     const [checkedStates, setCheckedStates] = useState<Record<string, boolean>>({})
     const [viewPayload, setViewPayload] = useState<OpenMenuPayload | null>(null)
     const [menuVersion, setMenuVersion] = useState(0)
-    // Controlled so it can be cleared on every navigation: cmdk keeps the
-    // filter otherwise, and a term typed at one level would silently hide most
-    // of the next one -- which reads as "the submenu is empty".
     const [search, setSearch] = useState("")
 
     const seedMenu = useCallback((open: OpenMenuPayload) => {
@@ -120,8 +117,6 @@ export function MenuContainer() {
             emitEvent("selected", { selectedId, index: index + 1, valueIndex: valueIndexes[selectedId] === undefined ? undefined : valueIndexes[selectedId] + 1, checked: checkedStates[selectedId] })
         }, 100)
         return () => window.clearTimeout(timer)
-    // Value/check changes have their own event channels; changing either must
-    // not re-fire onSelected for a row whose selection did not move.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [emitEvent, level, selectedId])
 
@@ -161,12 +156,6 @@ export function MenuContainer() {
                 return
             }
 
-            // Root-first trail of the ids walked through to get here. Each
-            // level past the root records the item that opened it, so this is
-            // just those plus the leaf. Read from `stack` rather than inside a
-            // setStack updater: respond() is a side effect, and updaters must
-            // stay pure (StrictMode double-invokes them in dev) -- the same
-            // reasoning as the note in lib/useNuiRequest.ts.
             const path = stack.slice(1).map((entry) => entry.viaId ?? "")
             const selection = { selectedId: item.id, path: [...path, item.id], valueIndex: valueIndexes[item.id] === undefined ? undefined : valueIndexes[item.id] + 1, checked: checkedStates[item.id] }
             if (item.close === false) {
@@ -204,10 +193,6 @@ export function MenuContainer() {
         (open: boolean) => {
             if (open) return
 
-            // Escape/backdrop steps BACK out of a submenu rather than throwing
-            // away the whole interaction -- only a dismiss at the root cancels.
-            // The dialog stays mounted because `open` is never actually false
-            // while a request is pending.
             if (canGoBack) {
                 goBack()
                 return
@@ -313,9 +298,6 @@ export function MenuContainer() {
 
     return (
         <Dialog open onOpenChange={handleOpenChange}>
-            {/* DialogContent (ui/dialog.tsx) already carries pointer-events-auto
-                for the page-wide pointer-events: none default -- nothing extra
-                to opt into here. */}
             <DialogContent
                 className={cn("grid h-[75dvh] max-h-[calc(100dvh-2rem)] max-w-md grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0", placement.className)}
                 style={placement.style}

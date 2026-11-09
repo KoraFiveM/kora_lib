@@ -6,12 +6,6 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 
--- Kora.status.apply/remove are defined on BOTH realms with the same name --
--- server: apply(target, name, opts), client: apply(name, opts). Same
--- capture-by-reference-before-overwrite trick test/smoke/callback.lua uses
--- for Kora.callback.register/trigger: grab the server versions right after
--- server.lua loads, before client.lua's load overwrites the same Kora.status
--- table slots.
 local net = mocks.install()
 local clock = 0
 _G.GetGameTimer = function() return clock end
@@ -26,7 +20,7 @@ dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 dofile(repoRoot .. "local/events/shared.lua")
 dofile(repoRoot .. "local/events/server.lua")
-dofile(repoRoot .. "local/events/client.lua") -- its startup CreateThread completes the client<-server handshake synchronously
+dofile(repoRoot .. "local/events/client.lua")
 
 dofile(repoRoot .. "modules/status/shared.lua")
 
@@ -36,8 +30,6 @@ local serverRemove = Kora.status.remove
 local serverIsActive = Kora.status.isActive
 local serverGetActive = Kora.status.getActive
 
--- Fakes for Kora.fx/Kora.anim, standing in for their real modules (each has its
--- own smoke test already) -- status/client.lua only needs their public shape.
 local ptfxStarts, ptfxStops = {}, {}
 local screenStarts, screenStops = {}, {}
 local animStarts, animStops = {}, {}
@@ -171,11 +163,6 @@ harness.test("server apply pushes the effect to the client, which renders it", f
     clientRemove("high_weed")
 end)
 
--- From here on, tests cover SERVER-side timer bookkeeping in isolation. Neutralize the
--- push-delivered client renderer: push delivery is synchronous in this mock, so the client's
--- auto-remove thread would advance the shared mock clock and make an effect look expired
--- the instant it is applied (real client/server clocks are independent). The captured
--- clientApply/clientRemove/clientIsActive locals still call the real client implementation.
 Kora.status.apply = function() end
 Kora.status.remove = function() end
 
@@ -416,8 +403,6 @@ harness.test("internal status updates can replace a locally owned effect", funct
     _G.GetInvokingResource = function() return "status_effect_owner" end
     harness.assertTrue(clientApply("injured_leg"), "the resource should apply its cosmetic effect")
 
-    -- Push handlers execute inside kora_lib rather than the consumer export, so
-    -- their update must retain server authority over local presentation.
     _G.GetInvokingResource = function() return nil end
     harness.assertTrue(clientApply("injured_leg"), "an internal update should replace the local effect")
     harness.assertTrue(clientRemove("injured_leg"), "kora_lib should still clean up its authoritative effect")

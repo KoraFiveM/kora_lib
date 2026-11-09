@@ -1,7 +1,5 @@
 ---@diagnostic disable: duplicate-doc-field
 
--- See the identical note in modules/closest/client.lua: Kora.world's "player"
--- entityType returns a ped, but Kora.closest.player's contract is a player id.
 local function pedToPlayerId(ped)
     local players = GetPlayers()
     for playerIndex = 1, #players do

@@ -1,13 +1,3 @@
----@class QBTeleportOptions
----@field fade? boolean|number Fade around the move. `false` disables it; `true` and omitted use 500ms.
-
----@class QBWaypointTeleportOptions : QBTeleportOptions
----@field entity? number Entity to move. Defaults to the current vehicle when driving, otherwise the player ped.
----@field launchHeight? number Initial Z used while collision is loaded.
----@field collisionTimeout? integer Maximum milliseconds to wait for world collision.
----@field groundAttempts? integer Maximum ground probes.
----@field groundRetryDelay? integer Milliseconds between ground probes.
-
 local function assertCoords(coords)
     assert(type(coords) == 'table' or type(coords) == 'vector3' or type(coords) == 'vector4',
         'Teleport coordinates must be vector-like.')
