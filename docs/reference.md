@@ -29,7 +29,7 @@ Every public kora_lib namespace has a reference page. Each page is generated fro
 
 ## Gameplay and server systems
 
-[Actions]({{ site.baseurl }}/reference/actions/), [commands]({{ site.baseurl }}/reference/commands/), [Discord]({{ site.baseurl }}/reference/discord/), [logging]({{ site.baseurl }}/reference/logging/), [permissions]({{ site.baseurl }}/reference/permissions/), [rewards]({{ site.baseurl }}/reference/rewards/), [screenshots]({{ site.baseurl }}/reference/screenshot/), [skills]({{ site.baseurl }}/reference/skills/), and [status effects]({{ site.baseurl }}/reference/status/).
+[Actions]({{ site.baseurl }}/reference/actions/), [commands]({{ site.baseurl }}/reference/commands/), [Discord]({{ site.baseurl }}/reference/discord/), [logging]({{ site.baseurl }}/reference/logging/), [permissions]({{ site.baseurl }}/reference/permissions/), [QA hooks]({{ site.baseurl }}/reference/qa/), [rewards]({{ site.baseurl }}/reference/rewards/), [screenshots]({{ site.baseurl }}/reference/screenshot/), [skills]({{ site.baseurl }}/reference/skills/), and [status effects]({{ site.baseurl }}/reference/status/).
 
 ## Utilities and compatibility
 

@@ -1040,6 +1040,7 @@
 ---@field placement KoraLibPlacement
 ---@field print KoraLibPrint
 ---@field progressbar KoraLibProgressbar
+---@field qa KoraLibQa
 ---@field raycast KoraLibRaycast
 ---@field random KoraLibRandom
 ---@field require KoraLibRequire
@@ -1434,6 +1435,13 @@
 ---@field raw string tostring() of what the native returned, so a non-boolean is visible.
 ---@field type string type() of what the native returned.
 ---@field allowed boolean Normalized result.
+
+---@class KoraLibQa
+---@field mark fun(name: string, data?: table, target?: integer) [shared] Records a named point in the active kora_qa run; no-op when nobody is testing. `target` is server-only.
+---@field active fun(src?: integer): boolean [shared] Client: local player has an active run. Server: `src` (or anyone) has one.
+---@field onEvent fun(fn: function): integer [shared] kora_qa: receive QA events (server `fn(src, event)`, client `fn(event)`).
+---@field offEvent fun(id: integer): boolean [shared] Removes an onEvent handler.
+---@field setActive fun(srcOrState: integer|boolean, state?: boolean): boolean [shared] kora_qa only: client `setActive(state)`, server `setActive(src, state)`.
 
 ---@class KoraLibPermissions
 ---@field getLevel fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): string [server]

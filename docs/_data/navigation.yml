@@ -59,6 +59,7 @@
     - { title: Discord, url: /reference/discord/ }
     - { title: Logging, url: /reference/logging/ }
     - { title: Permissions, url: /reference/permissions/ }
+    - { title: QA hooks, url: /reference/qa/ }
     - { title: Rewards, url: /reference/rewards/ }
     - { title: Screenshots, url: /reference/screenshot/ }
     - { title: Skills, url: /reference/skills/ }
