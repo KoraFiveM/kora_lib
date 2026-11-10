@@ -5,12 +5,6 @@ local events = {
     push = 'kora_lib:events:push',
 }
 
-local legacyEvents = {
-    gateway = 'qblib:events:invoke',
-    handshake = 'qblib:events:handshake',
-    handshakeResponse = 'qblib:events:handshake:response',
-}
-
 local tokens = {}
 local registry = {}
 local rateBuckets = {}
@@ -105,7 +99,7 @@ local isCallable = Kora.compat.isCallable
 ---most callers don't need to call Kora.events.unregister themselves.
 ---@param name string
 ---@param handler fun(src: integer, ...: any)
----@param opts? QBRegistrationOptions
+---@param opts? KoraRegistrationOptions
 function Kora.events.register(name, handler, opts)
     Kora.events.assertName(name)
     assert(isCallable(handler), "Event handler must be a function.")
@@ -152,7 +146,6 @@ local function acceptHandshake(responseEvent)
 end
 
 RegisterNetEvent(events.handshake, function() acceptHandshake(events.handshakeResponse) end)
-RegisterNetEvent(legacyEvents.handshake, function() acceptHandshake(legacyEvents.handshakeResponse) end)
 
 local function dispatchGateway(token, name, ...)
     local src = source
@@ -175,7 +168,6 @@ local function dispatchGateway(token, name, ...)
 end
 
 RegisterNetEvent(events.gateway, dispatchGateway)
-RegisterNetEvent(legacyEvents.gateway, dispatchGateway)
 
 AddEventHandler('playerDropped', function()
     tokens[source] = nil

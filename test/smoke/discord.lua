@@ -221,7 +221,7 @@ harness.test("the console-only sync caches guild names and online member roles",
     harness.assertFalse(Kora.discord.hasAllRoles(USER_ID, { "Moderator", "Police" }), "hasAllRoles should require both")
 end)
 
-harness.test("sync declares its schema and persists its role directory when qbsql is available", function()
+harness.test("sync declares its schema and persists its role directory when kora_sql is available", function()
     convars = {
         kora_lib_discord_bot_token = "secret-token",
         kora_lib_discord_guild_id = GUILD_ID,
@@ -252,8 +252,8 @@ harness.test("sync declares its schema and persists its role directory when qbsq
     local syncOk
     Kora.discord.syncRoles(function(ok) syncOk = ok end)
 
-    harness.assertTrue(syncOk, "the qbsql-backed sync should complete")
-    harness.assertEqual(#sqlCalls.schemas, 1, "the Discord schema should be applied through qbsql's ensureTables")
+    harness.assertTrue(syncOk, "the kora_sql-backed sync should complete")
+    harness.assertEqual(#sqlCalls.schemas, 1, "the Discord schema should be applied through kora_sql's ensureTables")
     local names = {}
     for _, spec in ipairs(sqlCalls.schemas[1].specs) do names[#names + 1] = spec.name end
     harness.assertEqual(table.concat(names, ","), "kora_lib_discord_roles,kora_lib_discord_members,kora_lib_discord_member_roles",
@@ -402,15 +402,15 @@ harness.test("exported callback references work for webhook and bot APIs", funct
     harness.assertThrows(function() Kora.discord.sendWebhook(nil, 'test', {}) end)
 end)
 
-harness.test("deprecated qblib_ convars and sync command remain supported as fallbacks", function()
-    convars = { qblib_discord_bot_token = "legacy-token", qblib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
+harness.test("deprecated kora_lib_ convars and sync command remain supported as fallbacks", function()
+    convars = { kora_lib_discord_bot_token = "legacy-token", kora_lib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
     resetHttp()
     harness.assertTrue(Kora.discord.botEnabled(), "the legacy bot token convar should still enable the bot")
     harness.assertTrue(Kora.discord.sendWebhook(nil, "hello"), "the legacy webhook convar should queue")
-    harness.assertEqual(httpRequests[1].url, convars.qblib_discord_webhook, "the legacy webhook URL should be used")
-    harness.assertTrue(net.commands.qblib_discord_sync ~= nil, "the deprecated console command should stay registered")
+    harness.assertEqual(httpRequests[1].url, convars.kora_lib_discord_webhook, "the legacy webhook URL should be used")
+    harness.assertTrue(net.commands.kora_lib_discord_sync ~= nil, "the deprecated console command should stay registered")
 
-    convars = { kora_lib_discord_webhook = "https://discord.com/api/webhooks/4/token", qblib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
+    convars = { kora_lib_discord_webhook = "https://discord.com/api/webhooks/4/token", kora_lib_discord_webhook = "https://discord.com/api/webhooks/3/token" }
     resetHttp()
     Kora.discord.sendWebhook(nil, "hello")
     harness.assertEqual(httpRequests[1].url, convars.kora_lib_discord_webhook, "the kora_lib_ convar wins over the legacy name")

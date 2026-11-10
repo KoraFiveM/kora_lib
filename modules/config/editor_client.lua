@@ -735,4 +735,3 @@ local function onConfigOpened(resource)
 end
 
 RegisterNetEvent('kora_lib:client:configOpened', onConfigOpened)
-RegisterNetEvent('qblib:client:configOpened', onConfigOpened)

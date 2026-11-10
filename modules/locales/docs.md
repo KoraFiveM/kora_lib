@@ -8,10 +8,10 @@ no translation exists.
 Named placeholder keys and replacement values are treated literally, so values
 such as `50%` and keys such as `%{item.id}` are safe to use.
 
-Set the client-readable defaults with `setr qb_locale "en"` and the languages
-a server offers with `setr qb_locales "en,de"`. Players choose with kora_core's `/language`
+Set the client-readable defaults with `setr kora_locale "en"` and the languages
+a server offers with `setr kora_locales "en,de"`. Players choose with kora_core's `/language`
 command; the preference is stored in kora_lib's client KVP, never in character or
-database data. Invalid `qb_locale` values fall back to English. Explicit
+database data. Invalid `kora_locale` values fall back to English. Explicit
 resource names passed to `Kora.locale.translate` must use the normal FiveM
 resource-name characters: letters, numbers, `_`, and `-`.
 

@@ -41,19 +41,19 @@ _G.exports = {
 
 dofile(repoRoot .. "modules/theme/shared.lua")
 
-harness.test("accentColor permanently forwards to qbtheme", function()
+harness.test("accentColor permanently forwards to kora_theme", function()
     harness.assertEqual(Kora.theme.accentColor(), "#7C3AED", "primary value")
-    harness.assertEqual(primaryCalls, 1, "qbtheme export call count")
+    harness.assertEqual(primaryCalls, 1, "kora_theme export call count")
 end)
 
-harness.test("tokens permanently forwards string overrides to qbtheme", function()
+harness.test("tokens permanently forwards string overrides to kora_theme", function()
     local result = Kora.theme.tokens("#7C3AED")
     harness.assertEqual(result, tokenResult, "returned token table")
     harness.assertEqual(lastOverrides, "#7C3AED", "string override")
-    harness.assertEqual(tokenCalls, 1, "qbtheme export call count")
+    harness.assertEqual(tokenCalls, 1, "kora_theme export call count")
 end)
 
-harness.test("tokens permanently forwards semantic override tables to qbtheme", function()
+harness.test("tokens permanently forwards semantic override tables to kora_theme", function()
     local overrides = { primary = "#DC143C", warning = "#F59E0B" }
     Kora.theme.tokens(overrides)
     harness.assertEqual(lastOverrides, overrides, "table override")
@@ -71,7 +71,7 @@ end
 
 local refreshCalls = 0
 local refreshResult = { primary = "262.1 83.3% 57.8%" }
-_G.QBTheme = {
+_G.KoraTheme = {
     refresh = function()
         refreshCalls = refreshCalls + 1
         return refreshResult
@@ -87,7 +87,7 @@ harness.test("legacy kora_lib theme callback keeps its response shape", function
     harness.assertEqual(response.accentColor, "#7C3AED", "legacy accentColor")
 end)
 
-harness.test("push delegates to the imported qbtheme bridge", function()
+harness.test("push delegates to the imported kora_theme bridge", function()
     harness.assertEqual(Kora.theme.push(), refreshResult, "bridge return value")
     harness.assertEqual(refreshCalls, 1, "bridge refresh call count")
 end)
@@ -98,11 +98,11 @@ harness.test("onFontsChanged runs on kora_theme font changes until unsubscribed"
         calls = calls + 1
         received = fonts
     end)
-    mock.fire("qbtheme:fontsChanged")
+    mock.fire("kora_theme:fontsChanged")
     harness.assertEqual(calls, 1, "handler call count")
     harness.assertEqual(received, fontResult, "handler receives the resolved fonts")
     unsubscribe()
-    mock.fire("qbtheme:fontsChanged")
+    mock.fire("kora_theme:fontsChanged")
     harness.assertEqual(calls, 1, "unsubscribed handler is not called")
 end)
 

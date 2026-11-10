@@ -111,9 +111,9 @@ local function itemById(items, id)
 end
 
 local function openRadial()
-    harness.assertTrue(net.commands ~= nil and net.commands["qblib_radialmenu_open"] ~= nil,
-        "qblib_radialmenu_open should be registered")
-    net.commands["qblib_radialmenu_open"](0, {}, "")
+    harness.assertTrue(net.commands ~= nil and net.commands["kora_lib_radialmenu_open"] ~= nil,
+        "kora_lib_radialmenu_open should be registered")
+    net.commands["kora_lib_radialmenu_open"](0, {}, "")
 end
 
 harness.test("AddOption returns a generated id and RemoveOption clears it from the wheel", function()
@@ -270,7 +270,7 @@ harness.test("a nearby vehicle produces a Vehicle submenu with doors and extras 
     nextRadialResult = { cancelled = true }
     openRadial()
 
-    local vehicleItem = itemById(sentItems, "qblib_radialmenu_vehicle")
+    local vehicleItem = itemById(sentItems, "kora_lib_radialmenu_vehicle")
     harness.assertTrue(vehicleItem ~= nil, "a nearby vehicle should produce the built-in Vehicle option")
     harness.assertTrue(vehicleItem.submenu ~= nil, "the Vehicle option should be a submenu")
 
@@ -297,7 +297,7 @@ harness.test("flip appears only when off its wheels, seats only while occupying 
     nextRadialResult = { cancelled = true }
     openRadial()
 
-    local vehicleItem = itemById(sentItems, "qblib_radialmenu_vehicle")
+    local vehicleItem = itemById(sentItems, "kora_lib_radialmenu_vehicle")
     harness.assertTrue(itemById(vehicleItem.submenu.items, "vehicle-flip") ~= nil,
         "flip should appear once the vehicle is not on all its wheels")
 
@@ -313,7 +313,7 @@ harness.test("selecting a door toggles it via the real vehicle-door natives", fu
 
     nextRadialResult = { cancelled = true }
     openRadial()
-    local vehicleItem = itemById(sentItems, "qblib_radialmenu_vehicle")
+    local vehicleItem = itemById(sentItems, "kora_lib_radialmenu_vehicle")
     local doorsSubmenu = itemById(vehicleItem.submenu.items, "vehicledoors").submenu.items
     local trunk = itemById(doorsSubmenu, "door5")
     harness.assertTrue(trunk ~= nil, "the trunk door entry should exist")
@@ -335,7 +335,7 @@ harness.test("selecting an extra toggles it only for the driver", function()
 
     nextRadialResult = { cancelled = true }
     openRadial()
-    local vehicleItem = itemById(sentItems, "qblib_radialmenu_vehicle")
+    local vehicleItem = itemById(sentItems, "kora_lib_radialmenu_vehicle")
     local extrasSubmenu = itemById(vehicleItem.submenu.items, "vehicleextras").submenu.items
     local extra1 = itemById(extrasSubmenu, "extra1")
 
@@ -354,7 +354,7 @@ harness.test("flipping a vehicle runs the progress bar and only flips it on comp
 
     nextRadialResult = { cancelled = true }
     openRadial()
-    local vehicleItem = itemById(sentItems, "qblib_radialmenu_vehicle")
+    local vehicleItem = itemById(sentItems, "kora_lib_radialmenu_vehicle")
     local flip = itemById(vehicleItem.submenu.items, "vehicle-flip")
 
     progressCompletes = false
@@ -378,13 +378,13 @@ harness.test("the Work submenu only appears while on duty in a configured job", 
 
     nextRadialResult = { cancelled = true }
     openRadial()
-    harness.assertTrue(sentItems == nil or itemById(sentItems, "qblib_radialmenu_job") == nil,
+    harness.assertTrue(sentItems == nil or itemById(sentItems, "kora_lib_radialmenu_job") == nil,
         "an off-duty job should not show the Work submenu")
 
     playerJob.onduty = true
     nextRadialResult = { cancelled = true }
     openRadial()
-    local work = itemById(sentItems, "qblib_radialmenu_job")
+    local work = itemById(sentItems, "kora_lib_radialmenu_job")
     harness.assertTrue(work ~= nil, "an on-duty configured job should show the Work submenu")
     harness.assertTrue(itemById(work.submenu.items, "revivep") ~= nil, "ambulance's configured entries should be nested")
 end)
@@ -397,7 +397,7 @@ harness.test("an 'leo'-type job collapses onto the 'police' JobInteractions key"
 
     nextRadialResult = { cancelled = true }
     openRadial()
-    local work = itemById(sentItems, "qblib_radialmenu_job")
+    local work = itemById(sentItems, "kora_lib_radialmenu_job")
     harness.assertTrue(work ~= nil, "an on-duty leo-type job should show the Work submenu")
     harness.assertTrue(itemById(work.submenu.items, "emergencybutton") ~= nil,
         "the police JobInteractions entry should be reachable via the leo type override")
@@ -414,7 +414,7 @@ harness.test("selecting a 'command'-type option runs it through ExecuteCommand, 
 
     nextRadialResult = { cancelled = true }
     openRadial()
-    local work = itemById(sentItems, "qblib_radialmenu_job")
+    local work = itemById(sentItems, "kora_lib_radialmenu_job")
     local emergency = itemById(work.submenu.items, "emergencybutton")
 
     nextRadialResult = { selectedId = emergency.id }
@@ -447,7 +447,7 @@ harness.test("a downed police/EMS player sees only the emergency button, bypassi
     nextRadialResult = { cancelled = true }
     openRadial()
     harness.assertEqual(#sentItems, 1, "downed police/EMS should see exactly the emergency button, nothing else")
-    harness.assertTrue(itemById(sentItems, "qblib_radialmenu_vehicle") == nil,
+    harness.assertTrue(itemById(sentItems, "kora_lib_radialmenu_vehicle") == nil,
         "the normal registry (Vehicle/Work/anything registered) must be bypassed while downed")
 
     nextRadialResult = { selectedId = sentItems[1].id }

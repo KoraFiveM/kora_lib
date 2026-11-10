@@ -31,8 +31,8 @@ end)
 ---@param entity number
 ---@param dict string
 ---@param clip string
----@param opts? QBAnimPlayOptions
----@return QBAnimHandle | false handle False if `dict` never streamed in time.
+---@param opts? KoraAnimPlayOptions
+---@return KoraAnimHandle | false handle False if `dict` never streamed in time.
 ---@return string? error
 function Kora.anim.play(entity, dict, clip, opts)
     assert(type(entity) == "number" and entity ~= 0, ("Invalid entity: %s"):format(entity))
@@ -131,7 +131,7 @@ end
 ---Stops an animation only if `handle` is still the current animation on its
 ---entity. This is useful for compositional systems such as status effects,
 ---where tearing down an older effect must not stop a newer animation.
----@param handle QBAnimHandle
+---@param handle KoraAnimHandle
 ---@param blendOutSpeed? number
 ---@return boolean stopped
 function Kora.anim.stopHandle(handle, blendOutSpeed)
@@ -185,7 +185,7 @@ end
 ---@param bone string | integer Bone name resolved via `GetEntityBoneIndexByName` (ped and non-ped targets; common ped bone names fall back to their ped bone id), or a ped bone id (e.g. 28422) resolved via `GetPedBoneIndex` (ped targets only).
 ---@param offset? vector3 | {x: number, y: number, z: number} Defaults to zero offset.
 ---@param rotation? vector3 | {x: number, y: number, z: number} Defaults to zero rotation.
----@param opts? QBAnimAttachOptions
+---@param opts? KoraAnimAttachOptions
 ---@return number | false prop The created, attached prop entity, or false if the model never streamed or `entity`/`bone` was invalid.
 ---@return string? error
 function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)

@@ -52,7 +52,7 @@ end
 
 ---Formats a placement result into a ready-to-paste Lua table. The public
 ---result retains full precision; only this copied representation is rounded.
----@param result QBPlacementResult
+---@param result KoraPlacementResult
 ---@return string
 function Kora.placement.generateSnippet(result)
     assert(type(result) == "table", "Placement result must be a table.")
@@ -391,7 +391,7 @@ end
 
 ---Starts a temporary local entity placement session. Same-resource callers get a promise; cross-resource export calls block and return the settled result (Cfx can't marshal a promise).
 ---@param model string | number
----@return QBPlacementResult | promise | nil
+---@return KoraPlacementResult | promise | nil
 function Kora.placement.start(model, options)
     local invokingResource = GetInvokingResource()
     local externalCaller = invokingResource ~= nil
@@ -516,7 +516,7 @@ end
 
 local function registerHeldBinding(id, description, defaultKey)
     bindingHandles[id] = Kora.keybind.add({
-        name = "qblib_placement_" .. id,
+        name = "kora_lib_placement_" .. id,
         description = description,
         defaultMapper = "keyboard",
         defaultKey = defaultKey,
@@ -537,7 +537,7 @@ registerHeldBinding("rotateLeft", "Entity Placement: Rotate Left", "LBRACKET")
 registerHeldBinding("rotateRight", "Entity Placement: Rotate Right", "RBRACKET")
 
 bindingHandles.cycle = Kora.keybind.add({
-    name = "qblib_placement_cycle",
+    name = "kora_lib_placement_cycle",
     description = "Entity Placement: Cycle Rotation Axis",
     defaultMapper = "keyboard",
     defaultKey = "TAB",
@@ -550,7 +550,7 @@ bindingHandles.cycle = Kora.keybind.add({
 })
 
 bindingHandles.confirm = Kora.keybind.add({
-    name = "qblib_placement_confirm",
+    name = "kora_lib_placement_confirm",
     description = "Entity Placement: Open Summary",
     defaultMapper = "keyboard",
     defaultKey = "RETURN",
@@ -560,7 +560,7 @@ bindingHandles.confirm = Kora.keybind.add({
 })
 
 bindingHandles.cancel = Kora.keybind.add({
-    name = "qblib_placement_cancel",
+    name = "kora_lib_placement_cancel",
     description = "Entity Placement: Cancel",
     defaultMapper = "keyboard",
     defaultKey = "X",
@@ -570,7 +570,7 @@ bindingHandles.cancel = Kora.keybind.add({
 })
 
 bindingHandles.movement = Kora.keybind.add({
-    name = "qblib_placement_movement",
+    name = "kora_lib_placement_movement",
     description = "Entity Placement: Toggle Camera / Grid Movement",
     defaultMapper = "keyboard",
     defaultKey = "G",
@@ -583,14 +583,14 @@ bindingHandles.movement = Kora.keybind.add({
 })
 
 bindingHandles.numeric = Kora.keybind.add({
-    name = 'qblib_placement_numeric', description = 'Entity Placement: Numeric Position and Rotation', defaultMapper = 'keyboard', defaultKey = 'N',
+    name = 'kora_lib_placement_numeric', description = 'Entity Placement: Numeric Position and Rotation', defaultMapper = 'keyboard', defaultKey = 'N',
     onPressed = function()
         if activeState and activeState.options.numericInput then numericInput(activeState) end
     end,
 })
 
 bindingHandles.raycast = Kora.keybind.add({
-    name = 'qblib_placement_raycast', description = 'Entity Placement: Toggle Surface Placement', defaultMapper = 'keyboard', defaultKey = 'R',
+    name = 'kora_lib_placement_raycast', description = 'Entity Placement: Toggle Surface Placement', defaultMapper = 'keyboard', defaultKey = 'R',
     onPressed = function()
         if activeState and activeState.options.raycast ~= nil and not activeState.dialogOpen then
             activeState.raycast = not activeState.raycast
@@ -645,4 +645,3 @@ local function onStartPlacement(model)
 end
 
 RegisterNetEvent("kora_lib:editor:startPlacement", onStartPlacement)
-RegisterNetEvent("qblib:editor:startPlacement", onStartPlacement)

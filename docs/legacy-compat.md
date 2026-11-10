@@ -169,32 +169,32 @@ ox_lib suite compares its vendored upstream files and resource exports against
 the declared ox_lib release. These checks validate compatibility coverage; they
 do not make either resource a default dependency.
 
-## Pre-rename `qblib` names
+## Pre-rename `kora_lib` names
 
-kora_lib was previously named `qblib`. The old names below keep working as
+kora_lib was previously named `kora_lib`. The old names below keep working as
 deprecated aliases or fallbacks; new configuration should use the `kora_lib`
-names. The manifest still `provide`s `qblib`, so `exports['qblib']` and
-`dependency 'qblib'` resolve to kora_lib.
+names. The manifest still `provide`s `kora_lib`, so `exports['kora_lib']` and
+`dependency 'kora_lib'` resolve to kora_lib.
 
 | Surface | Current name | Deprecated name still accepted |
 | --- | --- | --- |
-| Convars | `kora_lib_discord_bot_token`, `kora_lib_discord_guild_id`, `kora_lib_discord_webhook`, `kora_lib_log_webhook`, `kora_lib_screenshot_debug` | the same names starting with `qblib_` (read after the `kora_lib_` name) |
-| Console command | `kora_lib_discord_sync` | `qblib_discord_sync` |
-| ACEs | `kora_lib.config.edit`, `kora_lib.editor` | `qblib.config.edit`, `qblib.editor` |
-| Events | `kora_lib:notify:send`, `kora_lib:client:localeChanged`, `kora_lib:server:configChanged`, `kora_lib:server:updated` / `kora_lib:client:updated` | the same names starting with `qblib:` (fired alongside the new name) |
-| Public gateway | `kora_lib:events:invoke` and its handshake | `qblib:events:invoke` and its handshake |
-| Editor events | `kora_lib:editor:startZoneCreator`, `kora_lib:editor:startPlacement`, `kora_lib:client:configOpened` | the same names starting with `qblib:` |
-| Server callbacks | `kora_lib:minigames:*`, `kora_lib:blips:isAdmin`, `kora_lib:config*` | the same names starting with `qblib:` |
-| NUI callbacks | `kora_lib:nui:response`, `kora_lib:nui:event`, `kora_lib:app:action`, `kora_lib:app:change`, `kora_lib:nui:theme`, `kora_lib:oxLocale`, `kora_lib:dispatchfeed:ready` | the same names starting with `qblib:` |
-| Config bridge exports | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` | `qblib_configRead`, `qblib_configCommit`, `qblib_configReset` |
-| Lookup override file | `kora_lib.lookup.json` | `qblib.lookup.json` (used when the new file is absent) |
-| Blip category KVP | `kora_lib:blips:category:<id>` | `qblib:blips:category:<id>` (read when the new key is unset) |
-| Progress bar `disable.controlProfile` | `'kora_lib'` | `'qblib'` |
+| Convars | `kora_lib_discord_bot_token`, `kora_lib_discord_guild_id`, `kora_lib_discord_webhook`, `kora_lib_log_webhook`, `kora_lib_screenshot_debug` | the same names starting with `kora_lib_` (read after the `kora_lib_` name) |
+| Console command | `kora_lib_discord_sync` | `kora_lib_discord_sync` |
+| ACEs | `kora_lib.config.edit`, `kora_lib.editor` | `kora_lib.config.edit`, `kora_lib.editor` |
+| Events | `kora_lib:notify:send`, `kora_lib:client:localeChanged`, `kora_lib:server:configChanged`, `kora_lib:server:updated` / `kora_lib:client:updated` | the same names starting with `kora_lib:` (fired alongside the new name) |
+| Public gateway | `kora_lib:events:invoke` and its handshake | `kora_lib:events:invoke` and its handshake |
+| Editor events | `kora_lib:editor:startZoneCreator`, `kora_lib:editor:startPlacement`, `kora_lib:client:configOpened` | the same names starting with `kora_lib:` |
+| Server callbacks | `kora_lib:minigames:*`, `kora_lib:blips:isAdmin`, `kora_lib:config*` | the same names starting with `kora_lib:` |
+| NUI callbacks | `kora_lib:nui:response`, `kora_lib:nui:event`, `kora_lib:app:action`, `kora_lib:app:change`, `kora_lib:nui:theme`, `kora_lib:oxLocale`, `kora_lib:dispatchfeed:ready` | the same names starting with `kora_lib:` |
+| Config bridge exports | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` |
+| Lookup override file | `kora_lib.lookup.json` | `kora_lib.lookup.json` (used when the new file is absent) |
+| Blip category KVP | `kora_lib:blips:category:<id>` | `kora_lib:blips:category:<id>` (read when the new key is unset) |
+| Progress bar `disable.controlProfile` | `'kora_lib'` | `'kora_lib'` |
 
 Database tables created by the Discord role directory keep their original
-`qblib_discord_*` names; they are never renamed. Key mappings registered by the
-zone creator, entity placement, and radial menu (`qblib_zonecreator_*`,
-`qblib_placement_*`, `qblib_radialmenu_*`, `qblib_command:*`) also keep their
+`kora_lib_discord_*` names; they are never renamed. Key mappings registered by the
+zone creator, entity placement, and radial menu (`kora_lib_zonecreator_*`,
+`kora_lib_placement_*`, `kora_lib_radialmenu_*`, `kora_lib_command:*`) also keep their
 names, because players' saved key bindings are stored under them.
 
 ## Migration order

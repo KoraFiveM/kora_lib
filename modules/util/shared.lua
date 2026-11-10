@@ -54,7 +54,7 @@ end
 
 ---Cleans external text using one explicit, reusable policy.
 ---@param value any
----@param options? QBCleanTextOptions
+---@param options? KoraCleanTextOptions
 ---@return string|nil text
 ---@return string|nil reason
 function Kora.util.cleanText(value, options)

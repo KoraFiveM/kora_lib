@@ -134,7 +134,7 @@ end
 ---Safely deletes a vehicle after obtaining control. Call this only after the
 ---owning resource's server-side authorization has succeeded.
 ---@param vehicle number
----@param options? QBVehicleDeleteOptions
+---@param options? KoraVehicleDeleteOptions
 ---@return boolean deleted
 ---@return string? error
 function Kora.vehicle.delete(vehicle, options)
@@ -278,7 +278,7 @@ end
 ---Applies QBCore-compatible properties after obtaining network control.
 ---@param vehicle number
 ---@param props table
----@param opts? QBVehicleSetPropertiesOptions
+---@param opts? KoraVehicleSetPropertiesOptions
 ---@return boolean success
 ---@return string? error
 function Kora.vehicle.setProperties(vehicle, props, opts)

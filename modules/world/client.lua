@@ -153,10 +153,10 @@ local function byDistance(a, b)
 end
 
 ---Finds every entity of `entityType` within `radius` meters of `coords`, nearest first, from the live entity pool.
----@param entityType QBWorldEntityType
+---@param entityType KoraWorldEntityType
 ---@param coords any
 ---@param radius number
----@param options? QBWorldQueryOptions
+---@param options? KoraWorldQueryOptions
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
 function Kora.world.getNearbyEntities(entityType, coords, radius, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
@@ -168,9 +168,9 @@ function Kora.world.getNearbyEntities(entityType, coords, radius, options)
 end
 
 ---Finds the single nearest entity of `entityType` to `coords`.
----@param entityType QBWorldEntityType
+---@param entityType KoraWorldEntityType
 ---@param coords any
----@param options? QBWorldQueryOptions `radius` defaults to Config.world.defaultRadius.
+---@param options? KoraWorldQueryOptions `radius` defaults to Config.world.defaultRadius.
 ---@return number|false entity `false` if nothing matched within range.
 ---@return table? coords Only present when an entity was found.
 ---@return number? distance Only present when an entity was found.
@@ -194,7 +194,7 @@ end
 
 ---Resolves the ground Z below an XY coordinate after requesting collision.
 ---@param coords vector3|{x:number,y:number,z:number}
----@param options? QBWorldGroundOptions
+---@param options? KoraWorldGroundOptions
 ---@return table|false coords
 ---@return string? error
 function Kora.world.getGroundCoords(coords, options)
@@ -286,7 +286,7 @@ end
 ---Reports whether no vehicle occupies the requested spawn radius.
 ---@param coords vector3|{x:number,y:number,z:number}
 ---@param radius number
----@param options? QBWorldQueryOptions
+---@param options? KoraWorldQueryOptions
 ---@return boolean clear
 function Kora.world.isSpawnClear(coords, radius, options)
     assertRadius(radius)

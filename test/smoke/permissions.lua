@@ -25,15 +25,15 @@ local LEVELS = { "god", "admin", "mod", "user" }
 
 harness.test("getLevel falls back to 'user' with no grants", function()
     grants = {}
-    harness.assertEqual(Kora.permissions.getLevel(1, LEVELS, "qbcore"), "user", "no ace grants means the lowest level")
+    harness.assertEqual(Kora.permissions.getLevel(1, LEVELS, "kora_core"), "user", "no ace grants means the lowest level")
 end)
 
 harness.test('permission APIs reject malformed player sources before ACE checks', function()
     for _, src in ipairs({ 0, -1, 1.5, 0 / 0, math.huge, -math.huge }) do
-        harness.assertThrows(function() Kora.permissions.getLevel(src, LEVELS, 'qbcore') end)
-        harness.assertThrows(function() Kora.permissions.hasLevel(src, 'mod', LEVELS, 'qbcore') end)
-        harness.assertThrows(function() Kora.permissions.hasPermission(src, 'user', 'qbcore') end)
-        harness.assertThrows(function() Kora.permissions.explain(src, LEVELS, 'qbcore') end)
+        harness.assertThrows(function() Kora.permissions.getLevel(src, LEVELS, 'kora_core') end)
+        harness.assertThrows(function() Kora.permissions.hasLevel(src, 'mod', LEVELS, 'kora_core') end)
+        harness.assertThrows(function() Kora.permissions.hasPermission(src, 'user', 'kora_core') end)
+        harness.assertThrows(function() Kora.permissions.explain(src, LEVELS, 'kora_core') end)
     end
 end)
 
@@ -44,10 +44,10 @@ harness.test('explain rejects malformed levels before calling ACE', function()
         return false
     end
 
-    harness.assertThrows(function() Kora.permissions.explain(1, { 'admin', '' }, 'qbcore') end)
+    harness.assertThrows(function() Kora.permissions.explain(1, { 'admin', '' }, 'kora_core') end)
     harness.assertEqual(aceCalls, 0, 'malformed levels should not reach the ACE native')
 
-    harness.assertThrows(function() Kora.permissions.explain(1, { 'admin', [3] = 'user' }, 'qbcore') end)
+    harness.assertThrows(function() Kora.permissions.explain(1, { 'admin', [3] = 'user' }, 'kora_core') end)
     harness.assertEqual(aceCalls, 0, 'sparse level lists should not reach the ACE native')
 
     _G.IsPlayerAceAllowed = function(src, principal)
@@ -61,7 +61,7 @@ harness.test('permission checks reject oversized level hierarchies before ACE lo
     local aceCalls = 0
     _G.IsPlayerAceAllowed = function() aceCalls = aceCalls + 1; return false end
 
-    harness.assertThrows(function() Kora.permissions.getLevel(1, levels, 'qbcore') end)
+    harness.assertThrows(function() Kora.permissions.getLevel(1, levels, 'kora_core') end)
     harness.assertEqual(aceCalls, 0)
 
     _G.IsPlayerAceAllowed = function(src, principal)
@@ -71,17 +71,17 @@ end)
 
 harness.test("getLevel returns the highest matching level via the prefix namespace", function()
     grants = {}
-    grant(1, "qbcore.mod")
-    harness.assertEqual(Kora.permissions.getLevel(1, LEVELS, "qbcore"), "mod", "the mod principal should resolve to 'mod'")
+    grant(1, "kora_core.mod")
+    harness.assertEqual(Kora.permissions.getLevel(1, LEVELS, "kora_core"), "mod", "the mod principal should resolve to 'mod'")
 
-    grant(1, "qbcore.admin")
-    harness.assertEqual(Kora.permissions.getLevel(1, LEVELS, "qbcore"), "admin", "the higher admin principal should now win")
+    grant(1, "kora_core.admin")
+    harness.assertEqual(Kora.permissions.getLevel(1, LEVELS, "kora_core"), "admin", "the higher admin principal should now win")
 end)
 
 harness.test("getLevel also matches via the shared group.<level> namespace", function()
     grants = {}
     grant(2, "group.god")
-    harness.assertEqual(Kora.permissions.getLevel(2, LEVELS, "qbcore"), "god", "a group.god grant should resolve to 'god' regardless of prefix")
+    harness.assertEqual(Kora.permissions.getLevel(2, LEVELS, "kora_core"), "god", "a group.god grant should resolve to 'god' regardless of prefix")
 end)
 
 harness.test("group.admin ACE remains authoritative when Discord is enabled", function()
@@ -93,7 +93,7 @@ harness.test("group.admin ACE remains authoritative when Discord is enabled", fu
         error("Discord cache unavailable")
     end
 
-    local options = { prefix = "qbcore", discordRoles = { admin = { "Administrator" } } }
+    local options = { prefix = "kora_core", discordRoles = { admin = { "Administrator" } } }
     harness.assertEqual(Kora.permissions.getLevel(7, LEVELS, options), "admin", "group.admin must grant admin")
     harness.assertTrue(Kora.permissions.hasPermission(7, "admin", options), "group.admin must pass exact checks")
     harness.assertEqual(discordChecks, 0, "an ACE grant should not depend on Discord")
@@ -106,7 +106,7 @@ harness.test("Discord roles optionally grant mapped levels and cascade", functio
     end
 
     local options = {
-        prefix = "qbcore",
+        prefix = "kora_core",
         discordRoles = { admin = { "Administrator", "Owner" } },
     }
     harness.assertEqual(Kora.permissions.getLevel(8, LEVELS, options), "admin", "mapped role should resolve its level")
@@ -118,7 +118,7 @@ end)
 harness.test("Discord failures fail closed without granting access", function()
     grants = {}
     Kora.discord.hasAnyRole = function() return false, "Discord member role cache is stale." end
-    local options = { prefix = "qbcore", discordRoles = { admin = "Administrator" } }
+    local options = { prefix = "kora_core", discordRoles = { admin = "Administrator" } }
 
     harness.assertEqual(Kora.permissions.getLevel(10, LEVELS, options), "user", "stale roles must not resolve a level")
     harness.assertFalse(Kora.permissions.hasPermission(10, "admin", options), "stale roles must not grant access")
@@ -139,30 +139,30 @@ end)
 harness.test("getLevel is scoped by prefix: a grant under a different prefix does not match", function()
     grants = {}
     grant(3, "otherresource.admin")
-    harness.assertEqual(Kora.permissions.getLevel(3, LEVELS, "qbcore"), "user", "a grant under a different prefix should not leak across namespaces")
+    harness.assertEqual(Kora.permissions.getLevel(3, LEVELS, "kora_core"), "user", "a grant under a different prefix should not leak across namespaces")
 end)
 
 harness.test("hasPermission always allows 'user'", function()
     grants = {}
-    harness.assertTrue(Kora.permissions.hasPermission(9, "user", "qbcore"), "'user' should always be allowed")
+    harness.assertTrue(Kora.permissions.hasPermission(9, "user", "kora_core"), "'user' should always be allowed")
 end)
 
 harness.test("hasPermission checks <prefix>.<permission> and group.<permission>", function()
     grants = {}
-    harness.assertFalse(Kora.permissions.hasPermission(4, "admin", "qbcore"), "no grant should deny")
+    harness.assertFalse(Kora.permissions.hasPermission(4, "admin", "kora_core"), "no grant should deny")
 
-    grant(4, "qbcore.admin")
-    harness.assertTrue(Kora.permissions.hasPermission(4, "admin", "qbcore"), "a prefix-namespaced grant should allow")
+    grant(4, "kora_core.admin")
+    harness.assertTrue(Kora.permissions.hasPermission(4, "admin", "kora_core"), "a prefix-namespaced grant should allow")
 
     grants = {}
     grant(5, "group.admin")
-    harness.assertTrue(Kora.permissions.hasPermission(5, "admin", "qbcore"), "a group grant should allow")
+    harness.assertTrue(Kora.permissions.hasPermission(5, "admin", "kora_core"), "a group grant should allow")
 end)
 
 harness.test("hasPermission falls back to command.<permission>", function()
     grants = {}
     grant(6, "command.admin")
-    harness.assertTrue(Kora.permissions.hasPermission(6, "admin", "qbcore"), "a command-scoped grant should allow just that permission")
+    harness.assertTrue(Kora.permissions.hasPermission(6, "admin", "kora_core"), "a command-scoped grant should allow just that permission")
 end)
 
 harness.test("prefix is optional while shared group ACEs still work", function()

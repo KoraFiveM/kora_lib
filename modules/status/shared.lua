@@ -24,7 +24,7 @@ end
 ---Registers a named status-effect definition. Call from a `shared_script` so client and server see the same one;
 ---Kora.status ships no bundled effects.
 ---@param name string
----@param def QBStatusEffectDef
+---@param def KoraStatusEffectDef
 ---@return boolean registered
 ---@return string? error
 function Kora.status.registerEffect(name, def)
@@ -69,7 +69,7 @@ function Kora.status.registerEffect(name, def)
 end
 
 ---@param name string
----@return QBStatusEffectDef?
+---@return KoraStatusEffectDef?
 function Kora.status.getEffectDef(name)
     Kora.status.assertName(name)
     local def = registry[name]

@@ -182,7 +182,7 @@ harness.test('aim-target facade translates kora_lib actions and restrictions', f
         { label = 'Use', job = 'police', action = function() selected = selected + 1 end },
     }, 2.0)
     local registration = targetRegistrations[id]
-    harness.assertEqual(registration.kind, 'entity', 'should register through qbtarget')
+    harness.assertEqual(registration.kind, 'entity', 'should register through kora_target')
     harness.assertEqual(registration.distance, 2.0, 'should retain default distance')
     harness.assertTrue(registration.options[1].canInteract(202, 1.0, {}), 'job restriction should be evaluated by kora_lib')
     registration.options[1].onSelect(202, {})
@@ -200,7 +200,7 @@ harness.test('aim-target facade rejects unsafe distances before registration', f
     harness.assertThrows(function()
         Kora.interact.addEntity(202, { { label = 'Use', distance = 0 / 0 } })
     end)
-    harness.assertEqual(next(targetRegistrations), nil, 'an invalid distance must not reach qbtarget')
+    harness.assertEqual(next(targetRegistrations), nil, 'an invalid distance must not reach kora_target')
 end)
 
 harness.test('manual aim-target removal clears resource-stop ownership', function()

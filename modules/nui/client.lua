@@ -770,25 +770,22 @@ function Kora.nui.withFocus(mouse, keyboard, fn, owner)
     return table.unpack(results, 2, results.n)
 end
 
-local LEGACY_ALIASED_CALLBACKS = {
-    ['kora_lib:dispatchfeed:ready'] = true,
-    ['kora_lib:nui:response'] = true,
-    ['kora_lib:nui:event'] = true,
-    ['kora_lib:nui:theme'] = true,
-    ['kora_lib:app:change'] = true,
-    ['kora_lib:app:action'] = true,
-    ['kora_lib:oxLocale'] = true,
-}
-
 ---Registers an NUI callback, wrapping RegisterNUICallback's raw `(data, cb)`
 ---signature so handlers just return a value (or nil) like a normal function.
 ---A handler that errors is logged and responds with an empty table rather than
 ---leaving the NUI's fetch promise hanging.
 ---@param name string
 ---@param handler fun(data: any): any
+-- Handlers by callback name, for in-process callers (the optional FFT hook)
+-- that must reach a callback without a browser fetch. Kora.compat is internal
+-- and never exported by build/finalise.lua.
+Kora.compat = Kora.compat or {}
+Kora.compat.nuiCallbacks = Kora.compat.nuiCallbacks or {}
+
 function Kora.nui.registerCallback(name, handler)
     assert(type(name) == 'string' and name ~= '', 'registerCallback requires a non-empty callback name.')
     assert(isCallable(handler), 'registerCallback requires a callable handler.')
+    Kora.compat.nuiCallbacks[name] = handler
     local function register(callbackName)
         RegisterNUICallback(callbackName, function(data, cb)
             local ok, result = pcall(handler, data)
@@ -804,14 +801,13 @@ function Kora.nui.registerCallback(name, handler)
     end
 
     register(name)
-    if LEGACY_ALIASED_CALLBACKS[name] then register('qblib:' .. name:sub(#'kora_lib:' + 1)) end
 end
 
 local feedPayload = false
 local feedUpdatedAt = 0
 local feedOwnership = Kora.resources.registry(function()
     feedPayload = false
-    Kora.nui.send('qbdispatch:feed', false)
+    Kora.nui.send('kora_dispatch:feed', false)
 end)
 
 ---Updates kora_dispatch's display-only feed without taking focus.
@@ -829,7 +825,7 @@ function Kora.nui.setDispatchFeed(payload)
         feedUpdatedAt = GetGameTimer()
     end
     feedPayload = payload
-    Kora.nui.send('qbdispatch:feed', payload)
+    Kora.nui.send('kora_dispatch:feed', payload)
     return true
 end
 
@@ -840,7 +836,7 @@ Kora.nui.registerCallback('kora_lib:dispatchfeed:ready', function()
         for key, value in pairs(feedPayload) do payload[key] = value end
         payload.now = feedPayload.now + (GetGameTimer() - feedUpdatedAt)
     end
-    Kora.nui.send('qbdispatch:feed', payload)
+    Kora.nui.send('kora_dispatch:feed', payload)
     return true
 end)
 
@@ -1260,7 +1256,7 @@ end
 
 ---Opens a schema-driven input form. Grants NUI focus while open and releases
 ---it when the dialog closes (submit or cancel).
----@param fields table[] QBInputField[] -- see modules/nui/docs.md for the full shared field contract.
+---@param fields table[] KoraInputField[] -- see modules/nui/docs.md for the full shared field contract.
 ---@param title? string
 ---@param description? string
 ---@return promise|any result Resolves/returns `{ values: table<string, any> }` or `{ cancelled: true }`. See Kora.nui.request's return doc.
@@ -1277,7 +1273,7 @@ function Kora.nui.openInputDialog(fields, title, description)
 end
 
 local function applyAppAccent(registration)
-    QBTheme.apply(registration and registration.browser.accent or nil)
+    KoraTheme.apply(registration and registration.browser.accent or nil)
 end
 
 appOwnership = Kora.resources.registry(function(id)
@@ -1317,7 +1313,7 @@ end)
 ---Registers a declarative full-screen application shell. The definition owns
 ---navigation, tabs, standard content blocks, and an optional Lua action
 ---handler. Registrations are automatically removed when their owner stops.
----@param definition table QBAppDefinition
+---@param definition table KoraAppDefinition
 ---@return string id
 function Kora.nui.registerApp(definition)
     assert(type(definition) == "table", "registerApp requires a definition table.")
@@ -1448,7 +1444,7 @@ end
 ---a whole when supplied; active instances receive the updated definition
 ---immediately without losing their selected view/tab when those still exist.
 ---@param id string
----@param update table Partial QBAppDefinition (id/onAction/onChange excluded).
+---@param update table Partial KoraAppDefinition (id/onAction/onChange excluded).
 ---@return boolean updated
 function Kora.nui.updateApp(id, update)
     assertAppId(id)

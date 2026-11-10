@@ -21,9 +21,4 @@ harness.test('Kora is the primary global', function()
     harness.assertEqual(type(Kora), 'table')
 end)
 
-harness.test('legacy QB global is the same table, so older resources keep working', function()
-    harness.assertTrue(rawequal(QB, Kora), 'QB must alias Kora')
-    harness.assertTrue(rawequal(QB.notify, Kora.notify), 'module proxies must be shared')
-end)
-
 harness.report('global_alias')

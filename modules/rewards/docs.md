@@ -9,7 +9,7 @@ The rewards module rolls one or more items out of a reward pool — loot tables,
 Generates rewards from a pool of possible items.
 
 #### Parameters
-- `items: QBRewardItem[]` — Reward pool. Must be a non-empty dense array. Each entry may carry:
+- `items: KoraRewardItem[]` — Reward pool. Must be a non-empty dense array. Each entry may carry:
   - `chance?: number` — A finite positive number. Weighted mode: a relative weight. Percent mode: a probability in `(0, 100]`. Omitted entirely, an item shares an equal chance with every other item that also omitted it (see [Default chance](#default-chance) below).
   - `amount?: number | { min: integer, max: integer }` — A finite flat amount, or integer range to roll. Defaults to `1`.
   - Any other fields (`name`, `label`, ...) are your own data and pass straight through to the result untouched.

@@ -24,7 +24,7 @@ function Kora.logging.event(category, src, data)
     counts[category] = (counts[category] or 0) + 1
 
     local url = GetConvar('kora_lib_log_webhook', '')
-    if url == '' then url = GetConvar('qblib_log_webhook', GetConvar('qbcore_log_webhook', '')) end
+    if url == '' then url = GetConvar('kora_lib_log_webhook', GetConvar('kora_core_log_webhook', '')) end
     if url ~= '' then
         local resource = GetInvokingResource() or GetCurrentResourceName()
         local encoded, encodedData = pcall(json.encode, data or {})

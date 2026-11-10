@@ -39,7 +39,7 @@ work such as fonts drawn by natives or sent in custom NUI messages.
 
 ### `Kora.theme.push()`
 
-Client-only. Calls the imported `QBTheme.refresh()` bridge to reapply kora_theme to
+Client-only. Calls the imported `KoraTheme.refresh()` bridge to reapply kora_theme to
 kora_lib's own NUI frame.
 
 New UI resources should depend directly on `kora_theme`, import

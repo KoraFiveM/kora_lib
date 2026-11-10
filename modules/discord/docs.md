@@ -31,8 +31,8 @@ set kora_lib_discord_guild_id "123456789012345678"
 
 Restart kora_lib after enabling the bot token so its background heartbeat starts.
 
-The deprecated `qblib_discord_webhook`, `qblib_discord_bot_token`, and
-`qblib_discord_guild_id` convars and the `qblib_discord_sync` console command are
+The deprecated `kora_lib_discord_webhook`, `kora_lib_discord_bot_token`, and
+`kora_lib_discord_guild_id` convars and the `kora_lib_discord_sync` console command are
 still read as fallbacks when the `kora_lib_` names are unset. The role directory's
 database tables are named `kora_lib_discord_*`.
 The interval and authorization-cache TTL default to five and ten minutes,

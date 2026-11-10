@@ -97,7 +97,7 @@ harness.test("scanner flags every bad manifest form", function()
         'provide "ox_lib"',
         "provide('ox_lib')",
         "provide   (  \"ox_lib\"  )",
-        "provides { 'qblib', 'ox_lib' }",
+        "provides { 'kora_lib', 'ox_lib' }",
         "provides {\n  'a',\n  \"ox_lib\",\n}",
     }
     for _, sample in ipairs(bad) do
@@ -107,9 +107,9 @@ end)
 
 harness.test("scanner accepts good manifests and ignores comments", function()
     local good = {
-        "provide 'qblib'\nprovide 'qb-menu'",
-        "-- provide 'ox_lib' would be wrong\nprovide 'qblib'",
-        "provides { 'qblib', 'qb-input' }",
+        "provide 'kora_lib'\nprovide 'qb-menu'",
+        "-- provide 'ox_lib' would be wrong\nprovide 'kora_lib'",
+        "provides { 'kora_lib', 'qb-input' }",
         "dependency 'ox_lib'",
         "shared_script '@ox_lib/init.lua'",
         "provide 'ox_lib_extras'",

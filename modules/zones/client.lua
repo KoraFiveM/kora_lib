@@ -10,7 +10,7 @@ local debugZones = {}
 
 local function interactionsLocked()
     local state = LocalPlayer and LocalPlayer.state
-    return state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false
+    return state and state['kora_multichar:mode'] and state['kora_multichar:mode'] ~= false
 end
 
 local setZoneDebug
@@ -620,38 +620,38 @@ local function createZone(zoneType, opts, initShape)
 end
 
 ---Creates a rotatable box zone.
----@param opts QBZoneBoxOptions
----@return QBZoneHandle zone
+---@param opts KoraZoneBoxOptions
+---@return KoraZoneHandle zone
 function Kora.zones.box(opts)
     return createZone("box", opts, initBox)
 end
 
 ---Creates a sphere zone.
----@param opts QBZoneSphereOptions
----@return QBZoneHandle zone
+---@param opts KoraZoneSphereOptions
+---@return KoraZoneHandle zone
 function Kora.zones.sphere(opts)
     return createZone("sphere", opts, initSphere)
 end
 
 ---Creates a flat 2D circle zone. Its containment test ignores the point's Z coordinate.
----@param opts QBZoneCircleOptions
----@return QBZoneHandle zone
+---@param opts KoraZoneCircleOptions
+---@return KoraZoneHandle zone
 function Kora.zones.circle(opts)
     return createZone("circle", opts, initCircle)
 end
 
 ---Creates a polygon zone: a 2D footprint (opts.points) extruded across a vertical height
 ---band (opts.minZ/opts.maxZ, or opts.thickness upward from the lowest point's Z).
----@param opts QBZonePolyOptions
----@return QBZoneHandle zone
+---@param opts KoraZonePolyOptions
+---@return KoraZoneHandle zone
 function Kora.zones.poly(opts)
     return createZone("poly", opts, initPoly)
 end
 
 ---Creates a point zone. Not a separate shape: this is a sphere zone with a small default
 ---radius, and returns the exact same zone handle Kora.zones.sphere does.
----@param opts QBZoneSphereOptions `radius` defaults to Config.zones.defaultPointRadius.
----@return QBZoneHandle zone
+---@param opts KoraZoneSphereOptions `radius` defaults to Config.zones.defaultPointRadius.
+---@return KoraZoneHandle zone
 function Kora.zones.point(opts)
     assert(type(opts) == "table", "Point zone options must be a table.")
     if opts.radius == nil then
@@ -666,7 +666,7 @@ end
 
 ---Every zone the local player is currently inside, across every resource (a registry walk, no containment maths).
 ---@param resource? string Only return zones owned by this resource. Omit for all of them.
----@return QBZoneHandle[] zones Unordered -- the registry is a hash, not a list.
+---@return KoraZoneHandle[] zones Unordered -- the registry is a hash, not a list.
 function Kora.zones.getInside(resource)
     assert(resource == nil or type(resource) == "string", "resource filter must be a string.")
 
@@ -682,7 +682,7 @@ function Kora.zones.getInside(resource)
 end
 
 ---Toggles debug wireframe drawing on one zone (or every zone) at runtime. Also available as `zone.setDebug(enabled)`
----and via the `qb_zonedebug` command.
+---and via the `kora_zonedebug` command.
 ---@param id? integer A zone id (`zone.id`). Omit (nil) to affect every registered zone.
 ---@param enabled boolean
 ---@return boolean changed
@@ -1249,17 +1249,17 @@ local function registerCreatorKeybind(command, label, key, handler, mapper)
     return handle
 end
 
-registerCreatorKeybind("qblib_zonecreator_place", "Zone Creator: Place Point", "E", creatorPlace)
-registerCreatorKeybind("qblib_zonecreator_undo", "Zone Creator: Undo Last Point", "BACK", creatorUndo)
-registerCreatorKeybind("qblib_zonecreator_place_click", "Zone Creator: Place Point (Mouse)", "MOUSE_LEFT", creatorPlace, "MOUSE_BUTTON")
-registerCreatorKeybind("qblib_zonecreator_undo_click", "Zone Creator: Undo Last Point (Mouse)", "MOUSE_RIGHT", creatorUndo, "MOUSE_BUTTON")
-registerCreatorKeybind("qblib_zonecreator_cycle", "Zone Creator: Cycle Adjustable Parameter (Shift reverses)", "TAB", creatorCycleParam)
+registerCreatorKeybind("kora_lib_zonecreator_place", "Zone Creator: Place Point", "E", creatorPlace)
+registerCreatorKeybind("kora_lib_zonecreator_undo", "Zone Creator: Undo Last Point", "BACK", creatorUndo)
+registerCreatorKeybind("kora_lib_zonecreator_place_click", "Zone Creator: Place Point (Mouse)", "MOUSE_LEFT", creatorPlace, "MOUSE_BUTTON")
+registerCreatorKeybind("kora_lib_zonecreator_undo_click", "Zone Creator: Undo Last Point (Mouse)", "MOUSE_RIGHT", creatorUndo, "MOUSE_BUTTON")
+registerCreatorKeybind("kora_lib_zonecreator_cycle", "Zone Creator: Cycle Adjustable Parameter (Shift reverses)", "TAB", creatorCycleParam)
 
-registerCreatorKeybind("qblib_zonecreator_confirm", "Zone Creator: Confirm / Open Summary", "RETURN", function(state)
+registerCreatorKeybind("kora_lib_zonecreator_confirm", "Zone Creator: Confirm / Open Summary", "RETURN", function(state)
     if creatorCanConfirm(state) then openConfirmDialog(state) end
 end)
 
-registerCreatorKeybind("qblib_zonecreator_cancel", "Zone Creator: Cancel", "X", function() resolveCreator(nil) end)
+registerCreatorKeybind("kora_lib_zonecreator_cancel", "Zone Creator: Cancel", "X", function() resolveCreator(nil) end)
 
 local function updateCreatorInstructions(state)
     if not state.instructions then return end
@@ -1276,18 +1276,18 @@ local function updateCreatorInstructions(state)
         { control = 33, label = "Move backward", group = "Move" },
         { control = 34, label = "Move left", group = "Move" },
         { control = 35, label = "Move right", group = "Move" },
-        { keybind = creatorBindings.qblib_zonecreator_movement, label = "Movement: " .. movementLabel },
-        { keybind = creatorBindings.qblib_zonecreator_place, label = placeLabel },
-        { keybind = creatorBindings.qblib_zonecreator_place_click, label = placeLabel },
-        { keybind = creatorBindings.qblib_zonecreator_undo, label = "Undo" },
-        { keybind = creatorBindings.qblib_zonecreator_undo_click, label = "Undo" },
-        { keybind = creatorBindings.qblib_zonecreator_cycle, label = "Adjust: " .. paramLabel },
-        { keybind = creatorBindings.qblib_zonecreator_confirm, label = "Confirm" },
-        { keybind = creatorBindings.qblib_zonecreator_cancel, label = "Cancel" },
+        { keybind = creatorBindings.kora_lib_zonecreator_movement, label = "Movement: " .. movementLabel },
+        { keybind = creatorBindings.kora_lib_zonecreator_place, label = placeLabel },
+        { keybind = creatorBindings.kora_lib_zonecreator_place_click, label = placeLabel },
+        { keybind = creatorBindings.kora_lib_zonecreator_undo, label = "Undo" },
+        { keybind = creatorBindings.kora_lib_zonecreator_undo_click, label = "Undo" },
+        { keybind = creatorBindings.kora_lib_zonecreator_cycle, label = "Adjust: " .. paramLabel },
+        { keybind = creatorBindings.kora_lib_zonecreator_confirm, label = "Confirm" },
+        { keybind = creatorBindings.kora_lib_zonecreator_cancel, label = "Cancel" },
     })
 end
 
-registerCreatorKeybind("qblib_zonecreator_movement", "Zone Creator: Toggle Camera / Grid Movement", "G", function(state)
+registerCreatorKeybind("kora_lib_zonecreator_movement", "Zone Creator: Toggle Camera / Grid Movement", "G", function(state)
     state.movementMode = state.movementMode == "camera" and "grid" or "camera"
     state.freecam.setMovementMode(state.movementMode)
     state.lastInstructionKey = nil
@@ -1478,13 +1478,13 @@ function Kora.zones.startCreator(zoneType, existingOpts)
 end
 
 ---Whether a zone creator session currently owns player input. Lets resources with a colliding default keybind (e.g.
----kora_inventory's TAB vs qblib_zonecreator_cycle) bail instead of firing alongside the creator.
+---kora_inventory's TAB vs kora_lib_zonecreator_cycle) bail instead of firing alongside the creator.
 ---@return boolean
 function Kora.zones.isCreatorActive()
     return creatorState ~= nil
 end
 
-RegisterCommand("qb_zonedebug", function(_, args)
+RegisterCommand("kora_zonedebug", function(_, args)
     local arg = args[1] and tostring(args[1]):lower() or nil
     local enabled
 
@@ -1495,7 +1495,7 @@ RegisterCommand("qb_zonedebug", function(_, args)
     elseif arg == nil then
         enabled = next(debugZones) == nil
     else
-        creatorLog(("qb_zonedebug: unrecognised argument '%s' -- use 'on', 'off', or no argument to toggle."):format(arg))
+        creatorLog(("kora_zonedebug: unrecognised argument '%s' -- use 'on', 'off', or no argument to toggle."):format(arg))
         return
     end
 
@@ -1504,7 +1504,7 @@ RegisterCommand("qb_zonedebug", function(_, args)
 end, false)
 
 local function suggestZoneDebug()
-    TriggerEvent("chat:addSuggestion", "/qb_zonedebug", "Toggle zone debug drawing", {
+    TriggerEvent("chat:addSuggestion", "/kora_zonedebug", "Toggle zone debug drawing", {
         { name = "on|off", help = "Optional; omit to toggle" },
     })
 end
@@ -1513,9 +1513,9 @@ AddEventHandler("chat:init", suggestZoneDebug)
 
 ---Edits an existing zone without replacing its handle. Only `coords`, `onEnter` and `onExit` can change; pass
 ---`false` for a callback to remove it.
----@param handle QBZoneHandle
----@param opts QBZoneEditOptions
----@return QBZoneHandle? handle The same handle passed to the function, or nil for a foreign zone.
+---@param handle KoraZoneHandle
+---@param opts KoraZoneEditOptions
+---@return KoraZoneHandle? handle The same handle passed to the function, or nil for a foreign zone.
 ---@return string? error
 function Kora.zones.edit(handle, opts)
     return editZone(handle, opts)
@@ -1535,4 +1535,3 @@ local function onStartZoneCreator(zoneType)
 end
 
 RegisterNetEvent("kora_lib:editor:startZoneCreator", onStartZoneCreator)
-RegisterNetEvent("qblib:editor:startZoneCreator", onStartZoneCreator)

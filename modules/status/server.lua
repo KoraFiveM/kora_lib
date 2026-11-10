@@ -19,7 +19,7 @@ end
 
 ---@param target integer
 ---@param name string
----@param opts? QBStatusApplyOptions
+---@param opts? KoraStatusApplyOptions
 ---@return boolean success
 ---@return string? error
 function Kora.status.apply(target, name, opts)
@@ -113,7 +113,7 @@ function Kora.status.isActive(target, name)
 end
 
 ---@param target integer
----@return QBStatusActiveEntry[]
+---@return KoraStatusActiveEntry[]
 function Kora.status.getActive(target)
     assertPlayerTarget(target, "getActive")
 

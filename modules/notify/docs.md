@@ -9,7 +9,7 @@ Shows a title/message notification (a toast) to one player, every connected play
 Shows a notification on the local player.
 
 #### Parameters
-- `payload: QBNotifyPayload`
+- `payload: KoraNotifyPayload`
   - `title?: string`, `message?: string` — At least one is required. Both must be strings.
   - `duration?: integer` — Milliseconds. Defaults to `Config.notify.defaultDuration`, capped at `Config.notify.maxDuration`.
   - `type?: "info" | "success" | "warning" | "error"` — Visual variant (accent colour + icon). Defaults to `Config.notify.defaultType`.
@@ -46,7 +46,7 @@ Sends a notification to a specific player.
 
 #### Parameters
 - `src: integer` — Server ID of the target player, or `-1` for every connected player.
-- `payload: QBNotifyPayload` — Same shape as the client version.
+- `payload: KoraNotifyPayload` — Same shape as the client version.
 
 `src` must be `-1` or a positive integer server ID. Invalid recipients are
 logged and dropped, just like malformed payloads.
@@ -72,4 +72,4 @@ Returns a copy of `payload` with its `type` alias resolved via `normalizeType` (
 - `duration` defaults to `Config.notify.defaultDuration` (5000ms), must be a finite whole number of milliseconds, and must be `<= Config.notify.maxDuration` (120000ms by default).
 - A malformed payload never throws out of `send` — it's caught internally and the notification is silently dropped.
 - Toasts stack per position, newest nearest the screen edge, capped at 6 on screen at once (oldest dropped) so a spamming caller can't grow the overlay unboundedly.
-- Set `Config.third_party_notify = true` to route every notification through the `kora_lib:notify:send` event (also fired as the deprecated `qblib:notify:send`) instead of kora_lib's own NUI toast, if you'd rather use a different notification resource. In that mode the payload is forwarded exactly as given — `withDefaults` is *not* applied, since a third-party resource has its own defaults.
+- Set `Config.third_party_notify = true` to route every notification through the `kora_lib:notify:send` event (also fired as the deprecated `kora_lib:notify:send`) instead of kora_lib's own NUI toast, if you'd rather use a different notification resource. In that mode the payload is forwarded exactly as given — `withDefaults` is *not* applied, since a third-party resource has its own defaults.

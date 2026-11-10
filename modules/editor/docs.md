@@ -7,7 +7,7 @@ create a networked entity.
 ## Setup
 
 The commands are enabled by default and require the `kora_lib.editor` ACE. Grant
-that ACE only to trusted developers or administrators (the deprecated `qblib.editor` ACE is still honoured):
+that ACE only to trusted developers or administrators (the deprecated `kora_lib.editor` ACE is still honoured):
 
 ```cfg
 add_ace group.admin kora_lib.editor allow
@@ -20,8 +20,8 @@ Config.editor = {
     enabled = true,
     permission = 'editor',
     permissionPrefix = 'kora_lib',
-    zoneCommand = 'qb_zonecreator',
-    placementCommand = 'qb_place',
+    zoneCommand = 'kora_zonecreator',
+    placementCommand = 'kora_place',
 }
 ```
 
@@ -30,14 +30,14 @@ command by changing its matching configuration field before kora_lib starts.
 
 ## Zone creator
 
-`/qb_zonecreator [box|sphere|poly]` starts the zone creator; omitting the
+`/kora_zonecreator [box|sphere|poly]` starts the zone creator; omitting the
 shape starts a box creator. The result is copied as a `Kora.zones.<shape>({...})`
 snippet after confirmation. Invalid shapes show command usage instead of
 opening the editor.
 
 ## Entity placement
 
-`/qb_place <model>` starts the local placement preview for a model name. The
+`/kora_place <model>` starts the local placement preview for a model name. The
 model argument is limited to letters, numbers, underscores, and hyphens, with
 a maximum length of 64 characters. Confirmation returns and copies placement
 data; the preview is always local and is deleted when the session ends.

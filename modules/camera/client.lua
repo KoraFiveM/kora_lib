@@ -183,7 +183,7 @@ end
 
 ---Opens the reusable camera overlay. Fixed cameras use `cameras`; recording,
 ---helicam, and operator modes can omit it to keep the player's native view.
----@param options QBCameraOptions
+---@param options KoraCameraOptions
 ---@return boolean opened
 function Kora.camera.open(options)
     local normalized, cameras = normalizedOptions(options)

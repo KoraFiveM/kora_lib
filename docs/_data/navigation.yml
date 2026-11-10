@@ -85,4 +85,4 @@
 - title: Project
   items:
     - { title: Documentation upkeep, url: /contributing/ }
-    - { title: GitHub, url: 'https://github.com/qbcore2/qblib', external: true }
+    - { title: GitHub, url: 'https://github.com/qbcore2/kora_lib', external: true }

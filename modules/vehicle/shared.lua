@@ -1,6 +1,6 @@
 ---Normalizes a vehicle plate into the canonical uppercase form used for lookups.
 ---@param value any
----@param options? QBVehicleNormalizePlateOptions
+---@param options? KoraVehicleNormalizePlateOptions
 ---@return string|nil plate
 ---@return string|nil reason
 function Kora.vehicle.normalizePlate(value, options)

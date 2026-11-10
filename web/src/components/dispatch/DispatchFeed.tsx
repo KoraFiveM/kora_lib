@@ -133,7 +133,7 @@ export function DispatchFeed() {
     const [now, setNow] = useState(0)
     const clock = useRef({ now: 0, at: 0 })
 
-    useNuiEvent<DispatchFeedPayload | false>("qbdispatch:feed", (data) => {
+    useNuiEvent<DispatchFeedPayload | false>("kora_dispatch:feed", (data) => {
         if (!data || typeof data.now !== "number") {
             setPayload(null)
             return

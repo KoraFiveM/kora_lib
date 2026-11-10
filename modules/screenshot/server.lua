@@ -13,7 +13,7 @@ end
 local function screenshotDebug(session, stage, detail)
     local config = (Config and Config.screenshot) or {}
     if GetConvarInt(config.debugConvar or 'kora_lib_screenshot_debug', 0) ~= 1
-        and GetConvarInt('qblib_screenshot_debug', 0) ~= 1 then return end
+        and GetConvarInt('kora_lib_screenshot_debug', 0) ~= 1 then return end
 
     local elapsed = screenshotMilliseconds() - (session.startedAt or screenshotMilliseconds())
     local suffix = detail and detail ~= '' and ('; %s'):format(detail) or ''

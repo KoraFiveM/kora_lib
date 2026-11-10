@@ -39,8 +39,8 @@ end
 
 ---Plays a particle effect, releasing `def.dict` right after the effect starts (the running effect no longer needs it).
 ---Bone attachment is only honored for a looped effect on an `entity`; a non-looped one plays at the entity origin, ignoring `bone`.
----@param def QBFxPtfxDef
----@return QBFxPtfxHandle | false handle False if `def.dict` never streamed in time.
+---@param def KoraFxPtfxDef
+---@return KoraFxPtfxHandle | false handle False if `def.dict` never streamed in time.
 ---@return string? error
 function Kora.fx.playPtfx(def)
     assert(type(def) == "table", "Kora.fx.playPtfx requires a def table.")
@@ -123,7 +123,7 @@ function Kora.fx.playPtfx(def)
 end
 
 ---Stops a looped particle effect started with `Kora.fx.playPtfx`; a no-op for non-looped handles.
----@param handle QBFxPtfxHandle | false
+---@param handle KoraFxPtfxHandle | false
 ---@return boolean stopped
 function Kora.fx.stop(handle)
     if not handle or not handle.looped or not handle.particleId then return false end
@@ -142,7 +142,7 @@ end
 ---@param name string
 ---@param duration? integer ms passed to `StartScreenEffect`. Defaults to 0 (the effect's own default).
 ---@param looped? boolean Defaults to false.
----@return QBFxScreenHandle handle
+---@return KoraFxScreenHandle handle
 function Kora.fx.screenEffect(name, duration, looped)
     assert(type(name) == "string" and #name > 0, "Kora.fx.screenEffect requires a string effect name.")
     assert(looped == nil or type(looped) == "boolean", "Kora.fx.screenEffect looped must be a boolean.")
@@ -161,7 +161,7 @@ function Kora.fx.screenEffect(name, duration, looped)
 end
 
 ---Stops a screen effect started with `Kora.fx.screenEffect`.
----@param handle QBFxScreenHandle | false
+---@param handle KoraFxScreenHandle | false
 ---@return boolean stopped
 function Kora.fx.stopScreenEffect(handle)
     if not handle then return false end

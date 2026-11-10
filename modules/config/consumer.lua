@@ -146,7 +146,7 @@ return function(library)
 
         local acronyms = {
             ace = 'ACE', api = 'API', bolo = 'BOLO', id = 'ID', ids = 'IDs', kvp = 'KVP',
-            mdt = 'MDT', npc = 'NPC', nui = 'NUI', qb = 'QB', qbcore = 'QB Core', sql = 'SQL',
+            mdt = 'MDT', npc = 'NPC', nui = 'NUI', qb = 'QB', kora = 'Kora', kora_core = 'Kora Core', sql = 'SQL',
             ttl = 'TTL', ui = 'UI', url = 'URL', urls = 'URLs', xp = 'XP',
         }
         local words = {}
@@ -1227,7 +1227,6 @@ return function(library)
             if isServer and schema.scope ~= 'server' then
                 local encodedValue = encodeStorage(value)
                 TriggerClientEvent('kora_lib:client:configUpdated', -1, RESOURCE, path, encodedValue, state.revision)
-                TriggerClientEvent('qblib:client:configUpdated', -1, RESOURCE, path, encodedValue, state.revision)
             end
         end
         announce()
@@ -1273,14 +1272,10 @@ return function(library)
         exports('kora_lib_configRead', bridgeRead)
         exports('kora_lib_configCommit', bridgeCommit)
         exports('kora_lib_configReset', bridgeReset)
-        exports('qblib_configRead', bridgeRead)
-        exports('qblib_configCommit', bridgeCommit)
-        exports('qblib_configReset', bridgeReset)
     end
 
     local function registerNetEventWithLegacyAlias(name, handler)
         RegisterNetEvent(name, handler)
-        RegisterNetEvent((name:gsub('^kora_lib:', 'qblib:')), handler)
     end
 
     if not isServer and type(RegisterNetEvent) == 'function' then

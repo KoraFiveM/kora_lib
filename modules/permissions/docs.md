@@ -3,7 +3,7 @@
 ## Overview
 The central server-side permission gateway for FiveM ACEs and optional Discord
 roles. The level vocabulary (for example `'user'`/`'mod'`/`'admin'`/`'god'`)
-and ACE namespace prefix (for example `'qbcore'`) are supplied by the caller,
+and ACE namespace prefix (for example `'kora_core'`) are supplied by the caller,
 so kora_lib does not impose a framework-specific permission model.
 
 ACE checks are always active. Discord roles are additive: a configured role
@@ -16,7 +16,7 @@ The final argument may be the legacy prefix string or an options table:
 
 ```lua
 local options = {
-    prefix = 'qbcore',
+    prefix = 'kora_core',
     discordRoles = {
         mod = { 'Moderator' },
         admin = { '123456789012345678' }, -- role IDs avoid duplicate-name ambiguity
@@ -51,7 +51,7 @@ Resolves the highest privilege level a player holds.
 #### Example
 ```lua
 local LEVELS = { 'god', 'admin', 'mod', 'user' }
-local level = Kora.permissions.getLevel(source, LEVELS, 'qbcore')
+local level = Kora.permissions.getLevel(source, LEVELS, 'kora_core')
 ```
 
 ### `Kora.permissions.hasLevel(src, required, levels, prefixOrOptions?)` -- server
@@ -82,7 +82,7 @@ Checks whether a player holds one specific permission.
 
 #### Example
 ```lua
-if Kora.permissions.hasPermission(source, 'admin', 'qbcore') then
+if Kora.permissions.hasPermission(source, 'admin', 'kora_core') then
     -- ...
 end
 ```
@@ -116,7 +116,7 @@ rejected before any ACE lookup.
 
 #### Example
 ```lua
-local checks, resolved = Kora.permissions.explain(source, LEVELS, 'qbcore')
+local checks, resolved = Kora.permissions.explain(source, LEVELS, 'kora_core')
 for _, check in ipairs(checks) do
     print(check.object, check.raw, check.type, check.allowed)
 end
@@ -132,7 +132,7 @@ end
   everyone -- over-permission, not under. A "no permissions" report is almost
   always an `add_principal` naming an identifier the player does not hold;
   `explain` above prints the objects, and kora_admin's console-only
-  `qbadmin_whyperms <id>` prints those alongside the player's real identifiers.
+  `kora_admin_whyperms <id>` prints those alongside the player's real identifiers.
 - Grants are ordinary ace principals -- add them with `add_ace`/`add_principal` in `server.cfg` or at runtime via `ExecuteCommand`, same as any other FXServer permission.
 - ACEs are evaluated before Discord, so `group.admin` continues to work when
   the bot is disabled or its cache is unavailable.

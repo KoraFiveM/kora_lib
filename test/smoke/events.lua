@@ -444,13 +444,13 @@ harness.test("onPush: a handler is dropped when its owning resource stops", func
     harness.assertEqual(received, nil, "no push handler should run once it's been swept on resource stop")
 end)
 
-harness.test("the deprecated qblib: gateway and handshake names are still accepted", function()
-    harness.assertEqual(net.netHandlers["qblib:events:invoke"][1], net.netHandlers[GATEWAY][1],
+harness.test("the deprecated kora_lib: gateway and handshake names are still accepted", function()
+    harness.assertEqual(net.netHandlers["kora_lib:events:invoke"][1], net.netHandlers[GATEWAY][1],
         "the legacy gateway should share the dispatch handler")
     _G.source = mocks.SOURCE
-    for _, fn in ipairs(net.netHandlers["qblib:events:handshake"]) do fn() end
+    for _, fn in ipairs(net.netHandlers["kora_lib:events:handshake"]) do fn() end
     _G.source = nil
-    harness.assertTrue(mocks.lastEntry(net.triggeredClientEvents, "qblib:events:handshake:response") ~= nil,
+    harness.assertTrue(mocks.lastEntry(net.triggeredClientEvents, "kora_lib:events:handshake:response") ~= nil,
         "a legacy handshake should answer on the legacy response event")
 end)
 

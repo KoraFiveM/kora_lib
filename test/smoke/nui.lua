@@ -37,9 +37,9 @@ end
 _G.IsNuiFocusKeepingInput = function() return currentKeepInput end
 
 local playerAccent = "#7C3AED"
-_G.QBTheme = {
+_G.KoraTheme = {
     apply = function(accent)
-        SendNUIMessage({ action = "qbtheme:override", data = accent or playerAccent })
+        SendNUIMessage({ action = "kora_theme:override", data = accent or playerAccent })
     end,
 }
 
@@ -765,7 +765,7 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     local sent = sentMessages[#sentMessages]
     harness.assertEqual(sent.action, "openApp", "openApp should send its dedicated action")
     local accent = sentMessages[#sentMessages - 1]
-    harness.assertEqual(accent.action, "qbtheme:override", "the app accent should be applied through kora_lib's frame")
+    harness.assertEqual(accent.action, "kora_theme:override", "the app accent should be applied through kora_lib's frame")
     harness.assertEqual(accent.data, definition.accent, "the configured app accent should be forwarded")
     harness.assertEqual(sent.data.payload.app.id, definition.id, "the registered browser definition should be sent")
     harness.assertEqual(sent.data.payload.app.onAction, nil, "Lua action handlers must never enter the JSON payload")
@@ -777,7 +777,7 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     respond(requestId, token, true, { closed = true, reason = "close", viewId = "people" })
     harness.assertEqual(p.value.reason, "close", "the browser close result should settle openApp")
     harness.assertFalse(Kora.nui.isAppOpen(), "settling openApp should clear the active instance")
-    harness.assertEqual(sentMessages[#sentMessages].action, "qbtheme:override", "closing should reset the app accent")
+    harness.assertEqual(sentMessages[#sentMessages].action, "kora_theme:override", "closing should reset the app accent")
     harness.assertEqual(sentMessages[#sentMessages].data, playerAccent, "closing should restore the player's /theme colour")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "settling openApp should release NUI focus")
     harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
@@ -907,7 +907,7 @@ harness.test("an app without its own accent keeps the player's /theme colour", f
 
     local open = sentMessages[#sentMessages]
     local accent = sentMessages[#sentMessages - 1]
-    harness.assertEqual(accent.action, "qbtheme:override", "opening should apply the effective theme through qbtheme")
+    harness.assertEqual(accent.action, "kora_theme:override", "opening should apply the effective theme through kora_theme")
     harness.assertEqual(accent.data, playerAccent, "an unthemed app must retain the player's saved colour")
 
     respond(open.data.requestId, open.data.token, true, { closed = true, reason = "close" })
@@ -1477,7 +1477,7 @@ harness.test("dispatch feed replays its latest state and cleans up only its owne
         local result
         nuiCallbacks['kora_lib:dispatchfeed:ready']({}, function(value) result = value end)
         harness.assertEqual(result, true, 'ready acknowledges without returning incident data')
-        harness.assertEqual(sentMessages[#sentMessages].action, 'qbdispatch:feed')
+        harness.assertEqual(sentMessages[#sentMessages].action, 'kora_dispatch:feed')
         return sentMessages[#sentMessages].data
     end
     harness.assertEqual(ready(), false)
@@ -1558,10 +1558,10 @@ harness.test("pickPosition is vector-only and kora_lib:form:position answers the
     harness.assertEqual(plain.w, 90.11, "the vehicle is only used when asked for")
 end)
 
-harness.test("internal NUI callbacks keep answering under their deprecated qblib: names", function()
+harness.test("internal NUI callbacks keep answering under their deprecated kora_lib: names", function()
     for _, name in ipairs({ "nui:response", "nui:event", "app:action", "app:change", "dispatchfeed:ready" }) do
         harness.assertTrue(nuiCallbacks["kora_lib:" .. name] ~= nil, "missing kora_lib:" .. name)
-        harness.assertTrue(nuiCallbacks["qblib:" .. name] ~= nil, "missing deprecated qblib:" .. name)
+        harness.assertTrue(nuiCallbacks["kora_lib:" .. name] ~= nil, "missing deprecated kora_lib:" .. name)
     end
 end)
 

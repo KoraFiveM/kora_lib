@@ -4,7 +4,7 @@ local MAX_PICK_COUNT = 10000
 ---replacement and may therefore contain the same value more than once.
 ---@generic T
 ---@param list T[]
----@param options? QBRandomPickOptions
+---@param options? KoraRandomPickOptions
 ---@return T|T[] value
 function Kora.random.pick(list, options)
     assert(type(list) == 'table', 'Kora.random.pick requires a non-empty array.')

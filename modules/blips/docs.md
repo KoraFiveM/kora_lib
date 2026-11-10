@@ -27,7 +27,7 @@ Creates a map blip.
   - `display: integer` — Native display mode. Defaults to
     `Config.blips.defaultDisplay` (`4`) and is restored after the blip is shown.
   - `route: boolean` — Draws a waypoint route line to the blip. If `color` is also set, the route is colored to match.
-  - `info: QBBlipInfo` — Optional detail panel shown when the player highlights the blip in the pause map.
+  - `info: KoraBlipInfo` — Optional detail panel shown when the player highlights the blip in the pause map.
 
 All supplied options are validated before kora_lib creates a native blip: sprite,
 color, and display are non-negative integers; scale is positive and finite;

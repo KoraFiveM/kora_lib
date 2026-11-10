@@ -17,7 +17,7 @@ local isCallable = Kora.compat.isCallable
 
 local function isEnabled()
     local state = LocalPlayer and LocalPlayer.state
-    if state and state['qbmultichar:mode'] and state['qbmultichar:mode'] ~= false then return false end
+    if state and state['kora_multichar:mode'] and state['kora_multichar:mode'] ~= false then return false end
     return Config.ui and Config.ui.interact == true
 end
 
@@ -281,7 +281,7 @@ local function compatVector(vec)
 end
 
 ---Opens the compact, game-input-driven selector. No NUI focus is granted.
----@param options QBInteractOption[]
+---@param options KoraInteractOption[]
 ---@return boolean opened False when disabled or no option passes its restrictions.
 function Kora.interact.open(options)
     return open(options, nil, GetInvokingResource() or GetCurrentResourceName())
@@ -326,8 +326,8 @@ end
 ---@param coords any
 ---@param radius number
 ---@param debug boolean
----@param targetOptions QBInteractTargetOptions|QBInteractOption[]
----@return QBZoneHandle? zone
+---@param targetOptions KoraInteractTargetOptions|KoraInteractOption[]
+---@return KoraZoneHandle? zone
 function Kora.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
@@ -362,9 +362,9 @@ end
 ---@param name string
 ---@param coords any
 ---@param size vector4
----@param targetOptions QBInteractTargetOptions|QBInteractOption[]
+---@param targetOptions KoraInteractTargetOptions|KoraInteractOption[]
 ---@param debug boolean
----@return QBZoneHandle? zone
+---@return KoraZoneHandle? zone
 function Kora.interact.addBoxZone(name, coords, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(name) == "string" and #name > 0, "interact zone name is required.")
@@ -408,9 +408,9 @@ end
 ---the entity exists for a one-off target.
 ---@param models string|number|(string|number)[]
 ---@param size vector4
----@param targetOptions QBInteractTargetOptions|QBInteractOption[]
+---@param targetOptions KoraInteractTargetOptions|KoraInteractOption[]
 ---@param debug boolean
----@return QBZoneHandle[] zones
+---@return KoraZoneHandle[] zones
 function Kora.interact.addTargetModel(models, size, targetOptions, debug)
     if not isEnabled() then return {} end
     assert(type(targetOptions) == "table", "interact target options require an options array.")
@@ -443,9 +443,9 @@ end
 ---Adds a static box zone at an entity's current position.
 ---@param entity number
 ---@param size table `{ x: number, y: number, z: number, w: number }`
----@param targetOptions QBInteractTargetOptions|QBInteractOption[]
+---@param targetOptions KoraInteractTargetOptions|KoraInteractOption[]
 ---@param debug boolean
----@return QBZoneHandle? zone
+---@return KoraZoneHandle? zone
 function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(targetOptions) == "table",
@@ -463,7 +463,7 @@ local function assertTargetDistance(distance)
 end
 
 ---@param entity number|number[]
----@param options QBInteractOption[]
+---@param options KoraInteractOption[]
 ---@param distance? number
 ---@return integer id
 function Kora.interact.addEntity(entity, options, distance)
@@ -521,7 +521,7 @@ function Kora.interact.removeEntity(entity, id)
 end
 
 ---@param model string|number|(string|number)[]
----@param options QBInteractOption[]
+---@param options KoraInteractOption[]
 ---@param distance? number
 ---@return integer id
 function Kora.interact.addModel(model, options, distance)

@@ -122,7 +122,6 @@ Kora = setmetatable({}, {
     end,
 })
 
-QB = Kora
 
 AddEventHandler(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated', function()
     for name, paths in pairs(consumerModuleFiles) do

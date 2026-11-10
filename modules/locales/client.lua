@@ -23,7 +23,7 @@ function Kora.locale.setLanguage(language)
             break
         end
     end
-    if not allowed then return false, ('%s is not enabled by qb_locales.'):format(language) end
+    if not allowed then return false, ('%s is not enabled by kora_locales.'):format(language) end
 
     local oldLanguage = Kora.locale.getLanguage()
     if oldLanguage == language then return true end
@@ -31,6 +31,5 @@ function Kora.locale.setLanguage(language)
     SetResourceKvp(KVP_KEY, language)
     Kora.locale._language = language
     TriggerEvent('kora_lib:client:localeChanged', language, oldLanguage)
-    TriggerEvent('qblib:client:localeChanged', language, oldLanguage)
     return true
 end

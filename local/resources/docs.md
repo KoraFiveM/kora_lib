@@ -21,11 +21,11 @@ Returns `true` when ready, `false, "missing"` for an unknown resource, or
 `false, "timeout"` when the deadline expires.
 
 ```lua
-local ready, reason = Kora.resources.awaitStarted('qbinventory', {
+local ready, reason = Kora.resources.awaitStarted('kora_inventory', {
     timeout = 30000,
     interval = 200,
 })
-if not ready then print(('qbinventory unavailable: %s'):format(reason)) end
+if not ready then print(('kora_inventory unavailable: %s'):format(reason)) end
 ```
 
 ### `Kora.resources.registry(onDispose)` (client)

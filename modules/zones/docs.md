@@ -136,7 +136,7 @@ The creator starts `Kora.freecam` without a distance limit rather than using you
 | `Enter` | Confirm (once placement is valid) and open the summary dialog |
 | `X` | Cancel |
 
-Clicks aim with the freecam crosshair like `E` (no free cursor), and are separate `MOUSE_BUTTON` keybinds (`qblib_zonecreator_place_click` / `qblib_zonecreator_undo_click`) running the same handlers; the creator also disables attack/aim controls so a click never fires or punches.
+Clicks aim with the freecam crosshair like `E` (no free cursor), and are separate `MOUSE_BUTTON` keybinds (`kora_lib_zonecreator_place_click` / `kora_lib_zonecreator_undo_click`) running the same handlers; the creator also disables attack/aim controls so a click never fires or punches.
 
 All discrete actions above are registered through `Kora.keybind`, so they're
 rebindable through FiveM's own keybind settings. Mouse-look/WASD, Shift, and
@@ -159,7 +159,7 @@ RegisterCommand('my_zone_tool', function()
 end, false)
 ```
 
-An equivalent `/qb_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `kora_lib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
+An equivalent `/kora_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `kora_lib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
 
 ### `Kora.zones.generateSnippet(zoneType, opts)`
 Formats zone options into the `Kora.zones.<type>({...})` Lua snippet the creator's confirm dialog shows and copies to the clipboard. Pure and deterministic — useful on its own if you already have `opts` (from `startCreator`, or hand-built) and just want the text.
@@ -187,7 +187,7 @@ Every zone the local player is currently standing in, across every resource — 
 - `resource: string | nil` — Only return zones owned by this resource. Omit for all of them.
 
 #### Returns
-- `QBZoneHandle[]` — The same handle objects the constructors returned (identity-comparable with your own references). Unordered.
+- `KoraZoneHandle[]` — The same handle objects the constructors returned (identity-comparable with your own references). Unordered.
 
 #### Behavior
 Read straight off the enter/exit state the tick loop already maintains, so this costs a registry walk and no containment maths. It reflects the last tick, not a fresh test — for an exact "is this point in this zone right now" answer, use a handle's own `contains(coords)`.

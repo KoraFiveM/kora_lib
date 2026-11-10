@@ -13,7 +13,7 @@ function payload(extra: Partial<DispatchFeedPayload> = {}): DispatchFeedPayload 
     return { now: 38000, calls: [call(1)], hidden: false, me: { src: 7 }, keybinds: keys,
         config: { feed: { position: "left-center", maxVisible: 4 }, priorities: { "2": { label: "High", color: "#F59E0B" } } }, ...extra }
 }
-function send(data: unknown, action = "qbdispatch:feed") { act(() => window.dispatchEvent(new MessageEvent("message", { data: { action, data } }))) }
+function send(data: unknown, action = "kora_dispatch:feed") { act(() => window.dispatchEvent(new MessageEvent("message", { data: { action, data } }))) }
 function card(title = "Incident 1") { return screen.getByRole("article", { name: title }) }
 let elapsed = 0
 beforeEach(() => { vi.useFakeTimers(); elapsed = 0; vi.spyOn(performance, "now").mockImplementation(() => elapsed); vi.mocked(fetchNui).mockClear().mockResolvedValue(true) })

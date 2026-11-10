@@ -215,7 +215,7 @@ RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     if vehicle and vehicle ~= 0 then SetVehicleOnGroundProperly(vehicle) end
 end)
 
-local VEHICLE_SLOT_ID = "qblib_radialmenu_vehicle"
+local VEHICLE_SLOT_ID = "kora_lib_radialmenu_vehicle"
 local vehicleMenuRegistered = false
 
 local function setupVehicleMenu()
@@ -277,7 +277,7 @@ local function setupVehicleMenu()
     vehicleMenuRegistered = true
 end
 
-local JOB_SLOT_ID = "qblib_radialmenu_job"
+local JOB_SLOT_ID = "kora_lib_radialmenu_job"
 local jobMenuRegistered = false
 
 local function setupJobMenu(job, jobType)
@@ -365,7 +365,7 @@ AddEventHandler("onClientResourceStop", function(resource)
 end)
 
 Kora.keybind.add({
-    name = 'qblib_radialmenu_open',
+    name = 'kora_lib_radialmenu_open',
     description = 'Open Radial Menu',
     defaultMapper = 'keyboard',
     defaultKey = 'F1',

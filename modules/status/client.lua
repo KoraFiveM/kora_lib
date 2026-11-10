@@ -47,7 +47,7 @@ local function notifyChange(name, applied)
 end
 
 ---@param rendered table
----@param def QBStatusEffectDef
+---@param def KoraStatusEffectDef
 local function clearRender(rendered, def)
     if rendered.screenHandle then Kora.fx.stopScreenEffect(rendered.screenHandle) end
     if rendered.ptfxHandle then Kora.fx.stop(rendered.ptfxHandle) end
@@ -60,7 +60,7 @@ end
 ---Plays `def`'s fx/anim/movement on the local ped and returns what's needed to tear it down.
 ---Copies `def.fx.ptfx` per call: Kora.fx.playPtfx may mutate caller-owned tables (default `entity`,
 ---force `looped`), which would otherwise leak into the shared registered def.
----@param def QBStatusEffectDef
+---@param def KoraStatusEffectDef
 ---@return table rendered
 local function renderEffect(def)
     local ped = PlayerPedId()
@@ -113,7 +113,7 @@ end
 ---Applies a registered status effect locally and starts its expiry timer. Also the target of a server-side
 ---`Kora.status.apply(target, ...)` push; valid to call directly for a client-only effect.
 ---@param name string
----@param opts? QBStatusApplyOptions
+---@param opts? KoraStatusApplyOptions
 ---@return boolean success
 function Kora.status.apply(name, opts)
     Kora.status.assertName(name)
@@ -217,7 +217,7 @@ function Kora.status.isActive(name)
     return true
 end
 
----@return QBStatusActiveEntry[]
+---@return KoraStatusActiveEntry[]
 function Kora.status.getActive()
     local result = {}
     local expired = {}

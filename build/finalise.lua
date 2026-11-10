@@ -26,4 +26,4 @@ local isServer = type(IsDuplicityVersion) == 'function' and IsDuplicityVersion()
 TriggerEvent(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated')
 -- Deprecated alias: consumers that loaded an older init.lua still listen on the
 -- pre-rename event name.
-TriggerEvent(isServer and 'qblib:server:updated' or 'qblib:client:updated')
+TriggerEvent(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated')

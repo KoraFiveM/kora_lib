@@ -7,7 +7,7 @@
 ---@param key any Value passed into `request`, and the identifier for `hasLoaded`/`remove` unless `identifierFromRequest` is set.
 ---@param cb? fun(identifier: any): nil Optional callback invoked once loaded, before cleanup.
 ---@param identifierFromRequest? boolean Set true when `request`'s return value (not `key`) is what `hasLoaded`/`remove` expect -- required for scaleform movie handles.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return any | false identifier `key`, or the value returned by `request` when `identifierFromRequest` is set, or false if it never loaded.
 ---@return string? error
 local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifierFromRequest, options)
@@ -58,7 +58,7 @@ end
 
 ---@param model string | number The model to be loaded.
 ---@param cb? fun(model: number) : nil You can pass a callback function. An example would be to create a ped. Then the model will automatically clean up afterwards.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return number | false model The loaded model hash, or false if it never loaded.
 ---@return string? error
 function Kora.stream.loadModel(model, cb, options)
@@ -75,7 +75,7 @@ end
 ---Loads a named particle effect (ptfx) asset, runs an optional callback, then releases it.
 ---@param fxName string The particle effect asset name.
 ---@param cb? fun(fxName: string) : nil Optional callback run once loaded; asset is released right after it returns.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return string | false fxName The loaded asset name, or false if it never loaded.
 ---@return string? error
 function Kora.stream.loadPtfx(fxName, cb, options)
@@ -86,7 +86,7 @@ end
 ---Loads an animation dictionary, runs an optional callback, then releases it immediately afterwards.
 ---@param animDict string The animation dictionary to load.
 ---@param cb? fun(animDict: string) : nil Optional callback run once loaded; dict is released right after it returns.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return string | false animDict The loaded dictionary name, or false if it never loaded.
 ---@return string? error
 function Kora.stream.loadAnimDict(animDict, cb, options)
@@ -98,7 +98,7 @@ end
 ---Loads an animation set, runs an optional callback, then releases it.
 ---@param animSet string The animation set to load.
 ---@param cb? fun(animSet: string) : nil Optional callback run once loaded; set is released right after it returns.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return string | false animSet The loaded set name, or false if it never loaded.
 ---@return string? error
 function Kora.stream.loadAnimSet(animSet, cb, options)
@@ -109,7 +109,7 @@ end
 ---Loads a clip set, runs an optional callback, then releases it.
 ---@param clipSet string The clip set to load.
 ---@param cb? fun(clipSet: string) : nil Optional callback run once loaded; set is released right after it returns.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return string | false clipSet The loaded clip set name, or false if it never loaded.
 ---@return string? error
 function Kora.stream.loadClipSet(clipSet, cb, options)
@@ -120,7 +120,7 @@ end
 ---Loads (activates) an interior proplist (IPL), runs an optional callback, then deactivates it.
 ---@param iplName string The IPL to load.
 ---@param cb? fun(iplName: string) : nil Optional callback run once active; IPL is removed right after it returns.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return string | false iplName The loaded IPL name, or false if it never activated.
 ---@return string? error
 function Kora.stream.loadIpl(iplName, cb, options)
@@ -131,7 +131,7 @@ end
 ---Loads a scaleform movie, runs an optional callback with its handle, then releases it.
 ---@param scaleformName string The scaleform movie to load.
 ---@param cb? fun(handle: number) : nil Optional callback run once loaded, receiving the scaleform handle; movie is released right after it returns.
----@param options? QBStreamLoadOptions
+---@param options? KoraStreamLoadOptions
 ---@return number | false handle The loaded scaleform handle, or false if it never loaded.
 ---@return string? error
 function Kora.stream.loadScaleformMovie(scaleformName, cb, options)

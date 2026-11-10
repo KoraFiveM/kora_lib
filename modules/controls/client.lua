@@ -151,7 +151,7 @@ end
 ---frame until released. Overlapping leases are independent: releasing one does
 ---not re-enable a control that another active lease still owns.
 ---@param controlIds integer[]
----@param options? QBControlsOptions
+---@param options? KoraControlsOptions
 ---@return integer leaseId
 function Kora.controls.acquire(controlIds, options)
     return acquire(controlIds, options)
@@ -160,7 +160,7 @@ end
 ---Internal captured-owner bridge for kora_lib's asynchronous UI flows. Kept in
 ---Kora.compat so it is never published as a consumer-facing export.
 ---@param controlIds integer[]
----@param options QBControlsOptions?
+---@param options KoraControlsOptions?
 ---@param owner string
 ---@return integer leaseId
 function Kora.compat.acquireControls(controlIds, options, owner)

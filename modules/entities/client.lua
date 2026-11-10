@@ -28,7 +28,7 @@ local creators = {
 ---Determines whether `model` is a "ped", "vehicle" or "object". IsModelAPed/IsModelAVehicle
 ---work from the hash alone (no streaming needed); anything else is an object.
 ---@param modelHash number
----@return QBEntitiesType
+---@return KoraEntitiesType
 local function detectEntityType(modelHash)
     if IsModelAPed(modelHash) then return "ped" end
     if IsModelAVehicle(modelHash) then return "vehicle" end
@@ -54,7 +54,7 @@ local function resolveOverride(explicit, presetValue)
 end
 
 ---Resolves spawn heading: `options.heading`, else `coords.w` (vector4), else `coords.heading`, else 0.0.
----@param options QBEntitiesCreateOptions
+---@param options KoraEntitiesCreateOptions
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number}
 ---@return number
 local function resolveHeading(options, coords)
@@ -78,7 +78,7 @@ end
 ---is auto-detected from `model`; it is tracked against the invoking resource and deleted if that stops.
 ---@param model string | number The model to spawn. Its type (ped/vehicle/object) is detected automatically.
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number} World coordinates to spawn at. A heading on `coords` (`.w` for vector4, or `.heading` for a plain table using that convention) is used unless `options.heading` is set -- see `resolveHeading`.
----@param options? QBEntitiesCreateOptions
+---@param options? KoraEntitiesCreateOptions
 ---@return number | false entity The created entity handle, or false if the model never loaded or the entity failed to create.
 ---@return string? error
 local function createForResource(model, coords, options, invokingResource)
@@ -162,8 +162,8 @@ end)
 ---is automatically removed if the calling resource stops.
 ---@param model string | number The model to spawn. Its type is detected automatically.
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number, w?: number, heading?: number} World coordinates to spawn at.
----@param options QBEntitiesScopedOptions Options accepted by `create`, plus a required `radius` in metres.
----@return QBScopedEntityHandle scope A persistent scope handle. Read `scope.entity` for the current entity handle, or nil while outside the radius.
+---@param options KoraEntitiesScopedOptions Options accepted by `create`, plus a required `radius` in metres.
+---@return KoraScopedEntityHandle scope A persistent scope handle. Read `scope.entity` for the current entity handle, or nil while outside the radius.
 function Kora.entities.createScoped(model, coords, options)
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
     assert(options == nil or type(options) == "table", "Scoped entity options must be a table.")

@@ -67,8 +67,8 @@ local function normaliseText(value, field)
     return value == nil and "" or tostring(value)
 end
 
----@param info QBBlipInfo
----@return QBBlipInfo
+---@param info KoraBlipInfo
+---@return KoraBlipInfo
 local function normaliseInfo(info)
     assert(type(info) == "table", "Invalid info: expected a table.")
 
@@ -129,7 +129,7 @@ local function infoLabelName(blip, slot)
 end
 
 ---@param blip number
----@param info QBBlipInfo
+---@param info KoraBlipInfo
 local function registerInfoLabels(blip, info)
     AddTextEntry(infoLabelName(blip, "title"), info.title)
     if info.rp ~= "" then AddTextEntry(infoLabelName(blip, "rp"), info.rp) end
@@ -144,7 +144,7 @@ local function registerInfoLabels(blip, info)
 end
 
 ---@param blip number
----@param info QBBlipInfo
+---@param info KoraBlipInfo
 local function storeInfo(blip, info)
     local previous = infoByBlip[blip]
     local normalised = normaliseInfo(info)
@@ -186,7 +186,7 @@ end
 ---@param category table
 ---@return string
 local function legacyCategoryKvp(category)
-    return ('qblib:blips:category:%d'):format(category.id)
+    return ('kora_lib:blips:category:%d'):format(category.id)
 end
 
 ---@param category table
@@ -216,7 +216,7 @@ local function applyVisibility(record)
     return visible
 end
 
----@param options QBBlipsCreateOptions
+---@param options KoraBlipsCreateOptions
 ---@param category table
 ---@return string name
 ---@return string label
@@ -303,7 +303,7 @@ end
 
 ---@param blip number
 ---@param index integer
----@param row QBBlipInfoRow
+---@param row KoraBlipInfoRow
 local function renderRow(blip, index, row)
     if not BeginScaleformMovieMethodOnFrontend("SET_DATA_SLOT") then return end
 
@@ -333,7 +333,7 @@ local function renderRow(blip, index, row)
 end
 
 ---@param blip number
----@param info QBBlipInfo
+---@param info KoraBlipInfo
 ---@param clearExisting boolean
 local function renderInfo(blip, info, clearExisting)
     if clearExisting then clearDisplay() end
@@ -458,7 +458,7 @@ end
 ---directly rather than through an export) so it is automatically removed if
 ---that resource stops.
 ---@param coords vector3 | vector4 | {x: number, y: number, z: number} World coordinates to place the blip at.
----@param options? QBBlipsCreateOptions
+---@param options? KoraBlipsCreateOptions
 ---@return number | false blip The created blip handle, or false if it failed to create.
 ---@return string? error
 function Kora.blips.create(coords, options)
@@ -532,7 +532,7 @@ end
 
 ---@param category table
 ---@param count? integer
----@return QBBlipCategory
+---@return KoraBlipCategory
 local function publicCategory(category, count)
     if count == nil then
         count = 0
@@ -552,7 +552,7 @@ local function publicCategory(category, count)
 end
 
 ---Returns the fixed category catalogue ordered by native id.
----@return QBBlipCategory[] categories
+---@return KoraBlipCategory[] categories
 function Kora.blips.getCategories()
     local result = {}
     local counts = {}
@@ -568,7 +568,7 @@ function Kora.blips.getCategories()
 end
 
 ---@param category string|number Category name, alias, or native id.
----@return QBBlipCategory category
+---@return KoraBlipCategory category
 function Kora.blips.getCategory(category)
     return publicCategory(resolveCategory(category))
 end
@@ -576,7 +576,7 @@ end
 ---Returns plain snapshots of kora_lib-created blips. The `handle` remains the
 ---actual native handle returned by `create`; kora_lib never replaces it with an
 ---object wrapper.
----@return QBRegisteredBlip[] blips
+---@return KoraRegisteredBlip[] blips
 function Kora.blips.getRegistered()
     local result = {}
     for _, record in pairs(registeredByBlip) do
@@ -669,7 +669,7 @@ end
 ---highlighted in the pause map. Only the resource that created the blip may
 ---change its panel.
 ---@param blip number
----@param info QBBlipInfo
+---@param info KoraBlipInfo
 ---@return boolean success
 ---@return string? error
 function Kora.blips.setInfo(blip, info)

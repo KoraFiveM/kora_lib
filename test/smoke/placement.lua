@@ -204,13 +204,13 @@ Kora.zones = {
 dofile(repoRoot .. "modules/placement/client.lua")
 
 local function press(name)
-    local handler = net.commands["+qblib_placement_" .. name]
+    local handler = net.commands["+kora_lib_placement_" .. name]
     harness.assertTrue(type(handler) == "function", "missing placement keybind: " .. name)
     handler()
 end
 
 local function release(name)
-    local handler = net.commands["-qblib_placement_" .. name]
+    local handler = net.commands["-kora_lib_placement_" .. name]
     if handler then handler() end
 end
 

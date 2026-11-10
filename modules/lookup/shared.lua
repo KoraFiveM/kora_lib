@@ -263,7 +263,7 @@ state.normalize = normalize
 state.setOverlay = setOverlay
 
 ---Returns a rich record for a hash or canonical name in one lookup namespace.
----@param namespace QBLookupNamespace
+---@param namespace KoraLookupNamespace
 ---@param value integer|string
 ---@return table? record
 ---@return string? reason
@@ -328,7 +328,7 @@ function Kora.lookup.pickup(value)
 end
 
 ---Loads selected base namespaces, or all namespaces when omitted.
----@param selected? QBLookupNamespace|QBLookupNamespace[]
+---@param selected? KoraLookupNamespace|KoraLookupNamespace[]
 ---@return boolean
 function Kora.lookup.preload(selected)
     if selected == nil then

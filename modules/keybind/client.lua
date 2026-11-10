@@ -173,8 +173,8 @@ local function add(options, resourceOverride)
 end
 
 ---Registers a rebindable press/release action.
----@param options QBKeybindOptions
----@return QBKeybindHandle handle
+---@param options KoraKeybindOptions
+---@return KoraKeybindHandle handle
 function Kora.keybind.add(options)
     return add(options)
 end
@@ -213,7 +213,7 @@ local function addCommandBinding(name, options)
     if existing then existing.remove() end
 
     local ok, handle = pcall(add, {
-        name = 'qblib_command:' .. name,
+        name = 'kora_lib_command:' .. name,
         description = options.description,
         defaultKey = options.defaultKey,
         defaultMapper = options.defaultMapper,

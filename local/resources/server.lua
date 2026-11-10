@@ -12,7 +12,7 @@ end
 ---manual untracking. `onDispose(id)` runs once for every id still tracked
 ---under a resource when that resource stops.
 ---@param onDispose fun(id: any) Called for each id still owned when its resource stops.
----@return QBResourcesRegistry
+---@return KoraResourcesRegistry
 function Kora.resources.serverRegistry(onDispose)
     assert(Kora.compat.isCallable(onDispose), 'Kora.resources.serverRegistry requires a callable disposer.')
     local byResource = {}

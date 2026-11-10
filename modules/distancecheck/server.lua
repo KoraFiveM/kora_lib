@@ -35,7 +35,7 @@ local function withinRadius(dx, dy, dz, distance)
 end
 
 ---@param src integer
----@param coords QBCoords
+---@param coords KoraCoords
 ---@param distance? number
 ---@return boolean
 function Kora.distance.player(src, coords, distance)
@@ -45,8 +45,8 @@ function Kora.distance.player(src, coords, distance)
     return withinRadius(playerCoords.x - coords.x, playerCoords.y - coords.y, playerCoords.z - coords.z, distance)
 end
 
----@param coords1 QBCoords
----@param coords2 QBCoords
+---@param coords1 KoraCoords
+---@param coords2 KoraCoords
 ---@param distance? number
 ---@return boolean
 function Kora.distance.coords(coords1, coords2, distance)
@@ -86,7 +86,7 @@ end
 ---resources (door, vendor, pickup spot lists).
 ---@param src integer
 ---@param list any[]
----@param opts {radius?: number, coordsOf: fun(entry: any): QBCoords}
+---@param opts {radius?: number, coordsOf: fun(entry: any): KoraCoords}
 ---@return boolean found
 ---@return any entry
 function Kora.distance.playerNearAny(src, list, opts)
@@ -115,7 +115,7 @@ function Kora.distance.y(src, point, distance)
 end
 
 ---@param src integer
----@param point QBCoords
+---@param point KoraCoords
 ---@param distance? number
 ---@return boolean
 function Kora.distance.xy(src, point, distance)

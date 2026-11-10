@@ -3,8 +3,6 @@ game 'gta5'
 lua54 'yes'
 
 name 'kora_lib'
--- Keep the legacy resource name resolvable for exports['qblib'] callers.
-provide 'qblib'
 author 'Jamie'
 version '1.1.7'
 description 'Lightweight Lua library exposing a shared Kora namespace over FiveM exports'
@@ -100,6 +98,9 @@ client_scripts {
     'compat/client/qb-radialmenu.lua',
     'compat/client/qb-minigames.lua',
     'compat/client/screenshot-basic.lua',
+    -- Optional FFT hooks: returns immediately unless fft_kora_hooks is true. Must
+    -- precede finalise.lua so the exported Kora.nui.send carries its observer.
+    'fft_hooks.lua',
     'build/finalise.lua'
 }
 

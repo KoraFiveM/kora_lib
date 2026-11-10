@@ -20,7 +20,7 @@ _G.SendNUIMessage = function(payload) sentMessages[#sentMessages + 1] = payload 
 _G.SetNuiFocus = function(mouse, keyboard) focused = mouse or keyboard end
 _G.SetNuiFocusKeepInput = function(value) keepInput = value end
 _G.IsNuiFocusKeepingInput = function() return keepInput end
-_G.QBTheme = { apply = function() end }
+_G.KoraTheme = { apply = function() end }
 
 dofile(repoRoot .. 'modules/nui/client.lua')
 

@@ -1,5 +1,5 @@
 ---Sends a notification to the local player.
----@param payload QBNotifyPayload
+---@param payload KoraNotifyPayload
 function Kora.notify.send(payload)
     local ok, err = pcall(function()
         payload = Kora.notify.normalize(payload)
@@ -7,7 +7,6 @@ function Kora.notify.send(payload)
 
         if Config.third_party_notify then
             TriggerEvent('kora_lib:notify:send', payload)
-            TriggerEvent('qblib:notify:send', payload)
             return
         end
 

@@ -31,7 +31,7 @@ _G.RegisterNetEvent("kora_lib:notify:send", function(payload)
     table.insert(thirdPartyClientPayloads, payload)
 end)
 local legacyClientPayloads = {}
-_G.RegisterNetEvent("qblib:notify:send", function(payload)
+_G.RegisterNetEvent("kora_lib:notify:send", function(payload)
     table.insert(legacyClientPayloads, payload)
 end)
 
@@ -208,7 +208,7 @@ harness.test("client send routes through the third-party hook when configured", 
     clientNotifySend({ message = "via third party" })
 
     harness.assertEqual(#thirdPartyClientPayloads, 1, "the third-party client hook should have fired once")
-    harness.assertEqual(#legacyClientPayloads, 1, "the deprecated qblib:notify:send alias should fire too")
+    harness.assertEqual(#legacyClientPayloads, 1, "the deprecated kora_lib:notify:send alias should fire too")
     harness.assertTrue(lastNui == nil, "the NUI path should be skipped when third-party notify is on")
 
     Config.third_party_notify = false

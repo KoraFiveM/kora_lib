@@ -15,7 +15,7 @@ local ownership = Kora.resources.serverRegistry(removeListener)
 ---Subscribe to state-bag changes in the server realm.
 ---@param keyFilter? string
 ---@param bagFilter? string
----@param handler fun(context: QBStateChange)
+---@param handler fun(context: KoraStateChange)
 ---@return integer listenerId
 function Kora.state.onChange(keyFilter, bagFilter, handler)
     assert(keyFilter == nil or type(keyFilter) == 'string', 'State keyFilter must be a string or nil.')

@@ -57,7 +57,7 @@ end
   unrelated or malformed protocol traffic out of a handler, but it does not
   authenticate a player: a modified client can complete its own handshake.
 - The gateway event name itself (`kora_lib:events:invoke`) is fixed and public;
-  the deprecated `qblib:events:invoke` name is still accepted.
+  the deprecated `kora_lib:events:invoke` name is still accepted.
   Never use knowledge of the token or event name as permission to grant an
   item, money, progression, or privileged action.
 - Handshake and gateway traffic must originate from a positive finite integer

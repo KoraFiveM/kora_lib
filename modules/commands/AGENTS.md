@@ -1,7 +1,7 @@
 # commands module guide
 
 ## Purpose
-A registration wrapper over `RegisterCommand` with owner-tracking (so a resource that restarts doesn't leave dead handlers behind) and chat-suggestion bookkeeping. Moved out of qbcore: none of the registration mechanics touched the framework's player/job model -- the only qbcore-specific pieces were which permission check to run and what to say when a command is denied, both of which are now pluggable (`opts.checkPermission`, `opts.notify`) rather than hardcoded.
+A registration wrapper over `RegisterCommand` with owner-tracking (so a resource that restarts doesn't leave dead handlers behind) and chat-suggestion bookkeeping. Moved out of kora_core: none of the registration mechanics touched the framework's player/job model -- the only kora_core-specific pieces were which permission check to run and what to say when a command is denied, both of which are now pluggable (`opts.checkPermission`, `opts.notify`) rather than hardcoded.
 
 ## Implementation notes
 - **Registry id is the command name, not the resource** -- a genuine bug existed in the pre-move kora_core version: it called `cmdRegistry.track(owner)` with a single argument against an API that requires `track(resource, id)`, so every command from the same resource collapsed onto one `id = nil` slot and the resource-stop sweep's `def.resource == owner` check could never match (the callback receives the disposed *id*, not the resource name). Since `Kora.resources.serverRegistry`'s own docs call out exactly this shape ("useful for name-keyed registries... where re-registering an existing name is expected to take it over"), commands now track `(owner, name)` and the dispose callback is handed the command name directly -- no need to scan `commands` for a match.

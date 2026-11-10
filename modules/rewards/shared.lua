@@ -2,7 +2,7 @@ local DEFAULT_MODE = "weighted"
 local MAX_REWARD_RESULTS = 10000
 
 ---Resolves an item's `amount` field into a concrete number.
----@param item QBRewardItem
+---@param item KoraRewardItem
 ---@return number
 local function resolveAmount(item)
     local amount = item.amount
@@ -23,7 +23,7 @@ local function resolveAmount(item)
 end
 
 ---Copies `item` into a reward entry: every field except `chance`, plus a resolved `amount`.
----@param item QBRewardItem
+---@param item KoraRewardItem
 ---@return table
 local function toReward(item)
     local reward = {}
@@ -40,7 +40,7 @@ local function toReward(item)
 end
 
 ---Fills in an equal share of `chance` for items that omit it: weight `1` (weighted) or an equal split of `100` (percent).
----@param items QBRewardItem[]
+---@param items KoraRewardItem[]
 ---@param mode "weighted" | "percent"
 ---@return number[] chances Same length/order as `items`.
 local function resolveChances(items, mode)
@@ -74,9 +74,9 @@ local function resolveChances(items, mode)
 end
 
 ---Builds the `{value, weight}` pairs `Kora.util.weightedChoice` expects.
----@param items QBRewardItem[]
+---@param items KoraRewardItem[]
 ---@param chances number[]
----@return {[1]: QBRewardItem, [2]: number}[]
+---@return {[1]: KoraRewardItem, [2]: number}[]
 local function toWeightedPairs(items, chances)
     local pairs_ = {}
     for i = 1, #items do
@@ -86,11 +86,11 @@ local function toWeightedPairs(items, chances)
 end
 
 ---Runs one roll: one item in weighted mode, or every item independently in percent mode (any number, including none).
----@param items QBRewardItem[]
+---@param items KoraRewardItem[]
 ---@param chances number[]
----@param weightedPairs {[1]: QBRewardItem, [2]: number}[]
+---@param weightedPairs {[1]: KoraRewardItem, [2]: number}[]
 ---@param mode "weighted" | "percent"
----@return QBRewardItem[]
+---@return KoraRewardItem[]
 local function roll(items, chances, weightedPairs, mode)
     if mode == "weighted" then
         return { Kora.util.weightedChoice(weightedPairs) }
@@ -107,7 +107,7 @@ local function roll(items, chances, weightedPairs, mode)
 end
 
 ---Generates rewards from a pool of possible items; `"weighted"` (default) picks one item per roll, `"percent"` rolls each independently.
----@param items QBRewardItem[] Reward pool. Must be non-empty.
+---@param items KoraRewardItem[] Reward pool. Must be non-empty.
 ---@param opts? { mode?: "weighted" | "percent", rolls?: integer, allowNone?: boolean }
 ---@return table[] rewards Copies of the winning items, each with `amount` resolved to a number. Guaranteed non-empty unless `opts.allowNone` is `true`.
 function Kora.rewards.generate(items, opts)

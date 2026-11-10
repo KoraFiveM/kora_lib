@@ -102,7 +102,7 @@ end
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "fishing" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table Per-type overrides merged over Config.minigames.<type> and clamped/validated server-side -- see docs.md for the accepted fields per type. For pinpad/quiz/wordguess/wordscramble, opts also carries the puzzle's actual CONTENT (numbers/questions/word), since the caller supplies it rather than the server randomizing it.
 ---@param authorization? string Opaque token returned by the gameplay resource's server-side Kora.minigames.authorizeProof call. When present, the server ignores opts and uses the trusted options captured by that authorization. Successful unauthorized legacy sessions remain proof-less.
----@return QBMinigameResult result The resolved result; this public function waits for the round to finish.
+---@return KoraMinigameResult result The resolved result; this public function waits for the round to finish.
 ---`cancelled` is set (and `success` false) when the player backed out; `faults` is only present for "keys". No Citizen.Await needed.
 ---Errors if a minigame is already in progress, gameType is invalid, or the NUI/callback round trip fails.
 function Kora.minigames.play(gameType, opts, authorization, owner)
@@ -152,7 +152,7 @@ end
 ---@param gameType "lockpick" | "skillbar" | "circuit" | "mash" | "pinpad" | "quiz" | "wordguess" | "wordscramble" | "keys" | "hacking"
 ---@param opts? table
 ---@param authorization? string
----@return QBMinigameResult result
+---@return KoraMinigameResult result
 function Kora.minigames.playSkillCheck(skill, gameType, opts, authorization)
     assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
     assert(Kora.minigames.GAME_TYPES[gameType], 'invalid minigame type -- see Kora.minigames.GAME_TYPES.')

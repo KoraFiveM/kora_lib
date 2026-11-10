@@ -175,7 +175,7 @@ opening an unusually large configuration does not mount every row at once.
 Every registered resource remains in the sidebar while a setting is edited;
 the overview also shows its editable-setting count and availability. Sensitive
 fields are removed before they reach the workspace. Grant access explicitly
-with `add_ace <principal> kora_lib.config.edit allow` (the deprecated `qblib.config.edit` ACE is still honoured); kora_admin may optionally open
+with `add_ace <principal> kora_lib.config.edit allow` (the deprecated `kora_lib.config.edit` ACE is still honoured); kora_admin may optionally open
 the workspace through `Kora.config.open()` but is not required.
 
 The initial catalog transfers only sanitized schemas. Saved and running values
@@ -220,7 +220,7 @@ through `bind`, rather than repeatedly calling an export in gameplay code:
 
 ```lua
 local targetSettings
-Kora.config.bind('qbtarget', { 'target' }, function(value)
+Kora.config.bind('kora_target', { 'target' }, function(value)
     targetSettings = value
     rebuildTargeting(value)
 end)
@@ -228,7 +228,7 @@ end)
 
 `Kora.config.get(resource, path)` returns a copied active value, or
 `nil, 'not_ready'` before its snapshot arrives. `Kora.config.whenReady({
-'qbtarget', 'qbhud' }, handler)` runs once the listed active snapshots are
+'kora_target', 'kora_hud' }, handler)` runs once the listed active snapshots are
 available. Bindings receive an initial callback and subsequent live active
 changes. They are process-local: kora_lib distributes network snapshots to each
 client resource and broadcasts server changes locally, so no gameplay read

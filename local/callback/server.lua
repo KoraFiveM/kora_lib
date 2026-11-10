@@ -113,7 +113,7 @@ end
 ---most callers don't need to call Kora.callback.unregister themselves.
 ---@param name string
 ---@param handler fun(src: integer, ...: any): any
----@param opts? QBRegistrationOptions
+---@param opts? KoraRegistrationOptions
 function Kora.callback.register(name, handler, opts)
     Kora.callback.assertName(name)
     assert(isCallable(handler), "Callback handler must be a function.")

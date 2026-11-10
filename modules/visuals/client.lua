@@ -75,7 +75,7 @@ local function endSprintEffect(playerId, token)
 end
 
 ---Shared stamina-tick loop behind Kora.visuals.meth/crack/coke. Reads the ped fresh each tick so a death/respawn mid-loop doesn't ragdoll a stale handle.
----@param options QBVisualsStaminaEffectOptions
+---@param options KoraVisualsStaminaEffectOptions
 ---@param duration number|string|nil Raw duration argument as passed to the public Kora.visuals.<fn>.
 local function runStaminaDrugEffect(options, duration)
     local playerId = PlayerId()

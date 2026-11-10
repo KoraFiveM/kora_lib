@@ -153,7 +153,7 @@ H.test('the command uses the same exact ACE check', function()
     H.assertEqual(event[1], 'sample')
 end)
 
-H.test('Discord-only qbadmin access is authoritative while compatible mode retains ACE access', function()
+H.test('Discord-only kora_admin access is authoritative while compatible mode retains ACE access', function()
     _G.GetResourceState = function() return 'started' end
     _G.exports = { kora_admin = { canEditConfig = function() return false end } }
     allowed = true
@@ -172,7 +172,7 @@ H.test('Discord-only qbadmin access is authoritative while compatible mode retai
     exports.kora_admin.canEditConfig = function() error('permission bridge unavailable') end
     H.assertEqual(callbacks['kora_lib:configCatalog'](12), nil)
 
-    exports.kora_admin.canEditConfig = function() error('No such export canEditConfig in resource qbadmin') end
+    exports.kora_admin.canEditConfig = function() error('No such export canEditConfig in resource kora_admin') end
     H.assertTrue(callbacks['kora_lib:configCatalog'](12) ~= nil)
 end)
 

@@ -19,8 +19,8 @@ function Kora.notify.normalizeType(notifyType)
 end
 
 ---Returns a shallow copy of the payload with its `type` alias resolved; non-table payloads are returned as-is for Kora.notify.assert.
----@param payload QBNotifyPayload
----@return QBNotifyPayload
+---@param payload KoraNotifyPayload
+---@return KoraNotifyPayload
 function Kora.notify.normalize(payload)
     if type(payload) ~= "table" then return payload end
     local canonical = Kora.notify.normalizeType(payload.type)
@@ -57,7 +57,7 @@ local ICON_ANIMATIONS = {
 }
 
 ---Validates a notify payload, raising an assertion error if it's malformed.
----@param payload QBNotifyPayload
+---@param payload KoraNotifyPayload
 function Kora.notify.assert(payload)
     assert(type(payload) == "table", "Notify payload must be a table.")
 
@@ -90,8 +90,8 @@ function Kora.notify.assert(payload)
 end
 
 ---Fills in configured defaults so the NUI always receives a resolved `type`/`position`.
----@param payload QBNotifyPayload
----@return QBNotifyPayload resolved A copy; the caller's table is never mutated.
+---@param payload KoraNotifyPayload
+---@return KoraNotifyPayload resolved A copy; the caller's table is never mutated.
 function Kora.notify.withDefaults(payload)
     local duration = payload.duration
     if duration == nil then duration = Config.notify.defaultDuration end

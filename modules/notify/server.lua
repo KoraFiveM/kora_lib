@@ -1,6 +1,6 @@
 ---Sends a notification to a specific player.
 ---@param src integer Server ID of the target player, or -1 for every connected player (what sendToAll passes).
----@param payload QBNotifyPayload
+---@param payload KoraNotifyPayload
 function Kora.notify.send(src, payload)
     local ok, err = pcall(function()
         assert(src == -1 or (Kora.util.isInteger(src) and src >= 1),
@@ -10,7 +10,6 @@ function Kora.notify.send(src, payload)
 
         if Config.third_party_notify then
             TriggerClientEvent('kora_lib:notify:send', src, payload)
-            TriggerClientEvent('qblib:notify:send', src, payload)
             return
         end
 
@@ -23,7 +22,7 @@ function Kora.notify.send(src, payload)
 end
 
 ---Sends a notification to every connected player.
----@param payload QBNotifyPayload
+---@param payload KoraNotifyPayload
 function Kora.notify.sendToAll(payload)
     Kora.notify.send(-1, payload)
 end

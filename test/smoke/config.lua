@@ -249,8 +249,7 @@ H.test('client-only live settings update clients without running server handlers
     local result = registered.kora_lib_configCommit({ path = { 'visual' }, value = 2, revision = 1 })
     H.assertTrue(result.ok, result.error)
     H.assertEqual(values.visual, 2)
-    H.assertEqual(clientUpdates[#clientUpdates - 1].name, 'kora_lib:client:configUpdated')
-    H.assertEqual(clientUpdates[#clientUpdates].name, 'qblib:client:configUpdated', 'deprecated alias for older consumers')
+    H.assertEqual(clientUpdates[#clientUpdates].name, 'kora_lib:client:configUpdated')
 end)
 
 H.test('uses the previous override when the current override is invalid', function()
@@ -726,13 +725,13 @@ end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end
 
-H.test('the deprecated qblib_config* bridge exports stay registered', function()
+H.test('the deprecated kora_lib_config* bridge exports stay registered', function()
     registered = {}
     local config = makeConfig(library)
     config.define({ visual = config.number(1, { scope = 'client', live = true }) })
     for _, method in ipairs({ 'Read', 'Commit', 'Reset' }) do
-        H.assertTrue(registered['qblib_config' .. method] ~= nil, 'missing deprecated export ' .. method)
-        H.assertEqual(registered['qblib_config' .. method], registered['kora_lib_config' .. method])
+        H.assertTrue(registered['kora_lib_config' .. method] ~= nil, 'missing deprecated export ' .. method)
+        H.assertEqual(registered['kora_lib_config' .. method], registered['kora_lib_config' .. method])
     end
 end)
 

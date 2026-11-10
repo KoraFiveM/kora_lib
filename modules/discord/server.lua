@@ -1,11 +1,9 @@
 local API_BASE = 'https://discord.com/api/v10'
-local USER_AGENT = 'DiscordBot (https://github.com/qbcore2/qblib, 1.0.0)'
+local USER_AGENT = 'DiscordBot (https://github.com/qbcore2/kora_lib, 1.0.0)'
 local MAX_RATE_LIMIT_RETRIES = 1
 
-local function getConvar(name, legacyName, default)
-    local value = GetConvar(name, '')
-    if value ~= '' then return value end
-    return GetConvar(legacyName, default)
+local function getConvar(name, default)
+    return GetConvar(name, default)
 end
 
 local EMBED_TEXT_FIELDS = { 'title', 'description', 'url' }
@@ -190,7 +188,7 @@ function Kora.discord.sendWebhook(url, payload, callback)
     assertCallback(callback)
     assert(url == nil or type(url) == 'string', 'Discord webhook URL must be a string or nil.')
 
-    url = url and url:match('^%s*(.-)%s*$') or getConvar('kora_lib_discord_webhook', 'qblib_discord_webhook', '')
+    url = url and url:match('^%s*(.-)%s*$') or getConvar('kora_lib_discord_webhook', '')
     if url == '' then
         if callback then
             callback(false, { status = 0, error = 'Discord webhook is not configured.' })
@@ -210,7 +208,7 @@ function Kora.discord.sendWebhook(url, payload, callback)
 end
 
 local function botToken()
-    return getConvar('kora_lib_discord_bot_token', 'qblib_discord_bot_token', '')
+    return getConvar('kora_lib_discord_bot_token', '')
 end
 
 ---Return whether the REST bot client is enabled by its token convar.
@@ -238,7 +236,7 @@ end
 
 local function resolveGuildId(guildId)
     if guildId == nil or guildId == '' then
-        guildId = getConvar('kora_lib_discord_guild_id', 'qblib_discord_guild_id', '')
+        guildId = getConvar('kora_lib_discord_guild_id', '')
     end
     assert(guildId ~= '', 'Discord guild ID is required (argument or kora_lib_discord_guild_id).')
     return requireSnowflake(guildId, 'guild ID')
@@ -701,13 +699,13 @@ local function waitForQbSql()
     while true do
         local state = GetResourceState('kora_sql')
         if state == 'missing' or state == 'stopped' or state == 'uninitialized' then
-            return false, ('qbsql is %s'):format(state)
+            return false, ('kora_sql is %s'):format(state)
         end
         if state == 'started' then
             local ok, ready = pcall(function() return exports.kora_sql:isReady() end)
             if ok and ready then return true end
         end
-        if GetGameTimer() >= deadline then return false, 'qbsql did not become ready before the timeout' end
+        if GetGameTimer() >= deadline then return false, 'kora_sql did not become ready before the timeout' end
         Wait(100)
     end
 end
@@ -1207,7 +1205,6 @@ local function discordSyncCommand(source)
 end
 
 RegisterCommand('kora_lib_discord_sync', discordSyncCommand, false)
-RegisterCommand('qblib_discord_sync', discordSyncCommand, false)
 
 AddEventHandler('playerJoining', function()
     if not Kora.discord.botEnabled() then return end

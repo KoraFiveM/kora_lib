@@ -121,8 +121,8 @@ local function run(state)
     end
 end
 
----@param options? QBFreecamOptions
----@return QBFreecamHandle|false, string?
+---@param options? KoraFreecamOptions
+---@return KoraFreecamHandle|false, string?
 function Kora.freecam.start(options)
     if active then return false, 'A freecam session is already active.' end
     options = options or {}

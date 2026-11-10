@@ -5,7 +5,7 @@ end)
 ---Reapplies kora_theme to kora_lib's own NUI frame.
 ---@return table<string, string> tokens
 function Kora.theme.push()
-    return QBTheme.refresh()
+    return KoraTheme.refresh()
 end
 
 ---Runs a handler whenever an admin changes the server fonts in /config. The
@@ -14,7 +14,7 @@ end
 ---@return fun() unsubscribe
 function Kora.theme.onFontsChanged(handler)
     assert(type(handler) == "function", "Kora.theme.onFontsChanged expects a function.")
-    local event = AddEventHandler("qbtheme:fontsChanged", function()
+    local event = AddEventHandler("kora_theme:fontsChanged", function()
         handler(Kora.theme.getFonts())
     end)
     return function() RemoveEventHandler(event) end

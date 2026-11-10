@@ -101,7 +101,7 @@ end)
 
 ---Adds a text prompt to the display stack and returns its owned handle.
 ---@param text string
----@param opts? QBTextUIOptions
+---@param opts? KoraTextUIOptions
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return integer id
 function Kora.textui.show(text, opts, owner)
@@ -120,7 +120,7 @@ end
 ---Updates a live handle without changing its place in the display stack.
 ---@param id integer
 ---@param text string
----@param opts? QBTextUIOptions
+---@param opts? KoraTextUIOptions
 ---@return boolean updated
 function Kora.textui.update(id, text, opts)
     assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')

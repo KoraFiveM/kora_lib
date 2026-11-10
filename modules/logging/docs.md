@@ -31,7 +31,7 @@ exports.kora_lib:logging_event('admin', source, { action = 'kick', target = 12 }
 
 ## Notes
 - The ring buffer holds the most recent 500 events; older entries are overwritten, not persisted anywhere.
-- Set the `kora_lib_log_webhook` convar to a Discord webhook URL to mirror every `event()` call there. The legacy `qblib_log_webhook` and `qbcore_log_webhook` convars still work as fallbacks, in that order.
+- Set the `kora_lib_log_webhook` convar to a Discord webhook URL to mirror every `event()` call there. The legacy `kora_lib_log_webhook` and `kora_core_log_webhook` convars still work as fallbacks, in that order.
 - Webhook delivery is fire-and-forget -- a failing or slow endpoint never blocks or throws into the caller.
 - Webhook content is capped at Discord's 2,000-character message limit; this
   affects only the outbound mirror, never the complete local ring entry.

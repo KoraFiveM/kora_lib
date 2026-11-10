@@ -7,7 +7,7 @@ local harness = require('harness')
 local mocks = require('mocks')
 mocks.install()
 
-local convars = { qb_locale = 'en', qb_locales = 'en,de' }
+local convars = { kora_locale = 'en', kora_locales = 'en,de' }
 local kvps = {}
 local events = {}
 local files = {
@@ -36,14 +36,14 @@ harness.test('treats named placeholders and replacements as literal text', funct
 end)
 
 harness.test('falls back to English when the configured language is invalid', function()
-    local configured = convars.qb_locale
-    convars.qb_locale = '../outside'
+    local configured = convars.kora_locale
+    convars.kora_locale = '../outside'
     Kora.locale._language = nil
 
     harness.assertEqual(Kora.locale.getLanguage(), 'en')
     harness.assertEqual(Kora.lang('greeting', { name = 'Ada' }), 'Hello Ada')
 
-    convars.qb_locale = configured
+    convars.kora_locale = configured
 end)
 
 harness.test('rejects malformed explicit resource names before locale file lookup', function()
@@ -58,8 +58,7 @@ harness.test('stores a player language in client KVP and switches lookup immedia
     harness.assertEqual(Kora.lang('greeting', { name = 'Ada' }), 'Hallo Ada')
     harness.assertEqual(Kora.lang('positional', 'Ada'), 'Hallo Ada')
     harness.assertEqual(Kora.lang('fallback'), 'English', 'missing selected-language keys should fall back to English')
-    harness.assertEqual(events[#events - 1].name, 'kora_lib:client:localeChanged')
-    harness.assertEqual(events[#events].name, 'qblib:client:localeChanged', 'deprecated alias for older listeners')
+    harness.assertEqual(events[#events].name, 'kora_lib:client:localeChanged')
 end)
 
 harness.test('rejects a language the server has not offered', function()

@@ -29,7 +29,7 @@ local function resolveDistance(distance)
 end
 
 ---@param src integer
----@param coords? QBCoords
+---@param coords? KoraCoords
 ---@param distance? number
 ---@return {id: integer?, distance: number?}
 function Kora.closest.player(src, coords, distance)
@@ -44,7 +44,7 @@ function Kora.closest.player(src, coords, distance)
 end
 
 ---@param src integer
----@param coords? QBCoords
+---@param coords? KoraCoords
 ---@param distance? number
 ---@return {id: integer?, distance: number?}
 function Kora.closest.vehicle(src, coords, distance)
@@ -55,7 +55,7 @@ function Kora.closest.vehicle(src, coords, distance)
 end
 
 ---@param src integer
----@param coords? QBCoords
+---@param coords? KoraCoords
 ---@param distance? number
 ---@return {id: integer?, distance: number?}
 function Kora.closest.ped(src, coords, distance)
@@ -67,7 +67,7 @@ function Kora.closest.ped(src, coords, distance)
 end
 
 ---@param src integer
----@param coords? QBCoords
+---@param coords? KoraCoords
 ---@param distance? number
 ---@return {id: integer?, distance: number?}
 function Kora.closest.object(src, coords, distance)

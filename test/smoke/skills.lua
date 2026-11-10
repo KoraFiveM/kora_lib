@@ -10,7 +10,7 @@ mocks.install()
 
 local state = 'missing'
 _G.GetResourceState = function(name)
-    harness.assertEqual(name, 'kora_skills', 'the bridge should only inspect qbskills')
+    harness.assertEqual(name, 'kora_skills', 'the bridge should only inspect kora_skills')
     return state
 end
 
@@ -33,17 +33,17 @@ dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
 dofile(repoRoot .. 'modules/skills/server.lua')
 
-harness.test('skills bridge is a no-op when qbskills is unavailable', function()
+harness.test('skills bridge is a no-op when kora_skills is unavailable', function()
     harness.assertFalse(Kora.skills.isAvailable(), 'the optional resource should report unavailable')
     harness.assertEqual(Kora.skills.get(1, 'mining'), nil, 'unavailable resources should not be called')
     local ok, err = Kora.skills.add(1, 'mining', 25)
-    harness.assertFalse(ok, 'awards must fail closed without qbskills')
-    harness.assertEqual(err, 'qbskills is not started', 'the unavailable result should be actionable')
+    harness.assertFalse(ok, 'awards must fail closed without kora_skills')
+    harness.assertEqual(err, 'kora_skills is not started', 'the unavailable result should be actionable')
 end)
 
-harness.test('skills bridge forwards only after qbskills has started', function()
+harness.test('skills bridge forwards only after kora_skills has started', function()
     state = 'started'
-    harness.assertTrue(Kora.skills.isAvailable(), 'started qbskills should be available')
+    harness.assertTrue(Kora.skills.isAvailable(), 'started kora_skills should be available')
     harness.assertEqual(Kora.skills.get(1, 'mining').level, 20, 'single-skill reads should forward')
     harness.assertTrue(Kora.skills.hasLevel(1, 'mining', 20), 'level checks should forward')
     harness.assertTrue(Kora.skills.add(1, 'mining', 25), 'server awards should forward')

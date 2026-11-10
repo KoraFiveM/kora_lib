@@ -663,7 +663,7 @@ harness.test("startCreator rejects a second call while a creator is already runn
     local second = Kora.zones.startCreator("box")
     harness.assertEqual(second.state, "rejected", "a second concurrent creator should be rejected immediately")
 
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     harness.assertEqual(first.state, "resolved", "cancelling should resolve the first creator's promise")
     harness.assertEqual(first.value, nil, "a cancelled creator should resolve with nil, not an error")
 end)
@@ -682,7 +682,7 @@ harness.test("isCreatorActive reflects whether a creator session is running", fu
     local p = Kora.zones.startCreator("box")
     harness.assertTrue(Kora.zones.isCreatorActive(), "a creator is now pending")
 
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
     harness.assertFalse(Kora.zones.isCreatorActive(), "cancelling should clear the active session")
 end)
@@ -696,7 +696,7 @@ harness.test("the creator restores the minimap when it ends", function()
 
     harness.assertTrue(radarCalls[1] == false, "the minimap should be hidden while placing")
 
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     net.step()
 
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
@@ -709,7 +709,7 @@ harness.test("the creator preserves a minimap that was already hidden", function
     radarCalls = {}
 
     local p = Kora.zones.startCreator("box")
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     net.step()
 
     harness.assertEqual(p.state, "resolved", "sanity check: the creator should have ended")
@@ -724,7 +724,7 @@ harness.test("the creator holds and releases its camera control lease", function
     harness.assertTrue(disabledControls["0:1"] == true and disabledControls["0:31"] == true,
         "creator camera controls should be disabled before startCreator returns")
 
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     disabledControls = {}
     net.step()
 
@@ -737,15 +737,15 @@ harness.test("the creator lease disables attack and aim so clicks can't fire or 
     local p = Kora.zones.startCreator("box")
     harness.assertTrue(disabledControls["0:24"] == true and disabledControls["0:25"] == true,
         "attack (24) and aim (25) must be disabled while the creator is open")
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     net.step()
     harness.assertEqual(p.state, "resolved", "the creator should cancel normally")
 end)
 
 harness.test("mouse clicks place, grab/drop and undo exactly like E and Backspace", function()
-    local mouse = { place = registeredCommands["qblib_zonecreator_place_click"], undo = registeredCommands["qblib_zonecreator_undo_click"] }
+    local mouse = { place = registeredCommands["kora_lib_zonecreator_place_click"], undo = registeredCommands["kora_lib_zonecreator_undo_click"] }
     harness.assertTrue(mouse.place ~= nil and mouse.undo ~= nil, "click keybinds should be registered")
-    harness.assertTrue(registeredCommands["qblib_zonecreator_place"] ~= nil, "E keybind must still exist")
+    harness.assertTrue(registeredCommands["kora_lib_zonecreator_place"] ~= nil, "E keybind must still exist")
 
     rayHit, rayCoords = 1, { x = 1.0, y = 2.0, z = 3.0 }
     local p = Kora.zones.startCreator("poly")
@@ -754,13 +754,13 @@ harness.test("mouse clicks place, grab/drop and undo exactly like E and Backspac
         via()
     end
     placeAt(0.0, mouse.place)
-    placeAt(10.0, registeredCommands["qblib_zonecreator_place"])
+    placeAt(10.0, registeredCommands["kora_lib_zonecreator_place"])
     placeAt(0.0, mouse.place)
     placeAt(10.0, mouse.place)
     mouse.undo()
-    registeredCommands["qblib_zonecreator_undo"]()
+    registeredCommands["kora_lib_zonecreator_undo"]()
 
-    local cycle = registeredCommands["qblib_zonecreator_cycle"]
+    local cycle = registeredCommands["kora_lib_zonecreator_cycle"]
     for _ = 1, 2 do cycle() end
     rayCoords = { x = 0.5, y = 0.0, z = 0.0 }
     net.step()
@@ -775,7 +775,7 @@ harness.test("mouse clicks place, grab/drop and undo exactly like E and Backspac
     cycle()
     placeAt(5.0, mouse.place)
     nextNuiResponse = { confirmed = true }
-    registeredCommands["qblib_zonecreator_confirm"]()
+    registeredCommands["kora_lib_zonecreator_confirm"]()
     nextNuiResponse = nil
     harness.assertEqual(p.state, "resolved", "three points are enough to confirm")
     local pts = p.value.opts.points
@@ -849,7 +849,7 @@ harness.test("startCreator raises synchronously on malformed seed opts", functio
 
     local p = Kora.zones.startCreator("box")
     harness.assertEqual(p.state, "pending", "a fresh creator should start cleanly after failed seeds")
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
 end)
 
 harness.test("startCreator preserves a zero-based explicit poly height band", function()
@@ -859,7 +859,7 @@ harness.test("startCreator preserves a zero-based explicit poly height band", fu
     })
 
     nextNuiResponse = { confirmed = true }
-    registeredCommands["qblib_zonecreator_confirm"]()
+    registeredCommands["kora_lib_zonecreator_confirm"]()
     nextNuiResponse = nil
 
     harness.assertEqual(p.value.opts.thickness, 4, "the seed height band should retain its full thickness")
@@ -876,7 +876,7 @@ harness.test("startCreator(type, existingOpts) seeds the creator from an existin
     harness.assertEqual(p.state, "pending", "the creator should be running, seeded from the existing zone")
 
     nextNuiResponse = { confirmed = true }
-    registeredCommands["qblib_zonecreator_confirm"]()
+    registeredCommands["kora_lib_zonecreator_confirm"]()
     nextNuiResponse = nil
 
     harness.assertEqual(p.state, "resolved", "confirming a seeded creator should resolve like a normal one")
@@ -898,7 +898,7 @@ harness.test("confirming a poly creator returns its coordinates without register
     })
 
     nextNuiResponse = { confirmed = true }
-    registeredCommands["qblib_zonecreator_confirm"]()
+    registeredCommands["kora_lib_zonecreator_confirm"]()
     nextNuiResponse = nil
 
     harness.assertEqual(p.state, "resolved", "confirming should return the completed poly definition")
@@ -1000,7 +1000,7 @@ harness.test("Config.zones.debug defaults new zones into debug drawing without o
     zone.remove()
 end)
 
-harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", function()
+harness.test("kora_zonedebug command toggles/sets debug drawing for every zone", function()
     net.step()
 
     Kora.zones.setDebug(nil, true)
@@ -1012,22 +1012,22 @@ harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", f
 
     local zone = Kora.zones.box({ coords = { x = 380, y = 380, z = 30 }, size = { x = 4, y = 4, z = 3 } })
 
-    registeredCommands["qb_zonedebug"](nil, {})
+    registeredCommands["kora_zonedebug"](nil, {})
     drawLineCalls = 0
     net.step()
     harness.assertEqual(drawLineCalls - baseline, 12, "no-arg toggle should turn debug on when nothing is currently drawing")
 
-    registeredCommands["qb_zonedebug"](nil, {})
+    registeredCommands["kora_zonedebug"](nil, {})
     drawLineCalls = 0
     net.step()
     harness.assertEqual(drawLineCalls, 0, "no-arg toggle should turn debug back off when a zone is currently drawing")
 
-    registeredCommands["qb_zonedebug"](nil, { "on" })
+    registeredCommands["kora_zonedebug"](nil, { "on" })
     drawLineCalls = 0
     net.step()
     harness.assertEqual(drawLineCalls - baseline, 12, "'on' should enable debug drawing regardless of the current state")
 
-    registeredCommands["qb_zonedebug"](nil, { "off" })
+    registeredCommands["kora_zonedebug"](nil, { "off" })
     drawLineCalls = 0
     net.step()
     harness.assertEqual(drawLineCalls, 0, "'off' should disable debug drawing regardless of the current state")
@@ -1047,7 +1047,7 @@ harness.test("starting the creator activates a scripted camera with an eased tra
     harness.assertEqual(renderCalls[1][1], true, "the camera should render on")
     harness.assertEqual(renderCalls[1][2], true, "the transition into the creator's camera should ease")
 
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     net.step()
 
     harness.assertTrue(#renderCalls >= 2, "cancelling should hand the view back to the gameplay camera")
@@ -1065,7 +1065,7 @@ harness.test("cancelling the creator eventually destroys its scripted camera", f
     local p = Kora.zones.startCreator("box")
     net.step()
 
-    registeredCommands["qblib_zonecreator_cancel"]()
+    registeredCommands["kora_lib_zonecreator_cancel"]()
     net.step()
     net.step()
 

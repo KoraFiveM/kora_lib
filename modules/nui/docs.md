@@ -281,7 +281,7 @@ and every action handler in Lua.
 
 ```lua
 Kora.nui.registerApp({
-    id = 'qbmdt:police',
+    id = 'kora_mdt:police',
     title = 'Mobile Data Terminal',
     description = 'Los Santos Police Department',
     icon = 'Shield',
@@ -322,12 +322,12 @@ Kora.nui.registerApp({
     },
     onAction = function(actionId, context)
         if actionId == 'new-report' then
-            TriggerEvent('qbmdt:client:newReport', context)
+            TriggerEvent('kora_mdt:client:newReport', context)
         end
     end,
 })
 
-local result = Kora.nui.openApp('qbmdt:police', {
+local result = Kora.nui.openApp('kora_mdt:police', {
     viewId = 'dashboard',
     data = { characterId = citizenid }, -- private; returned to onAction/onChange
 })
@@ -600,7 +600,7 @@ Translates `data.inputs[]` onto `Kora.nui.openInputDialog` fields and blocks the
 
 ### `exports['qb-radialmenu']:AddOption(option, id_or_shouldClose)` / `RemoveOption(id)`
 
-**Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `Kora.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no Kora.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `Kora.nui.openRadialMenu` when its own keybind (`qblib_radialmenu_open`, default `F1`, matching qbcore-framework/qb-radialmenu's own `config.lua` default; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
+**Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `Kora.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no Kora.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `Kora.nui.openRadialMenu` when its own keybind (`kora_lib_radialmenu_open`, default `F1`, matching qbcore-framework/qb-radialmenu's own `config.lua` default; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
 - There is no script-triggered "open now" call — matching real qb-radialmenu's own keybind-driven UX, but unlike every other `Kora.nui.open*` wrapper, which is always caller-initiated.
 - `AddOption` without an id returns a numeric id (as upstream); a caller-supplied id is returned unchanged. `qb-radialmenu:client:onRadialmenuOpen`/`onRadialmenuClose` fire around each wheel, and the built-in seat switch is refused while `exports['qb-smallresources']:HasHarness()` is true.
 - `option.shouldClose == false` is approximated by immediately re-issuing a fresh `Kora.nui.openRadialMenu` request after dispatch, rather than a truly persistent NUI state staying open across the selection.

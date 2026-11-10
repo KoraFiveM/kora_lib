@@ -112,8 +112,8 @@ harness.test("event() webhook payload disables mention parsing", function()
         "the webhook payload must carry an allowed_mentions block")
 end)
 
-harness.test("event() falls back to the legacy qbcore_log_webhook convar", function()
-    convars = { qbcore_log_webhook = "https://legacy.invalid/webhook" }
+harness.test("event() falls back to the legacy kora_core_log_webhook convar", function()
+    convars = { kora_core_log_webhook = "https://legacy.invalid/webhook" }
     httpRequests = {}
 
     Kora.logging.event("admin", 0, {})
@@ -150,11 +150,11 @@ harness.test('event caps only oversized webhook content', function()
     harness.assertEqual(mirroredContent:sub(-3), '...')
 end)
 
-harness.test("event() prefers kora_lib_log_webhook, then qblib_log_webhook, then qbcore_log_webhook", function()
-    convars = { qblib_log_webhook = "https://old-name.invalid/webhook", qbcore_log_webhook = "https://legacy.invalid/webhook" }
+harness.test("event() prefers kora_lib_log_webhook, then kora_lib_log_webhook, then kora_core_log_webhook", function()
+    convars = { kora_lib_log_webhook = "https://old-name.invalid/webhook", kora_core_log_webhook = "https://legacy.invalid/webhook" }
     httpRequests = {}
     Kora.logging.event("admin", 0, {})
-    harness.assertEqual(httpRequests[1].url, "https://old-name.invalid/webhook", "the qblib_ name outranks qbcore_")
+    harness.assertEqual(httpRequests[1].url, "https://old-name.invalid/webhook", "the kora_lib_ name outranks kora_core_")
 
     convars.kora_lib_log_webhook = "https://example.invalid/webhook"
     httpRequests = {}

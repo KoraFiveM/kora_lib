@@ -20,7 +20,7 @@ local scaleformCalls = {}
 local textureRequests = {}
 local textureReleases = {}
 local textEntryCalls = 0
-local resourceKvps = { ['qblib:blips:category:31'] = '0' }
+local resourceKvps = { ['kora_lib:blips:category:31'] = '0' }
 local nextBlip = 0
 local frontendReady = false
 local hoveringBlip = false

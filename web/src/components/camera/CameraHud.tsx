@@ -102,7 +102,7 @@ export function CameraHud() {
                     <strong>{String(Math.max(1, state.cameraIndex)).padStart(2, "0")}</strong>
                     {state.totalCameras > 1 && <small>/ {String(state.totalCameras).padStart(2, "0")}</small>}
                 </div>
-                <div className="camera-footer-mark"><span>QBCORE</span><i /></div>
+                <div className="camera-footer-mark"><span>KORA</span><i /></div>
             </footer>
         </div>
     )

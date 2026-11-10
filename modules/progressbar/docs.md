@@ -15,7 +15,7 @@ server-authorized flow; `Kora.actions.run` uses it for that purpose.
 Runs a progress bar for `payload.duration` ms.
 
 #### Parameters
-- `payload: QBProgressBarPayload`
+- `payload: KoraProgressBarPayload`
   - `label: string` — Text shown above the bar. Required.
   - `duration: finite integer` — Milliseconds the bar takes to fill. Must be `> 0` and `<= Config.progressbar.maxDuration` (10 minutes by default).
   - `maxDuration?: finite integer|false` — Internal compatibility override for a different positive limit; `false` removes the cap. Normal kora_lib calls should keep the configured default.

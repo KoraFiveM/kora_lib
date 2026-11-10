@@ -148,7 +148,7 @@ Explicit/dynamic exports:
   `registerHook:<event>` and `removeHook:<event>`.
 
 kora_lib gap: no export names above under resource identity `ox_lib`; its flattened
-exports are `<QBmodule>_<function>`, and several related functions have
+exports are `<Koramodule>_<function>`, and several related functions have
 incompatible arguments/returns.
 
 ## 3. Wire/runtime side effects (P0)

@@ -122,7 +122,7 @@ retry.
   - `radius: number` — Required. A finite radius greater than zero, in metres.
 
 #### Returns
-- `QBScopedEntityHandle` — A persistent registration handle:
+- `KoraScopedEntityHandle` — A persistent registration handle:
   - `id: number` — The stable scope-registration ID.
   - `resource: string` — The resource that owns it.
   - `entity: number | nil` — The currently spawned local entity, or `nil` while outside its radius. Do not retain this value across an exit/re-entry.

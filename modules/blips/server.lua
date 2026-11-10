@@ -1,6 +1,5 @@
 local function registerWithLegacyAlias(name, handler, options)
     Kora.callback.register(name, handler, options)
-    Kora.callback.register((name:gsub('^kora_lib:', 'qblib:')), handler, options)
 end
 
 registerWithLegacyAlias('kora_lib:blips:isAdmin', function(src)

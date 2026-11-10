@@ -11,13 +11,11 @@ dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
 
 local granted = false
-local legacyGranted = false
 local notices = {}
 Kora.permissions = {
     hasPermission = function(src, permission, prefix)
         harness.assertEqual(src, mocks.SOURCE)
         harness.assertEqual(permission, Config.editor.permission)
-        if prefix == 'qblib' then return legacyGranted end
         harness.assertEqual(prefix, Config.editor.permissionPrefix)
         return granted
     end,
@@ -34,16 +32,6 @@ harness.test('editor commands deny players without the configured permission', f
     harness.assertEqual(#notices, 1, 'a denied command should explain the failure')
     harness.assertTrue(mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:editor:startZoneCreator') == nil,
         'a denied command must not start an editor')
-end)
-
-harness.test('the deprecated qblib.editor ACE still grants access', function()
-    granted = false
-    legacyGranted = true
-    local before = #notices
-    net.commands[Config.editor.zoneCommand](mocks.SOURCE, { 'box' })
-    harness.assertEqual(#notices, before, 'a legacy grant should not be denied')
-    harness.assertTrue(mocks.lastEntry(net.triggeredClientEvents, 'kora_lib:editor:startZoneCreator') ~= nil)
-    legacyGranted = false
 end)
 
 harness.test('zone command validates the shape before starting the client editor', function()

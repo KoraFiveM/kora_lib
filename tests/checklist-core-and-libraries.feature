@@ -86,7 +86,7 @@ Feature: kora_lib — Core & Libraries
   @kora_lib @checklist @checklist:kora_lib:zone-creator @cat:core-and-libraries @needs:admin
   Scenario: Zone creator (/kora_zonecreator)
     """
-    Checklist test: With editor permission run /kora_zonecreator [box|sphere|poly]; place points, confirm output; TAB conflict with inventory is vetoed. Note: /kora_zonecreator was called /qb_zonecreator.
+    Checklist test: With editor permission run /kora_zonecreator [box|sphere|poly]; place points, confirm output; TAB conflict with inventory is vetoed. Note: /kora_zonecreator was called /kora_zonecreator.
     """
     When I manually: run /kora_zonecreator box with editor permission
     And I manually: place the points and confirm
@@ -99,7 +99,7 @@ Feature: kora_lib — Core & Libraries
   @kora_lib @checklist @checklist:kora_lib:placement-editor @cat:core-and-libraries @needs:admin
   Scenario: Prop placement (/kora_place <model>)
     """
-    Checklist test: Run /kora_place <model>: preview object, cycle with TAB, confirm RETURN, cancel X; permission denied otherwise. Note: /kora_place was called /qb_place.
+    Checklist test: Run /kora_place <model>: preview object, cycle with TAB, confirm RETURN, cancel X; permission denied otherwise. Note: /kora_place was called /kora_place.
     """
     When I manually: run /kora_place prop_bench_01a with editor permission
     Then I confirm: a preview object appears

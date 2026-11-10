@@ -1,5 +1,4 @@
 local ACE = 'kora_lib.config.edit'
-local LEGACY_ACE = 'qblib.config.edit'
 
 local READ_LIMIT = { rateLimit = { max = 30, window = 10000 } }
 local WRITE_LIMIT = { rateLimit = { max = 10, window = 10000 } }
@@ -43,7 +42,7 @@ local function allowed(source)
         if not ok and not tostring(permitted):find('No such export canEditConfig', 1, true) then return false end
     end
     if type(IsPlayerAceAllowed) == 'function'
-        and (IsPlayerAceAllowed(source, ACE) == true or IsPlayerAceAllowed(source, LEGACY_ACE) == true) then
+        and (IsPlayerAceAllowed(source, ACE) == true) then
         return true
     end
     return Kora.permissions and Kora.permissions.hasPermission
@@ -150,7 +149,6 @@ end
 
 local function registerWithLegacyAlias(name, handler, options)
     Kora.callback.register(name, handler, options)
-    Kora.callback.register((name:gsub('^kora_lib:', 'qblib:')), handler, options)
 end
 
 registerWithLegacyAlias('kora_lib:configCatalog', function(source)

@@ -138,10 +138,10 @@ local function byDistance(a, b)
 end
 
 ---Finds every entity of `entityType` within `radius` meters of `coords`, nearest first, from the live server pools.
----@param entityType QBWorldEntityType
+---@param entityType KoraWorldEntityType
 ---@param coords any
 ---@param radius number
----@param options? QBWorldQueryOptions
+---@param options? KoraWorldQueryOptions
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
 function Kora.world.getNearbyEntities(entityType, coords, radius, options)
     assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
@@ -153,9 +153,9 @@ function Kora.world.getNearbyEntities(entityType, coords, radius, options)
 end
 
 ---Finds the single nearest entity of `entityType` to `coords`.
----@param entityType QBWorldEntityType
+---@param entityType KoraWorldEntityType
 ---@param coords any
----@param options? QBWorldQueryOptions `radius` defaults to Config.world.defaultRadius.
+---@param options? KoraWorldQueryOptions `radius` defaults to Config.world.defaultRadius.
 ---@return number|false entity `false` if nothing matched within range.
 ---@return table? coords Only present when an entity was found.
 ---@return number? distance Only present when an entity was found.
@@ -180,7 +180,7 @@ end
 ---Reports whether no vehicle occupies the requested spawn radius.
 ---@param coords vector3|{x:number,y:number,z:number}
 ---@param radius number
----@param options? QBWorldQueryOptions
+---@param options? KoraWorldQueryOptions
 ---@return boolean clear
 function Kora.world.isSpawnClear(coords, radius, options)
     assertRadius(radius)
@@ -193,7 +193,7 @@ end
 ---retain ownership of player-facing messages.
 ---@param src integer
 ---@param networkId integer
----@param options? QBWorldNetworkEntityOptions
+---@param options? KoraWorldNetworkEntityOptions
 ---@return integer|nil entity
 ---@return string|nil reason
 function Kora.world.resolveNetworkEntity(src, networkId, options)
@@ -248,7 +248,7 @@ end
 ---proximity before gameplay code acts on it.
 ---@param src integer
 ---@param targetSrc integer
----@param options QBWorldNearbyPlayerOptions
+---@param options KoraWorldNearbyPlayerOptions
 ---@return integer|nil targetPed
 ---@return number|string reasonOrDistance Distance on success; stable reason code on failure.
 function Kora.world.resolveNearbyPlayer(src, targetSrc, options)

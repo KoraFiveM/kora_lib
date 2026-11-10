@@ -68,7 +68,7 @@ function Kora.skills.add(src, skill, amount, location, distance)
     assertSkill(skill)
     assert(Kora.util.isInteger(amount) and amount > 0, 'amount must be a positive integer.')
     assertLocation(location, distance)
-    if not isStarted() then return false, 'qbskills is not started' end
+    if not isStarted() then return false, 'kora_skills is not started' end
     return exports[RESOURCE]:addRep(src, skill, amount, location, distance)
 end
 

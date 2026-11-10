@@ -34,7 +34,6 @@ dofile(repoRoot .. 'modules/blips/server.lua')
 harness.test('registers a rate-limited server callback for admin visibility', function()
     harness.assertEqual(callbackName, 'kora_lib:blips:isAdmin', 'callback name should be namespaced')
     harness.assertEqual(callbackOptions.rateLimit.max, 10, 'permission checks should have a bounded request rate')
-    harness.assertEqual(registeredNames[2], 'qblib:blips:isAdmin', 'the deprecated qblib: alias should stay registered')
 end)
 
 harness.test('returns only the server-resolved admin permission', function()

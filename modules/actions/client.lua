@@ -9,7 +9,7 @@ end
 ---Runs one server-authorized player action. `begin` and `complete` are kept
 ---resource-owned so the library never defines a resource's security contract;
 ---it only owns the exclusive progressbar/minigame UX in between them.
----@param options QBActionsOptions
+---@param options KoraActionsOptions
 ---@param ... any Values forwarded unchanged to `begin` and `complete`.
 ---@return boolean started False when another action is already active or begin declined.
 ---@return any result The value returned by `complete`, or the begin failure reason.

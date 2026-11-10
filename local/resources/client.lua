@@ -11,7 +11,7 @@ end
 ---`onDispose(id)` runs for every id still tracked under a resource when it stops.
 ---Scope one registry to one id space; sharing across colliding id spaces corrupts the reverse lookup.
 ---@param onDispose fun(id: any) Called for each id still owned when its resource stops.
----@return QBResourcesRegistry
+---@return KoraResourcesRegistry
 function Kora.resources.registry(onDispose)
     assert(Kora.compat.isCallable(onDispose), 'Kora.resources.registry requires a callable disposer.')
     local byResource = {}

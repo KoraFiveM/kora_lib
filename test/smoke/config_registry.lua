@@ -186,7 +186,7 @@ H.test('an on-demand read discovers a resource whose announcement raced startup'
 end)
 
 H.test('own bootstrap survives a resource-driven restart without granting callers ownership', function()
-    invoker = 'qbcompat-control'
+    invoker = 'kora_compat-control'
     _G.GetCurrentResourceName = function() return 'kora_lib' end
     _G.IsDuplicityVersion = function() return true end
     _G.GetNumResources = function() return 0 end
@@ -213,7 +213,7 @@ H.test('own bootstrap survives a resource-driven restart without granting caller
         Kora.config.register({ resource = 'kora_lib', schema = {}, configured = {}, client = {}, revision = 1 })
     end)
     H.assertTrue(Kora.config.register({
-        resource = 'qbcompat-control', schema = {}, configured = {}, client = {}, revision = 1,
+        resource = 'kora_compat-control', schema = {}, configured = {}, client = {}, revision = 1,
     }))
 end)
 

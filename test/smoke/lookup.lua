@@ -279,18 +279,6 @@ local function warningContains(fragment)
     return false
 end
 
-harness.test('the deprecated qblib.lookup.json override name is still read', function()
-    local current = resourceFiles['fixture_a:kora_lib.lookup.json']
-    resourceFiles['fixture_a:qblib.lookup.json'] = current
-    resourceFiles['fixture_a:kora_lib.lookup.json'] = nil
-    _G.print = function() end
-    local _, legacyTotal = scannerState.scanAll()
-    _G.print = realPrint
-    resourceFiles['fixture_a:kora_lib.lookup.json'] = current
-    resourceFiles['fixture_a:qblib.lookup.json'] = nil
-    harness.assertEqual(legacyTotal, scannedTotal, 'the legacy override file should yield the same records')
-end)
-
 harness.test('scanner combines metadata inference with explicit enrichment', function()
     local car = Kora.lookup.model('custom_car', 'vehicle')
     harness.assertEqual(car.label, 'Custom Car')

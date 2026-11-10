@@ -252,12 +252,6 @@ end
 local function decodeOverride(resource)
     local fileName = 'kora_lib.lookup.json'
     local raw, readError = readResourceFile(resource, fileName, MAX_OVERRIDE_BYTES)
-    if raw == nil and readError ~= 'file is too large' then
-        local legacyRaw, legacyError = readResourceFile(resource, 'qblib.lookup.json', MAX_OVERRIDE_BYTES)
-        if legacyRaw ~= nil or legacyError == 'file is too large' then
-            fileName, raw, readError = 'qblib.lookup.json', legacyRaw, legacyError
-        end
-    end
     if raw == nil then
         if readError == 'file is too large' then
             warn(('%s/%s is too large and was ignored'):format(resource, fileName))

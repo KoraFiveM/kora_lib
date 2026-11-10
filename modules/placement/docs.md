@@ -94,7 +94,7 @@ mode and active rotation axis; the NUI HUD is reserved for transform state.
 - `Kora.placement.generateSnippet(result)` formats a ready-to-paste Lua table at
   four decimal places without rounding the returned result itself. Every
   coordinate, heading, and rotation component must be finite.
-- `/qb_place <model>` starts the same flow without writing Lua. A numeric
+- `/kora_place <model>` starts the same flow without writing Lua. A numeric
   argument is treated as a model hash. The server command requires the
   `kora_lib.editor` ACE by default; configure it through `Config.editor`.
 

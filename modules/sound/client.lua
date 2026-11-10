@@ -45,7 +45,7 @@ end
 
 ---Claims a sound id, registers it against the caller and arms its auto-release.
 ---@param owner string
----@param options QBSoundOptions
+---@param options KoraSoundOptions
 ---@return number|false soundId
 ---@return string? error
 local function claim(owner, options)
@@ -88,7 +88,7 @@ end
 ---Plays a 2D UI/frontend sound (`PlaySoundFrontend` family).
 ---@param name string Sound name, e.g. `"Lose_1st"`.
 ---@param set string Sound set/ref, e.g. `"GTAO_FM_Events_Soundset"`.
----@param options? QBSoundOptions
+---@param options? KoraSoundOptions
 ---@return number|false soundId Pass to Kora.sound.stop.
 ---@return string? error
 function Kora.sound.playFrontend(name, set, options)
@@ -109,7 +109,7 @@ end
 ---@param coords vector3 | {x: number, y: number, z: number}
 ---@param name string
 ---@param set string
----@param options? QBSoundOptions
+---@param options? KoraSoundOptions
 ---@return number|false soundId
 ---@return string? error
 function Kora.sound.playFromCoords(coords, name, set, options)
@@ -137,7 +137,7 @@ end
 ---@param entity number
 ---@param name string
 ---@param set string
----@param options? QBSoundOptions
+---@param options? KoraSoundOptions
 ---@return number|false soundId
 ---@return string? error
 function Kora.sound.playFromEntity(entity, name, set, options)

@@ -31,19 +31,19 @@ harness.test('options API registers a protected press handler and mapper', funct
     local calls = 0
     invokingResource = 'kora_chat'
     local handle = Kora.keybind.add({
-        name = 'qbchat_open',
+        name = 'kora_chat_open',
         description = 'Open chat',
         defaultKey = 'T',
         defaultMapper = 'keyboard',
         onPressed = function(bind)
             calls = calls + 1
-            harness.assertEqual(bind.name, 'qbchat_open')
+            harness.assertEqual(bind.name, 'kora_chat_open')
         end,
     })
     invokingResource = nil
 
-    net.commands['+qbchat_open']()
-    net.commands['-qbchat_open']()
+    net.commands['+kora_chat_open']()
+    net.commands['-kora_chat_open']()
     harness.assertEqual(calls, 1)
     harness.assertEqual(handle.resource, 'kora_chat')
     harness.assertEqual(mappings[#mappings].key, 'T')
@@ -216,13 +216,13 @@ harness.test('server command mappings use the same registry and transport', func
     TriggerClientEvent('kora_lib:commands:keybind:add', 1, 'admin', {
         description = 'Open admin', defaultKey = 'F7', resource = 'kora_admin',
     })
-    net.commands['+qblib_command:admin']()
+    net.commands['+kora_lib_command:admin']()
     local execute = mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:commands:keybind:execute')
     harness.assertEqual(execute[1], 'admin')
 
-    net.commands['-qblib_command:admin']()
+    net.commands['-kora_lib_command:admin']()
     TriggerClientEvent('kora_lib:commands:keybind:remove', 1, 'admin')
-    net.commands['+qblib_command:admin']()
+    net.commands['+kora_lib_command:admin']()
     harness.assertEqual(mocks.lastEntry(net.triggeredServerEvents, 'kora_lib:commands:keybind:execute'), execute,
         'removed command mappings should become inert')
 end)

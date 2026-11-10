@@ -130,8 +130,8 @@ Config.editor = {
     enabled = true,
     permission = 'editor',
     permissionPrefix = 'kora_lib',
-    zoneCommand = 'qb_zonecreator',
-    placementCommand = 'qb_place',
+    zoneCommand = 'kora_zonecreator',
+    placementCommand = 'kora_place',
 }
 
 Config.placement = {

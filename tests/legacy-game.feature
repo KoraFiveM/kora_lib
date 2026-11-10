@@ -477,18 +477,18 @@ Feature: kora_lib — game tests
     1. Create a zone with /testzone.
     2. Run /kora_zonedebug off, then /kora_zonedebug on, then /kora_zonedebug with no argument, then /kora_zonedebug maybe.
     Expect: off hides the outline and F8 shows "zone debug drawing disabled for every registered zone."; on shows it again; no argument flips the state; "maybe" prints "unrecognised argument 'maybe'".
-    Note: /kora_zonedebug was called /qb_zonedebug.
-    Also checklist kora_lib:zone-debug (Zone debug (/kora_zonedebug)): Run /kora_zonedebug to draw zone outlines in the world. Note: /kora_zonedebug was called /qb_zonedebug.
+    Note: /kora_zonedebug was called /kora_zonedebug.
+    Also checklist kora_lib:zone-debug (Zone debug (/kora_zonedebug)): Run /kora_zonedebug to draw zone outlines in the world. Note: /kora_zonedebug was called /kora_zonedebug.
     """
     When I run the command "/testzone"
-    And I run the command "/qb_zonedebug off"
+    And I run the command "/kora_zonedebug off"
     Then I confirm: the outline is hidden
     When the F8 console should show "zone debug drawing disabled for every registered zone."
-    And I run the command "/qb_zonedebug on"
+    And I run the command "/kora_zonedebug on"
     Then I confirm: the outline is shown again
-    When I run the command "/qb_zonedebug"
+    When I run the command "/kora_zonedebug"
     Then I confirm: the outline state is flipped
-    When I run the command "/qb_zonedebug maybe"
+    When I run the command "/kora_zonedebug maybe"
     And the F8 console should show "unrecognised argument 'maybe'"
 
   @kora_lib @legacy:lib-zonecreate-pick @target:3
@@ -558,14 +558,14 @@ Feature: kora_lib — game tests
     2. Run /kora_zonecreator foo.
     3. Without the ACE run /kora_zonecreator.
     Expect: sphere starts the creator. "foo" shows an error toast "Usage: /kora_zonecreator [box|sphere|poly]". Without access an error toast says "You do not have access to the developer editors."
-    Note: /kora_zonecreator was called /qb_zonecreator.
+    Note: /kora_zonecreator was called /kora_zonecreator.
     """
-    When I manually: as an editor (ACE kora_lib.editor) run /qb_zonecreator sphere
+    When I manually: as an editor (ACE kora_lib.editor) run /kora_zonecreator sphere
     Then I confirm: the zone creator starts
-    When I manually: run /qb_zonecreator foo
+    When I manually: run /kora_zonecreator foo
     Then I should see an error notification
     And I should see a notification containing "Usage: /kora_zonecreator [box|sphere|poly]"
-    When I manually: without the ACE run /qb_zonecreator
+    When I manually: without the ACE run /kora_zonecreator
     Then I should see a notification containing "You do not have access to the developer editors."
 
   @kora_lib @legacy:lib-place-start @target:3 @needs:admin @manual
@@ -574,9 +574,9 @@ Feature: kora_lib — game tests
     1. As an editor run /kora_place prop_bin_08.
     2. Fly with mouse and WASD, move with arrow keys and Page Up / Page Down, press Tab and [ or ] to rotate.
     Expect: a see-through bin preview appears on the surface under your crosshair and moves/rotates as you press the keys. Nothing solid is created for other players.
-    Note: /kora_place was called /qb_place.
+    Note: /kora_place was called /kora_place.
     """
-    When I manually: as an editor run /qb_place prop_bin_08
+    When I manually: as an editor run /kora_place prop_bin_08
     Then I confirm: a see-through bin preview appears on the surface under my crosshair
     When I manually: fly with mouse and WASD, move with arrow keys and Page Up / Page Down, press Tab and [ or ] to rotate
     Then I confirm: the preview moves and rotates as I press the keys
@@ -588,7 +588,7 @@ Feature: kora_lib — game tests
     1. Run /kora_place prop_bin_08 and press Enter.
     2. Close the summary, run it again and press X.
     Expect: Enter shows a summary with the model, coords, heading and rotation and a Lua snippet; the preview is deleted afterwards. X cancels with no summary and the preview is deleted.
-    Note: /kora_place was called /qb_place.
+    Note: /kora_place was called /kora_place.
     """
     When I run the command "/kora_place prop_bin_08"
     And I press the "Enter" key
@@ -605,7 +605,7 @@ Feature: kora_lib — game tests
     """
     1. Run /kora_place with no model.
     Expect: an error toast titled "kora_lib editor" says "Usage: /kora_place <model>".
-    Note: /kora_place was called /qb_place.
+    Note: /kora_place was called /kora_place.
     """
     When I run the command "/kora_place"
     Then I should see a notification containing "Usage: /kora_place <model>"

@@ -4,14 +4,14 @@ import type { TargetHudPayload } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 
 /**
- * Display-only presentation for qbtarget. Lua remains responsible for every
+ * Display-only presentation for kora_target. Lua remains responsible for every
  * target decision and all game controls; this stays pointer-transparent and
  * never asks for NUI focus, so aiming remains completely native.
  */
 export function TargetHud() {
     const [state, setState] = useState<TargetHudPayload | null>(null)
 
-    useNuiEvent<TargetHudPayload>("qbtarget:target", (payload) => {
+    useNuiEvent<TargetHudPayload>("kora_target:target", (payload) => {
         if (!payload?.active) {
             setState(null)
             return

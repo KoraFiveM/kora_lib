@@ -51,9 +51,6 @@ discoverRegistrations = function()
             local target = exports[resource]
             if target then
                 local ok, definition = pcall(function() return target:kora_lib_configRead() end)
-                if not ok then
-                    ok, definition = pcall(function() return target:qblib_configRead() end)
-                end
                 if ok and isRegistrationFrom(resource, definition) then registry[resource] = copy(definition) end
             end
         end
@@ -71,9 +68,9 @@ local function callResource(resource, method, request)
     end)
     if ok then return result end
     if not tostring(result):find('No such export', 1, true) then error(result, 0) end
-    if method == 'kora_lib_configRead' then return target:qblib_configRead() end
-    if method == 'kora_lib_configCommit' then return target:qblib_configCommit(request) end
-    return target:qblib_configReset(request)
+    if method == 'kora_lib_configRead' then return target:kora_lib_configRead() end
+    if method == 'kora_lib_configCommit' then return target:kora_lib_configCommit(request) end
+    return target:kora_lib_configReset(request)
 end
 
 ---@param definition table `{resource, schema, configured, client, revision}`
@@ -143,7 +140,6 @@ function Kora.config.commit(resource, request)
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
         TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
-        TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
 end
@@ -165,7 +161,6 @@ function Kora.config.reset(resource, request)
         entry.configured = copy(result.configured or entry.configured)
         entry.values = copy(result.values or entry.values)
         TriggerEvent('kora_lib:server:configChanged', resource, copy(entry.values), entry.revision)
-        TriggerEvent('qblib:server:configChanged', resource, copy(entry.values), entry.revision)
     end
     return copy(result)
 end
@@ -200,11 +195,9 @@ local function onConfigRequested(resource, requestId)
     if not entry then return end
     local client = copy(entry.client)
     TriggerClientEvent('kora_lib:client:configSnapshot', src, resource, client, entry.revision, requestId)
-    TriggerClientEvent('qblib:client:configSnapshot', src, resource, client, entry.revision, requestId)
 end
 
 RegisterNetEvent('kora_lib:server:configRequested', onConfigRequested)
-RegisterNetEvent('qblib:server:configRequested', onConfigRequested)
 
 AddEventHandler('onResourceStop', function(resource)
     registry[resource] = nil

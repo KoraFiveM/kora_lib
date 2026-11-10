@@ -13,13 +13,13 @@ As with Lua's built-in `require`, a module that returns nothing resolves to
 Pass a string to load one module:
 
 ```lua
-local config = Kora.require.load('qbapartments', 'config')
+local config = Kora.require.load('kora_apartments', 'config')
 ```
 
 Pass an ordered array to receive one return value per module:
 
 ```lua
-local config, data, params = Kora.require.load('qbapartments', {
+local config, data, params = Kora.require.load('kora_apartments', {
     'config',
     'public/data',
     'params',

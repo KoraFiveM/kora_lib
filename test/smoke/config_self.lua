@@ -66,9 +66,8 @@ end)
 H.test('kora_lib self registration withholds its server-only configuration from clients', function()
     _G.source = 42
     netEvents['kora_lib:server:configRequested']('kora_lib', 1)
-    local snapshot = clientEvents[#clientEvents - 1]
+    local snapshot = clientEvents[#clientEvents]
     H.assertEqual(snapshot.name, 'kora_lib:client:configSnapshot')
-    H.assertEqual(clientEvents[#clientEvents].name, 'qblib:client:configSnapshot', 'deprecated alias for older consumers')
     H.assertEqual(snapshot.target, 42)
     H.assertEqual(snapshot.values[2].discord, nil)
     H.assertEqual(snapshot.values[4], 1)
@@ -78,7 +77,7 @@ H.test('configuration snapshot requests are rate limited per player', function()
     _G.source = 43
     local before = #clientEvents
     for requestId = 1, 40 do netEvents['kora_lib:server:configRequested']('kora_lib', requestId) end
-    H.assertEqual(#clientEvents - before, 60)
+    H.assertEqual(#clientEvents - before, 30)
 end)
 
 for name, value in pairs(previousGlobals) do _G[name] = value end

@@ -69,7 +69,7 @@ local function assertProp(prop, index, requireCoords)
     end
 end
 
----@param payload QBProgressBarPayload
+---@param payload KoraProgressBarPayload
 local function assertPayload(payload)
     assert(type(payload) == "table", "Progress bar payload must be a table.")
     assert(type(payload.label) == "string" and #payload.label > 0, "Progress bar requires a label string.")
@@ -113,7 +113,7 @@ local function assertPayload(payload)
         assert(payload.disable.moveMode == nil or payload.disable.moveMode == 'freeze' or payload.disable.moveMode == 'controls',
             "Progress bar disable.moveMode must be 'freeze' or 'controls'.")
         assert(payload.disable.controlProfile == nil or payload.disable.controlProfile == 'kora_lib'
-            or payload.disable.controlProfile == 'qblib' or payload.disable.controlProfile == 'ox',
+            or payload.disable.controlProfile == 'kora_lib' or payload.disable.controlProfile == 'ox',
             "Progress bar disable.controlProfile must be 'kora_lib' or 'ox'.")
     end
 
@@ -165,7 +165,7 @@ local function assertPayload(payload)
 end
 
 ---Validates a progress-bar payload without starting a bar.
----@param payload QBProgressBarPayload
+---@param payload KoraProgressBarPayload
 ---@return true
 function Kora.progressbar.validate(payload)
     assertPayload(payload)
@@ -332,7 +332,7 @@ local function updateVehicleControls(session, enabled, profile)
 end
 
 ---Shows a filling progress bar and reports whether it ran to completion.
----@param payload QBProgressBarPayload
+---@param payload KoraProgressBarPayload
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean completed
 ---@return string? error

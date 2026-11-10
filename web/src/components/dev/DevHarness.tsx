@@ -45,10 +45,10 @@ const SAMPLE_ITEMS: MenuItem[] = [
     { id: "service", label: "Request service" },
 ]
 
-const SAMPLE_EVENT_IMAGE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><rect width="640" height="360" fill="#1b1b1b"/><rect x="48" y="48" width="64" height="8" fill="#dc143c"/><text x="48" y="116" fill="#b8b8b8" font-family="sans-serif" font-size="18">QBCORE COMMUNITY</text><text x="48" y="174" fill="#fafafa" font-family="sans-serif" font-weight="bold" font-size="42">HALLOWEEN</text><text x="48" y="228" fill="#fafafa" font-family="sans-serif" font-weight="bold" font-size="42">GIVEAWAY</text><rect x="48" y="274" width="544" height="2" fill="#3a3a3a"/></svg>')}`
+const SAMPLE_EVENT_IMAGE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><rect width="640" height="360" fill="#1b1b1b"/><rect x="48" y="48" width="64" height="8" fill="#dc143c"/><text x="48" y="116" fill="#b8b8b8" font-family="sans-serif" font-size="18">KORA COMMUNITY</text><text x="48" y="174" fill="#fafafa" font-family="sans-serif" font-weight="bold" font-size="42">HALLOWEEN</text><text x="48" y="228" fill="#fafafa" font-family="sans-serif" font-weight="bold" font-size="42">GIVEAWAY</text><rect x="48" y="274" width="544" height="2" fill="#3a3a3a"/></svg>')}`
 
 const SAMPLE_APP: AppDefinition = {
-    id: "qbmdt:police",
+    id: "kora_mdt:police",
     title: "Mobile Data Terminal",
     description: "Los Santos Police Department",
     icon: "Shield",

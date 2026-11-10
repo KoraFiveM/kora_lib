@@ -22,7 +22,7 @@ local function withinRadius(dx, dy, dz, distance)
     return dx * dx + dy * dy + dz * dz <= distance * distance
 end
 
----@param coords QBCoords
+---@param coords KoraCoords
 ---@param distance? number
 ---@return boolean
 function Kora.distance.player(coords, distance)
@@ -31,8 +31,8 @@ function Kora.distance.player(coords, distance)
     return withinRadius(playerCoords.x - coords.x, playerCoords.y - coords.y, playerCoords.z - coords.z, distance)
 end
 
----@param coords1 QBCoords
----@param coords2 QBCoords
+---@param coords1 KoraCoords
+---@param coords2 KoraCoords
 ---@param distance? number
 ---@return boolean
 function Kora.distance.coords(coords1, coords2, distance)
@@ -70,7 +70,7 @@ function Kora.distance.y(point, distance)
     return withinRadius(0, playerCoords.y - point.y, 0, distance)
 end
 
----@param point QBCoords
+---@param point KoraCoords
 ---@param distance? number
 ---@return boolean
 function Kora.distance.xy(point, distance)

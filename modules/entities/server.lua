@@ -34,7 +34,7 @@ end
 ---Returns the network id, which can be passed to clients or stored by a garage.
 ---@param model string | number Vehicle model name or hash.
 ---@param coords table Coordinates with x, y, z, and optional w/heading.
----@param vehicleType QBServerVehicleType? Server setter type; defaults to automobile.
+---@param vehicleType KoraServerVehicleType? Server setter type; defaults to automobile.
 ---@return number | false, string?
 function Kora.entities.createVehicle(model, coords, vehicleType)
     local modelHash = resolveModel(model)

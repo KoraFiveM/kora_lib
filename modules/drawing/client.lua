@@ -12,7 +12,7 @@ end
 ---Draws one frame of world-space 3D text (SetDrawOrigin); call it every frame it should stay visible.
 ---@param coords any World position to anchor the text to.
 ---@param text string Multi-line via GTA's own "~n~" token, not "\n".
----@param options? QBDrawingText3DOptions Any field omitted falls back to Config.drawing.text3d.
+---@param options? KoraDrawingText3DOptions Any field omitted falls back to Config.drawing.text3d.
 function Kora.drawing.text3d(coords, text, options)
     assert(type(text) == "string" and #text > 0, "text must be a non-empty string.")
 

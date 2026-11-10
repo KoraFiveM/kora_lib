@@ -81,8 +81,8 @@ end
 
 ownership = Kora.resources.registry(hide)
 
----@param buttons QBInstructionalButton[]
----@return QBInstructionalHandle
+---@param buttons KoraInstructionalButton[]
+---@return KoraInstructionalHandle
 function Kora.instructional.show(buttons)
     validate(buttons)
     nextId = nextId + 1

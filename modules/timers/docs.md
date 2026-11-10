@@ -100,7 +100,7 @@ about a moment that has already passed, at coordinates the suspect has left.
 #### Example
 ```lua
 local alertShotsFired = Kora.timers.throttle(function(coords)
-    TriggerServerEvent('qbpolice:server:shotsFired', coords)
+    TriggerServerEvent('kora_police:server:shotsFired', coords)
 end, 15000)
 
 -- in a per-frame detector loop; only one alert every 15s gets through

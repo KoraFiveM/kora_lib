@@ -44,7 +44,7 @@ unsigned 32-bit representation. Invalid namespaces, empty values, malformed
 hexadecimal hashes, non-integral numbers, and values outside the 32-bit range
 raise an assertion.
 
-Successful calls return a `QBLookupRecord`. A miss returns one of:
+Successful calls return a `KoraLookupRecord`. A miss returns one of:
 
 - `nil, 'catalog_pending'` while the client is still receiving the custom
   catalog;
@@ -93,7 +93,7 @@ with a warning because their model kind cannot safely be inferred from the
 filename alone.
 
 A resource can supply `kora_lib.lookup.json` for explicit additions, enrichment,
-or exclusions (the deprecated name `qblib.lookup.json` is still read when the new
+or exclusions (the deprecated name `kora_lib.lookup.json` is still read when the new
 file is absent):
 
 ```json

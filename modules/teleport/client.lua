@@ -14,7 +14,7 @@ end
 ---Moves an existing local entity to coordinates, optionally fading around the move.
 ---@param entity number
 ---@param coords vector3|vector4|{x:number,y:number,z:number,w?:number,heading?:number}
----@param opts? QBTeleportOptions
+---@param opts? KoraTeleportOptions
 ---@return boolean success
 function Kora.teleport.entity(entity, coords, opts)
     assert(Kora.util.isInteger(entity) and entity > 0 and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
@@ -45,7 +45,7 @@ end
 
 ---Moves the local player ped. Equivalent to `Kora.teleport.entity(Kora.cache.ped(), ...)`.
 ---@param coords vector3|vector4|{x:number,y:number,z:number,w?:number,heading?:number}
----@param opts? QBTeleportOptions
+---@param opts? KoraTeleportOptions
 ---@return boolean success
 function Kora.teleport.player(coords, opts)
     return Kora.teleport.entity(Kora.cache.ped(), coords, opts)
@@ -59,7 +59,7 @@ local function waypointEntity(options)
 end
 
 ---Moves the player (or their driven vehicle) to the active map waypoint, restoring the original position on failure.
----@param opts? QBWaypointTeleportOptions
+---@param opts? KoraWaypointTeleportOptions
 ---@return boolean success
 ---@return string? error
 function Kora.teleport.toWaypoint(opts)

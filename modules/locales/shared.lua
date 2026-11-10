@@ -9,7 +9,7 @@ local function validResource(resource)
 end
 
 local function defaultLanguage()
-    local language = GetConvar('qb_locale', 'en')
+    local language = GetConvar('kora_locale', 'en')
     return validLanguage(language) and language or 'en'
 end
 
@@ -18,7 +18,7 @@ local function currentLanguage()
 end
 
 local function configuredLanguages()
-    local configured = GetConvar('qb_locales', '')
+    local configured = GetConvar('kora_locales', '')
     local seen, languages = {}, {}
 
     local function add(language)
@@ -111,7 +111,7 @@ function Kora.locale.getLanguage()
 end
 
 ---Returns the server's selectable language codes. Configure them with
----`setr qb_locales "en,de"`; English and `qb_locale` are always included.
+---`setr kora_locales "en,de"`; English and `kora_locale` are always included.
 ---@return string[]
 function Kora.locale.getLanguages()
     return configuredLanguages()
