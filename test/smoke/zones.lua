@@ -1087,8 +1087,21 @@ harness.test("Config.zones.debug defaults new zones into debug drawing without o
     zone.remove()
 end)
 
+harness.test("kora_zonedebug is refused unless Config.zones.debugCommand or the kora_lib_dev convar is set", function()
+    net.step()
+    Config.zones.debugCommand = false
+    local zone = Kora.zones.box({ coords = { x = 380, y = 380, z = 30 }, size = { x = 4, y = 4, z = 3 } })
+    drawLineCalls = 0
+    registeredCommands["kora_zonedebug"](nil, { "on" })
+    registeredCommands["qb_zonedebug"](nil, { "on" })
+    net.step()
+    harness.assertEqual(drawLineCalls, 0, "debug command must do nothing when disabled")
+    zone.remove()
+end)
+
 harness.test("qb_zonedebug command toggles/sets debug drawing for every zone", function()
     net.step() -- drain again, same reasoning as above
+    Config.zones.debugCommand = true
 
     -- Same reasoning as the Kora.zones.setDebug(nil, ...) test above: capture
     -- the current baseline, then assert the delta from this test's own zone.

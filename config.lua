@@ -177,8 +177,8 @@ Config.editor = {
     enabled = true,
     permission = 'editor',
     permissionPrefix = 'kora_lib',
-    zoneCommand = 'qb_zonecreator',
-    placementCommand = 'qb_place',
+    zoneCommand = 'kora_zonecreator',
+    placementCommand = 'kora_place',
 }
 
 -- Temporary client-side entity placement/capture tool. The preview is always
@@ -216,6 +216,7 @@ Config.zones = {
     defaultPolyThickness = 4.0,  -- meters; Kora.zones.poly() default height band
     debugAlpha = 200, -- 0-255; colour follows kora_theme's configured primary through Kora.theme.accentColor()
     debugWallAlpha = 40,         -- 0-255; translucent fill for box/poly walls, deliberately lower than debugAlpha so it doesn't bury the wireframe it complements
+    debugCommand = false, -- allow /kora_zonedebug (wireframes for every zone; dev only). `setr kora_lib_dev 1` also enables it
     debug = false, -- global default OR'd into every zone's own opts.debug at creation (Kora.zones.setDebug can still flip debug on/off for already-created zones at runtime)
 
     creator = {
@@ -233,7 +234,7 @@ Config.zones = {
         maxPolyPoints = 64,      -- hard cap so placement can't run away
         confirmTimeout = 120000, -- ms the confirm dialog waits for a response before the promise rejects
         hideRadar = true,        -- hide the minimap while placing, so it can't cover the shape you're drawing
-        enabled = true,          -- set false to disable Kora.zones.startCreator()/`/qb_zonecreator` server-wide
+        enabled = true,          -- set false to disable Kora.zones.startCreator()/`/kora_zonecreator` server-wide
     },
 }
 

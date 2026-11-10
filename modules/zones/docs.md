@@ -159,7 +159,7 @@ RegisterCommand('my_zone_tool', function()
 end, false)
 ```
 
-An equivalent `/qb_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `kora_lib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
+An equivalent `/kora_zonecreator [box|sphere|poly]` command (default shape `box`) ships built in, for use without writing any Lua at all. The server command requires the `kora_lib.editor` ACE by default; configure it through `Config.editor`. This is an admin UX gate, not a security boundary against a modified client, so resources that persist captured data must still authorize and validate the change server-side.
 
 ### `Kora.zones.generateSnippet(zoneType, opts)`
 Formats zone options into the `Kora.zones.<type>({...})` Lua snippet the creator's confirm dialog shows and copies to the clipboard. Pure and deterministic — useful on its own if you already have `opts` (from `startCreator`, or hand-built) and just want the text.
@@ -209,6 +209,11 @@ Changes debug rendering without recreating a zone.
 `zone.setDebug(enabled)` is the equivalent single-zone convenience method. Both
 return `false` when a foreign resource attempts to change a zone. Debug drawing
 is intended for development: it runs every frame while enabled.
+
+`/kora_zonedebug [on|off]` toggles debug drawing for every zone (`/qb_zonedebug`
+is a legacy alias). Wireframes reveal hidden zone positions, so the command is
+refused unless `Config.zones.debugCommand = true` or the server sets
+`setr kora_lib_dev 1`. Both are checked each time the command runs.
 
 ### `Kora.zones.edit(handle, opts)`
 Updates a live box, sphere, or circle zone in place and returns the **same** handle. This is deliberately narrow: it supports `coords`, `onEnter`, and `onExit` only. Pass `false` for either callback to detach it. A polygon cannot move this way because its location is its points; shape dimensions, rotation, points, and height ranges require replacing the zone.
