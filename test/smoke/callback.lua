@@ -613,4 +613,34 @@ harness.test("cross-resource trigger during in-flight handshake resolves to the 
         "the result must not be a raw promise table")
 end)
 
+harness.test("triggerPacked keeps every return value, including a leading nil, in one envelope", function()
+    mocks.install()
+    dofile(repoRoot .. "local/callback/server.lua")
+    local packedServerRegister = Kora.callback.register
+    local packedServerTrigger = Kora.callback.triggerPacked
+    dofile(repoRoot .. "local/callback/client.lua")
+    local packedClientRegister = Kora.callback.register
+    local packedClientTrigger = Kora.callback.triggerPacked
+
+    packedServerRegister("smoke:packed-refusal", function() return nil, "not allowed" end)
+    packedServerRegister("smoke:packed-one", function() return "only" end)
+    packedServerRegister("smoke:packed-none", function() end)
+
+    local refusal = packedClientTrigger("smoke:packed-refusal")
+    harness.assertEqual(refusal.n, 2, "both return values should be counted")
+    harness.assertEqual(refusal[1], nil, "the leading nil should stay a nil")
+    harness.assertEqual(refusal[2], "not allowed", "the reason after a leading nil must survive")
+
+    local one = packedClientTrigger("smoke:packed-one")
+    harness.assertEqual(one.n, 1, "a single return value is an envelope of one")
+    harness.assertEqual(one[1], "only", "the single value should be first")
+
+    harness.assertEqual(packedClientTrigger("smoke:packed-none").n, 0, "no return values is an empty envelope")
+
+    packedClientRegister("smoke:packed-client", function() return nil, "client reason" end)
+    local fromClient = packedServerTrigger(mocks.SOURCE, "smoke:packed-client")
+    harness.assertEqual(fromClient.n, 2, "the server-to-client direction should count both values")
+    harness.assertEqual(fromClient[2], "client reason", "the server-to-client reason must survive")
+end)
+
 harness.report("callback")

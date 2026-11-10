@@ -59,6 +59,8 @@ CreateThread(function()
 end)
 ```
 
+Every return value reaches the caller, including a reason after a leading `nil` (`return nil, 'reason'`). Call it as `Kora.callback.trigger` (via `@kora_lib/init.lua`): a raw `exports.kora_lib:callback_trigger(...)` call is limited by FiveM's export marshalling, which drops everything after a leading `nil`.
+
 ### Server asks client
 
 #### `Kora.callback.register(name, handler)` — client
@@ -96,6 +98,9 @@ CreateThread(function()
     end
 end)
 ```
+
+### `Kora.callback.triggerPacked(...)` — either realm
+Internal plumbing: makes the same request as `Kora.callback.trigger` (same arguments for the realm) but always waits and returns a single `{ n = count, [1] = ..., [2] = ... }` envelope. The consumer proxy in `@kora_lib/init.lua` calls it and unpacks the envelope so a reason after a leading `nil` is not lost at the export boundary. Use `Kora.callback.trigger` in your own code.
 
 ### `Kora.callback.assertName(name)` — either realm
 Validates a callback name (a 1–128-byte string), raising an assertion error otherwise. Used internally by `register`/`trigger`/`unregister`; exported like every other `Kora.*` function, so a consumer can pre-validate a name before registering.

@@ -1195,6 +1195,7 @@
 ---@field register fun(name: string, handler: fun(...: any): any, opts?: KoraRegistrationOptions) [client/server; opts is server client-to-server only]
 ---@field unregister fun(name: string): boolean [client/server]
 ---@field trigger fun(targetOrName: integer|string, nameOrArg?: any, ...: any): any [client: name,...; server: target,name,...]
+---@field triggerPacked fun(...: any): { n: integer, [integer]: any } Internal: the envelope form of trigger used by the consumer proxy in init.lua.
 
 ---@class KoraLibClosest
 ---@field player fun(srcOrCoords: integer|KoraCoords, coordsOrDistance?: KoraCoords|number, distance?: number): {id: integer?, distance: number?} [client/server]

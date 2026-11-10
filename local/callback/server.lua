@@ -107,6 +107,19 @@ local function settleForExport(p)
     return p
 end
 
+-- Export return values travel as a msgpack'd `{ ... }`, which loses everything
+-- after a leading nil (`return nil, "reason"` arrives as nothing at all). The
+-- consumer proxy (init.lua) therefore calls triggerPacked and unpacks the
+-- envelope itself, so every value, nils included, reaches the caller.
+local function envelope(p)
+    Citizen.Await(p)
+    local packed = p.koraLibCallbackResults
+    if packed == nil then return { n = 1, [1] = p.value } end
+    local out = { n = packed.n }
+    for index = 1, packed.n do out[index] = packed[index] end
+    return out
+end
+
 ---Registers a handler for a callback invoked from the client via Kora.callback.trigger(name, ...).
 ---Requests carrying a missing or invalid per-player token are dropped silently.
 ---Automatically unregistered if the calling resource stops (see onResourceStop below) --
@@ -146,19 +159,7 @@ function Kora.callback.unregister(name)
     return true
 end
 
----Triggers a callback registered on a specific client via Kora.callback.register(name, handler).
----Not token-gated on the way out — the server is always the trusted party for its own
----TriggerClientEvent calls — but the client's response is only accepted from the same
----player it was addressed to.
----@param target integer Server ID of the player to ask.
----@param name string
----@param ... any
----@return promise|any ... A promise for a same-VM caller (unchanged, awaitable as before -- it resolves
----with a `table.pack`'d `{n=, ...}` envelope, since the handler can return more than one value; unpack it
----yourself). For a genuine cross-resource caller, the handler's own return values themselves, unpacked --
----e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
----settleForExport above).
-function Kora.callback.trigger(target, name, ...)
+local function request(target, name, ...)
     Kora.callback.assertName(name)
     assert(isInteger(target) and target >= 1, "target must be a positive finite player server ID.")
 
@@ -179,7 +180,34 @@ function Kora.callback.trigger(target, name, ...)
 
     TriggerClientEvent(events.clientInvoke, target, requestId, name, ...)
 
-    return settleForExport(p)
+    return p
+end
+
+---Triggers a callback registered on a specific client via Kora.callback.register(name, handler).
+---Not token-gated on the way out — the server is always the trusted party for its own
+---TriggerClientEvent calls — but the client's response is only accepted from the same
+---player it was addressed to.
+---@param target integer Server ID of the player to ask.
+---@param name string
+---@param ... any
+---@return promise|any ... A promise for a same-VM caller (unchanged, awaitable as before -- it resolves
+---with a `table.pack`'d `{n=, ...}` envelope, since the handler can return more than one value; unpack it
+---yourself). For a genuine cross-resource caller, the handler's own return values themselves, unpacked --
+---e.g. a handler doing `return false, "reason"` comes back as two real return values here, not one (see
+---settleForExport above).
+function Kora.callback.trigger(target, name, ...)
+    return settleForExport(request(target, name, ...))
+end
+
+---Same request as Kora.callback.trigger, but always waits and returns one
+---`{ n = count, [1] = ..., [2] = ... }` envelope instead of multiple values.
+---Used by the consumer proxy in init.lua; call Kora.callback.trigger instead.
+---@param target integer
+---@param name string
+---@param ... any
+---@return { n: integer, [integer]: any }
+function Kora.callback.triggerPacked(target, name, ...)
+    return envelope(request(target, name, ...))
 end
 
 RegisterNetEvent(events.handshake, function()

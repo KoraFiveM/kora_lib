@@ -112,6 +112,17 @@ Kora = setmetatable({}, {
             __call = function(_, ...) return moduleCall(...) end,
             __index = function(subProxy, k2)
                 local wrapper = makeColonCall(("%s_%s"):format(k, k2))
+                if k == 'callback' and k2 == 'trigger' then
+                    -- Multiple export return values lose everything after a
+                    -- leading nil (`return nil, "reason"`), so ask for one
+                    -- envelope and unpack it here, in the caller's own VM.
+                    local packedCall = makeColonCall('callback_triggerPacked')
+                    wrapper = function(...)
+                        local packed = packedCall(...)
+                        if type(packed) ~= 'table' then return packed end
+                        return table.unpack(packed, 1, tonumber(packed.n) or #packed)
+                    end
+                end
                 rawset(subProxy, k2, wrapper)
                 return wrapper
             end,

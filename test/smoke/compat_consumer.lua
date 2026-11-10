@@ -30,4 +30,21 @@ harness.test('consumer compat aliases register in the consumers environment', fu
     harness.assertEqual(provided, expected)
 end)
 
+harness.test('Kora.callback.trigger unpacks the packed export so a reason after a leading nil survives', function()
+    local seen
+    exports.kora_lib.callback_triggerPacked = function(_, ...)
+        seen = table.pack(...)
+        -- What msgpack hands a consumer for `return nil, "reason"`: a map with a hole at 1.
+        return { n = 2, [2] = 'not allowed' }
+    end
+    exports.kora_lib.callback_trigger = function() error('the proxy must not use the multi-value export') end
+
+    local value, reason = Kora.callback.trigger('consumer:refuse', 7)
+    harness.assertEqual(seen[1], 'consumer:refuse')
+    harness.assertEqual(seen[2], 7)
+    harness.assertEqual(value, nil)
+    harness.assertEqual(reason, 'not allowed')
+    harness.assertEqual(select('#', Kora.callback.trigger('consumer:refuse')), 2)
+end)
+
 harness.report('compat_consumer')
