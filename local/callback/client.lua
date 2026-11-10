@@ -176,7 +176,7 @@ RegisterNetEvent(events.clientInvoke, function(requestId, name, ...)
         return
     end
 
-    local results = table.pack(pcall(handler, ...))
+    local results = KoraLibUnwrapCallbackResults(table.pack(pcall(handler, ...)))
     local ok = results[1]
 
     TriggerServerEvent(events.clientResponse, requestId, ok, table.unpack(results, 2, results.n))

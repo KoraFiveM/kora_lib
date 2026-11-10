@@ -122,7 +122,10 @@ end
 
 local function dispatch(option)
     if isCallable(option.action) then
-        option.action()
+        -- Runs synchronously up to its first yield, then detaches: an action
+        -- that opens an app or awaits a callback must not hold the selectOption
+        -- NUI callback (and its fetch) open until it finishes.
+        Citizen.CreateThreadNow(function() option.action() end)
         return
     end
 

@@ -251,7 +251,7 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
         return
     end
 
-    local results = table.pack(pcall(definition.handler, src, ...))
+    local results = KoraLibUnwrapCallbackResults(table.pack(pcall(definition.handler, src, ...)))
     local ok = results[1]
 
     if not ok then

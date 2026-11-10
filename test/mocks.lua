@@ -197,6 +197,12 @@ function M.install()
             if p.state == "rejected" then error(p.value, 0) end
             error("mock Citizen.Await: promise never settled synchronously", 0)
         end,
+        -- Runs the function now, up to its first yield, like the real scheduler.
+        CreateThreadNow = function(fn)
+            local co = coroutine.create(fn)
+            local ok, err = coroutine.resume(co)
+            if not ok then error(err, 0) end
+        end,
     }
 
     return {

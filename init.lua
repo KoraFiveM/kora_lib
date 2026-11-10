@@ -122,6 +122,25 @@ Kora = setmetatable({}, {
                         if type(packed) ~= 'table' then return packed end
                         return table.unpack(packed, 1, tonumber(packed.n) or #packed)
                     end
+                elseif k == 'callback' and k2 == 'register' then
+                    -- The handler runs here but kora_lib calls it through a
+                    -- function reference, whose return values cross the same
+                    -- msgpack boundary: `return nil, "reason"` would reach
+                    -- kora_lib as nothing. Return one marked envelope instead;
+                    -- local/callback unpacks it before replying.
+                    local registerCall = wrapper
+                    wrapper = function(name, handler, ...)
+                        local original = handler
+                        local meta = type(original) == 'table' and getmetatable(original)
+                        if type(original) == 'function' or (meta and meta.__call) then
+                            handler = function(...)
+                                local packed = table.pack(original(...))
+                                packed.__kora_lib_callback_envelope = true
+                                return packed
+                            end
+                        end
+                        return registerCall(name, handler, ...)
+                    end
                 end
                 rawset(subProxy, k2, wrapper)
                 return wrapper
