@@ -190,11 +190,12 @@ end
 
 ---Resolves and validates a client-supplied network entity before server code
 ---acts on it. Failure reasons are stable machine-readable codes so callers
----retain ownership of player-facing messages.
+---retain ownership of player-facing messages. Failures lead with `false`, not
+---`nil`: across the export boundary a leading nil drops the reason.
 ---@param src integer
 ---@param networkId integer
 ---@param options? KoraWorldNetworkEntityOptions
----@return integer|nil entity
+---@return integer|false entity
 ---@return string|nil reason
 function Kora.world.resolveNetworkEntity(src, networkId, options)
     assert(options == nil or type(options) == "table", "Network entity options must be a table.")
@@ -215,30 +216,30 @@ function Kora.world.resolveNetworkEntity(src, networkId, options)
         "requireDriver requires entityType = 'vehicle'.")
 
     if not isInteger(networkId) or networkId < 1 then
-        return nil, "invalid_network_id"
+        return false, "invalid_network_id"
     end
 
     local entity = NetworkGetEntityFromNetworkId(networkId)
     if not entity or entity == 0 or not DoesEntityExist(entity) then
-        return nil, "entity_unavailable"
+        return false, "entity_unavailable"
     end
     if options.entityType and GetEntityType(entity) ~= ENTITY_TYPE_IDS[options.entityType] then
-        return nil, "wrong_entity_type"
+        return false, "wrong_entity_type"
     end
 
     local playerPed = GetPlayerPed(src)
     if not playerPed or playerPed == 0 or not DoesEntityExist(playerPed) then
-        return nil, "player_unavailable"
+        return false, "player_unavailable"
     end
     if options.sameBucket ~= false and GetPlayerRoutingBucket(src) ~= GetEntityRoutingBucket(entity) then
-        return nil, "routing_bucket_mismatch"
+        return false, "routing_bucket_mismatch"
     end
     if options.maxDistance and distSq(toVec3(GetEntityCoords(playerPed)), toVec3(GetEntityCoords(entity)))
         > options.maxDistance * options.maxDistance then
-        return nil, "too_far"
+        return false, "too_far"
     end
     if options.requireDriver and GetPedInVehicleSeat(entity, -1) ~= playerPed then
-        return nil, "driver_required"
+        return false, "driver_required"
     end
 
     return entity

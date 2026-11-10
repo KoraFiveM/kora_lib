@@ -42,7 +42,7 @@ function Kora.entities.createVehicle(model, coords, vehicleType)
     assert(vehicleTypes[typeName], ('Invalid server vehicle type: %s'):format(tostring(typeName)))
 
     local x, y, z, heading = resolveCoords(coords)
-    if not Kora.lookup.vehicle(modelHash) then
+    if not Kora.lookup.model(modelHash, 'vehicle') then
         return false, 'Vehicle model is invalid.'
     end
 

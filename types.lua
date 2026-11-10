@@ -1723,7 +1723,7 @@
 ---@field getCardinalDirection fun(value?: number, options?: {entity?: boolean}): 'N'|'NW'|'W'|'SW'|'S'|'SE'|'E'|'NE' [client]
 ---@field getWaypointCoords fun(): KoraCoords|false, string? [client]
 ---@field isSpawnClear fun(coords: KoraCoords, radius: number, options?: KoraWorldQueryOptions): boolean [client/server]
----@field resolveNetworkEntity fun(src: integer, networkId: integer, options?: KoraWorldNetworkEntityOptions): integer|nil, string? [server]
+---@field resolveNetworkEntity fun(src: integer, networkId: integer, options?: KoraWorldNetworkEntityOptions): integer|false, string? [server]
 ---@field resolveNearbyPlayer fun(src: integer, targetSrc: integer, options: KoraWorldNearbyPlayerOptions): integer|nil, number|string [server]
 
 ---@class KoraLibZones

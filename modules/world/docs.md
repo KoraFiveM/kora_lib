@@ -108,7 +108,8 @@ because they still occupy the spawn point.
 Resolves a client-supplied finite network ID and validates the live entity before
 server code acts on it. Options are `entityType` (`ped`, `vehicle`, or
 `object`), `maxDistance`, `sameBucket` (true by default), and
-`requireDriver`. It returns the entity handle or `nil, reason`, where `reason`
+`requireDriver`. It returns the entity handle or `false, reason` (not `nil`,
+which would drop the reason across the export boundary), where `reason`
 is a stable code such as `invalid_network_id`, `entity_unavailable`,
 `wrong_entity_type`, `player_unavailable`, `routing_bucket_mismatch`,
 `too_far`, or `driver_required`.

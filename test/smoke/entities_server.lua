@@ -11,7 +11,7 @@ dofile(repoRoot .. 'modules/util/shared.lua')
 
 local calls = {}
 _G.IsModelInCdimage, _G.IsModelAVehicle = nil, nil
-Kora.lookup.vehicle = function(hash) return hash == joaat('sultan') and {} or nil end
+Kora.lookup.model = function(hash, kind) return kind == 'vehicle' and hash == joaat('sultan') and {} or nil end
 function _G.CreateVehicleServerSetter(model, vehicleType, x, y, z, heading)
     calls = { model, vehicleType, x, y, z, heading }
     return 42
