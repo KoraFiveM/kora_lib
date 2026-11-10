@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'kora_lib'
 author 'Jamie'
-version '1.1.9'
+version '1.1.10'
 description 'Lightweight Lua library exposing a shared Kora namespace over FiveM exports'
 
 dependency 'kora_theme'
