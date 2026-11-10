@@ -120,6 +120,9 @@ Kora = setmetatable({}, {
                     wrapper = function(...)
                         local packed = packedCall(...)
                         if type(packed) ~= 'table' then return packed end
+                        -- A rejected request is re-raised here, in the caller's VM,
+                        -- so its message survives (see local/callback envelope()).
+                        if packed.__kora_lib_rejected then error(packed.error, 0) end
                         return table.unpack(packed, 1, tonumber(packed.n) or #packed)
                     end
                 elseif k == 'callback' and k2 == 'register' then
@@ -133,10 +136,23 @@ Kora = setmetatable({}, {
                         local original = handler
                         local meta = type(original) == 'table' and getmetatable(original)
                         if type(original) == 'function' or (meta and meta.__call) then
+                            -- Errors are caught here too: a raised error crossing a
+                            -- function reference arrives in kora_lib as nil, so the
+                            -- requester would never learn why it failed.
                             handler = function(...)
-                                local packed = table.pack(original(...))
-                                packed.__kora_lib_callback_envelope = true
-                                return packed
+                                local trace
+                                local packed = table.pack(xpcall(original, function(err)
+                                    trace = debug.traceback(nil, 2)
+                                    return err
+                                end, ...))
+                                if not packed[1] then
+                                    -- Reported on this resource's console as before.
+                                    print(('^1SCRIPT ERROR: %s^7\n%s'):format(tostring(packed[2]), tostring(trace or '')))
+                                    return { __kora_lib_callback_envelope = true, failed = true, error = tostring(packed[2]) }
+                                end
+                                local out = { __kora_lib_callback_envelope = true, n = packed.n - 1 }
+                                for index = 2, packed.n do out[index - 1] = packed[index] end
+                                return out
                             end
                         end
                         return registerCall(name, handler, ...)

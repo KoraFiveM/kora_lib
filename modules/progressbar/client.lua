@@ -489,6 +489,13 @@ function Kora.progressbar.cancel(owner)
     return true
 end
 
+-- Internal (Kora.compat is never exported): the owner of the running bar, so
+-- the optional FFT hook can cancel a bar a timed-out test step left running.
+Kora.compat = Kora.compat or {}
+function Kora.compat.progressOwner()
+    return activeSession and not activeSession.cleaned and activeSession.owner or nil
+end
+
 ---@return boolean
 function Kora.progressbar.isActive()
     return busy

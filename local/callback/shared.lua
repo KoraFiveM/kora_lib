@@ -9,9 +9,24 @@ function KoraLibUnwrapCallbackResults(results)
     if not results[1] or results.n ~= 2 then return results end
     local envelope = results[2]
     if type(envelope) ~= 'table' or envelope.__kora_lib_callback_envelope ~= true then return results end
+    if envelope.failed then return { n = 2, false, tostring(envelope.error) } end
     local count = math.tointeger(tonumber(envelope.n)) or 0
     local out = { n = count + 1, true }
     for index = 1, count do out[index + 1] = envelope[index] end
+    return out
+end
+
+---Awaits a callback promise for an export caller and returns one envelope:
+---`{ n, ... }` when it resolved, `{ __kora_lib_rejected = true, error }` when
+---it was rejected. Raising here instead would cross the export boundary, which
+---drops the message.
+function KoraLibCallbackEnvelope(p)
+    local ok, err = pcall(Citizen.Await, p)
+    if not ok then return { __kora_lib_rejected = true, error = tostring(err) } end
+    local packed = p.koraLibCallbackResults
+    if packed == nil then return { n = 1, [1] = p.value } end
+    local out = { n = packed.n }
+    for index = 1, packed.n do out[index] = packed[index] end
     return out
 end
 

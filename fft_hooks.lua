@@ -281,6 +281,14 @@ actions['app.action'] = function(actionId, context)
     return true, summary(result)
 end
 
+-- Cancels whatever progress bar is running, as its owner would. Used between
+-- scenarios so a bar left by a timed-out step does not block the next one.
+actions['progress.cancel'] = function()
+    local owner = Kora.compat and Kora.compat.progressOwner and Kora.compat.progressOwner()
+    if not owner then return true end
+    return Kora.progressbar.cancel(owner)
+end
+
 actions['app.close'] = function()
     if not requests.openApp then return false, 'No app is open', 'not_open' end
     return respond('openApp', { closed = true, reason = 'close' })

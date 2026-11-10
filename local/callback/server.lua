@@ -111,14 +111,7 @@ end
 -- after a leading nil (`return nil, "reason"` arrives as nothing at all). The
 -- consumer proxy (init.lua) therefore calls triggerPacked and unpacks the
 -- envelope itself, so every value, nils included, reaches the caller.
-local function envelope(p)
-    Citizen.Await(p)
-    local packed = p.koraLibCallbackResults
-    if packed == nil then return { n = 1, [1] = p.value } end
-    local out = { n = packed.n }
-    for index = 1, packed.n do out[index] = packed[index] end
-    return out
-end
+local envelope = KoraLibCallbackEnvelope
 
 ---Registers a handler for a callback invoked from the client via Kora.callback.trigger(name, ...).
 ---Requests carrying a missing or invalid per-player token are dropped silently.

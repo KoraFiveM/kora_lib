@@ -1090,11 +1090,16 @@ local function assertMenuItems(items, context, visited)
     end
     assert(itemCount == #items, ("%s items must be a dense array."):format(context))
 
+    -- The result names the selection by id, so ids must be unique per level
+    -- (a submenu is a separate level; its path disambiguates it).
+    local ids = {}
     for index = 1, #items do
         local item = items[index]
         assert(type(item) == "table", ("%s item %d must be a table."):format(context, index))
         assert(type(item.id) == "string" and item.id ~= "",
             ("%s item %d requires a non-empty string id."):format(context, index))
+        assert(not ids[item.id], ("%s item id '%s' is duplicated."):format(context, item.id))
+        ids[item.id] = true
         assert(type(item.label) == "string" and item.label ~= "",
             ("%s item %d requires a non-empty string label."):format(context, index))
         for fieldIndex = 1, #MENU_ITEM_STRING_FIELDS do
