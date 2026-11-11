@@ -1371,6 +1371,7 @@
 ---@field openAlert fun(opts: KoraAlertOptions): KoraAlertResult|promise [client]
 ---@field openInputDialog fun(fields: KoraInputField[], title?: string, description?: string): KoraInputResult|promise [client]
 ---@field registerApp fun(definition: KoraAppDefinition): string [client]
+---@field supportsAppTableHeaderControls fun(): boolean [client]
 ---@field unregisterApp fun(id: string): boolean [client]
 ---@field openApp fun(id: string, opts?: KoraAppOpenOptions): KoraAppResult|promise [client]
 ---@field updateApp fun(id: string, update: table): boolean [client]
