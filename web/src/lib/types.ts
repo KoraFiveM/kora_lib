@@ -389,6 +389,8 @@ export interface AppRichValue {
     icon?: string
     tone?: AppTone
     badge?: boolean
+    copyText?: string
+    href?: string
 }
 
 export type AppTableValue = string | number | boolean | null | AppRichValue
@@ -514,7 +516,7 @@ export type AppBlock =
     | { type: "text"; title?: string; text: string }
     | { type: "stats"; title?: string; items: AppStat[] }
     | { type: "progress"; id?: string; title?: string; items: AppProgressItem[] }
-    | { type: "table"; id?: string; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string; searchable?: boolean; searchPlaceholder?: string; pageSize?: number }
+    | { type: "table"; id?: string; title?: string; columns: AppTableColumn[]; rows: AppTableRow[]; empty?: string; action?: string; idKey?: string; searchable?: boolean; searchPlaceholder?: string; pageSize?: number; headerToggle?: { label: string; checked: boolean; action: string }; refreshAction?: string }
     | { type: "list"; id?: string; title?: string; items: AppListItem[]; empty?: string; layout?: "list" | "grid" | "cards"; cardStyle?: "compact" | "media"; imageFit?: AppImageFit; imageAspect?: AppImageAspect; columns?: 1 | 2 | 3 | 4; searchable?: boolean; searchPlaceholder?: string; pageSize?: number; scrollable?: boolean }
     | { type: "actions"; id?: string; title?: string; actions: AppAction[] }
     | { type: "form"; id: string; title?: string; description?: string; fields: InputField[]; action: AppAction; submitLabel?: string }

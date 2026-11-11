@@ -1,11 +1,12 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
-import { AlertCircle, ArrowDown, Check, CheckCheck, ChevronLeft, ChevronRight, Search, Send, X } from "lucide-react"
+import { AlertCircle, ArrowDown, Check, CheckCheck, ChevronLeft, ChevronRight, Copy, RefreshCw, Search, Send, X } from "lucide-react"
 
 import { FormFields, createFieldValues, submissionValues, validateFields } from "@/components/input/FormFields"
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/cn"
+import { copyToClipboard } from "@/lib/clipboard"
 import { fetchNui } from "@/lib/fetchNui"
 import { resolveIcon } from "@/lib/icon"
 import type {
@@ -73,12 +74,24 @@ function displayValue(value: AppTableValue, labels?: AppShellLabels) {
     return String(raw)
 }
 
+function CopyValueButton({ text }: { text: string }) {
+    const [copied, setCopied] = useState(false)
+    return <button type="button" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground" aria-label={copied ? "Copied" : "Copy commit link"} title={copied ? "Copied" : "Copy commit link"} onClick={(event) => { event.stopPropagation(); void copyToClipboard(text).then(setCopied) }} onKeyDown={(event) => event.stopPropagation()}>{copied ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}</button>
+}
+
 function RichValue({ value, labels }: { value: AppTableValue; labels: AppShellLabels }) {
     if (!value || typeof value !== "object") return <>{displayValue(value, labels)}</>
     const rich = value as AppRichValue
     const Icon = resolveIcon(rich.icon)
     const contents = <span className="inline-flex items-center gap-1.5">{Icon ? <Icon aria-hidden className="h-3.5 w-3.5" /> : null}<span>{rich.label ?? displayValue(rich, labels)}</span></span>
-    return <span title={rich.description} className={rich.badge ? cn("inline-flex rounded-sm px-2 py-0.5 text-xs font-medium", toneClasses[rich.tone ?? "neutral"]) : undefined}>{contents}</span>
+    let href: string | undefined
+    try {
+        const parsed = rich.href && new URL(rich.href)
+        if (parsed && (parsed.protocol === "https:" || parsed.protocol === "http:")) href = parsed.href
+    } catch { /* Ignore malformed links. */ }
+    const valueClass = rich.badge ? cn("inline-flex rounded-sm px-2 py-0.5 text-xs font-medium", toneClasses[rich.tone ?? "neutral"]) : undefined
+    const valueContent = href ? <a href={href} target="_blank" rel="noopener noreferrer" title={rich.description} className={cn("focus-ring hover:underline", valueClass, !rich.badge && "rounded-sm")} onClick={(event) => { event.stopPropagation(); const invokeNative = (window as typeof window & { invokeNative?: (action: string, value: string) => void }).invokeNative; if (invokeNative) { event.preventDefault(); invokeNative("openUrl", href!) } }} onKeyDown={(event) => event.stopPropagation()}>{contents}</a> : <span title={rich.description} className={valueClass}>{contents}</span>
+    return <span className="inline-flex items-center gap-1">{valueContent}{rich.copyText ? <CopyValueButton text={rich.copyText} /> : null}</span>
 }
 
 function BlockTitle({ children }: { children?: string }) {
@@ -162,7 +175,7 @@ function TableBlock({ block, index, busy, labels, runAction }: { block: Extract<
     }
     const keyActivate = (event: KeyboardEvent<HTMLTableRowElement>, row: AppTableRow) => { if (block.action && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); activate(row) } }
     return <section className="overflow-hidden rounded-lg bg-card">
-        {block.title || block.searchable ? <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3"><BlockTitle>{block.title}</BlockTitle>{block.searchable ? <SearchField value={search} setValue={(value) => { setSearch(value); setPage(0) }} placeholder={block.searchPlaceholder ?? labels.search} /> : null}</div> : null}
+        {block.title || block.searchable || block.headerToggle || block.refreshAction ? <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2"><BlockTitle>{block.title}</BlockTitle>{block.headerToggle ? <label className="flex min-h-8 items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={block.headerToggle.checked} disabled={busy !== undefined} className="h-3.5 w-3.5 accent-primary" onChange={(event) => runAction({ id: block.headerToggle!.action, label: block.headerToggle!.label }, { value: event.target.checked })} />{block.headerToggle.label}</label> : null}{block.refreshAction ? <button type="button" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground disabled:opacity-50" aria-label="Refresh resources" title="Refresh resources" disabled={busy !== undefined} onClick={() => runAction({ id: block.refreshAction!, label: "Refresh resources" })}><RefreshCw aria-hidden className="h-4 w-4" /></button> : null}{block.searchable ? <div className="ml-auto"><SearchField value={search} setValue={(value) => { setSearch(value); setPage(0) }} placeholder={block.searchPlaceholder ?? labels.search} /></div> : null}</div> : null}
         {shown.length === 0 ? <p className="px-4 py-10 text-center text-sm text-muted-foreground">{block.empty ?? labels.noRecords}</p> : <div className="overflow-x-auto"><table className={cn("w-full border-collapse text-sm", block.columns.some((column) => column.width !== undefined) && "table-fixed")}><colgroup>{block.columns.map((column) => <col key={column.key} style={{ width: column.width }} />)}{block.action ? <col className="w-10" /> : null}</colgroup><thead className="bg-surface-raised text-xs text-muted-foreground"><tr>{block.columns.map((column) => <th key={column.key} className={cn("border-b border-border px-4 py-2.5 font-medium", column.align === "center" ? "text-center" : column.align === "right" ? "text-right" : "text-left")}><button type="button" disabled={!column.sortable} className="disabled:cursor-default" onClick={() => setSort((current) => ({ key: column.key, direction: current?.key === column.key ? current.direction === 1 ? -1 : 1 : 1 }))}>{column.label}{sort?.key === column.key ? sort.direction === 1 ? " ↑" : " ↓" : ""}</button></th>)}{block.action ? <th className="w-10 border-b border-border" aria-label={labels.open} /> : null}</tr></thead><tbody>{shown.map((row, rowIndex) => <tr key={`${block.id ?? index}-${rowIndex}`} role={block.action ? "button" : undefined} tabIndex={block.action ? 0 : undefined} onClick={() => busy === undefined && activate(row)} onKeyDown={(event) => busy === undefined && keyActivate(event, row)} className={cn("border-b border-border last:border-0", block.action && "cursor-pointer hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring")}>{block.columns.map((column) => <td key={column.key} className={cn("break-words px-4 py-3 align-top", column.align === "center" ? "text-center" : column.align === "right" ? "text-right tabular-nums" : "text-left")}><RichValue value={row[column.key]} labels={labels} /></td>)}{block.action ? <td className="px-3 py-3 align-top text-muted-foreground"><ChevronRight aria-hidden className="h-4 w-4" /></td> : null}</tr>)}</tbody></table></div>}
         <Paging page={page} pages={pages} setPage={setPage} labels={labels} />
     </section>

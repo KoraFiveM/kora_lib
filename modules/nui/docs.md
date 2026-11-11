@@ -335,6 +335,10 @@ local result = Kora.nui.openApp('kora_mdt:police', {
 
 #### Lifecycle API
 
+- `Kora.nui.supportsAppTableHeaderControls()` returns whether table blocks
+  support declared header actions such as filters and refresh buttons. Consumers
+  that also run with older kora_lib versions can call it under `pcall`; an
+  unavailable export indicates those controls should be omitted.
 - Draggable panels: `draggable = true` turns the app header into a drag handle
   (grab/grabbing cursor, clamped to the screen, re-clamped on resize, double-click
   the header to reset). `rememberPosition = true` stores the offset in NUI
@@ -466,8 +470,11 @@ labels, and content remain the consumer's responsibility.
 - `progress`: `title?`, `items = { { label, value, max, description?, detail?, icon?, tone? } }`. Renders an accessible bounded-value graph; `value` must be between zero and `max`.
 - `table`: `id?`, `title?`, `columns = { { key, label, align?, sortable? } }`,
   `rows`, `empty?`, row `action?` / `idKey?`, plus `searchable?`,
-  `searchPlaceholder?`, and `pageSize?`. A cell may be a scalar or
-  `{ value?, label?, description?, icon?, tone?, badge? }`.
+  `searchPlaceholder?`, `pageSize?`, `headerToggle = { label, checked, action }?`,
+  and `refreshAction?`. Header actions are routed to `onAction`; the checkbox sends its
+  checked state as `context.value`. A cell may be a scalar or
+  `{ value?, label?, description?, icon?, tone?, badge?, href?, copyText? }`.
+  HTTP(S) links open in the player's browser; `copyText` adds a copy button.
 - `list`: `id?`, `title?`, `layout = 'list'|'grid'|'cards'`, `searchable?`,
   `searchPlaceholder?`, `pageSize?`, `scrollable?`, `cardStyle?`, `columns?`, `imageFit?`,
   and recursive items. For `grid`/`cards`, `cardStyle = 'compact'` keeps the

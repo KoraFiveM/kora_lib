@@ -6,6 +6,9 @@ import { AppShell } from "@/components/app/AppShell"
 import { InputDialogContainer } from "@/components/input/InputDialog"
 import type { AppDefinition, NuiWireMessage } from "@/lib/types"
 import { fetchNui, respondToNui } from "@/lib/fetchNui"
+import { copyToClipboard } from "@/lib/clipboard"
+
+vi.mock("@/lib/clipboard", () => ({ copyToClipboard: vi.fn(async () => true) }))
 
 vi.mock("@/lib/fetchNui", () => ({
     fetchNui: vi.fn(),
@@ -877,6 +880,46 @@ describe("AppShell", () => {
         ] }] }))
         expect(container.querySelector('img[src="wide.png"]')?.parentElement).toHaveClass("w-20")
         expect(container.querySelector('img[src="square.png"]')?.parentElement).toHaveClass("w-9")
+    })
+
+    it("places a filter and refresh control in the table header", async () => {
+        const user = userEvent.setup()
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "table", title: "Resources (1)", headerToggle: { label: "Kora only", checked: true, action: "filter" }, refreshAction: "refresh", columns: [{ key: "name", label: "Resource" }], rows: [{ name: "kora_lib" }] }] }))
+        expect(screen.getByRole("checkbox", { name: "Kora only" })).toBeChecked()
+        await user.click(screen.getByRole("checkbox", { name: "Kora only" }))
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "filter", value: false }))
+        await user.click(screen.getByRole("button", { name: "Refresh resources" }))
+        expect(fetchNuiMock).toHaveBeenCalledWith("kora_lib:app:action", expect.objectContaining({ actionId: "refresh" }))
+    })
+
+    it("opens GitHub resource and commit links through FiveM", async () => {
+        const user = userEvent.setup()
+        const invokeNative = vi.fn()
+        Object.defineProperty(window, "invokeNative", { configurable: true, value: invokeNative })
+        const repository = "https://github.com/KoraFiveM/kora_mdt"
+        const commit = `${repository}/commit/4f96772af74ef68811c0520416d740e799ab7b71`
+        try {
+            render(<AppShell />)
+            openApp(baseApp({ blocks: [{ type: "table", columns: [{ key: "resource", label: "Resource" }, { key: "commit", label: "Commit" }], rows: [{ resource: { value: "kora_mdt", href: repository, tone: "primary", badge: true }, commit: { value: "4f96772af74e", href: commit } }] }] }))
+            await user.click(screen.getByRole("link", { name: "kora_mdt" }))
+            await user.click(screen.getByRole("link", { name: "4f96772af74e" }))
+            expect(invokeNative).toHaveBeenNthCalledWith(1, "openUrl", repository)
+            expect(invokeNative).toHaveBeenNthCalledWith(2, "openUrl", commit)
+        } finally {
+            delete (window as typeof window & { invokeNative?: unknown }).invokeNative
+        }
+    })
+
+    it("copies a rich table value without activating its row", async () => {
+        const user = userEvent.setup()
+        const url = "https://github.com/KoraFiveM/kora_lib/commit/e9af6d21d51463a985ab19e2278fb97b5ab7b860"
+        render(<AppShell />)
+        openApp(baseApp({ blocks: [{ type: "table", action: "select", idKey: "id", columns: [{ key: "commit", label: "Commit" }], rows: [{ id: "one", commit: { value: "e9af6d21d514", description: "Commit subject", copyText: url } }] }] }))
+        await user.click(screen.getByRole("button", { name: "Copy commit link" }))
+        expect(copyToClipboard).toHaveBeenCalledWith(url)
+        expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument()
+        expect(fetchNuiMock).not.toHaveBeenCalled()
     })
 
     it("supports fixed table widths and hover details on rich values", () => {

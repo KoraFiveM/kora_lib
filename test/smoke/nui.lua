@@ -1207,6 +1207,30 @@ harness.test("AppShell rejects action ids not declared anywhere in the active de
     respond(requestId, token, true, { closed = true, reason = "close" })
 end)
 
+harness.test("table header controls route declared actions and checkbox state", function()
+    local received = {}
+    Kora.nui.registerApp({
+        id = "smoke:table-header", title = "Table header",
+        navigation = { { id = "home", label = "Home", content = { blocks = {
+            { type = "table", columns = { { key = "name", label = "Name" } }, rows = {},
+              headerToggle = { label = "Kora only", checked = true, action = "filter" }, refreshAction = "refresh" },
+        } } } },
+        onAction = function(action, context) received[#received + 1] = { action = action, value = context.value } end,
+    })
+    Kora.nui.openApp("smoke:table-header")
+    local requestId, token = lastRequestId(), lastToken()
+    local response
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:table-header", token = token,
+        actionId = "filter", viewId = "home", value = false }, function(value) response = value end)
+    harness.assertTrue(response.ok, "filter action should be declared")
+    harness.assertEqual(received[1].value, false, "unchecked state should reach the owner")
+    nuiCallbacks["kora_lib:app:action"]({ appId = "smoke:table-header", token = token,
+        actionId = "refresh", viewId = "home" }, function(value) response = value end)
+    harness.assertTrue(response.ok, "refresh action should be declared")
+    harness.assertEqual(received[2].action, "refresh", "refresh should reach the owner")
+    respond(requestId, token, true, { closed = true, reason = "close" })
+end)
+
 harness.test("closeBeforeAction settles AppShell and releases focus before owner code runs", function()
     local focusedDuringHandler
     Kora.nui.registerApp({
