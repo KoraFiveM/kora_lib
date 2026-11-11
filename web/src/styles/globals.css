@@ -1,0 +1,335 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+@layer utilities {
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--ring));
+  }
+
+  .focus-within-ring:has(:focus-visible) {
+    outline: none;
+    box-shadow: inset 0 0 0 2px hsl(var(--ring));
+    border-color: hsl(var(--ring));
+  }
+
+  .search-focus:has(:focus-visible) {
+    box-shadow: 0 0 0 1.5px hsl(var(--primary));
+  }
+
+  .overlay-text {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 90%);
+  }
+
+  .hud-chip {
+    border-radius: var(--radius);
+    background: hsl(var(--hud));
+    box-shadow: var(--shadow-low);
+  }
+
+  .hud-chip-accent {
+    background: hsl(var(--brand-soft));
+  }
+
+  .target-reticle {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    place-items: center;
+    border-radius: 9999px;
+    background: hsl(var(--hud));
+    box-shadow: 0 0 0 1px hsl(var(--foreground) / 0.3);
+    transition: background-color 120ms ease, box-shadow 120ms ease;
+  }
+
+  .target-reticle-active {
+    background: hsl(var(--brand-soft));
+    box-shadow: 0 0 0 1.5px hsl(var(--primary));
+  }
+
+  .target-reticle-dot {
+    width: 0.25rem;
+    height: 0.25rem;
+    border-radius: 9999px;
+    background: hsl(var(--foreground));
+  }
+
+  .target-reticle-active .target-reticle-dot {
+    background: hsl(var(--primary));
+  }
+
+  .target-prompt {
+    border-radius: var(--radius);
+    background: hsl(var(--hud));
+    box-shadow: var(--shadow-low);
+  }
+
+  .code-frame {
+    border-color: hsl(var(--border-strong));
+    background: hsl(var(--background));
+    box-shadow: inset 0 1px 0 hsl(var(--border));
+  }
+
+  .number-field {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .number-field::-webkit-inner-spin-button,
+  .number-field::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+
+  @keyframes toast-lifetime {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+
+  .toast-lifetime {
+    transform-origin: left;
+    animation: toast-lifetime var(--toast-duration, 5000ms) linear forwards;
+  }
+
+  @keyframes icon-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes icon-pulse {
+    50% { opacity: 0.4; }
+  }
+
+  @keyframes icon-beat {
+    50% { transform: scale(1.2); }
+  }
+
+  @keyframes icon-beat-fade {
+    50% { opacity: 0.45; transform: scale(1.18); }
+  }
+
+  @keyframes icon-bounce {
+    0%, 100% { transform: translateY(0); }
+    45% { transform: translateY(-22%); }
+    65% { transform: translateY(0); }
+    80% { transform: translateY(-10%); }
+  }
+
+  @keyframes icon-shake {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(-12deg); }
+    40% { transform: rotate(10deg); }
+    60% { transform: rotate(-7deg); }
+    80% { transform: rotate(5deg); }
+  }
+
+  .icon-animation-spin,
+  .icon-animation-spin-pulse,
+  .icon-animation-spin-reverse,
+  .icon-animation-pulse,
+  .icon-animation-beat,
+  .icon-animation-fade,
+  .icon-animation-beat-fade,
+  .icon-animation-bounce,
+  .icon-animation-shake {
+    transform-origin: center;
+    will-change: transform, opacity;
+  }
+
+  .icon-animation-spin { animation: icon-spin 2s linear infinite; }
+  .icon-animation-spin-pulse { animation: icon-spin 1s steps(8, end) infinite; }
+  .icon-animation-spin-reverse { animation: icon-spin 2s linear infinite reverse; }
+  .icon-animation-pulse,
+  .icon-animation-fade { animation: icon-pulse 1s ease-in-out infinite; }
+  .icon-animation-beat { animation: icon-beat 0.75s ease-in-out infinite; }
+  .icon-animation-beat-fade { animation: icon-beat-fade 0.75s ease-in-out infinite; }
+  .icon-animation-bounce { animation: icon-bounce 1s ease-in-out infinite; }
+  .icon-animation-shake { animation: icon-shake 0.75s ease-in-out infinite; }
+
+  @keyframes progress-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .progress-fill {
+    transform-origin: left;
+    animation: progress-fill var(--progress-duration, 3000ms) linear forwards;
+  }
+
+  @keyframes progress-circle {
+    from { stroke-dashoffset: 169.65; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  .progress-circle {
+    stroke-dashoffset: 169.65;
+    animation: progress-circle var(--progress-duration, 3000ms) linear forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .toast-lifetime {
+      animation: none;
+    }
+
+    .progress-fill,
+    .progress-circle {
+      animation: none;
+    }
+  }
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent !important;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.camera-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  color: #f5f5f5;
+  font-family: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", monospace);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 90%);
+}
+
+.camera-vignette,
+.camera-scanlines,
+.camera-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.camera-vignette {
+  background: radial-gradient(ellipse at center, transparent 48%, rgb(0 0 0 / 18%) 100%);
+}
+
+.camera-scanlines {
+  opacity: 0.12;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgb(255 255 255 / 12%) 4px);
+  mix-blend-mode: screen;
+}
+
+.camera-frame {
+  inset: 5.5% 3.2%;
+}
+
+.camera-corner {
+  position: absolute;
+  width: 8.5%;
+  height: 8%;
+  border-color: rgb(245 245 245 / 90%);
+  border-style: solid;
+}
+
+.camera-corner-tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
+.camera-corner-tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
+.camera-corner-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+.camera-corner-br { right: 0; bottom: 0; border-width: 0 2px 2px 0; }
+
+.camera-header {
+  position: absolute;
+  top: 8%;
+  right: 7%;
+  left: 7%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.camera-heading,
+.camera-header-meta,
+.camera-telemetry,
+.camera-index,
+.camera-footer-mark {
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-heading { gap: 5px; }
+.camera-heading strong { font-size: clamp(16px, 1.35vw, 24px); font-weight: 600; letter-spacing: 0.15em; }
+.camera-kicker,
+.camera-channel,
+.camera-index-label,
+.camera-telemetry-title,
+.camera-telemetry-row,
+.camera-footer-mark {
+  font-size: clamp(9px, 0.7vw, 12px);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.camera-kicker { color: hsl(var(--primary)); }
+.camera-live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.camera-channel { color: rgb(245 245 245 / 68%); }
+.camera-header-meta { align-items: flex-end; gap: 8px; }
+.camera-rec { display: inline-flex; align-items: center; gap: 7px; color: rgb(245 245 245 / 64%); font-weight: 700; }
+.camera-rec i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.camera-rec.is-live { color: hsl(var(--primary)); }
+.camera-rec.is-live i { animation: camera-rec-pulse 1.2s ease-in-out infinite; }
+.camera-timecode { font-size: clamp(18px, 1.65vw, 30px); font-weight: 700; letter-spacing: 0.04em; }
+
+.camera-reticle { position: absolute; top: 50%; left: 50%; width: 38px; height: 38px; transform: translate(-50%, -50%); opacity: 0.5; }
+.camera-reticle::before,
+.camera-reticle::after,
+.camera-reticle span,
+.camera-reticle i { position: absolute; display: block; background: currentColor; content: ""; }
+.camera-reticle::before { top: 18px; left: 0; width: 38px; height: 1px; }
+.camera-reticle::after { top: 0; left: 18px; width: 1px; height: 38px; }
+.camera-reticle span { top: 12px; left: 12px; width: 13px; height: 13px; border: 1px solid currentColor; border-radius: 50%; background: transparent; }
+.camera-reticle i { top: 18px; left: 18px; width: 3px; height: 3px; border-radius: 50%; }
+
+.camera-telemetry { position: absolute; right: 7%; bottom: 17%; gap: 9px; min-width: 180px; padding: 12px 14px; border-left: 2px solid hsl(var(--primary)); background: rgb(0 0 0 / 35%); }
+.camera-telemetry-title { color: hsl(var(--primary)); }
+.camera-telemetry-title span { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; }
+.camera-telemetry-row { display: flex; flex-direction: row; justify-content: space-between; gap: 22px; color: rgb(245 245 245 / 60%); }
+.camera-telemetry-row b { color: #f5f5f5; font-size: inherit; }
+.camera-bars { display: flex; align-items: flex-end; gap: 3px; height: 12px; }
+.camera-bars i { display: block; width: 4px; height: 4px; background: rgb(245 245 245 / 25%); }
+.camera-bars i:nth-child(2) { height: 6px; }
+.camera-bars i:nth-child(3) { height: 8px; }
+.camera-bars i:nth-child(4) { height: 10px; }
+.camera-bars i:nth-child(5) { height: 12px; }
+.camera-bars i.is-on { background: hsl(var(--primary)); box-shadow: 0 0 6px hsl(var(--primary) / 0.65); }
+.camera-location { max-width: 230px; color: rgb(245 245 245 / 74%); font-size: 10px; letter-spacing: 0.08em; line-height: 1.5; }
+
+.camera-footer { position: absolute; right: 7%; bottom: 8%; left: 7%; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.camera-index { align-items: flex-start; gap: 1px; }
+.camera-index strong { font-size: clamp(30px, 3.1vw, 54px); line-height: 0.95; letter-spacing: -0.04em; }
+.camera-index small { margin-top: 2px; color: rgb(245 245 245 / 55%); font-size: 12px; }
+.camera-footer-mark { align-items: flex-end; gap: 5px; color: rgb(245 245 245 / 55%); }
+.camera-footer-mark i { display: block; width: 42px; height: 2px; background: hsl(var(--primary)); }
+
+@keyframes camera-rec-pulse {
+  50% { opacity: 0.3; transform: scale(0.7); }
+}
+
+@media (max-width: 700px) {
+  .camera-telemetry { right: 7%; bottom: 20%; min-width: 150px; }
+  .camera-footer-mark { display: none; }
+}

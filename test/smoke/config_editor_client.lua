@@ -1,0 +1,427 @@
+local scriptDir = debug.getinfo(1, 'S').source:match('@?(.*/)') or './'
+local testDir = scriptDir .. '../'
+local repoRoot = testDir .. '../'
+package.path = testDir .. '?.lua;' .. package.path
+
+local H = require('harness')
+local definition, openArgs, committed = nil, nil, nil
+local restarted
+local events = {}
+local entry = {
+    resource = 'sample', revision = 2, loaded = true,
+    schema = { kind = 'object', fields = { enabled = { kind = 'boolean', path = { 'enabled' }, label = 'Enabled',
+        description = 'Controls whether the sample is enabled.', scope = 'shared', live = true } } },
+    configured = { enabled = true }, values = { enabled = false },
+}
+local otherEntry = {
+    resource = 'other', revision = 1, loaded = true,
+    schema = { kind = 'object', fields = {
+        mode = { kind = 'enum', path = { 'mode' }, label = 'Mode',
+            description = 'Select the operating mode.', scope = 'shared', live = false,
+            options = { { value = 1, label = 'One' }, { value = 2, label = 'Two' } } },
+        nickname = { kind = 'string', path = { 'nickname' }, label = 'Nickname',
+            description = 'Optional display name.', scope = 'shared', live = false },
+    } },
+    configured = { mode = 1, nickname = '' }, values = { mode = 1, nickname = '' },
+}
+
+local function navigation(id)
+    for _, item in ipairs(definition.navigation or {}) do
+        if item.id == id then return item end
+    end
+end
+
+Kora = {
+    callback = { trigger = function(name, request)
+        if name == 'kora_lib:configCatalog' then return {
+            { resource = entry.resource, revision = entry.revision, schema = entry.schema, loaded = false },
+            { resource = otherEntry.resource, revision = otherEntry.revision, schema = otherEntry.schema, loaded = false },
+        } end
+        if name == 'kora_lib:configRead' then
+            if request == 'sample' then return entry end
+            if request == 'other' then return otherEntry end
+            return nil, 'configuration is unavailable'
+        end
+        if name == 'kora_lib:configCommit' then
+            committed = request
+            local target = request.resource == 'sample' and entry or otherEntry
+            target.configured[request.path[1]] = request.value
+            target.values[request.path[1]] = request.value
+            target.revision = target.revision + 1
+            return { ok = true, applied = request.resource == 'sample' }
+        end
+        if name == 'kora_lib:configReset' then return { ok = true, applied = true } end
+        if name == 'kora_lib:configRestart' then restarted = request; return { ok = true } end
+    end },
+    config = {}, notify = { send = function() end },
+    nui = { registerApp = function(value) definition = value end, openApp = function(_, opts) openArgs = opts end },
+}
+json = {
+    encode = function(value)
+        if type(value) == 'string' then return ('%q'):format(value) end
+        if type(value) == 'number' or type(value) == 'boolean' then return tostring(value) end
+        return '{}'
+    end,
+    decode = function(value)
+        if value == '42' then return 42 end
+        if value == 'true' then return true end
+        if value == 'false' then return false end
+        if tonumber(value) ~= nil then return tonumber(value) end
+        local quoted = value:match('^"(.*)"$')
+        if quoted then return quoted end
+        return {}
+    end,
+}
+function RegisterNetEvent(name, handler) events[name] = handler end
+
+dofile(repoRoot .. 'modules/config/editor_client.lua')
+
+H.test('every registered resource remains available in the sidebar', function()
+    Kora.config.open('sample')
+    H.assertEqual(definition.id, 'kora_lib:config')
+    H.assertEqual(openArgs.viewId, 'resource:sample')
+    H.assertEqual(definition.navigation[1].id, 'resources')
+    H.assertEqual(definition.navigation[2].label, 'other')
+    H.assertEqual(definition.navigation[3].label, 'sample')
+    H.assertEqual(definition.navigation[2].group, 'Resources')
+    H.assertEqual(definition.navigation[3].onOpen, 'config:resource')
+    H.assertEqual(definition.navigation[3].badge, 1)
+
+    local tableBlock = navigation('resource:sample').content.blocks[1]
+    H.assertEqual(tableBlock.columns[1].key, 'label')
+    H.assertEqual(tableBlock.columns[2].key, 'description')
+    H.assertEqual(tableBlock.columns[2].width, '42%')
+    H.assertEqual(tableBlock.rows[1].label.label, 'Enabled')
+    H.assertEqual(tableBlock.rows[1].label.description, 'Key: enabled')
+    H.assertEqual(tableBlock.rows[1].key, 'enabled')
+    H.assertEqual(tableBlock.rows[1].description, 'Controls whether the sample is enabled.')
+end)
+
+H.test('editing stays inside the resource view and saves via kora_lib callbacks', function()
+    events['kora_lib:client:configOpened']()
+    definition.onAction('config:resource', { viewId = 'resources', itemId = 'resource:sample' })
+    local result = definition.onAction('config:setting', { viewId = 'resource:sample', itemId = 'enabled' })
+    local sampleView
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then sampleView = item break end
+    end
+    H.assertTrue(sampleView ~= nil)
+    H.assertEqual(sampleView.content.blocks[2].type, 'form')
+    H.assertEqual(sampleView.content.blocks[2].fields[1].id, 'value')
+    H.assertEqual(result.navigate.viewId, 'resource:sample')
+    H.assertEqual(#result.update.navigation, 3)
+
+    result = definition.onAction('config:save', { viewId = 'resource:sample', value = { value = false } })
+    H.assertEqual(committed.resource, 'sample')
+    H.assertEqual(committed.path[1], 'enabled')
+    H.assertFalse(committed.value)
+    H.assertEqual(result.notice.tone, 'success')
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then
+            H.assertEqual(item.content.blocks[2].id, 'config-edit-form-sample:enabled:3')
+            break
+        end
+    end
+end)
+
+H.test('vectors and optional values use typed controls instead of raw JSON', function()
+    entry.schema = { kind = 'object', fields = {
+        location = { kind = 'vector3', path = { 'location' }, label = 'Location',
+            description = 'World location.', scope = 'shared', live = true },
+        note = { kind = 'optional', path = { 'note' }, label = 'Note', description = 'Optional note.',
+            scope = 'shared', live = true, innerDefault = 'example',
+            inner = { kind = 'string', path = { 'note' }, label = 'Note', scope = 'shared' } },
+    } }
+    entry.configured = { location = { x = 1, y = 2, z = 3 } }
+    entry.values = { location = { x = 1, y = 2, z = 3 } }
+
+    Kora.config.open('sample')
+    local result = definition.onAction('config:setting', {
+        viewId = 'resource:sample', itemId = 'location',
+    })
+    local sampleView
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then sampleView = item break end
+    end
+    local vector = sampleView.content.blocks[2].fields[1]
+    H.assertEqual(vector.type, 'vector')
+    H.assertEqual(vector.dimensions, 3)
+    H.assertEqual(vector.default.z, 3)
+    definition.onAction('config:save', {
+        viewId = 'resource:sample', value = { value = { x = 4, y = 5, z = 6 } },
+    })
+    H.assertEqual(committed.value.y, 5)
+
+    result = definition.onAction('config:setting', { viewId = 'resource:sample', itemId = 'note' })
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then sampleView = item break end
+    end
+    local fields = sampleView.content.blocks[2].fields
+    H.assertEqual(fields[1].id, 'valueEnabled')
+    H.assertFalse(fields[1].default)
+    H.assertEqual(fields[2].default, 'example')
+    H.assertEqual(fields[2].visibleWhen.fieldId, 'valueEnabled')
+
+    definition.onAction('config:save', {
+        viewId = 'resource:sample', value = { valueEnabled = true, value = 'hello' },
+    })
+    H.assertEqual(committed.value, 'hello')
+    definition.onAction('config:save', {
+        viewId = 'resource:sample', value = { valueEnabled = false, value = 'ignored' },
+    })
+    H.assertEqual(committed.value, nil)
+end)
+
+H.test('restart-required resources expose and run an explicit apply action', function()
+    otherEntry.configured = { mode = 2, nickname = '' }
+    Kora.config.open('other')
+    local view = navigation('resource:other')
+    H.assertEqual(view.content.actions[2].id, 'config:restart')
+    local result = definition.onAction('config:restart', { viewId = 'resource:other' })
+    H.assertEqual(restarted, 'other')
+    H.assertEqual(result.notice.tone, 'success')
+    otherEntry.configured = { mode = 1, nickname = '' }
+end)
+
+H.test('enum values retain their authored type and strings may be empty', function()
+    Kora.config.open('other')
+    local result = definition.onAction('config:setting', { viewId = 'resource:other', itemId = 'mode' })
+    local otherView
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:other' then otherView = item break end
+    end
+    local enumField = otherView.content.blocks[2].fields[1]
+    H.assertEqual(enumField.default, 'config-option:1')
+    H.assertEqual(enumField.options[2].value, 'config-option:2')
+
+    definition.onAction('config:save', {
+        viewId = 'resource:other', value = { value = 'config-option:2' },
+    })
+    H.assertEqual(committed.value, 2)
+
+    result = definition.onAction('config:setting', { viewId = 'resource:other', itemId = 'nickname' })
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:other' then otherView = item break end
+    end
+    H.assertFalse(otherView.content.blocks[2].fields[1].required)
+    definition.onAction('config:save', { viewId = 'resource:other', value = { value = '' } })
+    H.assertEqual(committed.value, '')
+end)
+
+H.test('numeric config keys keep their authored values in the editor', function()
+    entry.schema = { kind = 'object', fields = {
+        restricted = { kind = 'object', path = { 'restricted' }, fieldKeys = { ['2'] = 2 }, fields = {
+            ['2'] = { kind = 'boolean', path = { 'restricted', '2' }, label = 'Restricted 2',
+                description = 'Controls restriction two.', scope = 'shared' },
+        } },
+    } }
+    entry.configured = { restricted = { [2] = true } }
+    entry.values = { restricted = { [2] = false } }
+
+    Kora.config.open('sample')
+    local result = definition.onAction('config:setting', {
+        viewId = 'resource:sample', itemId = 'restricted\31' .. '2',
+    })
+    local details
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then details = item.content.blocks[1].items break end
+    end
+    H.assertEqual(details[1].value, 'On')
+    H.assertEqual(details[2].value, 'Off')
+end)
+
+H.test('list settings use editable key and value rows and preserve value types', function()
+    entry.schema = { kind = 'object', fields = {
+        locations = { kind = 'list', path = { 'locations' }, label = 'Locations',
+            description = 'Ordered locations.', scope = 'shared', items = {
+                { kind = 'string', path = { 'locations', '1' }, label = 'Location' },
+            } },
+    } }
+    entry.configured = { locations = { 'airport' } }
+    entry.values = { locations = { 'airport' } }
+
+    Kora.config.open('sample')
+    local result = definition.onAction('config:setting', {
+        viewId = 'resource:sample', itemId = 'locations',
+    })
+    local field
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then field = item.content.blocks[2].fields[1] break end
+    end
+    H.assertEqual(field.type, 'key-value')
+    H.assertEqual(field.keyMode, 'integer')
+    H.assertEqual(field.default[1].key, '1')
+    H.assertEqual(field.default[1].value, '"airport"')
+
+    definition.onAction('config:save', { viewId = 'resource:sample', value = { value = {
+        { key = '1', value = '"city"' },
+        { key = '2', value = '42' },
+    } } })
+    H.assertEqual(committed.value[1], 'city')
+    H.assertEqual(committed.value[2], 42)
+end)
+
+H.test('map settings accept new text keys and boolean values', function()
+    entry.schema = { kind = 'object', fields = {
+        roles = { kind = 'map', path = { 'roles' }, label = 'Roles',
+            description = 'Authorised roles.', scope = 'shared',
+            item = { kind = 'boolean', path = { 'roles', '*' }, label = 'Role' },
+            values = { police = { kind = 'boolean', path = { 'roles', 'police' }, label = 'Police' } } },
+    } }
+    entry.configured = { roles = { police = true } }
+    entry.values = { roles = { police = true } }
+
+    Kora.config.open('sample')
+    local result = definition.onAction('config:setting', {
+        viewId = 'resource:sample', itemId = 'roles',
+    })
+    local field
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then field = item.content.blocks[2].fields[1] break end
+    end
+    H.assertEqual(field.type, 'key-value')
+    H.assertEqual(field.keyMode, 'string')
+
+    definition.onAction('config:save', { viewId = 'resource:sample', value = { value = {
+        { key = 'police', value = 'true' },
+        { key = 'ambulance', value = 'false' },
+    } } })
+    H.assertTrue(committed.value.police)
+    H.assertFalse(committed.value.ambulance)
+end)
+
+H.test('mixed-key maps round-trip numeric keys and use compact table summaries', function()
+    entry.schema = { kind = 'object', fields = {
+        rates = { kind = 'map', keyType = 'mixed', path = { 'rates' }, label = 'Rates',
+            description = 'Rates by class.', scope = 'shared',
+            item = { kind = 'number', path = { 'rates', '*' }, label = 'Rate' },
+            values = {} },
+    } }
+    entry.configured = { rates = { default = 0.5, [0] = 0.1 } }
+    entry.values = { rates = { default = 0.5, [0] = 0.1 } }
+
+    Kora.config.open('sample')
+    local overview = navigation('resource:sample').content.blocks[1]
+    H.assertEqual(overview.rows[1].value, '2 rows')
+    local result = definition.onAction('config:setting', {
+        viewId = 'resource:sample', itemId = 'rates',
+    })
+    local field
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then field = item.content.blocks[2].fields[1] break end
+    end
+    H.assertEqual(field.keyMode, 'mixed')
+    H.assertEqual(field.default[1].key, '0')
+    H.assertEqual(field.default[1].value, '0.1')
+
+    definition.onAction('config:save', { viewId = 'resource:sample', value = { value = {
+        { key = 'default', value = '0.75' },
+        { key = '7', value = '1' },
+    } } })
+    H.assertEqual(committed.value.default, 0.75)
+    H.assertEqual(committed.value[7], 1)
+    H.assertEqual(committed.value['7'], nil)
+end)
+
+H.test('unavailable resource actions return a visible workflow error', function()
+    local result = definition.onAction('config:resource', { viewId = 'resources', itemId = 'missing' })
+    H.assertEqual(result.notice.tone, 'destructive')
+    H.assertEqual(result.notice.message, 'configuration is unavailable')
+end)
+
+H.test('advanced toggle filters rows and counts without changing saved settings', function()
+    entry.schema = { kind = 'object', fields = {
+        enabled = { kind = 'boolean', path = { 'enabled' }, label = 'Enabled', live = true },
+        timeout = { kind = 'integer', path = { 'timeout' }, label = 'Timeout', advanced = true },
+    } }
+    entry.configured = { enabled = true, timeout = 1000 }
+    entry.values = { enabled = true, timeout = 1000 }
+    Kora.config.open('sample')
+    local content = navigation('resource:sample').content
+    H.assertEqual(#content.blocks[1].rows, 1)
+    H.assertEqual(content.blocks[1].rows[1].value, 'On')
+    H.assertEqual(navigation('resource:sample').badge, 1)
+    local result = definition.onAction('config:advanced', { viewId = 'resource:sample' })
+    for _, item in ipairs(result.update.navigation) do
+        if item.id == 'resource:sample' then
+            H.assertEqual(#item.content.blocks[1].rows, 2)
+            H.assertEqual(item.badge, 2)
+        end
+    end
+    definition.onAction('config:advanced', { viewId = 'resource:sample' })
+    H.assertEqual(entry.configured.timeout, 1000)
+end)
+
+H.test('restart actions reflect actual nested changes including hidden advanced settings', function()
+    entry.schema = { kind = 'object', fields = {
+        mapping = { kind = 'map', path = { 'mapping' }, label = 'Mapping', advanced = true },
+    } }
+    entry.configured = { mapping = { one = false, two = { 1, 2 } } }
+    entry.values = { mapping = { two = { 1, 2 }, one = false } }
+    Kora.config.open('sample')
+    H.assertEqual(#navigation('resource:sample').content.actions, 1)
+    entry.configured = { mapping = { one = false, two = { 1, 3 } } }
+    Kora.config.open('sample')
+    H.assertEqual(navigation('resource:sample').content.actions[2].id, 'config:restart')
+    entry.configured = { mapping = { one = false, two = { 1, 2 }, added = true } }
+    Kora.config.open('sample')
+    H.assertEqual(navigation('resource:sample').content.actions[2].id, 'config:restart')
+end)
+
+H.test('only the selected resource gets a populated settings page', function()
+    Kora.config.open('other')
+    H.assertEqual(navigation('resource:sample').content.blocks[1].type, 'empty')
+    H.assertEqual(navigation('resource:other').content.blocks[1].type, 'table')
+end)
+
+H.test('advanced preference survives reopening the editor runtime', function()
+    local stored
+    SetResourceKvpInt = function(key, value)
+        H.assertEqual(key, 'kora_lib:config:advanced')
+        stored = value
+    end
+    definition.onAction('config:advanced', { viewId = 'resource:other' })
+    H.assertEqual(stored, 1)
+    GetResourceKvpInt = function() return stored end
+    dofile(repoRoot .. 'modules/config/editor_client.lua')
+    Kora.config.open('sample')
+    H.assertEqual(#navigation('resource:sample').content.blocks[1].rows, 1)
+    definition.onAction('config:advanced', { viewId = 'resource:sample' })
+    H.assertEqual(stored, 0)
+    GetResourceKvpInt, SetResourceKvpInt = nil, nil
+end)
+
+H.test('false values and setting identities survive editing', function()
+    entry.schema = { kind = 'object', fields = {
+        flag = { kind = 'optional', path = { 'flag' }, label = 'Flag', innerDefault = true,
+            inner = { kind = 'boolean', label = 'Flag' } },
+        choice = { kind = 'enum', path = { 'choice' }, label = 'Choice',
+            options = { { value = false, label = 'Off' }, { value = true, label = 'On' } } },
+        rates = { kind = 'map', path = { 'rates' }, label = 'Rates', requiredKeys = { 'default' },
+            item = { kind = 'number', min = 0, max = 10 } },
+    } }
+    entry.configured = { flag = false, choice = false, rates = { default = 1.234567890123 } }
+    entry.values = entry.configured
+    Kora.config.open('sample')
+    local function openSetting(key)
+        local result = definition.onAction('config:setting', { viewId = 'resource:sample', itemId = key })
+        for _, item in ipairs(result.update.navigation) do
+            if item.id == 'resource:sample' then return item.content.blocks[2] end
+        end
+    end
+    local form = openSetting('flag')
+    H.assertFalse(form.fields[2].default)
+    local firstId = form.id
+    form = openSetting('choice')
+    H.assertTrue(firstId ~= form.id)
+    H.assertEqual(form.fields[1].default, 'config-option:1')
+    definition.onAction('config:save', { viewId = 'resource:sample', value = { value = 'config-option:1' } })
+    H.assertFalse(committed.value)
+    form = openSetting('rates')
+    H.assertEqual(form.fields[1].valueField.type, 'number')
+    H.assertEqual(form.fields[1].valueField.max, 10)
+    H.assertEqual(form.fields[1].requiredKeys[1], 'default')
+    H.assertEqual(form.fields[1].default[1].value, tostring(1.234567890123))
+end)
+
+H.report('config_editor_client')

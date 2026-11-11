@@ -1,0 +1,890 @@
+local harness = dofile('test/harness.lua')
+
+Kora = {
+    ox = {}, nui = {}, notify = {}, progressbar = {}, minigames = {}, textui = {},
+    locale = {}, stream = {}, controls = {}, compat = {}, util = {},
+}
+
+function Kora.util.isInteger(value)
+    return type(value) == 'number' and value == value and value > -math.huge and value < math.huge and value % 1 == 0
+end
+
+function Kora.util.isFiniteNumber(value)
+    return type(value) == 'number' and value == value and value > -math.huge and value < math.huge
+end
+
+function Kora.compat.isCallable(value)
+    if type(value) == 'function' then return true end
+    local metatable = type(value) == 'table' and getmetatable(value)
+    return type(metatable) == 'table' and type(metatable.__call) == 'function'
+end
+
+local requests = {}
+local responses = {}
+local cancellations = {}
+local notifications = {}
+local progressCalls = {}
+local minigameCalls = {}
+local textEntries = {}
+local triggered = {}
+local triggeredServer = {}
+local focusKeep = {}
+local commands = {}
+local nuiCallbacks = {}
+local nuiMessages = {}
+local nextText = 0
+local progressActive = false
+local providerActiveDuringProgress = false
+local locale = 'en'
+
+local function queue(action, result)
+    responses[action] = responses[action] or {}
+    responses[action][#responses[action] + 1] = result
+end
+
+local function lastRequest(action)
+    for index = #requests, 1, -1 do
+        if requests[index].action == action then return requests[index] end
+    end
+end
+
+function Kora.nui.requestAsync(action, payload, timeout, owner, focused, onEvent)
+    local pending = responses[action] or {}
+    local result = table.remove(pending, 1)
+    local request = {
+        action = action,
+        payload = payload,
+        timeout = timeout,
+        owner = owner,
+        focused = focused,
+        onEvent = onEvent,
+        result = result,
+    }
+    if type(result) == 'function' then request.result = result(request) end
+    requests[#requests + 1] = request
+    return request
+end
+
+function Kora.nui.send(action, payload)
+    nuiMessages[#nuiMessages + 1] = { action = action, payload = payload }
+    if action == 'notify' then notifications[#notifications + 1] = payload end
+end
+
+function Kora.nui.registerCallback(name, callback)
+    nuiCallbacks[name] = callback
+end
+
+function Kora.nui.cancelRequest(request, result, rejection)
+    cancellations[#cancellations + 1] = { request = request, result = result, rejection = rejection }
+    return true
+end
+
+function Kora.nui.updateRequest(request, action, payload)
+    requests[#requests + 1] = { action = action, request = request, payload = payload }
+    return true
+end
+
+function Kora.nui.acquireFocus(mouse, cursor, keepInput, owner)
+    local released = false
+    requests[#requests + 1] = { action = 'focus', mouse = mouse, cursor = cursor, keepInput = keepInput, owner = owner }
+    return function()
+        released = true
+        requests[#requests + 1] = { action = 'focusRelease', owner = owner }
+    end
+end
+
+function Kora.progressbar.isActive() return progressActive end
+function Kora.progressbar.start(payload, owner)
+    progressCalls[#progressCalls + 1] = { payload = payload, owner = owner }
+    providerActiveDuringProgress = Kora.ox.progressActive(owner)
+    progressActive = false
+    return true
+end
+function Kora.progressbar.cancel() progressActive = false return true end
+function Kora.minigames.playAsync(kind, options, authorization, owner)
+    minigameCalls[#minigameCalls + 1] = { kind = kind, options = options, authorization = authorization, owner = owner }
+    return { result = { success = true } }
+end
+function Kora.minigames.cancel(owner) minigameCalls[#minigameCalls + 1] = { cancel = owner } return true end
+function Kora.textui.show(text, options, owner)
+    nextText = nextText + 1
+    textEntries[nextText] = { text = text, options = options, owner = owner }
+    return nextText
+end
+function Kora.textui.hide(id) textEntries[id] = nil return true end
+function Kora.controls.acquire(ids, options)
+    requests[#requests + 1] = { action = 'controls', ids = ids, options = options }
+    return #requests
+end
+function Kora.controls.release(lease)
+    requests[#requests + 1] = { action = 'controlsRelease', lease = lease }
+    return true
+end
+Kora.compat.acquireControls = function(ids, options, owner)
+    requests[#requests + 1] = { action = 'controls', ids = ids, options = options, owner = owner }
+    return #requests
+end
+Kora.compat.releaseControlLease = function(lease, owner)
+    requests[#requests + 1] = { action = 'controlsRelease', lease = lease, owner = owner }
+    return true
+end
+function Kora.locale.getLanguage() return locale end
+function Kora.locale.setLanguage(value) locale = value return true end
+function Kora.stream.loadAudioBank(_, callback) callback() return true end
+
+Citizen = { Await = function(value)
+    local scripted = value.result
+    if value.onEvent and type(scripted) == 'table' and scripted.events then
+        for index = 1, #scripted.events do
+            local event = scripted.events[index]
+            value.onEvent(event.name, event.data)
+        end
+    end
+    if type(scripted) == 'table' and type(scripted.beforeTerminal) == 'function' then scripted.beforeTerminal() end
+    if type(scripted) == 'table' and scripted.terminal ~= nil then return scripted.terminal end
+    return scripted
+end }
+function CreateThread(callback) callback() end
+function Wait() end
+function SetTimeout() end
+function RegisterCommand(name, callback) commands[name] = callback end
+function RegisterKeyMapping() end
+function GetConvarInt(name, default) return name == 'ox:progressPropLimit' and 2 or default end
+function GetCurrentResourceName() return 'kora_lib' end
+function GetLocalTime() return 2026, 9, 8, 12, 0, 0 end
+function IsNuiFocused() return false end
+function IsPauseMenuActive() return false end
+function SetCursorLocation() end
+function TriggerEvent(name, ...) triggered[#triggered + 1] = { name = name, ... } end
+function TriggerServerEvent(name, ...) triggeredServer[#triggeredServer + 1] = { name = name, ... } end
+
+exports = setmetatable({}, {
+    __index = function(_, resource)
+        return setmetatable({}, {
+            __index = function(_, name)
+                return function(_, ...)
+                    triggered[#triggered + 1] = { name = ('export:%s:%s'):format(resource, name), ... }
+                end
+            end,
+        })
+    end,
+})
+
+dofile('modules/ox/shared.lua')
+dofile(arg[1] or 'modules/ox/client.lua')
+
+harness.test('provider exposes every function forwarded by the ox_lib shim', function()
+    local names = {
+        'alertDialog', 'closeAlertDialog', 'setClipboard', 'showContext', 'registerContext',
+        'getOpenContextMenu', 'hideContext', 'inputDialog', 'closeInputDialog', 'setNuiFocus',
+        'resetNuiFocus', 'registerMenu', 'showMenu', 'hideMenu', 'setMenuOptions', 'getOpenMenu',
+        'notify', 'defaultNotify', 'progressBar', 'progressCircle', 'cancelProgress', 'progressActive',
+        'registerRadial', 'getCurrentRadialId', 'hideRadial', 'addRadialItem', 'removeRadialItem',
+        'clearRadialItems', 'disableRadial', 'showRadialMenu', 'skillCheck', 'cancelSkillCheck',
+        'skillCheckActive', 'showTextUI', 'hideTextUI', 'isTextUIOpen', 'setLocale', 'disposeOwner',
+    }
+    for index = 1, #names do
+        harness.assertEqual(type(Kora.ox[names[index]]), 'function', ('Kora.ox.%s must exist'):format(names[index]))
+    end
+end)
+
+harness.test('alert translates fields and returns ox confirmation vocabulary', function()
+    queue('openAlert', { confirmed = true })
+    local result = Kora.ox.alertDialog({
+        header = 'Delete?', content = 'This cannot be undone.', cancel = true,
+        centered = true, size = 'lg', overflow = true,
+        labels = { confirm = 'Delete', cancel = 'Keep' },
+    }, 4000, 'shop')
+    harness.assertEqual(result, 'confirm')
+    local call = requests[#requests]
+    harness.assertEqual(call.action, 'openAlert')
+    harness.assertEqual(call.owner, 'shop')
+    harness.assertEqual(call.timeout, false)
+    harness.assertEqual(call.payload.title, 'Delete?')
+    harness.assertEqual(call.payload.message, 'This cannot be undone.')
+    harness.assertEqual(call.payload.confirmLabel, 'Delete')
+    harness.assertTrue(call.payload.cancellable)
+    harness.assertTrue(call.payload.showCancel)
+    harness.assertFalse(call.payload.showClose)
+    harness.assertFalse(call.payload.dismissOnBackdrop)
+    harness.assertTrue(call.payload.centered)
+    harness.assertEqual(call.payload.size, 'lg')
+    harness.assertTrue(call.payload.overflow)
+end)
+
+harness.test('alert rejects unsafe timeouts before opening a browser request', function()
+    local requestCount = #requests
+    local alert = { content = 'This cannot be undone.' }
+
+    harness.assertThrows(function() Kora.ox.alertDialog(alert, math.huge, 'shop') end)
+    harness.assertThrows(function() Kora.ox.alertDialog(alert, -1, 'shop') end)
+    harness.assertThrows(function() Kora.ox.alertDialog(alert, 1.5, 'shop') end)
+
+    harness.assertEqual(#requests, requestCount, 'an invalid timeout must not open an alert')
+end)
+
+harness.test('clipboard keeps the consumer owner and avoids focus', function()
+    queue('copyToClipboard', true)
+    Kora.ox.setClipboard('hello', 'notes')
+    local call = requests[#requests]
+    harness.assertEqual(call.action, 'copyToClipboard')
+    harness.assertEqual(call.payload.text, 'hello')
+    harness.assertEqual(call.owner, 'notes')
+    harness.assertFalse(call.focused)
+    harness.assertEqual(Kora.ox.setClipboard(false, 'notes'), nil)
+    harness.assertEqual(requests[#requests], call)
+end)
+
+harness.test('context selection dispatches callbacks, local events, and server events', function()
+    local selected
+    Kora.ox.registerContext({
+        id = 'actions', title = 'Actions', options = {
+            { title = 'Use', description = 'Use it', onSelect = function(args) selected = args.id end, args = { id = 7 } },
+        },
+    }, 'context_owner')
+    queue('openMenu', { selectedId = '__ox_context_1' })
+    Kora.ox.showContext('actions', 'context_owner')
+    harness.assertEqual(selected, 7)
+
+    Kora.ox.registerContext({ id = 'events', title = 'Events', options = {
+        fire = { title = 'Fire', event = 'local:event', serverEvent = 'server:event', args = 9 },
+    } }, 'context_owner')
+    queue('openMenu', { selectedId = '__ox_context_1' })
+    Kora.ox.showContext('events', 'context_owner')
+    harness.assertEqual(triggered[#triggered].name, 'local:event')
+    harness.assertEqual(triggeredServer[#triggeredServer].name, 'server:event')
+end)
+
+harness.test('context arrays preserve authored order while maps keep sorted keys', function()
+    local options, selected = {}, nil
+    for index = 1, 12 do
+        options[index] = { title = 'Row ' .. index, args = index, onSelect = function(value) selected = value end }
+    end
+    Kora.ox.registerContext({ id = 'ordered_context', title = 'Ordered', options = options }, 'context_owner')
+    queue('openMenu', { selectedId = '__ox_context_10' })
+    harness.assertEqual(select('#', Kora.ox.showContext('ordered_context', 'context_owner')), 0)
+    local opened = lastRequest('openMenu')
+    harness.assertEqual(#opened.payload.items, 12)
+    for index = 1, 12 do
+        harness.assertEqual(opened.payload.items[index].label, 'Row ' .. index)
+        harness.assertEqual(opened.payload.items[index].id, '__ox_context_' .. index)
+    end
+    harness.assertEqual(selected, 10)
+    harness.assertEqual(options[10].title, 'Row 10')
+
+    local replacement = {}
+    for index = 1, 12 do
+        replacement[index] = { title = 'Updated ' .. index, args = index + 100, onSelect = function(value) selected = value end }
+    end
+    queue('openMenu', {
+        beforeTerminal = function()
+            Kora.ox.registerContext({ id = 'ordered_context', title = 'Updated', options = replacement }, 'context_owner')
+        end,
+        terminal = { selectedId = '__ox_context_10' },
+    })
+    Kora.ox.showContext('ordered_context', 'context_owner')
+    local updated = lastRequest('updateMenu')
+    harness.assertEqual(updated.request, lastRequest('openMenu'))
+    for index = 1, 12 do harness.assertEqual(updated.payload.items[index].label, 'Updated ' .. index) end
+    harness.assertEqual(selected, 110)
+
+    Kora.ox.registerContext({ id = 'keyed_context', title = 'Keyed', options = {
+        z = { title = 'Alpha' }, a = { title = 'Zulu' },
+    } }, 'context_owner')
+    Kora.ox.showContext('keyed_context', 'context_owner')
+    local keyed = lastRequest('openMenu').payload.items
+    harness.assertEqual(keyed[1].label, 'Zulu')
+    harness.assertEqual(keyed[2].label, 'Alpha')
+
+    Kora.ox.registerContext({ id = 'sparse_context', title = 'Sparse', options = {
+        [1] = { title = 'First' }, [2] = { title = 'Second' }, [10] = { title = 'Tenth' },
+    } }, 'context_owner')
+    Kora.ox.showContext('sparse_context', 'context_owner')
+    local sparse = lastRequest('openMenu').payload.items
+    harness.assertEqual(#sparse, 3)
+    harness.assertEqual(sparse[1].label, 'First')
+    harness.assertEqual(sparse[2].label, 'Tenth')
+    harness.assertEqual(sparse[3].label, 'Second')
+
+    Kora.ox.registerContext({ id = 'empty_context', title = 'Empty', options = {} }, 'context_owner')
+    Kora.ox.showContext('empty_context', 'context_owner')
+    harness.assertEqual(#lastRequest('openMenu').payload.items, 0)
+end)
+
+harness.test('context registration rejects sparse definition lists before dropping entries', function()
+    harness.assertThrows(function()
+        Kora.ox.registerContext({
+            { id = 'first_context', title = 'First', options = {} },
+            [3] = { id = 'third_context', title = 'Third', options = {} },
+        }, 'context_owner')
+    end)
+
+    harness.assertThrows(function()
+        Kora.ox.registerContext({ id = 'invalid_context', title = 'Invalid', options = { bad = true } }, 'context_owner')
+    end)
+    harness.assertThrows(function() Kora.ox.showContext('invalid_context', 'context_owner') end)
+end)
+
+harness.test('input maps the complete ox row set and returns a positional array', function()
+    queue('openInputDialog', { values = {
+        ['1'] = 'Ada', ['2'] = 42, ['3'] = true, ['4'] = 'a', ['5'] = 75,
+        ['6'] = { 'a', 'b' }, ['7'] = 1704067200000, ['8'] = { 1704067200000, 1704153600000 },
+        ['9'] = '12:30', ['10'] = 'notes', ['11'] = '#ffffff',
+    } })
+    local values = Kora.ox.inputDialog('All inputs', {
+        'Name',
+        { type = 'number', label = 'Age', min = 1, max = 100, precision = 2 },
+        { type = 'checkbox', label = 'Enabled', checked = true },
+        { type = 'select', label = 'One', options = { { value = 'a', label = 'A' } } },
+        { type = 'slider', label = 'Level', min = 0, max = 100 },
+        { type = 'multi-select', label = 'Many', options = { { value = 'a', label = 'A' } } },
+        { type = 'date', label = 'Date', format = 'DD/MM/YYYY', returnString = true, default = true, min = '01/01/2000' },
+        { type = 'date-range', label = 'Range' },
+        { type = 'time', label = 'Time', format = '12', clearable = true },
+        { type = 'textarea', label = 'Notes', autosize = true, min = 2, max = 5, icon = { 'far', 'note-sticky' } },
+        { type = 'color', label = 'Colour', format = 'rgba' },
+    }, { size = 'xl' }, 'forms')
+    harness.assertEqual(values[1], 'Ada')
+    harness.assertEqual(values[11], '#ffffff')
+    local call = requests[#requests]
+    harness.assertEqual(call.payload.fields[1].type, 'text')
+    harness.assertEqual(call.payload.fields[5].type, 'range')
+    harness.assertEqual(call.payload.fields[6].type, 'multiselect')
+    harness.assertEqual(call.payload.fields[8].type, 'date-range')
+    harness.assertTrue(call.payload.fields[7].returnString)
+    harness.assertFalse(call.payload.fields[8].returnString)
+    harness.assertEqual(call.payload.fields[7].dateFormat, 'DD/MM/YYYY')
+    harness.assertEqual(call.payload.fields[7].default, true)
+    harness.assertEqual(call.payload.fields[7].dateMin, '01/01/2000')
+    harness.assertEqual(call.payload.fields[2].precision, 2)
+    harness.assertEqual(call.payload.fields[9].timeFormat, '12')
+    harness.assertTrue(call.payload.fields[10].autosize)
+    harness.assertEqual(call.payload.fields[10].minRows, 2)
+    harness.assertEqual(call.payload.fields[10].maxRows, 5)
+    harness.assertEqual(call.payload.fields[10].icon, 'far:note-sticky')
+    harness.assertEqual(call.payload.fields[11].colorFormat, 'rgba')
+    harness.assertEqual(call.payload.size, 'xl')
+    harness.assertFalse(call.payload.dismissOnBackdrop)
+end)
+
+harness.test('input rejects sparse row and option lists before opening the UI', function()
+    local requestCount = #requests
+
+    harness.assertThrows(function()
+        Kora.ox.inputDialog('Sparse rows', { { label = 'First' }, [3] = { label = 'Third' } }, nil, 'forms')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.inputDialog('Sparse options', {
+            { type = 'select', label = 'Choice', options = { { value = 'one' }, [3] = { value = 'three' } } },
+        }, nil, 'forms')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.inputDialog('Invalid option list', { { type = 'select', label = 'Choice', options = false } }, nil, 'forms')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.inputDialog('Invalid option', { { type = 'select', label = 'Choice', options = { false } } }, nil, 'forms')
+    end)
+
+    harness.assertEqual(#requests, requestCount, 'invalid input lists must not open a browser request')
+end)
+
+harness.test('actionless context rows stay open instead of dismissing the surface', function()
+    Kora.ox.registerContext({ id = 'information', title = 'Information', options = {
+        {
+            title = 'Read only detail',
+            metadata = { status = 'Ready' },
+            readOnly = true,
+            arrow = false,
+            icon = { 'fal', 'coffee' },
+        },
+    } }, 'context_owner')
+    queue('openMenu', { cancelled = true })
+    Kora.ox.showContext('information', 'context_owner')
+    local call = lastRequest('openMenu')
+    harness.assertFalse(call.payload.items[1].close)
+    harness.assertEqual(call.payload.position.horizontal, 'right')
+    harness.assertEqual(call.payload.position.vertical, 'top')
+    harness.assertEqual(call.payload.presentation, 'panel')
+    harness.assertTrue(call.payload.items[1].readOnly)
+    harness.assertFalse(call.payload.items[1].arrow)
+    harness.assertEqual(call.payload.items[1].icon, 'fal:coffee')
+    harness.assertEqual(call.payload.items[1].metadata[1].label, 'status')
+    harness.assertEqual(call.payload.items[1].metadata[1].value, 'Ready')
+end)
+
+harness.test('context submenu and back navigation update one mounted panel in place', function()
+    local backed = 0
+    Kora.ox.registerContext({
+        {
+            id = 'context_parent',
+            title = 'Parent',
+            options = { { title = 'Open child', menu = 'context_child' } },
+        },
+        { id = 'context_child', title = 'Child', menu = 'context_parent', onBack = function() backed = backed + 1 end,
+            options = { { title = 'Child action' } } },
+    }, 'context_owner')
+    local previousRequests = #requests
+    queue('openMenu', {
+        events = {
+            { name = 'confirmed', data = { selectedId = '__ox_context_1' } },
+            { name = 'back', data = {} },
+        },
+        terminal = { cancelled = true },
+    })
+    Kora.ox.showContext('context_parent', 'context_owner')
+    harness.assertEqual(backed, 1)
+    local opened, updated = 0, 0
+    for index = previousRequests + 1, #requests do
+        local call = requests[index]
+        if call.action == 'openMenu' then opened = opened + 1 end
+        if call.action == 'updateMenu' then updated = updated + 1 end
+    end
+    harness.assertEqual(opened, 1)
+    harness.assertEqual(updated, 2)
+    local parent = lastRequest('updateMenu')
+    harness.assertEqual(parent.payload.title, 'Parent')
+    harness.assertFalse(parent.payload.back == true)
+    harness.assertEqual(#parent.payload.items, 1)
+    harness.assertEqual(parent.payload.items[1].label, 'Open child')
+    harness.assertFalse(parent.payload.items[1].close)
+end)
+
+harness.test('re-registering an open context refreshes that mounted panel', function()
+    Kora.ox.registerContext({ id = 'live_context', title = 'Live', options = {
+        { title = 'Original' },
+    } }, 'context_owner')
+    queue('openMenu', {
+        beforeTerminal = function()
+            Kora.ox.registerContext({ id = 'live_context', title = 'Live', options = {
+                { title = 'Replacement' },
+            } }, 'context_owner')
+        end,
+        terminal = { cancelled = true },
+    })
+    Kora.ox.showContext('live_context', 'context_owner')
+
+    local update = lastRequest('updateMenu')
+    harness.assertEqual(update.payload.items[1].label, 'Replacement')
+end)
+
+harness.test('explicit focus uses an owner lease with composed keep-input state', function()
+    Kora.ox.setNuiFocus(true, true, 'focus_owner')
+    local call = requests[#requests]
+    harness.assertEqual(call.action, 'focus')
+    harness.assertTrue(call.mouse)
+    harness.assertFalse(call.cursor)
+    harness.assertTrue(call.keepInput)
+    harness.assertEqual(call.owner, 'focus_owner')
+    Kora.ox.resetNuiFocus('focus_owner')
+    harness.assertEqual(requests[#requests].action, 'focusRelease')
+end)
+
+harness.test('registered menu invokes the exact positional callback contract', function()
+    local callbackArgs
+    local live = {}
+    Kora.ox.registerMenu({
+        id = 'shop', title = 'Shop', position = 'top-right', options = {
+            { label = 'Buy', values = { 'One', 'Two' }, defaultIndex = 2, args = { item = 'water' }, close = false },
+        },
+        onSelected = function(...) live.selected = { ... } end,
+        onSideScroll = function(...) live.sideScroll = { ... } end,
+    }, function(...) callbackArgs = { ... } end, 'menu_owner')
+    queue('openMenu', {
+        events = {
+            { name = 'selected', data = { selectedId = '__ox_menu_1', valueIndex = 2 } },
+            { name = 'sideScroll', data = { selectedId = '__ox_menu_1', valueIndex = 1 } },
+            { name = 'confirmed', data = { selectedId = '__ox_menu_1', valueIndex = 1 } },
+        },
+        terminal = { cancelled = true, keyPressed = 'Escape' },
+    })
+    Kora.ox.showMenu('shop', 1, 'menu_owner')
+    harness.assertEqual(callbackArgs[1], 1)
+    harness.assertEqual(callbackArgs[2], 1)
+    harness.assertEqual(callbackArgs[3].item, 'water')
+    harness.assertEqual(live.selected[2], 2)
+    harness.assertTrue(live.selected[3].isScroll)
+    harness.assertEqual(live.sideScroll[2], 1)
+    local call = lastRequest('openMenu')
+    harness.assertEqual(call.payload.position.horizontal, 'right')
+    harness.assertEqual(call.payload.position.vertical, 'top')
+    harness.assertEqual(call.payload.items[1].defaultIndex, 2)
+    harness.assertFalse(call.payload.items[1].close)
+    harness.assertEqual(call.payload.presentation, 'panel')
+    harness.assertTrue(lastRequest('focus').keepInput)
+
+    Kora.ox.registerMenu({ id = 'default_position', title = 'Default', options = { { label = 'Close' } } }, nil, 'menu_owner')
+    queue('openMenu', { cancelled = true })
+    Kora.ox.showMenu('default_position', nil, 'menu_owner')
+    local defaultCall = lastRequest('openMenu')
+    harness.assertEqual(defaultCall.payload.position.horizontal, 'left')
+    harness.assertEqual(defaultCall.payload.position.vertical, 'top')
+
+    local uncheckedSelection
+    Kora.ox.registerMenu({
+        id = 'unchecked', title = 'Unchecked', options = { { label = 'Toggle', checked = false } },
+        onSelected = function(...) uncheckedSelection = { ... } end,
+    }, nil, 'menu_owner')
+    queue('openMenu', {
+        events = { { name = 'selected', data = { selectedId = '__ox_menu_1', checked = false } } },
+        terminal = { cancelled = true },
+    })
+    Kora.ox.showMenu('unchecked', nil, 'menu_owner')
+    harness.assertEqual(uncheckedSelection[1], 1)
+    harness.assertEqual(uncheckedSelection[2], nil)
+    harness.assertEqual(uncheckedSelection[3].isCheck, nil)
+end)
+
+harness.test('menu registration and bulk updates reject sparse option lists', function()
+    harness.assertThrows(function()
+        Kora.ox.registerMenu({ id = 'sparse_menu', title = 'Sparse', options = {
+            { label = 'First' }, [3] = { label = 'Third' },
+        } }, nil, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.registerMenu({ id = 'invalid_menu', title = 'Invalid', options = { false } }, nil, 'menu_owner')
+    end)
+
+    Kora.ox.registerMenu({ id = 'mutable_menu', title = 'Mutable', options = { { label = 'First' } } }, nil, 'menu_owner')
+    harness.assertThrows(function()
+        Kora.ox.setMenuOptions('mutable_menu', { { label = 'First' }, [3] = { label = 'Third' } }, nil, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.setMenuOptions('mutable_menu', false, 1, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.setMenuOptions('mutable_menu', { false }, nil, 'menu_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.setMenuOptions('mutable_menu', { label = 'Past end' }, 2, 'menu_owner')
+    end)
+end)
+
+harness.test('live menu updates refresh the mounted panel and its callbacks', function()
+    local selections = {}
+    Kora.ox.registerMenu({
+        id = 'live_menu', title = 'Live', options = { { label = 'Original', args = { state = 'old' } } },
+        onSelected = function(_, _, args)
+            selections[#selections + 1] = args.state
+            if #selections == 1 then
+                Kora.ox.setMenuOptions('live_menu', { { label = 'Replacement', args = { state = 'new' } } }, nil, 'menu_owner')
+            end
+        end,
+    }, nil, 'menu_owner')
+    queue('openMenu', {
+        events = {
+            { name = 'selected', data = { selectedId = '__ox_menu_1' } },
+            { name = 'selected', data = { selectedId = '__ox_menu_1' } },
+        },
+        terminal = { cancelled = true },
+    })
+    Kora.ox.showMenu('live_menu', nil, 'menu_owner')
+
+    harness.assertEqual(selections[1], 'old')
+    harness.assertEqual(selections[2], 'new')
+    local update = lastRequest('updateMenu')
+    harness.assertEqual(update.payload.items[1].label, 'Replacement')
+end)
+
+harness.test('notifications normalize ox fields without mutating the source', function()
+    local source = {
+        id = 42,
+        title = 'Saved',
+        description = 'Done',
+        type = 'inform',
+        position = 'top',
+        icon = { 'fas', 'check' },
+        iconAnimation = 'beat',
+        alignIcon = 'top',
+        style = { color = 'red', ['& .description'] = { color = 'blue' } },
+    }
+    Kora.ox.notify(source, 'notify_owner')
+    local payload = notifications[#notifications]
+    harness.assertEqual(payload.message, 'Done')
+    harness.assertEqual(payload.type, 'info')
+    harness.assertEqual(payload.position, 'top')
+    harness.assertEqual(payload.icon, 'fas:check')
+    harness.assertEqual(payload.id, '42')
+    harness.assertEqual(payload.duration, 3000)
+    harness.assertEqual(payload.iconAnimation, 'beat')
+    harness.assertEqual(payload.alignIcon, 'top')
+    harness.assertEqual(payload.style['& .description'].color, 'blue')
+    harness.assertEqual(source.type, 'inform')
+
+    Kora.ox.notify({ description = 'Fallback', duration = math.huge }, 'notify_owner')
+    harness.assertEqual(notifications[#notifications].duration, 3000,
+        'a non-finite duration should use the normal compatibility default')
+end)
+
+harness.test('progress translates props, scenarios, controls, and owner', function()
+    local completed = Kora.ox.progressCircle({
+        label = 'Working', duration = 1000, position = 'bottom', canCancel = true,
+        anim = { scenario = 'WORLD_HUMAN_HAMMERING' },
+        prop = { model = 'prop_tool_hammer', bone = 60309, pos = { x = 1, y = 2, z = 3 }, rot = { x = 4, y = 5, z = 6 } },
+        disable = { move = true, sprint = true, mouse = true },
+        allowRagdoll = true,
+    }, 'progress_owner')
+    harness.assertTrue(completed)
+    harness.assertTrue(providerActiveDuringProgress)
+    local call = progressCalls[#progressCalls]
+    harness.assertEqual(call.owner, 'progress_owner')
+    harness.assertEqual(call.payload.presentation, 'circle')
+    harness.assertEqual(call.payload.maxProps, false)
+    harness.assertEqual(call.payload.maxDuration, false)
+    harness.assertFalse(call.payload.cancelControls)
+    harness.assertTrue(call.payload.strictAnim == false)
+    harness.assertEqual(call.payload.disable.moveMode, 'controls')
+    harness.assertEqual(call.payload.disable.controlProfile, 'ox')
+    harness.assertEqual(call.payload.scenario.name, 'WORLD_HUMAN_HAMMERING')
+    harness.assertEqual(call.payload.props[1].offset.y, 2)
+    harness.assertTrue(call.payload.disable.sprint)
+
+    Kora.ox.progressBar({
+        label = 'Animating', duration = 500,
+        anim = { dict = 'anim@amb@business@weed@weed_inspecting_lo_med_hi@', clip = 'weed_spraybottle_crouch_base_inspector' },
+    }, 'progress_owner')
+    local animCall = progressCalls[#progressCalls]
+    harness.assertTrue(animCall.payload.strictAnim)
+    harness.assertEqual(animCall.payload.anim.flag, 49)
+    harness.assertEqual(animCall.payload.anim.blendIn, 3.0)
+    harness.assertEqual(animCall.payload.anim.blendOut, 1.0)
+    harness.assertEqual(animCall.payload.anim.stopBlendOut, 1.0)
+
+    Kora.ox.progressBar({
+        label = 'Limited props',
+        duration = 500,
+        prop = {
+            { model = 'prop_one' },
+            { model = 'prop_two' },
+            { model = 'prop_three' },
+        },
+    }, 'progress_owner')
+    local propCall = progressCalls[#progressCalls]
+    harness.assertEqual(#propCall.payload.props, 2)
+    harness.assertEqual(propCall.payload.props[1].model, 'prop_one')
+    harness.assertEqual(propCall.payload.props[2].model, 'prop_two')
+
+    progressActive = true
+    harness.assertFalse(Kora.ox.progressActive('progress_owner'))
+    harness.assertThrows(function() Kora.ox.cancelProgress('progress_owner') end)
+    progressActive = false
+end)
+
+harness.test('radial resolves registered submenus and invokes selection callback', function()
+    local selection, openedFrom
+    Kora.ox.registerRadial({ id = 'doors', items = {
+        { label = 'Lock', onSelect = function(menu, index) selection = { menu, index } end },
+    } }, 'radial_owner')
+    Kora.ox.registerRadial({ id = 'vehicle', items = {
+        { label = 'Doors', menu = 'doors', onSelect = function(menu, index)
+            openedFrom = { menu, index, Kora.ox.getCurrentRadialId('radial_owner') }
+        end },
+    } }, 'radial_owner')
+    queue('openRadialMenu', function(request)
+        local parent = request.payload.items[1]
+        return {
+            events = {
+                { name = 'radialLevel', data = { path = { parent.id } } },
+            },
+            terminal = { selectedId = parent.submenu.items[1].id },
+        }
+    end)
+    Kora.ox.showRadialMenu('vehicle', 'radial_owner')
+    harness.assertEqual(openedFrom[1], 'vehicle')
+    harness.assertEqual(openedFrom[2], 1)
+    harness.assertEqual(openedFrom[3], 'doors')
+    harness.assertEqual(selection[1], 'doors')
+    harness.assertEqual(selection[2], 1)
+end)
+
+harness.test('keep-open radial choices stay mounted and live registry changes refresh in place', function()
+    local selected = 0
+    Kora.ox.registerRadial({ id = 'live_radial', items = {
+        { label = 'Refresh', keepOpen = true, onSelect = function()
+            selected = selected + 1
+            Kora.ox.addRadialItem({ id = 'added', label = 'Added' }, 'live_radial', 'radial_owner')
+        end },
+        { label = 'Close', keepOpen = false },
+        { label = 'Default' },
+    } }, 'radial_owner')
+    queue('openRadialMenu', function(request)
+        local id = request.payload.items[1].id
+        return {
+            events = {
+                { name = 'confirmed', data = { selectedId = id, path = { id } } },
+            },
+            terminal = { cancelled = true },
+        }
+    end)
+    Kora.ox.showRadialMenu('live_radial', 'radial_owner')
+    harness.assertEqual(selected, 1)
+    local opened = lastRequest('openRadialMenu')
+    harness.assertEqual(opened.payload.items[1].close, false)
+    harness.assertEqual(opened.payload.items[2].close, nil)
+    harness.assertEqual(opened.payload.items[3].close, nil)
+    local refresh = lastRequest('updateRadialMenu')
+    harness.assertEqual(refresh.request, opened)
+    harness.assertEqual(#refresh.payload.items, 4)
+    harness.assertEqual(refresh.payload.items[1].close, false)
+    harness.assertEqual(refresh.payload.items[2].close, nil)
+    harness.assertEqual(refresh.payload.items[3].close, nil)
+    harness.assertEqual(refresh.payload.items[4].close, nil)
+    harness.assertEqual(Kora.ox.getCurrentRadialId('radial_owner'), nil)
+end)
+
+harness.test('radial registration rejects sparse item lists before dropping entries', function()
+    harness.assertThrows(function()
+        Kora.ox.registerRadial({ id = 'sparse_radial', items = {
+            { label = 'First' },
+            [3] = { label = 'Third' },
+        } }, 'radial_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.registerRadial({ id = '', items = {} }, 'radial_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.addRadialItem({ id = '', label = 'No identity' }, nil, 'radial_owner')
+    end)
+end)
+
+harness.test('owner disposal removes radial items nested under another consumer without mutating inputs', function()
+    local transient = { id = 'transient', label = 'Transient' }
+    Kora.ox.registerRadial({ id = 'shared_radial', items = {
+        { id = 'base', label = 'Base' },
+    } }, 'base_owner')
+    Kora.ox.addRadialItem(transient, 'shared_radial', 'temporary_owner')
+    harness.assertEqual(transient.__oxOwner, nil)
+    Kora.ox.disposeOwner('temporary_owner')
+
+    queue('openRadialMenu', { cancelled = true })
+    Kora.ox.showRadialMenu('shared_radial', 'base_owner')
+    local request = lastRequest('openRadialMenu')
+    harness.assertEqual(#request.payload.items, 1)
+    harness.assertEqual(request.payload.items[1].label, 'Base')
+end)
+
+harness.test('registered radial string callbacks execute against the menu resource', function()
+    Kora.ox.registerRadial({ id = 'owned_submenu', items = {
+        { id = 'base_callback', label = 'Base' },
+    } }, 'menu_resource')
+    Kora.ox.addRadialItem({ id = 'foreign_callback', label = 'Foreign', onSelect = 'selectForeign' }, 'owned_submenu', 'adding_resource')
+    queue('openRadialMenu', function(request)
+        return { selectedId = request.payload.items[2].id }
+    end)
+    Kora.ox.showRadialMenu('owned_submenu', 'opening_resource')
+    harness.assertEqual(triggered[#triggered].name, 'export:menu_resource:selectForeign')
+end)
+
+harness.test('skillCheck sends the complete stage sequence to one local NUI session', function()
+    queue('oxSkillCheck', true)
+    local success = Kora.ox.skillCheck({ 'easy', { areaSize = 36, speedMultiplier = 2 } }, { 'e', 'q' }, 'skill_owner')
+    harness.assertTrue(success)
+    local call = lastRequest('oxSkillCheck')
+    harness.assertEqual(call.owner, 'skill_owner')
+    harness.assertEqual(call.payload.difficulty[1], 'easy')
+    harness.assertEqual(call.payload.difficulty[2].areaSize, 36)
+    harness.assertEqual(call.payload.inputs[2], 'q')
+    harness.assertFalse(call.focused)
+end)
+
+harness.test('skillCheck rejects non-finite custom difficulty values before opening', function()
+    local requestCount = #requests
+
+    harness.assertThrows(function()
+        Kora.ox.skillCheck({ areaSize = math.huge, speedMultiplier = 1 }, nil, 'skill_owner')
+    end)
+    harness.assertThrows(function()
+        Kora.ox.skillCheck({ areaSize = 36, speedMultiplier = 0 / 0 }, nil, 'skill_owner')
+    end)
+
+    harness.assertEqual(#requests, requestCount, 'invalid difficulty values must not open a skill check')
+end)
+
+harness.test('skillCheck rejects sparse input lists before opening', function()
+    local requestCount = #requests
+
+    harness.assertThrows(function()
+        Kora.ox.skillCheck('easy', { 'e', [3] = 'q' }, 'skill_owner')
+    end)
+
+    harness.assertEqual(#requests, requestCount, 'sparse inputs must not open a skill check')
+end)
+
+harness.test('TextUI preserves the original ox text and extracts a kora_lib key chip', function()
+    Kora.ox.showTextUI('[E] - Open door', {
+        position = 'left-center', icon = { 'fas', 'door-open' }, iconColor = '#fff',
+        iconAnimation = 'pulse', alignIcon = 'top', style = { color = 'red' },
+    }, 'door')
+    local open, text = Kora.ox.isTextUIOpen('door')
+    harness.assertTrue(open)
+    harness.assertEqual(text, '[E] - Open door')
+    local entry = textEntries[nextText]
+    harness.assertEqual(entry.text, 'Open door')
+    harness.assertEqual(entry.options.key, 'E')
+    harness.assertEqual(entry.options.icon, 'fas:door-open')
+    harness.assertEqual(entry.options.iconColor, '#fff')
+    harness.assertEqual(entry.options.iconAnimation, 'pulse')
+    harness.assertEqual(entry.options.alignIcon, 'top')
+    harness.assertEqual(entry.options.style.color, 'red')
+    harness.assertEqual(entry.owner, 'door')
+    Kora.ox.hideTextUI('another_resource')
+    harness.assertFalse(Kora.ox.isTextUIOpen('door'))
+    local messagesBeforeInactiveHide = #nuiMessages
+    Kora.ox.hideTextUI('door')
+    harness.assertEqual(#nuiMessages, messagesBeforeInactiveHide)
+    Kora.ox.showTextUI('String style', { style = 'color: red' }, 'door')
+    harness.assertEqual(textEntries[nextText].options.style, 'color: red')
+end)
+
+harness.test('locale and owner disposal are explicit contracts', function()
+    harness.assertEqual(Kora.ox.getLocaleKey('locale_owner'), 'en')
+    harness.assertTrue(Kora.ox.setLocale('de', 'locale_owner'))
+    harness.assertEqual(locale, 'en')
+    harness.assertTrue(Kora.ox.setLocale('de', {
+        ui = { cancel = 'Abbrechen', close = 'Schliessen', confirm = 'Bestaetigen', more = 'Mehr...' },
+    }, 'locale_owner'))
+    local message = nuiMessages[#nuiMessages]
+    harness.assertEqual(message.action, 'oxLocale')
+    harness.assertEqual(message.payload.cancel, 'Abbrechen')
+    harness.assertEqual(message.payload.confirm, 'Bestaetigen')
+    harness.assertEqual(nuiCallbacks['kora_lib:oxLocale']().more, 'Mehr...')
+
+    Kora.ox.registerContext({ id = 'temporary', title = 'Temporary', options = {} }, 'temporary_owner')
+    Kora.ox.disposeOwner('temporary_owner')
+    harness.assertThrows(function() Kora.ox.showContext('temporary', 'temporary_owner') end)
+end)
+
+harness.test('FiveM callable proxies survive menu and radial registration', function()
+    local menuCalls, radialCalls = 0, 0
+    local menuCallback = setmetatable({}, { __call = function() menuCalls = menuCalls + 1 end })
+    local radialCallback = setmetatable({}, { __call = function() radialCalls = radialCalls + 1 end })
+
+    Kora.ox.registerMenu({ id = 'proxy_menu', title = 'Proxy', options = { { label = 'Run' } } }, menuCallback, 'proxy_owner')
+    queue('openMenu', { selectedId = '__ox_menu_1', path = { '__ox_menu_1' } })
+    Kora.ox.showMenu('proxy_menu', nil, 'proxy_owner')
+    harness.assertEqual(menuCalls, 1)
+
+    Kora.ox.registerRadial({ id = 'proxy_radial', items = { { label = 'Run', onSelect = radialCallback } } }, 'proxy_owner')
+    queue('openRadialMenu', function(request)
+        local id = request.payload.items[1].id
+        return { selectedId = id, path = { id } }
+    end)
+    Kora.ox.showRadialMenu('proxy_radial', 'proxy_owner')
+    harness.assertEqual(radialCalls, 1)
+end)
+
+harness.test('invalid owners and unsupported input types fail fast', function()
+    harness.assertThrows(function() Kora.ox.notify({}, '') end)
+    harness.assertThrows(function() Kora.ox.inputDialog('Bad options', {}, false, 'forms') end)
+    harness.assertThrows(function()
+        Kora.ox.inputDialog('Bad', { { type = 'file', label = 'Upload' } }, {}, 'forms')
+    end)
+    harness.assertThrows(function() Kora.ox.showTextUI('Bad options', false, 'forms') end)
+end)
+
+harness.test('an unknown radial root is an upstream-compatible no-op', function()
+    local previous = #requests
+    harness.assertEqual(Kora.ox.showRadialMenu('missing_radial', 'radial_owner'), nil)
+    harness.assertEqual(#requests, previous)
+end)
+
+harness.report('ox provider')

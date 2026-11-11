@@ -1,0 +1,19 @@
+title: kora_lib
+description: Lightweight, typed building blocks for FiveM resources
+url: https://qbcore2.github.io
+baseurl: /kora_lib
+repository: qbcore2/kora_lib
+permalink: pretty
+markdown: kramdown
+highlighter: rouge
+strict_front_matter: true
+
+exclude:
+  - build.sh
+  - README.md
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

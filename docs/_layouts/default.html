@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111827">
+    <meta name="description" content="{{ page.description | default: site.description | escape }}">
+    <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+    <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+    <header class="mobile-header">
+      <a class="brand" href="{{ '/' | relative_url }}">kora_lib</a>
+      <button id="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Menu</button>
+    </header>
+    <aside id="sidebar" class="sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-header">
+        <a class="brand" href="{{ '/' | relative_url }}">kora_lib</a>
+        <p>FiveM resource library</p>
+      </div>
+      <label class="search-label" for="nav-search">Filter documentation</label>
+      <input id="nav-search" class="nav-search" type="search" placeholder="Search modules…" autocomplete="off">
+      <nav>
+        {% for section in site.data.navigation %}
+          <section class="nav-section">
+            <h2>{{ section.title }}</h2>
+            <ul>
+              {% for item in section.items %}
+                {% assign resolved_url = item.url %}
+                {% unless item.external %}{% assign resolved_url = item.url | relative_url %}{% endunless %}
+                <li><a href="{{ resolved_url }}"{% if item.external %} rel="noreferrer"{% endif %}>{{ item.title }}{% if item.external %} ↗{% endif %}</a></li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endfor %}
+      </nav>
+    </aside>
+    <main id="content" class="content">
+      {{ content }}
+      <footer>
+        <p>kora_lib is maintained by <a href="https://github.com/qbcore2">qbcore2</a>. Documentation is generated from the guides shipped with the resource.</p>
+      </footer>
+    </main>
+    <aside id="methods-sidebar" class="methods-sidebar" aria-label="Methods on this page" hidden>
+      <h2>Methods</h2>
+      <nav id="methods-nav"></nav>
+    </aside>
+    <script src="{{ '/assets/js/docs.js' | relative_url }}"></script>
+  </body>
+</html>

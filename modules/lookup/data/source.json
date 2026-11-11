@@ -1,0 +1,39 @@
+{
+  "upstream": "DurtyFree/gta-v-data-dumps",
+  "url": "https://github.com/DurtyFree/gta-v-data-dumps",
+  "revision": "b65684e00f689fdec405c5f1055322c802d3c895",
+  "gtaBuild": "v3717.0 (Online 1.72) [DLC: mp2025_02_g9ec]",
+  "files": [
+    "vehicles.json",
+    "peds.json",
+    "weapons.json",
+    "pickupTypes.json",
+    "ObjectList.ini"
+  ],
+  "counts": {
+    "vehicle": {
+      "hashes": 921,
+      "entries": 921
+    },
+    "ped": {
+      "hashes": 1109,
+      "entries": 1109
+    },
+    "object": {
+      "hashes": 21631,
+      "entries": 21631
+    },
+    "weapon": {
+      "hashes": 184,
+      "entries": 184
+    },
+    "weapon_component": {
+      "hashes": 310,
+      "entries": 310
+    },
+    "pickup": {
+      "hashes": 175,
+      "entries": 175
+    }
+  }
+}

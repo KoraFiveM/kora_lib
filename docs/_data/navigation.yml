@@ -1,0 +1,88 @@
+- title: Start here
+  items:
+    - { title: Overview, url: / }
+    - { title: Installation, url: /getting-started/ }
+    - { title: Using the API, url: /using-the-api/ }
+    - { title: Configuration, url: /reference/config/ }
+    - { title: Performance and lifecycle, url: /performance/ }
+    - { title: API index, url: /reference/ }
+
+- title: Core
+  items:
+    - { title: Cache, url: /reference/cache/ }
+    - { title: Callbacks, url: /reference/callback/ }
+    - { title: Events, url: /reference/events/ }
+    - { title: Locales, url: /reference/locales/ }
+    - { title: Hash lookup, url: /reference/lookup/ }
+    - { title: Resources, url: /reference/resources/ }
+    - { title: State bags, url: /reference/state/ }
+    - { title: Streaming, url: /reference/stream/ }
+
+- title: Interface & input
+  items:
+    - { title: Controls, url: /reference/controls/ }
+    - { title: Instructional buttons, url: /reference/instructional/ }
+    - { title: Interactions, url: /reference/interact/ }
+    - { title: Keybinds, url: /reference/keybind/ }
+    - { title: Minigames, url: /reference/minigames/ }
+    - { title: NUI, url: /reference/nui/ }
+    - { title: Notifications, url: /reference/notify/ }
+    - { title: Progress bars, url: /reference/progressbar/ }
+    - { title: Text UI, url: /reference/textui/ }
+    - { title: Theme, url: /reference/theme/ }
+
+- title: World & entities
+  items:
+    - { title: Animations, url: /reference/anim/ }
+    - { title: Blips, url: /reference/blips/ }
+    - { title: Camera overlays, url: /reference/camera/ }
+    - { title: Closest entity, url: /reference/closest/ }
+    - { title: Distance checks, url: /reference/distancecheck/ }
+    - { title: Drawing, url: /reference/drawing/ }
+    - { title: Developer editors, url: /reference/editor/ }
+    - { title: Entities, url: /reference/entities/ }
+    - { title: Effects, url: /reference/fx/ }
+    - { title: Freecam, url: /reference/freecam/ }
+    - { title: Placement, url: /reference/placement/ }
+    - { title: Raycasts, url: /reference/raycast/ }
+    - { title: Sound, url: /reference/sound/ }
+    - { title: Teleporting, url: /reference/teleport/ }
+    - { title: Vehicles, url: /reference/vehicle/ }
+    - { title: Visual effects, url: /reference/visuals/ }
+    - { title: World queries, url: /reference/world/ }
+    - { title: Zones, url: /reference/zones/ }
+
+- title: Gameplay & server
+  items:
+    - { title: Actions, url: /reference/actions/ }
+    - { title: Commands, url: /reference/commands/ }
+    - { title: Discord, url: /reference/discord/ }
+    - { title: Logging, url: /reference/logging/ }
+    - { title: Permissions, url: /reference/permissions/ }
+    - { title: QA hooks, url: /reference/qa/ }
+    - { title: Rewards, url: /reference/rewards/ }
+    - { title: Screenshots, url: /reference/screenshot/ }
+    - { title: Skills, url: /reference/skills/ }
+    - { title: Status effects, url: /reference/status/ }
+
+- title: Utilities
+  items:
+    - { title: Loops, url: /reference/loops/ }
+    - { title: Print helpers, url: /reference/prints/ }
+    - { title: Random values, url: /reference/random/ }
+    - { title: Require, url: /reference/require/ }
+    - { title: Timers, url: /reference/timers/ }
+    - { title: Utilities, url: /reference/util/ }
+
+- title: Compatibility
+  items:
+    - { title: ox_lib migration, url: /migration/ox-lib/ }
+    - { title: ox_lib provider, url: /reference/ox/ }
+    - { title: PolyZone provider, url: /legacy-compat/#polyzone-bridge-coverage }
+    - { title: Legacy resources, url: /legacy-compat/ }
+    - { title: Contract details, url: /migration/ox-lib-contract/ }
+
+- title: Project
+  items:
+    - { title: Documentation upkeep, url: /contributing/ }
+    - { title: GitHub, url: 'https://github.com/qbcore2/kora_lib', external: true }
