@@ -1,6 +1,4 @@
 web/node_modules/
-.pages-source/
-_site/
 # Generated per-server kora_lib configuration overrides.
 config.local.lua
 config.local.lua.bak
