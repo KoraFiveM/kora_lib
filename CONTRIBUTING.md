@@ -1,12 +1,12 @@
-# Contributing to kora_lib
+# Contributing to kora_lib · Kora Framework
 
-Humans and agents use the [shared Kora contribution standards](https://github.com/KoraFiveM/kora_docker_dev/blob/main/CONTRIBUTING.md)
-(revision **2026-11-12.1**) and the self-contained [local Lua tooling guide](.standards/README.md).
+Humans and agents use the [shared Kora Framework contribution standards](https://github.com/KoraFiveM/kora_docker_dev/blob/main/CONTRIBUTING.md)
+(revision **2026-11-12.2**) and the self-contained [local Lua tooling guide](.standards/README.md).
 Read this resource's README where present, AGENTS.md and relevant module guides first.
 
 For new and relevant changed code: use four spaces, camelCase and StyLua's single-quote/120-column
 style; keep transport handlers thin, server authority explicit, and compatibility adapters
-on the owning implementation. Reuse Kora APIs and validators; place generic mechanics in
+on the owning implementation. Reuse Kora Framework APIs and validators; place generic mechanics in
 kora_lib and domain rules with their owner. Document public APIs, yielding/failure behavior
 and cleanup. Keep unrelated reformats and restructuring separate.
 
@@ -45,7 +45,7 @@ module globs remain supported. Older local wording that says every manifest must
 be non-globbed does not require rewriting unrelated manifests. LuaLS CLI contexts
 are isolated even when an existing smoke test intentionally loads both realms.
 
-Preserve Kora module registration, consumer-local helpers and headless NUI ownership. Refresh public API definition snapshots when changing types.lua.
+Preserve Kora Framework module registration, consumer-local helpers and headless NUI ownership. Refresh public API definition snapshots when changing types.lua.
 
 
 Changes belong to this resource repository, separately from Docker setup and docs-site
@@ -55,3 +55,7 @@ checkout. Keep resource-specific inventory and definitions when refreshing the s
 `types.lua` is annotation-only, not runtime source. It is excluded from runtime
 inventories because its realm-filtered snapshot is already loaded as a declaration
 library. Refresh and review those snapshots when changing this public type surface.
+
+---
+
+Copyright © 2026 Kora Framework.
