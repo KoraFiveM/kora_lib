@@ -1,6 +1,6 @@
 ---
 title: Using the API
-permalink: /using-the-api/
+sidebar_position: 3
 ---
 
 # Using the API
@@ -125,4 +125,4 @@ grant a reward.
 
 ## Configuration
 
-kora_lib's own defaults live in `config.lua`, with server-only values in `server/config.lua`. Consumers can use `Kora.config` to define typed, owner-editable settings while retaining a normal authored Lua `Config` table. See the [configuration module]({{ site.baseurl }}/reference/config/) for scopes, validation, persistence, and live-change handlers.
+kora_lib's own defaults live in `config.lua`, with server-only values in `server/config.lua`. Consumers can use `Kora.config` to define typed, owner-editable settings while retaining a normal authored Lua `Config` table. See the [configuration module](./reference/config.md) for scopes, validation, persistence, and live-change handlers.

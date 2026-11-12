@@ -1,6 +1,6 @@
 ---
-layout: default
 title: ox_lib 3.39.0 contract inventory
+sidebar_position: 2
 ---
 
 # ox_lib FiveM parity inventory
@@ -18,7 +18,7 @@ The `kora_lib gap` notes below compare kora_lib by itself with ox_lib. They expl
 why a real optional resource named `ox_lib` is necessary for manifest imports;
 they are not current limitations of the installed compatibility resource. The
 wrapper supplies the pinned upstream runtime and is verified separately for
-its files, imports, and exports; see [ox_lib compatibility]({{ site.baseurl }}/migration/ox-lib/).
+its files, imports, and exports; see [ox_lib compatibility](../migration/ox-lib.md).
 
 ## 0. Architectural requirement (P0, blocking)
 

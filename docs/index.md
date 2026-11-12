@@ -1,53 +1,60 @@
 ---
 title: kora_lib documentation
-permalink: /
+sidebar_position: 1
 ---
 
-<div class="hero" markdown="1">
+# kora_lib
 
-# Build FiveM resources without rebuilding the basics
-
-{: .tagline }
-kora_lib is the shared utility layer for the qbcore2 resource set. It provides a typed `Kora` API for interface components, world interaction, entities, streaming, callbacks, permissions, configuration, and the other foundations most resources need.
-
-[Install kora_lib]({{ site.baseurl }}/getting-started/){: .button }
-[Browse the API]({{ site.baseurl }}/reference/){: .button .secondary }
-
-</div>
+kora_lib is the shared utility layer for the Kora resource set. It provides a typed `Kora` API for interface components, world interaction, entities, streaming, callbacks, permissions, configuration, and the other foundations most resources need. See `version` in `fxmanifest.lua` for the release version.
 
 ## What you get
 
 - **One consistent API.** Consumer resources load `@kora_lib/init.lua` and call namespaced helpers such as `Kora.notify.send`, `Kora.zones.sphere`, and `Kora.callback.trigger`.
 - **Client, server, and shared modules.** Every reference page labels the realm where an operation is available.
 - **Resource ownership.** Long-lived registrations are associated with the resource that created them and cleaned up when it stops.
-- **Typed contracts.** [`types.lua`](https://github.com/qbcore2/kora_lib/blob/main/types.lua) describes functions, options, handles, callbacks, and return values for Lua language servers.
+- **Typed contracts.** `types.lua` describes functions, options, handles, callbacks, and return values for Lua language servers.
 - **Headless interface components.** Menus, prompts, notifications, progress bars, apps, and minigames use kora_lib's shared NUI without holding focus while idle.
-- **Migration bridges.** kora_lib can satisfy legacy `qb-menu`, `qb-input`, `qb-radialmenu`, `qb-minigames`, and `screenshot-basic` consumers, and documents its ox_lib compatibility boundary.
+- **Migration bridges.** kora_lib provides `qb-menu`, `qb-input`, `progressbar`, `qb-radialmenu`, `qb-minigames`, and `screenshot-basic` identities, and documents its ox_lib compatibility boundary.
+
+## Pages
+
+| Page | Contents |
+| --- | --- |
+| [Installation](./installation.md) | Install order, adding the proxy to a resource, verification. |
+| [Using the API](./using-the-api.md) | Namespaces, realms, results, ownership, security boundary. |
+| [Configuration](./configuration.md) | `config.lua`, `server/config.lua` and convars. |
+| [Commands and key mappings](./commands.md) | Commands and default keys registered by kora_lib. |
+| [Permissions and ACE](./permissions.md) | ACEs for the editor commands and configuration editor. |
+| [Events and callbacks](./events.md) | Event, callback and NUI callback names kora_lib registers. |
+| [Exports](./exports.md) | How exports are generated and which are provided. |
+| [Database](./database.md) | Optional Discord role directory tables. |
+| [Dependencies and compatibility](./dependencies.md) | Required and optional resources. |
+| [User interface](./ui.md) | The headless NUI app. |
+| [Performance and lifecycle](./performance.md) | Cost model and cleanup rules. |
+| [API index](./reference.md) | One reference page per `Kora` module. |
+| [Legacy compatibility](./legacy-compat.md) | qb-menu, qb-input, progressbar, qb-radialmenu, qb-minigames, screenshot-basic, PolyZone. |
+| [ox_lib compatibility](./migration/ox-lib.md) | The optional ox_lib 3.39.0 compatibility resource. |
+| [ox_lib contract inventory](./migration/ox-lib-contract.md) | Detailed upstream contract inventory. |
+| [Troubleshooting](./troubleshooting.md) | Common problems and fixes. |
+| [Documentation upkeep](./contributing.md) | How these pages are maintained. |
 
 ## Start with the job
 
-| If you need to… | Start here |
+| If you need to... | Start here |
 | --- | --- |
-| Let a player interact with a location or entity | [Interactions]({{ site.baseurl }}/reference/interact/), [zones]({{ site.baseurl }}/reference/zones/), and [text UI]({{ site.baseurl }}/reference/textui/) |
-| Show feedback or collect input | [Notifications]({{ site.baseurl }}/reference/notify/), [progress bars]({{ site.baseurl }}/reference/progressbar/), [NUI]({{ site.baseurl }}/reference/nui/), and [minigames]({{ site.baseurl }}/reference/minigames/) |
-| Find, spawn, modify, or move something in the world | [World queries]({{ site.baseurl }}/reference/world/), [entities]({{ site.baseurl }}/reference/entities/), [vehicles]({{ site.baseurl }}/reference/vehicle/), and [teleporting]({{ site.baseurl }}/reference/teleport/) |
-| Exchange client and server data safely | [Callbacks]({{ site.baseurl }}/reference/callback/), [events]({{ site.baseurl }}/reference/events/), [state bags]({{ site.baseurl }}/reference/state/), and [permissions]({{ site.baseurl }}/reference/permissions/) |
-| Give resource owners safe editable settings | [Configuration]({{ site.baseurl }}/reference/config/) |
-| Build a server-authoritative gameplay flow | [Actions]({{ site.baseurl }}/reference/actions/), [rewards]({{ site.baseurl }}/reference/rewards/), [skills]({{ site.baseurl }}/reference/skills/), and [status effects]({{ site.baseurl }}/reference/status/) |
-| Replace an existing qb or ox_lib dependency | [Legacy compatibility]({{ site.baseurl }}/legacy-compat/) and the [ox_lib migration guide]({{ site.baseurl }}/migration/ox-lib/) |
-
-The [API index]({{ site.baseurl }}/reference/) remains the complete alphabetical-by-domain reference. Each module page states its available realms, parameters, return values, lifecycle behavior, and examples.
+| Let a player interact with a location or entity | [Interactions](./reference/interact.md), [zones](./reference/zones.md), [text UI](./reference/textui.md) |
+| Show feedback or collect input | [Notifications](./reference/notify.md), [progress bars](./reference/progressbar.md), [NUI](./reference/nui.md), [minigames](./reference/minigames.md) |
+| Find, spawn, or move something in the world | [World queries](./reference/world.md), [entities](./reference/entities.md), [vehicles](./reference/vehicle.md), [teleporting](./reference/teleport.md) |
+| Exchange client and server data safely | [Callbacks](./reference/callback.md), [events](./reference/events.md), [state bags](./reference/state.md), [permissions](./reference/permissions.md) |
+| Give resource owners editable settings | [Config](./reference/config.md) |
+| Build a server-authoritative flow | [Actions](./reference/actions.md), [rewards](./reference/rewards.md), [skills](./reference/skills.md), [status effects](./reference/status.md) |
 
 ## Quick example
-
-Add kora_lib to a consumer resource:
 
 ```lua
 dependency 'kora_lib'
 shared_script '@kora_lib/init.lua'
 ```
-
-Then use the global `Kora` proxy in the correct realm:
 
 ```lua
 -- client.lua
@@ -56,31 +63,4 @@ Kora.notify.send({
     message = 'Your vehicle is now in the garage.',
     type = 'success',
 })
-
-local prompt
-local zone = Kora.zones.sphere({
-    coords = vector3(215.8, -810.1, 30.7),
-    radius = 2.0,
-    onEnter = function()
-        prompt = Kora.textui.show('Open garage', { key = 'E' })
-    end,
-    onExit = function()
-        if prompt then Kora.textui.hide(prompt) end
-        prompt = nil
-    end,
-})
 ```
-
-The proxy lazily loads stateless helpers and client streaming functions inside
-the consumer; stateful modules resolve to kora_lib's generated exports. You
-normally use the `Kora` form either way. Direct exports remain available when a
-language cannot load the Lua proxy.
-
-## Where to go next
-
-1. Follow [Installation]({{ site.baseurl }}/getting-started/) to add kora_lib and its required `kora_theme` dependency.
-2. Read [Using the API]({{ site.baseurl }}/using-the-api/) for realms, return values, asynchronous calls, ownership, and direct exports.
-3. Read [Performance and lifecycle]({{ site.baseurl }}/performance/) before building a hot-path feature or adding a compatibility wrapper.
-4. Open the [API index]({{ site.baseurl }}/reference/) and choose the module for the task at hand.
-
-If you are migrating an existing resource, check [legacy compatibility]({{ site.baseurl }}/legacy-compat/) or the [ox_lib migration notes]({{ site.baseurl }}/migration/ox-lib/) before changing calls.
