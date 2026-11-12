@@ -87,3 +87,11 @@ Feature and behaviour changes must update the matching docs in the same change. 
 Each module's guide exists twice: `modules/<name>/docs.md` or `local/<name>/docs.md` (required by `test/smoke/api_contract.lua`) and its published page `docs/api/<name>.md`, which is what the documentation site imports. Change both in the same commit and keep their content in step. `docs/reference.md` must keep listing `/reference/<name>/` for every module (the smoke test reads it).
 
 Docs rules: plain Markdown with `title`/`sidebar_position` front matter (no `id`/`slug`), relative links only between docs pages, assets inside `docs/`, fenced code blocks with a language, and no raw `<`, `>`, `{`, `}` outside code (pages are parsed as MDX). The release version comes from `fxmanifest.lua`'s `version` field.
+
+## Shared contribution standards
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before editing. Humans and agents follow
+the same Kora standards and self-contained local Lua checks. Preserve the domain
+constraints above and in module guides; record policy conflicts explicitly.
+
+Copyright © 2026 Kora Framework (new contribution guidance).
