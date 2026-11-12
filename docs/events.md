@@ -1,11 +1,11 @@
 ---
 title: Events and callbacks
-sidebar_position: 7
+sidebar_position: 9
 ---
 
 # Events and callbacks
 
-This page lists the event names and server callbacks kora_lib registers itself. Use [`Kora.events`](./reference/events.md) and [`Kora.callback`](./reference/callback.md) for your own resources. Names are public for debugging but are internal protocol: do not trigger them directly, and never treat knowing a name or token as authorization.
+This page lists the event names and server callbacks kora_lib registers itself. Use [`Kora.events`](./api/events.md) and [`Kora.callback`](./api/callback.md) for your own resources. Names are public for debugging but are internal protocol: do not trigger them directly, and never treat knowing a name or token as authorization.
 
 ## Infrastructure
 
