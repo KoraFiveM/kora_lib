@@ -28,14 +28,14 @@ shared_script '@kora_lib/init.lua'
 
 The documentation source lives in `docs/` (start at `docs/index.md`).
 
-Read the complete documentation at **[qbcore2.github.io/kora_lib](https://qbcore2.github.io/kora_lib/)**.
+Published on the Kora documentation site, and readable directly in the repository:
 
-- [Installation](https://qbcore2.github.io/kora_lib/getting-started/)
-- [Using the API](https://qbcore2.github.io/kora_lib/using-the-api/)
-- [API reference](https://qbcore2.github.io/kora_lib/reference/)
-- [Performance and lifecycle](https://qbcore2.github.io/kora_lib/performance/)
-- [Legacy compatibility](https://qbcore2.github.io/kora_lib/legacy-compat/)
-- [ox_lib migration](https://qbcore2.github.io/kora_lib/migration/ox-lib/)
+- [Installation](docs/installation.md)
+- [Using the API](docs/using-the-api.md)
+- [API reference](docs/reference.md)
+- [Performance and lifecycle](docs/performance.md)
+- [Legacy compatibility](docs/legacy-compat.md)
+- [ox_lib migration](docs/migration/ox-lib.md)
 
 The resource also ships LuaLS declarations in `types.lua`. Module guides live beside their implementations and are checked against the public API by the test suite.
 
@@ -45,10 +45,4 @@ Run all Lua smoke and contract tests with:
 
 ```sh
 test/run.sh
-```
-
-Prepare the GitHub Pages source locally with:
-
-```sh
-docs/build.sh
 ```
