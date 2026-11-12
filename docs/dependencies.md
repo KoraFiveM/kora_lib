@@ -1,6 +1,6 @@
 ---
 title: Dependencies and compatibility
-sidebar_position: 10
+sidebar_position: 12
 ---
 
 # Dependencies and compatibility

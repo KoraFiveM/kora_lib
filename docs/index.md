@@ -16,14 +16,17 @@ kora_lib is the shared utility layer for the Kora resource set. It provides a ty
 - **Headless interface components.** Menus, prompts, notifications, progress bars, apps, and minigames use kora_lib's shared NUI without holding focus while idle.
 - **Migration bridges.** kora_lib provides `qb-menu`, `qb-input`, `progressbar`, `qb-radialmenu`, `qb-minigames`, and `screenshot-basic` identities, and documents its ox_lib compatibility boundary.
 
-## Pages
+## Documentation map
 
 | Page | Contents |
 | --- | --- |
-| [Installation](./installation.md) | Install order, adding the proxy to a resource, verification. |
+| [Installation](./installation.md) | Install order, adding the proxy to a resource, step-by-step example, start-up problems, optional legacy imports. |
+| [How to use](./how-to-use.md) | Loading kora_lib in a manifest and making your first call. |
+| [Commands and key mappings](./commands.md) | Commands and default keys registered by kora_lib. |
+| [API reference](./api/index.md) | Every `Kora` module with its realms; one page per module (`./api/<module>.md`, 54 pages). |
+| [API module map](./reference.md) | Modules grouped by area with a summary and published path. |
 | [Using the API](./using-the-api.md) | Namespaces, realms, results, ownership, security boundary. |
 | [Configuration](./configuration.md) | `config.lua`, `server/config.lua` and convars. |
-| [Commands and key mappings](./commands.md) | Commands and default keys registered by kora_lib. |
 | [Permissions and ACE](./permissions.md) | ACEs for the editor commands and configuration editor. |
 | [Events and callbacks](./events.md) | Event, callback and NUI callback names kora_lib registers. |
 | [Exports](./exports.md) | How exports are generated and which are provided. |
@@ -31,7 +34,6 @@ kora_lib is the shared utility layer for the Kora resource set. It provides a ty
 | [Dependencies and compatibility](./dependencies.md) | Required and optional resources. |
 | [User interface](./ui.md) | The headless NUI app. |
 | [Performance and lifecycle](./performance.md) | Cost model and cleanup rules. |
-| [API index](./reference.md) | One reference page per `Kora` module. |
 | [Legacy compatibility](./legacy-compat.md) | qb-menu, qb-input, progressbar, qb-radialmenu, qb-minigames, screenshot-basic, PolyZone. |
 | [ox_lib compatibility](./migration/ox-lib.md) | The optional ox_lib 3.39.0 compatibility resource. |
 | [ox_lib contract inventory](./migration/ox-lib-contract.md) | Detailed upstream contract inventory. |
@@ -42,12 +44,12 @@ kora_lib is the shared utility layer for the Kora resource set. It provides a ty
 
 | If you need to... | Start here |
 | --- | --- |
-| Let a player interact with a location or entity | [Interactions](./reference/interact.md), [zones](./reference/zones.md), [text UI](./reference/textui.md) |
-| Show feedback or collect input | [Notifications](./reference/notify.md), [progress bars](./reference/progressbar.md), [NUI](./reference/nui.md), [minigames](./reference/minigames.md) |
-| Find, spawn, or move something in the world | [World queries](./reference/world.md), [entities](./reference/entities.md), [vehicles](./reference/vehicle.md), [teleporting](./reference/teleport.md) |
-| Exchange client and server data safely | [Callbacks](./reference/callback.md), [events](./reference/events.md), [state bags](./reference/state.md), [permissions](./reference/permissions.md) |
-| Give resource owners editable settings | [Config](./reference/config.md) |
-| Build a server-authoritative flow | [Actions](./reference/actions.md), [rewards](./reference/rewards.md), [skills](./reference/skills.md), [status effects](./reference/status.md) |
+| Let a player interact with a location or entity | [Interactions](./api/interact.md), [zones](./api/zones.md), [text UI](./api/textui.md) |
+| Show feedback or collect input | [Notifications](./api/notify.md), [progress bars](./api/progressbar.md), [NUI](./api/nui.md), [minigames](./api/minigames.md) |
+| Find, spawn, or move something in the world | [World queries](./api/world.md), [entities](./api/entities.md), [vehicles](./api/vehicle.md), [teleporting](./api/teleport.md) |
+| Exchange client and server data safely | [Callbacks](./api/callback.md), [events](./api/events.md), [state bags](./api/state.md), [permissions](./api/permissions.md) |
+| Give resource owners editable settings | [Config](./api/config.md) |
+| Build a server-authoritative flow | [Actions](./api/actions.md), [rewards](./api/rewards.md), [skills](./api/skills.md), [status effects](./api/status.md) |
 
 ## Quick example
 

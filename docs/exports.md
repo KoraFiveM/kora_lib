@@ -1,6 +1,6 @@
 ---
 title: Exports
-sidebar_position: 8
+sidebar_position: 10
 ---
 
 # Exports
@@ -18,7 +18,7 @@ Some modules run inside the consuming resource instead of being exported (`Kora.
 
 ## Configuration bridge exports
 
-The configuration editor calls `kora_lib_configRead`, `kora_lib_configCommit` and `kora_lib_configReset` on resources that use `Kora.config`. See [Configuration module](./reference/config.md).
+The configuration editor calls `kora_lib_configRead`, `kora_lib_configCommit` and `kora_lib_configReset` on resources that use `Kora.config`. See [Configuration module](./api/config.md).
 
 ## Provided legacy exports
 

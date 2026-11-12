@@ -1,6 +1,6 @@
 ---
 title: Performance and lifecycle
-sidebar_position: 12
+sidebar_position: 14
 ---
 
 # Performance and lifecycle
@@ -112,7 +112,7 @@ resource rather than making several resources compete over the same state.
 
 Avoid creating the same registration repeatedly on every tick. Create it once,
 update its data only when it changes, and remove it when finished. The
-[resources reference](./reference/resources.md) describes
+[resources reference](./api/resources.md) describes
 explicit owner registries for custom cleanup.
 
 ## Keep expensive work off the hot path
@@ -146,5 +146,5 @@ the server must validate identity, permission, ownership, distance, cooldown,
 and current state before granting anything valuable. Use documented callback
 and event rate limits to protect request boundaries. See the [using the API
 security boundary](./using-the-api.md#security-boundary),
-[callbacks](./reference/callback.md), and
-[events](./reference/events.md).
+[callbacks](./api/callback.md), and
+[events](./api/events.md).

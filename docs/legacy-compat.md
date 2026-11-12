@@ -1,6 +1,6 @@
 ---
 title: Legacy resource compatibility
-sidebar_position: 14
+sidebar_position: 15
 ---
 
 # Legacy resource compatibility
@@ -26,7 +26,7 @@ exports['qb-menu']:closeMenu()
 exports['qb-menu']:showHeader(items)
 ```
 
-The legacy `qb-menu:client:openMenu` and `qb-menu:client:closeMenu` events are also handled. Menus render through `Kora.nui.openMenu`. Legacy Font Awesome class names are not kora_lib's Lucide icon names, so unsupported icons are dropped. See the [NUI reference](./reference/nui.md) for the field mapping and dispatch rules.
+The legacy `qb-menu:client:openMenu` and `qb-menu:client:closeMenu` events are also handled. Menus render through `Kora.nui.openMenu`. Legacy Font Awesome class names are not kora_lib's Lucide icon names, so unsupported icons are dropped. See the [NUI reference](./api/nui.md) for the field mapping and dispatch rules.
 
 ## qb-input
 
@@ -64,7 +64,7 @@ exports['qb-minigames']:WordGuess(...)
 exports['qb-minigames']:WordScramble(...)
 ```
 
-Calls render through `Kora.minigames.play`. These legacy client-only calls do not mint a server-consumable proof; use kora_lib's authorization flow when success gates a valuable server action. Lockpick and Skillbar have documented mechanic differences. See [Minigames](./reference/minigames.md) for signatures and result mapping.
+Calls render through `Kora.minigames.play`. These legacy client-only calls do not mint a server-consumable proof; use kora_lib's authorization flow when success gates a valuable server action. Lockpick and Skillbar have documented mechanic differences. See [Minigames](./api/minigames.md) for signatures and result mapping.
 
 ## progressbar
 
@@ -79,7 +79,7 @@ exports['screenshot-basic']:requestScreenshot(options, callback)
 exports['screenshot-basic']:requestScreenshotUpload(url, field, options, callback)
 ```
 
-The bridge uses kora_lib's on-demand capture path. It captures the FiveM game render target; separate CEF/NUI layers cannot be included. See [Screenshots](./reference/screenshot.md) for encodings, size limits, upload behavior, and the security boundary around server filenames.
+The bridge uses kora_lib's on-demand capture path. It captures the FiveM game render target; separate CEF/NUI layers cannot be included. See [Screenshots](./api/screenshot.md) for encodings, size limits, upload behavior, and the security boundary around server filenames.
 
 ## Optional named-import resources
 

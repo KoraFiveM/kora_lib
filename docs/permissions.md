@@ -1,11 +1,11 @@
 ---
 title: Permissions and ACE
-sidebar_position: 6
+sidebar_position: 8
 ---
 
 # Permissions and ACE
 
-kora_lib uses FiveM ACEs, checked through [`Kora.permissions`](./reference/permissions.md). `Kora.permissions.hasPermission(src, permission, prefix)` passes when the player has `prefix.permission` (when a prefix is given), `group.permission`, or `command.permission`, or a mapped Discord role.
+kora_lib uses FiveM ACEs, checked through [`Kora.permissions`](./api/permissions.md). `Kora.permissions.hasPermission(src, permission, prefix)` passes when the player has `prefix.permission` (when a prefix is given), `group.permission`, or `command.permission`, or a mapped Discord role.
 
 | Permission | Where it is checked | Grant with |
 | --- | --- | --- |

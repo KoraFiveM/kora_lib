@@ -72,10 +72,18 @@ The standalone `qb-menu`, `qb-input` and `qb-minigames` resources are deprecated
 
 ## Documentation
 
-User-facing documentation lives in `docs/` (Markdown, published via the Kora Docusaurus site, kora_docs_next). Read `docs/index.md` first for an overview of installation, configuration, commands, permissions, events, exports, database usage and the per-module API reference (`docs/reference/`).
+User-facing documentation lives in `docs/` (Markdown, published via the Kora Docusaurus site, kora_docs_next). Read `docs/index.md` first; it links every page.
 
-When you add, change, or remove a feature, config option, command, export, event, item, permission, or database table/column, update the matching page in `docs/` in the same change. Keep docs accurate to the code; do not document behaviour that does not exist.
+Docs layout (update the matching page when behaviour changes):
+- `docs/index.md` - hub: overview, features, documentation map.
+- `docs/installation.md` - install order, adding the proxy to a resource, step-by-step manifest walkthrough, troubleshooting start-up, optional legacy imports.
+- `docs/how-to-use.md` - how to read the API pages and make a first call.
+- `docs/commands.md` - commands and key mappings kora_lib registers.
+- `docs/api/index.md` and `docs/api/<module>.md` - one page per `Kora` module: parameter tables, returns, examples, then "Additional notes from the module guide".
+- Topic pages: `configuration.md`, `events.md`, `exports.md`, `permissions.md`, `database.md`, `dependencies.md`, `ui.md`, `performance.md`, `legacy-compat.md`, `using-the-api.md`, `troubleshooting.md`, `contributing.md`, `reference.md` (module path map) and `migration/` (ox_lib).
 
-Each module's guide exists twice: `modules/<name>/docs.md` or `local/<name>/docs.md` (required by `test/smoke/api_contract.lua`) and its mirror `docs/reference/<name>.md`, which is what the documentation site imports. Change both in the same commit and keep their content in step (the mirror differs only by front matter and the corrections listed in the docs PR that introduced it). `docs/reference.md` must keep listing `/reference/<name>/` for every module (the smoke test reads it).
+Feature and behaviour changes must update the matching docs in the same change. When you add, change, or remove a feature, config option, command, export, event, item, permission, or database table/column, update the matching page in `docs/` in the same change. Keep docs accurate to the code; do not document behaviour that does not exist.
+
+Each module's guide exists twice: `modules/<name>/docs.md` or `local/<name>/docs.md` (required by `test/smoke/api_contract.lua`) and its published page `docs/api/<name>.md`, which is what the documentation site imports. Change both in the same commit and keep their content in step. `docs/reference.md` must keep listing `/reference/<name>/` for every module (the smoke test reads it).
 
 Docs rules: plain Markdown with `title`/`sidebar_position` front matter (no `id`/`slug`), relative links only between docs pages, assets inside `docs/`, fenced code blocks with a language, and no raw `<`, `>`, `{`, `}` outside code (pages are parsed as MDX). The release version comes from `fxmanifest.lua`'s `version` field.

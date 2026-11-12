@@ -1,11 +1,11 @@
 ---
 title: Database
-sidebar_position: 9
+sidebar_position: 11
 ---
 
 # Database
 
-kora_lib has no database requirement. Only the [Discord](./reference/discord.md) role directory optionally persists data, through the `kora_sql` resource (`exports.kora_sql:ensureTables`, `query` and `transaction`). `kora_sql` is not declared in `fxmanifest.lua`; kora_lib checks `GetResourceState('kora_sql')` and waits up to `Config.discord.databaseTimeout` (60 seconds by default) for `isReady()`. If it is unavailable, the role directory runs from memory only and prints a warning.
+kora_lib has no database requirement. Only the [Discord](./api/discord.md) role directory optionally persists data, through the `kora_sql` resource (`exports.kora_sql:ensureTables`, `query` and `transaction`). `kora_sql` is not declared in `fxmanifest.lua`; kora_lib checks `GetResourceState('kora_sql')` and waits up to `Config.discord.databaseTimeout` (60 seconds by default) for `isReady()`. If it is unavailable, the role directory runs from memory only and prints a warning.
 
 Tables are created automatically with `utf8mb4_unicode_ci` collation when the bot is enabled.
 
