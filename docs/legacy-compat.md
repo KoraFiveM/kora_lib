@@ -1,6 +1,6 @@
 ---
 title: Legacy resource compatibility
-permalink: /legacy-compat/
+sidebar_position: 14
 ---
 
 # Legacy resource compatibility
@@ -26,7 +26,7 @@ exports['qb-menu']:closeMenu()
 exports['qb-menu']:showHeader(items)
 ```
 
-The legacy `qb-menu:client:openMenu` and `qb-menu:client:closeMenu` events are also handled. Menus render through `Kora.nui.openMenu`. Legacy Font Awesome class names are not kora_lib's Lucide icon names, so unsupported icons are dropped. See the [NUI reference]({{ site.baseurl }}/reference/nui/) for the field mapping and dispatch rules.
+The legacy `qb-menu:client:openMenu` and `qb-menu:client:closeMenu` events are also handled. Menus render through `Kora.nui.openMenu`. Legacy Font Awesome class names are not kora_lib's Lucide icon names, so unsupported icons are dropped. See the [NUI reference](./reference/nui.md) for the field mapping and dispatch rules.
 
 ## qb-input
 
@@ -47,7 +47,7 @@ exports['qb-radialmenu']:AddOption(option, id)
 exports['qb-radialmenu']:RemoveOption(id)
 ```
 
-The bridge keeps a registry and opens a kora_lib radial menu from its F1 keybind. kora_lib's radial menu is a one-shot interaction rather than a permanently open global menu, and it does not use screen coordinates. Unsupported icon names are dropped. Nested items and standard client/server command or event actions are translated at selection time.
+The bridge keeps a registry and opens a kora_lib radial menu from its `kora_lib_radialmenu_open` keybind (default `F1`). The `qb-radialmenu:client:AddOption` and `qb-radialmenu:client:RemoveOption` events are also handled. kora_lib's radial menu is a one-shot interaction rather than a permanently open global menu, and it does not use screen coordinates. Unsupported icon names are dropped. Nested items and standard client/server command or event actions are translated at selection time.
 
 ## qb-minigames
 
@@ -64,7 +64,11 @@ exports['qb-minigames']:WordGuess(...)
 exports['qb-minigames']:WordScramble(...)
 ```
 
-Calls render through `Kora.minigames.play`. These legacy client-only calls do not mint a server-consumable proof; use kora_lib's authorization flow when success gates a valuable server action. Lockpick and Skillbar have documented mechanic differences. See [Minigames]({{ site.baseurl }}/reference/minigames/) for signatures and result mapping.
+Calls render through `Kora.minigames.play`. These legacy client-only calls do not mint a server-consumable proof; use kora_lib's authorization flow when success gates a valuable server action. Lockpick and Skillbar have documented mechanic differences. See [Minigames](./reference/minigames.md) for signatures and result mapping.
+
+## progressbar
+
+Provided client exports: `Progress`, `ProgressWithStartEvent`, `ProgressWithTickEvent`, `ProgressWithStartAndTick` and `isDoingSomething`. The matching `progressbar:client:progress`, `progressbar:client:ProgressWithStartEvent`, `progressbar:client:ProgressWithTickEvent`, `progressbar:client:ProgressWithStartAndTick` and `progressbar:client:cancel` events are also handled. Calls render through `Kora.progressbar.start`, with control-disable options mapped to `Kora.controls` leases and props created as networked props.
 
 ## screenshot-basic
 
@@ -75,7 +79,7 @@ exports['screenshot-basic']:requestScreenshot(options, callback)
 exports['screenshot-basic']:requestScreenshotUpload(url, field, options, callback)
 ```
 
-The bridge uses kora_lib's on-demand capture path. It captures the FiveM game render target; separate CEF/NUI layers cannot be included. See [Screenshots]({{ site.baseurl }}/reference/screenshot/) for encodings, size limits, upload behavior, and the security boundary around server filenames.
+The bridge uses kora_lib's on-demand capture path. It captures the FiveM game render target; separate CEF/NUI layers cannot be included. See [Screenshots](./reference/screenshot.md) for encodings, size limits, upload behavior, and the security boundary around server filenames.
 
 ## Optional named-import resources
 
@@ -94,7 +98,7 @@ compatibility resource after `kora_lib` and before the importing resource. The
 installed folder must therefore retain the exact `ox_lib` or `PolyZone` resource
 name from the importing manifest; do not rename it to a project-specific name.
 The optional `ox_lib` resource provides the complete pinned
-[ox_lib 3.39.0 surface]({{ site.baseurl }}/migration/ox-lib/); `PolyZone`
+[ox_lib 3.39.0 surface](./migration/ox-lib.md); `PolyZone`
 targets PolyZone 2.6.2 and provides `client.lua`, BoxZone, CircleZone,
 EntityZone, and ComboZone over kora_lib's zone engine. Static shapes use
 `Kora.zones`; EntityZone uses model-local containment so it follows a moving or
@@ -169,33 +173,20 @@ ox_lib suite compares its vendored upstream files and resource exports against
 the declared ox_lib release. These checks validate compatibility coverage; they
 do not make either resource a default dependency.
 
-## Pre-rename `kora_lib` names
+## Names that other resources may depend on
 
-kora_lib was previously named `kora_lib`. The old names below keep working as
-deprecated aliases or fallbacks; new configuration should use the `kora_lib`
-names. The manifest still `provide`s `kora_lib`, so `exports['kora_lib']` and
-`dependency 'kora_lib'` resolve to kora_lib.
+Several identifiers are public contracts. Changing them breaks other resources or players' saved settings.
 
-| Surface | Current name | Deprecated name still accepted |
-| --- | --- | --- |
-| Convars | `kora_lib_discord_bot_token`, `kora_lib_discord_guild_id`, `kora_lib_discord_webhook`, `kora_lib_log_webhook`, `kora_lib_screenshot_debug` | the same names starting with `kora_lib_` (read after the `kora_lib_` name) |
-| Console command | `kora_lib_discord_sync` | `kora_lib_discord_sync` |
-| ACEs | `kora_lib.config.edit`, `kora_lib.editor` | `kora_lib.config.edit`, `kora_lib.editor` |
-| Events | `kora_lib:notify:send`, `kora_lib:client:localeChanged`, `kora_lib:server:configChanged`, `kora_lib:server:updated` / `kora_lib:client:updated` | the same names starting with `kora_lib:` (fired alongside the new name) |
-| Public gateway | `kora_lib:events:invoke` and its handshake | `kora_lib:events:invoke` and its handshake |
-| Editor events | `kora_lib:editor:startZoneCreator`, `kora_lib:editor:startPlacement`, `kora_lib:client:configOpened` | the same names starting with `kora_lib:` |
-| Server callbacks | `kora_lib:minigames:*`, `kora_lib:blips:isAdmin`, `kora_lib:config*` | the same names starting with `kora_lib:` |
-| NUI callbacks | `kora_lib:nui:response`, `kora_lib:nui:event`, `kora_lib:app:action`, `kora_lib:app:change`, `kora_lib:nui:theme`, `kora_lib:oxLocale`, `kora_lib:dispatchfeed:ready` | the same names starting with `kora_lib:` |
-| Config bridge exports | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` |
-| Lookup override file | `kora_lib.lookup.json` | `kora_lib.lookup.json` (used when the new file is absent) |
-| Blip category KVP | `kora_lib:blips:category:<id>` | `kora_lib:blips:category:<id>` (read when the new key is unset) |
-| Progress bar `disable.controlProfile` | `'kora_lib'` | `'kora_lib'` |
-
-Database tables created by the Discord role directory keep their original
-`kora_lib_discord_*` names; they are never renamed. Key mappings registered by the
-zone creator, entity placement, and radial menu (`kora_lib_zonecreator_*`,
-`kora_lib_placement_*`, `kora_lib_radialmenu_*`, `kora_lib_command:*`) also keep their
-names, because players' saved key bindings are stored under them.
+| Surface | Names |
+| --- | --- |
+| Fallback convar | `kora_core_log_webhook` is read when `kora_lib_log_webhook` is empty. No other legacy-named convars, ACEs, events or files are read. |
+| ACEs | `kora_lib.config.edit`, `kora_lib.editor` (see [Permissions and ACE](./permissions.md)) |
+| Public gateway event | `kora_lib:events:invoke` and its handshake |
+| Blip category KVP | `kora_lib:blips:category:<id>` |
+| Key mappings | `kora_lib_zonecreator_*`, `kora_lib_placement_*`, `kora_lib_radialmenu_open`, `kora_lib_command:*`, which players' saved bindings are stored under |
+| Config bridge exports | `kora_lib_configRead`, `kora_lib_configCommit`, `kora_lib_configReset` |
+| Lookup override file | `kora_lib.lookup.json` in a resource |
+| Database tables | `kora_lib_discord_roles`, `kora_lib_discord_members`, `kora_lib_discord_member_roles` (see [Database](./database.md)) |
 
 ## Migration order
 

@@ -26,6 +26,8 @@ shared_script '@kora_lib/init.lua'
 
 ## Documentation
 
+The documentation source lives in `docs/` (start at `docs/index.md`).
+
 Read the complete documentation at **[qbcore2.github.io/kora_lib](https://qbcore2.github.io/kora_lib/)**.
 
 - [Installation](https://qbcore2.github.io/kora_lib/getting-started/)

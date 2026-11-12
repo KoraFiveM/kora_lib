@@ -1,6 +1,6 @@
 ---
 title: Installation
-permalink: /getting-started/
+sidebar_position: 2
 ---
 
 # Installation
@@ -49,10 +49,8 @@ ensure ox_lib   # only for @ox_lib/... imports
 
 Keep the wrapper folder name exactly `ox_lib` or `PolyZone`, matching the
 consumer's manifest. Remove it again after the final legacy import is migrated.
-The [legacy compatibility guide]({{ site.baseurl }}/legacy-compat/) lists the
-provided surfaces and PolyZone import order. kora_lib's default-config check also
-follows recursively included configuration files, so an optional wrapper cannot
-be enabled indirectly by the shipped setup. Do not substitute broad
+The [legacy compatibility guide](./legacy-compat.md) lists the
+provided surfaces and PolyZone import order. Do not substitute broad
 `ensure [test]` or `ensure [compat]` group starts for these explicit lines:
 either group can start optional wrappers alongside unrelated resources.
 
@@ -80,11 +78,11 @@ unchanged legacy contract.
 
 | Need | Native API |
 | --- | --- |
-| Menus, forms, alerts, or radial selections | [`Kora.nui`]({{ site.baseurl }}/reference/nui/) — `openMenu`, `openContextMenu`, `openInputDialog`, `openAlert`, or `openRadialMenu` |
-| Prompts, notifications, or progress | [`Kora.textui`]({{ site.baseurl }}/reference/textui/), [`Kora.notify`]({{ site.baseurl }}/reference/notify/), and [`Kora.progressbar`]({{ site.baseurl }}/reference/progressbar/) |
-| A static area trigger | [`Kora.zones`]({{ site.baseurl }}/reference/zones/) — `box`, `sphere`, `circle`, or `poly` |
-| Client/server request-response | [`Kora.callback`]({{ site.baseurl }}/reference/callback/) |
-| A valuable server-side action | [`Kora.actions`]({{ site.baseurl }}/reference/actions/) or a server-validated callback |
+| Menus, forms, alerts, or radial selections | [`Kora.nui`](./reference/nui.md) — `openMenu`, `openContextMenu`, `openInputDialog`, `openAlert`, or `openRadialMenu` |
+| Prompts, notifications, or progress | [`Kora.textui`](./reference/textui.md), [`Kora.notify`](./reference/notify.md), and [`Kora.progressbar`](./reference/progressbar.md) |
+| A static area trigger | [`Kora.zones`](./reference/zones.md) — `box`, `sphere`, `circle`, or `poly` |
+| Client/server request-response | [`Kora.callback`](./reference/callback.md) |
+| A valuable server-side action | [`Kora.actions`](./reference/actions.md) or a server-validated callback |
 
 `Kora.ox` is not a native UI API: it is the owner-aware internal provider used
 only by the optional `ox_lib` compatibility resource.
@@ -128,8 +126,8 @@ if not claimed then Kora.notify.send({ message = reason, type = 'error' }) end
 ```
 
 Validate the player's identity, permission, distance, cooldown, and live
-server state in that server handler. The [security boundary]({{ site.baseurl }}/using-the-api/#security-boundary)
-and [actions reference]({{ site.baseurl }}/reference/actions/) cover longer
+server state in that server handler. The [security boundary](./using-the-api.md#security-boundary)
+and [actions reference](./reference/actions.md) cover longer
 flows with progress bars and proof-producing minigames.
 
 ## Editor types
@@ -138,6 +136,6 @@ The shipped `types.lua` is annotation-only. kora_lib does not execute it at runt
 
 ## Updating
 
-Update `kora_theme` and `kora_lib` together when a release notes a shared interface or token change. Keep server-specific configuration in `config.local.lua`; kora_lib deliberately leaves that file untracked so updates do not overwrite local values. Review the [configuration reference]({{ site.baseurl }}/reference/config/) before moving settings out of authored resource files.
+Update `kora_theme` and `kora_lib` together when a release notes a shared interface or token change. Keep server-specific configuration in `config.local.lua`; kora_lib deliberately leaves that file untracked so updates do not overwrite local values. Review the [configuration reference](./reference/config.md) before moving settings out of authored resource files.
 
-Next: [Using the API]({{ site.baseurl }}/using-the-api/).
+Next: [Using the API](./using-the-api.md).

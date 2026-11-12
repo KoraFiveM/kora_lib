@@ -1,6 +1,6 @@
 ---
 title: Performance and lifecycle
-permalink: /performance/
+sidebar_position: 12
 ---
 
 # Performance and lifecycle
@@ -20,8 +20,8 @@ separate scheduler in every resource.
 The `ox_lib` and `PolyZone` compatibility resources are optional. They are
 not started by the default server configuration. Install and ensure one only
 when an unchanged legacy manifest imports it; new code should use kora_lib
-directly. See [legacy compatibility]({{ site.baseurl }}/legacy-compat/) and
-the [ox_lib migration guide]({{ site.baseurl }}/migration/ox-lib/).
+directly. See [legacy compatibility](./legacy-compat.md) and
+the [ox_lib migration guide](./migration/ox-lib.md).
 
 ## Pick the cheapest fit
 
@@ -112,7 +112,7 @@ resource rather than making several resources compete over the same state.
 
 Avoid creating the same registration repeatedly on every tick. Create it once,
 update its data only when it changes, and remove it when finished. The
-[resources reference]({{ site.baseurl }}/reference/resources/) describes
+[resources reference](./reference/resources.md) describes
 explicit owner registries for custom cleanup.
 
 ## Keep expensive work off the hot path
@@ -145,6 +145,6 @@ Client input, zone presence, minigame success, and UI completion are hints;
 the server must validate identity, permission, ownership, distance, cooldown,
 and current state before granting anything valuable. Use documented callback
 and event rate limits to protect request boundaries. See the [using the API
-security boundary]({{ site.baseurl }}/using-the-api/#security-boundary),
-[callbacks]({{ site.baseurl }}/reference/callback/), and
-[events]({{ site.baseurl }}/reference/events/).
+security boundary](./using-the-api.md#security-boundary),
+[callbacks](./reference/callback.md), and
+[events](./reference/events.md).

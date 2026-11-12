@@ -1,6 +1,6 @@
 ---
-layout: default
 title: ox_lib compatibility
+sidebar_position: 1
 ---
 
 # ox_lib compatibility
@@ -79,7 +79,7 @@ only removes that script's registrations and active interactions.
   repository test suites.
 
 The exhaustive frozen contract and audit checklist live in
-[the ox_lib 3.39.0 contract inventory]({{ site.baseurl }}/migration/ox-lib-contract/). When ox_lib
+[the ox_lib 3.39.0 contract inventory](../migration/ox-lib-contract.md). When ox_lib
 is upgraded, update that inventory, the pinned hash manifest, compatibility
 tests, and this document together.
 

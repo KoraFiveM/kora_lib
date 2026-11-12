@@ -1,0 +1,644 @@
+---
+title: "NUI module"
+sidebar_position: 15
+---
+
+# NUI module
+
+## Overview
+The NUI module is the bridge between Lua and the React app in `web/`. Every other module that needs to show something in the browser (a menu, an input dialog) or reach a browser-only capability (the clipboard) goes through `Kora.nui.*` rather than calling `SendNUIMessage`/`RegisterNUICallback` directly.
+
+The NUI is **headless**: it renders nothing and holds no focus until a message from Lua tells it to, and gives focus back up the moment that interaction ends.
+
+## UI branding configuration
+
+Set the shared colours in `kora_theme/config.lua`. kora_lib imports kora_theme's browser
+loader and bridge, while the permanent `Kora.theme` functions forward to kora_theme
+for older Lua consumers. See [modules/theme/docs.md](./theme.md).
+
+## API
+
+### `Kora.nui.send(action, data)`
+Sends `{ action, data }` to the NUI. Fire-and-forget — use `Kora.nui.request` when you need a response back.
+
+### `Kora.nui.setDispatchFeed(payload)`
+
+Updates the persistent, pointer-transparent dispatch feed without acquiring
+focus or replacing Text UI prompts. Pass `false` to clear it. A payload contains
+a finite millisecond `now`, newest-first `calls`, `selected`, `hidden`, `me`, `config.feed`,
+`config.priorities`, `keybinds`, and optional scoped `theme` brand tokens.
+The shared renderer shows the configured live window plus a selected history
+call, response state, and keyboard hints. The browser advances elapsed time and
+expiry between state pushes; no Lua polling is required.
+
+Returns `true` on publication, or `false` if another resource owns the surface.
+Only the current owner can update or clear it, and stopping that owner clears
+the feed. The latest payload is replayed when the shared browser becomes ready,
+with `now` advanced by the time since publication;
+the ready callback acknowledges with `true` rather than returning call data.
+`nil` and other non-table values are invalid; clearing requires explicit `false`.
+
+### `Kora.nui.setFocus(mouse, keyboard)`
+Sets NUI focus directly.
+
+#### Parameters
+- `mouse: boolean`
+- `keyboard: boolean`
+
+### `Kora.nui.withFocus(mouse, keyboard, fn)`
+Requires boolean `mouse`/`keyboard` values and a callable `fn`, then sets focus, runs `fn`, and always clears focus afterward — including when `fn` raises an error or the calling resource stops (the error is re-raised once cleanup runs). Invalid inputs fail before focus is acquired. It returns every value `fn` returns, preserving interior `nil` values. Prefer this over `setFocus` whenever the interaction is scoped to one call. Note the built-in `openMenu`/`openContextMenu`/`openInputDialog` wrappers below already manage focus themselves — `withFocus` is for custom interactive requests of your own.
+
+#### Example
+```lua
+local result = Kora.nui.withFocus(true, true, function()
+    return Kora.nui.request("myCustomDialog", { foo = "bar" })
+end)
+```
+
+### `Kora.nui.registerCallback(name, handler)`
+
+`name` must be a non-empty string and `handler` must be callable. Registration
+fails immediately for invalid values rather than leaving a browser request to
+fail later at dispatch time.
+Registers an NUI callback. `handler(data)` returns a plain value (or nil); the raw `RegisterNUICallback` `(data, cb)` plumbing is handled for you, including catching and logging errors so a broken handler can't leave the NUI's fetch hanging.
+
+### `Kora.nui.request(action, data, timeout)`
+Sends `action` to the NUI and returns its response, once available. Requests are owned by the calling resource: stopping that resource rejects its outstanding requests, removes only its focus leases, and dismisses the matching browser surfaces without posting stale responses.
+
+`Kora.nui.requestAsync`, `Kora.nui.cancelRequest`, and `Kora.nui.updateRequest` are lower-level composition
+primitives used by kora_lib's compatibility modules. They retain a tokenized
+request handle so an API such as ox_lib's programmatic dialog close can both
+update or dismiss the browser surface while retaining one promise and focus
+lease. Gameplay
+resources should continue to use `request` and the `open*` helpers.
+
+`Kora.nui.acquireFocus` / `Kora.nui.releaseFocus` are the matching owner-tracked focus
+lease primitives for compatibility APIs whose focus lifetime spans several
+calls. They are internal building blocks; normal callers should prefer
+`withFocus` or an `open*` helper.
+
+#### Parameters
+- `action: string`
+- `data: any`
+- `timeout: non-negative finite integer | false | nil` — milliseconds before the request times out. Defaults to `30000`. Pass `false` to disable.
+
+#### Returns
+- The NUI's result value, or (from your own resource, calling this like any other `Kora.*` export) `nil` on timeout/error — check kora_lib's own console for why. Must run inside a coroutine (`CreateThread`, a command handler, an NUI callback — anywhere `Citizen.Await` is legal), since it suspends until the NUI responds.
+
+#### Example
+```lua
+local result = Kora.nui.request("someAction", { foo = "bar" })
+if result ~= nil then
+    print("NUI responded:", json.encode(result))
+end
+```
+
+### `Kora.nui.copyToClipboard(text)`
+Copies `text` to the system clipboard via the NUI — the browser is the only part of this stack with real clipboard access.
+
+#### Parameters
+- `text: string`
+
+#### Returns
+- `true` once the browser confirms the write, `false` if every browser copy path failed or the request timed out. It never raises a script error for a failed copy.
+
+Like ox_lib's `lib.setClipboard`, the first try takes no NUI focus: the page selects a temporary textarea and runs `execCommand("copy")` (the async Clipboard API is never used; NUI's permissions policy blocks it). If the browser refuses, the copy is retried once under a brief cursor-less, input-passthrough NUI focus lease. `Config.nui.clipboardFocus = false` never takes focus; `Config.nui.clipboardUnfocusedFirst = false` takes the lease for every copy instead of only for the retry (both default `true`).
+
+#### Example
+```lua
+Kora.nui.copyToClipboard("Kora.zones.box({ ... })")
+```
+
+### `Kora.nui.openAlert(opts)`
+Opens a confirmation or acknowledgement dialog. It manages mouse and keyboard focus for its lifetime.
+
+#### Parameters
+- `opts: table`
+  - `message: string` — required dialog copy.
+  - `title?: string`
+  - `image?: string` — trusted artwork URL, including `nui://` paths. Artwork is contained in a fixed-height frame and hidden if it cannot load.
+  - `confirmLabel?: string`, `cancelLabel?: string`
+  - `cancellable?: boolean` — defaults to `true`; when `false`, hides Cancel and prevents Escape/backdrop dismissal.
+  - `showCancel?: boolean`, `showClose?: boolean` — independently control the
+    two optional dismissal controls while leaving Escape behavior unchanged.
+  - `dismissOnBackdrop?: boolean` — defaults to `true`.
+  - `centered?: boolean`, `size?: "xs" | "sm" | "md" | "lg" | "xl"`,
+    `overflow?: boolean` — responsive placement, width, and long-copy scrolling.
+  - `destructive?: boolean` — styles the confirm button as destructive.
+
+The title and message support safe GitHub-flavoured Markdown. Raw HTML is
+ignored and alert Markdown images are constrained to the dialog.
+
+#### Returns
+- `{ confirmed: boolean }`; `nil` on timeout/error.
+
+#### Example
+```lua
+local result = Kora.nui.openAlert({
+    title = "Replace artwork?",
+    message = "This change cannot be undone.",
+    image = "nui://my-resource/web/images/preview.png",
+    confirmLabel = "Replace",
+})
+
+if result and result.confirmed then
+    -- continue
+end
+```
+
+### `Kora.nui.openMenu(items, title, opts)`
+Opens a searchable list menu. Grants mouse+keyboard NUI focus while open and releases it as soon as the menu closes (selection, cancel, or timeout) — no `withFocus` wrap needed.
+
+#### Parameters
+- `items: table[]` — `{ id, label, description?, icon?, disabled?, readOnly?,
+  progress?, colorScheme?, metadata?, arrow?, iconColor?, iconAnimation?,
+  iconWidth?, iconHeight?, values?, checked?, close?, submenu? }[]`. Labels and
+  descriptions support safe Markdown; metadata may carry labeled values and
+  per-value progress.
+- `title?: string`
+- `opts?: table` — optional geometry. `position.horizontal` is `left`, `center`, or `right`; `position.vertical` is `top`, `center`, or `bottom`. `offsetX`/`offsetY`, `maxWidth`, and `maxHeight` are positive pixel values. `presentation = "panel"` uses a compact non-modal, non-searchable surface while retaining keyboard navigation; the default is the existing searchable dialog.
+
+#### Returns
+- `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
+
+`icon` resolves kora_lib's curated Lucide names immediately, ox-compatible Font
+Awesome names through lazy prefix chunks, and safe HTTP/NUI image URLs.
+
+```lua
+-- A compact menu, vertically centred on the right with a comfortable inset.
+Kora.nui.openMenu(items, "Admin Menu", {
+    position = { horizontal = "right", vertical = "center", offsetX = 48 },
+    maxWidth = 400,
+    maxHeight = 680,
+})
+```
+
+### `Kora.nui.openContextMenu(items, x, y)`
+Opens a context menu anchored at `(x, y)`, or centered if omitted. Manages focus the same way `openMenu` does.
+
+#### Parameters
+- `items: table[]` — same shape as `openMenu`'s `items`.
+- `x?: number`, `y?: number`
+
+#### Returns
+- Same as `openMenu`: `{ selectedId: string }` or `{ cancelled: true }`; `nil` on timeout/error.
+
+### `Kora.nui.openRadialMenu(items, opts)`
+Opens a radial menu, always centred on screen. It uses the same recursive item tree and result shape as `openMenu`, so a caller can reuse its item-building logic. It manages NUI focus for its entire lifetime.
+
+#### Parameters
+- `items: table[]` — same `MenuItem` shape as `openMenu`, including `submenu = { title?, items }`.
+- `opts?: table` — optional geometry: `radius?: positive number` (defaults to the NUI's safe radial size).
+
+#### Returns
+- `{ selectedId: string, path: string[] }` or `{ cancelled: true }`; `nil` on timeout/error. `path` is root-first, so a `vehicle -> repair` selection returns `{ selectedId = "repair", path = { "vehicle", "repair" } }`.
+
+Items sit clockwise from the top. A submenu replaces the ring locally and adds a centre Back control; Escape/backdrop/centre Close cancel the whole request. Long item lists page through a More wedge rather than silently dropping items. Disabled items stay visible but cannot be chosen.
+
+#### Example
+```lua
+local result = Kora.nui.openRadialMenu({
+    { id = "engine", label = "Engine", icon = "Wrench" },
+    {
+        id = "doors",
+        label = "Doors",
+        icon = "Car",
+        submenu = {
+            items = {
+                { id = "lock", label = "Lock", icon = "Lock" },
+                { id = "unlock", label = "Unlock", icon = "Unlock" },
+            },
+        },
+    },
+}, { radius = 160 })
+
+if result and not result.cancelled then
+    print(table.concat(result.path, " -> "))
+end
+```
+
+### `Kora.nui.openInputDialog(fields, title, description)`
+Opens a schema-driven input form. Manages focus the same way `openMenu` does.
+
+#### Parameters
+- `fields: table[]` — one per input:
+  - `id: string`, `label: string`
+  - `type: "text" | "password" | "textarea" | "number" | "checkbox" | "select" | "multiselect" | "range" | "combobox" | "date" | "date-range" | "time" | "color" | "key-value" | "vector"`
+  - `description?: string` — help text shared by standalone dialogs and AppShell forms.
+  - `options?: { value, label, disabled? }[]` — `select`, `multiselect`, and `combobox`. Numeric values are accepted for Lua compatibility and normalized to strings in browser results. `select` restricts the result to one option; `multiselect` returns a string array; `combobox` is free text with filtered suggestions (matched against label and value, capped at 8).
+  - `rows?: integer` — `textarea` only (default 3).
+  - `default?`, `placeholder?` — a `number` without a default starts blank. A required blank blocks submission; an optional blank is omitted from the returned `values` table rather than being coerced to zero.
+  - `required?: boolean`, `min?: number`, `max?: number` (`number`/`range`), `minLength?: integer`, `maxLength?: integer`, `pattern?: string` (text-like types) — optional client-side validation that gates submission. This is convenience only; validate authoritative values again in Lua/server code.
+  - `dependsOn?: string`, `optionsByValue?: table<string, option[]>` — select an option set using another field's current value. Invalid dependent selections reset atomically to the first available option.
+  - `visibleWhen?: { fieldId, equals }` — render and validate the field only when another field equals the given scalar value.
+  - `numericOnly?: boolean`, `keypad?: boolean` — restrict textual entry to digits and optionally render the compact keypad.
+  - `presets?: { value: number, label?: string }[]` — quick choices below a number field.
+  - `step?: number` — increment for number and range controls.
+  - `wholeNumber?: boolean` — rejects fractional number input.
+  - `dimensions?: 2|3|4` — required by `vector`; the result is a component
+    table with finite numeric `x`, `y`, and optional `z`/`w` values.
+  - `pickPosition?: true | { label?: string, vehicle?: boolean }` — `vector`
+    only: adds a "Use my position" button (or `label`) under the inputs that
+    fills `x`/`y`/`z` and heading as `w` (up to `dimensions`) from the local
+    player, rounded to 2 dp. `vehicle = true` uses the vehicle's position and
+    heading while the player is seated. The values stay editable and are only
+    sent on submit, like typed ones.
+  - `valueField?: InputField` selects a scalar `text`, `number`, `checkbox`, or
+    `select` control for table values. Rows still transport JSON strings; select
+    option values must be the encoded JSON values. Nested controls are rejected.
+    `requiredKeys?: (string|number)[]` protects mandatory rows from renaming or
+    deletion. Server-side validation remains authoritative.
+  - `keyMode?: "string"|"integer"|"integer-map"|"mixed"`, `keyLabel?`, `valueLabel?`,
+    `addRowLabel?`, `removeRowLabel?` — configure `key-value` rows. Integer
+    keys must be consecutive from one; large row sets are paged automatically.
+  - `searchable?: boolean` — adds a fixed-choice filter to select/multiselect;
+    unlike `combobox`, typed search text can never become the submitted value.
+  - `dateMin?`, `dateMax?` — ISO strings or numeric timestamps, normalized in
+    the browser's local timezone. Numeric date/time defaults are normalized the
+    same way. `dateFormat` supports common Day.js tokens including month/day
+    names, ordinals, quarters, and escaped `[text]`.
+- `title?: string`, `description?: string`
+
+#### Returns
+- `{ values: table<string, any> }` or `{ cancelled: true }`; `nil` on an NUI/export error. Optional blank number fields have no key in `values`.
+
+#### Example
+```lua
+local result = Kora.nui.openInputDialog({
+    { id = "amount", label = "Amount", type = "number", default = 1, min = 1 },
+}, "Withdraw")
+
+if result and not result.cancelled then
+    print("amount:", result.values.amount)
+end
+```
+
+### Registered applications (`AppShell`)
+
+`registerApp` defines a full application once; `openApp` opens it later by id,
+with the same automatic focus and dismissal lifecycle as menus and inputs.
+When supplied, `openApp`'s `viewId` and `tabId` are string identifiers;
+invalid values fail before the browser request or focus lease is created.
+kora_lib renders the shared application frame, navigation, tables, lists, forms,
+records, timelines, maps, summary cards, empty states, and buttons. The
+registering resource remains the owner of its data, permissions, validation,
+and every action handler in Lua.
+
+```lua
+Kora.nui.registerApp({
+    id = 'kora_mdt:police',
+    title = 'Mobile Data Terminal',
+    description = 'Los Santos Police Department',
+    icon = 'Shield',
+    layout = 'standard',
+    defaultView = 'dashboard',
+    footer = 'LSPD secure network',
+    navigation = {
+        {
+            id = 'dashboard',
+            label = 'Dashboard',
+            icon = 'Home',
+            content = {
+                title = 'Shift overview',
+                description = 'Current operational picture.',
+                actions = {
+                    { id = 'new-report', label = 'New report', icon = 'Plus', variant = 'primary' },
+                },
+                blocks = {
+                    {
+                        type = 'stats',
+                        items = {
+                            { label = 'Active units', value = 12, icon = 'Users', tone = 'success' },
+                            { label = 'Open reports', value = 4, icon = 'FileText', tone = 'warning' },
+                        },
+                    },
+                },
+            },
+        },
+        {
+            id = 'records',
+            label = 'Records',
+            icon = 'Database',
+            tabs = {
+                { id = 'people', label = 'People', content = { blocks = { { type = 'empty', title = 'Search people' } } } },
+                { id = 'vehicles', label = 'Vehicles', content = { blocks = { { type = 'empty', title = 'Search vehicles' } } } },
+            },
+        },
+    },
+    onAction = function(actionId, context)
+        if actionId == 'new-report' then
+            TriggerEvent('kora_mdt:client:newReport', context)
+        end
+    end,
+})
+
+local result = Kora.nui.openApp('kora_mdt:police', {
+    viewId = 'dashboard',
+    data = { characterId = citizenid }, -- private; returned to onAction/onChange
+})
+```
+
+#### Lifecycle API
+
+- `Kora.nui.supportsAppTableHeaderControls()` returns whether table blocks
+  support declared header actions such as filters and refresh buttons. Consumers
+  that also run with older kora_lib versions can call it under `pcall`; an
+  unavailable export indicates those controls should be omitted.
+- Draggable panels: `draggable = true` turns the app header into a drag handle
+  (grab/grabbing cursor, clamped to the screen, re-clamped on resize, double-click
+  the header to reset). `rememberPosition = true` stores the offset in NUI
+  localStorage under `positionKey` (default: the app id). Apps that omit
+  `draggable` inherit `Config.ui.apps.draggableDefault` (default `false`).
+- `placement` is `'center'` (default), `'left'` or `'right'`; the panel is
+  vertically centred against that edge and a drag offset is applied on top.
+- `Kora.nui.registerApp(definition)` registers or replaces its own owner-tracked
+  app. A different resource cannot replace that id. The id should be namespaced
+  (`resource:app`). A registration is removed
+  automatically if its resource stops. An optional `accent = '#RRGGBB'`
+  applies that primary colour only for the app's open lifetime; closing or
+  superseding the app restores the player's `/theme` colour (or kora_theme's
+  configured palette when the player has not selected one). Apps without an
+  `accent` use that effective player/server theme throughout.
+- `layout = 'standard'` (the default) uses the sidebar at normal resolutions
+  and switches to horizontal navigation on smaller viewports. `layout =
+  'compact'` always uses horizontal navigation, permits a 420px minimum width,
+  and is intended for ATMs and focused single-workspace tools.
+- A navigation item may set `onOpen = 'action-id'`. Selecting that view first
+  navigates to it and then invokes the declared action with the opened view id
+  in `context.itemId`. This supports lazy data loading without making an app
+  transfer every record when it opens; returning `update` plus `navigate` can
+  replace the loading content with the fresh view atomically.
+- `Kora.nui.openApp(id, opts?)` opens it and returns after X/Escape, an action
+  requests closure, the owner calls `closeApp`, the app is superseded, or its
+  resource stops. The result is
+  `{ closed = true, reason, viewId?, tabId? }`.
+- `Kora.nui.updateApp(id, update)` shallow-merges definition fields. Supplying
+  `navigation` replaces the navigation tree as a whole. An open instance
+  refreshes immediately and keeps its view/tab if they still exist. Only the
+  registering resource can update it.
+- `Kora.nui.closeApp(id?)` closes the registered owner's matching app, or its
+  currently open app when id is omitted. `Kora.nui.isAppOpen(id?)` reports its
+  state.
+- `Kora.nui.unregisterApp(id)` closes an open instance and removes its
+  registration. Only the registering resource can unregister or close it;
+  other resources cannot replace, update, close, or remove its app id.
+
+App actions can appear in `content.actions`, an `actions` or `form` block,
+list/timeline items, table rows, and map markers. They all call
+`onAction(actionId, context)`. `context` includes `viewId`, `tabId`, optional
+`itemId`/`value`, and the private `opts.data` passed to `openApp`. Definitions
+are validated recursively, and the browser cannot invoke an action id that is
+not declared in the active definition. Still treat action values as client
+input and validate them authoritatively in the owning resource/server.
+
+An action may declare `fields`, using exactly the same renderer and validator
+as `openInputDialog`. Header forms render once below the content header;
+action-block and item forms render only under the block/item that launched
+them. Drafts survive unrelated `updateApp` refreshes. The submitted
+`{ [field.id] = value }` becomes `context.value`. Set `confirm = '…'` to add an
+explicit acknowledgement, including for actions with no fields. Set
+`submitLabel?` to name the form's submit button (for example `'Sell'`); it
+defaults to the translated Confirm label when `confirm` is set, otherwise Run
+action. This matches `submitLabel?` on a `form` block.
+
+Set `hold = true` for a press-and-hold button (for example "hold to test a
+horn"). It never sends a click: `onAction` runs with `context.hold = 'start'`
+when the button is pressed (mouse, Enter or Space) and once more with
+`context.hold = 'end'` when it is released, loses focus, is disabled or the app
+closes while it is held. Its return value is ignored. A hold action cannot have
+`fields`, `confirm` or `closeBeforeAction`. Older shells render it as a normal
+button whose click reaches `onAction` without `context.hold`.
+
+Set `closeBeforeAction = true` when the handler launches another focused UI or
+world editor. kora_lib closes AppShell and releases its focus lease before calling
+the owner handler; handler/result failures are reported as notifications
+because the shell is no longer visible. Ordinary nested kora_lib dialogs instead
+take their own focus lease, so closing the child restores the still-open app.
+
+For dependent selects or multiselects, set `dependsOn` to the controlling field
+id and provide `optionsByValue`, keyed by that field's values. Changing the
+controller updates it and all dependent choices in one state transition.
+
+Register an optional `onChange(actionId, context)` alongside `onAction` to
+refresh content while a form is edited. This fires for user edits in both
+always-visible form blocks and action forms, using the form's submit action
+id. `context.value` contains all current field drafts (including incomplete
+or invalid values); `appId`, `viewId`, `tabId`, `itemId`, and private
+`openApp` data are supplied as for `onAction`. Validate values before using
+them. Return a partial definition update, as accepted by `updateApp`, or nil:
+
+```lua
+onChange = function(actionId, context)
+    if actionId ~= 'fuel-submit' then return end
+    -- Recalculate summary content using context.value.quantity.
+    return { navigation = updatedNavigation }
+end,
+```
+
+Edits do not submit or close the form, reset its drafts, or release focus.
+Opening a form and applying an update do not trigger the handler. Apps without
+`onChange` send no change callbacks. Keep handlers quick and use them for
+display updates; purchases still belong in the validated submit handler.
+Late responses from an older edit or closed session are ignored.
+
+```lua
+{ id = 'warn', label = 'Warn player', fields = {
+    { id = 'target', label = 'Player', type = 'select', options = players, required = true },
+    { id = 'reason', label = 'Reason', type = 'textarea', required = true },
+} }
+```
+
+An action handler may combine these result fields:
+
+- `update = { ... }` — shallow definition patch. It is validated and applied
+  before other result fields, so the same result may navigate to a newly added
+  view or tab. For asynchronous pushes, call `updateApp` directly.
+- `navigate = { viewId, tabId?, replace? }` — navigate without rebuilding the
+  definition. Unless `replace` is true, AppShell exposes Back to return to the
+  prior view/tab. A tab may instead declare `back = 'action-id'`: while that
+  tab is shown, the header Back runs that action (like any other action, so it
+  can `update` the tabs away and `navigate` with `replace`), and the shell's
+  own history step is not used there.
+- `notice = { tone, message }` — persistent in-shell feedback. If the action
+  also closes the shell, kora_lib routes the notice through notifications.
+- `close = true` — close AppShell after the action.
+
+Shell-owned copy (Cancel, Confirm, Working, paging, search/empty defaults, map
+controls, and accessibility labels) comes from `kora_lib/locales/*.json` through
+the normal locale fallback system. Consumer titles, action labels, field
+labels, and content remain the consumer's responsibility.
+
+#### Content blocks
+
+- `text`: `title?`, `text`
+- `stats`: `title?`, `items = { { label, value, description?, icon?, tone? } }`
+- `progress`: `title?`, `items = { { label, value, max, description?, detail?, icon?, tone? } }`. Renders an accessible bounded-value graph; `value` must be between zero and `max`.
+- `table`: `id?`, `title?`, `columns = { { key, label, align?, sortable? } }`,
+  `rows`, `empty?`, row `action?` / `idKey?`, plus `searchable?`,
+  `searchPlaceholder?`, `pageSize?`, `headerToggle = { label, checked, action }?`,
+  and `refreshAction?`. Header actions are routed to `onAction`; the checkbox sends its
+  checked state as `context.value`. A cell may be a scalar or
+  `{ value?, label?, description?, icon?, tone?, badge?, href?, copyText? }`.
+  HTTP(S) links open in the player's browser; `copyText` adds a copy button.
+- `list`: `id?`, `title?`, `layout = 'list'|'grid'|'cards'`, `searchable?`,
+  `searchPlaceholder?`, `pageSize?`, `scrollable?`, `cardStyle?`, `columns?`, `imageFit?`,
+  and recursive items. For `grid`/`cards`, `cardStyle = 'compact'` keeps the
+  existing thumbnail card (the default); `'media'` puts a full-width 16:9 image
+  above the badge, title, description, metadata, and action buttons. Without
+  an image, media cards show the icon or first label character instead.
+  `columns` (1-4) sets the maximum grid column count, keeping empty slots when
+  there are fewer items and reducing columns when cards would be narrower
+  than 260px. Omit it for automatic sizing. Both options are ignored in
+  `layout = 'list'`. Set
+  content-level `scrollable = false` with a list-level `scrollable = true` when
+  the surrounding header and blocks should remain fixed while only the list
+  owns vertical overflow. Items support
+  `description`, `image`, `imageFit`, `icon`, `badge`, `tone`, `metadata`, `children`, a
+  primary `action`, and multiple `actions`.
+  Set `imageFit` on the block for all images, or on an item to override it.
+  It applies to media cards, compact cards, and list thumbnails, including
+  nested items. The default is `'cover'` (fills the frame, cropping when
+  needed). `'contain'` shows the entire image with space around it;
+  `'fill'` stretches it to the frame; `'none'` keeps its natural size;
+  `'scale-down'` fits it without enlarging it. The frame size stays unchanged.
+- `actions`: `title?`, `actions`
+- `form`: `id`, `title?`, `description?`, `fields`, `action`, `submitLabel?` —
+  an always-visible shared form.
+- `details`: `id?`, `title?`, `columns?` (1-3), and labelled value items.
+- `timeline`: `id?`, `title?`, timestamped items with metadata and actions.
+- `map`: `id?`, `title?`, tile URL/projection definition, markers, selection,
+  pan/zoom/follow/recentre settings, and optional expiry/fade metadata. Tile
+  URLs use `{z}`, `{x}`, `{y}` placeholders and may point at another resource
+  through `https://cfx-nui-<resource>/...`; that resource keeps and exposes its
+  own tile assets. A marker's `fadeDuration` overrides the block default when
+  different marker classes have different lifetimes. `captureWheel?` (default
+  `true`) makes the mouse wheel zoom the map without scrolling the surrounding
+  page; set `false` to let wheel events scroll the page instead.
+- `empty`: `title`, `description?`, `icon?`
+- `chat`: `id`, `title?`, `empty?`, `messages = { { id, author, text, timestamp?,
+  mine?, unread?, status?, badge?, tone? } }` (oldest first) and an optional
+  `composer = { action, placeholder?, maxLength?, disabled?, note? }`. Text is
+  rendered as plain text (never HTML). Own messages (`mine`) are right-aligned;
+  a "New" divider precedes the first `unread` message and the view opens there.
+  `status = 'sent'|'delivered'|'seen'` on a `mine` message draws messenger-style
+  ticks after its time: one tick sent, two delivered, two in the brand colour
+  seen (the neutral palette has no blue, and each state also carries a text label
+  for screen readers and a tooltip). The sender owns the meaning of each state.
+  The view sticks to the newest message unless the reader has scrolled up, in
+  which case new arrivals are counted in a "N new messages" jump button;
+  `follow = true` always jumps to the newest message instead. With
+  `scrollable = true` (pair it with content-level `scrollable = false`) the
+  block fills the remaining height: only its message list scrolls, while its
+  title and message box stay in place. The
+  composer is a message box plus Send button (Enter sends, Shift+Enter adds a
+  line); it calls `onAction(composer.action.id, { value = { message } })`.
+  Its draft survives `updateApp` pushes and is cleared only when the action
+  succeeds without a `destructive` notice, so return
+  `{ notice = { tone = 'destructive', message = err } }` to reject a message
+  and keep the text. `composer.action` must be a plain action (no `fields`,
+  `confirm`, `hold` or `closeBeforeAction`). With `disabled = true` the box is
+  replaced by `note`. Push new messages with `Kora.nui.updateApp`; still
+  validate and rate-limit every message in the owning resource's server code.
+
+Tones are `neutral`, `primary`, `success`, `warning`, and `destructive`.
+
+For a main-page collection with larger artwork:
+
+```lua
+{
+    type = 'list', id = 'events', title = 'Giveaway events',
+    layout = 'cards', cardStyle = 'media', columns = 3, imageFit = 'contain',
+    items = {
+        {
+            id = 'halloween', label = 'QBCore Halloween Giveaway',
+            image = 'https://cfx-nui-my-resource/images/halloween.png',
+            badge = 'Scheduled', description = '14 prizes · submissions open',
+            actions = { { id = 'manage-event', label = 'Manage event' } },
+        },
+    },
+}
+```
+
+The owning resource must expose its artwork in its `fxmanifest.lua` files.
+Actions and nested items use the same handlers and context as compact cards.
+
+Button variants are `primary`, `secondary`, `outline`, `ghost`, and
+`destructive`. Set an action's boolean `state` for a toggle: AppShell exposes
+an accessible pressed state and an explicit `On` or `Off` indicator beside the
+action label. Keep the label action-oriented (for example, `Turn Admin Duty
+Off`) so both the present state and the result of clicking are clear. Icon
+strings use the same curated Lucide resolver as menus.
+
+## Legacy compat: `qb-menu` / `qb-input` / `qb-radialmenu`
+
+`qb-menu`, `qb-input` and `qb-radialmenu` are being deprecated in favour of `Kora.nui.openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` above. Until every consumer has migrated, `compat/client/qb-menu.lua`, `compat/client/qb-input.lua` and `compat/client/qb-radialmenu.lua` translate the real, public APIs of those standalone resources onto the same `Kora.nui.*` calls, and register themselves under the `qb-menu`/`qb-input`/`qb-radialmenu` export identities (`provide 'qb-menu'` / `provide 'qb-input'` / `provide 'qb-radialmenu'` in `fxmanifest.lua`, plus the `__cfx_export_` hijack every compat file in this codebase uses — see `kora_target/client/compat/ox-target.lua` for the canonical version of the same trick). A script written against `exports['qb-menu']:openMenu(...)`, `exports['qb-input']:ShowInput(...)` or `exports['qb-radialmenu']:AddOption(...)` keeps working unmodified with qb-menu/qb-input/qb-radialmenu never actually installed.
+
+### `exports['qb-menu']:openMenu(menu)`
+Translates each `menu` entry onto one `Kora.nui.openMenu` item and, on selection, fires the item's legacy `params.event` the same way real qb-menu does.
+
+| qb-menu field | Mapped to | Notes |
+|---|---|---|
+| `header` | `label` | |
+| `txt` | `description` | |
+| `disabled` / `isMenuHeader` | `disabled` | Real qb-menu's `isMenuHeader` rows are unselectable section labels; the new menu has no dedicated header row type, so this is the closest equivalent. |
+| `icon` | `image` / `icon` | Item artwork URLs and known shared-item images render directly; kora_lib-native icon names retain their curated lucide rendering. |
+| *(none)* | `id` | Real qb-menu items have no stable id; the 1-based position in the array is used. |
+| `params.event` / `params.isServer` / `params.args` | — | Fired via `TriggerEvent`/`TriggerServerEvent` on selection, exactly as real qb-menu's own `selectMenuItem` NUI callback does. |
+
+`openMenu(menu, sort, skipFirst)` also honours hidden rows and upstream sorting. `action`, command, QB-command and function-action rows follow qb-menu dispatch precedence, and `showHeader`/`playerfocus`/`qb-menu:client:menuClosed` are supplied alongside the two original exports. `showHeader` remains a non-interactive prompt until the `playerfocus` key is pressed; that key replaces it with the normal interactive, focus-lease-managed menu and preserves the original row dispatch. A non-table (including `nil`) `menu` is a silent no-op, matching real qb-menu's own `if not data or not next(data) then return end` — a script that conditionally builds a menu and passes `nil` when there's nothing to show keeps working instead of erroring.
+
+`exports['qb-menu']:closeMenu()` and the `qb-menu:client:openMenu`/`qb-menu:client:closeMenu` net events are also registered. `closeMenu` dismisses the active list menu through its normal cancellation response, which also releases focus and settles the awaiting request. `qb-menu:client:menuClosed` fires only for a user close (Escape/Cancel); a programmatic `closeMenu` or a replacing `openMenu` stays silent, as upstream.
+
+### `exports['qb-input']:ShowInput(data)`
+Translates `data.inputs[]` onto `Kora.nui.openInputDialog` fields and blocks the calling coroutine until the player answers, returning either a `{ [name]: value }` table (submit) or `nil` (cancel) — exactly real qb-input's own return shape, never a promise. A `number` field returns a Lua number (stock qb-input returns the raw string; `tonumber()` callers are unaffected).
+
+| qb-input `inputs[]` field | Mapped to | Notes |
+|---|---|---|
+| `name` | `id` | Kept identical so the legacy `result[name]` lookup needs zero reshaping. |
+| `text` | `label` | Falls back to `name` if absent. |
+| `isRequired` | `required` | |
+| `default` / `checked` | `default` | `checked` (some forks' checkbox convention) wins over `default` when both are set. |
+| `min` / `max` | `min` / `max` | `number`, `slider` only. |
+| `type = "text" \| "password" \| "textarea"` | same | |
+| `type = "number"` | `number` | |
+| `type = "checkbox"` (no `options`) | `checkbox` | Some simplified qb-input forks use a single scalar boolean this way — kept keyed by `name`, unchanged. |
+| `type = "checkbox"` **with** `options[]` | **N `checkbox` fields, one per option** | Real qbcore-framework/qb-input's checkbox type is a **group**, not a single boolean — its `html/script.js` (`renderCheckboxInput`) submits `formInputs[option.value] = ...` for every option, never keyed by the input's own `name`. Each option expands into its own field keyed by `tostring(option.value)` (not the group's `name`), with the group's own `text` prefixed onto each option's label for context since the flat field list has no visual grouping. `result.values[option.value]` matches upstream's own result shape exactly. |
+| `type = "radio" \| "select"` | `select` | No dedicated radio-group widget exists on the new dialog — `radio` collapses onto `select`, the closest equivalent (single value from a fixed list). |
+| `type = "slider"` | `range` | Newer qb-input forks only; `step` passes through. |
+| `type = "color"` | `text` | No equivalent widget exists on `InputField` at all (no color picker) — falls back to the generic unrecognized-type warning and a plain text field; a caller still gets back whatever hex string the player typed, just without a native color picker. |
+| `options[].value` / `.text`/`.label` | `options[].value` / `.label` | Both stringified — the new `select` field is string-keyed throughout. |
+| `icon` | *(dropped)* | Same reasoning as qb-menu's `icon` above — no equivalent field exists at all on `InputField`. One warning per resource run. |
+| any other `type` | `text` | One warning per unrecognized type name per resource run, naming the type, rather than silently misrendering it. |
+
+### `exports['qb-radialmenu']:AddOption(option, id_or_shouldClose)` / `RemoveOption(id)`
+
+**Biggest caveat of the three compat shims**: real qb-radialmenu is a **global, persistent** menu — other resources register/unregister options into one shared wheel over time via `AddOption`/`RemoveOption`, and the player opens it whenever they like via a fixed keybind. `Kora.nui.openRadialMenu` is a **one-shot, per-call** menu — build an items list, await one result. There is no Kora.nui primitive for "a menu that's already open, built from whatever's currently registered", so `compat/client/qb-radialmenu.lua` keeps its own in-memory registry of currently-registered options and only calls `Kora.nui.openRadialMenu` when its own keybind (`kora_lib_radialmenu_open`, default `F1`, matching qbcore-framework/qb-radialmenu's own `config.lua` default; always rebindable from FiveM's own Settings > Key Bindings) fires, translating the registry into an items list at that moment. This means:
+- There is no script-triggered "open now" call — matching real qb-radialmenu's own keybind-driven UX, but unlike every other `Kora.nui.open*` wrapper, which is always caller-initiated.
+- `AddOption` without an id returns a numeric id (as upstream); a caller-supplied id is returned unchanged. `qb-radialmenu:client:onRadialmenuOpen`/`onRadialmenuClose` fire around each wheel, and the built-in seat switch is refused while `exports['qb-smallresources']:HasHarness()` is true.
+- `option.shouldClose == false` is approximated by immediately re-issuing a fresh `Kora.nui.openRadialMenu` request after dispatch, rather than a truly persistent NUI state staying open across the selection.
+- **Built-in default content is reproduced**, the same way real qb-radialmenu's own `main.lua` injects it fresh every time the wheel opens: a **Vehicle** submenu (doors, extras, a flip option once the vehicle is off its wheels, and a seats submenu while occupying it — built from live vehicle-native state, ported from upstream's `SetupVehicleMenu`) and a per-job **Work** submenu (`Config.radialmenuCompat.jobInteractions`, ported from upstream's `SetupJobMenu` and `Config.JobInteractions`), both registered through this file's own `AddOption` at a stable slot so repeated opens update the entry instead of duplicating it. A **downed police/EMS player** sees the wheel wholesale replaced with a single emergency-button option, matching upstream's own downed override, and the wheel is blocked outright (matching upstream) for anyone else while downed, or for anyone while handcuffed. `PlayerData`/job-registry lookups go through `exports.kora_core:getPlayerData`/`getShared`, pcall-guarded the same way qb-menu compat's `imageFor` reads item images — without kora_core running, this content simply doesn't appear rather than erroring.
+  - **Not reproduced**: most of real qb-radialmenu's *default* `Config.JobInteractions` content (tow/taxi/mechanic/hotdog jobs, and most of the police entries — search/escort/jail/seize-license/the objects submenu) fires events owned by companion job resources this environment doesn't run, or needs an aimed-at/nearby **target** player the wheel's own event payload never carries; only entries with a real, self-contained, verified-working handler in this server's own resources are wired up (see `config.lua`'s `Config.radialmenuCompat` comment for the exact list and reasoning). `stretcher.lua`/`trunk.lua`/`clothing.lua` — features bundled into the real resource, not part of the generic `AddOption`/`RemoveOption` API surface — aren't ported either; this server's `kora_ambulance`/`kora_clothing` already own equivalent functionality through their own mechanisms.
+
+| qb-radialmenu `option` field | Mapped to | Notes |
+|---|---|---|
+| `id` | `id` | Kept if supplied; auto-generated (`radial_<n>`) and returned from `AddOption` otherwise, same as most real forks. Also assigned recursively to nested `items[]` entries that don't already have one — see `items` below. |
+| `title` / `label` | `label` | `title` wins if both are set. |
+| `items` (nested array of the same option shape) | `submenu = { title, items }` | Real qb-radialmenu options can carry their own nested `items[]` to form a submenu (upstream's own "Work"/"Vehicle" branches, above). `Kora.nui.openRadialMenu` natively supports arbitrary submenu depth via `item.submenu` (`web/src/components/menu/RadialMenu.tsx`), so this translates directly and recursively — a registered option's nested leaves dispatch correctly via their own id regardless of depth, using the NUI result's `selectedId` (its `path` isn't needed since ids are unique across the whole registry). |
+| `top` | *(ordering)* | `top` options are moved to the front of the translated items list, stable within each group — the closest flat-list equivalent of "pin near the top of the wheel". **Not a real qb-radialmenu field at all** — upstream has no such concept and would simply ignore it; this is an additive convenience only. |
+| `icon` | *(dropped)* | Same reasoning as qb-menu/qb-input's `icon` above — Font Awesome vs. lucide vocabularies don't overlap. One warning per resource run. |
+| `iconAnimation` | *(dropped)* | Purely decorative on top of the already-dropped icon; no equivalent field exists at all, and it doesn't get its own warning on top of the icon one. |
+| `type` (`"client"` / `"server"` / `"command"` / `"qbcommand"`) + `event` | — | On selection, when `onSelect` isn't set: `"server"` → `TriggerServerEvent(event, option)`; `"command"` → `ExecuteCommand(event)`; `"qbcommand"` → `TriggerServerEvent('QBCore:CallCommand', event, option)`; anything else (including no `type` at all) → `TriggerEvent(event, option)`. The selected option's own table is always passed back as the event's argument, matching real qb-radialmenu's own `TriggerEvent(data.event, data)` / `TriggerServerEvent(data.event, data)` — its own handlers (e.g. the built-in door/extra/seat ones above) depend on reading fields back off that table. |
+| `onSelect` (function) | — | Called directly (`pcall`-wrapped) instead of firing `event`, when present. |
+| `shouldClose` (field, or `AddOption`'s 2nd positional arg **when it's a boolean**) | — | The field wins when both are set. Defaults to `true`. `false` triggers the reopen-after-select approximation described above. |
+
+`AddOption`'s second positional argument is interpreted two ways depending on its type, since different parts of the ecosystem use it differently: a **boolean** is `shouldClose` (some forks' convention); anything else non-nil (a number or string) is an **explicit id to register/update at**, matching qbcore-framework/qb-radialmenu's own real signature (`AddOption(data, id)`) — used internally by its `SetupJobMenu`/`SetupVehicleMenu` to update an existing wheel entry in place every time the wheel opens, rather than appending a duplicate one. Re-registering at the same explicit id replaces that entry rather than growing the registry.
+
+`exports['qb-radialmenu']:RemoveOption(id)` and the `qb-radialmenu:client:AddOption`/`qb-radialmenu:client:RemoveOption` net events are also registered, mirroring `AddOption`/`RemoveOption` 1:1.
+
+## Notes
+- `Kora.nui.request` tags every call with a `requestId` **and a random per-request token** and resolves it through one shared response callback (`kora_lib:nui:response`) rather than registering a new callback per call — see `modules/nui/AGENTS.md` for why the token exists and why one shared callback is used.
+- The invoking resource owns its pending requests and focus leases. If it stops, kora_lib rejects those requests, tells the browser to dismiss the exact tokenized surfaces, and preserves focus held by unrelated resources.
+- Releasing the final focus lease restores the keep-input state that existed before kora_lib acquired focus, so compatibility surfaces do not interfere with another overlay's input policy.
+- A request that never gets a response (NUI never loaded, player alt-F4'd, etc.) times out after `timeout` instead of hanging forever — you get `nil` back rather than a hang.
+- `openMenu`/`openContextMenu`/`openRadialMenu`/`openInputDialog` are thin wrappers over `Kora.nui.request` — they don't unwrap the result any further than the NUI's own raw response, so check for `.cancelled` before reading `.selectedId`/`.path`/`.values`, and for `nil` before that (timeout/error).
+- These functions still run inside a coroutine and `Citizen.Await` a real promise internally — that part isn't gone, it just no longer needs to be in your own code. If you're calling `Kora.nui.*` from **within kora_lib itself** (another module in this same resource) rather than as a consumer, you still get the raw promise back and still need your own `Citizen.Await` — the auto-await above only kicks in for a genuine cross-resource caller (see `settleForExport` in `modules/nui/client.lua`), which is what every consumer resource always is.
