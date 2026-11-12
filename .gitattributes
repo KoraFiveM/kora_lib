@@ -1,0 +1,2 @@
+web/build/assets/*.js -whitespace
+web/build/assets/*.css -whitespace

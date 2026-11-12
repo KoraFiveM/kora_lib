@@ -1,0 +1,634 @@
+local state = Kora.lookup._state
+local SYNC_REQUEST = 'kora_lib:lookup:sync'
+local SYNC_PUSH = 'kora_lib:lookup:syncBatch'
+local MAX_BATCH_BYTES = 23 * 1024
+local MAX_SCANNED_FILE_BYTES = 16 * 1024 * 1024
+local MAX_OVERRIDE_BYTES = 1024 * 1024
+local MAX_SCANNED_ENTRIES = 4096
+local MAX_SCANNED_ENTRIES_LABEL = '4,096'
+local COMMON_FIELDS = { 'label', 'labelKey', 'category', 'dlc' }
+
+local pendingClients = {}
+local snapshotBatches = nil
+local MAX_RESOURCES_PER_WIRE_RECORD = 16
+
+local function warn(message)
+    print(('[kora_lib:lookup] %s'):format(message))
+end
+
+local function sortedKeys(values)
+    local keys = {}
+    for key in pairs(values) do keys[#keys + 1] = key end
+    table.sort(keys, function(left, right)
+        if type(left) == type(right) then return left < right end
+        return tostring(left) < tostring(right)
+    end)
+    return keys
+end
+
+local function copyTable(value)
+    if type(value) ~= 'table' then return nil end
+    local copy = {}
+    for key, entry in pairs(value) do copy[key] = entry end
+    return copy
+end
+
+local function readResourceFile(resource, relativePath, maxBytes)
+    local raw = LoadResourceFile(resource, relativePath)
+    if type(raw) == 'string' then
+        if #raw <= maxBytes then return raw end
+        return nil, 'file is too large'
+    end
+
+    local ok, handle = pcall(io.open, ('@%s/%s'):format(resource, relativePath), 'rb')
+    if not ok or handle == nil then return nil, 'file is unreadable' end
+    local readOk, contents = pcall(function() return handle:read(maxBytes + 1) end)
+    pcall(function() handle:close() end)
+    if not readOk or type(contents) ~= 'string' then return nil, 'file is unreadable' end
+    if #contents > maxBytes then return nil, 'file is too large' end
+    return contents
+end
+
+local function readDirectory(path)
+    if type(io.readdir) ~= 'function' then return nil end
+    local ok, handle = pcall(io.readdir, path)
+    if not ok or handle == nil then return nil end
+
+    local entries = {}
+    local iterOk, iterError = pcall(function()
+        for name in handle:lines() do
+            if name ~= '.' and name ~= '..' then entries[#entries + 1] = name end
+        end
+    end)
+    pcall(function() handle:close() end)
+    if not iterOk then
+        warn(('could not list %s: %s'):format(path, tostring(iterError)))
+        return nil
+    end
+    table.sort(entries)
+    return entries
+end
+
+local SKIPPED_DIRECTORIES = {
+    ['.git'] = true,
+    node_modules = true,
+    web = true,
+    html = true,
+    dist = true,
+    build = true,
+}
+
+local function collectFiles(mountPath, relativePath, includeAll, output, depth, budget)
+    if depth > 12 then return end
+    local entries = readDirectory(mountPath)
+    if entries == nil then return end
+
+    for nameIndex = 1, #entries do
+        if budget.entries >= MAX_SCANNED_ENTRIES then
+            budget.truncated = true
+            return
+        end
+        budget.entries = budget.entries + 1
+        local name = entries[nameIndex]
+        local childMount = mountPath:gsub('/$', '') .. '/' .. name
+        local childRelative = relativePath == '' and name or (relativePath .. '/' .. name)
+        local childEntries = readDirectory(childMount)
+
+        if childEntries ~= nil then
+            if includeAll or not SKIPPED_DIRECTORIES[name:lower()] then
+                collectFiles(childMount, childRelative, includeAll, output, depth + 1, budget)
+            end
+        else
+            local lower = name:lower()
+            if includeAll then
+                if lower:match('%.ydr$') or lower:match('%.yft$') or lower:match('%.ytyp$')
+                    or lower:match('%.meta$') or lower:match('%.xml$') then
+                    output[#output + 1] = childRelative
+                end
+            elseif lower:match('%.meta$') or lower:match('%.xml$') or lower:match('%.ytyp$') then
+                output[#output + 1] = childRelative
+            end
+        end
+    end
+end
+
+local function resourceFiles(resource)
+    local files, seen = {}, {}
+    local budget = { entries = 0, truncated = false }
+    local streamMount = ('@%s/stream'):format(resource)
+    if readDirectory(streamMount) ~= nil then
+        collectFiles(streamMount, 'stream', true, files, 0, budget)
+    end
+    if not budget.truncated then
+        collectFiles(('@%s/'):format(resource), '', false, files, 0, budget)
+    end
+
+    local unique = {}
+    for pathIndex = 1, #files do
+        local path = files[pathIndex]
+        if not seen[path] then
+            seen[path] = true
+            unique[#unique + 1] = path
+        end
+    end
+    table.sort(unique)
+    return unique, budget.truncated
+end
+
+local function xmlValue(value)
+    if type(value) ~= 'string' then return nil end
+    value = value:gsub('&lt;', '<'):gsub('&gt;', '>'):gsub('&quot;', '"')
+        :gsub('&apos;', "'"):gsub('&amp;', '&')
+    value = value:match('^%s*(.-)%s*$')
+    return value ~= '' and value or nil
+end
+
+local function tag(block, name)
+    return xmlValue(block:match('<' .. name .. '[^>]*>(.-)</' .. name .. '>'))
+end
+
+local function boundedString(value, maxLength)
+    if type(value) ~= 'string' then return nil end
+    value = value:match('^%s*(.-)%s*$')
+    if value == '' or #value > (maxLength or 256) then return nil end
+    return value
+end
+
+local function inferredRecord(namespace, name, resource, fields)
+    name = boundedString(name, 128)
+    if name == nil then return nil end
+
+    local metadata = fields and copyTable(fields.metadata) or nil
+    for key, value in pairs(metadata or {}) do
+        if type(value) == 'string' then metadata[key] = boundedString(value) end
+    end
+    local hash = state.normalize(name)
+    local record = {
+        namespace = namespace,
+        hash = hash,
+        signedHash = hash >= 2147483648 and hash - 4294967296 or hash,
+        hexHash = ('0x%08X'):format(hash),
+        name = name,
+        label = fields and boundedString(fields.label) or nil,
+        labelKey = fields and boundedString(fields.labelKey) or nil,
+        category = fields and boundedString(fields.category) or nil,
+        dlc = fields and boundedString(fields.dlc) or nil,
+        source = 'custom',
+        resources = { resource },
+        metadata = metadata,
+        _priority = fields and fields.priority or 1,
+    }
+    if record.metadata and next(record.metadata) == nil then record.metadata = nil end
+    return record
+end
+
+local function parseVehicleMetadata(raw, resource, records)
+    for item in raw:gmatch('<Item[^>]*>(.-)</Item>') do
+        local name = tag(item, 'modelName')
+        if name then
+            local class = tag(item, 'vehicleClass')
+            if class then class = class:gsub('^VC_', ''):lower() end
+            local vehicleType = tag(item, 'type')
+            if vehicleType then vehicleType = vehicleType:gsub('^VEHICLE_TYPE_', ''):lower() end
+            local labelKey = tag(item, 'gameName')
+            records[#records + 1] = inferredRecord('vehicle', name, resource, {
+                label = labelKey,
+                labelKey = labelKey,
+                category = class,
+                metadata = {
+                    class = class,
+                    manufacturer = tag(item, 'vehicleMakeName'),
+                    type = vehicleType,
+                },
+            })
+        end
+    end
+end
+
+local function parsePedMetadata(raw, resource, records)
+    for item in raw:gmatch('<Item[^>]*>(.-)</Item>') do
+        local name = tag(item, 'Name')
+        if name and not name:match('^WEAPON_') and not name:match('^COMPONENT_') then
+            local pedType = tag(item, 'Pedtype')
+            records[#records + 1] = inferredRecord('ped', name, resource, {
+                category = pedType and pedType:lower() or nil,
+                metadata = { pedType = pedType },
+            })
+        end
+    end
+end
+
+local function parseWeaponMetadata(raw, resource, records)
+    local seen = {}
+    for name in raw:gmatch('<Name[^>]*>%s*(WEAPON_[%w_]+)%s*</Name>') do
+        local key = name:lower()
+        if not seen['weapon:' .. key] then
+            seen['weapon:' .. key] = true
+            records[#records + 1] = inferredRecord('weapon', name, resource)
+        end
+    end
+    for name in raw:gmatch('<Name[^>]*>%s*(COMPONENT_[%w_]+)%s*</Name>') do
+        local key = name:lower()
+        if not seen['component:' .. key] then
+            seen['component:' .. key] = true
+            records[#records + 1] = inferredRecord('weapon_component', name, resource)
+        end
+    end
+end
+
+local function parseTextYtyp(raw, resource, records)
+    if raw:find('\0', 1, true) then return false end
+    local found = false
+    for name in raw:gmatch('<name[^>]*>%s*([^<]-)%s*</name>') do
+        name = xmlValue(name)
+        if name then
+            found = true
+            records[#records + 1] = inferredRecord('object', name, resource, { category = 'object' })
+        end
+    end
+    return found
+end
+
+local function decodeOverride(resource)
+    local fileName = 'kora_lib.lookup.json'
+    local raw, readError = readResourceFile(resource, fileName, MAX_OVERRIDE_BYTES)
+    if raw == nil then
+        if readError == 'file is too large' then
+            warn(('%s/%s is too large and was ignored'):format(resource, fileName))
+        end
+        return nil
+    end
+    local ok, decoded = pcall(json.decode, raw)
+    if not ok or type(decoded) ~= 'table' then
+        warn(('%s/%s is not valid JSON and was ignored'):format(resource, fileName))
+        return nil
+    end
+    return decoded
+end
+
+local METADATA_FIELDS = {
+    vehicle = { class = 'string', manufacturer = 'string', type = 'string', seats = 'integer' },
+    ped = { pedType = 'string' },
+    weapon = { modelName = 'string', damageType = 'string' },
+    weapon_component = { weaponNames = 'strings', componentType = 'string', attachBone = 'string' },
+    pickup = { modelName = 'string' },
+    object = {},
+}
+
+local function validateMetadata(namespace, value)
+    if value == nil then return nil end
+    if type(value) ~= 'table' then return false end
+
+    local accepted, definition = {}, METADATA_FIELDS[namespace]
+    for field in pairs(value) do
+        if definition[field] == nil then return false end
+    end
+    for field, fieldType in pairs(definition) do
+        local entry = value[field]
+        if entry ~= nil then
+            if fieldType == 'string' then
+                entry = boundedString(entry)
+                if entry == nil then return false end
+                accepted[field] = entry
+            elseif fieldType == 'integer' then
+                if type(entry) ~= 'number' or entry % 1 ~= 0 or entry < 0 or entry > 64 then return false end
+                accepted[field] = entry
+            elseif fieldType == 'strings' then
+                if type(entry) ~= 'table' or #entry > 64 then return false end
+                local seen, values, count = {}, {}, 0
+                for key in pairs(entry) do
+                    count = count + 1
+                    if type(key) ~= 'number' or key % 1 ~= 0 or key < 1 or key > #entry then return false end
+                end
+                if count ~= #entry then return false end
+                for itemIndex = 1, #entry do
+                    local item = entry[itemIndex]
+                    item = boundedString(item, 128)
+                    if item == nil then return false end
+                    if not seen[item] then
+                        seen[item] = true
+                        values[#values + 1] = item
+                    end
+                end
+                table.sort(values)
+                accepted[field] = values
+            end
+        end
+    end
+    return next(accepted) and accepted or nil
+end
+
+local function validateOverrideEntry(resource, entry)
+    local name = type(entry) == 'table' and boundedString(entry.name, 128) or nil
+    if type(entry) ~= 'table' or not state.namespaces[entry.namespace] or name == nil then
+        warn(('%s has an invalid kora_lib.lookup.json entry'):format(resource))
+        return nil
+    end
+
+    local computed = state.normalize(name)
+    if entry.hash ~= nil then
+        local ok, supplied = pcall(state.normalize, entry.hash)
+        if not ok or supplied ~= computed then
+            warn(('%s lookup override for %s has a hash that does not match its name'):format(resource, name))
+            return nil
+        end
+    end
+
+    local metadata = validateMetadata(entry.namespace, entry.metadata)
+    if metadata == false then
+        warn(('%s lookup override for %s has invalid metadata'):format(resource, name))
+        return nil
+    end
+
+    local common = {}
+    for i = 1, #COMMON_FIELDS do
+        local field = COMMON_FIELDS[i]
+        if entry[field] ~= nil then
+            common[field] = boundedString(entry[field])
+            if common[field] == nil then
+                warn(('%s lookup override for %s has an invalid %s'):format(resource, name, field))
+                return nil
+            end
+        end
+    end
+
+    return inferredRecord(entry.namespace, name, resource, {
+        label = common.label,
+        labelKey = common.labelKey,
+        category = common.category,
+        dlc = common.dlc,
+        metadata = metadata,
+        priority = 2,
+    })
+end
+
+local function scanResource(resource)
+    local inferred, unresolvedYft, binaryYtyp = {}, 0, 0
+
+    local files, truncated = resourceFiles(resource)
+    for pathIndex = 1, #files do
+        local path = files[pathIndex]
+        local lower = path:lower()
+        local name = path:match('([^/]+)$') or path
+
+        if lower:match('%.ydr$') then
+            inferred[#inferred + 1] = inferredRecord('object', name:sub(1, -5), resource, { category = 'object' })
+        elseif lower:match('%.yft$') then
+            unresolvedYft = unresolvedYft + 1
+        else
+            local raw, readError = readResourceFile(resource, path, MAX_SCANNED_FILE_BYTES)
+            if type(raw) == 'string' then
+                if lower:match('%.ytyp$') then
+                    if not parseTextYtyp(raw, resource, inferred) and raw:find('\0', 1, true) then
+                        binaryYtyp = binaryYtyp + 1
+                    end
+                elseif raw:find('CVehicleModelInfo', 1, true) or lower:match('vehicles[^/]*%.meta$') then
+                    parseVehicleMetadata(raw, resource, inferred)
+                elseif raw:find('CPedModelInfo', 1, true) or lower:match('peds[^/]*%.meta$') then
+                    parsePedMetadata(raw, resource, inferred)
+                elseif raw:find('WEAPON_', 1, true) or raw:find('COMPONENT_', 1, true) then
+                    parseWeaponMetadata(raw, resource, inferred)
+                end
+            elseif readError then
+                warn(('%s/%s %s and was ignored'):format(resource, path, readError))
+            end
+        end
+    end
+
+    local override = decodeOverride(resource) or {}
+    local overrideEntries = override.entries
+    local overrideExclusions = override.exclude
+    if overrideEntries ~= nil and type(overrideEntries) ~= 'table' then
+        warn(('%s kora_lib.lookup.json entries must be an array and were ignored'):format(resource))
+        overrideEntries = {}
+    end
+    if overrideExclusions ~= nil and type(overrideExclusions) ~= 'table' then
+        warn(('%s kora_lib.lookup.json exclude must be an array and was ignored'):format(resource))
+        overrideExclusions = {}
+    end
+
+    local excluded = {}
+    overrideExclusions = overrideExclusions or {}
+    for entryIndex = 1, #overrideExclusions do
+        local entry = overrideExclusions[entryIndex]
+        local name = type(entry) == 'table' and boundedString(entry.name, 128) or nil
+        if type(entry) == 'table' and state.namespaces[entry.namespace] and name then
+            excluded[entry.namespace .. ':' .. name:lower()] = true
+        else
+            warn(('%s has an invalid kora_lib.lookup.json exclusion'):format(resource))
+        end
+    end
+
+    local records = {}
+    for recordIndex = 1, #inferred do
+        local record = inferred[recordIndex]
+        if not excluded[record.namespace .. ':' .. record.name:lower()] then
+            records[#records + 1] = record
+        end
+    end
+    overrideEntries = overrideEntries or {}
+    for entryIndex = 1, #overrideEntries do
+        local entry = overrideEntries[entryIndex]
+        local record = validateOverrideEntry(resource, entry)
+        if record then records[#records + 1] = record end
+    end
+
+    if unresolvedYft > 0 or binaryYtyp > 0 then
+        warn(('%s left %d .yft and %d binary .ytyp files unclassified; add kora_lib.lookup.json entries if needed')
+            :format(resource, unresolvedYft, binaryYtyp))
+    end
+    if truncated then
+        warn(('%s exceeded the %s-entry lookup scan limit; remaining files were ignored')
+            :format(resource, MAX_SCANNED_ENTRIES_LABEL))
+    end
+    return records
+end
+
+local function appendUniqueResources(resources, seen, output)
+    for i = 1, #(resources or {}) do
+        local resource = resources[i]
+        if not seen[resource] then
+            seen[resource] = true
+            output[#output + 1] = resource
+        end
+    end
+end
+
+local function mergeResourceNames(left, right)
+    local seen, values = {}, {}
+    appendUniqueResources(left, seen, values)
+    appendUniqueResources(right, seen, values)
+    table.sort(values)
+    return values
+end
+
+local function addWorking(working, record)
+    local byHash = working[record.namespace]
+    local bucket = byHash[record.hash]
+    if bucket == nil then bucket = {}; byHash[record.hash] = bucket end
+
+    local key = record.name:lower()
+    local current = bucket[key]
+    if current == nil then
+        bucket[key] = record
+        return
+    end
+
+    local resources = mergeResourceNames(current.resources, record.resources)
+    if (record._priority or 1) > (current._priority or 1) then
+        record.resources = resources
+        for i = 1, #COMMON_FIELDS do
+            local field = COMMON_FIELDS[i]
+            if record[field] == nil then record[field] = current[field] end
+        end
+        local metadata = copyTable(current.metadata) or {}
+        for field, value in pairs(record.metadata or {}) do metadata[field] = value end
+        record.metadata = next(metadata) and metadata or nil
+        bucket[key] = record
+        return
+    end
+
+    current.resources = resources
+    for i = 1, #COMMON_FIELDS do
+        local field = COMMON_FIELDS[i]
+        if current[field] == nil then current[field] = record[field] end
+    end
+    current.metadata = current.metadata or {}
+    for field, value in pairs(record.metadata or {}) do
+        if current.metadata[field] == nil then current.metadata[field] = value end
+    end
+    if next(current.metadata) == nil then current.metadata = nil end
+end
+
+local function finalizeOverlay(working)
+    local overlay, total = {}, 0
+    for namespaceIndex = 1, #state.namespaceOrder do
+        local namespace = state.namespaceOrder[namespaceIndex]
+        overlay[namespace] = {}
+        for hash, byName in pairs(working[namespace]) do
+            local candidates = {}
+            local names = sortedKeys(byName)
+            for nameIndex = 1, #names do
+                local name = names[nameIndex]
+                local record = byName[name]
+                record._priority = nil
+                candidates[#candidates + 1] = record
+                total = total + 1
+            end
+            overlay[namespace][hash] = candidates
+        end
+    end
+    return overlay, total
+end
+
+local function scanAll()
+    local working = {}
+    for namespaceIndex = 1, #state.namespaceOrder do
+        working[state.namespaceOrder[namespaceIndex]] = {}
+    end
+
+    local resources = {}
+    for index = 0, GetNumResources() - 1 do
+        local resource = GetResourceByFindIndex(index)
+        if resource and resource ~= GetCurrentResourceName() then resources[#resources + 1] = resource end
+    end
+    table.sort(resources)
+
+    for resourceIndex = 1, #resources do
+        local resource = resources[resourceIndex]
+        local ok, records = pcall(scanResource, resource)
+        if ok then
+            for recordIndex = 1, #records do addWorking(working, records[recordIndex]) end
+        else
+            warn(('%s could not be scanned and was skipped: %s'):format(resource, tostring(records)))
+        end
+        Wait(0)
+    end
+
+    return finalizeOverlay(working)
+end
+
+state.scanResource = scanResource
+state.scanAll = scanAll
+
+local function flattenOverlay()
+    local records = {}
+    for namespaceIndex = 1, #state.namespaceOrder do
+        local namespace = state.namespaceOrder[namespaceIndex]
+        local hashes = sortedKeys(state.overlay[namespace])
+        for hashIndex = 1, #hashes do
+            local hash = hashes[hashIndex]
+            local candidates = state.overlay[namespace][hash]
+            for recordIndex = 1, #candidates do
+                local record = candidates[recordIndex]
+                local resources = record.resources or {}
+                if #resources <= MAX_RESOURCES_PER_WIRE_RECORD then
+                    records[#records + 1] = record
+                else
+                    for first = 1, #resources, MAX_RESOURCES_PER_WIRE_RECORD do
+                        local fragment = copyTable(record)
+                        fragment.resources = {}
+                        for index = first, math.min(#resources, first + MAX_RESOURCES_PER_WIRE_RECORD - 1) do
+                            fragment.resources[#fragment.resources + 1] = resources[index]
+                        end
+                        records[#records + 1] = fragment
+                    end
+                end
+            end
+        end
+    end
+    return records
+end
+
+local function recordSize(record)
+    local ok, encoded = pcall(json.encode, record)
+    return ok and (#encoded + 1) or 1024
+end
+
+local function buildBatches()
+    local batches, batch, size = {}, {}, 2
+    local records = flattenOverlay()
+    for recordIndex = 1, #records do
+        local record = records[recordIndex]
+        local bytes = recordSize(record)
+        if #batch > 0 and size + bytes > MAX_BATCH_BYTES then
+            batches[#batches + 1] = batch
+            batch, size = {}, 2
+        end
+        batch[#batch + 1] = record
+        size = size + bytes
+    end
+    if #batch > 0 or #batches == 0 then batches[#batches + 1] = batch end
+    return batches
+end
+
+state.buildBatches = buildBatches
+
+local function sendSnapshot(target)
+    snapshotBatches = snapshotBatches or buildBatches()
+    for index = 1, #snapshotBatches do
+        Kora.events.push(target, SYNC_PUSH, state.overlayVersion, index, #snapshotBatches, snapshotBatches[index])
+    end
+end
+
+Kora.events.register(SYNC_REQUEST, function(src)
+    if not state.overlayReady then
+        pendingClients[src] = true
+        return
+    end
+    sendSnapshot(src)
+end, { rateLimit = { max = 3, window = 10000 } })
+
+AddEventHandler('playerDropped', function()
+    pendingClients[source] = nil
+end)
+
+CreateThread(function()
+    local overlay, total = scanAll()
+    state.setOverlay(overlay, 1)
+    snapshotBatches = buildBatches()
+    warn(('custom catalog ready: %d records across %d client batches'):format(total, #snapshotBatches))
+
+    for src in pairs(pendingClients) do sendSnapshot(src) end
+    pendingClients = {}
+end)
