@@ -42,7 +42,7 @@ function Kora.state.onChange(keyFilter, bagFilter, handler)
             replicated = replicated,
         })
         if not ok then
-            print(("^3[kora_lib:state]^7 listener %s errored: %s"):format(tostring(cookie), tostring(err)))
+            Kora.logging.error('lib.client.listener_errored', ("^3[kora_lib:state]^7 listener %s errored: %s"):format(tostring(cookie), tostring(err)))
         end
     end)
 

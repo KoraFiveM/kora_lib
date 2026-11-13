@@ -10,6 +10,15 @@ on the owning implementation. Reuse Kora Framework APIs and validators; place ge
 kora_lib and domain rules with their owner. Document public APIs, yielding/failure behavior
 and cleanup. Keep unrelated reformats and restructuring separate.
 
+## Diagnostic logging
+
+Use the [shared logging API and rollout guide](modules/logging/docs.md) for
+new diagnostics. Choose stable event names and the appropriate severity; use
+structured, minimal fields and operation IDs. Never include credentials, raw
+network payloads, SQL parameters or full player objects. Check `isEnabled`
+before constructing expensive fields. Preserve domain audit persistence.
+Legacy logging calls remain supported; resource migration is independent.
+
 ## Local commands
 
 Install the pinned StyLua/LuaLS releases from the local tooling guide and Python 3.10+.

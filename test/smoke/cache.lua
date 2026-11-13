@@ -17,6 +17,7 @@ end
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
 local playerIdReads, serverIdReads, seatReads, pedReads = 0, 0, 0, 0

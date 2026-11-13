@@ -1,15 +1,27 @@
-# logging module guide
+# Kora logging module guide
 
-## Purpose
-A small ring-buffered event log (`Kora.logging.event`) plus aggregate counters (`Kora.logging.getStats`), with an optional Discord webhook mirror. Moved out of kora_core: the mechanics never touched anything framework-specific (no player/job/identity knowledge), so any resource can log through one shared ring buffer and one shared webhook convar instead of every framework/resource hand-rolling its own.
+Read docs.md for the contract, limits and operational examples. Generic logging
+belongs here; domain audit persistence remains with its owning resource.
 
-## Implementation notes
-- **Server-only** -- there's no client-side equivalent; a client wanting to log something does it via its own server-side handler, same as any other server-authoritative write.
-- **Ring buffer, not unbounded**: `RING = 500` entries, overwritten oldest-first once full (`head` wraps via `% RING`). This is an in-memory debugging aid, not a persistence layer -- nothing here survives a restart.
-- **Webhook is opt-in and fire-and-forget**: `PerformHttpRequest(url, function() end, ...)` -- a slow or dead webhook endpoint never blocks or fails the caller. Checked via `GetConvar('kora_lib_log_webhook', ...)`, falling back to the legacy `kora_lib_log_webhook` and then `kora_core_log_webhook` convar names so a server that already set that before this module moved into kora_lib doesn't silently stop logging.
-- **Webhook messages are attributed by `GetInvokingResource()`**, not a hardcoded name -- this is what makes the module framework-agnostic: kora_core calling through `Core.logging.event` still shows up as `kora_core` (it's the direct caller into kora_lib), while another resource calling `Kora.logging.event` directly is attributed to itself.
-- **`category`/`data` are opaque to this module** -- it never inspects or validates them beyond passing `data` through `json.encode` for the webhook body. Callers own their own event vocabulary (e.g. kora_core's `Core.logging` callers use categories like `'money'`/`'job'`/`'admin'`).
-- **Stats are snapshots**: `getStats()` copies the category counts so a monitoring consumer cannot mutate the live accounting table.
+The unified logging change explicitly supersedes the former server-only module
+restriction. Shared helpers own record sanitization, filtering and formatting.
+Server code owns the ring, legacy events, Discord mirror and capture authority;
+client code owns local output and a bounded, capture-scoped queue. NUI callbacks
+must execute in the consuming resource, so nui.lua is an explicit consumer-local
+transport exception to the library's normal Kora.nui-only rule.
 
-## Testing
-`test/smoke/logging.lua` mocks `GetConvar`, `PerformHttpRequest`, `GetInvokingResource`, and `json.encode`/`os.time`. Covers: ring buffer growth and wraparound, `counts` aggregation, the webhook firing only when the convar is set, the legacy `kora_core_log_webhook` fallback, and webhook `username` following `GetInvokingResource()`.
+- Never trust client player IDs, severity filters, resource claims or clocks.
+  Use event source and a live server-issued capture generation on every batch.
+- Disabled forwarding installs no timers or log queues and sends no network traffic.
+- Bound work before JSON decoding/serialization. No unbounded retries, queues,
+  per-frame work, payload dumps or arbitrary object stringification.
+- Keep internal helpers under logging._internal (a non-exported table). Only
+  documented top-level functions may become auto-generated exports.
+- Preserve legacy event validation, category/source/data semantics, counters and
+  webhook convar precedence. Snapshot/sanitize inputs; never retain caller tables.
+- Diagnostics must not recurse when their sink fails. Use bounded fixed-text
+  fallback warnings without serializing the exception or original payload.
+- Add contract/lifecycle tests with any API/transport change. Keep docs.md,
+  types.lua and JavaScript declarations synchronized.
+
+Copyright © 2026 Kora Framework.

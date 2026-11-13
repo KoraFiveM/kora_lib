@@ -1304,8 +1304,18 @@
 ---@field list fun(): table[] [client]
 
 ---@class KoraLibLogging
+---@field _internal table Private implementation; not an export.
+---@field trace fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field debug fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field info fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field warn fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field error fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field fatal fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field isEnabled fun(level: string): boolean
+---@field nui fun(level: string, eventName: string, message: string, fields?: table): boolean NUI bridge. [client]
+---@field getCapture fun(): table Capture snapshot. [client]
 ---@field event fun(category: string, src: integer, data?: table) [server]
----@field getStats fun(): table [server]
+---@field getStats fun(): table [shared]
 
 ---@class KoraLibLookup
 ---@field get fun(namespace: KoraLookupNamespace, value: integer|string): KoraLookupRecord?, KoraLookupFailure?, KoraLookupRecord[]? [shared]

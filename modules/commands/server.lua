@@ -91,7 +91,7 @@ local function dispatch(name, definition, source, rawArgs, raw)
     local allowed, denyReason = isAllowed(source, definition)
     if not allowed then
         if denyReason then
-            print(("^3[kora_lib:commands]^7 /%s denied for %s: %s"):format(name, tostring(source), denyReason))
+            Kora.logging.warn('lib.server.denied_for', ("^3[kora_lib:commands]^7 /%s denied for %s: %s"):format(name, tostring(source), denyReason))
         end
         definition.notify(source, 'You do not have permission for this command.', 'error')
         return
@@ -101,7 +101,7 @@ local function dispatch(name, definition, source, rawArgs, raw)
         return
     end
     local ok, err = pcall(definition.handler, source, rawArgs, raw)
-    if not ok then print(("^3[kora_lib:commands]^7 /%s errored: %s"):format(name, tostring(err))) end
+    if not ok then Kora.logging.error('lib.server.errored', ("^3[kora_lib:commands]^7 /%s errored: %s"):format(name, tostring(err))) end
 end
 
 local function sendKeybind(src, name, definition)
@@ -300,7 +300,7 @@ function Kora.commands.suggest(src, name, argumentIndex, query, parsedArgs)
             args = parsedArgs,
         })
         if not ok then
-            print(("^3[kora_lib:commands]^7 suggestion provider for /%s argument %d errored: %s")
+            Kora.logging.error('lib.server.suggestion_provider_for_argument_errored', ("^3[kora_lib:commands]^7 suggestion provider for /%s argument %d errored: %s")
                 :format(name, argumentIndex, tostring(provided)))
         elseif type(provided) == 'table' then
             for i = 1, #provided do candidates[#candidates + 1] = provided[i] end

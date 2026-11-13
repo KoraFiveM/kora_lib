@@ -32,6 +32,8 @@
       "modules/interact/client.lua",
       "modules/keybind/client.lua",
       "modules/locales/client.lua",
+      "modules/logging/client.lua",
+      "modules/logging/nui.lua",
       "modules/lookup/client.lua",
       "modules/minigames/client.lua",
       "modules/notify/client.lua",
@@ -96,6 +98,7 @@
       "modules/blips/shared.lua",
       "modules/config/consumer.lua",
       "modules/locales/shared.lua",
+      "modules/logging/shared.lua",
       "modules/lookup/shared.lua",
       "modules/loops/shared.lua",
       "modules/minigames/shared.lua",
@@ -171,6 +174,7 @@
       "test/smoke/keybind.lua",
       "test/smoke/locales.lua",
       "test/smoke/logging.lua",
+      "test/smoke/logging_pipeline.lua",
       "test/smoke/lookup.lua",
       "test/smoke/loops.lua",
       "test/smoke/minigames.lua",
@@ -233,5 +237,5 @@
     "types.lua"
   ],
   "project": "Kora Framework",
-  "copyright": "Copyright © 2026 Kora Framework"
+  "copyright": "Copyright \u00a9 2026 Kora Framework"
 }

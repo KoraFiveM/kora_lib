@@ -9,6 +9,7 @@ local mocks = require("mocks")
 mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 
 harness.test("returns immediately when the predicate is already true", function()

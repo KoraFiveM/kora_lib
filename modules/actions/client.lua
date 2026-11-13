@@ -78,7 +78,7 @@ function Kora.actions.run(options, ...)
                 authorization = authorization,
             }, table.unpack(args, 1, args.n))
             if not abortOk then
-                print(('^1[kora_lib:actions]^7 action abort callback failed: %s'):format(tostring(abortErr)))
+                Kora.logging.error('lib.client.action_abort_callback_failed', ('^1[kora_lib:actions]^7 action abort callback failed: %s'):format(tostring(abortErr)))
             end
         end
         error(started, 0)

@@ -797,7 +797,7 @@ function Kora.nui.registerCallback(name, handler)
             local ok, result = pcall(handler, data)
 
             if not ok then
-                print(("[kora_lib:nui] callback '%s' errored: %s"):format(callbackName, tostring(result)))
+                Kora.logging.error('lib.client.callback', ("[kora_lib:nui] callback '%s' errored: %s"):format(callbackName, tostring(result)))
                 cb({})
                 return
             end
@@ -875,7 +875,7 @@ Kora.nui.registerCallback("kora_lib:nui:event", function(data)
 
     local ok, err = pcall(pending.onEvent, data.event, data.data)
     if not ok then
-        print(("[kora_lib:nui] request event '%s' errored: %s"):format(tostring(data.event), tostring(err)))
+        Kora.logging.error('lib.client.request_event', ("[kora_lib:nui] request event '%s' errored: %s"):format(tostring(data.event), tostring(err)))
     end
     return {}
 end)
@@ -1402,7 +1402,7 @@ local function runHoldAction(instance, registration, actionId, context, state)
         itemId = context.itemId, value = context.value, data = instance.data, hold = state,
     })
     if not ok then
-        print(("[kora_lib:nui] app '%s' hold action '%s' errored: %s"):format(instance.id, actionId, tostring(err)))
+        Kora.logging.error('lib.client.app', ("[kora_lib:nui] app '%s' hold action '%s' errored: %s"):format(instance.id, actionId, tostring(err)))
     end
     return ok
 end
@@ -1550,7 +1550,7 @@ Kora.nui.registerCallback("kora_lib:app:change", function(data)
         itemId = data.itemId, value = data.value, data = current.data,
     })
     if not ok then
-        print(("[kora_lib:nui] app '%s' change '%s' errored: %s"):format(current.id, data.actionId, tostring(update)))
+        Kora.logging.error('lib.client.app', ("[kora_lib:nui] app '%s' change '%s' errored: %s"):format(current.id, data.actionId, tostring(update)))
         return { ok = false, error = "The app change failed." }
     end
     if activeApp ~= current or registeredApps[current.id] ~= registration or current.changeVersion ~= version then
@@ -1560,7 +1560,7 @@ Kora.nui.registerCallback("kora_lib:app:change", function(data)
 
     local updated, err = pcall(mergeAppUpdate, registration, update)
     if not updated then
-        print(("[kora_lib:nui] app '%s' change '%s' returned an invalid update: %s"):format(current.id, data.actionId, tostring(err)))
+        Kora.logging.warn('lib.client.app', ("[kora_lib:nui] app '%s' change '%s' returned an invalid update: %s"):format(current.id, data.actionId, tostring(err)))
         return { ok = false, error = "The app returned an invalid update." }
     end
     applyAppAccent(registration)
@@ -1685,7 +1685,7 @@ Kora.nui.registerCallback("kora_lib:app:action", function(data)
         data = current.data,
     })
     if not ok then
-        print(("[kora_lib:nui] app '%s' action '%s' errored: %s")
+        Kora.logging.error('lib.client.app', ("[kora_lib:nui] app '%s' action '%s' errored: %s")
             :format(current.id, data.actionId, tostring(result)))
         if declared.closeBeforeAction then notifyClosedAppError("The app action failed.") end
         return { ok = false, error = "The app action failed." }
@@ -1701,7 +1701,7 @@ Kora.nui.registerCallback("kora_lib:app:action", function(data)
     if result.update ~= nil then
         local updateOk, updateError = pcall(mergeAppUpdate, registration, result.update)
         if not updateOk then
-            print(("[kora_lib:nui] app '%s' action '%s' returned an invalid update: %s")
+            Kora.logging.warn('lib.client.app', ("[kora_lib:nui] app '%s' action '%s' returned an invalid update: %s")
                 :format(current.id, data.actionId, tostring(updateError)))
             if declared.closeBeforeAction then notifyClosedAppError("The app returned an invalid update.") end
             return { ok = false, error = "The app returned an invalid update." }
@@ -1711,7 +1711,7 @@ Kora.nui.registerCallback("kora_lib:app:action", function(data)
     local resultOk, validated = pcall(validateActionResult, registration, result)
     if not resultOk then
         registration.browser, registration.actionIds = previousBrowser, previousActionIds
-        print(("[kora_lib:nui] app '%s' action '%s' returned an invalid result: %s")
+        Kora.logging.warn('lib.client.app', ("[kora_lib:nui] app '%s' action '%s' returned an invalid result: %s")
             :format(current.id, data.actionId, tostring(validated)))
         if declared.closeBeforeAction then notifyClosedAppError("The app returned an invalid result.") end
         return { ok = false, error = "The app returned an invalid result." }

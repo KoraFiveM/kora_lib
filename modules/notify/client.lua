@@ -14,7 +14,7 @@ function Kora.notify.send(payload)
     end)
 
     if not ok then
-        print(("[kora_lib:notify] send failed: %s"):format(tostring(err)))
+        Kora.logging.error('lib.client.send_failed', ("[kora_lib:notify] send failed: %s"):format(tostring(err)))
     end
 end
 

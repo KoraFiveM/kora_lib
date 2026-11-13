@@ -8,6 +8,7 @@ local handlers = {}
 _G.AddEventHandler = function(name, handler) handlers[name] = handler end
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
 dofile(repoRoot .. 'compat/shared.lua')
 

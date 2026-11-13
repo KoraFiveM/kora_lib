@@ -33,6 +33,7 @@ _G.json = {
 }
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/logging/server.lua")
 
@@ -143,14 +144,14 @@ harness.test('event caps only oversized webhook content', function()
         return encode(value)
     end
 
-    Kora.logging.event('large', 0, { payload = string.rep('x', 3000) })
+    Kora.logging.event('large', 0, { first = string.rep('x', 1024), second = string.rep('x', 1024) })
     json.encode = encode
 
     harness.assertEqual(#mirroredContent, 2000)
     harness.assertEqual(mirroredContent:sub(-3), '...')
 end)
 
-harness.test("event() prefers kora_lib_log_webhook, then kora_lib_log_webhook, then kora_core_log_webhook", function()
+harness.test("event() prefers kora_lib_log_webhook, then kora_core_log_webhook", function()
     convars = { kora_lib_log_webhook = "https://old-name.invalid/webhook", kora_core_log_webhook = "https://legacy.invalid/webhook" }
     httpRequests = {}
     Kora.logging.event("admin", 0, {})
@@ -160,6 +161,15 @@ harness.test("event() prefers kora_lib_log_webhook, then kora_lib_log_webhook, t
     httpRequests = {}
     Kora.logging.event("admin", 0, {})
     harness.assertEqual(httpRequests[1].url, "https://example.invalid/webhook", "the kora_lib_ name wins")
+end)
+
+harness.test('all historical webhook names remain supported without resource changes', function()
+    for _, name in ipairs({ 'kora_lib_log_webhook', 'kora_core_log_webhook', 'qblib_log_webhook', 'qbcore_log_webhook' }) do
+        convars = { [name] = 'https://legacy.invalid/' .. name }
+        httpRequests = {}
+        Kora.logging.event('admin', 0, {})
+        harness.assertEqual(httpRequests[1].url, convars[name])
+    end
 end)
 
 harness.report("logging")

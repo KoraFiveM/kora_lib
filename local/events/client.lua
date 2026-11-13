@@ -28,7 +28,7 @@ RegisterNetEvent(events.push, function(name, ...)
 
     local ok, err = pcall(handler, ...)
     if not ok then
-        print(("[kora_lib:events] push handler for '%s' errored: %s"):format(name, tostring(err)))
+        Kora.logging.error('lib.client.push_handler_for', ("[kora_lib:events] push handler for '%s' errored: %s"):format(name, tostring(err)))
     end
 end)
 
@@ -74,7 +74,7 @@ function Kora.events.onPush(name, handler)
 
     local previousOwner = pushOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("[kora_lib:events] push handler '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your push names.")
+        Kora.logging.warn('lib.client.push_handler', ("[kora_lib:events] push handler '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your push names.")
             :format(name, previousOwner, owner))
     end
 

@@ -19,6 +19,7 @@ local function grant(src, principal)
 end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/permissions/server.lua")
 
 local LEVELS = { "god", "admin", "mod", "user" }

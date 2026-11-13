@@ -130,7 +130,7 @@ function Kora.callback.register(name, handler, opts)
 
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner and not replace then
-        print(("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
+        Kora.logging.warn('lib.server.diagnostic', ("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
             :format(name, previousOwner, owner))
     end
 
@@ -248,7 +248,7 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     local ok = results[1]
 
     if not ok then
-        print(("[kora_lib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
+        Kora.logging.error('lib.server.handler_for', ("[kora_lib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
         if type(results[2]) == 'string' then
             results[2] = (results[2]:gsub('^[^%s:]+%.lua:%d+: ', '', 1))
         end

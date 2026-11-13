@@ -372,6 +372,6 @@ RegisterCommand('blips', function()
 
         local opened, err = pcall(Kora.nui.openApp, APP_ID)
         opening = false
-        if not opened then print(('[kora_lib:blips] settings could not open: %s'):format(tostring(err))) end
+        if not opened then Kora.logging.warn('lib.settings.settings_could_not_open', ('[kora_lib:blips] settings could not open: %s'):format(tostring(err))) end
     end)
 end, false)

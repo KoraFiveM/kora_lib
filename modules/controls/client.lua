@@ -39,7 +39,7 @@ local function ensureThread()
         threadRunning = false
 
         if not ok then
-            print(("[kora_lib:controls] control loop stopped after an error: %s"):format(tostring(err)))
+            Kora.logging.error('lib.client.control_loop_stopped_after_an_error', ("[kora_lib:controls] control loop stopped after an error: %s"):format(tostring(err)))
         end
     end)
 end

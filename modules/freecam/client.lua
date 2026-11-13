@@ -116,7 +116,7 @@ local function run(state)
         end
     end)
     if not ok then
-        print(('[kora_lib:freecam] stopped after an error: %s'):format(tostring(err)))
+        Kora.logging.error('lib.client.stopped_after_an_error', ('[kora_lib:freecam] stopped after an error: %s'):format(tostring(err)))
         stop(state, true)
     end
 end

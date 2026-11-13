@@ -10,14 +10,13 @@ local function screenshotMilliseconds()
     return math.floor(os.clock() * 1000)
 end
 
-local function screenshotDebug(session, stage, detail)
+local function screenshotDebug(session, stage, _detail)
     local config = (Config and Config.screenshot) or {}
     if GetConvarInt(config.debugConvar or 'kora_lib_screenshot_debug', 0) ~= 1
         and GetConvarInt('kora_lib_screenshot_debug', 0) ~= 1 then return end
 
     local elapsed = screenshotMilliseconds() - (session.startedAt or screenshotMilliseconds())
-    local suffix = detail and detail ~= '' and ('; %s'):format(detail) or ''
-    print(('[kora_lib:screenshot][debug][%s] %s (+%d ms%s)'):format(session.token:sub(1, 8), stage, elapsed, suffix))
+    Kora.logging.debug('screenshot.stage', 'Screenshot capture progress', { stage = stage, elapsedMs = elapsed })
 end
 
 local validEncodings = {
@@ -101,7 +100,7 @@ local function finish(session, err, result)
     if not isCallable(session.callback) then return end
     local ok, callbackErr = pcall(session.callback, err or false, result)
     if not ok then
-        print(('[kora_lib:screenshot] capture callback failed: %s'):format(tostring(callbackErr)))
+        Kora.logging.error('lib.server.capture_callback_failed', ('[kora_lib:screenshot] capture callback failed: %s'):format(tostring(callbackErr)))
     end
 end
 

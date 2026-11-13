@@ -9,6 +9,7 @@ local network = mocks.install()
 
 dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'local/resources/client.lua')
 
 local messages = {}

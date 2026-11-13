@@ -15,6 +15,7 @@ local function advanceClock(milliseconds)
 end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "local/resources/server.lua")

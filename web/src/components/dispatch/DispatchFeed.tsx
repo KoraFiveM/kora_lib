@@ -143,7 +143,7 @@ export function DispatchFeed() {
         setPayload({ ...data, calls: Array.isArray(data.calls) ? data.calls : [] })
     })
     useEffect(() => {
-        void fetchNui("kora_lib:dispatchfeed:ready").catch((error) => console.error("[kora_lib] dispatch feed ready failed:", error))
+        void fetchNui("kora_lib:dispatchfeed:ready").catch((error) => globalThis.KoraLogger?.error('lib.nui.dispatchfeed', "[kora_lib] dispatch feed ready failed:", { detail1: String(error) }))
     }, [])
 
     const live = payload?.calls.filter((call) => isLive(call, now)).slice(0, payload.config?.feed?.maxVisible ?? 4) ?? []

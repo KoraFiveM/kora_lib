@@ -298,7 +298,7 @@ local function safeCall(zone, label, fn, ...)
     local ok, err = pcall(fn, ...)
 
     if not ok then
-        print(("[kora_lib:zones] %s callback for zone %d (%s, owned by %s) errored: %s")
+        Kora.logging.error('lib.client.callback_for_zone_owned_by_errored', ("[kora_lib:zones] %s callback for zone %d (%s, owned by %s) errored: %s")
             :format(label, zone.id, zone.type, zone.resource, tostring(err)))
     end
 end
@@ -848,7 +848,7 @@ local function restoreCreatorRadar(state)
 end
 
 local function creatorLog(msg)
-    print(("[kora_lib:zones] %s"):format(msg))
+    Kora.logging.info('lib.client.diagnostic', ("[kora_lib:zones] %s"):format(msg))
 end
 
 local function formatNumber(n)

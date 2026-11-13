@@ -24,4 +24,9 @@ if ! (cd "$dir/.." && node --test tools/lookup/generate.test.mjs); then
 fi
 echo
 
+echo "== logging adapters =="
+if ! (cd "$dir/.." && node --test test/logging_adapters.test.cjs); then
+    status=1
+fi
+
 exit "$status"
