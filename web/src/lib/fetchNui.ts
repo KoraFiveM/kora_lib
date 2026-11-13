@@ -58,6 +58,6 @@ export function respondToNui<T = unknown>(requestId: number, token: string, ok: 
         : { requestId, token, ok: false, error: String(resultOrError) }
 
     return fetchNui("kora_lib:nui:response", body).catch((error) => {
-        console.error(`[kora_lib] respondToNui failed for request ${requestId}:`, error)
+        globalThis.KoraLogger?.error('lib.nui.fetchnui', `[kora_lib] respondToNui failed for request ${requestId}:`, { detail1: String(error) })
     })
 }

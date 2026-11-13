@@ -3,6 +3,7 @@ local testDir = scriptDir .. '../'
 local repoRoot = testDir .. '../'
 package.path = testDir .. '?.lua;' .. package.path
 local H = require('harness')
+_G.Kora = { logging = { warn = function(_, message) print(message) end, error = function(_, message) print(message) end, info = function(_, message) print(message) end } }
 local makeConfig = dofile(repoRoot .. 'modules/config/consumer.lua')
 
 local files = {}

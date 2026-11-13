@@ -93,7 +93,7 @@ function Kora.anim.play(entity, dict, clip, opts)
             if opts.onFinish then
                 local ok, err = pcall(opts.onFinish, entity)
                 if not ok then
-                    print(("[kora_lib] Kora.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
+                    Kora.logging.error('lib.client.kora_anim_onfinish_errored', ("[kora_lib] Kora.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
                 end
             end
         end)

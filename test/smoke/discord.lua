@@ -49,6 +49,7 @@ _G.GetNumPlayerIdentifiers = function(src) return #(playerIdentifiers[tonumber(s
 _G.GetPlayerIdentifier = function(src, index) return (playerIdentifiers[tonumber(src)] or {})[index + 1] end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/discord/server.lua")
 

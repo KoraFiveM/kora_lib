@@ -2,6 +2,8 @@ local library = exports.kora_lib
 local requireModule
 local configModule
 local compatModule
+local loggingFallbacks = 0
+local diagnosticMethods = { trace = true, debug = true, info = true, warn = true, error = true, fatal = true, isEnabled = true, nui = true }
 
 local consumerModuleFiles = {
     loops = { 'modules/loops/shared.lua' },
@@ -156,6 +158,18 @@ Kora = setmetatable({}, {
                             end
                         end
                         return registerCall(name, handler, ...)
+                    end
+                elseif (k == 'logging' and diagnosticMethods[k2]) or (k == 'print' and (diagnosticMethods[k2] or k2 == 'success')) then
+                    local dispatch = wrapper
+                    wrapper = function(...)
+                        local ok, result = pcall(dispatch, ...)
+                        if ok then return result end
+                        if k2 ~= 'isEnabled' and loggingFallbacks < 3
+                            and GetResourceState('kora_lib') ~= 'started' then
+                            loggingFallbacks = loggingFallbacks + 1
+                            print('[Kora/logging] shared logger unavailable; diagnostic dropped')
+                        end
+                        return false
                     end
                 end
                 rawset(subProxy, k2, wrapper)

@@ -1,25 +1,12 @@
-# Print helpers
+# Print helpers (compatibility)
 
-Shared structured-console helpers. Each function accepts any number of values, formats them on one line, and adds a colored severity prefix:
+`Kora.print.debug`, `Kora.print.info`, `Kora.print.warn`, `Kora.print.error` and
+`Kora.print.success` retain their variadic call shape. They now delegate to
+`Kora.logging` with event `legacy.print`; success maps to info. Scalar arguments
+form the message; table arguments become structured, recursively redacted fields.
+Debug now obeys the configured logging threshold. Calls never intentionally dump
+whole objects or bypass central filtering.
 
-```lua
-Kora.print.debug(...)
-Kora.print.info(...)
-Kora.print.warn(...)
-Kora.print.error(...)
-Kora.print.success(...)
-```
-
-Tables are encoded as indented JSON with sorted keys. Numbers, booleans, strings, `nil`, and functions are converted to readable text without changing the values passed by the caller.
-If a table cannot be JSON-encoded (for example, it contains a cycle), the
-helper falls back to its Lua string representation rather than throwing from a
-diagnostic call.
-
-```lua
-Kora.print.info('player loaded', {
-    source = source,
-    license = license,
-})
-```
-
-These are presentation helpers, not persistent logging. Use `Kora.logging.event` when an event needs ring-buffer statistics or optional Discord delivery.
+New code uses `Kora.logging.info('player.loaded', 'Player loaded', { playerId = src })`.
+See [Logging](../logging/docs.md) for levels, capture and JSON export. This
+adapter does not provide durable audit storage or automatic Discord delivery.

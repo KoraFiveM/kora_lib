@@ -50,6 +50,7 @@ _G.exports = setmetatable({ kora_lib = bridge }, {
 })
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 Config = {
     ui = { interact = true },
     discord = { roleSyncInterval = 300000 },

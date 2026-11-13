@@ -68,7 +68,7 @@ function Kora.resources.registry(onDispose)
             ownerOf[id] = nil
             local ok, err = pcall(onDispose, id)
             if not ok then
-                print(("^3[kora_lib:resources]^7 cleanup for %s id %s failed: %s")
+                Kora.logging.error('lib.client.cleanup_for_id_failed', ("^3[kora_lib:resources]^7 cleanup for %s id %s failed: %s")
                     :format(resource, tostring(id), tostring(err)))
             end
         end

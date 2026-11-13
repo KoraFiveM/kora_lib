@@ -41,7 +41,7 @@ local SKILLBAR_ZONE_SIZE = { easy = 0.20, medium = 0.14, hard = 0.08 }
 local function playSkillbar(difficulty, validKeys)
     if validKeys ~= nil and not warnedSkillbarKeys then
         warnedSkillbarKeys = true
-        print("^3[qb-minigames compat]^7 Skillbar's validKeys has no equivalent in kora_lib's skillbar minigame -- ignored.")
+        Kora.logging.warn('lib.qb_minigames.skillbar', "^3[qb-minigames compat]^7 Skillbar's validKeys has no equivalent in kora_lib's skillbar minigame -- ignored.")
     end
 
     local zoneSize = SKILLBAR_ZONE_SIZE[difficulty] or SKILLBAR_ZONE_SIZE.easy

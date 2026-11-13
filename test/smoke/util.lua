@@ -13,6 +13,7 @@ _G.json = {
 }
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
 local projection = { onScreen = true, x = 0.25, y = 0.75 }

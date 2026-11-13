@@ -109,7 +109,7 @@ function Kora.events.register(name, handler, opts)
 
     local previousOwner = eventOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("[kora_lib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
+        Kora.logging.warn('lib.server.diagnostic', ("[kora_lib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
             :format(name, previousOwner, owner))
     end
 
@@ -163,7 +163,7 @@ local function dispatchGateway(token, name, ...)
 
     local ok, err = pcall(definition.handler, src, ...)
     if not ok then
-        print(("[kora_lib:events] handler for '%s' errored: %s"):format(name, tostring(err)))
+        Kora.logging.error('lib.server.handler_for', ("[kora_lib:events] handler for '%s' errored: %s"):format(name, tostring(err)))
     end
 end
 

@@ -15,7 +15,7 @@ local held = {}
 local bindingHandles = {}
 
 local function placementLog(message)
-    print(("[kora_lib:placement] %s"):format(message))
+    Kora.logging.info('lib.client.diagnostic', ("[kora_lib:placement] %s"):format(message))
 end
 
 local function plainVec3(value)

@@ -10,6 +10,7 @@ local net = mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 
 local sentItems = nil
 local nextRadialResult = nil

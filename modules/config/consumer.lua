@@ -594,10 +594,10 @@ return function(library)
         if values then return values end
         if errorMessage == 'missing' then return {} end
 
-        print(('[kora_lib:config] Ignoring invalid %s/%s: %s'):format(RESOURCE, fileName, errorMessage))
+        Kora.logging.warn('lib.consumer.ignoring_invalid', ('[kora_lib:config] Ignoring invalid %s/%s: %s'):format(RESOURCE, fileName, errorMessage))
         local backup = loadOverrides(fileName .. '.bak')
         if backup then
-            print(('[kora_lib:config] Restoring %s/%s from its backup.'):format(RESOURCE, fileName))
+            Kora.logging.info('lib.consumer.restoring_from_its_backup', ('[kora_lib:config] Restoring %s/%s from its backup.'):format(RESOURCE, fileName))
             return backup
         end
         return {}
@@ -700,7 +700,7 @@ return function(library)
             end
             if wasAffected then
                 local ok, err = pcall(binding.handler, copy(value), copy(previous), change)
-                if not ok then print(('[kora_lib:config] Binding for %s failed: %s'):format(resource, err)) end
+                if not ok then Kora.logging.error('lib.consumer.binding_for_failed', ('[kora_lib:config] Binding for %s failed: %s'):format(resource, err)) end
             end
         end
     end
@@ -1070,7 +1070,7 @@ return function(library)
         local value = config.get(resource, binding.path)
         if value ~= nil then
             local ok, err = pcall(handler, value, nil, { initial = true, resource = resource })
-            if not ok then print(('[kora_lib:config] Binding for %s failed: %s'):format(resource, err)) end
+            if not ok then Kora.logging.error('lib.consumer.binding_for_failed', ('[kora_lib:config] Binding for %s failed: %s'):format(resource, err)) end
         elseif resource ~= RESOURCE then
             if isServer and type(library.config_read) == 'function' then
                 local ok, snapshot = pcall(function() return library:config_read(resource) end)
@@ -1315,7 +1315,7 @@ return function(library)
             local handler = changeHandlers[pathKey({ displayPath(normalized) })]
             if handler then
                 local ok, err = pcall(handler, value, oldValue)
-                if not ok then print(('[kora_lib:config] Client update %s failed: %s'):format(displayPath(normalized), err)) end
+                if not ok then Kora.logging.error('lib.consumer.client_update_failed', ('[kora_lib:config] Client update %s failed: %s'):format(displayPath(normalized), err)) end
             end
             notifyBindings(RESOURCE, normalized, oldValue,
                 { resource = RESOURCE, path = copy(normalized), revision = state.revision })

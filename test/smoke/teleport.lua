@@ -9,6 +9,7 @@ mocks.install()
 
 dofile(repoRoot .. 'config.lua')
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
 
 local currentPed, moved, heading, fadeOut, fadeIn = 42, nil, nil, 0, 0

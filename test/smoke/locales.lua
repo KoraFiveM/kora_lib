@@ -24,6 +24,7 @@ _G.LoadResourceFile = function(resource, path) return files[resource .. '/' .. p
 _G.GetCurrentResourceName = function() return 'example' end
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'modules/locales/shared.lua')
 dofile(repoRoot .. 'modules/locales/client.lua')
 
