@@ -135,3 +135,10 @@ function Kora.lang(key, ...)
     assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')
     return translate(resource, key, ...)
 end
+
+function Kora.locale.getResourceLocale(resource)
+    if not resource then
+        resource = GetInvokingResource() or GetCurrentResourceName()
+    end
+    return resourceLocales(resource, currentLanguage())
+end
