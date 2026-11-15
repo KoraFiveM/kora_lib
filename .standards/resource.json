@@ -97,6 +97,7 @@
       "local/resources/shared.lua",
       "modules/blips/shared.lua",
       "modules/config/consumer.lua",
+      "locales/en.lua",
       "modules/locales/shared.lua",
       "modules/logging/shared.lua",
       "modules/lookup/shared.lua",

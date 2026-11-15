@@ -117,7 +117,7 @@ end
 
 Kora.keybind.add({
     name = 'playerfocus',
-    description = 'Give Menu Focus',
+    description = KoraLang('Compat.menu.give_focus'),
     defaultMapper = 'keyboard',
     defaultKey = 'LMENU',
     onPressed = function()

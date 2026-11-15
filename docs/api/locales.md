@@ -10,6 +10,8 @@ sidebar_position: 6
 
 Looks up translated text from a resource’s locales folder. Client calls use the player’s selected language, fall back to English, interpolate named or positional placeholders, and return the key itself when no translation is available.
 
+Inside kora_lib, `KoraLang(key, ...)` is available from the early-loaded `config.lua` for its own Lua locale files. It uses the `kora_locale` convar and falls back to English. Consumer resources should use `Kora.lang` or `Kora.locale.translate` instead.
+
 Namespace: `Kora.locale` · Source: `modules/locales/shared.lua`
 
 ### Functions

@@ -5,6 +5,12 @@ folder. Clients use their own saved language, fall back to English, interpolate
 both legacy `%{name}` and positional `%s` placeholders, and return the key when
 no translation exists.
 
+`KoraLang(key, ...)` is the internal kora_lib helper. It is defined in the
+early-loaded `config.lua`, reads `kora_lib/locales/<language>.lua` using
+`GetConvar('kora_locale', 'en')`, and falls back to `locales/en.lua`. Use it
+inside kora_lib; consumers should keep using `Kora.lang` or
+`Kora.locale.translate` for their own locale files.
+
 Named placeholder keys and replacement values are treated literally, so values
 such as `50%` and keys such as `%{item.id}` are safe to use.
 
