@@ -111,25 +111,20 @@ local function normalizeOptions(options)
     local config = screenshotConfig()
     local encoding = options.encoding
     if encoding == nil then encoding = config.defaultEncoding or 'jpg' end
-    assert(type(encoding) == 'string' and validEncodings[encoding], 'Screenshot encoding must be jpg, png, or webp.')
+    assert(type(encoding) == 'string' and validEncodings[encoding], KoraLang('Modules.Screenshot.validation_screenshot_encoding_must_be_jpg_png_or_webp'))
 
     local quality = options.quality
     if quality == nil then quality = config.defaultQuality or 0.92 end
-    assert(type(quality) == 'number' and quality >= 0 and quality <= 1,
-        'Screenshot quality must be a number from 0 to 1.')
+    assert(type(quality) == 'number' and quality >= 0 and quality <= 1, KoraLang('Modules.Screenshot.validation_screenshot_quality_must_be_a_number_from_0_t'))
 
     local maxWidth = options.maxWidth
     if maxWidth == nil then maxWidth = config.maxWidth end
     local maxHeight = options.maxHeight
     if maxHeight == nil then maxHeight = config.maxHeight end
-    assert(maxWidth == false or (isInteger(maxWidth) and maxWidth >= 1),
-        'Screenshot maxWidth must be a positive integer or false.')
-    assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1),
-        'Screenshot maxHeight must be a positive integer or false.')
-    assert(options.includeNui == nil or type(options.includeNui) == 'boolean',
-        'Screenshot includeNui must be a boolean.')
-    assert(options.fileName == nil or (type(options.fileName) == 'string' and options.fileName ~= ''),
-        'Screenshot fileName must be a non-empty string.')
+    assert(maxWidth == false or (isInteger(maxWidth) and maxWidth >= 1), KoraLang('Modules.Screenshot.validation_screenshot_maxwidth_must_be_a_positive_integ'))
+    assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1), KoraLang('Modules.Screenshot.validation_screenshot_maxheight_must_be_a_positive_inte'))
+    assert(options.includeNui == nil or type(options.includeNui) == 'boolean', KoraLang('Modules.Screenshot.validation_screenshot_includenui_must_be_a_boolean'))
+    assert(options.fileName == nil or (type(options.fileName) == 'string' and options.fileName ~= ''), KoraLang('Modules.Screenshot.validation_screenshot_filename_must_be_a_non_empty_stri'))
 
     return {
         encoding = encoding,
@@ -147,18 +142,16 @@ end
 ---@param callback? fun(err: string|false, result?: string)
 ---@return string token
 function Kora.screenshot.requestClient(player, options, callback)
-    assert(isInteger(player) and player >= 1,
-        'Screenshot player must be a positive server ID.')
-    assert(callback == nil or isCallable(callback), 'Screenshot callback must be callable.')
-    assert(GetPlayerName(player) ~= nil, 'Screenshot player is not connected.')
-    assert(not playerUploads[player], 'A screenshot is already pending for this player.')
+    assert(isInteger(player) and player >= 1, KoraLang('Modules.Screenshot.validation_screenshot_player_must_be_a_positive_server'))
+    assert(callback == nil or isCallable(callback), KoraLang('Modules.Screenshot.validation_screenshot_callback_must_be_callable'))
+    assert(GetPlayerName(player) ~= nil, KoraLang('Modules.Screenshot.validation_screenshot_player_is_not_connected'))
+    assert(not playerUploads[player], KoraLang('Modules.Screenshot.validation_a_screenshot_is_already_pending_for_this_pla'))
 
     if options == nil then options = {} end
     local normalized = normalizeOptions(options)
     local timeout = options.timeout
     if timeout == nil then timeout = screenshotConfig().requestTimeout or 30000 end
-    assert(isInteger(timeout) and timeout > 1000,
-        'Screenshot timeout must be an integer greater than 1000 milliseconds.')
+    assert(isInteger(timeout) and timeout > 1000, KoraLang('Modules.Screenshot.validation_screenshot_timeout_must_be_an_integer_greate'))
     local token = generateToken(48)
     local session = {
         token = token,

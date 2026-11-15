@@ -36,7 +36,7 @@ internal.emit = emit
 ---@param data? table small, JSON-safe context
 function Kora.qa.mark(name, data)
     if not active then return end
-    assert(internal.validName(name), 'Kora.qa.mark name must be 1-64 characters of [A-Za-z0-9_:.-/ ].')
+    assert(internal.validName(name), KoraLang('Modules.Qa.validation_kora_qa_mark_name_must_be_1_64_characters_of'))
     emit('mark', name, data)
 end
 
@@ -51,7 +51,7 @@ end
 ---@return boolean active
 function Kora.qa.setActive(state)
     local invoker = GetInvokingResource()
-    assert(internal.isRunner(invoker), 'Only kora_qa may change the QA run state.')
+    assert(internal.isRunner(invoker), KoraLang('Modules.Qa.validation_only_kora_qa_may_change_the_qa_run_state'))
     active = state == true
     activeOwner = active and (invoker or GetCurrentResourceName()) or nil
     return active

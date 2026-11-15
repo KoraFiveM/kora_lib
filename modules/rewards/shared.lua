@@ -15,9 +15,8 @@ local function resolveAmount(item)
         return amount
     end
 
-    assert(type(amount) == "table" and Kora.util.isInteger(amount.min) and Kora.util.isInteger(amount.max),
-        "item.amount must be a number or a { min, max } table with integer bounds")
-    assert(amount.min <= amount.max, "item.amount.min must not be greater than item.amount.max")
+    assert(type(amount) == "table" and Kora.util.isInteger(amount.min) and Kora.util.isInteger(amount.max), KoraLang('Modules.Rewards.validation_item_amount_must_be_a_number_or_a_min_max_ta'))
+    assert(amount.min <= amount.max, KoraLang('Modules.Rewards.validation_item_amount_min_must_not_be_greater_than_ite'))
 
     return math.random(amount.min, amount.max)
 end
@@ -50,9 +49,9 @@ local function resolveChances(items, mode)
     for i = 1, #items do
         local item = items[i]
         if item.chance ~= nil then
-            assert(Kora.util.isFiniteNumber(item.chance) and item.chance > 0, "item.chance must be a positive number")
+            assert(Kora.util.isFiniteNumber(item.chance) and item.chance > 0, KoraLang('Modules.Rewards.validation_item_chance_must_be_a_positive_number'))
             if mode == "percent" then
-                assert(item.chance <= 100, "item.chance must not exceed 100 in percent mode")
+                assert(item.chance <= 100, KoraLang('Modules.Rewards.validation_item_chance_must_not_exceed_100_in_percent_m'))
             end
             chances[i] = item.chance
         else
@@ -111,20 +110,19 @@ end
 ---@param opts? { mode?: "weighted" | "percent", rolls?: integer, allowNone?: boolean }
 ---@return table[] rewards Copies of the winning items, each with `amount` resolved to a number. Guaranteed non-empty unless `opts.allowNone` is `true`.
 function Kora.rewards.generate(items, opts)
-    assert(type(items) == "table", "items must be a non-empty array")
+    assert(type(items) == "table", KoraLang('Modules.Rewards.validation_items_must_be_a_non_empty_array'))
     local itemCount = 0
     for index, item in pairs(items) do
-        assert(Kora.util.isInteger(index) and index >= 1 and type(item) == 'table',
-            'items must be a dense array of tables')
+        assert(Kora.util.isInteger(index) and index >= 1 and type(item) == 'table', KoraLang('Modules.Rewards.validation_items_must_be_a_dense_array_of_tables'))
         itemCount = itemCount + 1
     end
-    assert(itemCount > 0 and itemCount == #items, 'items must be a non-empty dense array')
-    assert(opts == nil or type(opts) == "table", "opts must be a table")
+    assert(itemCount > 0 and itemCount == #items, KoraLang('Modules.Rewards.validation_items_must_be_a_non_empty_dense_array'))
+    assert(opts == nil or type(opts) == "table", KoraLang('Modules.Rewards.validation_opts_must_be_a_table'))
 
     opts = opts or {}
 
     local mode = opts.mode == nil and DEFAULT_MODE or opts.mode
-    assert(mode == "weighted" or mode == "percent", "opts.mode must be \"weighted\" or \"percent\"")
+    assert(mode == "weighted" or mode == "percent", KoraLang('Modules.Rewards.validation_opts_mode_must_be_weighted_or_percent'))
 
     local rolls = opts.rolls == nil and 1 or opts.rolls
     assert(Kora.util.isInteger(rolls) and rolls >= 1 and rolls <= MAX_REWARD_RESULTS,

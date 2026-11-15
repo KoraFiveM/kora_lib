@@ -31,16 +31,15 @@ end)
 ---@param name any
 ---@param set any
 local function assertSound(name, set)
-    assert(type(name) == "string" and name ~= "", "Kora.sound requires a non-empty sound name.")
-    assert(type(set) == "string" and set ~= "", "Kora.sound requires a non-empty sound set/ref.")
+    assert(type(name) == "string" and name ~= "", KoraLang('Modules.Sound.validation_kora_sound_requires_a_non_empty_sound_name'))
+    assert(type(set) == "string" and set ~= "", KoraLang('Modules.Sound.validation_kora_sound_requires_a_non_empty_sound_set_re'))
 end
 
 ---@param options any
 local function assertOptions(options)
-    assert(type(options) == "table", "Sound options must be a table.")
-    assert(options.network == nil or type(options.network) == "boolean", "Sound network must be a boolean.")
-    assert(options.bank == nil or (type(options.bank) == "string" and options.bank ~= ""),
-        "Sound bank must be a non-empty string.")
+    assert(type(options) == "table", KoraLang('Modules.Sound.validation_sound_options_must_be_a_table'))
+    assert(options.network == nil or type(options.network) == "boolean", KoraLang('Modules.Sound.validation_sound_network_must_be_a_boolean'))
+    assert(options.bank == nil or (type(options.bank) == "string" and options.bank ~= ""), KoraLang('Modules.Sound.validation_sound_bank_must_be_a_non_empty_string'))
 end
 
 ---Claims a sound id, registers it against the caller and arms its auto-release.
@@ -51,8 +50,7 @@ end
 local function claim(owner, options)
     local releaseAfter = options.releaseAfter
     if releaseAfter == nil then releaseAfter = Config.sound.defaultReleaseAfter end
-    assert(Kora.util.isFiniteNumber(releaseAfter) and releaseAfter >= 0,
-        'Sound releaseAfter must be a finite non-negative number.')
+    assert(Kora.util.isFiniteNumber(releaseAfter) and releaseAfter >= 0, KoraLang('Modules.Sound.validation_sound_releaseafter_must_be_a_finite_non_nega'))
 
     if options.bank then
         if bankRefs[options.bank] then
@@ -117,12 +115,10 @@ function Kora.sound.playFromCoords(coords, name, set, options)
     if options == nil then options = {} end
     assertSound(name, set)
     assertOptions(options)
-    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
-        "Invalid coords: expected a vector3 or {x, y, z} table.")
+    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z), KoraLang('Modules.Sound.validation_invalid_coords_expected_a_vector3_or_x_y_z_t'))
     local range = options.range
     if range == nil then range = Config.sound.defaultRange end
-    assert(Kora.util.isFiniteNumber(range) and range >= 0,
-        'Sound range must be a finite non-negative number.')
+    assert(Kora.util.isFiniteNumber(range) and range >= 0, KoraLang('Modules.Sound.validation_sound_range_must_be_a_finite_non_negative_nu'))
 
     local soundId, err = claim(owner, options)
     if not soundId then return false, err end

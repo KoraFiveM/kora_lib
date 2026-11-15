@@ -5,13 +5,11 @@
 ---@return any value
 ---@return string|nil reason
 function Kora.state.awaitGlobal(key, timeoutMs, pollIntervalMs)
-    assert(type(key) == "string" and key ~= "", "Kora.state.awaitGlobal requires a state key.")
+    assert(type(key) == "string" and key ~= "", KoraLang('Modules.State.validation_kora_state_awaitglobal_requires_a_state_key'))
     if timeoutMs == nil then timeoutMs = 5000 end
     if pollIntervalMs == nil then pollIntervalMs = 50 end
-    assert(Kora.util.isInteger(timeoutMs) and timeoutMs >= 0,
-        "timeoutMs must be a non-negative integer.")
-    assert(Kora.util.isInteger(pollIntervalMs) and pollIntervalMs >= 0,
-        "pollIntervalMs must be a non-negative integer.")
+    assert(Kora.util.isInteger(timeoutMs) and timeoutMs >= 0, KoraLang('Modules.State.validation_timeoutms_must_be_a_non_negative_integer'))
+    assert(Kora.util.isInteger(pollIntervalMs) and pollIntervalMs >= 0, KoraLang('Modules.State.validation_pollintervalms_must_be_a_non_negative_intege'))
 
     local startedAt = GetGameTimer()
     repeat
