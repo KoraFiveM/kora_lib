@@ -4,7 +4,7 @@ local SERVER_ID_RETRY_INTERVAL = 250
 local refreshInterval = Config.cache.tickInterval
 
 assert(Kora.util.isInteger(refreshInterval) and refreshInterval > 0,
-    'Config.cache.tickInterval must be a positive finite integer.')
+    KoraLang('Modules.Cache.tick_interval_invalid'))
 
 local RESERVED_KEYS = {
     playerId = true,
@@ -29,7 +29,7 @@ local listenerRegistry
 
 local function assertKey(key)
     assert(type(key) == "string" and #key > 0 and #key <= 256,
-        "Cache key must be a non-empty string up to 256 bytes.")
+        KoraLang('Modules.Cache.key_invalid'))
 end
 
 local isCallable = Kora.compat.isCallable
@@ -49,7 +49,8 @@ local function setValue(key, value)
         if entry then
             local ok, err = pcall(entry.handler, value, old)
             if not ok then
-                Kora.logging.error('lib.client.onchange_handler_for', ("[kora_lib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
+                Kora.logging.error('lib.client.onchange_handler_for', KoraLang(
+                    'Modules.Cache.change_handler_errored', key, tostring(err)))
             end
 
             if handlers[entryIndex] == entry then entryIndex = entryIndex + 1 end
@@ -149,7 +150,8 @@ function Kora.cache.set(key, value)
     assertKey(key)
 
     if RESERVED_KEYS[key] then
-        Kora.logging.warn('lib.client.ignoring_kora_cache_set', ("[kora_lib:cache] Ignoring Kora.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
+        Kora.logging.warn('lib.client.ignoring_kora_cache_set', KoraLang(
+            'Modules.Cache.reserved_key_ignored', key, key))
         return
     end
 
@@ -162,7 +164,7 @@ end
 ---@param handler fun(newValue: any, oldValue: any)
 function Kora.cache.onChange(key, handler)
     assertKey(key)
-    assert(isCallable(handler), "onChange handler must be a function.")
+    assert(isCallable(handler), KoraLang('Modules.Cache.handler_function'))
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 

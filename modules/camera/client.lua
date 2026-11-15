@@ -28,52 +28,54 @@ end
 
 local function assertCoords(value, name)
     assert(isCoords(value) and isFiniteNumber(value.x) and isFiniteNumber(value.y) and isFiniteNumber(value.z),
-        ('Camera %s must contain finite x, y, and z values.'):format(name))
+        KoraLang('Modules.Camera.coords_invalid', name))
 end
 
 local function assertText(value, name)
     assert(type(value) == 'string' and value ~= '' and #value <= 80,
-        ('Camera %s must be a non-empty string of 80 characters or fewer.'):format(name))
+        KoraLang('Modules.Camera.text_invalid', name))
 end
 
 local function validateCamera(camera, index)
-    assert(type(camera) == 'table', ('Camera %d must be a table.'):format(index))
-    assert(camera.coords ~= nil, ('Camera %d requires coords.'):format(index))
+    assert(type(camera) == 'table', KoraLang('Modules.Camera.table_invalid', index))
+    assert(camera.coords ~= nil, KoraLang('Modules.Camera.coords_required', index))
     assertCoords(camera.coords, ('%d coords'):format(index))
 
     if camera.target ~= nil then assertCoords(camera.target, ('%d target'):format(index)) end
     if camera.rotation ~= nil then assertCoords(camera.rotation, ('%d rotation'):format(index)) end
     if camera.fov ~= nil then
         assert(isFiniteNumber(camera.fov) and camera.fov >= 10.0 and camera.fov <= 120.0,
-            ('Camera %d fov must be between 10 and 120.'):format(index))
+            KoraLang('Modules.Camera.fov_invalid', index))
     end
     if camera.label ~= nil then assertText(camera.label, ('%d label'):format(index)) end
 end
 
 local function normalizedOptions(options)
-    assert(type(options) == 'table', 'Camera.open requires an options table.')
+    assert(type(options) == 'table', KoraLang('Modules.Camera.options_table'))
 
     local mode = options.mode or 'operator'
-    assert(CAMERA_MODES[mode], 'Camera mode must be cctv, recording, helicam, or operator.')
+    assert(CAMERA_MODES[mode], KoraLang('Modules.Camera.mode_invalid'))
 
     local cameras = options.cameras or {}
-    assert(type(cameras) == 'table', 'Camera cameras must be a table.')
+    assert(type(cameras) == 'table', KoraLang('Modules.Camera.cameras_table'))
     if options.camera then cameras = { options.camera } end
     for index, camera in ipairs(cameras) do validateCamera(camera, index) end
 
     if options.title ~= nil then assertText(options.title, 'title') end
     if options.subtitle ~= nil then assertText(options.subtitle, 'subtitle') end
     if options.cameraLabel ~= nil then assertText(options.cameraLabel, 'cameraLabel') end
-    assert(options.recording == nil or type(options.recording) == 'boolean', 'Camera recording must be a boolean.')
-    assert(options.controls == nil or type(options.controls) == 'boolean', 'Camera controls must be a boolean.')
+    assert(options.recording == nil or type(options.recording) == 'boolean', KoraLang('Modules.Camera.recording_boolean'))
+    assert(options.controls == nil or type(options.controls) == 'boolean', KoraLang('Modules.Camera.controls_boolean'))
     assert(options.viewMode == nil or (type(options.viewMode) == 'number' and options.viewMode >= 0 and options.viewMode <= 4),
-        'Camera viewMode must be between 0 and 4.')
+        KoraLang('Modules.Camera.view_mode_invalid'))
 
     return {
         mode = mode,
-        title = options.title or 'SECURE CAMERA NETWORK',
-        subtitle = options.subtitle or (mode == 'cctv' and 'CITYWIDE MONITORING' or 'FIELD OPTICS'),
-        cameraLabel = options.cameraLabel or (mode == 'cctv' and 'CAM 01' or 'LIVE UNIT'),
+        title = options.title or KoraLang('Modules.Camera.title'),
+        subtitle = options.subtitle or KoraLang(mode == 'cctv'
+            and 'Modules.Camera.cctv_subtitle' or 'Modules.Camera.field_subtitle'),
+        cameraLabel = options.cameraLabel or KoraLang(mode == 'cctv'
+            and 'Modules.Camera.cctv_label' or 'Modules.Camera.field_label'),
         recording = options.recording == true,
         controls = options.controls ~= false,
         timestamp = options.timestamp ~= false,
@@ -108,10 +110,10 @@ local function showInstructions()
     if not state.options.controls then return end
     local buttons = {}
     if #state.cameras > 1 then
-        buttons[#buttons + 1] = { control = 10, label = 'Next camera' }
-        buttons[#buttons + 1] = { control = 11, label = 'Previous camera' }
+        buttons[#buttons + 1] = { control = 10, label = KoraLang('Modules.Camera.next_camera') }
+        buttons[#buttons + 1] = { control = 11, label = KoraLang('Modules.Camera.previous_camera') }
     end
-    buttons[#buttons + 1] = { control = 177, label = 'Exit camera' }
+    buttons[#buttons + 1] = { control = 177, label = KoraLang('Modules.Camera.exit_camera') }
     state.instructions = Kora.instructional.show(buttons)
 end
 
@@ -126,7 +128,7 @@ local function createCamera(camera)
     local rotation = camera.rotation or vector3(0.0, 0.0, 0.0)
     local handle = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', coords.x, coords.y, coords.z,
         rotation.x, rotation.y, rotation.z, camera.fov or 52.0, false, 2)
-    assert(handle and handle ~= 0 and DoesCamExist(handle), 'Camera could not be created.')
+    assert(handle and handle ~= 0 and DoesCamExist(handle), KoraLang('Modules.Camera.create_failed'))
 
     if camera.target then PointCamAtCoord(handle, camera.target.x, camera.target.y, camera.target.z) end
     SetCamActive(handle, true)
@@ -244,7 +246,7 @@ end
 ---@param recording boolean
 ---@return boolean updated
 function Kora.camera.setRecording(recording)
-    assert(type(recording) == 'boolean', 'Camera setRecording requires a boolean.')
+    assert(type(recording) == 'boolean', KoraLang('Modules.Camera.set_recording_boolean'))
     if not state.active then return false end
     state.options.recording = recording
     sendUpdate()
