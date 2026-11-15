@@ -225,7 +225,7 @@ local function addCommandBinding(name, options)
     }, options.resource or GetCurrentResourceName())
 
     if not ok then
-        Kora.logging.warn('lib.client.could_not_register_key_mapping_for', KoraLang('Modules.Keybind.mapping_failed'):format(name, tostring(handle)))
+        Kora.logging.warn('lib.client.could_not_register_key_mapping_for', KoraLang('Modules.Keybind.mapping_failed', name, tostring(handle)))
         return
     end
     commandBindings[name] = handle

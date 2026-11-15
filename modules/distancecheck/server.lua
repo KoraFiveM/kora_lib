@@ -15,7 +15,7 @@ end
 
 local function assertCoords(coords, label)
     assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
-        KoraLang('Modules.Distancecheck.coords_invalid'):format(label))
+        KoraLang('Modules.Distancecheck.coords_invalid', label))
 end
 
 local function assertEntity(entity)

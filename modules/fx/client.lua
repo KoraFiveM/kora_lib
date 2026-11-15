@@ -27,14 +27,14 @@ local screenRegistry = Kora.resources.registry(disposeScreenHandle)
 local function assertDuration(duration, label)
     if duration == nil then duration = 0 end
     assert(Kora.util.isInteger(duration) and duration >= 0,
-        KoraLang('Modules.Fx.duration_invalid'):format(label))
+        KoraLang('Modules.Fx.duration_invalid', label))
     return duration
 end
 
 local function assertVec3(value, label)
     assert(value and Kora.util.isFiniteNumber(value.x) and Kora.util.isFiniteNumber(value.y)
             and Kora.util.isFiniteNumber(value.z),
-        KoraLang('Modules.Fx.coords_invalid'):format(label))
+        KoraLang('Modules.Fx.coords_invalid', label))
 end
 
 ---Plays a particle effect, releasing `def.dict` right after the effect starts (the running effect no longer needs it).

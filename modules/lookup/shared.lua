@@ -45,30 +45,30 @@ local function normalize(value)
 
     if valueType == 'number' then
         assert(Kora.util.isFiniteNumber(value),
-            'Lookup hash must be a finite number.')
-        assert(value % 1 == 0, 'Lookup hash must be an integer.')
+            KoraLang('Modules.Lookup.hash_number_invalid'))
+        assert(value % 1 == 0, KoraLang('Modules.Lookup.hash_integer_invalid'))
         assert(value >= INT32_MIN and value <= UINT32_MAX,
-            'Lookup hash must fit a signed or unsigned 32-bit integer.')
+            KoraLang('Modules.Lookup.hash_range_invalid'))
         return value < 0 and value + UINT32 or value
     end
 
-    assert(valueType == 'string', 'Lookup value must be a hash or canonical name.')
+    assert(valueType == 'string', KoraLang('Modules.Lookup.value_invalid'))
     value = trim(value)
-    assert(value ~= '', 'Lookup value must not be empty.')
+    assert(value ~= '', KoraLang('Modules.Lookup.value_empty'))
 
     local parsed
     if value:match('^0[xX]') then
-        assert(value:match('^0[xX][%da-fA-F]+$'), 'Lookup hexadecimal hash is malformed.')
+        assert(value:match('^0[xX][%da-fA-F]+$'), KoraLang('Modules.Lookup.hash_hex_invalid'))
         parsed = tonumber(value:sub(3), 16)
     elseif value:match('^[+-]?%d+$') then
         parsed = tonumber(value, 10)
     elseif value:match('^[+-]?[%d%.]+$') then
-        error('Lookup decimal hash is malformed.', 2)
+        error(KoraLang('Modules.Lookup.hash_decimal_invalid'), 2)
     end
 
     if parsed ~= nil then
         assert(parsed % 1 == 0 and parsed >= INT32_MIN and parsed <= UINT32_MAX,
-            'Lookup hash must fit a signed or unsigned 32-bit integer.')
+            KoraLang('Modules.Lookup.hash_range_invalid'))
         return parsed < 0 and parsed + UINT32 or parsed
     end
 
@@ -135,13 +135,13 @@ local function loadNamespace(namespace)
 
     local path = ('modules/lookup/data/%s.lua'):format(namespace)
     local raw = LoadResourceFile(GetCurrentResourceName(), path)
-    assert(type(raw) == 'string', ('Lookup bundle is missing: %s'):format(path))
+    assert(type(raw) == 'string', KoraLang('Modules.Lookup.bundle_missing', path))
 
     local chunk, compileError = load(raw, ('@@%s/%s'):format(GetCurrentResourceName(), path), 't', {})
-    assert(chunk, ('Lookup bundle failed to compile: %s'):format(tostring(compileError)))
+    assert(chunk, KoraLang('Modules.Lookup.bundle_compile_failed', tostring(compileError)))
 
     local ok, entries = pcall(chunk)
-    assert(ok and type(entries) == 'table', ('Lookup bundle is invalid: %s'):format(path))
+    assert(ok and type(entries) == 'table', KoraLang('Modules.Lookup.bundle_invalid', path))
     state.base[namespace] = entries
     return entries
 end
@@ -269,7 +269,7 @@ state.setOverlay = setOverlay
 ---@return string? reason
 ---@return table[]? candidates
 function Kora.lookup.get(namespace, value)
-    assert(NAMESPACES[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
+    assert(NAMESPACES[namespace], KoraLang('Modules.Lookup.namespace_unknown', tostring(namespace)))
     return lookupHash(namespace, normalize(value))
 end
 
@@ -283,7 +283,7 @@ end
 function Kora.lookup.model(value, kind)
     if kind ~= nil then
         assert(kind == 'vehicle' or kind == 'ped' or kind == 'object',
-            'Model lookup kind must be vehicle, ped, or object.')
+            KoraLang('Modules.Lookup.model_kind_invalid'))
         return Kora.lookup.get(kind, value)
     end
 
@@ -336,19 +336,19 @@ function Kora.lookup.preload(selected)
     elseif type(selected) == 'string' then
         selected = { selected }
     else
-        assert(type(selected) == 'table', 'Lookup preload expects a namespace or array of namespaces.')
+        assert(type(selected) == 'table', KoraLang('Modules.Lookup.preload_selection_invalid'))
         local count = 0
         for index, namespace in pairs(selected) do
             assert(Kora.util.isInteger(index) and index >= 1 and NAMESPACES[namespace],
-                ('Unknown lookup namespace: %s'):format(tostring(namespace)))
+                KoraLang('Modules.Lookup.namespace_unknown', tostring(namespace)))
             count = count + 1
         end
-        assert(count == #selected, 'Lookup preload expects a dense array of namespaces.')
+        assert(count == #selected, KoraLang('Modules.Lookup.preload_dense_invalid'))
     end
 
     for namespaceIndex = 1, #selected do
         local namespace = selected[namespaceIndex]
-        assert(NAMESPACES[namespace], ('Unknown lookup namespace: %s'):format(tostring(namespace)))
+        assert(NAMESPACES[namespace], KoraLang('Modules.Lookup.namespace_unknown', tostring(namespace)))
         loadNamespace(namespace)
     end
     return true
@@ -365,10 +365,10 @@ end
 function Kora.lookup.awaitReady(timeout)
     if timeout == nil then timeout = 10000 end
     assert(Kora.util.isInteger(timeout) and timeout >= 0,
-        'Lookup readiness timeout must be a non-negative integer.')
+        KoraLang('Modules.Lookup.timeout_invalid'))
     if state.overlayReady then return true end
 
     local ready = Kora.loops.controlled(function() return state.overlayReady end, false, timeout, 25)
     if ready then return true end
-    return false, 'Lookup catalog synchronization timed out.'
+    return false, KoraLang('Modules.Lookup.sync_timeout')
 end

@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useRef, useState } from "react"
 
 import type { CancelledAttempt, HackingAttempt, HackingPuzzle } from "@/lib/types"
@@ -22,6 +23,7 @@ interface HackingGameProps {
  * submission against its own copy (see server.lua's validate.hacking).
  */
 export function HackingGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: HackingGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const valueRef = useRef("")
@@ -47,18 +49,18 @@ export function HackingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
             <DialogContent hideClose className="max-w-sm">
                 <DialogHeader>
                     <DialogTitle>
-                        Hacking &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleHacking, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <p className="text-center text-2xl font-mono font-semibold tracking-widest text-primary">
                     {puzzle.code}
                 </p>
-                <p className="text-center text-xs tabular-nums text-muted-foreground">{secondsLeft}s left</p>
+                <p className="text-center text-xs tabular-nums text-muted-foreground">{formatMinigameLabel(labels.secondsLeft, secondsLeft)}</p>
 
                 <div className="flex gap-2">
                     <Input
@@ -74,10 +76,10 @@ export function HackingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                         placeholder="Enter the code..."
                         className="font-mono uppercase"
                     />
-                    <Button onClick={() => finish(value)}>Submit</Button>
+                    <Button onClick={() => finish(value)}>{labels.submit}</Button>
                 </div>
 
-                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.cancelInstruction, "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

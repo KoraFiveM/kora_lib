@@ -10,17 +10,17 @@ local nextFocusLease = 0
 local focusBaseKeepInput
 
 local APP_LABEL_FALLBACKS = {
-    cancel = 'Cancel', confirm = 'Confirm', working = 'Working…', run_action = 'Run action',
-    search = 'Search…', previous = 'Previous', next = 'Next', no_records = 'No records',
-    nothing_here = 'Nothing here', empty_title = 'Nothing here yet',
-    empty_description = 'This section is ready for its application content.', close = 'Close',
-    select = 'Select…', required = 'Required.', invalid_format = 'Invalid format.',
-    min_value = 'Must be at least %{value}.', max_value = 'Must be at most %{value}.',
-    min_length = 'Must be at least %{value} characters.', max_length = 'Must be at most %{value} characters.',
-    page = 'Page %{current} of %{total}', recenter = 'Recenter map', clear = 'Clear', backspace = 'Backspace',
-    back = 'Back', open = 'Open', yes = 'Yes', no = 'No', map = 'Map', zoom_in = 'Zoom in', zoom_out = 'Zoom out',
-    value = 'value', decrease = 'Decrease %{field}', increase = 'Increase %{field}',
-    send = 'Send', new_messages = '%{count} new message(s)', new_divider = 'New', message = 'Message',
+    cancel = KoraLang('Modules.Nui.app.cancel'), confirm = KoraLang('Modules.Nui.app.confirm'), working = KoraLang('Modules.Nui.app.working'), run_action = KoraLang('Modules.Nui.app.run_action'),
+    search = KoraLang('Modules.Nui.app.search'), previous = KoraLang('Modules.Nui.app.previous'), next = KoraLang('Modules.Nui.app.next'), no_records = KoraLang('Modules.Nui.app.no_records'),
+    nothing_here = KoraLang('Modules.Nui.app.nothing_here'), empty_title = KoraLang('Modules.Nui.app.empty_title'),
+    empty_description = KoraLang('Modules.Nui.app.empty_description'), close = KoraLang('Modules.Nui.app.close'),
+    select = KoraLang('Modules.Nui.app.select'), required = KoraLang('Modules.Nui.app.required'), invalid_format = KoraLang('Modules.Nui.app.invalid_format'),
+    min_value = KoraLang('Modules.Nui.app.min_value'), max_value = KoraLang('Modules.Nui.app.max_value'),
+    min_length = KoraLang('Modules.Nui.app.min_length'), max_length = KoraLang('Modules.Nui.app.max_length'),
+    page = KoraLang('Modules.Nui.app.page'), recenter = KoraLang('Modules.Nui.app.recenter'), clear = KoraLang('Modules.Nui.app.clear'), backspace = KoraLang('Modules.Nui.app.backspace'),
+    back = KoraLang('Modules.Nui.app.back'), open = KoraLang('Modules.Nui.app.open'), yes = KoraLang('Modules.Nui.app.yes'), no = KoraLang('Modules.Nui.app.no'), map = KoraLang('Modules.Nui.app.map'), zoom_in = KoraLang('Modules.Nui.app.zoom_in'), zoom_out = KoraLang('Modules.Nui.app.zoom_out'),
+    value = KoraLang('Modules.Nui.app.value'), decrease = KoraLang('Modules.Nui.app.decrease'), increase = KoraLang('Modules.Nui.app.increase'),
+    send = KoraLang('Modules.Nui.app.send'), new_messages = KoraLang('Modules.Nui.app.new_messages'), new_divider = KoraLang('Modules.Nui.app.new_divider'), message = KoraLang('Modules.Nui.app.message'),
 }
 local MENU_ITEM_STRING_FIELDS = { 'description', 'icon', 'image' }
 local MENU_SIZE_FIELDS = { 'maxWidth', 'maxHeight' }
@@ -36,7 +36,7 @@ local isCallable = Kora.compat.isCallable
 
 local function assertAppId(id)
     assert(type(id) == "string" and id ~= "" and id:match("^[%w_:%.%-]+$"),
-        "App id must be a non-empty namespaced string without whitespace.")
+        KoraLang('Modules.Nui.app_id_invalid'))
 end
 
 local function translateAppLabel(key)
@@ -60,6 +60,7 @@ local function appLabels()
         value = translateAppLabel('value'), decrease = translateAppLabel('decrease'), increase = translateAppLabel('increase'),
         send = translateAppLabel('send'), newMessages = translateAppLabel('new_messages'),
         newDivider = translateAppLabel('new_divider'), message = translateAppLabel('message'),
+        statusSent = translateAppLabel('status_sent'), statusDelivered = translateAppLabel('status_delivered'), statusSeen = translateAppLabel('status_seen'),
     }
 end
 
@@ -670,7 +671,7 @@ local function mergeAppUpdate(registration, update)
         assert(key ~= "id", "App id cannot be changed by updateApp.")
         assert(key ~= "onAction", "Use registerApp to replace an app action handler.")
         assert(key ~= "onChange", "Use registerApp to replace an app change handler.")
-        assert(key ~= "labels", "App labels are owned by kora_lib's locale system.")
+        assert(key ~= "labels", KoraLang('Modules.Nui.labels_owned'))
         candidate[key] = value
     end
     registration.actionIds = assertBrowserApp(candidate)

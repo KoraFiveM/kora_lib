@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useRef, useState } from "react"
 
 import type { CancelledAttempt, PinpadAttempt, PinpadDigit, PinpadPuzzle } from "@/lib/types"
@@ -21,6 +22,7 @@ interface PinpadGameProps {
  * modules/minigames/server.lua's validate.pinpad).
  */
 export function PinpadGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: PinpadGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const digitsRef = useRef<PinpadDigit[]>([])
@@ -59,12 +61,12 @@ export function PinpadGame({ puzzle, attempt, attempts, timeLimit, lastResult, r
             <DialogContent hideClose className="max-w-xs">
                 <DialogHeader>
                     <DialogTitle>
-                        Pinpad &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titlePinpad, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <div className="flex items-center justify-center gap-2">
@@ -89,7 +91,7 @@ export function PinpadGame({ puzzle, attempt, attempts, timeLimit, lastResult, r
                     <div />
                 </div>
 
-                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.cancelInstruction, "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

@@ -6,14 +6,14 @@ local isFinite = Kora.util.isFiniteNumber
 local function copyCoords(value, label)
     assert((type(value) == 'table' or type(value) == 'vector3' or type(value) == 'vector4')
         and isFinite(value.x) and isFinite(value.y) and isFinite(value.z),
-        KoraLang('Modules.Freecam.coords_invalid'):format(label))
+        KoraLang('Modules.Freecam.coords_invalid', label))
     return { x = value.x, y = value.y, z = value.z }
 end
 
 local function optionNumber(value, fallback, label, allowZero)
     value = value == nil and fallback or value
     assert(isFinite(value) and (allowZero and value >= 0 or value > 0),
-        KoraLang('Modules.Freecam.number_invalid'):format(label, allowZero and 'non-negative ' or 'positive '))
+        KoraLang('Modules.Freecam.number_invalid', label, allowZero and 'non-negative ' or 'positive '))
     return value
 end
 
@@ -116,7 +116,7 @@ local function run(state)
         end
     end)
     if not ok then
-        Kora.logging.error('lib.client.stopped_after_an_error', KoraLang('Modules.Freecam.stopped_after_error'):format(tostring(err)))
+        Kora.logging.error('lib.client.stopped_after_an_error', KoraLang('Modules.Freecam.stopped_after_error', tostring(err)))
         stop(state, true)
     end
 end

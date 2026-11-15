@@ -4,7 +4,7 @@
 function Kora.notify.send(src, payload)
     local ok, err = pcall(function()
         assert(src == -1 or (Kora.util.isInteger(src) and src >= 1),
-            "Notify target must be -1 or a positive integer server ID.")
+            KoraLang('Modules.Notify.target_invalid'))
         payload = Kora.notify.normalize(payload)
         Kora.notify.assert(payload)
 

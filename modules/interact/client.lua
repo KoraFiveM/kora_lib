@@ -260,7 +260,7 @@ local function open(options, source, owner)
     CreateThread(function()
         local ok, err = pcall(controls, session)
         if not ok then
-            Kora.logging.error('lib.client.input_loop_stopped_after_an_error', KoraLang('Modules.Interact.loop_error'):format(tostring(err)))
+            Kora.logging.error('lib.client.input_loop_stopped_after_an_error', KoraLang('Modules.Interact.loop_error', tostring(err)))
             hide(session)
         end
     end)
@@ -304,15 +304,15 @@ end
 local function assertCoords(coords, label)
     assert((type(coords) == 'table' or type(coords) == 'vector3')
         and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
-        KoraLang('Modules.Interact.coords_invalid'):format(label))
+        KoraLang('Modules.Interact.coords_invalid', label))
 end
 
 local function assertBoxSize(size, label)
     assert((type(size) == 'table' or type(size) == 'vector3' or type(size) == 'vector4')
         and Kora.util.isFiniteNumber(size.x) and Kora.util.isFiniteNumber(size.y)
         and Kora.util.isFiniteNumber(size.z) and size.x > 0 and size.y > 0 and size.z > 0,
-        KoraLang('Modules.Interact.size_invalid'):format(label))
-    assert(size.w == nil or Kora.util.isFiniteNumber(size.w), KoraLang('Modules.Interact.rotation_invalid'):format(label))
+        KoraLang('Modules.Interact.size_invalid', label))
+    assert(size.w == nil or Kora.util.isFiniteNumber(size.w), KoraLang('Modules.Interact.rotation_invalid', label))
 end
 
 local function zoneOptionList(targetOptions)

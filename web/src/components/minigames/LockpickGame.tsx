@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useEffect, useRef, useState, type RefObject } from "react"
 
 import type { CancelledAttempt, LockpickAttempt, LockpickPress, LockpickPuzzle } from "@/lib/types"
@@ -23,6 +24,7 @@ interface LockpickGameProps {
  * modules/minigames/AGENTS.md).
  */
 export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: LockpickGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const pressesRef = useRef<LockpickPress[]>([])
@@ -86,12 +88,12 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Lockpick &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleLockpick, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <div className="space-y-3">
@@ -108,10 +110,7 @@ export function LockpickGame({ puzzle, attempt, attempts, timeLimit, lastResult,
                     ))}
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                    Press <span className="font-medium text-foreground">Space</span> when the indicator is inside the highlighted zone.
-                    Press <span className="font-medium text-foreground">Esc</span> to cancel.
-                </p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.lockpickInstruction, "Space", "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

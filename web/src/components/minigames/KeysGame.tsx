@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useEffect, useRef, useState } from "react"
 
 import type { CancelledAttempt, KeysAttempt, KeysPress, KeysPuzzle } from "@/lib/types"
@@ -31,6 +32,7 @@ const ARROW_SYMBOL: Record<string, string> = { up: "↑", down: "↓", left: "�
  * KeyMinigame, which has no pass/fail concept, only a faults count.
  */
 export function KeysGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: KeysGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const pressesRef = useRef<KeysPress[]>([])
@@ -76,12 +78,12 @@ export function KeysGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Keys &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleKeys, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <div className="flex flex-wrap justify-center gap-2">

@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useRef, useState } from "react"
 
 import type { CancelledAttempt, CircuitAttempt, CircuitConnection, CircuitNode, CircuitPuzzle } from "@/lib/types"
@@ -22,6 +23,7 @@ interface CircuitGameProps {
  * on timeout, whatever's connected so far).
  */
 export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: CircuitGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const connectionsRef = useRef<CircuitConnection[]>([])
@@ -72,12 +74,12 @@ export function CircuitGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Circuit &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleCircuit, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <div className="flex justify-between gap-10 px-4">

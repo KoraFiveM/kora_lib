@@ -987,6 +987,36 @@ export type MinigameAttempt =
     | HackingAttempt
     | CancelledAttempt
 
+export interface MinigameUiLabels {
+    titleAttempt: string
+    titleLockpick: string
+    titleSkillbar: string
+    titleCircuit: string
+    titleMash: string
+    titleFishing: string
+    titlePinpad: string
+    titleQuiz: string
+    titleWordguess: string
+    titleWordscramble: string
+    titleKeys: string
+    titleHacking: string
+    lastAttemptFailed: string
+    cancelInstruction: string
+    submit: string
+    fishingSlipped: string
+    keepMarker: string
+    gameCount: string
+    fishingInstruction: string
+    lockpickInstruction: string
+    mashInstruction: string
+    keysInstruction: string
+    skillbarInstruction: string
+    typeLetterInstruction: string
+    hintPrefix: string
+    guessedPrefix: string
+    guessesLeft: string
+    secondsLeft: string
+}
 export interface MinigamesRoundPayload {
     type: MinigameType
     sessionId: number
@@ -998,6 +1028,7 @@ export interface MinigamesRoundPayload {
     timeLimit: number
     /** Set from the second round on, when the previous attempt failed; absent on the first round. */
     lastResult?: "fail"
+    labels: MinigameUiLabels
     puzzle: MinigamePuzzle
 }
 

@@ -17,10 +17,10 @@ local function validate(buttons)
     assert(type(buttons) == 'table' and #buttons > 0, KoraLang('Modules.Instructional.buttons_invalid'))
     for index = 1, #buttons do
         local button = buttons[index]
-        assert(type(button) == 'table' and type(button.label) == 'string' and button.label ~= '', KoraLang('Modules.Instructional.label_invalid'):format(index))
+        assert(type(button) == 'table' and type(button.label) == 'string' and button.label ~= '', KoraLang('Modules.Instructional.label_invalid', index))
         local count = (button.control ~= nil and 1 or 0) + (button.command ~= nil and 1 or 0) + (button.keybind ~= nil and 1 or 0)
-        assert(button.group == nil or (type(button.group) == 'string' and button.group ~= ''), KoraLang('Modules.Instructional.group_invalid'):format(index))
-        assert(count == 1, KoraLang('Modules.Instructional.source_count_invalid'):format(index))
+        assert(button.group == nil or (type(button.group) == 'string' and button.group ~= ''), KoraLang('Modules.Instructional.group_invalid', index))
+        assert(count == 1, KoraLang('Modules.Instructional.source_count_invalid', index))
         token(button)
     end
 end

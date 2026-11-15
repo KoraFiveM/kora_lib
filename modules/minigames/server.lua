@@ -858,21 +858,21 @@ registerWithLegacyAlias("kora_lib:minigames:start", function(src, gameType, opts
     end
     local activeCount = sessionCountBySrc[src] or 0
     if activeCount >= Config.minigames.maxConcurrentPerPlayer then
-        error("A minigame is already in progress for this player.")
+        error(KoraLang('Modules.Minigames.session_limit'))
     end
 
     local authorization
     local cfg
     if authorizationToken ~= nil then
-        assert(isOpaqueToken(authorizationToken), "minigame authorization is malformed.")
+        assert(isOpaqueToken(authorizationToken), KoraLang('Modules.Minigames.auth_malformed'))
         authorization = authorizations[authorizationToken]
-        assert(authorization ~= nil, "Invalid or already-used minigame authorization.")
+        assert(authorization ~= nil, KoraLang('Modules.Minigames.auth_invalid'))
         if authorization.expiresAt < GetGameTimer() then
             removeAuthorization(authorizationToken)
-            error("Minigame authorization expired.")
+            error(KoraLang('Modules.Minigames.auth_expired'))
         end
         assert(authorization.src == src and authorization.gameType == gameType,
-            "Minigame authorization does not match this player and game type.")
+            KoraLang('Modules.Minigames.auth_mismatch'))
         cfg = authorization.cfg
     else
         assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
@@ -914,12 +914,12 @@ end, { rateLimit = Config.minigames.callbackRateLimits.start })
 
 registerWithLegacyAlias("kora_lib:minigames:submit", function(src, sessionId, attempt)
     if not isInteger(sessionId) or sessionId < 1 then
-        error("No active minigame session.")
+        error(KoraLang('Modules.Minigames.no_active_session'))
     end
 
     local session = sessions[sessionId]
     if session == nil or session.src ~= src then
-        error("No active minigame session.")
+        error(KoraLang('Modules.Minigames.no_active_session'))
     end
 
     if GetGameTimer() > session.expiresAt then

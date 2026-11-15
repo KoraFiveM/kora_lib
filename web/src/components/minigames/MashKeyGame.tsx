@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useEffect, useRef, useState } from "react"
 
 import type { CancelledAttempt, MashAttempt, MashPuzzle } from "@/lib/types"
@@ -19,6 +20,7 @@ interface MashKeyGameProps {
  * and total (see modules/minigames/server.lua's validate.mash).
  */
 export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: MashKeyGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const pressesRef = useRef<number[]>([])
@@ -61,12 +63,12 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Mash &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleMash, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <div className="h-4 overflow-hidden rounded-full bg-secondary">
@@ -77,10 +79,7 @@ export function MashKeyGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                     {pressCount} / {puzzle.requiredPresses}
                 </p>
 
-                <p className="text-xs text-muted-foreground">
-                    Press <span className="font-medium text-foreground">Space</span> as fast as you can. Press{" "}
-                    <span className="font-medium text-foreground">Esc</span> to cancel.
-                </p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.mashInstruction, "Space", "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

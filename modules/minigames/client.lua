@@ -1,6 +1,23 @@
 local activeSession = nil
 local activeRoundRequest
 local nextSessionToken = 0
+local minigameLabels = {
+    titleAttempt = KoraLang('Modules.Minigames.ui.title_attempt'),
+    titleLockpick = KoraLang('Modules.Minigames.ui.title_lockpick'), titleSkillbar = KoraLang('Modules.Minigames.ui.title_skillbar'),
+    titleCircuit = KoraLang('Modules.Minigames.ui.title_circuit'), titleMash = KoraLang('Modules.Minigames.ui.title_mash'),
+    titleFishing = KoraLang('Modules.Minigames.ui.title_fishing'), titlePinpad = KoraLang('Modules.Minigames.ui.title_pinpad'),
+    titleQuiz = KoraLang('Modules.Minigames.ui.title_quiz'), titleWordguess = KoraLang('Modules.Minigames.ui.title_wordguess'),
+    titleWordscramble = KoraLang('Modules.Minigames.ui.title_wordscramble'), titleKeys = KoraLang('Modules.Minigames.ui.title_keys'),
+    titleHacking = KoraLang('Modules.Minigames.ui.title_hacking'),
+    lastAttemptFailed = KoraLang('Modules.Minigames.ui.last_attempt_failed'), cancelInstruction = KoraLang('Modules.Minigames.ui.cancel_instruction'),
+    submit = KoraLang('Modules.Minigames.ui.submit'), fishingSlipped = KoraLang('Modules.Minigames.ui.fishing_slipped'),
+    keepMarker = KoraLang('Modules.Minigames.ui.keep_marker'), gameCount = KoraLang('Modules.Minigames.ui.game_count'),
+    fishingInstruction = KoraLang('Modules.Minigames.ui.fishing_instruction'), lockpickInstruction = KoraLang('Modules.Minigames.ui.lockpick_instruction'),
+    mashInstruction = KoraLang('Modules.Minigames.ui.mash_instruction'), keysInstruction = KoraLang('Modules.Minigames.ui.keys_instruction'),
+    skillbarInstruction = KoraLang('Modules.Minigames.ui.skillbar_instruction'), typeLetterInstruction = KoraLang('Modules.Minigames.ui.type_letter_instruction'),
+    hintPrefix = KoraLang('Modules.Minigames.ui.hint_prefix'), guessedPrefix = KoraLang('Modules.Minigames.ui.guessed_prefix'),
+    guessesLeft = KoraLang('Modules.Minigames.ui.guesses_left'), secondsLeft = KoraLang('Modules.Minigames.ui.seconds_left'),
+}
 
 local function newSessionToken()
     nextSessionToken = nextSessionToken + 1
@@ -41,6 +58,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                         attempts = round.attempts,
                         timeLimit = round.timeLimit,
                         lastResult = lastResult,
+                        labels = minigameLabels,
                         puzzle = round.public,
                     }, round.timeLimit + Config.minigames.roundTimeoutBuffer, resource)
                     if activeSession == token then activeRoundRequest = roundRequest end
@@ -118,14 +136,14 @@ end
 ---@param owner? string
 ---@return promise result
 function Kora.minigames.playAsync(gameType, opts, authorization, owner)
-    assert(Kora.minigames.GAME_TYPES[gameType], "invalid minigame type -- see Kora.minigames.GAME_TYPES.")
-    assert(opts == nil or type(opts) == "table", "minigame opts must be a table.")
-    assert(authorization == nil or type(authorization) == "string", "minigame authorization must be a string.")
-    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'minigame owner must be a non-empty string.')
+    assert(Kora.minigames.GAME_TYPES[gameType], KoraLang('Modules.Minigames.type_invalid'))
+    assert(opts == nil or type(opts) == "table", KoraLang('Modules.Minigames.options_invalid'))
+    assert(authorization == nil or type(authorization) == "string", KoraLang('Modules.Minigames.authorization_invalid'))
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), KoraLang('Modules.Minigames.owner_invalid'))
 
     if activeSession then
         local p = promise.new()
-        p:reject("A minigame is already in progress.")
+        p:reject(KoraLang('Modules.Minigames.active'))
         return p
     end
 
@@ -138,7 +156,7 @@ end
 ---@param owner? string Internal owner override for compatibility providers.
 ---@return boolean cancelled
 function Kora.minigames.cancel(owner)
-    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'minigame owner must be a non-empty string.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), KoraLang('Modules.Minigames.owner_invalid'))
     if not activeSession or not activeRoundRequest then return false end
     local resource = owner or GetInvokingResource() or GetCurrentResourceName()
     if minigameOwnership.owner(activeSession) ~= resource then return false end
@@ -154,9 +172,9 @@ end
 ---@param authorization? string
 ---@return KoraMinigameResult result
 function Kora.minigames.playSkillCheck(skill, gameType, opts, authorization)
-    assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
+    assert(type(skill) == 'string' and skill ~= '', KoraLang('Modules.Minigames.skill_invalid'))
     assert(Kora.minigames.GAME_TYPES[gameType], 'invalid minigame type -- see Kora.minigames.GAME_TYPES.')
-    assert(opts == nil or type(opts) == 'table', 'minigame opts must be a table.')
+    assert(opts == nil or type(opts) == 'table', KoraLang('Modules.Minigames.options_invalid'))
 
     local adjusted = Kora.skills.adjustMinigame(skill, gameType, opts)
     return Kora.minigames.play(gameType, adjusted, authorization)

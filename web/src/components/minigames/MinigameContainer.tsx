@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import type {
     CircuitPuzzle,
@@ -18,6 +18,7 @@ import type {
 } from "@/lib/types"
 import { useNuiEvent } from "@/lib/useNuiEvent"
 import { useNuiRequest } from "@/lib/useNuiRequest"
+import { MinigameLocaleProvider } from "@/lib/minigameLocale"
 import { LockpickGame } from "./LockpickGame"
 import { SkillbarGame } from "./SkillbarGame"
 import { CircuitGame } from "./CircuitGame"
@@ -62,30 +63,19 @@ export function MinigameContainer() {
         respond,
     }
 
+    let game: ReactNode = null
     switch (payload.type) {
-        case "lockpick":
-            return <LockpickGame key={roundKey} puzzle={payload.puzzle as LockpickPuzzle} {...shared} />
-        case "skillbar":
-            return <SkillbarGame key={roundKey} puzzle={payload.puzzle as SkillbarPuzzle} {...shared} />
-        case "circuit":
-            return <CircuitGame key={roundKey} puzzle={payload.puzzle as CircuitPuzzle} {...shared} />
-        case "mash":
-            return <MashKeyGame key={roundKey} puzzle={payload.puzzle as MashPuzzle} {...shared} />
-        case "fishing":
-            return <FishingGame key={roundKey} puzzle={payload.puzzle as FishingPuzzle} {...shared} />
-        case "pinpad":
-            return <PinpadGame key={roundKey} puzzle={payload.puzzle as PinpadPuzzle} {...shared} />
-        case "quiz":
-            return <QuizGame key={roundKey} puzzle={payload.puzzle as QuizPuzzle} {...shared} />
-        case "wordguess":
-            return <WordGuessGame key={roundKey} puzzle={payload.puzzle as WordGuessPuzzle} {...shared} />
-        case "wordscramble":
-            return <WordScrambleGame key={roundKey} puzzle={payload.puzzle as WordScramblePuzzle} {...shared} />
-        case "keys":
-            return <KeysGame key={roundKey} puzzle={payload.puzzle as KeysPuzzle} {...shared} />
-        case "hacking":
-            return <HackingGame key={roundKey} puzzle={payload.puzzle as HackingPuzzle} {...shared} />
-        default:
-            return null
+        case "lockpick": game = <LockpickGame key={roundKey} puzzle={payload.puzzle as LockpickPuzzle} {...shared} />; break
+        case "skillbar": game = <SkillbarGame key={roundKey} puzzle={payload.puzzle as SkillbarPuzzle} {...shared} />; break
+        case "circuit": game = <CircuitGame key={roundKey} puzzle={payload.puzzle as CircuitPuzzle} {...shared} />; break
+        case "mash": game = <MashKeyGame key={roundKey} puzzle={payload.puzzle as MashPuzzle} {...shared} />; break
+        case "fishing": game = <FishingGame key={roundKey} puzzle={payload.puzzle as FishingPuzzle} {...shared} />; break
+        case "pinpad": game = <PinpadGame key={roundKey} puzzle={payload.puzzle as PinpadPuzzle} {...shared} />; break
+        case "quiz": game = <QuizGame key={roundKey} puzzle={payload.puzzle as QuizPuzzle} {...shared} />; break
+        case "wordguess": game = <WordGuessGame key={roundKey} puzzle={payload.puzzle as WordGuessPuzzle} {...shared} />; break
+        case "wordscramble": game = <WordScrambleGame key={roundKey} puzzle={payload.puzzle as WordScramblePuzzle} {...shared} />; break
+        case "keys": game = <KeysGame key={roundKey} puzzle={payload.puzzle as KeysPuzzle} {...shared} />; break
+        case "hacking": game = <HackingGame key={roundKey} puzzle={payload.puzzle as HackingPuzzle} {...shared} />; break
     }
+    return <MinigameLocaleProvider labels={payload.labels}>{game}</MinigameLocaleProvider>
 }

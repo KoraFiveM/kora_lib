@@ -36,7 +36,7 @@ local function register(name, eventName, resolve, help, params)
     if type(name) ~= 'string' or name == '' then return end
     suggestions[#suggestions + 1] = { name = name, help = help or '', params = params or {} }
     RegisterCommand(name, function(src, args)
-        if src <= 0 then return print(KoraLang('Modules.Editor.player_command'):format(name)) end
+        if src <= 0 then return print(KoraLang('Modules.Editor.player_command', name)) end
         if not allowed(src) then return notify(src, KoraLang('Modules.Editor.no_access')) end
 
         local value, err = resolve(args or {})

@@ -23,7 +23,7 @@ function Kora.locale.setLanguage(language)
             break
         end
     end
-    if not allowed then return false, KoraLang('Modules.Locales.language_disabled'):format(language) end
+    if not allowed then return false, KoraLang('Modules.Locales.language_disabled', language) end
 
     local oldLanguage = Kora.locale.getLanguage()
     if oldLanguage == language then return true end

@@ -67,7 +67,7 @@ end
 local function assertCreateOptions(options)
     assert(type(options) == "table", KoraLang('Modules.Entities.options_invalid'))
     assert(options.preset == nil or presets[options.preset] ~= nil,
-        KoraLang('Modules.Entities.preset_invalid'):format(tostring(options.preset)))
+        KoraLang('Modules.Entities.preset_invalid', tostring(options.preset)))
     assert(options.freeze == nil or type(options.freeze) == "boolean", KoraLang('Modules.Entities.freeze_invalid'))
     assert(options.blockNonTempEvents == nil or type(options.blockNonTempEvents) == "boolean",
         KoraLang('Modules.Entities.events_invalid'))
@@ -218,11 +218,11 @@ function Kora.entities.createScoped(model, coords, options)
                 scope.spawning = false
 
                 if not ok then
-                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', KoraLang('Modules.Entities.scoped_spawn_failed'):format(scope.id, tostring(entity)))
+                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', KoraLang('Modules.Entities.scoped_spawn_failed', scope.id, tostring(entity)))
                     return
                 end
                 if not entity and createErr then
-                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', KoraLang('Modules.Entities.scoped_spawn_failed'):format(scope.id, tostring(createErr)))
+                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', KoraLang('Modules.Entities.scoped_spawn_failed', scope.id, tostring(createErr)))
                 end
 
                 if scope.removed or not scope.inside then
@@ -257,7 +257,7 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.entities.remove(entity)
-    assert(type(entity) == "number", KoraLang('Modules.Entities.entity_invalid'):format(entity))
+    assert(type(entity) == "number", KoraLang('Modules.Entities.entity_invalid', entity))
 
     local owner = entityRegistry.owner(entity)
     if not owner then
@@ -286,7 +286,7 @@ end
 ---@return boolean controlled
 ---@return string? error
 function Kora.entities.requestControl(entity, timeout)
-    assert(type(entity) == 'number' and entity ~= 0, KoraLang('Modules.Entities.entity_invalid'):format(entity))
+    assert(type(entity) == 'number' and entity ~= 0, KoraLang('Modules.Entities.entity_invalid', entity))
     if timeout == nil then timeout = 1000 end
     assert(Kora.util.isInteger(timeout) and timeout >= 0, KoraLang('Modules.Entities.control_timeout_invalid'))
     if not DoesEntityExist(entity) then return false, KoraLang('Modules.Distancecheck.entity_missing') end

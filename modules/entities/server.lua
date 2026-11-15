@@ -39,7 +39,7 @@ end
 function Kora.entities.createVehicle(model, coords, vehicleType)
     local modelHash = resolveModel(model)
     local typeName = vehicleType or 'automobile'
-    assert(vehicleTypes[typeName], KoraLang('Modules.Entities.vehicle_type_invalid'):format(tostring(typeName)))
+    assert(vehicleTypes[typeName], KoraLang('Modules.Entities.vehicle_type_invalid', tostring(typeName)))
 
     local x, y, z, heading = resolveCoords(coords)
     if not Kora.lookup.model(modelHash, 'vehicle') then

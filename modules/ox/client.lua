@@ -19,10 +19,10 @@ local activeText
 local focusReleases = {}
 local iconPrefixes = { fas = true, far = true, fal = true, fat = true, fad = true, fab = true, fak = true, fass = true }
 local oxLocale = {
-    cancel = 'Cancel',
-    close = 'Close',
-    confirm = 'Confirm',
-    more = 'More...',
+    cancel = KoraLang('Modules.Ox.ui_cancel'),
+    close = KoraLang('Modules.Ox.ui_close'),
+    confirm = KoraLang('Modules.Ox.ui_confirm'),
+    more = KoraLang('Modules.Ox.ui_more'),
 }
 
 local function assertOwner(owner)
@@ -36,10 +36,10 @@ end
 local function browserLocale(data)
     local ui = type(data) == 'table' and type(data.ui) == 'table' and data.ui or {}
     return {
-        cancel = localeText(ui.cancel, 'Cancel'),
-        close = localeText(ui.close, 'Close'),
-        confirm = localeText(ui.confirm, 'Confirm'),
-        more = localeText(ui.more, 'More...'),
+        cancel = localeText(ui.cancel, KoraLang('Modules.Ox.ui_cancel')),
+        close = localeText(ui.close, KoraLang('Modules.Ox.ui_close')),
+        confirm = localeText(ui.confirm, KoraLang('Modules.Ox.ui_confirm')),
+        more = localeText(ui.more, KoraLang('Modules.Ox.ui_more')),
     }
 end
 
@@ -282,7 +282,7 @@ end
 
 local function transitionContext(session, id)
     local registration = contexts[id]
-    if not registration then error('No context menu of such id found.', 2) end
+    if not registration then error(KoraLang('Modules.Ox.context_missing'), 2) end
     session.id = id
     session.registration = registration
     return Kora.nui.updateRequest(session.request, 'updateMenu', contextPayload(session))
@@ -336,7 +336,7 @@ end
 local function showContext(id, owner)
     assertOwner(owner)
     local registration = contexts[id]
-    if not registration then error('No context menu of such id found.', 2) end
+    if not registration then error(KoraLang('Modules.Ox.context_missing'), 2) end
     if activeContext then
         local previous = activeContext
         activeContext = nil
@@ -373,7 +373,7 @@ end
 
 local function menuArgs(choice, secondary, marker)
     local args = choice.option.args
-    if args ~= nil and type(args) ~= 'table' then error('Menu args must be passed as a table', 2) end
+    if args ~= nil and type(args) ~= 'table' then error(KoraLang('Modules.Ox.menu_args_invalid'), 2) end
     args = args or {}
     if marker then args[marker] = true end
     return choice.index, secondary, args
@@ -606,7 +606,7 @@ local function difficultyOptions(difficulty)
         assert(Kora.util.isFiniteNumber(areaSize) and Kora.util.isFiniteNumber(multiplier),
             'custom skillCheck difficulty requires finite areaSize and speedMultiplier.')
     else
-        error(('invalid skillCheck difficulty: %s'):format(tostring(difficulty)), 2)
+        error(KoraLang('Modules.Ox.difficulty_invalid', tostring(difficulty)), 2)
     end
     return {
         attempts = 1,
@@ -839,9 +839,9 @@ end
 function Kora.ox.registerMenu(data, callback, owner)
     assertOwner(owner)
     assert(type(data) == 'table', 'ox registerMenu requires a table.')
-    if not data.id then error('No menu id was provided.', 2) end
-    if not data.title then error('No menu title was provided.', 2) end
-    if type(data.options) ~= 'table' then error('No menu options were provided.', 2) end
+    if not data.id then error(KoraLang('Modules.Ox.menu_id_required'), 2) end
+    if not data.title then error(KoraLang('Modules.Ox.menu_title_required'), 2) end
+    if type(data.options) ~= 'table' then error(KoraLang('Modules.Ox.menu_options_required'), 2) end
     assert(denseArray(data.options) or next(data.options) == nil, 'ox menu options must be a dense array.')
     for index = 1, #data.options do
         assert(type(data.options[index]) == 'table', 'ox menu options must be tables.')
@@ -857,8 +857,8 @@ end
 function Kora.ox.showMenu(id, startIndex, owner)
     assertOwner(owner)
     local registration = menus[id]
-    if not registration then error(('No menu with id %s was found'):format(id), 2) end
-    if #registration.data.options == 0 then error(('Can\'t open empty menu with id %s'):format(id), 2) end
+    if not registration then error(KoraLang('Modules.Ox.menu_missing', id), 2) end
+    if #registration.data.options == 0 then error(KoraLang('Modules.Ox.menu_empty', id), 2) end
     if activeMenu then
         local previous = activeMenu
         activeMenu = nil
@@ -881,7 +881,7 @@ end
 function Kora.ox.setMenuOptions(id, options, index, owner)
     assertOwner(owner)
     local registration = menus[id]
-    assert(registration, ('No menu with id %s was found'):format(tostring(id)))
+    assert(registration, KoraLang('Modules.Ox.menu_missing', tostring(id)))
     if index ~= nil then
         assert(Kora.util.isInteger(index) and index >= 1, 'ox menu option index must be a positive integer.')
         assert(index <= #registration.data.options, 'ox menu option index must refer to an existing option.')
@@ -910,7 +910,7 @@ function Kora.ox.progressCircle(data, owner) return startProgress(data, 'circle'
 
 function Kora.ox.cancelProgress(owner)
     assertOwner(owner)
-    if not activeProgressOwner then error('No progress bar is active', 2) end
+    if not activeProgressOwner then error(KoraLang('Modules.Ox.progress_missing'), 2) end
     Kora.progressbar.cancel(owner)
 end
 
@@ -953,7 +953,7 @@ function Kora.ox.addRadialItem(items, parentMenuId, owner)
     local target
     if parentMenuId then
         local parent = radialMenus[parentMenuId]
-        if not parent then error('No radial submenu with such parent id found.', 2) end
+        if not parent then error(KoraLang('Modules.Ox.radial_parent_missing'), 2) end
         target = parent.data.items
     else
         target = radialItems
@@ -981,7 +981,7 @@ function Kora.ox.removeRadialItem(id, parentMenuId, owner)
     local target
     if parentMenuId then
         local parent = radialMenus[parentMenuId]
-        if not parent then error('No radial sub menu with such parent id found.', 2) end
+        if not parent then error(KoraLang('Modules.Ox.radial_parent_missing_spaced'), 2) end
         target = parent.data.items
     else
         target = radialItems
@@ -1051,7 +1051,7 @@ end
 
 function Kora.ox.cancelSkillCheck(owner)
     assertOwner(owner)
-    if not activeSkillRequest then error('No skillCheck is active', 2) end
+    if not activeSkillRequest then error(KoraLang('Modules.Ox.skill_check_missing'), 2) end
     Kora.nui.cancelRequest(activeSkillRequest, false)
 end
 

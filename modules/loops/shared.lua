@@ -6,16 +6,16 @@
 ---@return any | false result The truthy value from `call`, or false on failure.
 ---@return string? error Reason the loop gave up.
 function Kora.loops.controlled(call, tries, timeout, backoff)
-    assert(Kora.compat.isCallable(call), 'Loop predicate must be callable.')
+    assert(Kora.compat.isCallable(call), KoraLang('Modules.Loops.predicate_invalid'))
     assert(tries == nil or tries == false or (type(tries) == 'number' and tries >= 1 and tries % 1 == 0
         and tries == tries and tries ~= math.huge and tries ~= -math.huge),
-        'Loop tries must be a positive integer or false.')
+        KoraLang('Modules.Loops.tries_invalid'))
     assert(timeout == nil or timeout == false or (type(timeout) == 'number' and timeout >= 0 and timeout % 1 == 0
         and timeout == timeout and timeout ~= math.huge and timeout ~= -math.huge),
-        'Loop timeout must be a non-negative integer or false.')
+        KoraLang('Modules.Loops.timeout_invalid'))
     assert(backoff == nil or type(backoff) == 'boolean' or (type(backoff) == 'number' and backoff >= 0
         and backoff % 1 == 0 and backoff == backoff and backoff ~= math.huge and backoff ~= -math.huge),
-        'Loop backoff must be a non-negative integer, boolean, or nil.')
+        KoraLang('Modules.Loops.backoff_invalid'))
 
     if timeout ~= false then
         timeout = timeout or 10000
@@ -42,11 +42,11 @@ function Kora.loops.controlled(call, tries, timeout, backoff)
         end
 
         if timeout and (GetGameTimer() - timer) >= timeout then
-            return false, "Loop timed out."
+            return false, KoraLang('Modules.Loops.timed_out')
         end
 
         if tries and attempt >= tries then
-            return false, "Loop failed due to exceeding try count."
+            return false, KoraLang('Modules.Loops.tries_exceeded')
         end
 
         if isExponential or fixedInterval then
@@ -57,7 +57,7 @@ function Kora.loops.controlled(call, tries, timeout, backoff)
             if timeout then
                 local remaining = timeout - (GetGameTimer() - timer)
                 if remaining <= 0 then
-                    return false, "Loop timed out."
+                    return false, KoraLang('Modules.Loops.timed_out')
                 end
                 delay = math.min(delay, remaining)
             end
