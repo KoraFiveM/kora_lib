@@ -84,7 +84,7 @@ local function isAvailable(option, data, itemAvailability, ...)
 end
 
 local function visibleOptions(options)
-    assert(type(options) == "table" and #options > 0, "interact options must be a non-empty array.")
+    assert(type(options) == "table" and #options > 0, KoraLang('Modules.Interact.options_invalid'))
 
     local needsPlayerData = false
     for optionIndex = 1, #options do
@@ -132,7 +132,7 @@ local function dispatch(option)
     if type(option.event) ~= "string" or #option.event == 0 then return end
 
     local args = option.args or {}
-    assert(type(args) == "table", "interact option args must be an array.")
+    assert(type(args) == "table", KoraLang('Modules.Interact.args_invalid'))
 
     if option.type == "server" then
         TriggerServerEvent(option.event, table.unpack(args))
@@ -260,7 +260,7 @@ local function open(options, source, owner)
     CreateThread(function()
         local ok, err = pcall(controls, session)
         if not ok then
-            Kora.logging.error('lib.client.input_loop_stopped_after_an_error', ("[kora_lib:interact] input loop stopped after an error: %s"):format(tostring(err)))
+            Kora.logging.error('lib.client.input_loop_stopped_after_an_error', KoraLang('Modules.Interact.loop_error'):format(tostring(err)))
             hide(session)
         end
     end)
@@ -304,23 +304,23 @@ end
 local function assertCoords(coords, label)
     assert((type(coords) == 'table' or type(coords) == 'vector3')
         and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
-        ('%s must have finite x, y, and z coordinates.'):format(label))
+        KoraLang('Modules.Interact.coords_invalid'):format(label))
 end
 
 local function assertBoxSize(size, label)
     assert((type(size) == 'table' or type(size) == 'vector3' or type(size) == 'vector4')
         and Kora.util.isFiniteNumber(size.x) and Kora.util.isFiniteNumber(size.y)
         and Kora.util.isFiniteNumber(size.z) and size.x > 0 and size.y > 0 and size.z > 0,
-        ('%s must have positive finite x, y, and z dimensions.'):format(label))
-    assert(size.w == nil or Kora.util.isFiniteNumber(size.w), ('%s rotation must be finite.'):format(label))
+        KoraLang('Modules.Interact.size_invalid'):format(label))
+    assert(size.w == nil or Kora.util.isFiniteNumber(size.w), KoraLang('Modules.Interact.rotation_invalid'):format(label))
 end
 
 local function zoneOptionList(targetOptions)
-    assert(type(targetOptions) == "table", "interact target options require an options array.")
+    assert(type(targetOptions) == "table", KoraLang('Modules.Interact.target_options_table'))
     local options = targetOptions.options
     if options == nil then options = targetOptions end
     assert(type(options) == "table" and #options > 0,
-        "interact target options require a non-empty options array.")
+        KoraLang('Modules.Interact.target_options_invalid'))
     return options
 end
 
@@ -333,11 +333,11 @@ end
 ---@return KoraZoneHandle? zone
 function Kora.interact.addCircleZone(name, coords, radius, targetOptions, debug)
     if not isEnabled() then return nil end
-    assert(type(name) == "string" and #name > 0, "interact zone name is required.")
+    assert(type(name) == "string" and #name > 0, KoraLang('Modules.Interact.zone_name_required'))
     local options = zoneOptionList(targetOptions)
-    assertCoords(coords, 'interact circle coordinates')
+    assertCoords(coords, KoraLang('Modules.Interact.circle_coords'))
     if radius == nil then radius = 5.0 end
-    assert(Kora.util.isFiniteNumber(radius) and radius > 0, 'interact circle radius must be positive and finite.')
+    assert(Kora.util.isFiniteNumber(radius) and radius > 0, KoraLang('Modules.Interact.circle_radius_invalid'))
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     if zonesByName[name] then
@@ -370,10 +370,10 @@ end
 ---@return KoraZoneHandle? zone
 function Kora.interact.addBoxZone(name, coords, size, targetOptions, debug)
     if not isEnabled() then return nil end
-    assert(type(name) == "string" and #name > 0, "interact zone name is required.")
+    assert(type(name) == "string" and #name > 0, KoraLang('Modules.Interact.zone_name_required'))
     local options = zoneOptionList(targetOptions)
-    assertCoords(coords, 'interact box coordinates')
-    assertBoxSize(size, 'interact box size')
+    assertCoords(coords, KoraLang('Modules.Interact.box_coords'))
+    assertBoxSize(size, KoraLang('Modules.Interact.box_size'))
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     if zonesByName[name] then
@@ -416,13 +416,13 @@ end
 ---@return KoraZoneHandle[] zones
 function Kora.interact.addTargetModel(models, size, targetOptions, debug)
     if not isEnabled() then return {} end
-    assert(type(targetOptions) == "table", "interact target options require an options array.")
+    assert(type(targetOptions) == "table", KoraLang('Modules.Interact.target_options_table'))
 
     if type(models) ~= "table" then models = { models } end
     local wanted = {}
     for modelIndex = 1, #models do
         local model = models[modelIndex]
-        assert(type(model) == "string" or type(model) == "number", "interact target models must be strings or hashes.")
+        assert(type(model) == "string" or type(model) == "number", KoraLang('Modules.Interact.model_invalid'))
         wanted[type(model) == "number" and model or joaat(model)] = true
     end
 
@@ -434,7 +434,7 @@ function Kora.interact.addTargetModel(models, size, targetOptions, debug)
             local coords = GetEntityCoords(entity)
             local size = {x = size.x or 3.0, y = size.y or 3.0, z = size.z or 4.0, w = size.w or GetEntityHeading(entity)}
             assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
-                "interact target model size must be vector-like.")
+                KoraLang('Modules.Interact.model_size_invalid'))
 
             zones[#zones + 1] = Kora.interact.addBoxZone(("model:%s"):format(entity), coords, size, targetOptions, debug)
         end
@@ -452,17 +452,17 @@ end
 function Kora.interact.addTargetEntity(entity, size, targetOptions, debug)
     if not isEnabled() then return nil end
     assert(type(targetOptions) == "table",
-        "interact target options require an options array.")
+        KoraLang('Modules.Interact.target_options_table'))
     size = {x = size.x or 3.0, y = size.y or 3.0, z = size.z or 4.0, w = size.w or GetEntityHeading(entity)}
     assert(type(size.x) == "number" and type(size.y) == "number" and type(size.z) == "number" and type(size.w) == "number",
-        "interact target entity size must be vector-like.")
+        KoraLang('Modules.Interact.entity_size_invalid'))
     local coords = GetEntityCoords(entity)
     return Kora.interact.addBoxZone(("entity:%s"):format(entity), coords, size, targetOptions, debug)
 end
 
 local function assertTargetDistance(distance)
     assert(distance == nil or (Kora.util.isFiniteNumber(distance) and distance > 0),
-        'interact target distance must be a positive finite number.')
+        KoraLang('Modules.Interact.distance_invalid'))
 end
 
 ---@param entity number|number[]
@@ -470,7 +470,7 @@ end
 ---@param distance? number
 ---@return integer id
 function Kora.interact.addEntity(entity, options, distance)
-    assert(type(options) == 'table' and #options > 0, 'interact entity options must be a non-empty array.')
+    assert(type(options) == 'table' and #options > 0, KoraLang('Modules.Interact.entity_options_invalid'))
     assertTargetDistance(distance)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local translated = {}
@@ -528,7 +528,7 @@ end
 ---@param distance? number
 ---@return integer id
 function Kora.interact.addModel(model, options, distance)
-    assert(type(options) == 'table' and #options > 0, 'interact model options must be a non-empty array.')
+    assert(type(options) == 'table' and #options > 0, KoraLang('Modules.Interact.model_options_invalid'))
     assertTargetDistance(distance)
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local translated = {}

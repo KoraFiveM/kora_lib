@@ -1,5 +1,47 @@
 return {
-    Modules = {        Distancecheck = {
+    Modules = {        Fx = {
+            duration_invalid = '%s must be a finite non-negative integer.', coords_invalid = '%s must have finite x, y, and z values.',
+            def_table = 'Kora.fx.playPtfx requires a def table.', dict_name = 'Kora.fx.playPtfx requires string dict/name.',
+            entity_or_coords = 'Kora.fx.playPtfx requires either def.entity or def.coords.', entity_invalid = 'Particle effect entity must be a positive finite integer.',
+            bone_invalid = 'Particle effect bone must be a string.', looped_invalid = 'Particle effect looped must be a boolean.',
+            scale_invalid = 'Particle effect scale must be finite.', start_failed = 'Failed to start particle effect.',
+            screen_name_invalid = 'Kora.fx.screenEffect requires a string effect name.', screen_looped_invalid = 'Kora.fx.screenEffect looped must be a boolean.',
+            duration_label = 'Particle effect duration', coords_label = 'Particle effect coordinates', offset_label = 'Particle effect offset',
+            rotation_label = 'Particle effect rotation', screen_duration_label = 'Screen effect duration',
+        },
+        Instructional = {
+            control_invalid = 'Instructional button control must be a number.', source_required = 'Instructional button requires control, command, or keybind.',
+            buttons_invalid = 'Instructional buttons must be a non-empty array.', label_invalid = 'Instructional button %d requires a non-empty label.',
+            group_invalid = 'Instructional button %d group must be a non-empty string.', source_count_invalid = 'Instructional button %d requires exactly one input source.',
+        },
+        Interact = {
+            options_invalid = 'interact options must be a non-empty array.', args_invalid = 'interact option args must be an array.',
+            loop_error = '[kora_lib:interact] input loop stopped after an error: %s',
+            coords_invalid = '%s must have finite x, y, and z coordinates.', size_invalid = '%s must have positive finite x, y, and z dimensions.',
+            rotation_invalid = '%s rotation must be finite.', target_options_table = 'interact target options require an options array.',
+            target_options_invalid = 'interact target options require a non-empty options array.', zone_name_required = 'interact zone name is required.',
+            circle_radius_invalid = 'interact circle radius must be positive and finite.', model_invalid = 'interact target models must be strings or hashes.',
+            model_size_invalid = 'interact target model size must be vector-like.', entity_size_invalid = 'interact target entity size must be vector-like.',
+            distance_invalid = 'interact target distance must be a positive finite number.', entity_options_invalid = 'interact entity options must be a non-empty array.',
+            model_options_invalid = 'interact model options must be a non-empty array.',
+            circle_coords = 'interact circle coordinates', box_coords = 'interact box coordinates', box_size = 'interact box size',
+        },
+        Keybind = {
+            options_invalid = 'Kora.keybind.add requires an options table.', name_invalid = 'Keybind name must be a non-empty command name without whitespace.',
+            description_invalid = 'Keybind description must be a non-empty string.', default_key_invalid = 'Keybind defaultKey must be a string.',
+            default_mapper_invalid = 'Keybind defaultMapper must be a non-empty string.', secondary_key_invalid = 'Keybind secondaryKey must be a string.',
+            secondary_mapper_invalid = 'Keybind secondaryMapper must be a non-empty string.', disabled_invalid = 'Keybind disabled must be a boolean.',
+            on_pressed_invalid = 'Keybind onPressed must be callable.', on_released_invalid = 'Keybind onReleased must be callable.',
+            callback_required = 'Keybind requires onPressed, onReleased, or both.', disabled_state_invalid = 'Keybind disabled state must be a boolean.',
+            remove_name_invalid = 'Keybind name must be a non-empty string.', callback_error = "^3[kora_lib:keybind]^7 '%s' %s callback errored: %s",
+            overwritten = "^3[kora_lib:keybind]^7 '%s' was registered by '%s' and is being overwritten by '%s'.",
+            mapping_failed = '^3[kora_lib:commands]^7 could not register key mapping for /%s: %s',
+        },
+        Locales = {
+            resource_invalid = 'locale resource must be a valid resource name.', key_invalid = 'locale key must be a non-empty string.',
+            language_invalid = 'Language codes may only contain letters, numbers, hyphens, and underscores.',
+            language_disabled = '%s is not enabled by kora_locales.',
+        },        Distancecheck = {
             distance_invalid = 'Distance must be a finite non-negative number.',
             coords_invalid = '%s must include finite x, y, and z values.',
             entity_invalid = 'Entity must be a positive integer handle.',

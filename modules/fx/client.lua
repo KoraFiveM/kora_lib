@@ -27,14 +27,14 @@ local screenRegistry = Kora.resources.registry(disposeScreenHandle)
 local function assertDuration(duration, label)
     if duration == nil then duration = 0 end
     assert(Kora.util.isInteger(duration) and duration >= 0,
-        ("%s must be a finite non-negative integer."):format(label))
+        KoraLang('Modules.Fx.duration_invalid'):format(label))
     return duration
 end
 
 local function assertVec3(value, label)
     assert(value and Kora.util.isFiniteNumber(value.x) and Kora.util.isFiniteNumber(value.y)
             and Kora.util.isFiniteNumber(value.z),
-        ("%s must have finite x, y, and z values."):format(label))
+        KoraLang('Modules.Fx.coords_invalid'):format(label))
 end
 
 ---Plays a particle effect, releasing `def.dict` right after the effect starts (the running effect no longer needs it).
@@ -43,13 +43,13 @@ end
 ---@return KoraFxPtfxHandle | false handle False if `def.dict` never streamed in time.
 ---@return string? error
 function Kora.fx.playPtfx(def)
-    assert(type(def) == "table", "Kora.fx.playPtfx requires a def table.")
-    assert(type(def.dict) == "string" and type(def.name) == "string", "Kora.fx.playPtfx requires string dict/name.")
-    assert(def.entity ~= nil or def.coords ~= nil, "Kora.fx.playPtfx requires either def.entity or def.coords.")
-    assert(def.entity == nil or (Kora.util.isInteger(def.entity) and def.entity > 0), "Particle effect entity must be a positive finite integer.")
-    assert(def.bone == nil or type(def.bone) == "string", "Particle effect bone must be a string.")
-    assert(def.looped == nil or type(def.looped) == "boolean", "Particle effect looped must be a boolean.")
-    local duration = assertDuration(def.duration, "Particle effect duration")
+    assert(type(def) == "table", KoraLang('Modules.Fx.def_table'))
+    assert(type(def.dict) == "string" and type(def.name) == "string", KoraLang('Modules.Fx.dict_name'))
+    assert(def.entity ~= nil or def.coords ~= nil, KoraLang('Modules.Fx.entity_or_coords'))
+    assert(def.entity == nil or (Kora.util.isInteger(def.entity) and def.entity > 0), KoraLang('Modules.Fx.entity_invalid'))
+    assert(def.bone == nil or type(def.bone) == "string", KoraLang('Modules.Fx.bone_invalid'))
+    assert(def.looped == nil or type(def.looped) == "boolean", KoraLang('Modules.Fx.looped_invalid'))
+    local duration = assertDuration(def.duration, KoraLang('Modules.Fx.duration_label'))
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
@@ -60,10 +60,10 @@ function Kora.fx.playPtfx(def)
     local scale = def.scale
     if scale == nil then scale = 1.0 end
     local looped = def.looped == true
-    if not def.entity then assertVec3(def.coords, "Particle effect coordinates") end
-    assertVec3(offset, "Particle effect offset")
-    assertVec3(rot, "Particle effect rotation")
-    assert(Kora.util.isFiniteNumber(scale), "Particle effect scale must be finite.")
+    if not def.entity then assertVec3(def.coords, KoraLang('Modules.Fx.coords_label')) end
+    assertVec3(offset, KoraLang('Modules.Fx.offset_label'))
+    assertVec3(rot, KoraLang('Modules.Fx.rotation_label'))
+    assert(Kora.util.isFiniteNumber(scale), KoraLang('Modules.Fx.scale_invalid'))
 
     local particleId
     local started = false
@@ -101,7 +101,7 @@ function Kora.fx.playPtfx(def)
     end
 
     if not started then
-        return false, "Failed to start particle effect."
+        return false, KoraLang('Modules.Fx.start_failed')
     end
 
     if looped and particleId and particleId ~= -1 then
@@ -144,9 +144,9 @@ end
 ---@param looped? boolean Defaults to false.
 ---@return KoraFxScreenHandle handle
 function Kora.fx.screenEffect(name, duration, looped)
-    assert(type(name) == "string" and #name > 0, "Kora.fx.screenEffect requires a string effect name.")
-    assert(looped == nil or type(looped) == "boolean", "Kora.fx.screenEffect looped must be a boolean.")
-    duration = assertDuration(duration, "Screen effect duration")
+    assert(type(name) == "string" and #name > 0, KoraLang('Modules.Fx.screen_name_invalid'))
+    assert(looped == nil or type(looped) == "boolean", KoraLang('Modules.Fx.screen_looped_invalid'))
+    duration = assertDuration(duration, KoraLang('Modules.Fx.screen_duration_label'))
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 

@@ -12,7 +12,7 @@ if validLanguage(savedLanguage) then Kora.locale._language = savedLanguage end
 ---@param language string
 ---@return boolean, string|nil
 function Kora.locale.setLanguage(language)
-    if not validLanguage(language) then return false, 'Language codes may only contain letters, numbers, hyphens, and underscores.' end
+    if not validLanguage(language) then return false, KoraLang('Modules.Locales.language_invalid') end
 
     local allowed = false
     local languages = Kora.locale.getLanguages()
@@ -23,7 +23,7 @@ function Kora.locale.setLanguage(language)
             break
         end
     end
-    if not allowed then return false, ('%s is not enabled by kora_locales.'):format(language) end
+    if not allowed then return false, KoraLang('Modules.Locales.language_disabled'):format(language) end
 
     local oldLanguage = Kora.locale.getLanguage()
     if oldLanguage == language then return true end
