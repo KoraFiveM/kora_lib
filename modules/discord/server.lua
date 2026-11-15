@@ -12,7 +12,7 @@ local AUTHOR_FIELDS = { 'name', 'url', 'icon_url' }
 local URL_FIELDS = { 'url' }
 
 local function assertCallback(callback)
-    assert(callback == nil or Kora.compat.isCallable(callback), 'Discord callback must be callable or nil.')
+    assert(callback == nil or Kora.compat.isCallable(callback), KoraLang('Modules.Discord.callback_invalid'))
 end
 
 local function decodeResponse(statusCode, body, headers, errorData)
@@ -31,7 +31,7 @@ local function decodeResponse(statusCode, body, headers, errorData)
         response.error = tostring(errorData)
     elseif response.status < 200 or response.status >= 300 then
         response.error = type(response.data) == 'table' and response.data.message
-            or (response.body ~= '' and response.body or ('Discord returned HTTP %d.'):format(response.status))
+            or (response.body ~= '' and response.body or KoraLang('Modules.Discord.http_error', response.status))
     end
 
     return response
@@ -67,13 +67,13 @@ local function copyTextObject(value, label, fields)
         return { [fields[1]] = value }
     end
 
-    assert(type(value) == 'table', ('Discord embed %s must be a string or table.'):format(label))
+    assert(type(value) == 'table', KoraLang('Modules.Discord.embed_table', label))
     local out = {}
     for fieldIndex = 1, #fields do
         local field = fields[fieldIndex]
         local item = value[field]
         assert(item == nil or type(item) == 'string',
-            ('Discord embed %s.%s must be a string.'):format(label, field))
+            KoraLang('Modules.Discord.embed_field_item_string', label, field))
         out[field] = item
     end
     return out
@@ -82,12 +82,12 @@ end
 local function normaliseColor(color)
     if type(color) == 'string' then
         local hex = color:gsub('^#', '')
-        assert(hex:match('^%x%x%x%x%x%x$'), 'Discord embed color must be a number or six-digit hex string.')
+        assert(hex:match('^%x%x%x%x%x%x$'), KoraLang('Modules.Discord.color_invalid'))
         color = tonumber(hex, 16)
     end
 
     assert(type(color) == 'number' and color % 1 == 0 and color >= 0 and color <= 0xFFFFFF,
-        'Discord embed color must be an integer between 0 and 16777215.')
+        KoraLang('Modules.Discord.color_range'))
     return color
 end
 
@@ -96,13 +96,13 @@ end
 ---@param options table
 ---@return table embed
 function Kora.discord.createEmbed(options)
-    assert(type(options) == 'table', 'Discord embed options must be a table.')
+    assert(type(options) == 'table', KoraLang('Modules.Discord.embed_options'))
 
     local embed = {}
     for i = 1, #EMBED_TEXT_FIELDS do
         local field = EMBED_TEXT_FIELDS[i]
         local value = options[field]
-        assert(value == nil or type(value) == 'string', ('Discord embed %s must be a string.'):format(field))
+        assert(value == nil or type(value) == 'string', KoraLang('Modules.Discord.embed_field_string', field))
         embed[field] = value
     end
 
@@ -110,7 +110,7 @@ function Kora.discord.createEmbed(options)
 
     if options.timestamp ~= nil then
         assert(options.timestamp == true or type(options.timestamp) == 'string' or Kora.util.isFiniteNumber(options.timestamp),
-            'Discord embed timestamp must be true, a finite Unix timestamp, or an ISO8601 string.')
+            KoraLang('Modules.Discord.timestamp_invalid'))
         if options.timestamp == true then
             embed.timestamp = os.date('!%Y-%m-%dT%H:%M:%SZ')
         elseif type(options.timestamp) == 'number' then
@@ -122,41 +122,41 @@ function Kora.discord.createEmbed(options)
 
     if options.footer ~= nil then
         embed.footer = copyTextObject(options.footer, 'footer', FOOTER_FIELDS)
-        assert(type(embed.footer.text) == 'string', 'Discord embed footer.text is required.')
+        assert(type(embed.footer.text) == 'string', KoraLang('Modules.Discord.footer_required'))
     end
     if options.author ~= nil then
         embed.author = copyTextObject(options.author, 'author', AUTHOR_FIELDS)
-        assert(type(embed.author.name) == 'string', 'Discord embed author.name is required.')
+        assert(type(embed.author.name) == 'string', KoraLang('Modules.Discord.author_required'))
     end
     if options.image ~= nil then
         embed.image = copyTextObject(options.image, 'image', URL_FIELDS)
-        assert(type(embed.image.url) == 'string', 'Discord embed image.url is required.')
+        assert(type(embed.image.url) == 'string', KoraLang('Modules.Discord.image_required'))
     end
     if options.thumbnail ~= nil then
         embed.thumbnail = copyTextObject(options.thumbnail, 'thumbnail', URL_FIELDS)
-        assert(type(embed.thumbnail.url) == 'string', 'Discord embed thumbnail.url is required.')
+        assert(type(embed.thumbnail.url) == 'string', KoraLang('Modules.Discord.thumbnail_required'))
     end
 
     if options.fields ~= nil then
-        assert(type(options.fields) == 'table', 'Discord embed fields must be an array.')
-        assert(#options.fields <= 25, 'Discord embeds support at most 25 fields.')
+        assert(type(options.fields) == 'table', KoraLang('Modules.Discord.fields_array'))
+        assert(#options.fields <= 25, KoraLang('Modules.Discord.fields_limit'))
         local fieldCount = 0
         for index in pairs(options.fields) do
             assert(type(index) == 'number' and index >= 1 and index % 1 == 0
                 and index == index and index < math.huge,
-                'Discord embed fields must be a dense array.')
+                KoraLang('Modules.Discord.fields_dense'))
             fieldCount = fieldCount + 1
         end
-        assert(fieldCount == #options.fields, 'Discord embed fields must be a dense array.')
+        assert(fieldCount == #options.fields, KoraLang('Modules.Discord.fields_dense'))
         embed.fields = {}
 
         for index = 1, #options.fields do
             local field = options.fields[index]
-            assert(type(field) == 'table', ('Discord embed field %d must be a table.'):format(index))
-            assert(type(field.name) == 'string', ('Discord embed field %d name must be a string.'):format(index))
-            assert(type(field.value) == 'string', ('Discord embed field %d value must be a string.'):format(index))
+            assert(type(field) == 'table', KoraLang('Modules.Discord.field_table', index))
+            assert(type(field.name) == 'string', KoraLang('Modules.Discord.field_name', index))
+            assert(type(field.value) == 'string', KoraLang('Modules.Discord.field_value', index))
             assert(field.inline == nil or type(field.inline) == 'boolean',
-                ('Discord embed field %d inline must be a boolean.'):format(index))
+                KoraLang('Modules.Discord.field_inline', index))
             embed.fields[index] = { name = field.name, value = field.value, inline = field.inline }
         end
     end
@@ -173,7 +173,7 @@ end
 
 local function normaliseMessagePayload(payload)
     if type(payload) == 'string' then return { content = payload } end
-    assert(type(payload) == 'table', 'Discord message payload must be a string or table.')
+    assert(type(payload) == 'table', KoraLang('Modules.Discord.payload_invalid'))
     if looksLikeEmbed(payload) then return { embeds = { payload } } end
     return payload
 end
@@ -186,21 +186,21 @@ end
 ---@return boolean queued
 function Kora.discord.sendWebhook(url, payload, callback)
     assertCallback(callback)
-    assert(url == nil or type(url) == 'string', 'Discord webhook URL must be a string or nil.')
+    assert(url == nil or type(url) == 'string', KoraLang('Modules.Discord.webhook_url'))
 
     url = url and url:match('^%s*(.-)%s*$') or getConvar('kora_lib_discord_webhook', '')
     if url == '' then
         if callback then
-            callback(false, { status = 0, error = 'Discord webhook is not configured.' })
+            callback(false, { status = 0, error = KoraLang('Modules.Discord.webhook_unconfigured') })
         end
         return false
     end
 
-    assert(url:match('^https://'), 'Discord webhook URL must use HTTPS.')
+    assert(url:match('^https://'), KoraLang('Modules.Discord.webhook_https'))
     payload = normaliseMessagePayload(payload)
     if payload.embeds ~= nil then
         assert(type(payload.embeds) == 'table' and #payload.embeds <= 10,
-            'Discord webhook embeds must be an array of at most 10 embeds.')
+            KoraLang('Modules.Discord.webhook_embeds_invalid'))
     end
 
     performJsonRequest(url, 'POST', payload, { ['Content-Type'] = 'application/json' }, callback)
@@ -222,7 +222,7 @@ local function botDisabled(callback)
     if callback then
         callback(false, {
             status = 0,
-            error = 'Discord bot is disabled; set kora_lib_discord_bot_token to enable it.',
+            error = KoraLang('Modules.Discord.bot_disabled_config'),
         })
     end
     return false
@@ -230,7 +230,7 @@ end
 
 local function requireSnowflake(value, label)
     assert(type(value) == 'string' and value:match('^%d+$'),
-        ('Discord %s must be a decimal string.'):format(label))
+        KoraLang('Modules.Discord.id_invalid', label))
     return value
 end
 
@@ -238,14 +238,14 @@ local function resolveGuildId(guildId)
     if guildId == nil or guildId == '' then
         guildId = getConvar('kora_lib_discord_guild_id', '')
     end
-    assert(guildId ~= '', 'Discord guild ID is required (argument or kora_lib_discord_guild_id).')
+    assert(guildId ~= '', KoraLang('Modules.Discord.guild_required'))
     return requireSnowflake(guildId, 'guild ID')
 end
 
 local function encodeAuditReason(reason)
     if reason == nil then return nil end
     assert(type(reason) == 'string' and #reason > 0 and #reason <= 512,
-        'Discord audit reason must be a non-empty string of at most 512 bytes.')
+        KoraLang('Modules.Discord.audit_reason'))
     return (reason:gsub('[^%w%-%._~]', function(char)
         return ('%%%02X'):format(char:byte())
     end))
@@ -268,11 +268,11 @@ function Kora.discord.botRequest(method, route, payload, callback, auditReason)
     if token == '' then return botDisabled(callback) end
 
     assert(type(method) == 'string' and BOT_METHODS[method:upper()],
-        'Discord bot method must be GET, POST, PUT, PATCH, or DELETE.')
+        KoraLang('Modules.Discord.bot_method'))
     method = method:upper()
     assert(type(route) == 'string' and route:sub(1, 1) == '/' and not route:find('://', 1, true)
-        and not route:find('[\r\n]'), 'Discord bot route must be a relative API path.')
-    assert(payload == nil or type(payload) == 'table', 'Discord bot payload must be a table or nil.')
+        and not route:find('[\r\n]'), KoraLang('Modules.Discord.bot_route'))
+    assert(payload == nil or type(payload) == 'table', KoraLang('Modules.Discord.bot_payload'))
 
     local headers = {
         ['Authorization'] = 'Bot ' .. token,
@@ -319,7 +319,7 @@ end
 ---@return boolean queued
 function Kora.discord.updateMember(guildId, userId, attributes, callback, auditReason)
     if not requireBot(callback) then return false end
-    assert(type(attributes) == 'table', 'Discord member attributes must be a table.')
+    assert(type(attributes) == 'table', KoraLang('Modules.Discord.member_attributes'))
     local route = ('/guilds/%s/members/%s'):format(resolveGuildId(guildId), requireSnowflake(userId, 'user ID'))
     return Kora.discord.botRequest('PATCH', route, attributes, callback, auditReason)
 end
@@ -341,7 +341,7 @@ end
 ---@return boolean queued
 function Kora.discord.setMemberRoles(guildId, userId, roleIds, callback, auditReason)
     if not requireBot(callback) then return false end
-    assert(type(roleIds) == 'table', 'Discord role IDs must be an array.')
+    assert(type(roleIds) == 'table', KoraLang('Modules.Discord.role_ids'))
     local roles = {}
     for index = 1, #roleIds do roles[index] = requireSnowflake(roleIds[index], 'role ID') end
     return Kora.discord.updateMember(guildId, userId, { roles = roles }, callback, auditReason)
@@ -380,7 +380,7 @@ end
 ---@return boolean queued
 function Kora.discord.createRole(guildId, role, callback, auditReason)
     if not requireBot(callback) then return false end
-    assert(type(role) == 'table', 'Discord role must be a table.')
+    assert(type(role) == 'table', KoraLang('Modules.Discord.role_table'))
     return Kora.discord.botRequest('POST', '/guilds/' .. resolveGuildId(guildId) .. '/roles', role, callback, auditReason)
 end
 
@@ -392,7 +392,7 @@ end
 ---@return boolean queued
 function Kora.discord.updateRole(guildId, roleId, role, callback, auditReason)
     if not requireBot(callback) then return false end
-    assert(type(role) == 'table', 'Discord role must be a table.')
+    assert(type(role) == 'table', KoraLang('Modules.Discord.role_table'))
     local route = ('/guilds/%s/roles/%s'):format(resolveGuildId(guildId), requireSnowflake(roleId, 'role ID'))
     return Kora.discord.botRequest('PATCH', route, role, callback, auditReason)
 end
@@ -433,7 +433,7 @@ end
 function Kora.discord.createChannel(guildId, channel, callback, auditReason)
     if not requireBot(callback) then return false end
     assert(type(channel) == 'table' and type(channel.name) == 'string',
-        'Discord channel must be a table with a string name.')
+        KoraLang('Modules.Discord.channel_invalid'))
     return Kora.discord.botRequest('POST', '/guilds/' .. resolveGuildId(guildId) .. '/channels', channel, callback, auditReason)
 end
 
@@ -444,7 +444,7 @@ end
 ---@return boolean queued
 function Kora.discord.updateChannel(channelId, attributes, callback, auditReason)
     if not requireBot(callback) then return false end
-    assert(type(attributes) == 'table', 'Discord channel attributes must be a table.')
+    assert(type(attributes) == 'table', KoraLang('Modules.Discord.channel_attributes'))
     return Kora.discord.botRequest('PATCH', '/channels/' .. requireSnowflake(channelId, 'channel ID'), attributes,
         callback, auditReason)
 end
@@ -586,29 +586,29 @@ end
 local function resolveUserId(id)
     if type(id) == 'number' then
         local discordId = discordIdForPlayer(id)
-        if not discordId then return nil, ('Player %s has no Discord identifier.'):format(tostring(id)) end
+        if not discordId then return nil, KoraLang('Modules.Discord.player_no_identifier', tostring(id)) end
         return discordId
     end
 
-    if type(id) ~= 'string' then return nil, 'Discord user ID must be a decimal string or online server ID.' end
+    if type(id) ~= 'string' then return nil, KoraLang('Modules.Discord.user_id_online_or_decimal') end
     id = id:match('^%s*(.-)%s*$')
     id = id:match('^discord:(%d+)$') or id
-    if not id:match('^%d+$') then return nil, 'Discord user ID must be a decimal string.' end
+    if not id:match('^%d+$') then return nil, KoraLang('Modules.Discord.user_id_decimal') end
     return id
 end
 
 local function resolveCachedRole(guildId, role)
-    if type(role) ~= 'string' then return nil, 'Discord role must be a role ID or name string.' end
+    if type(role) ~= 'string' then return nil, KoraLang('Modules.Discord.role_invalid') end
     role = role:match('^%s*(.-)%s*$')
-    if role == '' then return nil, 'Discord role cannot be empty.' end
+    if role == '' then return nil, KoraLang('Modules.Discord.role_empty') end
 
     local cache = guildRoleCache[guildId]
-    if not cache then return nil, 'Discord guild role catalog is not cached yet.' end
+    if not cache then return nil, KoraLang('Modules.Discord.role_catalog_missing') end
     if cache.byId[role] then return role, cache.byId[role] end
 
     local roleId = cache.byName[role:lower()]
-    if roleId == false then return nil, ('Discord role name %q is ambiguous; use its role ID.'):format(role) end
-    if not roleId then return nil, ('Discord role %q was not found.'):format(role) end
+    if roleId == false then return nil, KoraLang('Modules.Discord.role_ambiguous', role) end
+    if not roleId then return nil, KoraLang('Modules.Discord.role_missing', role) end
     return roleId, cache.byId[roleId]
 end
 
@@ -699,13 +699,13 @@ local function waitForQbSql()
     while true do
         local state = GetResourceState('kora_sql')
         if state == 'missing' or state == 'stopped' or state == 'uninitialized' then
-            return false, ('kora_sql is %s'):format(state)
+            return false, KoraLang('Modules.Discord.sql_state', state)
         end
         if state == 'started' then
             local ok, ready = pcall(function() return exports.kora_sql:isReady() end)
             if ok and ready then return true end
         end
-        if GetGameTimer() >= deadline then return false, 'kora_sql did not become ready before the timeout' end
+        if GetGameTimer() >= deadline then return false, KoraLang('Modules.Discord.sql_timeout') end
         Wait(100)
     end
 end
@@ -755,7 +755,7 @@ end
 
 local function ensureDatabase()
     if databaseReady then return true end
-    if databaseInitializing then return false, 'Discord database initialization is already in progress.' end
+    if databaseInitializing then return false, KoraLang('Modules.Discord.database_initializing') end
     databaseInitializing = true
 
     local ready, readyErr = waitForQbSql()
@@ -763,7 +763,8 @@ local function ensureDatabase()
         databaseInitializing = false
         if not databaseWarningPrinted then
             databaseWarningPrinted = true
-            Kora.logging.warn('lib.server.role_caching_will_be_memory_only', ('^3[kora_lib:discord]^7 %s; role caching will be memory-only.'):format(readyErr))
+            Kora.logging.warn('lib.server.role_caching_will_be_memory_only', KoraLang(
+                'Modules.Discord.sql_memory_only', readyErr))
         end
         return false, readyErr
     end
@@ -779,7 +780,8 @@ local function ensureDatabase()
     for reportIndex = 1, #reports do
         local report = reports[reportIndex]
         for warningIndex = 1, #(report.warnings or {}) do
-            Kora.logging.warn('lib.server.diagnostic', ('^3[kora_lib:discord]^7 %s: %s'):format(tostring(report.table), tostring(report.warnings[warningIndex])))
+            Kora.logging.warn('lib.server.diagnostic', KoraLang(
+                'Modules.Discord.sql_warning', tostring(report.table), tostring(report.warnings[warningIndex])))
         end
     end
 
@@ -791,7 +793,7 @@ local function ensureDatabase()
 end
 
 local function persistGuildRoles(guildId, roles)
-    if not databaseReady then return false, 'Discord role database is unavailable.' end
+    if not databaseReady then return false, KoraLang('Modules.Discord.role_database_unavailable') end
     local statements = {}
 
     if #roles > 0 then
@@ -840,7 +842,7 @@ local function persistGuildRoles(guildId, roles)
 end
 
 local function persistMemberRoles(guildId, userId, entry)
-    if not databaseReady then return false, 'Discord role database is unavailable.' end
+    if not databaseReady then return false, KoraLang('Modules.Discord.role_database_unavailable') end
     local statements = {
         {
             query = [[
@@ -884,7 +886,8 @@ local function persistMemberSoon(guildId, userId, entry)
         if not ready then return end
         local ok, err = persistMemberRoles(guildId, userId, entry)
         if not ok then
-            Kora.logging.warn('lib.server.could_not_persist_roles_for', ('^3[kora_lib:discord]^7 could not persist roles for %s: %s'):format(userId, tostring(err or readyErr)))
+            Kora.logging.warn('lib.server.could_not_persist_roles_for', KoraLang(
+                'Modules.Discord.persist_failed', userId, tostring(err or readyErr)))
         end
     end)
 end
@@ -900,11 +903,11 @@ end
 ---@return table[]|nil roles
 ---@return string|nil error
 function Kora.discord.getGuildRoles(guildId)
-    if not Kora.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
+    if not Kora.discord.botEnabled() then return nil, KoraLang('Modules.Discord.bot_disabled') end
     local ok, resolved = pcall(resolveGuildId, guildId)
     if not ok then return nil, tostring(resolved) end
     local cache = guildRoleCache[resolved]
-    if not cache then return nil, 'Discord guild role catalog is not cached yet.' end
+    if not cache then return nil, KoraLang('Modules.Discord.role_catalog_missing') end
     local out = {}
     for index = 1, #cache.list do out[index] = copyRole(cache.list[index]) end
     return out
@@ -916,7 +919,7 @@ end
 ---@return table|nil role
 ---@return string|nil error
 function Kora.discord.getRole(role, guildId)
-    if not Kora.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
+    if not Kora.discord.botEnabled() then return nil, KoraLang('Modules.Discord.bot_disabled') end
     local ok, resolved = pcall(resolveGuildId, guildId)
     if not ok then return nil, tostring(resolved) end
     local _, cachedOrErr = resolveCachedRole(resolved, role)
@@ -956,13 +959,13 @@ end
 ---@return table[]|nil roles
 ---@return string|nil error
 function Kora.discord.getRoles(id)
-    if not Kora.discord.botEnabled() then return nil, 'Discord bot is disabled.' end
+    if not Kora.discord.botEnabled() then return nil, KoraLang('Modules.Discord.bot_disabled') end
     local userId, userErr = resolveUserId(id)
     if not userId then return nil, userErr end
     local ok, guildId = pcall(resolveGuildId, nil)
     if not ok then return nil, tostring(guildId) end
     local entry = guildMemberCache[guildId] and guildMemberCache[guildId][userId]
-    if not entry then return nil, 'Discord member roles are not cached yet.' end
+    if not entry then return nil, KoraLang('Modules.Discord.member_roles_missing') end
 
     local roles, catalog = {}, guildRoleCache[guildId]
     for roleId in pairs(entry.roles) do
@@ -974,7 +977,7 @@ function Kora.discord.getRoles(id)
         if ap ~= bp then return ap > bp end
         return tostring(a.name):lower() < tostring(b.name):lower()
     end)
-    if not memberIsFresh(entry) then return roles, 'Discord member role cache is stale.' end
+    if not memberIsFresh(entry) then return roles, KoraLang('Modules.Discord.member_roles_stale') end
     return roles
 end
 
@@ -983,13 +986,13 @@ end
 ---@return boolean hasRole
 ---@return string|nil error
 function Kora.discord.hasRole(id, role)
-    if not Kora.discord.botEnabled() then return false, 'Discord bot is disabled.' end
+    if not Kora.discord.botEnabled() then return false, KoraLang('Modules.Discord.bot_disabled') end
     local userId, userErr = resolveUserId(id)
     if not userId then return false, userErr end
     local ok, guildId = pcall(resolveGuildId, nil)
     if not ok then return false, tostring(guildId) end
     local entry = guildMemberCache[guildId] and guildMemberCache[guildId][userId]
-    if not memberIsFresh(entry) then return false, 'Discord member roles are missing or stale.' end
+    if not memberIsFresh(entry) then return false, KoraLang('Modules.Discord.member_roles_missing_or_stale') end
     local roleId, roleErr = resolveCachedRole(guildId, role)
     if not roleId then return false, roleErr end
     return entry.roles[roleId] == true
@@ -1003,7 +1006,9 @@ end
 ---@return string|nil error
 function Kora.discord.hasRoles(id, roles, requireAll)
     if type(roles) == 'string' then roles = { roles } end
-    if type(roles) ~= 'table' or #roles == 0 then return false, 'Discord roles must be a non-empty array or string.' end
+    if type(roles) ~= 'table' or #roles == 0 then
+        return false, KoraLang('Modules.Discord.roles_array_or_string')
+    end
     requireAll = requireAll ~= false
 
     for roleIndex = 1, #roles do
@@ -1106,7 +1111,7 @@ local function runFullRoleSync()
         Kora.discord.fetchGuildRoles(guildId, callback)
     end)
     if not rolesOk or type(rolesResponse.data) ~= 'table' then
-        return false, rolesResponse.error or 'Discord did not return a guild role array.'
+        return false, rolesResponse.error or KoraLang('Modules.Discord.guild_roles_not_returned')
     end
 
     local catalog = cacheGuildRoles(guildId, rolesResponse.data)
@@ -1162,7 +1167,7 @@ end
 function Kora.discord.syncRoles(callback)
     assertCallback(callback)
     if not Kora.discord.botEnabled() then return botDisabled(callback) end
-    if syncInProgress then return localFailure(callback, 'A Discord role sync is already running.') end
+    if syncInProgress then return localFailure(callback, KoraLang('Modules.Discord.role_sync_running')) end
     syncInProgress = true
 
     CreateThread(function()
@@ -1183,25 +1188,25 @@ end
 local function discordSyncCommand(source)
     if source ~= 0 then return end
     if not Kora.discord.botEnabled() then
-        print('^3[kora_lib:discord]^7 bot disabled; set kora_lib_discord_bot_token and restart kora_lib.')
+        print(KoraLang('Modules.Discord.sync_bot_disabled'))
         return
     end
 
     local queued = Kora.discord.syncRoles(function(ok, response)
         if not ok then
-            print(('^1[kora_lib:discord]^7 role sync failed: %s'):format(tostring(response.error)))
+            print(KoraLang('Modules.Discord.sync_failed', tostring(response.error)))
             return
         end
         local data = response.data
-        print(('^2[kora_lib:discord]^7 synced %d guild roles and %d/%d online members (%d skipped, %d errors).'):format(
-            data.roles, data.members, data.players, data.skipped, data.errors))
+        print(KoraLang('Modules.Discord.sync_complete', data.roles, data.members, data.players,
+            data.skipped, data.errors))
         if not data.database then
-            print(('^3[kora_lib:discord]^7 database persistence unavailable: %s'):format(tostring(data.databaseError)))
+            print(KoraLang('Modules.Discord.db_unavailable', tostring(data.databaseError)))
         elseif data.databaseError then
-            print(('^3[kora_lib:discord]^7 database sync warning: %s'):format(tostring(data.databaseError)))
+            print(KoraLang('Modules.Discord.db_warning', tostring(data.databaseError)))
         end
     end)
-    if queued then print('^5[kora_lib:discord]^7 role sync started...') end
+    if queued then print(KoraLang('Modules.Discord.sync_started')) end
 end
 
 RegisterCommand('kora_lib_discord_sync', discordSyncCommand, false)
@@ -1214,8 +1219,8 @@ AddEventHandler('playerJoining', function()
         if userId then
             Kora.discord.refreshMember(userId, function(ok, response)
                 if not ok and response.status ~= 404 then
-                    Kora.logging.warn('lib.server.could_not_refresh_joining_player', ('^3[kora_lib:discord]^7 could not refresh joining player %s: %s'):format(
-                        tostring(joiningSource), tostring(response.error)))
+                    Kora.logging.warn('lib.server.could_not_refresh_joining_player', KoraLang(
+                        'Modules.Discord.refresh_player_failed', tostring(joiningSource), tostring(response.error)))
                 end
             end)
         end
@@ -1227,10 +1232,11 @@ CreateThread(function()
 
     Kora.discord.syncRoles(function(ok, response)
         if not ok then
-            Kora.logging.error('lib.server.initial_role_sync_failed', ('^3[kora_lib:discord]^7 initial role sync failed: %s'):format(tostring(response.error)))
+            Kora.logging.error('lib.server.initial_role_sync_failed', KoraLang(
+                'Modules.Discord.initial_sync_failed', tostring(response.error)))
         elseif response.data.databaseError then
-            Kora.logging.warn('lib.server.initial_role_database_sync_warning', ('^3[kora_lib:discord]^7 initial role database sync warning: %s'):format(
-                tostring(response.data.databaseError)))
+            Kora.logging.warn('lib.server.initial_role_database_sync_warning', KoraLang(
+                'Modules.Discord.initial_db_warning', tostring(response.data.databaseError)))
         end
     end)
 
@@ -1238,10 +1244,11 @@ CreateThread(function()
         Wait(discordConfig('roleSyncInterval', 300000))
         Kora.discord.syncRoles(function(ok, response)
             if not ok then
-                Kora.logging.error('lib.server.heartbeat_role_sync_failed', ('^3[kora_lib:discord]^7 heartbeat role sync failed: %s'):format(tostring(response.error)))
+                Kora.logging.error('lib.server.heartbeat_role_sync_failed', KoraLang(
+                    'Modules.Discord.heartbeat_sync_failed', tostring(response.error)))
             elseif response.data.databaseError then
-                Kora.logging.warn('lib.server.heartbeat_role_database_sync_warning', ('^3[kora_lib:discord]^7 heartbeat role database sync warning: %s'):format(
-                    tostring(response.data.databaseError)))
+                Kora.logging.warn('lib.server.heartbeat_role_database_sync_warning', KoraLang(
+                    'Modules.Discord.heartbeat_db_warning', tostring(response.data.databaseError)))
             end
         end)
     end

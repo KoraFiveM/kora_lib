@@ -44,15 +44,17 @@ local function displayValue(value, schema)
     end
     if schema and (schema.kind == 'list' or schema.kind == 'map') then
         local count = collectionSize(value)
-        return ('%d %s'):format(count, count == 1 and 'row' or 'rows')
+        return KoraLang(count == 1 and 'Modules.Config.editor.row' or 'Modules.Config.editor.rows', count)
     end
     if type(value) == 'table' then
         local ok, encoded = pcall(json.encode, value)
-        return ok and encoded or '[complex value]'
+        return ok and encoded or KoraLang('Modules.Config.editor.complex_value')
     end
     if type(value) == 'number' then return ('%.12g'):format(value) end
-    if type(value) == 'boolean' then return value and 'On' or 'Off' end
-    return value == nil and 'Not set' or tostring(value)
+    if type(value) == 'boolean' then
+        return value and KoraLang('Modules.Config.editor.on') or KoraLang('Modules.Config.editor.off')
+    end
+    return value == nil and KoraLang('Modules.Config.editor.not_set') or tostring(value)
 end
 
 local function schemaLeaves(schema, configured, running, out)
@@ -157,8 +159,8 @@ fieldForSchema = function(schema, value, id, label, description)
         local enabledId = id .. 'Enabled'
         local fields = { {
             id = enabledId,
-            label = 'Set a value',
-            description = ('When disabled, %s uses no override value.'):format(label or schema.label),
+            label = KoraLang('Modules.Config.editor.optional_value'),
+            description = KoraLang('Modules.Config.editor.optional_description', label or schema.label),
             type = 'checkbox',
             default = value ~= nil,
         } }
@@ -229,15 +231,16 @@ fieldForSchema = function(schema, value, id, label, description)
             or schema.keyType == 'integer' and 'integer-map'
             or schema.keyType == 'mixed' and 'mixed'
             or 'string'
-        common.keyLabel = schema.kind == 'list' and 'Position' or 'Key'
-        common.valueLabel = 'Value (JSON or text)'
-        common.addRowLabel = 'Add row'
-        common.removeRowLabel = 'Delete row'
+        common.keyLabel = schema.kind == 'list' and KoraLang('Modules.Config.editor.position')
+            or KoraLang('Modules.Config.editor.key')
+        common.valueLabel = KoraLang('Modules.Config.editor.value_json')
+        common.addRowLabel = KoraLang('Modules.Config.editor.add_row')
+        common.removeRowLabel = KoraLang('Modules.Config.editor.delete_row')
         common.requiredKeys = schema.requiredKeys
         local item = schema.item
         if item and (item.kind == 'string' or item.kind == 'number' or item.kind == 'integer'
             or item.kind == 'boolean' or item.kind == 'enum') then
-            common.valueField = fieldForSchema(item, nil, 'item', 'Value')[1]
+            common.valueField = fieldForSchema(item, nil, 'item', KoraLang('Modules.Config.editor.value'))[1]
             common.valueField.description = nil
             if item.kind == 'enum' then
                 for index, option in ipairs(item.options) do
@@ -246,7 +249,7 @@ fieldForSchema = function(schema, value, id, label, description)
                     common.valueField.options[index].value = encodeFieldValue(candidate)
                 end
             end
-            common.valueLabel = 'Value'
+            common.valueLabel = KoraLang('Modules.Config.editor.value')
         end
         return { common }
     end
@@ -280,7 +283,7 @@ end
 
 local function decodeRowValue(raw, rowIndex)
     if type(raw) ~= 'string' or trimmed(raw) == '' then
-        error(('Row %d needs a value.'):format(rowIndex), 0)
+        error(KoraLang('Modules.Config.editor.row_value', rowIndex), 0)
     end
 
     local ok, decoded = pcall(json.decode, raw)
@@ -290,35 +293,35 @@ local function decodeRowValue(raw, rowIndex)
     local first = draft:sub(1, 1)
     if first == '{' or first == '[' or first == '"' or draft == 'true' or draft == 'false'
         or draft == 'null' or tonumber(draft) ~= nil then
-        error(('Row %d contains invalid JSON.'):format(rowIndex), 0)
+        error(KoraLang('Modules.Config.editor.row_json', rowIndex), 0)
     end
     return raw
 end
 
 local function inputTableValue(schema, rows)
-    if type(rows) ~= 'table' then error('Enter one or more key and value rows.', 0) end
+    if type(rows) ~= 'table' then error(KoraLang('Modules.Config.editor.rows_required'), 0) end
 
     local kind = schema.kind
     local output, seen = {}, {}
     for index = 1, #rows do
         local row = rows[index]
         if type(row) ~= 'table' or type(row.key) ~= 'string' then
-            error(('Row %d is invalid.'):format(index), 0)
+            error(KoraLang('Modules.Config.editor.row_invalid', index), 0)
         end
         local key = trimmed(row.key)
-        if key == '' then error(('Row %d needs a key.'):format(index), 0) end
+        if key == '' then error(KoraLang('Modules.Config.editor.row_key', index), 0) end
         if kind == 'list' then
             key = tonumber(key)
             if not key or key < 1 or key % 1 ~= 0 then
-                error(('Row %d needs a positive whole-number position.'):format(index), 0)
+                error(KoraLang('Modules.Config.editor.row_position', index), 0)
             end
         elseif schema.keyType == 'integer' or schema.keyType == 'mixed' and key:match('^-?%d+$') then
             key = tonumber(key)
             if not key or key % 1 ~= 0 then
-                error(('Row %d needs a whole-number key.'):format(index), 0)
+                error(KoraLang('Modules.Config.editor.row_integer_key', index), 0)
             end
         end
-        if seen[key] then error(('Key %q is used more than once.'):format(tostring(key)), 0) end
+        if seen[key] then error(KoraLang('Modules.Config.editor.duplicate_key', tostring(key)), 0) end
         seen[key] = true
         output[key] = decodeRowValue(row.value, index)
     end
@@ -326,7 +329,7 @@ local function inputTableValue(schema, rows)
     if kind == 'list' then
         for index = 1, #rows do
             if output[index] == nil then
-                error('List positions must run consecutively from 1. Reorder the position values and try again.', 0)
+                error(KoraLang('Modules.Config.editor.list_positions'), 0)
             end
         end
     end
@@ -344,7 +347,7 @@ local function inputValueForSchema(schema, values, id)
         local index = type(raw) == 'string' and raw:sub(1, #ENUM_OPTION_PREFIX) == ENUM_OPTION_PREFIX
             and tonumber(raw:sub(#ENUM_OPTION_PREFIX + 1)) or nil
         local option = index and (schema.options or {})[index] or nil
-        if option == nil then error('Choose one of the available options.', 0) end
+        if option == nil then error(KoraLang('Modules.Config.editor.enum_required'), 0) end
         if type(option) == 'table' then return option.value end
         return option
     end
@@ -354,7 +357,7 @@ local function inputValueForSchema(schema, values, id)
     end
     if kind == 'list' or kind == 'map' then return inputTableValue(schema, values[id]) end
     local ok, decoded = pcall(json.decode, values[id] or '')
-    if not ok or decoded == nil then error('Enter a valid JSON value.', 0) end
+    if not ok or decoded == nil then error(KoraLang('Modules.Config.editor.json_invalid'), 0) end
     return decoded
 end
 
@@ -390,19 +393,19 @@ local function settingsContent(entry)
     if entry.unavailable then
         return {
             title = entry.resource,
-            description = 'This resource registered configuration, but its current values could not be read.',
-            blocks = { { type = 'empty', title = 'Configuration unavailable',
-                description = entry.error or 'Restart the resource and reopen the editor.' } },
+            description = KoraLang('Modules.Config.editor.resource_unreadable'),
+            blocks = { { type = 'empty', title = KoraLang('Modules.Config.editor.config_unavailable'),
+                description = entry.error or KoraLang('Modules.Config.editor.restart_reopen') } },
         }
     end
 
     if not entry.loaded or entry.resource ~= activeResource then
         return {
             title = entry.resource,
-            description = ('%d editable configuration option%s.'):format(#settingsFor(entry),
+            description = KoraLang('Modules.Config.editor.editable_options', #settingsFor(entry),
                 #settingsFor(entry) == 1 and '' or 's'),
-            blocks = { { type = 'empty', title = 'Loading configuration',
-                description = 'The latest saved and running values are being requested from this resource.' } },
+            blocks = { { type = 'empty', title = KoraLang('Modules.Config.editor.loading_config'),
+                description = KoraLang('Modules.Config.editor.loading_values') } },
         }
     end
 
@@ -416,13 +419,14 @@ local function settingsContent(entry)
                 id = setting.id,
                 label = {
                     label = setting.schema.label,
-                    description = ('Key: %s'):format(setting.key),
+                    description = KoraLang('Modules.Config.editor.setting_key', setting.key),
                 },
                 key = setting.key,
                 description = setting.schema.description,
                 value = displayValue(setting.configured, setting.schema),
-                status = { label = setting.pending and 'Saved; restart needed'
-                    or setting.schema.live and 'No restart needed' or 'After restart', badge = true,
+                status = { label = setting.pending and KoraLang('Modules.Config.editor.saved_restart')
+                    or setting.schema.live and KoraLang('Modules.Config.editor.no_restart_short')
+                    or KoraLang('Modules.Config.editor.after_restart_short'), badge = true,
                     tone = setting.schema.live and 'success' or 'warning' },
                 scope = setting.schema.scope,
             }
@@ -431,34 +435,35 @@ local function settingsContent(entry)
 
     local content = {
         title = entry.resource,
-        description = ('%d settings. Choose a setting to change it.'):format(#rows)
-            .. (hiddenCount > 0 and (' %d advanced settings are hidden.'):format(hiddenCount) or ''),
-        actions = { { id = 'config:advanced', label = showAdvanced and 'Advanced: on' or 'Advanced: off',
+        description = KoraLang('Modules.Config.editor.settings_count', #rows)
+            .. (hiddenCount > 0 and KoraLang('Modules.Config.editor.advanced_hidden', hiddenCount) or ''),
+        actions = { { id = 'config:advanced', label = showAdvanced
+            and KoraLang('Modules.Config.editor.advanced_on') or KoraLang('Modules.Config.editor.advanced_off'),
             icon = 'sliders-horizontal', variant = showAdvanced and 'primary' or 'outline' } },
         blocks = { {
             id = 'config-settings', type = 'table', searchable = true, pageSize = 20,
             searchPlaceholder = 'Search settings…',
             columns = {
-                { key = 'label', label = 'Setting', sortable = true, width = '24%' },
-                { key = 'description', label = 'Description', width = '42%' },
-                { key = 'value', label = 'Value', width = '18%' },
-                { key = 'status', label = 'Applies', width = '16%' },
+                { key = 'label', label = KoraLang('Modules.Config.editor.setting'), sortable = true, width = '24%' },
+                { key = 'description', label = KoraLang('Modules.Config.editor.description'), width = '42%' },
+                { key = 'value', label = KoraLang('Modules.Config.editor.value'), width = '18%' },
+                { key = 'status', label = KoraLang('Modules.Config.editor.applies'), width = '16%' },
             },
             rows = rows,
-            empty = hiddenCount > 0 and 'All settings here are advanced. Turn on Advanced to see them.'
-                or 'This resource has no editable settings.',
+            empty = hiddenCount > 0 and KoraLang('Modules.Config.editor.all_advanced')
+                or KoraLang('Modules.Config.editor.no_editable_settings'),
             action = 'config:setting',
             idKey = 'id',
         } },
     }
     if entry._pendingCount > 0 then
-        content.description = content.description .. (' %d saved changes are waiting for a restart.'):format(entry._pendingCount)
+        content.description = content.description .. KoraLang('Modules.Config.editor.pending_changes', entry._pendingCount)
     end
     if entry._pendingCount > 0 and entry.resource ~= 'kora_lib' then
         content.actions[#content.actions + 1] = {
-            id = 'config:restart', label = 'Restart resource to apply saved changes', icon = 'refresh-cw',
+            id = 'config:restart', label = KoraLang('Modules.Config.editor.restart_apply'), icon = 'refresh-cw',
             variant = 'outline',
-            confirm = ('Restart %s now? Active scripts in this resource will briefly stop and connected players may notice the interruption.'):format(entry.resource),
+            confirm = KoraLang('Modules.Config.editor.restart_confirm', entry.resource),
         }
     end
     return content
@@ -467,25 +472,32 @@ end
 local function editContent(entry, setting)
     local appliesNow = setting.schema.live == true
     local actions = {
-        { id = 'config:reset', label = 'Restore default', icon = 'rotate-ccw', variant = 'outline',
-            confirm = 'Restore this setting to its original value?' },
-        { id = 'config:back', label = ('Back to %s'):format(entry.resource), icon = 'arrow-left', variant = 'ghost' },
+        { id = 'config:reset', label = KoraLang('Modules.Config.editor.restore_default'),
+            icon = 'rotate-ccw', variant = 'outline',
+            confirm = KoraLang('Modules.Config.editor.restore_confirm') },
+        { id = 'config:back', label = KoraLang('Modules.Config.editor.back_to', entry.resource),
+            icon = 'arrow-left', variant = 'ghost' },
     }
     if setting.pending and entry.resource ~= 'kora_lib' then
         table.insert(actions, 2, {
-            id = 'config:restart', label = 'Restart resource now', icon = 'refresh-cw', variant = 'outline',
-            confirm = ('Restart %s now? Active scripts in this resource will briefly stop and connected players may notice the interruption.'):format(entry.resource),
+            id = 'config:restart', label = KoraLang('Modules.Config.editor.restart_now'),
+            icon = 'refresh-cw', variant = 'outline',
+            confirm = KoraLang('Modules.Config.editor.restart_confirm', entry.resource),
         })
     end
     local details = {
-        { label = 'Saved value', value = displayValue(setting.configured, setting.schema) },
-        { label = 'Currently in use', value = displayValue(setting.running, setting.schema) },
-        { label = 'Applies', value = appliesNow and 'Without a resource restart' or 'After a resource restart',
+        { label = KoraLang('Modules.Config.editor.saved_value'),
+            value = displayValue(setting.configured, setting.schema) },
+        { label = KoraLang('Modules.Config.editor.currently_used'),
+            value = displayValue(setting.running, setting.schema) },
+        { label = KoraLang('Modules.Config.editor.applies'), value = appliesNow
+            and KoraLang('Modules.Config.editor.no_restart') or KoraLang('Modules.Config.editor.after_restart'),
             tone = appliesNow and 'success' or 'warning' },
     }
     if showAdvanced then
-        details[#details + 1] = { label = 'Configuration key', value = displayPath(setting.schema.path) }
-        details[#details + 1] = { label = 'Scope', value = setting.schema.scope }
+        details[#details + 1] = { label = KoraLang('Modules.Config.editor.config_key'),
+            value = displayPath(setting.schema.path) }
+        details[#details + 1] = { label = KoraLang('Modules.Config.editor.scope'), value = setting.schema.scope }
     end
     return {
         title = setting.schema.label,
@@ -496,13 +508,17 @@ local function editContent(entry, setting)
                 items = details,
             },
             {
-                id = 'config-edit-form-' .. entry.resource .. ':' .. setting.id .. ':' .. tostring(entry.revision), type = 'form',
-                title = appliesNow and 'New value' or 'New value (applies after restart)',
-                description = appliesNow and 'No resource restart is needed. See the setting description for when existing gameplay or new actions use the change.'
-                    or 'This change is saved and applies when the resource restarts.',
+                id = 'config-edit-form-' .. entry.resource .. ':' .. setting.id .. ':'
+                    .. tostring(entry.revision), type = 'form',
+                title = appliesNow and KoraLang('Modules.Config.editor.new_value')
+                    or KoraLang('Modules.Config.editor.new_value_restart'),
+                description = appliesNow and KoraLang('Modules.Config.editor.no_restart_needed')
+                    or KoraLang('Modules.Config.editor.saved_restart_description'),
                 fields = fieldFor(setting),
-                action = { id = 'config:save', label = 'Save setting', icon = 'save', variant = 'primary' },
-                submitLabel = appliesNow and 'Save setting' or 'Save for restart',
+                action = { id = 'config:save', label = KoraLang('Modules.Config.editor.save_setting'),
+                    icon = 'save', variant = 'primary' },
+                submitLabel = appliesNow and KoraLang('Modules.Config.editor.save_setting')
+                    or KoraLang('Modules.Config.editor.save_for_restart'),
             },
         },
         actions = actions,
@@ -513,21 +529,23 @@ local function buildDefinition()
     local rows = {}
     local navigation = {
         {
-            id = 'resources', label = 'Overview', icon = 'boxes', content = {
-                title = 'Registered resources',
-                description = 'Choose a resource here or directly from the sidebar.',
-                actions = { { id = 'config:advanced', label = showAdvanced and 'Advanced: on' or 'Advanced: off',
+            id = 'resources', label = KoraLang('Modules.Config.editor.overview'), icon = 'boxes', content = {
+                title = KoraLang('Modules.Config.editor.registered_resources'),
+                description = KoraLang('Modules.Config.editor.choose_resource'),
+                actions = { { id = 'config:advanced', label = showAdvanced
+                    and KoraLang('Modules.Config.editor.advanced_on') or KoraLang('Modules.Config.editor.advanced_off'),
                     icon = 'sliders-horizontal', variant = showAdvanced and 'primary' or 'outline' } },
                 blocks = { {
                     id = 'config-resources', type = 'table', searchable = true, pageSize = 18,
                     searchPlaceholder = 'Search resources…',
                     columns = {
-                        { key = 'resource', label = 'Resource', sortable = true },
-                        { key = 'settings', label = 'Settings', align = 'right', sortable = true },
-                        { key = 'status', label = 'Status' },
+                        { key = 'resource', label = KoraLang('Modules.Config.editor.resource'), sortable = true },
+                        { key = 'settings', label = KoraLang('Modules.Config.editor.settings'),
+                            align = 'right', sortable = true },
+                        { key = 'status', label = KoraLang('Modules.Config.editor.status') },
                     },
                     rows = rows,
-                    empty = 'No resource has registered configuration yet.',
+                    empty = KoraLang('Modules.Config.editor.no_registered_resources'),
                     action = 'config:resource', idKey = 'id',
                 } },
             },
@@ -542,7 +560,8 @@ local function buildDefinition()
             resource = entry.resource,
             settings = count,
             status = {
-                label = entry.unavailable and 'Unavailable' or entry.loaded and 'Ready' or 'Registered',
+                label = entry.unavailable and KoraLang('Modules.Config.editor.unavailable')
+                    or entry.loaded and KoraLang('Modules.Config.editor.ready') or KoraLang('Modules.Config.editor.registered'),
                 tone = entry.unavailable and 'warning' or 'success',
                 badge = true,
             },
@@ -557,10 +576,11 @@ local function buildDefinition()
         navigation[#navigation + 1] = {
             id = resourceViewId(entry.resource),
             label = entry.resource,
-            description = entry.unavailable and 'Configuration unavailable' or ('%d editable settings'):format(count),
+            description = entry.unavailable and KoraLang('Modules.Config.editor.config_unavailable')
+                or KoraLang('Modules.Config.editor.editable_settings', count),
             icon = 'sliders-horizontal',
             badge = entry.unavailable and '!' or count,
-            group = 'Resources',
+            group = KoraLang('Modules.Config.editor.resources_group'),
             onOpen = 'config:resource',
             disabled = entry.unavailable == true,
             content = content,
@@ -569,11 +589,11 @@ local function buildDefinition()
 
     return {
         id = 'kora_lib:config',
-        title = 'Server settings',
+        title = KoraLang('Modules.Config.editor.server_settings'),
         icon = 'settings',
         defaultView = 'resources',
-        description = 'Choose a resource to customise your server.',
-        footer = 'Live changes apply now. Other changes are saved for the next resource restart.',
+        description = KoraLang('Modules.Config.editor.choose_customize'),
+        footer = KoraLang('Modules.Config.editor.footer'),
         navigation = navigation,
     }
 end
@@ -588,7 +608,7 @@ end
 
 local function readResource(resource)
     local entry, readError = triggerCallback('kora_lib:configRead', resource)
-    if not entry then return nil, readError or 'Could not read resource configuration.' end
+    if not entry then return nil, readError or KoraLang('Modules.Config.editor.read_failed') end
     replaceEntry(entry)
     return entry
 end
@@ -608,7 +628,7 @@ local function handleAction(action, context)
     if action == 'config:resource' then
         local resource = resourcesByView[context.itemId] or context.itemId
         if type(resource) ~= 'string' then
-            return updateNavigation({ tone = 'destructive', message = 'That resource is no longer available.' })
+            return updateNavigation({ tone = 'destructive', message = KoraLang('Modules.Config.editor.resource_gone') })
         end
         local entry, readError = readResource(resource)
         if not entry then return updateNavigation({ tone = 'destructive', message = readError }) end
@@ -622,7 +642,7 @@ local function handleAction(action, context)
         local entry = resource and entriesByResource[resource] or nil
         local setting = entry and findSetting(entry, context.itemId)
         if not setting then
-            return updateNavigation({ tone = 'destructive', message = 'That setting is no longer available.' }, context.viewId)
+            return updateNavigation({ tone = 'destructive', message = KoraLang('Modules.Config.editor.setting_gone') }, context.viewId)
         end
         activeEdit = { resource = resource, settingId = pathId(setting.schema.path) }
         return updateNavigation(nil, context.viewId)
@@ -637,21 +657,22 @@ local function handleAction(action, context)
         local resource = resourcesByView[context.viewId]
         if not resource or resource == 'kora_lib' then
             return updateNavigation({ tone = 'destructive',
-                message = 'That resource cannot be restarted from this editor.' }, context.viewId)
+                message = KoraLang('Modules.Config.editor.cannot_restart') }, context.viewId)
         end
         local response, restartError = triggerCallback('kora_lib:configRestart', resource)
         if not response or not response.ok then
             return updateNavigation({ tone = 'destructive',
-                message = (response and response.error) or restartError or 'The resource could not be restarted.' }, context.viewId)
+                message = (response and response.error) or restartError
+                    or KoraLang('Modules.Config.editor.restart_failed') }, context.viewId)
         end
         local refreshed, refreshError = readResource(resource)
         if not refreshed then
             activeEdit = nil
             return updateNavigation({ tone = 'warning', message = refreshError
-                or 'The resource restarted, but its refreshed configuration is not available yet.' }, context.viewId)
+                or KoraLang('Modules.Config.editor.restarted_pending') }, context.viewId)
         end
         return updateNavigation({ tone = 'success',
-            message = ('%s restarted and loaded its saved configuration.'):format(resource) }, context.viewId)
+            message = KoraLang('Modules.Config.editor.restarted', resource) }, context.viewId)
     end
 
     if action == 'config:save' or action == 'config:reset' then
@@ -659,7 +680,7 @@ local function handleAction(action, context)
         local entry = resource and entriesByResource[resource] or nil
         local setting = entry and findSetting(entry, activeEdit.settingId)
         if not setting or context.viewId ~= resourceViewId(resource) then
-            return updateNavigation({ tone = 'destructive', message = 'That setting is no longer available.' }, context.viewId)
+            return updateNavigation({ tone = 'destructive', message = KoraLang('Modules.Config.editor.setting_gone') }, context.viewId)
         end
 
         local request = { resource = resource, path = setting.schema.path, revision = entry.revision }
@@ -677,29 +698,31 @@ local function handleAction(action, context)
 
         if not response or not response.ok then
             return updateNavigation({ tone = 'destructive',
-                message = (response and response.error) or requestError or 'Configuration change failed.' }, context.viewId)
+                message = (response and response.error) or requestError
+                    or KoraLang('Modules.Config.editor.change_failed') }, context.viewId)
         end
 
         local refreshed, refreshError = readResource(resource)
         if not refreshed then
             return updateNavigation({ tone = 'warning',
-                message = refreshError or 'The setting saved, but its refreshed value is unavailable.' }, context.viewId)
+                message = refreshError or KoraLang('Modules.Config.editor.refreshed_unavailable') }, context.viewId)
         end
 
         activeEdit = { resource = resource, settingId = pathId(request.path) }
-        local verb = action == 'config:reset' and 'reset' or 'updated'
-        local message = response.applied and ('Configuration %s live.'):format(verb)
-            or ('Configuration %s; restart %s to apply it.'):format(verb, resource)
+        local verb = action == 'config:reset' and KoraLang('Modules.Config.editor.reset')
+            or KoraLang('Modules.Config.editor.updated')
+        local message = response.applied and KoraLang('Modules.Config.editor.applied_live_message', verb)
+            or KoraLang('Modules.Config.editor.applied_restart_message', verb, resource)
         return updateNavigation({ tone = response.applied and 'success' or 'warning', message = message }, context.viewId)
     end
 
-    return updateNavigation({ tone = 'destructive', message = 'That configuration action is no longer available.' }, context.viewId)
+    return updateNavigation({ tone = 'destructive', message = KoraLang('Modules.Config.editor.action_unavailable') }, context.viewId)
 end
 
 local function openEditor(resource)
     local result, err = triggerCallback('kora_lib:configCatalog')
     if not result then
-        return Kora.notify.send({ type = 'error', message = err or 'You do not have access to configuration.' })
+        return Kora.notify.send({ type = 'error', message = err or KoraLang('Modules.Config.editor.no_access') })
     end
 
     activeEdit = nil
@@ -711,7 +734,7 @@ local function openEditor(resource)
         if not entry or not entry.loaded or entry.unavailable then
             local refreshed, readError = readResource(resource)
             if not refreshed then
-                Kora.notify.send({ type = 'error', message = readError or 'Could not read resource configuration.' })
+                Kora.notify.send({ type = 'error', message = readError or KoraLang('Modules.Config.editor.read_failed') })
             end
             entry = refreshed
         end
@@ -726,7 +749,7 @@ local function openEditor(resource)
 end
 
 function Kora.config.open(resource)
-    assert(resource == nil or type(resource) == 'string', 'Configuration resource must be a string.')
+    assert(resource == nil or type(resource) == 'string', KoraLang('Modules.Config.errors.resource_string'))
     openEditor(resource)
 end
 

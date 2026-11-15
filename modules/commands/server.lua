@@ -38,12 +38,12 @@ end
 local function isAllowed(source, definition)
     if source == 0 or definition.permission == 'user' then return true end
     if not isCallable(definition.checkPermission) then
-        return false, ('permission %q has no callable checkPermission (got %s)')
-            :format(definition.permission, type(definition.checkPermission))
+        return false, KoraLang('Modules.Commands.permission_checker_missing',
+            definition.permission, type(definition.checkPermission))
     end
     local ok, allowed = pcall(definition.checkPermission, source, definition.permission)
     if not ok then
-        return false, ('checkPermission errored: %s'):format(tostring(allowed))
+        return false, KoraLang('Modules.Commands.permission_check_errored', tostring(allowed))
     end
     return allowed == true
 end
@@ -65,17 +65,17 @@ end
 
 local function normalizeKeybind(keybind, description, owner)
     if keybind == nil then return nil end
-    assert(type(keybind) == 'table', 'Command keybind must be a table.')
+    assert(type(keybind) == 'table', KoraLang('Modules.Commands.keybind_table'))
     assert(keybind.description == nil or (type(keybind.description) == 'string' and keybind.description ~= ''),
-        'Command keybind description must be a non-empty string.')
+        KoraLang('Modules.Commands.keybind_description'))
     assert(keybind.defaultKey == nil or type(keybind.defaultKey) == 'string',
-        'Command keybind defaultKey must be a string.')
+        KoraLang('Modules.Commands.keybind_default_key'))
     assert(keybind.defaultMapper == nil or (type(keybind.defaultMapper) == 'string' and keybind.defaultMapper ~= ''),
-        'Command keybind defaultMapper must be a non-empty string.')
+        KoraLang('Modules.Commands.keybind_default_mapper'))
     assert(keybind.secondaryKey == nil or type(keybind.secondaryKey) == 'string',
-        'Command keybind secondaryKey must be a string.')
+        KoraLang('Modules.Commands.keybind_secondary_key'))
     assert(keybind.secondaryMapper == nil or (type(keybind.secondaryMapper) == 'string' and keybind.secondaryMapper ~= ''),
-        'Command keybind secondaryMapper must be a non-empty string.')
+        KoraLang('Modules.Commands.keybind_secondary_mapper'))
 
     return {
         description = keybind.description or description,
@@ -91,17 +91,19 @@ local function dispatch(name, definition, source, rawArgs, raw)
     local allowed, denyReason = isAllowed(source, definition)
     if not allowed then
         if denyReason then
-            Kora.logging.warn('lib.server.denied_for', ("^3[kora_lib:commands]^7 /%s denied for %s: %s"):format(name, tostring(source), denyReason))
+            Kora.logging.warn('lib.server.denied_for', KoraLang(
+                'Modules.Commands.denied', name, tostring(source), denyReason))
         end
-        definition.notify(source, 'You do not have permission for this command.', 'error')
+        definition.notify(source, KoraLang('Modules.Commands.no_permission'), 'error')
         return
     end
     if definition.argsRequired and definition.args and #rawArgs < #definition.args then
-        definition.notify(source, ('Missing arguments for /%s'):format(name), 'error')
+        definition.notify(source, KoraLang('Modules.Commands.missing_arguments', name), 'error')
         return
     end
     local ok, err = pcall(definition.handler, source, rawArgs, raw)
-    if not ok then Kora.logging.error('lib.server.errored', ("^3[kora_lib:commands]^7 /%s errored: %s"):format(name, tostring(err))) end
+    if not ok then Kora.logging.error('lib.server.errored', KoraLang(
+        'Modules.Commands.errored', name, tostring(err))) end
 end
 
 local function sendKeybind(src, name, definition)
@@ -149,26 +151,26 @@ end
 ---  - resource: string|nil -- owning resource; defaults to the invoking resource
 function Kora.commands.add(name, help, args, argsRequired, handler, opts)
     assert(type(name) == 'string' and name:match('^[%w_:%.%-]+$'),
-        'Command name must be a non-empty command name without whitespace.')
-    assert(help == nil or type(help) == 'string', 'Command help must be a string or nil.')
-    assert(args == nil or type(args) == 'table', 'Command args must be a table or nil.')
+        KoraLang('Modules.Commands.name_invalid'))
+    assert(help == nil or type(help) == 'string', KoraLang('Modules.Commands.help_invalid'))
+    assert(args == nil or type(args) == 'table', KoraLang('Modules.Commands.args_invalid'))
     if args then
         local argumentCount = 0
         for index, argument in pairs(args) do
             assert(isInteger(index) and index >= 1 and type(argument) == 'table',
-                'Command args must be a dense array of tables.')
+                KoraLang('Modules.Commands.args_dense'))
             assert(type(argument.name) == 'string' and argument.name ~= '',
-                'Command argument names must be non-empty strings.')
+                KoraLang('Modules.Commands.argument_name_invalid'))
             assert(argument.help == nil or type(argument.help) == 'string',
-                'Command argument help must be a string or nil.')
+                KoraLang('Modules.Commands.argument_help_invalid'))
             argumentCount = argumentCount + 1
         end
-        assert(argumentCount == #args, 'Command args must be a dense array of tables.')
+        assert(argumentCount == #args, KoraLang('Modules.Commands.args_dense'))
     end
-    assert(argsRequired == nil or type(argsRequired) == 'boolean', 'Command argsRequired must be a boolean or nil.')
-    assert(isCallable(handler), 'Command handler must be callable.')
+    assert(argsRequired == nil or type(argsRequired) == 'boolean', KoraLang('Modules.Commands.args_required_invalid'))
+    assert(isCallable(handler), KoraLang('Modules.Commands.handler_invalid'))
     if opts == nil then opts = {} end
-    assert(type(opts) == 'table', 'Command options must be a table.')
+    assert(type(opts) == 'table', KoraLang('Modules.Commands.options_invalid'))
 
     local permission = opts.permission
     if permission == nil then permission = 'user' end
@@ -176,10 +178,10 @@ function Kora.commands.add(name, help, args, argsRequired, handler, opts)
     if owner == nil then owner = GetInvokingResource() or GetCurrentResourceName() end
     local notify = opts.notify
     if notify == nil then notify = defaultNotify end
-    assert(type(permission) == 'string' and permission ~= '', 'Command permission must be a non-empty string.')
-    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Command resource must be a non-empty string.')
-    assert(opts.checkPermission == nil or isCallable(opts.checkPermission), 'Command checkPermission must be callable.')
-    assert(isCallable(notify), 'Command notify must be callable.')
+    assert(type(permission) == 'string' and permission ~= '', KoraLang('Modules.Commands.permission_invalid'))
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), KoraLang('Modules.Commands.resource_invalid'))
+    assert(opts.checkPermission == nil or isCallable(opts.checkPermission), KoraLang('Modules.Commands.check_permission_invalid'))
+    assert(isCallable(notify), KoraLang('Modules.Commands.notify_invalid'))
     local keybindDescription = type(help) == 'string' and help ~= '' and help or name
     local keybind = normalizeKeybind(opts.keybind, keybindDescription, owner)
     local previous = commands[name]
@@ -221,7 +223,7 @@ end
 ---Re-send all chat suggestions to one source (on (re)connect).
 ---@param src integer
 function Kora.commands.refresh(src)
-    assert(isPlayerSource(src), 'Command refresh source must be a positive integer player ID.')
+    assert(isPlayerSource(src), KoraLang('Modules.Commands.refresh_source_invalid'))
     for _, name in ipairs(sortedCommandNames()) do
         local def = commands[name]
         TriggerClientEvent('chat:addSuggestion', src, '/' .. name, def.help or '', publicArgs(def.args) or {})
@@ -300,8 +302,8 @@ function Kora.commands.suggest(src, name, argumentIndex, query, parsedArgs)
             args = parsedArgs,
         })
         if not ok then
-            Kora.logging.error('lib.server.suggestion_provider_for_argument_errored', ("^3[kora_lib:commands]^7 suggestion provider for /%s argument %d errored: %s")
-                :format(name, argumentIndex, tostring(provided)))
+            Kora.logging.error('lib.server.suggestion_provider_for_argument_errored', KoraLang(
+                'Modules.Commands.suggestion_error', name, argumentIndex, tostring(provided)))
         elseif type(provided) == 'table' then
             for i = 1, #provided do candidates[#candidates + 1] = provided[i] end
         end
