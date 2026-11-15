@@ -1,5 +1,47 @@
 return {
-    Modules = {
+    Modules = {        Distancecheck = {
+            distance_invalid = 'Distance must be a finite non-negative number.',
+            coords_invalid = '%s must include finite x, y, and z values.',
+            entity_invalid = 'Entity must be a positive integer handle.',
+            entity_missing = 'Entity does not exist.',
+            source_invalid = 'Source must be a positive integer server ID.',
+            point_x_invalid = 'Point must include a finite x value.', point_y_invalid = 'Point must include a finite y value.',
+            list_invalid = 'Kora.distance.playerNearAny requires a list.', coords_of_invalid = 'Kora.distance.playerNearAny requires opts.coordsOf.',
+        },
+        Drawing = {
+            coords_invalid = 'Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.', text_invalid = 'text must be a non-empty string.',
+            options_invalid = 'text3d options must be a table.', max_distance_invalid = 'text3d maxDistance must be a finite non-negative number.',
+            font_invalid = 'text3d font must be a non-negative integer.', scale_invalid = 'text3d scale must be a positive finite number.',
+            color_invalid = 'text3d color must have integer r, g, b, and a components from 0 to 255.', outline_invalid = 'text3d outline must be a boolean.',
+        },
+        Editor = {
+            title = 'kora_lib editor', player_command = '%s is an in-game player command.', no_access = 'You do not have access to the developer editors.',
+            zone_toggle_help = 'Toggle zone debug drawing', optional_toggle_help = 'Optional; omit to toggle', zone_usage = 'Usage: /kora_zonecreator [box|sphere|poly]',
+            zone_help = 'Start the in-world zone creator (admin)', zone_param_help = 'box | sphere | poly (default box)',
+            placement_usage = 'Usage: /kora_place <model>', placement_help = 'Start the entity placement tool (admin)', model_param_help = 'Model name to place',
+        },
+        Entities = {
+            vehicle_model_invalid = 'Vehicle model must be a name or hash.', vehicle_coords_table = 'Vehicle coords must be a table.',
+            vehicle_coords_invalid = 'Vehicle coords must contain finite x, y, and z values.', vehicle_heading_invalid = 'Vehicle heading must be finite.',
+            vehicle_type_invalid = 'Invalid server vehicle type: %s', vehicle_model_missing = 'Vehicle model is invalid.', vehicle_create_failed = 'Vehicle creation failed.',
+            options_invalid = 'Entity options must be a table.', preset_invalid = 'Unknown entities preset: %s', freeze_invalid = 'Entity freeze must be a boolean.',
+            events_invalid = 'Entity blockNonTempEvents must be a boolean.', invincible_invalid = 'Entity invincible must be a boolean.',
+            coords_invalid = 'Invalid coords: expected a vector3/vector4 or {x, y, z} table.', heading_invalid = 'Entity heading must be a finite number.',
+            create_failed = 'Failed to create entity.', scoped_options_invalid = 'Scoped entity options must be a table.',
+            radius_invalid = 'Scoped entity radius must be a finite number greater than zero.', scoped_spawn_failed = '[kora_lib:entities] scoped entity %d failed to spawn: %s',
+            entity_invalid = 'Invalid entity: %s', not_tracked = 'Entity is not tracked by Kora.entities.', not_owned = 'Entity is not owned by the calling resource.',
+            entity_missing = 'Entity does not exist.', control_timeout_invalid = 'Entity control timeout must be a non-negative integer.',
+            control_failed = 'Could not acquire entity control.', delete_failed = 'Entity deletion failed.',
+        },
+        Freecam = {
+            coords_invalid = 'Freecam %s must contain finite x, y, and z values.', number_invalid = 'Freecam %s must be a %sfinite number.',
+            movement_mode_invalid = 'Freecam movementMode must be camera or grid.', already_active = 'A freecam session is already active.',
+            options_invalid = 'Freecam options must be a table.', max_distance_invalid = 'Freecam maxDistance must be a positive finite number.',
+            zone_invalid = 'Freecam zone must be a Kora.zones handle.', freeze_player_invalid = 'Freecam freezePlayer must be a boolean.',
+            up_control_invalid = 'Freecam upControl must be a non-negative integer.', down_control_invalid = 'Freecam downControl must be a non-negative integer.',
+            fov_invalid = 'Freecam fov must be between 10 and 120.', create_failed = 'Freecam could not be created.',
+            stopped_after_error = '[kora_lib:freecam] stopped after an error: %s',
+        },
         Closest = {
             source_invalid = 'Closest-search source must be a positive player ID.',
             source_ped_missing = 'Closest-search source must have an active ped.',

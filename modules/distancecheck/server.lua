@@ -3,24 +3,24 @@ local isFiniteNumber = Kora.util.isFiniteNumber
 local isInteger = Kora.util.isInteger
 
 local function assertPlayerSource(src)
-    assert(isInteger(src) and src >= 1, 'Source must be a positive integer server ID.')
+    assert(isInteger(src) and src >= 1, KoraLang('Modules.Distancecheck.source_invalid'))
 end
 
 local function assertRadius(distance)
     if distance == nil then distance = 5.0 end
     assert(isFiniteNumber(distance) and distance >= 0,
-        'Distance must be a finite non-negative number.')
+        KoraLang('Modules.Distancecheck.distance_invalid'))
     return distance
 end
 
 local function assertCoords(coords, label)
     assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
-        label .. ' must include finite x, y, and z values.')
+        KoraLang('Modules.Distancecheck.coords_invalid'):format(label))
 end
 
 local function assertEntity(entity)
-    assert(isInteger(entity) and entity > 0, 'Entity must be a positive integer handle.')
-    assert(not DoesEntityExist or DoesEntityExist(entity), 'Entity does not exist.')
+    assert(isInteger(entity) and entity > 0, KoraLang('Modules.Distancecheck.entity_invalid'))
+    assert(not DoesEntityExist or DoesEntityExist(entity), KoraLang('Modules.Distancecheck.entity_missing'))
 end
 
 local function getPlayerCoords(src)
@@ -74,7 +74,7 @@ end
 ---@return boolean
 function Kora.distance.x(src, point, distance)
     assertPlayerSource(src)
-    assert(point and isFiniteNumber(point.x), 'Point must include a finite x value.')
+    assert(point and isFiniteNumber(point.x), KoraLang('Modules.Distancecheck.point_x_invalid'))
     local playerCoords = getPlayerCoords(src)
     return withinRadius(playerCoords.x - point.x, 0, 0, distance)
 end
@@ -91,9 +91,9 @@ end
 ---@return any entry
 function Kora.distance.playerNearAny(src, list, opts)
     assertPlayerSource(src)
-    assert(type(list) == 'table', 'Kora.distance.playerNearAny requires a list.')
+    assert(type(list) == 'table', KoraLang('Modules.Distancecheck.list_invalid'))
     assert(type(opts) == 'table' and Kora.util.isCallable(opts.coordsOf),
-        'Kora.distance.playerNearAny requires opts.coordsOf.')
+        KoraLang('Modules.Distancecheck.coords_of_invalid'))
 
     local playerCoords = getPlayerCoords(src)
     local entry = Kora.util.nearest(list, playerCoords, {
@@ -109,7 +109,7 @@ end
 ---@return boolean
 function Kora.distance.y(src, point, distance)
     assertPlayerSource(src)
-    assert(point and isFiniteNumber(point.y), 'Point must include a finite y value.')
+    assert(point and isFiniteNumber(point.y), KoraLang('Modules.Distancecheck.point_y_invalid'))
     local playerCoords = getPlayerCoords(src)
     return withinRadius(0, playerCoords.y - point.y, 0, distance)
 end
