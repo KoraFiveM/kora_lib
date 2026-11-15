@@ -11,13 +11,17 @@
 ---@return any | false identifier `key`, or the value returned by `request` when `identifierFromRequest` is set, or false if it never loaded.
 ---@return string? error
 local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifierFromRequest, options)
-    assert(cb == nil or Kora.util.isCallable(cb), "Kora.stream callback must be callable.")
-    assert(options == nil or type(options) == "table", "Kora.stream load options must be a table.")
+    assert(cb == nil or Kora.util.isCallable(cb), KoraLang('Modules.Stream.stream_callback_callable'))
+    assert(options == nil or type(options) == "table", KoraLang('Modules.Stream.stream_load_options'))
     options = options or {}
-    assert(options.timeout == nil or Kora.util.isInteger(options.timeout) and options.timeout >= 0,
-        "Kora.stream timeout must be a non-negative integer.")
-    assert(options.shouldContinue == nil or Kora.util.isCallable(options.shouldContinue),
-        "Kora.stream shouldContinue must be callable.")
+    assert(
+        options.timeout == nil or Kora.util.isInteger(options.timeout) and options.timeout >= 0,
+        KoraLang('Modules.Stream.stream_timeout_non')
+    )
+    assert(
+        options.shouldContinue == nil or Kora.util.isCallable(options.shouldContinue),
+        KoraLang('Modules.Stream.stream_shouldcontinue_ca')
+    )
 
     local identifier = key
 
@@ -53,7 +57,7 @@ local function loadStreamingAsset(request, hasLoaded, remove, key, cb, identifie
 end
 
 local function assertName(value, label)
-    assert(type(value) == 'string' and value ~= '', ('Invalid %s: expected a non-empty string.'):format(label))
+    assert(type(value) == 'string' and value ~= '', KoraLang('Modules.Stream.invalid_s_non', label))
 end
 
 ---@param model string | number The model to be loaded.
@@ -66,8 +70,8 @@ function Kora.stream.loadModel(model, cb, options)
         assertName(model, 'model')
         model = joaat(model)
     end
-    assert(Kora.util.isInteger(model), ("Invalid model: %s"):format(model))
-    assert(IsModelValid(model), ("Invalid model: %s"):format(model))
+    assert(Kora.util.isInteger(model), KoraLang('Modules.Stream.invalid_model_s', model))
+    assert(IsModelValid(model), KoraLang('Modules.Stream.invalid_model_s', model))
 
     return loadStreamingAsset(RequestModel, HasModelLoaded, SetModelAsNoLongerNeeded, model, cb, false, options)
 end
@@ -91,7 +95,7 @@ end
 ---@return string? error
 function Kora.stream.loadAnimDict(animDict, cb, options)
     assertName(animDict, 'anim dict')
-    assert(DoesAnimDictExist(animDict), ("Anim dict does not exist: %s"):format(animDict))
+    assert(DoesAnimDictExist(animDict), KoraLang('Modules.Stream.anim_dict_does', animDict))
     return loadStreamingAsset(RequestAnimDict, HasAnimDictLoaded, RemoveAnimDict, animDict, cb, false, options)
 end
 
@@ -148,8 +152,10 @@ end
 ---@return string? error
 function Kora.stream.loadTextureDict(textureDict, cb, isAdditionalTextures)
     assertName(textureDict, 'texture dict')
-    assert(isAdditionalTextures == nil or type(isAdditionalTextures) == "boolean",
-        "Texture dictionary additional-textures flag must be a boolean.")
+    assert(
+        isAdditionalTextures == nil or type(isAdditionalTextures) == "boolean",
+        KoraLang('Modules.Stream.texture_dictionary_addit')
+    )
     return loadStreamingAsset(function(dict)
         RequestStreamedTextureDict(dict, isAdditionalTextures == true)
     end, HasStreamedTextureDictLoaded, SetStreamedTextureDictAsNoLongerNeeded, textureDict, cb)
@@ -181,10 +187,15 @@ end
 ---@return boolean success False if collision never finished loading.
 ---@return string? error
 function Kora.stream.loadCollision(coords, cb, entity)
-    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
-        "Invalid coords: expected a vector3 or {x, y, z} table.")
-    assert(cb == nil or Kora.util.isCallable(cb), "Kora.stream callback must be callable.")
-    assert(entity == nil or Kora.util.isInteger(entity), "Collision entity must be a finite integer.")
+    assert(
+        coords
+                    and Kora.util.isFiniteNumber(coords.x)
+                    and Kora.util.isFiniteNumber(coords.y)
+                    and Kora.util.isFiniteNumber(coords.z),
+        KoraLang('Modules.Stream.invalid_coords_vector3')
+    )
+    assert(cb == nil or Kora.util.isCallable(cb), KoraLang('Modules.Stream.stream_callback_callable'))
+    assert(entity == nil or Kora.util.isInteger(entity), KoraLang('Modules.Stream.collision_entity_finite'))
 
     if entity == nil then entity = PlayerPedId() end
 

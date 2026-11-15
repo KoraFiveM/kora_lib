@@ -4,15 +4,21 @@
 ---@return string|nil plate
 ---@return string|nil reason
 function Kora.vehicle.normalizePlate(value, options)
-    assert(options == nil or type(options) == "table", "Kora.vehicle.normalizePlate options must be a table.")
+    assert(options == nil or type(options) == "table", KoraLang('Modules.Vehicle.vehicle_normalizeplate_o'))
     options = options or {}
-    assert(options.maxLength == nil or Kora.util.isInteger(options.maxLength) and options.maxLength > 0,
-        "Kora.vehicle.normalizePlate maxLength must be a positive integer.")
-    assert(options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "remove"
+    assert(
+        options.maxLength == nil or Kora.util.isInteger(options.maxLength) and options.maxLength > 0,
+        KoraLang('Modules.Vehicle.vehicle_normalizeplate_m')
+    )
+    assert(
+        options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "remove"
         or options.whitespace == "preserve",
-        "Kora.vehicle.normalizePlate whitespace must be 'collapse', 'remove', or 'preserve'.")
-    assert(options.characters == nil or options.characters == "alphanumeric" or options.characters == "any",
-        "Kora.vehicle.normalizePlate characters must be 'alphanumeric' or 'any'.")
+        KoraLang('Modules.Vehicle.vehicle_normalizeplate_w')
+    )
+    assert(
+        options.characters == nil or options.characters == "alphanumeric" or options.characters == "any",
+        KoraLang('Modules.Vehicle.vehicle_normalizeplate_c')
+    )
 
     if type(value) ~= "string" then return nil, "invalid_type" end
 

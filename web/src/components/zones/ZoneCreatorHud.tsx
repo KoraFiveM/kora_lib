@@ -1,14 +1,15 @@
 import { useState } from "react"
 
-import { Kbd } from "@/components/ui/kbd"
 import { EditorControlsHud } from "@/components/editor/EditorControlsHud"
 import type { ZoneCreatorHudSnapshot, ZoneCreatorStartPayload, ZoneType } from "@/lib/types"
 import { cn } from "@/lib/cn"
 import { useNuiEvent } from "@/lib/useNuiEvent"
+import { defaultZoneCreatorLabels, formatZoneCreatorLabel } from "@/lib/zoneCreatorLocale"
 
 interface CreatorState {
     type: ZoneType
     snapshot: ZoneCreatorHudSnapshot | null
+    labels: typeof defaultZoneCreatorLabels
 }
 
 function formatParamValue(param: string, value: number): string {
@@ -23,10 +24,6 @@ function formatStepValue(param: string, value: number): string {
     return value.toFixed(2)
 }
 
-const PARAM_LABELS: Record<string, string> = {
-    zOffset: "height offset",
-}
-
 /**
  * Small always-mounted HUD for Kora.zones.startCreator (see
  * modules/zones/client.lua). Deliberately stays pointer-events-none the whole
@@ -37,7 +34,7 @@ export function ZoneCreatorHud() {
     const [state, setState] = useState<CreatorState | null>(null)
 
     useNuiEvent<ZoneCreatorStartPayload>("zoneCreator:start", (data) => {
-        setState({ type: data.type, snapshot: null })
+        setState({ type: data.type, snapshot: null, labels: data.labels ?? defaultZoneCreatorLabels })
     })
 
     useNuiEvent<ZoneCreatorHudSnapshot | null | undefined>("zoneCreator:hud", (snapshot) => {
@@ -45,34 +42,34 @@ export function ZoneCreatorHud() {
             setState(null)
             return
         }
-        setState((prev) => (prev ? { ...prev, snapshot } : { type: snapshot.type, snapshot }))
+        setState((prev) => (prev ? { ...prev, snapshot } : { type: snapshot.type, snapshot, labels: defaultZoneCreatorLabels }))
     })
 
     if (!state) return null
 
-    const { type, snapshot } = state
+    const { type, snapshot, labels } = state
 
     return (
         <EditorControlsHud
-            title={<span className="capitalize">Building: {type}</span>}
+            title={<span className="capitalize">{formatZoneCreatorLabel(labels.building, labels.types[type])}</span>}
             status={
                 <span className="flex items-center gap-2">
                     <AimIndicator aiming={snapshot?.aiming ?? false} />
-                    {snapshot ? <ShapeStatus type={type} snapshot={snapshot} /> : "Starting…"}
+                    {snapshot ? <ShapeStatus type={type} snapshot={snapshot} labels={labels} /> : labels.starting}
                 </span>
             }
         >
             {snapshot && (
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                    <ActiveParam snapshot={snapshot} />
+                    <ActiveParam snapshot={snapshot} labels={labels} />
                     {snapshot.isShiftHeld && (
                         <span className="rounded-sm border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">
-                            Shift: fast adjust
+                            {labels.shiftFast}
                         </span>
                     )}
                     {snapshot.canConfirm && (
                         <span className="rounded-sm border border-brand-border bg-brand-soft px-2 py-1 text-xs font-semibold text-foreground">
-                            Enter confirm
+                            {labels.enterConfirm}
                         </span>
                     )}
                 </div>
@@ -81,11 +78,11 @@ export function ZoneCreatorHud() {
     )
 }
 
-function ShapeStatus({ type, snapshot }: { type: ZoneType; snapshot: ZoneCreatorHudSnapshot }) {
+function ShapeStatus({ type, snapshot, labels }: { type: ZoneType; snapshot: ZoneCreatorHudSnapshot; labels: typeof defaultZoneCreatorLabels }) {
     if (type === "poly") {
         return (
             <span>
-                <span className="font-mono tabular-nums">{snapshot.pointCount}</span> point{snapshot.pointCount === 1 ? "" : "s"} placed
+                {formatZoneCreatorLabel(snapshot.pointCount === 1 ? labels.pointOne : labels.pointMany, snapshot.pointCount)}
             </span>
         )
     }
@@ -93,29 +90,28 @@ function ShapeStatus({ type, snapshot }: { type: ZoneType; snapshot: ZoneCreator
     return (
         <span>
             {snapshot.hasCenter ? (
-                <span className="text-success">Center placed</span>
+                <span className="text-success">{labels.centerPlaced}</span>
             ) : (
                 <span className="inline-flex items-center gap-1 text-warning">
-                    Aim and press <Kbd>E</Kbd> to place
+                    {formatZoneCreatorLabel(labels.aimPlace, "E")}
                 </span>
             )}
         </span>
     )
 }
 
-function ActiveParam({ snapshot }: { snapshot: ZoneCreatorHudSnapshot }) {
+function ActiveParam({ snapshot, labels }: { snapshot: ZoneCreatorHudSnapshot; labels: typeof defaultZoneCreatorLabels }) {
     if (snapshot.activeParam === "editPoint") {
         return (
             <span className="rounded-sm border border-brand-border border-l-[3px] border-l-primary bg-brand-soft px-2 py-1 text-xs">
                 {snapshot.editIndex > 0 ? (
                     <>
-                        Editing point <span className="font-mono">{snapshot.editIndex}</span> of{" "}
-                        <span className="font-mono">{snapshot.pointCount}</span> &mdash; E moves it here
+                        {formatZoneCreatorLabel(labels.editingPoint, snapshot.editIndex, snapshot.pointCount, "E")}
                     </>
                 ) : snapshot.pointCount === 0 ? (
-                    "Editing points — place some first"
+                    labels.editingPointsEmpty
                 ) : (
-                    "Editing points — aim near one to grab it"
+                    labels.editingPointsAim
                 )}
             </span>
         )
@@ -126,10 +122,10 @@ function ActiveParam({ snapshot }: { snapshot: ZoneCreatorHudSnapshot }) {
 
     return (
         <span className="rounded-sm border border-brand-border border-l-[3px] border-l-primary bg-brand-soft px-2 py-1 text-xs">
-            <span className="capitalize">{PARAM_LABELS[snapshot.activeParam] ?? snapshot.activeParam}</span>:{" "}
+            <span className="capitalize">{labels.params[snapshot.activeParam] ?? snapshot.activeParam}</span>:{" "}
             <span className="font-mono tabular-nums">{formatParamValue(snapshot.activeParam, value)}</span>
             <span className="ml-1 text-muted-foreground">
-                (±{formatStepValue(snapshot.activeParam, snapshot.stepSize)}/scroll)
+                {formatZoneCreatorLabel(labels.stepScroll, formatStepValue(snapshot.activeParam, snapshot.stepSize))}
             </span>
         </span>
     )

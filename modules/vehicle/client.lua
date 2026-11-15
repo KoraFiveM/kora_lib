@@ -57,52 +57,55 @@ end
 
 local function assertFiniteColor(color, label)
     local red, green, blue = colorComponents(color)
-    assert(isFiniteNumber(red) and isFiniteNumber(green) and isFiniteNumber(blue),
-        ('Vehicle %s must have finite red, green, and blue values.'):format(label))
+    assert(
+        isFiniteNumber(red) and isFiniteNumber(green) and isFiniteNumber(blue),
+        KoraLang('Modules.Vehicle.vehicle_s_have', label)
+    )
 end
 
 local function assertIndexedProperties(values, label, maximum)
-    assert(type(values) == 'table', ('Vehicle %s must be a table.'):format(label))
+    assert(type(values) == 'table', KoraLang('Modules.Vehicle.vehicle_s', label))
     for key in pairs(values) do
         local index = tonumber(key)
-        assert(isInteger(index) and index >= 0 and index <= maximum,
-            ('Vehicle %s keys must be integer indices from 0 to %d.'):format(label, maximum))
+        assert(
+            isInteger(index) and index >= 0 and index <= maximum,
+            KoraLang('Modules.Vehicle.vehicle_s_keys', label, maximum)
+        )
     end
 end
 
 local function assertBooleanIndexedProperties(values, label, maximum)
     assertIndexedProperties(values, label, maximum)
     for _, value in pairs(values) do
-        assert(type(value) == 'boolean', ('Vehicle %s values must be booleans.'):format(label))
+        assert(type(value) == 'boolean', KoraLang('Modules.Vehicle.vehicle_s_booleans', label))
     end
 end
 
 local function assertProperties(props)
     for index = 1, #SCALAR_NUMBER_FIELDS do
         local field = SCALAR_NUMBER_FIELDS[index]
-        assert(props[field] == nil or isFiniteNumber(props[field]),
-            ('Vehicle %s must be a finite number.'):format(field))
+        assert(props[field] == nil or isFiniteNumber(props[field]), KoraLang('Modules.Vehicle.vehicle_s_finite', field))
     end
-    assert(props.plate == nil or type(props.plate) == 'string', 'Vehicle plate must be a string.')
+    assert(props.plate == nil or type(props.plate) == 'string', KoraLang('Modules.Vehicle.vehicle_plate'))
 
     for _, field in ipairs({ 'color1', 'color2', 'xenonColor' }) do
         local value = props[field]
         if type(value) == 'table' then
             assertFiniteColor(value, field)
         elseif value ~= nil then
-            assert(isFiniteNumber(value), ('Vehicle %s must be a finite number or RGB table.'):format(field))
+            assert(isFiniteNumber(value), KoraLang('Modules.Vehicle.vehicle_s_finite_2', field))
         end
     end
     for _, field in ipairs({ 'neonColor', 'tyreSmokeColor' }) do
         if props[field] ~= nil then
-            assert(type(props[field]) == 'table', ('Vehicle %s must be an RGB table.'):format(field))
+            assert(type(props[field]) == 'table', KoraLang('Modules.Vehicle.vehicle_s_rgb', field))
             assertFiniteColor(props[field], field)
         end
     end
     if props.tireHealth ~= nil then
         assertIndexedProperties(props.tireHealth, 'tire health', 5)
         for _, health in pairs(props.tireHealth) do
-            assert(isFiniteNumber(health), 'Vehicle tire health values must be finite numbers.')
+            assert(isFiniteNumber(health), KoraLang('Modules.Vehicle.vehicle_tire_health'))
         end
     end
     if props.extras ~= nil then assertBooleanIndexedProperties(props.extras, 'extras', 20) end
@@ -113,12 +116,14 @@ local function assertProperties(props)
     if props.neonEnabled ~= nil then
         assertBooleanIndexedProperties(props.neonEnabled, 'neon enabled', 4)
         for key in pairs(props.neonEnabled) do
-            assert(tonumber(key) >= 1, 'Vehicle neon enabled indices must be from 1 to 4.')
+            assert(tonumber(key) >= 1, KoraLang('Modules.Vehicle.vehicle_neon_enabled'))
         end
     end
     for _, field in ipairs({ 'modTurbo', 'modSmokeEnabled', 'modXenon', 'modCustomTiresF', 'modCustomTiresR' }) do
-        assert(props[field] == nil or type(props[field]) == 'boolean',
-            ('Vehicle %s must be a boolean.'):format(field))
+        assert(
+            props[field] == nil or type(props[field]) == 'boolean',
+            KoraLang('Modules.Vehicle.vehicle_s_boolean', field)
+        )
     end
 end
 

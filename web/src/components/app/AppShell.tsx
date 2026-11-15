@@ -25,6 +25,7 @@ const defaultLabels: AppShellLabels = {
     previous: "Previous", next: "Next", noRecords: "No records", nothingHere: "Nothing here",
     emptyTitle: "Nothing here yet", emptyDescription: "This section is ready for its application content.",
     close: "Close", select: "Select…", required: "Required.", invalidFormat: "Invalid format.",
+    wholeNumber: "Must be a whole number.", coordinateFinite: "Every coordinate must be a finite number.",
     minValue: "Must be at least %{value}.", maxValue: "Must be at most %{value}.",
     minLength: "Must be at least %{value} characters.", maxLength: "Must be at most %{value} characters.",
     page: "Page %{current} of %{total}", recenter: "Recenter map", clear: "Clear", backspace: "Backspace",

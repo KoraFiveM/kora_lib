@@ -6,6 +6,7 @@ import { useNuiRequest } from "@/lib/useNuiRequest"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { defaultZoneCreatorLabels, formatZoneCreatorLabel } from "@/lib/zoneCreatorLocale"
 
 /**
  * Summary dialog for Kora.zones.startCreator's confirm step (see
@@ -52,35 +53,35 @@ export function ZoneConfirmDialog() {
         <Dialog open onOpenChange={handleOpenChange}>
             <DialogContent className="max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>Confirm {payload.type} zone</DialogTitle>
+                    <DialogTitle>{formatZoneCreatorLabel(payload.labels?.confirmTitle ?? defaultZoneCreatorLabels.confirmTitle, (payload.labels ?? defaultZoneCreatorLabels).types[payload.type])}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs font-medium text-muted-foreground">Generated zone data</p>
+                        <p className="text-xs font-medium text-muted-foreground">{payload.labels?.generatedData ?? defaultZoneCreatorLabels.generatedData}</p>
                         <span className="rounded-xs border border-brand-border bg-brand-soft px-1.5 py-0.5 text-xs font-medium text-foreground">
-                            {payload.type}
+                            {(payload.labels ?? defaultZoneCreatorLabels).types[payload.type]}
                         </span>
                     </div>
                     <ScrollArea className="code-frame max-h-72 rounded-lg border">
                         <pre className="whitespace-pre p-3 font-mono text-[11px] leading-5 tabular-nums text-foreground">{payload.snippet}</pre>
                     </ScrollArea>
                     {copyState === "failed" && (
-                        <p className="text-xs text-destructive" role="alert">Clipboard copy failed. The zone creator is still open.</p>
+                        <p className="text-xs text-destructive" role="alert">{payload.labels?.clipboardFailed ?? defaultZoneCreatorLabels.clipboardFailed}</p>
                     )}
                 </div>
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => respond({ confirmed: false })}>
-                        Keep Editing
+                        {payload.labels?.keepEditing ?? defaultZoneCreatorLabels.keepEditing}
                     </Button>
                     <Button variant="outline" onClick={() => void copySnippet()}>
-                        {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy code"}
+                        {copyState === "copied" ? (payload.labels?.copied ?? defaultZoneCreatorLabels.copied) : copyState === "failed" ? (payload.labels?.copyFailed ?? defaultZoneCreatorLabels.copyFailed) : (payload.labels?.copyCode ?? defaultZoneCreatorLabels.copyCode)}
                     </Button>
-                    <Button onClick={handleCopyAndConfirm}>Copy &amp; Confirm</Button>
+                    <Button onClick={handleCopyAndConfirm}>{payload.labels?.copyConfirm ?? defaultZoneCreatorLabels.copyConfirm}</Button>
                 </DialogFooter>
                 <span className="sr-only" aria-live="polite">
-                    {copyState === "copied" ? "Zone data copied to clipboard." : copyState === "failed" ? "Could not copy zone data." : ""}
+                    {copyState === "copied" ? (payload.labels?.copiedAnnouncement ?? defaultZoneCreatorLabels.copiedAnnouncement) : copyState === "failed" ? (payload.labels?.copyFailedAnnouncement ?? defaultZoneCreatorLabels.copyFailedAnnouncement) : ""}
                 </span>
             </DialogContent>
         </Dialog>

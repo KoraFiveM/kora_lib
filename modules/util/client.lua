@@ -5,8 +5,11 @@
 ---@return number y Normalised 0..1, top to bottom.
 ---@return boolean onScreen
 function Kora.util.worldToScreen(coords)
-    assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y)
-        and Kora.util.isFiniteNumber(coords.z), "Kora.util.worldToScreen expects finite vector3 or {x, y, z} values.")
+    assert(
+        coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y)
+        and Kora.util.isFiniteNumber(coords.z),
+        KoraLang('Modules.Util.util_worldtoscreen_expec')
+    )
 
     local onScreen, x, y = World3dToScreen2d(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
 

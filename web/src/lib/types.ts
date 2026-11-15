@@ -485,6 +485,8 @@ export interface AppShellLabels {
     select: string
     required: string
     invalidFormat: string
+    wholeNumber: string
+    coordinateFinite: string
     minValue: string
     maxValue: string
     minLength: string
@@ -683,8 +685,20 @@ export type PlacementConfirmResult = { confirmed: boolean }
 
 export type ZoneType = "box" | "sphere" | "poly"
 
+export interface ZoneCreatorLabels {
+    types: Record<ZoneType, string>
+    building: string; starting: string; shiftFast: string; enterConfirm: string
+    pointOne: string; pointMany: string; centerPlaced: string; aimPlace: string
+    editingPoint: string; editingPointsEmpty: string; editingPointsAim: string
+    params: Record<string, string>; stepScroll: string
+    confirmTitle: string; generatedData: string; clipboardFailed: string; keepEditing: string
+    copied: string; copyFailed: string; copyCode: string; copyConfirm: string
+    copiedAnnouncement: string; copyFailedAnnouncement: string
+}
+
 export interface ZoneCreatorStartPayload {
     type: ZoneType
+    labels?: ZoneCreatorLabels
 }
 
 export type ZoneCreatorParam = "size" | "height" | "rotation" | "radius" | "thickness" | "zOffset" | "editPoint"
@@ -714,6 +728,7 @@ export interface ZoneCreatorHudSnapshot {
 export interface ZoneCreatorConfirmPayload {
     type: ZoneType
     snippet: string
+    labels?: ZoneCreatorLabels
 }
 
 export type ZoneCreatorConfirmResult = { confirmed: boolean }

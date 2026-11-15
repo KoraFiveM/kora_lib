@@ -26,7 +26,7 @@ end
 ---@param value string
 ---@return string checksum
 function Kora.util.fnv1a(value)
-    assert(type(value) == "string", "Kora.util.fnv1a requires a string.")
+    assert(type(value) == "string", KoraLang('Modules.Util.util_fnv1a'))
 
     local hash = 2166136261
     for index = 1, #value do
@@ -60,16 +60,26 @@ end
 function Kora.util.cleanText(value, options)
     if options == nil then options = {} end
 
-    assert(type(options) == "table", "Kora.util.cleanText options must be a table.")
-    assert(options.maxLength == nil or Kora.util.isInteger(options.maxLength) and options.maxLength >= 0,
-        "Kora.util.cleanText maxLength must be a non-negative integer.")
-    assert(options.whitespace == nil or options.whitespace == "collapse" or options.whitespace == "preserve",
-        "Kora.util.cleanText whitespace must be 'collapse' or 'preserve'.")
-    assert(options.controlCharacters == nil or options.controlCharacters == "remove"
+    assert(type(options) == "table", KoraLang('Modules.Util.util_cleantext_options'))
+    assert(
+        options.maxLength == nil or Kora.util.isInteger(options.maxLength) and options.maxLength >= 0,
+        KoraLang('Modules.Util.util_cleantext_maxlength')
+    )
+    assert(
+        options.whitespace == nil
+                    or options.whitespace == "collapse"
+                    or options.whitespace == "preserve",
+        KoraLang('Modules.Util.util_cleantext_whitespac')
+    )
+    assert(
+        options.controlCharacters == nil or options.controlCharacters == "remove"
         or options.controlCharacters == "preserve",
-        "Kora.util.cleanText controlCharacters must be 'remove' or 'preserve'.")
-    assert(options.empty == nil or options.empty == "nil" or options.empty == "allow",
-        "Kora.util.cleanText empty must be 'nil' or 'allow'.")
+        KoraLang('Modules.Util.util_cleantext_controlch')
+    )
+    assert(
+        options.empty == nil or options.empty == "nil" or options.empty == "allow",
+        KoraLang('Modules.Util.util_cleantext_empty')
+    )
 
     if type(value) ~= "string" then return nil, "invalid_type" end
 
@@ -99,9 +109,11 @@ end
 ---@return string|nil value
 ---@return string|nil reason
 function Kora.util.truncateUtf8(value, maximum)
-    assert(type(value) == "string", "Kora.util.truncateUtf8 requires a string.")
-    assert(type(maximum) == "number" and maximum >= 0 and maximum % 1 == 0,
-        "Kora.util.truncateUtf8 requires a non-negative integer maximum.")
+    assert(type(value) == "string", KoraLang('Modules.Util.util_truncateutf8'))
+    assert(
+        type(maximum) == "number" and maximum >= 0 and maximum % 1 == 0,
+        KoraLang('Modules.Util.util_truncateutf8_non')
+    )
 
     local valid, length = pcall(utf8.len, value)
     if not valid or not length then return nil, "invalid_utf8" end
@@ -130,7 +142,7 @@ end
 ---@return any decoded
 ---@return string? reason
 function Kora.util.decodeJson(value)
-    assert(type(value) == 'string', 'Kora.util.decodeJson requires a string.')
+    assert(type(value) == 'string', KoraLang('Modules.Util.util_decodejson'))
     local ok, decoded = pcall(json.decode, value)
     if not ok then return nil, 'invalid_json' end
     return decoded
@@ -141,8 +153,13 @@ end
 ---@param max number
 ---@return number
 function Kora.util.clamp(value, min, max)
-    assert(Kora.util.isFiniteNumber(value) and Kora.util.isFiniteNumber(min) and Kora.util.isFiniteNumber(max) and min <= max,
-        "Kora.util.clamp requires finite bounds where min is at most max.")
+    assert(
+        Kora.util.isFiniteNumber(value)
+                    and Kora.util.isFiniteNumber(min)
+                    and Kora.util.isFiniteNumber(max)
+                    and min <= max,
+        KoraLang('Modules.Util.util_clamp_finite')
+    )
     if value < min then return min end
     if value > max then return max end
     return value
@@ -153,13 +170,14 @@ end
 ---@return number
 function Kora.util.round(value, decimals)
     if decimals == nil then decimals = 0 end
-    assert(Kora.util.isFiniteNumber(value) and Kora.util.isInteger(decimals),
-        "Kora.util.round requires a finite value and integer decimal places.")
+    assert(
+        Kora.util.isFiniteNumber(value) and Kora.util.isInteger(decimals),
+        KoraLang('Modules.Util.util_round_finite')
+    )
     local mult = 10 ^ decimals
-    assert(Kora.util.isFiniteNumber(mult) and mult > 0,
-        "Kora.util.round decimal places must produce finite precision.")
+    assert(Kora.util.isFiniteNumber(mult) and mult > 0, KoraLang('Modules.Util.util_round_decimal'))
     local scaled = value * mult
-    assert(Kora.util.isFiniteNumber(scaled), "Kora.util.round value and decimal places must stay finite.")
+    assert(Kora.util.isFiniteNumber(scaled), KoraLang('Modules.Util.util_round_decimal_2'))
     return math.floor(scaled + 0.5) / mult
 end
 
@@ -167,8 +185,10 @@ end
 ---@param max number
 ---@return number
 function Kora.util.randomFloat(min, max)
-    assert(Kora.util.isFiniteNumber(min) and Kora.util.isFiniteNumber(max) and min <= max,
-        "Kora.util.randomFloat requires finite bounds where min is at most max.")
+    assert(
+        Kora.util.isFiniteNumber(min) and Kora.util.isFiniteNumber(max) and min <= max,
+        KoraLang('Modules.Util.util_randomfloat_finite')
+    )
     local ratio = math.random()
     return min * (1 - ratio) + max * ratio
 end
@@ -335,11 +355,9 @@ end
 ---@param opts KoraNearestOptions
 ---@return any entry, number? distance
 function Kora.util.nearest(list, position, opts)
-    assert(type(list) == "table", "Kora.util.nearest requires a list.")
-    assert(type(opts) == "table" and Kora.util.isCallable(opts.coordsOf),
-        "Kora.util.nearest requires opts.coordsOf.")
-    assert(opts.bucketOf == nil or Kora.util.isCallable(opts.bucketOf),
-        "Kora.util.nearest opts.bucketOf must be callable when provided.")
+    assert(type(list) == "table", KoraLang('Modules.Util.util_nearest_list'))
+    assert(type(opts) == "table" and Kora.util.isCallable(opts.coordsOf), KoraLang('Modules.Util.util_nearest_opts'))
+    assert(opts.bucketOf == nil or Kora.util.isCallable(opts.bucketOf), KoraLang('Modules.Util.util_nearest_opts_2'))
 
     local bestEntry, bestDistance
     for _, entry in pairs(list) do
@@ -370,7 +388,7 @@ end
 ---@param heading number
 ---@return {x: number, y: number, z: number}
 function Kora.util.headingToDirection(heading)
-    assert(Kora.util.isFiniteNumber(heading), "Kora.util.headingToDirection requires a finite heading.")
+    assert(Kora.util.isFiniteNumber(heading), KoraLang('Modules.Util.util_headingtodirection'))
     local radians = math.rad(heading)
     return { x = -math.sin(radians), y = math.cos(radians), z = 0.0 }
 end
@@ -404,8 +422,8 @@ end
 ---@param window number
 ---@return KoraRateLimiter
 function Kora.util.rateLimiter(max, window)
-    assert(Kora.util.isInteger(max) and max >= 1, "Kora.util.rateLimiter requires a positive integer max.")
-    assert(Kora.util.isFiniteNumber(window) and window > 0, "Kora.util.rateLimiter requires a positive finite window.")
+    assert(Kora.util.isInteger(max) and max >= 1, KoraLang('Modules.Util.util_ratelimiter_positiv'))
+    assert(Kora.util.isFiniteNumber(window) and window > 0, KoraLang('Modules.Util.util_ratelimiter_pos_2'))
 
     local buckets = {}
 
@@ -420,7 +438,7 @@ function Kora.util.rateLimiter(max, window)
     local limiter = {}
 
     function limiter:consume(key, now)
-        assert(Kora.util.isFiniteNumber(now), "Kora.util.rateLimiter:consume requires a finite now.")
+        assert(Kora.util.isFiniteNumber(now), KoraLang('Modules.Util.util_ratelimiter_consume'))
 
         local bucket = buckets[key]
         if not bucket then

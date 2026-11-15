@@ -89,7 +89,7 @@ export function ProgressBar() {
                         ref={progressRef}
                         className="relative h-16 w-16"
                         role="progressbar"
-                        aria-label={state.label || "Progress"}
+                        aria-label={state.label}
                         aria-valuemin={0}
                         aria-valuemax={state.duration}
                         aria-valuenow={0}
@@ -127,7 +127,7 @@ export function ProgressBar() {
                     ref={progressRef}
                     className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
                     role="progressbar"
-                    aria-label={state.label || "Progress"}
+                    aria-label={state.label}
                     aria-valuemin={0}
                     aria-valuemax={state.duration}
                     aria-valuenow={0}

@@ -13,7 +13,7 @@ end
 ---@param handler fun(fonts: table)
 ---@return fun() unsubscribe
 function Kora.theme.onFontsChanged(handler)
-    assert(type(handler) == "function", "Kora.theme.onFontsChanged expects a function.")
+    assert(type(handler) == "function", KoraLang('Modules.Theme.theme_onfontschanged_exp'))
     local event = AddEventHandler("kora_theme:fontsChanged", function()
         handler(Kora.theme.getFonts())
     end)
