@@ -57,9 +57,9 @@ function Kora.logging.event(category, src, data)
     retain(entry)
     L.safe(function()
         local record =
-            L.record('info', category, 'Gameplay event', { source = src, data = entry.data }, L.owner(), 'server')
+            L.record('debug', category, 'Gameplay event', { source = src, data = entry.data }, L.owner(), 'server')
         record.observedAt = entry.at
-        if L.enabled('info', record.resource) then
+        if L.enabled('debug', record.resource) then
             L.render(record, L.encode(record))
         end
     end)
