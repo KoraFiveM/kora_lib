@@ -297,7 +297,7 @@ export function ScreenshotCapture() {
             })
             .catch((error) => {
                 if (envelope) respondToNui(envelope.requestId, envelope.token, false, String(error))
-                else console.error("[kora_lib] server-requested screenshot upload failed:", error)
+                else globalThis.KoraLogger?.error('lib.nui.screenshotcapture', "[kora_lib] server-requested screenshot upload failed:", { detail1: String(error) })
             })
     })
 

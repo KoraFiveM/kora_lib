@@ -17,6 +17,7 @@ local invokingResource = nil
 _G.GetInvokingResource = function() return invokingResource end
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "local/resources/server.lua")
 

@@ -49,7 +49,7 @@ local function setValue(key, value)
         if entry then
             local ok, err = pcall(entry.handler, value, old)
             if not ok then
-                print(("[kora_lib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
+                Kora.logging.error('lib.client.onchange_handler_for', ("[kora_lib:cache] onChange handler for '%s' errored: %s"):format(key, tostring(err)))
             end
 
             if handlers[entryIndex] == entry then entryIndex = entryIndex + 1 end
@@ -149,7 +149,7 @@ function Kora.cache.set(key, value)
     assertKey(key)
 
     if RESERVED_KEYS[key] then
-        print(("[kora_lib:cache] Ignoring Kora.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
+        Kora.logging.warn('lib.client.ignoring_kora_cache_set', ("[kora_lib:cache] Ignoring Kora.cache.set('%s', ...) -- '%s' is a reserved built-in key."):format(key, key))
         return
     end
 

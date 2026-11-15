@@ -40,7 +40,7 @@ local function safeCall(definition, phase)
 
     local ok, err = pcall(handler, definition.handle)
     if not ok then
-        print(("^3[kora_lib:keybind]^7 '%s' %s callback errored: %s")
+        Kora.logging.error('lib.client.diagnostic', ("^3[kora_lib:keybind]^7 '%s' %s callback errored: %s")
             :format(definition.name, phase, tostring(err)))
     end
 end
@@ -146,7 +146,7 @@ local function add(options, resourceOverride)
     local owner = resourceOverride or GetInvokingResource() or GetCurrentResourceName()
     local previousOwner = ownership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("^3[kora_lib:keybind]^7 '%s' was registered by '%s' and is being overwritten by '%s'.")
+        Kora.logging.warn('lib.client.diagnostic', ("^3[kora_lib:keybind]^7 '%s' was registered by '%s' and is being overwritten by '%s'.")
             :format(name, previousOwner, owner))
     end
 
@@ -225,7 +225,7 @@ local function addCommandBinding(name, options)
     }, options.resource or GetCurrentResourceName())
 
     if not ok then
-        print(("^3[kora_lib:commands]^7 could not register key mapping for /%s: %s"):format(name, tostring(handle)))
+        Kora.logging.warn('lib.client.could_not_register_key_mapping_for', ("^3[kora_lib:commands]^7 could not register key mapping for /%s: %s"):format(name, tostring(handle)))
         return
     end
     commandBindings[name] = handle

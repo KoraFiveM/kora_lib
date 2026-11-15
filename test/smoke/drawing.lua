@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
 local playerCoords = { x = 0, y = 0, z = 0 }

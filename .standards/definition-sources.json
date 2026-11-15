@@ -1,6 +1,6 @@
 {
   "fiveM": "ef5f08e5e1d4a176586a5befbe0a9ff8400c58fc",
-  "koraLibTypesSha256": "43a555304a22272b160ff8c99da3bf822278431f18a3336b3213054f15928e89",
+  "koraLibTypesSha256": "f8e6a19aada04467961f5891c1650b0af8253a918ea52b3873d7518d3049b266",
   "addonFilesSha256": {
     "LICENSE": "9e34d5efeba04be09dec582c80780c3a0263162b2d62346f296d941cc7ce6439",
     "library/natives/CFX-NATIVE/CFX.lua": "1ae4fe948b953a6d1b7fbb86bb6c256a23758d98761ba511a07e69fe07dc5392",
@@ -58,5 +58,5 @@
     "library/runtime/promise.lua": "fedb7c9e00c71428062b0d57b48b5764971ec3f54703346678d80eee575313b6"
   },
   "project": "Kora Framework",
-  "copyright": "Copyright © 2026 Kora Framework"
+  "copyright": "Copyright \u00a9 2026 Kora Framework"
 }

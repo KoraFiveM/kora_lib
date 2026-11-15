@@ -135,6 +135,10 @@ function M.install()
         return "kora_lib_test"
     end
 
+    function _G.GetConvar(_, default) return default end
+    function _G.IsDuplicityVersion() return false end
+    _G.json = { encode = function() return '{}' end }
+
     function _G.GetConvarInt(_, default)
         return default
     end

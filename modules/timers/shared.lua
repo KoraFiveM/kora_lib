@@ -74,7 +74,7 @@ local function scheduleTimeout(owner, fn, delay)
 
         local ok, err = pcall(fn)
         if not ok then
-            print(("[kora_lib] Kora.timers timeout %d (%s) errored: %s"):format(id, owner, err))
+            Kora.logging.error('lib.shared.kora_timers_timeout_errored', ("[kora_lib] Kora.timers timeout %d (%s) errored: %s"):format(id, owner, err))
         end
     end)
 
@@ -106,7 +106,7 @@ function Kora.timers.setInterval(fn, interval)
 
             local ok, err = pcall(fn)
             if not ok then
-                print(("[kora_lib] Kora.timers interval %d (%s) errored: %s"):format(id, owner, err))
+                Kora.logging.error('lib.shared.kora_timers_interval_errored', ("[kora_lib] Kora.timers interval %d (%s) errored: %s"):format(id, owner, err))
             end
         end
     end)

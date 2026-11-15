@@ -260,7 +260,7 @@ local function open(options, source, owner)
     CreateThread(function()
         local ok, err = pcall(controls, session)
         if not ok then
-            print(("[kora_lib:interact] input loop stopped after an error: %s"):format(tostring(err)))
+            Kora.logging.error('lib.client.input_loop_stopped_after_an_error', ("[kora_lib:interact] input loop stopped after an error: %s"):format(tostring(err)))
             hide(session)
         end
     end)

@@ -9,6 +9,7 @@ local mocks = require("mocks")
 mocks.install()
 
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/rewards/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 

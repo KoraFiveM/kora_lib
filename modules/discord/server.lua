@@ -763,7 +763,7 @@ local function ensureDatabase()
         databaseInitializing = false
         if not databaseWarningPrinted then
             databaseWarningPrinted = true
-            print(('^3[kora_lib:discord]^7 %s; role caching will be memory-only.'):format(readyErr))
+            Kora.logging.warn('lib.server.role_caching_will_be_memory_only', ('^3[kora_lib:discord]^7 %s; role caching will be memory-only.'):format(readyErr))
         end
         return false, readyErr
     end
@@ -779,7 +779,7 @@ local function ensureDatabase()
     for reportIndex = 1, #reports do
         local report = reports[reportIndex]
         for warningIndex = 1, #(report.warnings or {}) do
-            print(('^3[kora_lib:discord]^7 %s: %s'):format(tostring(report.table), tostring(report.warnings[warningIndex])))
+            Kora.logging.warn('lib.server.diagnostic', ('^3[kora_lib:discord]^7 %s: %s'):format(tostring(report.table), tostring(report.warnings[warningIndex])))
         end
     end
 
@@ -884,7 +884,7 @@ local function persistMemberSoon(guildId, userId, entry)
         if not ready then return end
         local ok, err = persistMemberRoles(guildId, userId, entry)
         if not ok then
-            print(('^3[kora_lib:discord]^7 could not persist roles for %s: %s'):format(userId, tostring(err or readyErr)))
+            Kora.logging.warn('lib.server.could_not_persist_roles_for', ('^3[kora_lib:discord]^7 could not persist roles for %s: %s'):format(userId, tostring(err or readyErr)))
         end
     end)
 end
@@ -1214,7 +1214,7 @@ AddEventHandler('playerJoining', function()
         if userId then
             Kora.discord.refreshMember(userId, function(ok, response)
                 if not ok and response.status ~= 404 then
-                    print(('^3[kora_lib:discord]^7 could not refresh joining player %s: %s'):format(
+                    Kora.logging.warn('lib.server.could_not_refresh_joining_player', ('^3[kora_lib:discord]^7 could not refresh joining player %s: %s'):format(
                         tostring(joiningSource), tostring(response.error)))
                 end
             end)
@@ -1227,9 +1227,9 @@ CreateThread(function()
 
     Kora.discord.syncRoles(function(ok, response)
         if not ok then
-            print(('^3[kora_lib:discord]^7 initial role sync failed: %s'):format(tostring(response.error)))
+            Kora.logging.error('lib.server.initial_role_sync_failed', ('^3[kora_lib:discord]^7 initial role sync failed: %s'):format(tostring(response.error)))
         elseif response.data.databaseError then
-            print(('^3[kora_lib:discord]^7 initial role database sync warning: %s'):format(
+            Kora.logging.warn('lib.server.initial_role_database_sync_warning', ('^3[kora_lib:discord]^7 initial role database sync warning: %s'):format(
                 tostring(response.data.databaseError)))
         end
     end)
@@ -1238,9 +1238,9 @@ CreateThread(function()
         Wait(discordConfig('roleSyncInterval', 300000))
         Kora.discord.syncRoles(function(ok, response)
             if not ok then
-                print(('^3[kora_lib:discord]^7 heartbeat role sync failed: %s'):format(tostring(response.error)))
+                Kora.logging.error('lib.server.heartbeat_role_sync_failed', ('^3[kora_lib:discord]^7 heartbeat role sync failed: %s'):format(tostring(response.error)))
             elseif response.data.databaseError then
-                print(('^3[kora_lib:discord]^7 heartbeat role database sync warning: %s'):format(
+                Kora.logging.warn('lib.server.heartbeat_role_database_sync_warning', ('^3[kora_lib:discord]^7 heartbeat role database sync warning: %s'):format(
                     tostring(response.data.databaseError)))
             end
         end)

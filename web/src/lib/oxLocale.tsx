@@ -42,7 +42,7 @@ export function OxLocaleProvider({ children }: { children: ReactNode }) {
         void fetchNui<unknown>("kora_lib:oxLocale").then((value) => {
             if (!receivedUpdate.current) setLabels(normalizeLocale(value))
         }).catch((error) => {
-            console.error("[kora_lib] failed to load the ox locale catalog:", error)
+            globalThis.KoraLogger?.error('lib.nui.oxlocale', "[kora_lib] failed to load the ox locale catalog:", { detail1: String(error) })
         })
     }, [])
 

@@ -64,7 +64,7 @@ function Kora.callback.register(name, handler)
 
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        print(("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
+        Kora.logging.warn('lib.client.diagnostic', ("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
             :format(name, previousOwner, owner))
     end
 

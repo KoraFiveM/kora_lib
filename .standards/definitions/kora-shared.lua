@@ -11,32 +11,32 @@
 ---@field next fun(self: promise, onResolved?: fun(value: any), onRejected?: fun(error: any)): promise
 ---@field catch fun(self: promise, onRejected: fun(error: any)): promise
 
----@class QBCoords
+---@class KoraCoords
 ---@field x number
 ---@field y number
 ---@field z number
 ---@field w? number
 ---@field heading? number
 
----@class QBSpatialVector
+---@class KoraSpatialVector
 ---@field x number
 ---@field y number
 ---@field z? number
 ---@field w? number
 ---@field heading? number
 
----@class QBRateLimit
+---@class KoraRateLimit
 ---@field max integer Maximum accepted calls in the sliding window (1–10000).
 ---@field window integer Sliding-window length in milliseconds (1–86400000).
 
----@class QBRandomPickOptions
+---@class KoraRandomPickOptions
 ---@field count? integer Number of independent picks. Defaults to 1.
 ---@field maxIndex? integer Highest eligible array index. Defaults to the array length.
 
----@alias QBScreenshotEncoding 'jpg'|'png'|'webp'
+---@alias KoraScreenshotEncoding 'jpg'|'png'|'webp'
 
----@class QBScreenshotOptions
----@field encoding? QBScreenshotEncoding Defaults to `Config.screenshot.defaultEncoding`.
+---@class KoraScreenshotOptions
+---@field encoding? KoraScreenshotEncoding Defaults to `Config.screenshot.defaultEncoding`.
 ---@field quality? number Image encoder quality from 0 to 1.
 ---@field maxWidth? integer|false Default output width ceiling; false leaves it unbounded.
 ---@field maxHeight? integer|false Default output height ceiling; false leaves it unbounded.
@@ -44,24 +44,24 @@
 ---@field fileName? string Server-only destination path. Never accept this from a client event.
 ---@field timeout? integer Server-only request timeout in milliseconds; must be greater than 1000.
 
----@class QBRegistrationOptions
----@field rateLimit? QBRateLimit|false Client-to-server registrations only; omitted/false is unlimited.
+---@class KoraRegistrationOptions
+---@field rateLimit? KoraRateLimit|false Client-to-server registrations only; omitted/false is unlimited.
 
----@class QBResourcesRegistry
+---@class KoraResourcesRegistry
 ---@field track fun(resource: string, id: any)
 ---@field untrack fun(id: any): string?
 ---@field owner fun(id: any): string?
 
----@class QBResourceAwaitOptions
+---@class KoraResourceAwaitOptions
 ---@field timeout? number Defaults to 10000 milliseconds.
 ---@field interval? number Defaults to 100 milliseconds.
 
----@class QBCooldownHandle
+---@class KoraCooldownHandle
 ---@field use fun(key: any): boolean
 ---@field remaining fun(key: any): integer
 ---@field reset fun(key?: any)
 
----@class QBKeybindOptions
+---@class KoraKeybindOptions
 ---@field name string Stable command name without whitespace.
 ---@field description string FiveM settings label.
 ---@field defaultKey? string Primary key, or empty for unbound.
@@ -69,10 +69,10 @@
 ---@field secondaryKey? string Alternate key registered as `~!+command`.
 ---@field secondaryMapper? string Defaults to the primary mapper.
 ---@field disabled? boolean Initial disabled state.
----@field onPressed? fun(handle: QBKeybindHandle)
----@field onReleased? fun(handle: QBKeybindHandle)
+---@field onPressed? fun(handle: KoraKeybindHandle)
+---@field onReleased? fun(handle: KoraKeybindHandle)
 
----@class QBKeybindHandle
+---@class KoraKeybindHandle
 ---@field name string
 ---@field description string
 ---@field defaultKey string
@@ -86,59 +86,59 @@
 ---@field getCurrentBinding fun(): string?
 ---@field remove fun(): boolean
 
----@class QBCommandSuggestion
+---@class KoraCommandSuggestion
 ---@field value string
 ---@field label? string
 ---@field help? string
 
----@class QBCommandSuggestionContext
+---@class KoraCommandSuggestionContext
 ---@field command string
 ---@field argumentIndex integer
 ---@field query string
 ---@field args string[]
 
----@class QBCommandArgument
+---@class KoraCommandArgument
 ---@field name string
 ---@field help string
----@field values? (string|number|QBCommandSuggestion)[]
----@field provider? fun(source: integer, context: QBCommandSuggestionContext): (string|number|QBCommandSuggestion)[]
+---@field values? (string|number|KoraCommandSuggestion)[]
+---@field provider? fun(source: integer, context: KoraCommandSuggestionContext): (string|number|KoraCommandSuggestion)[]
 
----@class QBCommandKeybindOptions
+---@class KoraCommandKeybindOptions
 ---@field description? string Defaults to command help/name.
 ---@field defaultKey? string
 ---@field defaultMapper? string Defaults to `keyboard`.
 ---@field secondaryKey? string
 ---@field secondaryMapper? string
 
----@class QBCommandOptions
+---@class KoraCommandOptions
 ---@field permission? string Defaults to `user`.
 ---@field checkPermission? fun(source: integer, permission: string): boolean
 ---@field notify? fun(source: integer, message: string, type: string)
 ---@field resource? string
----@field keybind? QBCommandKeybindOptions
+---@field keybind? KoraCommandKeybindOptions
 
----@class QBCommandInfo
+---@class KoraCommandInfo
 ---@field name string
 ---@field help string
 ---@field permission string
----@field keybind? QBCommandKeybindOptions
+---@field keybind? KoraCommandKeybindOptions
 
----@class QBVehicleDeleteOptions
+---@class KoraVehicleDeleteOptions
 ---@field timeout? integer Network-control timeout in milliseconds; defaults to 1000.
 
----@class QBVehicleNormalizePlateOptions
+---@class KoraVehicleNormalizePlateOptions
 ---@field maxLength? integer Defaults to 8.
 ---@field whitespace? 'collapse'|'remove'|'preserve'
 ---@field characters? 'alphanumeric'|'any'
 
----@class QBCleanTextOptions
+---@class KoraCleanTextOptions
 ---@field maxLength? integer
 ---@field whitespace? 'collapse'|'preserve'
 ---@field controlCharacters? 'remove'|'preserve'
 ---@field empty? 'nil'|'allow'
 
 ---@class KoraNearestOptions
----@field coordsOf fun(entry: any): QBSpatialVector
+---@field coordsOf fun(entry: any): KoraSpatialVector
 ---@field radius? number Maximum distance to count as a match. Unbounded if omitted.
 ---@field bucketOf? fun(entry: any): any
 ---@field bucket? any Value `bucketOf` must match. Required alongside `bucketOf`.
@@ -146,14 +146,14 @@
 ---@class KoraRateLimiter
 ---@field consume fun(self: KoraRateLimiter, key: any, now: number): boolean, number?
 
----@class QBStreamLoadOptions
+---@class KoraStreamLoadOptions
 ---@field timeout? integer Defaults to 10000 milliseconds.
 ---@field shouldContinue? fun(): boolean Cancels the wait when it returns false.
 
----@class QBVehicleSetPropertiesOptions
+---@class KoraVehicleSetPropertiesOptions
 ---@field timeout? integer Network-control timeout in milliseconds; defaults to 1000.
 
----@class QBVehicleProperties
+---@class KoraVehicleProperties
 ---@field model? integer
 ---@field plate? string
 ---@field plateIndex? integer
@@ -237,17 +237,9 @@
 ---@field modKit47? integer
 ---@field modKit49? integer
 
----@alias QBTextUIPosition 'left-center'|'right-center'|'top-center'|'bottom-center'
----@class QBTextUIOptions
----@field key? string
----@field icon? string
----@field position? QBTextUIPosition
----@field iconColor? string
----@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
----@field alignIcon? 'top'|'center'
----@field style? string|table<string, string|number>
+---@alias KoraTextUIPosition 'left-center'|'right-center'|'top-center'|'bottom-center'
 
----@class QBStateChange
+---@class KoraStateChange
 ---@field entity integer Entity resolved from the bag name, or 0 for global/player/unavailable bags.
 ---@field bagName string
 ---@field key string
@@ -255,41 +247,34 @@
 ---@field reserved integer
 ---@field replicated boolean
 
----@alias QBWorldEntityType 'ped'|'vehicle'|'object'|'player'
----@class QBWorldQueryOptions
----@field models? (integer|string)[]
----@field predicate? fun(entity: integer, coords: QBCoords, distance: number): boolean
----@field includeInvisible? boolean Client only.
----@field includeOwnPed? boolean Client only.
----@field excludeEntities? integer[]
----@field radius? number Used by `getClosestEntity`.
+---@alias KoraWorldEntityType 'ped'|'vehicle'|'object'|'player'
 
----@class QBWorldMatch
+---@class KoraWorldMatch
 ---@field entity integer
----@field coords QBCoords
+---@field coords KoraCoords
 ---@field distance number
 
----@class QBWorldGroundOptions
+---@class KoraWorldGroundOptions
 ---@field height? number
 ---@field attempts? integer
 ---@field retryDelay? integer
 
----@class QBWorldNearbyPlayerOptions
+---@class KoraWorldNearbyPlayerOptions
 ---@field maxDistance number
 ---@field sameBucket? boolean
 ---@field allowSelf? boolean
 
----@class QBTeleportOptions
+---@class KoraTeleportOptions
 ---@field fade? boolean|number
 
----@class QBWaypointTeleportOptions: QBTeleportOptions
+---@class KoraWaypointTeleportOptions: KoraTeleportOptions
 ---@field entity? integer
 ---@field launchHeight? number
 ---@field collisionTimeout? integer
 ---@field groundAttempts? integer
 ---@field groundRetryDelay? integer
 
----@class QBBlipsCreateOptions
+---@class KoraBlipsCreateOptions
 ---@field sprite? integer
 ---@field color? integer
 ---@field scale? number
@@ -299,9 +284,9 @@
 ---@field category? integer|string Fixed category name/legacy alias or numeric native category. Defaults to Other.
 ---@field display? integer Native display mode restored after show. Defaults to Config.blips.defaultDisplay.
 ---@field route? boolean
----@field info? QBBlipInfo
+---@field info? KoraBlipInfo
 
----@class QBBlipCategory
+---@class KoraBlipCategory
 ---@field key string Canonical fixed category key/name, or `native:<id>` for a numeric compatibility category.
 ---@field name string Canonical category name, or `Category <id>` for a numeric compatibility category.
 ---@field label string Pause-map/UI category label.
@@ -309,7 +294,7 @@
 ---@field visible boolean Player's persisted client visibility preference.
 ---@field count integer Number of currently registered kora_lib blips in the category.
 
----@class QBRegisteredBlip
+---@class KoraRegisteredBlip
 ---@field handle integer Actual native blip handle returned by Kora.blips.create.
 ---@field resource string Resource that created the blip.
 ---@field category integer Native category id.
@@ -322,7 +307,7 @@
 ---@field route boolean
 ---@field visible boolean Effective visibility after individual/category state.
 
----@class QBBlipInfoRow
+---@class KoraBlipInfoRow
 ---@field kind 'text'|'icon'|'name'|'header'|'wrappedText'
 ---@field label? string|number Left-hand text. Omit for a wrapped-text row.
 ---@field value? string|number Right-hand or wrapped text.
@@ -330,42 +315,42 @@
 ---@field color? integer Icon color for an `icon` row.
 ---@field checked? boolean Whether an `icon` row is checked.
 
----@class QBBlipInfo
+---@class KoraBlipInfo
 ---@field title string
 ---@field verified? boolean Display the verified title mark.
 ---@field image? {dictionary: string, texture: string} Pause-menu texture dictionary and texture name.
 ---@field rp? string|number Optional RP title metadata.
 ---@field money? string|number Optional money title metadata.
----@field rows? QBBlipInfoRow[] Detail rows displayed below the title.
+---@field rows? KoraBlipInfoRow[] Detail rows displayed below the title.
 
----@class QBControlsOptions
+---@class KoraControlsOptions
 ---@field inputGroup? integer
 ---@field disablePlayerFiring? boolean
 ---@field ignoreWeaponWheel? boolean
 
----@class QBControlLease
+---@class KoraControlLease
 ---@field inputGroup integer
 ---@field controls integer[]
 ---@field disablePlayerFiring boolean
 
----@class QBEntitiesCreateOptions
+---@class KoraEntitiesCreateOptions
 ---@field preset? 'frozen'|'static'|'invincible'
 ---@field heading? number
 ---@field freeze? boolean
 ---@field blockNonTempEvents? boolean
 ---@field invincible? boolean
 
----@class QBEntitiesScopedOptions : QBEntitiesCreateOptions
+---@class KoraEntitiesScopedOptions : KoraEntitiesCreateOptions
 ---@field radius number Spawn radius in metres; must be greater than zero.
 
----@class QBScopedEntityHandle
+---@class KoraScopedEntityHandle
 ---@field id integer Stable scoped-registration id.
 ---@field resource string Resource that created the scoped entity.
 ---@field entity? integer Current local entity handle, or nil while outside the scope.
 ---@field remove fun() Deletes the active entity and unregisters the scope.
 ---@field isSpawned fun(): boolean Whether the scope currently owns a live entity.
 
----@class QBAnimPlayOptions
+---@class KoraAnimPlayOptions
 ---@field duration? integer
 ---@field flag? integer
 ---@field blendInSpeed? number
@@ -376,39 +361,39 @@
 ---@field lockZ? boolean
 ---@field onFinish? fun(entity: integer)
 
----@class QBAnimHandle
+---@class KoraAnimHandle
 ---@field entity integer
 ---@field dict string
 ---@field clip string
 ---@field generation integer
 
----@class QBAnimAttachOptions
+---@class KoraAnimAttachOptions
 ---@field softPin? boolean
 ---@field collision? boolean
 ---@field vertexIndex? integer
 ---@field fixedRot? boolean
 
----@class QBFxPtfxDef
+---@class KoraFxPtfxDef
 ---@field dict string
 ---@field name string
 ---@field bone? string
 ---@field entity? integer
----@field coords? QBCoords
----@field offset? QBCoords
----@field rot? QBCoords
+---@field coords? KoraCoords
+---@field offset? KoraCoords
+---@field rot? KoraCoords
 ---@field scale? number
 ---@field duration? integer
 ---@field looped? boolean
 
----@class QBFxPtfxHandle
+---@class KoraFxPtfxHandle
 ---@field looped boolean
 ---@field particleId? integer
 
----@class QBFxScreenHandle
+---@class KoraFxScreenHandle
 ---@field id integer
 ---@field name string
 
----@class QBProgressBarDisable
+---@class KoraProgressBarDisable
 ---@field move? boolean
 ---@field moveMode? 'freeze'|'controls' Defaults to Config.progressbar.defaultMoveMode ('controls'); controls matches ox_lib movement blocking, freeze uses FreezeEntityPosition (skipped while airborne).
 ---@field controlProfile? 'kora_lib'|'ox' Exact disabled-control set; defaults to kora_lib.
@@ -417,7 +402,7 @@
 ---@field car? boolean
 ---@field mouse? boolean
 
----@class QBProgressBarAnim
+---@class KoraProgressBarAnim
 ---@field dict string
 ---@field clip string
 ---@field flag? integer
@@ -430,22 +415,22 @@
 ---@field lockY? boolean
 ---@field lockZ? boolean
 
----@class QBProgressBarScenario
+---@class KoraProgressBarScenario
 ---@field name string
 ---@field playEnter? boolean
 
----@class QBProgressBarProp
+---@class KoraProgressBarProp
 ---@field model string|integer
 ---@field bone? string|integer
----@field offset? QBCoords
----@field coords? QBCoords Legacy `prop`/`proptwo` attachment offset.
----@field rotation? QBCoords
+---@field offset? KoraCoords
+---@field coords? KoraCoords Legacy `prop`/`proptwo` attachment offset.
+---@field rotation? KoraCoords
 ---@field softPinning? boolean
 ---@field collision? boolean
 ---@field rotationOrder? integer
 ---@field syncRotation? boolean
 
----@class QBProgressBarPayload
+---@class KoraProgressBarPayload
 ---@field label string
 ---@field duration integer
 ---@field maxDuration? integer|false Override duration cap; false allows any positive duration.
@@ -458,33 +443,33 @@
 ---@field allowSwimming? boolean
 ---@field presentation? 'bar'|'circle'
 ---@field position? 'middle'|'bottom'
----@field disable? QBProgressBarDisable
----@field anim? QBProgressBarAnim
+---@field disable? KoraProgressBarDisable
+---@field anim? KoraProgressBarAnim
 ---@field strictAnim? boolean Raise when the animation dictionary cannot load; used by strict compatibility providers.
----@field scenario? QBProgressBarScenario
----@field props? QBProgressBarProp[]
----@field prop? QBProgressBarProp
----@field proptwo? QBProgressBarProp
+---@field scenario? KoraProgressBarScenario
+---@field props? KoraProgressBarProp[]
+---@field prop? KoraProgressBarProp
+---@field proptwo? KoraProgressBarProp
 ---@field emote? string
 ---@field maxProps? integer|false Override local prop cap; false allows all validated props.
 
----@class QBActionsResult
+---@class KoraActionsResult
 ---@field token any
 ---@field completed boolean
 ---@field proof? string
 ---@field authorization? string
 
----@class QBActionsOptions
+---@class KoraActionsOptions
 ---@field begin fun(...: any): any, string?, string? Returns action token, optional failure reason, and optional minigame proof authorization.
----@field complete fun(result: QBActionsResult, ...: any): any
+---@field complete fun(result: KoraActionsResult, ...: any): any
 ---@field label string
 ---@field duration? integer
----@field minigame? QBMinigameType
+---@field minigame? KoraMinigameType
 ---@field canCancel? boolean
----@field disable? QBProgressBarDisable
----@field anim? QBProgressBarAnim
+---@field disable? KoraProgressBarDisable
+---@field anim? KoraProgressBarAnim
 
----@class QBNotifyPayload
+---@class KoraNotifyPayload
 ---@field title? string
 ---@field message? string At least one of title or message is required.
 ---@field type? 'success'|'error'|'warning'|'info'
@@ -498,14 +483,14 @@
 ---@field style? table<string, any> Trusted scalar root styles and vetted title/description child styles.
 ---@field showDuration? boolean Set false to hide the lifetime indicator.
 
----@class QBDrawingTextOptions
+---@class KoraDrawingTextOptions
 ---@field font? integer
 ---@field scale? number
 ---@field color? {r: integer, g: integer, b: integer, a: integer}
 ---@field maxDistance? number
 ---@field outline? boolean
 
----@class QBMenuItem
+---@class KoraMenuItem
 ---@field id string
 ---@field label string
 ---@field description? string
@@ -525,9 +510,9 @@
 ---@field arrow? boolean Show or suppress a navigation affordance.
 ---@field metadata? (string|{label: string, value?: any, progress?: number, colorScheme?: string})[]
 ---@field close? boolean Keep the menu open after confirmation when false.
----@field submenu? {title?: string, items: QBMenuItem[]}
+---@field submenu? {title?: string, items: KoraMenuItem[]}
 
----@class QBMenuResult
+---@class KoraMenuResult
 ---@field selectedId? string
 ---@field path? string[]
 ---@field valueIndex? integer One-based selected side-scroll value.
@@ -535,10 +520,10 @@
 ---@field cancelled? boolean
 ---@field keyPressed? 'Escape'|'Backspace' Root-level dismissal key.
 
----@class QBRadialMenuOptions
+---@class KoraRadialMenuOptions
 ---@field radius? number
 
----@class QBAlertOptions
+---@class KoraAlertOptions
 ---@field message string
 ---@field title? string
 ---@field image? string
@@ -553,19 +538,19 @@
 ---@field size? 'xs'|'sm'|'md'|'lg'|'xl'
 ---@field overflow? boolean
 
----@class QBAlertResult
+---@class KoraAlertResult
 ---@field confirmed boolean
 
----@alias QBInputType 'text'|'password'|'textarea'|'number'|'checkbox'|'select'|'multiselect'|'range'|'combobox'|'date'|'date-range'|'time'|'color'
----@class QBInputOption
+---@alias KoraInputType 'text'|'password'|'textarea'|'number'|'checkbox'|'select'|'multiselect'|'range'|'combobox'|'date'|'date-range'|'time'|'color'
+---@class KoraInputOption
 ---@field value string|number
 ---@field label string
 ---@field disabled? boolean
 
----@class QBInputField
+---@class KoraInputField
 ---@field id string
 ---@field label string
----@field type QBInputType
+---@field type KoraInputType
 ---@field description? string
 ---@field placeholder? string
 ---@field default? any
@@ -597,201 +582,202 @@
 ---@field numericOnly? boolean Strip non-digit input in the browser.
 ---@field presets? {label?: string, value: number}[] Quick amount values.
 ---@field rows? integer
----@field options? QBInputOption[]
----@field optionsByValue? table<string, QBInputOption[]> Select options keyed by dependsOn's selected value.
+---@field options? KoraInputOption[]
+---@field optionsByValue? table<string, KoraInputOption[]> Select options keyed by dependsOn's selected value.
 ---@field dependsOn? string Id of the select field that controls optionsByValue.
 ---@field visibleWhen? {fieldId: string, equals: string|number|boolean} Render only when another field equals this value.
 
----@class QBInputResult
+---@class KoraInputResult
 ---@field values? table<string, any>
 ---@field cancelled? boolean
 
----@alias QBAppTone 'neutral'|'primary'|'success'|'warning'|'destructive'
----@alias QBAppActionVariant 'primary'|'secondary'|'outline'|'ghost'|'destructive'
+---@alias KoraAppTone 'neutral'|'primary'|'success'|'warning'|'destructive'
+---@alias KoraAppActionVariant 'primary'|'secondary'|'outline'|'ghost'|'destructive'
 
----@class QBAppAction
+---@class KoraAppAction
 ---@field id string
 ---@field label string
 ---@field icon? string
----@field variant? QBAppActionVariant
+---@field variant? KoraAppActionVariant
 ---@field state? boolean Current boolean state for a toggle action, rendered as an On/Off indicator.
 ---@field disabled? boolean
 ---@field data? any
----@field fields? QBInputField[] Fields collected inline by AppShell before this action runs.
+---@field fields? KoraInputField[] Fields collected inline by AppShell before this action runs.
 ---@field confirm? string Acknowledgement shown before submitting this action.
 ---@field closeBeforeAction? boolean Close and release AppShell before invoking the action handler.
 ---@field hold? boolean Press-and-hold button: onAction runs with context.hold = 'start' on press and 'end' on release (also when the app closes mid-hold); no click is sent.
 
----@class QBAppStat
+---@class KoraAppStat
 ---@field label string
 ---@field value string|number
 ---@field description? string
 ---@field icon? string
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 
----@class QBAppProgressItem
+---@class KoraAppProgressItem
 ---@field label string
 ---@field value number Current value, from zero through max.
 ---@field max number Positive maximum value.
 ---@field description? string
 ---@field detail? string Secondary value copy, for example "1,240 / 2,000 XP".
 ---@field icon? string
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 
----@class QBAppTableColumn
+---@class KoraAppTableColumn
 ---@field key string
 ---@field label string
 ---@field align? 'left'|'center'|'right'
 ---@field sortable? boolean
 
----@class QBAppRichValue
+---@class KoraAppRichValue
 ---@field value? string|number|boolean
 ---@field label? string
 ---@field description? string
 ---@field icon? string
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 ---@field badge? boolean
 
----@alias QBAppTableValue string|number|boolean|QBAppRichValue
+---@alias KoraAppTableValue string|number|boolean|KoraAppRichValue
 
----@class QBAppMetadataItem
+---@class KoraAppMetadataItem
 ---@field label string
 ---@field value string|number|boolean
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 
----@alias QBAppImageAspect 'square'|'wide'
----@alias QBAppImageFit 'cover'|'contain'|'fill'|'none'|'scale-down'
+---@alias KoraAppImageAspect 'square'|'wide'
+---@alias KoraAppImageFit 'cover'|'contain'|'fill'|'none'|'scale-down'
 
----@class QBAppListItem
+---@class KoraAppListItem
 ---@field id string
 ---@field label string
 ---@field description? string
 ---@field icon? string
 ---@field badge? string|number
----@field tone? QBAppTone
----@field action? string|QBAppAction Action routed to the registered onAction handler.
+---@field tone? KoraAppTone
+---@field action? string|KoraAppAction Action routed to the registered onAction handler.
 ---@field data? any
 ---@field image? string
----@field imageFit? QBAppImageFit Overrides the list block image fit.
----@field imageAspect? QBAppImageAspect Overrides the list block image aspect.
----@field metadata? QBAppMetadataItem[]
----@field actions? QBAppAction[]
----@field children? QBAppListItem[]
+---@field imageFit? KoraAppImageFit Overrides the list block image fit.
+---@field imageAspect? KoraAppImageAspect Overrides the list block image aspect.
+---@field metadata? KoraAppMetadataItem[]
+---@field actions? KoraAppAction[]
+---@field children? KoraAppListItem[]
 
----@class QBAppDetailItem
+---@class KoraAppDetailItem
 ---@field label string
 ---@field value? string|number|boolean
 ---@field description? string
 ---@field icon? string
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 
----@class QBAppTimelineItem
+---@class KoraAppTimelineItem
 ---@field id string
 ---@field title string
 ---@field description? string
 ---@field timestamp? string
 ---@field icon? string
----@field tone? QBAppTone
----@field metadata? QBAppMetadataItem[]
----@field actions? QBAppAction[]
+---@field tone? KoraAppTone
+---@field metadata? KoraAppMetadataItem[]
+---@field actions? KoraAppAction[]
 
----@class QBAppPoint
+---@class KoraAppPoint
 ---@field x number
 ---@field y number
 
----@class QBAppMapCalibrationPoint
----@field world QBAppPoint
----@field image QBAppPoint
+---@class KoraAppMapCalibrationPoint
+---@field world KoraAppPoint
+---@field image KoraAppPoint
 
----@class QBAppMapTiles
+---@class KoraAppMapTiles
 ---@field url string URL template containing {z}, {x}, and {y}; cross-resource cfx-nui URLs are supported.
 ---@field tileSize? number Defaults to 256.
----@field grid? QBAppPoint Tile counts at maxZoom.
----@field calibration? {a: QBAppMapCalibrationPoint, b: QBAppMapCalibrationPoint} Two-point world-to-image calibration.
+---@field grid? KoraAppPoint Tile counts at maxZoom.
+---@field calibration? {a: KoraAppMapCalibrationPoint, b: KoraAppMapCalibrationPoint} Two-point world-to-image calibration.
 
----@class QBAppMapMarker: QBAppPoint
+---@class KoraAppMapMarker: KoraAppPoint
 ---@field id string
 ---@field label string
 ---@field description? string
 ---@field heading? number
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 ---@field icon? string
 ---@field action? string
 ---@field data? any
 ---@field expiresAt? number
 ---@field fadeDuration? number Marker-specific fade window before expiresAt; overrides the block default.
 
----@alias QBAppBlockType 'text'|'stats'|'progress'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'|'chat'
+---@alias KoraAppBlockType 'text'|'stats'|'progress'|'table'|'list'|'actions'|'form'|'details'|'timeline'|'map'|'empty'|'chat'
 
----@class QBAppBlock
----@field type QBAppBlockType
+---@class KoraAppBlock
+---@field type KoraAppBlockType
 ---@field title? string
 ---@field text? string Text block body.
 ---@field description? string Form or empty-state description.
 ---@field icon? string Empty-state icon.
----@field items? QBAppStat[]|QBAppProgressItem[]|QBAppListItem[]|QBAppDetailItem[]|QBAppTimelineItem[] Block items.
----@field actions? QBAppAction[] Action-block buttons.
----@field columns? QBAppTableColumn[]|integer Table columns, 1-3 details columns, or 1-4 maximum list grid columns.
----@field rows? table<string, QBAppTableValue>[] Table rows.
+---@field items? KoraAppStat[]|KoraAppProgressItem[]|KoraAppListItem[]|KoraAppDetailItem[]|KoraAppTimelineItem[] Block items.
+---@field actions? KoraAppAction[] Action-block buttons.
+---@field columns? KoraAppTableColumn[]|integer Table columns, 1-3 details columns, or 1-4 maximum list grid columns.
+---@field rows? table<string, KoraAppTableValue>[] Table rows.
 ---@field empty? string Empty list/table label.
----@field action? string|QBAppAction Table/map action id, or the always-visible form action.
+---@field action? string|KoraAppAction Table/map action id, or the always-visible form action.
 ---@field idKey? string Table row key copied into action context.itemId.
 ---@field id? string Stable block identity used for drafts and local collection state.
 ---@field layout? 'list'|'grid'|'cards' List presentation.
 ---@field cardStyle? 'compact'|'media' Grid/card presentation; compact is the default, media uses a full-width image above the content.
----@field imageFit? QBAppImageFit List image fit; defaults to cover, individual items may override it.
----@field imageAspect? QBAppImageAspect List thumbnail shape; defaults to 'square', 'wide' shows a 16:9 thumbnail (compact list/grid rows only), individual items may override it.
+---@field imageFit? KoraAppImageFit List image fit; defaults to cover, individual items may override it.
+---@field imageAspect? KoraAppImageAspect List thumbnail shape; defaults to 'square', 'wide' shows a 16:9 thumbnail (compact list/grid rows only), individual items may override it.
 ---@field searchable? boolean Enable client-side filtering.
 ---@field searchPlaceholder? string
 ---@field pageSize? integer Enable client-side paging when positive.
 ---@field scrollable? boolean Let a list block own vertical overflow inside fixed content.
----@field fields? QBInputField[] Always-visible form fields.
+---@field fields? KoraInputField[] Always-visible form fields.
 ---@field submitLabel? string Always-visible form submit label.
----@field tiles? QBAppMapTiles Map tile URL/projection definition.
----@field markers? QBAppMapMarker[] Map markers.
+---@field tiles? KoraAppMapTiles Map tile URL/projection definition.
+---@field markers? KoraAppMapMarker[] Map markers.
 ---@field selectedId? string Selected map marker.
 ---@field minZoom? number
 ---@field maxZoom? number
 ---@field initialZoom? number
 ---@field follow? boolean
 ---@field captureWheel? boolean Mouse wheel zooms the map and does not scroll the page behind it. Default true.
----@field recenter? QBAppPoint
+---@field recenter? KoraAppPoint
 ---@field now? number
 ---@field fadeDuration? number
----@field messages? QBAppChatMessage[] Chat block messages, oldest first.
----@field composer? QBAppChatComposer Chat block message box; omit for a read-only conversation.
+---@field messages? KoraAppChatMessage[] Chat block messages, oldest first.
+---@field composer? KoraAppChatComposer Chat block message box; omit for a read-only conversation.
 
----@class QBAppChatMessage
+---@class KoraAppChatMessage
 ---@field id string Stable message id (used for scroll and unread tracking).
 ---@field author string
 ---@field text string Rendered as plain text, never HTML.
 ---@field timestamp? string
 ---@field mine? boolean Right-aligned bubble for the viewer's own messages.
 ---@field unread? boolean A "New" divider is drawn before the first unread message.
+---@field status? 'sent'|'delivered'|'seen' Delivery ticks, shown on `mine` messages only: one tick sent, two delivered, two in the brand colour seen.
 ---@field badge? string Small label next to the author (for example 'Staff').
----@field tone? QBAppTone
+---@field tone? KoraAppTone
 
----@class QBAppChatComposer
----@field action QBAppAction Plain action; onAction gets context.value = { message = string }.
+---@class KoraAppChatComposer
+---@field action KoraAppAction Plain action; onAction gets context.value = { message = string }.
 ---@field placeholder? string
 ---@field maxLength? integer
 ---@field disabled? boolean
 ---@field note? string Shown instead of the input when disabled (for example 'This report is closed.').
 
----@class QBAppContent
+---@class KoraAppContent
 ---@field title? string
 ---@field description? string
----@field actions? QBAppAction[]
----@field blocks? QBAppBlock[]
+---@field actions? KoraAppAction[]
+---@field blocks? KoraAppBlock[]
 ---@field scrollable? boolean Set false to keep the content frame fixed.
 
----@class QBAppTab
+---@class KoraAppTab
 ---@field id string
 ---@field label string
 ---@field badge? string|number
----@field content? QBAppContent
+---@field content? KoraAppContent
 
----@class QBAppNavigationItem
+---@class KoraAppNavigationItem
 ---@field id string
 ---@field label string
 ---@field description? string
@@ -800,15 +786,15 @@
 ---@field group? string
 ---@field disabled? boolean
 ---@field defaultTab? string
----@field tabs? QBAppTab[]
----@field content? QBAppContent
+---@field tabs? KoraAppTab[]
+---@field content? KoraAppContent
 
----@class QBAppDefinition
+---@class KoraAppDefinition
 ---@field id string Namespaced stable id.
 ---@field title string
 ---@field description? string
 ---@field icon? string
----@field navigation QBAppNavigationItem[]
+---@field navigation KoraAppNavigationItem[]
 ---@field layout? 'standard'|'compact'
 ---@field defaultView? string
 ---@field width? number Pixels; clamped to 720-1600 in standard layout and 420-1600 in compact layout.
@@ -818,15 +804,15 @@
 ---@field rememberPosition? boolean Remember the dragged position per player in NUI localStorage (draggable apps only).
 ---@field positionKey? string Storage key suffix for the remembered position; defaults to the app id.
 ---@field accent? string #RRGGBB primary colour applied while this app is open; omitted apps retain the player's /theme colour.
----@field onAction? fun(actionId: string, context: QBAppActionContext): QBAppActionResult?
----@field onChange? fun(actionId: string, context: QBAppActionContext): table? Receives form drafts; returns a partial definition update without submitting.
+---@field onAction? fun(actionId: string, context: KoraAppActionContext): KoraAppActionResult?
+---@field onChange? fun(actionId: string, context: KoraAppActionContext): table? Receives form drafts; returns a partial definition update without submitting.
 
----@class QBAppOpenOptions
+---@class KoraAppOpenOptions
 ---@field data? any Private session data supplied back to onAction/onChange; not rendered.
 ---@field viewId? string
 ---@field tabId? string
 
----@class QBAppActionContext
+---@class KoraAppActionContext
 ---@field appId string
 ---@field viewId? string
 ---@field tabId? string
@@ -835,19 +821,19 @@
 ---@field data? any The data supplied to openApp.
 ---@field hold? 'start'|'end' Set only for `hold = true` actions; the handler's return value is ignored.
 
----@class QBAppActionResult
----@field update? table Partial QBAppDefinition to merge and render immediately.
+---@class KoraAppActionResult
+---@field update? table Partial KoraAppDefinition to merge and render immediately.
 ---@field close? boolean Close the app after the action.
 ---@field navigate? {viewId: string, tabId?: string, replace?: boolean} Navigate without rebuilding the definition.
----@field notice? {tone: QBAppTone, message: string} Show an in-shell notice (or a notification when the action closes AppShell).
+---@field notice? {tone: KoraAppTone, message: string} Show an in-shell notice (or a notification when the action closes AppShell).
 
----@class QBAppResult
+---@class KoraAppResult
 ---@field closed boolean
 ---@field reason string
 ---@field viewId? string
 ---@field tabId? string
 
----@class QBInteractOption
+---@class KoraInteractOption
 ---@field label string
 ---@field icon? string
 ---@field action? fun()
@@ -861,82 +847,82 @@
 ---@field item? string|string[]
 ---@field distance? number
 
----@class QBInteractTargetOptions
----@field options QBInteractOption[]
+---@class KoraInteractTargetOptions
+---@field options KoraInteractOption[]
 ---@field distance? number
 
----@class QBInteractSize
+---@class KoraInteractSize
 ---@field x number
 ---@field y number
 ---@field z number
 
----@class QBZoneCommonOptions
+---@class KoraZoneCommonOptions
 ---@field debug? boolean
 ---@field data? any Arbitrary caller-owned passthrough.
----@field onEnter? fun(zone: QBZoneHandle)
----@field onExit? fun(zone: QBZoneHandle)
----@field inside? fun(zone: QBZoneHandle, coords: QBCoords)
+---@field onEnter? fun(zone: KoraZoneHandle)
+---@field onExit? fun(zone: KoraZoneHandle)
+---@field inside? fun(zone: KoraZoneHandle, coords: KoraCoords)
 ---@field trackPlayer? boolean Set false for predicate-only zones that use contains() but do not need enter/exit tracking.
 
----@class QBZoneBoxOptions : QBZoneCommonOptions
----@field coords QBCoords
----@field size QBInteractSize|QBCoords
+---@class KoraZoneBoxOptions : KoraZoneCommonOptions
+---@field coords KoraCoords
+---@field size KoraInteractSize|KoraCoords
 ---@field rotation? number Degrees around the Z axis.
 ---@field ignoreZ? boolean Ignore the box Z extent. Defaults false.
 
----@class QBZoneSphereOptions : QBZoneCommonOptions
----@field coords QBCoords
+---@class KoraZoneSphereOptions : KoraZoneCommonOptions
+---@field coords KoraCoords
 ---@field radius number
 ---@field includeBoundary? boolean Defaults true.
 
----@class QBZoneCircleOptions : QBZoneSphereOptions
+---@class KoraZoneCircleOptions : KoraZoneSphereOptions
 
----@class QBZonePointOptions : QBZoneCommonOptions
----@field coords QBCoords
+---@class KoraZonePointOptions : KoraZoneCommonOptions
+---@field coords KoraCoords
 ---@field radius? number Defaults to Config.zones.defaultPointRadius.
 ---@field includeBoundary? boolean Defaults true.
 
----@class QBZonePolyOptions : QBZoneCommonOptions
----@field points QBCoords[]
+---@class KoraZonePolyOptions : KoraZoneCommonOptions
+---@field points KoraCoords[]
 ---@field thickness? number
 ---@field minZ? number Poly floor; must be supplied with maxZ.
 ---@field maxZ? number Poly ceiling; must be supplied with minZ.
 ---@field ignoreZ? boolean Ignore the poly height band. Defaults false.
 
----@alias QBZoneOptions QBZoneBoxOptions|QBZoneSphereOptions|QBZoneCircleOptions|QBZonePointOptions|QBZonePolyOptions
----@alias QBZoneCreatorOptions QBZoneBoxOptions|QBZoneSphereOptions|QBZonePolyOptions
+---@alias KoraZoneOptions KoraZoneBoxOptions|KoraZoneSphereOptions|KoraZoneCircleOptions|KoraZonePointOptions|KoraZonePolyOptions
+---@alias KoraZoneCreatorOptions KoraZoneBoxOptions|KoraZoneSphereOptions|KoraZonePolyOptions
 
----@class QBZoneHandle
+---@class KoraZoneHandle
 ---@field id integer
 ---@field type 'box'|'sphere'|'circle'|'poly'
 ---@field resource string
 ---@field data any Caller-supplied opts.data value.
 ---@field remove fun(): boolean
----@field contains fun(coords: QBCoords): boolean
+---@field contains fun(coords: KoraCoords): boolean
 ---@field isInside fun(): boolean
 ---@field setDebug fun(enabled: boolean): boolean
 
----@class QBZoneCreatorResult
+---@class KoraZoneCreatorResult
 ---@field type 'box'|'sphere'|'poly'
----@field opts QBZoneCreatorOptions
+---@field opts KoraZoneCreatorOptions
 
----@class QBRewardItem
+---@class KoraRewardItem
 ---@field chance? number
 ---@field amount? number|{min: number, max: number}
 
----@class QBRewardOptions
+---@class KoraRewardOptions
 ---@field mode? 'weighted'|'percent'
 ---@field rolls? integer
 ---@field allowNone? boolean
 
----@alias QBMinigameType 'lockpick'|'skillbar'|'circuit'|'mash'|'fishing'|'pinpad'|'quiz'|'wordguess'|'wordscramble'|'keys'|'hacking'
----@class QBMinigameOptions
+---@alias KoraMinigameType 'lockpick'|'skillbar'|'circuit'|'mash'|'fishing'|'pinpad'|'quiz'|'wordguess'|'wordscramble'|'keys'|'hacking'
+---@class KoraMinigameOptions
 ---@field duration? integer
 ---@field difficulty? number|string
 ---@field rounds? integer
 ---@field [string] any Game-specific fields are documented in modules/minigames/docs.md.
 
----@class QBMinigameResult
+---@class KoraMinigameResult
 ---@field success boolean
 ---@field attempts integer
 ---@field proof? string
@@ -944,38 +930,38 @@
 ---@field faults? integer
 ---@field reason? string
 
----@class QBStatusEffectDef
+---@class KoraStatusEffectDef
 ---@field duration? integer
 ---@field stacking? 'replace'|'extend'|'stack'
 ---@field severityLevels? integer
----@field fx? {screen?: string, ptfx?: QBFxPtfxDef}
+---@field fx? {screen?: string, ptfx?: KoraFxPtfxDef}
 ---@field anim? {dict: string, clip: string}
 ---@field movement? {speedMultiplier?: number}
 
----@class QBStatusApplyOptions
+---@class KoraStatusApplyOptions
 ---@field duration? integer
 ---@field severity? integer
 
----@class QBStatusActiveEntry
+---@class KoraStatusActiveEntry
 ---@field name string
 ---@field severity? integer
 ---@field expiresAt? integer
 
----@class QBDiscordResponse
+---@class KoraDiscordResponse
 ---@field status integer
 ---@field body? string
 ---@field headers? table<string, string>
 ---@field data? any
 ---@field error? string
 
----@alias QBDiscordCallback fun(ok: boolean, response: QBDiscordResponse)
+---@alias KoraDiscordCallback fun(ok: boolean, response: KoraDiscordResponse)
 
----@class QBDiscordEmbedField
+---@class KoraDiscordEmbedField
 ---@field name string
 ---@field value string
 ---@field inline? boolean
 
----@class QBDiscordEmbedOptions
+---@class KoraDiscordEmbedOptions
 ---@field title? string
 ---@field description? string
 ---@field url? string
@@ -985,17 +971,17 @@
 ---@field author? string|{name: string, url?: string, icon_url?: string}
 ---@field image? string|{url: string}
 ---@field thumbnail? string|{url: string}
----@field fields? QBDiscordEmbedField[]
+---@field fields? KoraDiscordEmbedField[]
 
----@class QBStreamResult
+---@class KoraStreamResult
 ---@field [integer] any
 
----@alias QBLookupNamespace 'vehicle'|'ped'|'object'|'weapon'|'weapon_component'|'pickup'
----@alias QBLookupModelNamespace 'vehicle'|'ped'|'object'
----@alias QBLookupFailure 'catalog_pending'|'not_found'|'ambiguous'
----@alias QBLookupSource 'base'|'custom'|'base+custom'
+---@alias KoraLookupNamespace 'vehicle'|'ped'|'object'|'weapon'|'weapon_component'|'pickup'
+---@alias KoraLookupModelNamespace 'vehicle'|'ped'|'object'
+---@alias KoraLookupFailure 'catalog_pending'|'not_found'|'ambiguous'
+---@alias KoraLookupSource 'base'|'custom'|'base+custom'
 
----@class QBLookupMetadata
+---@class KoraLookupMetadata
 ---@field class? string Vehicle class.
 ---@field manufacturer? string Vehicle manufacturer key.
 ---@field type? string Vehicle type.
@@ -1007,8 +993,8 @@
 ---@field componentType? string Weapon-component type.
 ---@field attachBone? string Weapon-component attachment bone.
 
----@class QBLookupRecord
----@field namespace QBLookupNamespace
+---@class KoraLookupRecord
+---@field namespace KoraLookupNamespace
 ---@field hash integer Unsigned 32-bit hash.
 ---@field signedHash integer Signed 32-bit representation.
 ---@field hexHash string Eight-digit hexadecimal representation.
@@ -1017,9 +1003,9 @@
 ---@field labelKey? string GXT label key.
 ---@field category? string
 ---@field dlc? string
----@field source QBLookupSource
+---@field source KoraLookupSource
 ---@field resources? string[] Sorted custom resources contributing this entry.
----@field metadata? QBLookupMetadata Namespace-specific curated metadata.
+---@field metadata? KoraLookupMetadata Namespace-specific curated metadata.
 
 ---@class KoraLibCompat
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
@@ -1057,6 +1043,7 @@
 ---@field placement KoraLibPlacement
 ---@field print KoraLibPrint
 ---@field progressbar KoraLibProgressbar
+---@field qa KoraLibQa
 ---@field raycast KoraLibRaycast
 ---@field random KoraLibRandom
 ---@field require KoraLibRequire
@@ -1094,21 +1081,21 @@
 ---@field hideCategory fun(category: string|integer): boolean [client; returns whether preference changed]
 ---@field showCategory fun(category: string|integer): boolean [client; returns whether preference changed]
 
----@class QBCameraDefinition
+---@class KoraCameraDefinition
 ---@field label? string
 ---@field location? string
----@field coords QBCoords Camera position.
----@field target? QBCoords Point the lens at this world position.
----@field rotation? QBCoords Camera rotation in degrees.
+---@field coords KoraCoords Camera position.
+---@field target? KoraCoords Point the lens at this world position.
+---@field rotation? KoraCoords Camera rotation in degrees.
 ---@field fov? number
 
----@class QBCameraOptions
+---@class KoraCameraOptions
 ---@field mode? 'cctv'|'recording'|'helicam'|'operator'
 ---@field title? string
 ---@field subtitle? string
 ---@field cameraLabel? string
----@field cameras? QBCameraDefinition[]
----@field camera? QBCameraDefinition
+---@field cameras? KoraCameraDefinition[]
+---@field camera? KoraCameraDefinition
 ---@field recording? boolean
 ---@field controls? boolean
 ---@field timestamp? boolean
@@ -1116,7 +1103,7 @@
 
 ---@class KoraLibCamera
 
----@class QBConfigFieldOptions
+---@class KoraConfigFieldOptions
 ---@field label? string
 ---@field description? string
 ---@field scope? 'shared'|'client'|'server'
@@ -1135,19 +1122,19 @@
 ---@field adopt fun(values: table, options?: {scope?: 'shared'|'client'|'server', fileName?: string}): table [shared; consumer-local]
 ---@field extend fun(values: table, options?: {scope?: 'shared'|'client'|'server'}): table [shared; consumer-local]
 ---@field onChange fun(path: string, handler: fun(value: any, previous: any): boolean?|nil) [client/server; consumer-local]
----@field boolean fun(value: boolean, options?: QBConfigFieldOptions): table [shared]
----@field string fun(value: string, options?: QBConfigFieldOptions): table [shared]
----@field integer fun(value: integer, options?: QBConfigFieldOptions): table [shared]
----@field number fun(value: number, options?: QBConfigFieldOptions): table [shared]
----@field enum fun(value: string|number, options: QBConfigFieldOptions): table [shared]
----@field color fun(value: string, options?: QBConfigFieldOptions): table [shared]
----@field vector2 fun(value: any, options?: QBConfigFieldOptions): table [shared]
----@field vector3 fun(value: any, options?: QBConfigFieldOptions): table [shared]
----@field vector4 fun(value: any, options?: QBConfigFieldOptions): table [shared]
----@field object fun(value: table, options?: QBConfigFieldOptions): table [shared]
----@field list fun(value: table, item?: table, options?: QBConfigFieldOptions): table [shared]
----@field map fun(value: table, item?: table, options?: QBConfigFieldOptions): table [shared]
----@field optional fun(value: any, inner: table, options?: QBConfigFieldOptions): table [shared]
+---@field boolean fun(value: boolean, options?: KoraConfigFieldOptions): table [shared]
+---@field string fun(value: string, options?: KoraConfigFieldOptions): table [shared]
+---@field integer fun(value: integer, options?: KoraConfigFieldOptions): table [shared]
+---@field number fun(value: number, options?: KoraConfigFieldOptions): table [shared]
+---@field enum fun(value: string|number, options: KoraConfigFieldOptions): table [shared]
+---@field color fun(value: string, options?: KoraConfigFieldOptions): table [shared]
+---@field vector2 fun(value: any, options?: KoraConfigFieldOptions): table [shared]
+---@field vector3 fun(value: any, options?: KoraConfigFieldOptions): table [shared]
+---@field vector4 fun(value: any, options?: KoraConfigFieldOptions): table [shared]
+---@field object fun(value: table, options?: KoraConfigFieldOptions): table [shared]
+---@field list fun(value: table, item?: table, options?: KoraConfigFieldOptions): table [shared]
+---@field map fun(value: table, item?: table, options?: KoraConfigFieldOptions): table [shared]
+---@field optional fun(value: any, inner: table, options?: KoraConfigFieldOptions): table [shared]
 ---@field get fun(resource?: string, path?: string|string[]): any, string? [client/server; consumer-local]
 ---@field bind fun(resource: string, path: string|string[]|nil, handler: fun(value: any, previous: any, change: table)): fun() [client/server; consumer-local]
 ---@field whenReady fun(resources: string[], handler: fun()) [client/server; consumer-local]
@@ -1159,8 +1146,9 @@
 
 ---@class KoraLibCallback
 ---@field assertName fun(name: string) [shared]
----@field register fun(name: string, handler: fun(...: any): any, opts?: QBRegistrationOptions) [client/server; opts is server client-to-server only]
+---@field register fun(name: string, handler: fun(...: any): any, opts?: KoraRegistrationOptions) [client/server; opts is server client-to-server only]
 ---@field trigger fun(targetOrName: integer|string, nameOrArg?: any, ...: any): any [client: name,...; server: target,name,...]
+---@field triggerPacked fun(...: any): { n: integer, [integer]: any } Internal: the envelope form of trigger used by the consumer proxy in init.lua.
 
 ---@class KoraLibClosest
 
@@ -1186,14 +1174,23 @@
 ---@class KoraLibKeybind
 
 ---@class KoraLibLogging
+---@field _internal table Private implementation; not an export.
+---@field trace fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field debug fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field info fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field warn fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field error fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field fatal fun(eventName: string, message: string, fields?: table): boolean Both realms; does not yield.
+---@field isEnabled fun(level: string): boolean
+---@field getStats fun(): table [shared]
 
 ---@class KoraLibLookup
----@field get fun(namespace: QBLookupNamespace, value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
----@field model fun(value: integer|string, kind?: QBLookupModelNamespace): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
----@field weapon fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
----@field weaponComponent fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
----@field pickup fun(value: integer|string): QBLookupRecord?, QBLookupFailure?, QBLookupRecord[]? [shared]
----@field preload fun(namespaces?: QBLookupNamespace|QBLookupNamespace[]): boolean [shared]
+---@field get fun(namespace: KoraLookupNamespace, value: integer|string): KoraLookupRecord?, KoraLookupFailure?, KoraLookupRecord[]? [shared]
+---@field model fun(value: integer|string, kind?: KoraLookupModelNamespace): KoraLookupRecord?, KoraLookupFailure?, KoraLookupRecord[]? [shared]
+---@field weapon fun(value: integer|string): KoraLookupRecord?, KoraLookupFailure?, KoraLookupRecord[]? [shared]
+---@field weaponComponent fun(value: integer|string): KoraLookupRecord?, KoraLookupFailure?, KoraLookupRecord[]? [shared]
+---@field pickup fun(value: integer|string): KoraLookupRecord?, KoraLookupFailure?, KoraLookupRecord[]? [shared]
+---@field preload fun(namespaces?: KoraLookupNamespace|KoraLookupNamespace[]): boolean [shared]
 ---@field ready fun(): boolean [shared]
 ---@field awaitReady fun(timeout?: integer): boolean, string? [shared]
 
@@ -1201,25 +1198,25 @@
 ---@field controlled fun(call: fun(): any, tries?: integer|false, timeout?: integer|false, backoff?: boolean|integer): any, string? [shared]
 
 ---@class KoraLibMinigames
----@field play fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): QBMinigameResult [client; waits for the round to finish]
----@field playAsync fun(gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string, owner?: string): promise [client; internal composition primitive]
----@field playSkillCheck fun(skill: string, gameType: QBMinigameType, opts?: QBMinigameOptions, authorization?: string): QBMinigameResult [client; waits for the round to finish]
+---@field play fun(gameType: KoraMinigameType, opts?: KoraMinigameOptions, authorization?: string, owner?: string): KoraMinigameResult [client; waits for the round to finish]
+---@field playAsync fun(gameType: KoraMinigameType, opts?: KoraMinigameOptions, authorization?: string, owner?: string): promise [client; internal composition primitive]
+---@field playSkillCheck fun(skill: string, gameType: KoraMinigameType, opts?: KoraMinigameOptions, authorization?: string): KoraMinigameResult [client; waits for the round to finish]
 ---@field triangleWave fun(elapsedMs: number, speedHz: number): number [shared]
 
 ---@class KoraLibNotify
----@field assert fun(payload: QBNotifyPayload) [shared]
----@field withDefaults fun(payload: QBNotifyPayload): QBNotifyPayload [shared]
+---@field assert fun(payload: KoraNotifyPayload) [shared]
+---@field withDefaults fun(payload: KoraNotifyPayload): KoraNotifyPayload [shared]
 ---@field normalizeType fun(notifyType: any): any [shared]
----@field normalize fun(payload: QBNotifyPayload): QBNotifyPayload [shared]
+---@field normalize fun(payload: KoraNotifyPayload): KoraNotifyPayload [shared]
 
----@class QBMenuPosition
+---@class KoraMenuPosition
 ---@field horizontal? 'left'|'center'|'right'
 ---@field vertical? 'top'|'center'|'bottom'
 ---@field offsetX? positive integer Pixels from the selected horizontal edge.
 ---@field offsetY? positive integer Pixels from the selected vertical edge.
 
----@class QBMenuOptions
----@field position? QBMenuPosition
+---@class KoraMenuOptions
+---@field position? KoraMenuPosition
 ---@field maxWidth? positive integer Pixels.
 ---@field maxHeight? positive integer Pixels.
 ---@field canClose? boolean Set false to prevent Escape/backdrop dismissal.
@@ -1282,49 +1279,56 @@
 ---@field hasLevel fun(...: any): boolean [client: (skill: string, level: integer); server: (src: integer, skill: string, level: integer)]
 ---@field adjustMinigame fun(...: any): table|nil [client: (skill: string, gameType: string, options?: table); server: (src: integer, skill: string, gameType: string, resolvedOptions: table)]
 
----@class QBPermissionOptions
----@field prefix? string ACE object prefix, such as `kora_core` for `qbcore.admin`.
+---@class KoraPermissionOptions
+---@field prefix? string ACE object prefix, such as `kora_core` for `kora_core.admin`.
 ---@field discordRoles? table<string, string|string[]> Permission/level to Discord role name/ID mappings.
 
----@class QBPermissionCheck
+---@class KoraPermissionCheck
 ---@field level string The level this ACE object would grant.
 ---@field object string The ACE object passed to IsPlayerAceAllowed.
 ---@field raw string tostring() of what the native returned, so a non-boolean is visible.
 ---@field type string type() of what the native returned.
 ---@field allowed boolean Normalized result.
 
----@class KoraLibPermissions
----@field explain fun(src: integer, levels: string[], prefixOrOptions?: string|QBPermissionOptions): QBPermissionCheck[], string [server] -- diagnostics only; nothing gates on this
+---@class KoraLibQa
+---@field mark fun(name: string, data?: table, target?: integer) [shared] Records a named point in the active kora_qa run; no-op when nobody is testing. `target` is server-only.
+---@field active fun(src?: integer): boolean [shared] Client: local player has an active run. Server: `src` (or anyone) has one.
+---@field onEvent fun(fn: function): integer [shared] kora_qa: receive QA events (server `fn(src, event)`, client `fn(event)`).
+---@field offEvent fun(id: integer): boolean [shared] Removes an onEvent handler.
+---@field setActive fun(srcOrState: integer|boolean, state?: boolean): boolean [shared] kora_qa only: client `setActive(state)`, server `setActive(src, state)`.
 
----@class QBPlacementRotation
+---@class KoraLibPermissions
+---@field explain fun(src: integer, levels: string[], prefixOrOptions?: string|KoraPermissionOptions): KoraPermissionCheck[], string [server] -- diagnostics only; nothing gates on this
+
+---@class KoraPlacementRotation
 ---@field pitch number
 ---@field roll number
 ---@field yaw number
 
----@class QBPlacementResult
+---@class KoraPlacementResult
 ---@field model string|integer
----@field coords QBCoords
+---@field coords KoraCoords
 ---@field heading number
----@field rotation QBPlacementRotation
+---@field rotation KoraPlacementRotation
 
 ---@class KoraLibPlacement
 ---@field cancel fun(): boolean, string? [client] Cancels only the invoking resource's placement; settles its pending result as nil.
 
----@class QBPlacementOptions
----@field coords? QBCoords Initial transform for moving an existing placement.
----@field rotation? QBPlacementRotation
----@field bounds? {points: QBCoords[], minZ: number, maxZ: number} Allowed polygon; local placement is constrained but the server must validate again.
+---@class KoraPlacementOptions
+---@field coords? KoraCoords Initial transform for moving an existing placement.
+---@field rotation? KoraPlacementRotation
+---@field bounds? {points: KoraCoords[], minZ: number, maxZ: number} Allowed polygon; local placement is constrained but the server must validate again.
 ---@field raycast? boolean Enables surface snapping from the scripted camera; R toggles it and manual movement disables it.
 ---@field numericInput? boolean N opens shared numeric position/rotation fields.
 ---@field copy? boolean Defaults to true; false uses a gameplay confirmation without copying a Lua snippet.
 
----@class QBFreecamOptions
----@field coords? QBCoords
----@field rotation? QBCoords
+---@class KoraFreecamOptions
+---@field coords? KoraCoords
+---@field rotation? KoraCoords
 ---@field fov? number
 ---@field maxDistance? number Radius centred on the initial freecam position.
----@field zone? QBZoneHandle
----@field focusCoords? QBCoords
+---@field zone? KoraZoneHandle
+---@field focusCoords? KoraCoords
 ---@field movementMode? 'camera'|'grid'
 ---@field moveSpeed? number Metres per second before the fast multiplier.
 ---@field lookSensitivity? number Degrees per raw mouse-look unit.
@@ -1334,27 +1338,27 @@
 ---@field downControl? integer Optional GTA control ID for direct vertical movement.
 ---@field freezePlayer? boolean Defaults to true.
 
----@class QBFreecamHandle
+---@class KoraFreecamHandle
 ---@field stop fun(reason?: string): boolean
 ---@field isActive fun(): boolean
----@field getCoords fun(): QBCoords|nil
+---@field getCoords fun(): KoraCoords|nil
 ---@field getRotation fun(): {pitch: number, roll: number, yaw: number}|nil
 ---@field getCamera fun(): integer|nil Native scripted-camera handle for raycasts and other camera natives.
 ---@field getMovementMode fun(): 'camera'|'grid'|nil
 ---@field setMovementMode fun(mode: 'camera'|'grid'): boolean
----@field setFocus fun(coords: QBCoords|nil): boolean
+---@field setFocus fun(coords: KoraCoords|nil): boolean
 
 ---@class KoraLibFreecam
 
----@class QBInstructionalButton
+---@class KoraInstructionalButton
 ---@field label string
 ---@field group? string rows sharing a group collapse into one row labelled by the group
 ---@field control? integer
 ---@field command? string
----@field keybind? QBKeybindHandle
+---@field keybind? KoraKeybindHandle
 
----@class QBInstructionalHandle
----@field setButtons fun(buttons: QBInstructionalButton[]): boolean
+---@class KoraInstructionalHandle
+---@field setButtons fun(buttons: KoraInstructionalButton[]): boolean
 ---@field hide fun(): boolean
 ---@field isVisible fun(): boolean
 
@@ -1368,29 +1372,29 @@
 ---@field success fun(...: any) [shared]
 
 ---@class KoraLibProgressbar
----@field validate fun(payload: QBProgressBarPayload): true [client; validates without starting a bar]
+---@field validate fun(payload: KoraProgressBarPayload): true [client; validates without starting a bar]
 
 ---@class KoraLibRaycast
----@field fromCoords fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; returns hit, coords, entityHit, surfaceNormal]
----@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, QBCoords?, integer?, QBCoords? [client; kora_lib order differs from ox_lib]
----@field getCoords fun(data?: QBRaycastCoordsOptions): QBRaycastCoordsResult? [client; blocks until confirmed or cancelled]
----@field start fun(startCoords: QBCoords, endCoords: QBCoords, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
+---@field fromCoords fun(startCoords: KoraCoords, endCoords: KoraCoords, flags?: integer, ignoreEntity?: integer): boolean, KoraCoords?, integer?, KoraCoords? [client; returns hit, coords, entityHit, surfaceNormal]
+---@field fromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): boolean, KoraCoords?, integer?, KoraCoords? [client; kora_lib order differs from ox_lib]
+---@field getCoords fun(data?: KoraRaycastCoordsOptions): KoraRaycastCoordsResult? [client; blocks until confirmed or cancelled]
+---@field start fun(startCoords: KoraCoords, endCoords: KoraCoords, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
 ---@field startFromCamera fun(maxDistance: number, flags?: integer, ignoreEntity?: integer): integer [client; returns a ray handle for await/poll]
----@field poll fun(rayHandle: integer): boolean, boolean, QBCoords?, integer?, QBCoords? [client; settled, hit, coords, entityHit, surfaceNormal]
+---@field poll fun(rayHandle: integer): boolean, boolean, KoraCoords?, integer?, KoraCoords? [client; settled, hit, coords, entityHit, surfaceNormal]
 
----@class QBRaycastCoordsOptions
+---@class KoraRaycastCoordsOptions
 ---@field type? 'object' Omit for the default orb marker.
 ---@field object? string|integer Preview model; required when type is object.
 ---@field heading? number Initial preview heading. Defaults to 180.
 ---@field maxDistance? number Maximum camera ray distance. Defaults to 50 metres.
 ---@field flags? integer Shape-test flags. Defaults to all intersections.
 
----@class QBRaycastCoordsResult
+---@class KoraRaycastCoordsResult
 ---@field coords { x: number, y: number, z: number, w?: number } Two-decimal coordinates; w is present for object previews.
 ---@field object string|integer|false Preview model, or false for the orb picker.
 
 ---@class KoraLibRandom
----@field pick fun(list: any[], options?: QBRandomPickOptions): any|any[] [shared]
+---@field pick fun(list: any[], options?: KoraRandomPickOptions): any|any[] [shared]
 
 ---@class KoraLibRequire
 ---@field load fun(resource: string, paths: string|string[]): any [shared; an array returns one value per path]
@@ -1399,19 +1403,19 @@
 
 ---@class KoraLibResources
 ---@field isStarted fun(resourceName: string): boolean [shared]
----@field awaitStarted fun(resourceName: string, options?: QBResourceAwaitOptions): boolean, string? [shared]
+---@field awaitStarted fun(resourceName: string, options?: KoraResourceAwaitOptions): boolean, string? [shared]
 
 ---@class KoraLibRewards
----@field generate fun(items: QBRewardItem[], opts?: QBRewardOptions): table[] [shared]
+---@field generate fun(items: KoraRewardItem[], opts?: KoraRewardOptions): table[] [shared]
 
 ---@class KoraLibScreenshot
----@field capture fun(options?: QBScreenshotOptions, timeout?: integer): promise|any [client] Resolves to a data URI.
----@field upload fun(url: string, field?: string, options?: QBScreenshotOptions, timeout?: integer): promise|any [client] Captures then uploads the image.
----@field requestScreenshot fun(options?: QBScreenshotOptions|fun(data: string?), callback?: fun(data: string?)) [client] screenshot-basic-compatible callback export.
----@field requestScreenshotUpload fun(url: string, field: string, options?: QBScreenshotOptions|fun(response: string?), callback?: fun(response: string?)) [client] screenshot-basic-compatible callback export.
----@field requestClient fun(player: integer, options?: QBScreenshotOptions, callback?: fun(err: string|false, result?: string)): string [server] Requests a one-time client upload.
+---@field capture fun(options?: KoraScreenshotOptions, timeout?: integer): promise|any [client] Resolves to a data URI.
+---@field upload fun(url: string, field?: string, options?: KoraScreenshotOptions, timeout?: integer): promise|any [client] Captures then uploads the image.
+---@field requestScreenshot fun(options?: KoraScreenshotOptions|fun(data: string?), callback?: fun(data: string?)) [client] screenshot-basic-compatible callback export.
+---@field requestScreenshotUpload fun(url: string, field: string, options?: KoraScreenshotOptions|fun(response: string?), callback?: fun(response: string?)) [client] screenshot-basic-compatible callback export.
+---@field requestClient fun(player: integer, options?: KoraScreenshotOptions, callback?: fun(err: string|false, result?: string)): string [server] Requests a one-time client upload.
 
----@class QBSoundOptions
+---@class KoraSoundOptions
 ---@field network? boolean Play for nearby players too, rather than only locally. Defaults to false.
 ---@field range? number Audible range in metres, world sounds only. Defaults to Config.sound.defaultRange.
 ---@field bank? string Audio bank to request (and wait for) before playing.
@@ -1424,8 +1428,8 @@
 
 ---@class KoraLibStatus
 ---@field assertName fun(name: string) [shared]
----@field registerEffect fun(name: string, def: QBStatusEffectDef) [shared]
----@field getEffectDef fun(name: string): QBStatusEffectDef? [shared]
+---@field registerEffect fun(name: string, def: KoraStatusEffectDef) [shared]
+---@field getEffectDef fun(name: string): KoraStatusEffectDef? [shared]
 
 ---@class KoraLibStream
 
@@ -1434,10 +1438,10 @@
 ---@class KoraLibTextUI
 
 ---@class KoraLibTheme
----@field accentColor fun(): string [shared] Forwarded to qbtheme:getPrimaryColor().
----@field tokens fun(overrides?: string|table<string, string>): table<string, string> [shared] Forwarded to qbtheme:getTokens().
+---@field accentColor fun(): string [shared] Forwarded to kora_theme:getPrimaryColor().
+---@field tokens fun(overrides?: string|table<string, string>): table<string, string> [shared] Forwarded to kora_theme:getTokens().
 ---@field push fun(): table<string, string> [client] Reapplies kora_theme to kora_lib's NUI.
----@field getFonts fun(): { body: KoraLibThemeFont, heading: KoraLibThemeFont, mono: KoraLibThemeFont } [shared] Forwarded to qbtheme:getFonts().
+---@field getFonts fun(): { body: KoraLibThemeFont, heading: KoraLibThemeFont, mono: KoraLibThemeFont } [shared] Forwarded to kora_theme:getFonts().
 ---@field onFontsChanged fun(handler: fun(fonts: table)): fun() [client] Runs handler after an admin changes the server fonts; returns an unsubscribe function.
 
 ---@class KoraLibThemeFont
@@ -1446,11 +1450,11 @@
 ---@field stack string Resolved CSS font-family stack.
 ---@field source 'config'|'theme.json'|'default' Where the choice came from.
 
----@class QBDebounced
+---@class KoraDebounced
 ---@field cancel fun(): boolean Drops a pending run without firing it.
 ---@field isPending fun(): boolean
 
----@class QBThrottled
+---@class KoraThrottled
 ---@field reset fun() Clears the cooldown so the next call passes through.
 ---@field remaining fun(): integer Milliseconds until the next call is allowed; 0 when ready.
 
@@ -1459,9 +1463,9 @@
 ---@field setTimeout fun(fn: fun(), delay: integer): integer [shared]
 ---@field clearInterval fun(id: integer): boolean [shared]
 ---@field clearTimeout fun(id: integer): boolean [shared]
----@field debounce fun(fn: fun(...), wait: integer): QBDebounced [shared]
----@field throttle fun(fn: fun(...), interval: integer): QBThrottled [shared]
----@field cooldown fun(interval: integer): QBCooldownHandle [shared]
+---@field debounce fun(fn: fun(...), wait: integer): KoraDebounced [shared]
+---@field throttle fun(fn: fun(...), interval: integer): KoraThrottled [shared]
+---@field cooldown fun(interval: integer): KoraCooldownHandle [shared]
 ---@field count fun(): integer [shared]
 
 ---@class KoraLibUtil
@@ -1469,7 +1473,7 @@
 ---@field fnv1a fun(value: string): string [shared]
 ---@field isCallable fun(value: any): boolean [shared]
 ---@field trim fun(value: any): any [shared]
----@field cleanText fun(value: any, options?: QBCleanTextOptions): string|nil, string? [shared]
+---@field cleanText fun(value: any, options?: KoraCleanTextOptions): string|nil, string? [shared]
 ---@field truncateUtf8 fun(value: string, maximum: integer): string|nil, string? [shared]
 ---@field isFiniteNumber fun(value: any): boolean [shared]
 ---@field isInteger fun(value: any): boolean [shared]
@@ -1480,27 +1484,88 @@
 ---@field weightedChoice fun(list: {[1]: any, [2]: number}[]): any [shared]
 ---@field tableContains fun(t: table, value: any): boolean [shared]
 ---@field lerp fun(a: number, b: number, t: number): number [shared]
----@field vecAdd fun(a: QBSpatialVector, b: QBSpatialVector): QBCoords [shared]
----@field vecSub fun(a: QBSpatialVector, b: QBSpatialVector): QBCoords [shared]
----@field vecScale fun(v: QBSpatialVector, scalar: number): QBCoords [shared]
----@field vecLength fun(v: QBSpatialVector): number [shared]
----@field vecDistance fun(a: QBSpatialVector, b: QBSpatialVector): number [shared]
----@field vecDistance2d fun(a: QBSpatialVector, b: QBSpatialVector): number [shared]
----@field vecNormalize fun(v: QBSpatialVector): QBCoords [shared]
----@field headingToDirection fun(heading: number): QBCoords [shared]
----@field directionToHeading fun(v: QBSpatialVector): number [shared]
----@field bearing fun(origin: QBSpatialVector, target: QBSpatialVector): number [shared]
----@field nearest fun(list: any[], position: QBSpatialVector, opts: KoraNearestOptions): any, number? [shared]
+---@field vecAdd fun(a: KoraSpatialVector, b: KoraSpatialVector): KoraCoords [shared]
+---@field vecSub fun(a: KoraSpatialVector, b: KoraSpatialVector): KoraCoords [shared]
+---@field vecScale fun(v: KoraSpatialVector, scalar: number): KoraCoords [shared]
+---@field vecLength fun(v: KoraSpatialVector): number [shared]
+---@field vecDistance fun(a: KoraSpatialVector, b: KoraSpatialVector): number [shared]
+---@field vecDistance2d fun(a: KoraSpatialVector, b: KoraSpatialVector): number [shared]
+---@field vecNormalize fun(v: KoraSpatialVector): KoraCoords [shared]
+---@field headingToDirection fun(heading: number): KoraCoords [shared]
+---@field directionToHeading fun(v: KoraSpatialVector): number [shared]
+---@field bearing fun(origin: KoraSpatialVector, target: KoraSpatialVector): number [shared]
+---@field nearest fun(list: any[], position: KoraSpatialVector, opts: KoraNearestOptions): any, number? [shared]
 ---@field rateLimiter fun(max: integer, window: number): KoraRateLimiter [shared]
 
 ---@class KoraLibVehicle
----@field normalizePlate fun(value: any, options?: QBVehicleNormalizePlateOptions): string|nil, string? [shared]
+---@field normalizePlate fun(value: any, options?: KoraVehicleNormalizePlateOptions): string|nil, string? [shared]
 
 ---@class KoraLibVisuals
 
 ---@class KoraLibWorld
 
 ---@class KoraLibZones
+
+---@class KoraDrawingText3DOptions
+---@field font? integer
+---@field scale? number
+---@field color? {r: integer, g: integer, b: integer, a: integer}
+---@field maxDistance? number Meters from PlayerPedId(); beyond this, every native call is skipped.
+---@field outline? boolean
+
+---@alias KoraEntitiesType "ped" | "object" | "vehicle"
+---@alias KoraEntitiesPreset "static"
+
+---@alias KoraServerVehicleType "automobile" | "bike" | "boat" | "heli" | "plane" | "submarine" | "trailer" | "train"
+
+---@alias KoraNotifyType "info" | "success" | "warning" | "error"
+---@alias KoraNotifyPosition "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right" | "center-left" | "center-right" | "top" | "bottom"
+
+---@class KoraWaypointTeleportOptions : KoraTeleportOptions
+---@field entity? number Entity to move. Defaults to the current vehicle when driving, otherwise the player ped.
+---@field launchHeight? number Initial Z used while collision is loaded.
+---@field collisionTimeout? integer Maximum milliseconds to wait for world collision.
+---@field groundAttempts? integer Maximum ground probes.
+---@field groundRetryDelay? integer Milliseconds between ground probes.
+
+---@class KoraTextUIOptions
+---@field key? string Short key/control label displayed beside the text.
+---@field icon? string Lucide icon name.
+---@field position? KoraTextUIPosition Defaults to `right-center`.
+---@field iconColor? string CSS colour applied to the icon.
+---@field iconAnimation? 'spin'|'spinPulse'|'spinReverse'|'pulse'|'beat'|'fade'|'beatFade'|'bounce'|'shake'
+---@field alignIcon? 'top'|'center' Defaults to `center`.
+---@field style? string|table<string, string|number> Scoped CSS declarations or properties applied to the prompt surface.
+
+---@class KoraVisualsStaminaEffectOptions
+---@field prefix string playDrugEffect prefix (`<prefix>In`/`<prefix>`/`<prefix>Out`).
+---@field multiplier number Sprint multiplier applied for the duration of the effect.
+---@field ticks integer Number of 1-second stamina ticks the effect runs for.
+---@field restoreChance integer Chance out of 100, rolled each tick, to restore stamina.
+---@field replayChance integer Chance, rolled each tick against replayScale, to replay the drug screen effect.
+---@field replayScale? integer Denominator replayChance is rolled against. Default 100 -- coke uses 300, preserve exactly.
+---@field replayExtraWait? {min: integer, max: integer} Extra Wait(math.random(min,max)) after a successful replay (coke only).
+---@field perTickRagdoll? {chance: integer, minTime: integer, maxTime: integer} Chance out of 100, each tick, to ragdoll if running.
+---@field finalRagdoll? {minTime: integer, maxTime: integer} Ragdoll unconditionally once the tick loop ends.
+
+---@class KoraWorldQueryOptions
+---@field models? (number|string)[] Restrict to these models. Strings are joaat-hashed. Ignored for "player".
+---@field predicate? fun(entity: number, coords: table, distance: number): boolean Runs last, after the cheaper filters below.
+---@field includeInvisible? boolean Include entities IsEntityVisible reports as hidden. Defaults to false.
+---@field includeOwnPed? boolean Include the local player's own ped/player entry. Defaults to false.
+---@field excludeEntities? number[] Entity handles to skip outright.
+---@field radius? number getClosestEntity only -- search radius, meters. Defaults to Config.world.defaultRadius.
+
+---@class KoraWorldNetworkEntityOptions
+---@field entityType? "ped" | "vehicle" | "object" Required live entity type.
+---@field maxDistance? number Maximum distance from the player's ped in metres.
+---@field sameBucket? boolean Require the entity and player to share a routing bucket. Defaults to true.
+---@field requireDriver? boolean Require the player's ped to occupy the vehicle's driver seat.
+
+---@class KoraZoneEditOptions
+---@field coords? any New center coordinates. Only supported by box and sphere zones.
+---@field onEnter? fun(zone: table)|false New enter callback, or false to remove it.
+---@field onExit? fun(zone: table)|false New exit callback, or false to remove it.
 
 ---@class KoraWorkspace: kora_lib
 ---@field shared KoraSharedRegistry

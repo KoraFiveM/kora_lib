@@ -12,6 +12,7 @@ function _G.IsDuplicityVersion() return false end
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
 local nextSoundId = 0

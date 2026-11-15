@@ -218,11 +218,11 @@ function Kora.entities.createScoped(model, coords, options)
                 scope.spawning = false
 
                 if not ok then
-                    print(("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(entity)))
+                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', ("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(entity)))
                     return
                 end
                 if not entity and createErr then
-                    print(("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(createErr)))
+                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', ("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(createErr)))
                 end
 
                 if scope.removed or not scope.inside then

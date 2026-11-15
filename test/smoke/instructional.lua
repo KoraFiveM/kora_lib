@@ -10,6 +10,7 @@ local sent = {}
 function _G.GetControlInstructionalButton(_, control) return control == 99 and 'b_100' or 't_' .. tostring(control) end
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'compat/shared.lua')
 dofile(repoRoot .. 'local/resources/client.lua')
 Kora.nui = { send = function(action, data) sent[#sent + 1] = { action = action, data = data } end }

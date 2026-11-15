@@ -7,6 +7,7 @@ local harness = require('harness')
 require('mocks').install()
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 
 local progressPayload
 Kora.progressbar = {

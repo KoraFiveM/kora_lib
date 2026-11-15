@@ -25,7 +25,7 @@ end
 local propRegistry = Kora.resources.registry(function(entity)
     local ok, err = pcall(deleteProgressProp, entity)
     if not ok then
-        print(("[kora_lib:progressbar] failed to clean up prop %s: %s"):format(tostring(entity), tostring(err)))
+        Kora.logging.error('lib.client.failed_to_clean_up_prop', ("[kora_lib:progressbar] failed to clean up prop %s: %s"):format(tostring(entity), tostring(err)))
     end
 end)
 
@@ -196,7 +196,7 @@ end
 local function safeCleanup(label, fn)
     local ok, err = pcall(fn)
     if not ok then
-        print(("[kora_lib:progressbar] %s cleanup failed: %s"):format(label, tostring(err)))
+        Kora.logging.error('lib.client.cleanup_failed', ("[kora_lib:progressbar] %s cleanup failed: %s"):format(label, tostring(err)))
     end
 end
 
@@ -315,7 +315,7 @@ local function prepareProp(session, definition, index)
 
     if not ok then
         discardProp(session, entity)
-        print(("[kora_lib:progressbar] prop %d could not be created -- continuing without it: %s")
+        Kora.logging.warn('lib.client.prop_could_not_be_created_continuing_without_it', ("[kora_lib:progressbar] prop %d could not be created -- continuing without it: %s")
             :format(index, tostring(err)))
     end
 end
@@ -391,7 +391,7 @@ function Kora.progressbar.start(payload, owner, hooks)
             elseif payload.strictAnim then
                 error(("Progress bar animation dictionary '%s' could not be loaded."):format(payload.anim.dict))
             else
-                print(("[kora_lib:progressbar] anim dict '%s' could not be loaded -- continuing without it.")
+                Kora.logging.warn('lib.client.anim_dict', ("[kora_lib:progressbar] anim dict '%s' could not be loaded -- continuing without it.")
                     :format(payload.anim.dict))
             end
         elseif payload.scenario then

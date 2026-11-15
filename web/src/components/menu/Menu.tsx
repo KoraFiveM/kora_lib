@@ -100,7 +100,7 @@ export function MenuContainer() {
     const emitEvent = useCallback((event: string, data: unknown) => {
         if (requestId === null || token === null) return
         void fetchNui("kora_lib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
-            console.error(`[kora_lib] menu event '${event}' failed:`, error)
+            globalThis.KoraLogger?.error('lib.nui.menu', `[kora_lib] menu event '${event}' failed:`, { detail1: String(error) })
         })
     }, [requestId, token])
 

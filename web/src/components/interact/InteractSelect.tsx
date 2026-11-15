@@ -46,7 +46,7 @@ export function InteractSelect() {
             .then(() => setState(null))
             .catch((error) => {
                 submittingRef.current = false
-                console.error("[kora_lib] interact selection failed:", error)
+                globalThis.KoraLogger?.error('lib.nui.interactselect', "[kora_lib] interact selection failed:", { detail1: String(error) })
             })
     }, [state])
 

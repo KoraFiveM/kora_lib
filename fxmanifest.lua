@@ -25,6 +25,9 @@ provide 'screenshot-basic'
 -- It must be listed here so the client can fetch it.
 files {
     'init.lua',
+    'modules/logging/nui.lua',
+    'modules/logging/adapters/browser.js',
+    'modules/logging/adapters/browser.d.ts',
     -- Kora.require executes in each consumer's Lua environment rather than as a
     -- kora_lib export, so init.lua loads this small factory on demand.
     'modules/require/loader.lua',
@@ -68,8 +71,25 @@ ui_page 'web/build/index.html'
 shared_scripts {
     'config.lua',
     'build/initiate.lua',
+    'modules/logging/shared.lua',
     'local/**/shared.lua',
-    'modules/**/shared.lua',
+    'modules/blips/shared.lua',
+    'modules/locales/shared.lua',
+    'modules/lookup/shared.lua',
+    'modules/loops/shared.lua',
+    'modules/minigames/shared.lua',
+    'modules/notify/shared.lua',
+    'modules/ox/shared.lua',
+    'modules/prints/shared.lua',
+    'modules/qa/shared.lua',
+    'modules/random/shared.lua',
+    'modules/rewards/shared.lua',
+    'modules/state/shared.lua',
+    'modules/status/shared.lua',
+    'modules/theme/shared.lua',
+    'modules/timers/shared.lua',
+    'modules/util/shared.lua',
+    'modules/vehicle/shared.lua',
     -- Shared so compatibility providers can register aliases in either realm.
     'compat/shared.lua'
 }
@@ -89,6 +109,7 @@ client_scripts {
     -- The configuration editor needs the config consumer and AppShell, both
     -- supplied by the preceding module glob.
     'modules/config/editor_client.lua',
+    'modules/logging/nui.lua',
     -- Loaded after every module client so the built-in settings app can use
     -- both the blip registry and the shared AppShell without load-order races.
     'modules/blips/settings.lua',

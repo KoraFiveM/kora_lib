@@ -48,6 +48,12 @@ Published on the Kora documentation site, and readable directly in the repositor
 
 The resource also ships LuaLS declarations in `types.lua`. Module guides live beside their implementations and are checked against the public API by the test suite.
 
+## Logging
+
+Use [Kora.logging](modules/logging/docs.md) for server/client diagnostics,
+optional targeted client capture, JavaScript/NUI adapters and structured console
+export. `Kora.print` and legacy event APIs remain compatibility adapters.
+
 ## Development
 
 Run all Lua smoke and contract tests with:

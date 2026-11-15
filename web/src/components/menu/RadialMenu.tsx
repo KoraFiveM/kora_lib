@@ -88,7 +88,7 @@ export function RadialMenuContainer() {
     const emitEvent = useCallback((event: string, data: unknown) => {
         if (requestId === null || token === null) return
         void fetchNui("kora_lib:nui:event", { requestId, token, event, data } satisfies NuiRequestEventEnvelope).catch((error) => {
-            console.error(`[kora_lib] radial event '${event}' failed:`, error)
+            globalThis.KoraLogger?.error('lib.nui.radialmenu', `[kora_lib] radial event '${event}' failed:`, { detail1: String(error) })
         })
     }, [requestId, token])
 
@@ -111,7 +111,7 @@ export function RadialMenuContainer() {
             event: "radialLevel",
             data: { path },
         } satisfies NuiRequestEventEnvelope).catch((error) => {
-            console.error("[kora_lib] radial level event failed:", error)
+            globalThis.KoraLogger?.error('lib.nui.radialmenu', "[kora_lib] radial level event failed:", { detail1: String(error) })
         })
     }, [isOpen, requestId, stack, token])
 

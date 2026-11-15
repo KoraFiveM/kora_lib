@@ -401,7 +401,7 @@ const warnedIcons = new Set<string>()
 function warnUnknownIcon(name: string) {
     if (!import.meta.env.DEV || warnedIcons.has(name)) return
     warnedIcons.add(name)
-    console.warn(`[kora_lib] unknown icon "${name}", rendering fallback`)
+    globalThis.KoraLogger?.warn('lib.nui.icon', `[kora_lib] unknown icon "${name}", rendering fallback`, {  })
 }
 
 function ownIcon(key: string): ComponentType<LucideProps> | undefined {

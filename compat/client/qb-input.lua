@@ -2,7 +2,7 @@ local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
     warnedIcon = true
-    print("[qb-input-bridge] WARNING: input 'icon' fields (Font Awesome classes) have no equivalent on "
+    Kora.logging.warn('lib.qb_input.warning_input', "[qb-input-bridge] WARNING: input 'icon' fields (Font Awesome classes) have no equivalent on "
         .. "Kora.nui.openInputDialog's fields -- icons are dropped. Only shown once per session.")
 end
 
@@ -11,7 +11,7 @@ local inputOpen = false
 local function warnUnknownTypeOnce(inputType)
     if warnedTypes[inputType] then return end
     warnedTypes[inputType] = true
-    print(("[qb-input-bridge] WARNING: input type %q is not recognized -- falling back to a plain text field. "
+    Kora.logging.warn('lib.qb_input.warning_input_type_is_not_recognized_falling_back', ("[qb-input-bridge] WARNING: input type %q is not recognized -- falling back to a plain text field. "
         .. "Only shown once per type per session."):format(tostring(inputType)))
 end
 

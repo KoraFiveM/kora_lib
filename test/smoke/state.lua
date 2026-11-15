@@ -9,6 +9,7 @@ local net = mocks.install()
 
 _G.GlobalState = {}
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'modules/state/shared.lua')
 dofile(repoRoot .. 'modules/util/shared.lua')
 

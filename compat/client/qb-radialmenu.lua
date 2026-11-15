@@ -2,7 +2,7 @@ local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
     warnedIcon = true
-    print("[qb-radialmenu-bridge] WARNING: option 'icon' fields (Font Awesome classes) are not translated to "
+    Kora.logging.warn('lib.qb_radialmenu.warning_option', "[qb-radialmenu-bridge] WARNING: option 'icon' fields (Font Awesome classes) are not translated to "
         .. "Kora.nui's lucide icon names -- icons are dropped. Only shown once per session.")
 end
 
@@ -64,7 +64,7 @@ local function dispatch(option)
     if option.onSelect then
         local ok, err = pcall(option.onSelect, option)
         if not ok then
-            print(("[qb-radialmenu-bridge] WARNING: onSelect for option %q errored: %s"):format(
+            Kora.logging.error('lib.qb_radialmenu.warning_onselect_for_option_errored', ("[qb-radialmenu-bridge] WARNING: onSelect for option %q errored: %s"):format(
                 tostring(option.id), tostring(err)))
         end
         return

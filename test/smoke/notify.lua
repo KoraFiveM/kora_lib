@@ -10,6 +10,7 @@ mocks.install()
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
+dofile(repoRoot .. "modules/logging/shared.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 dofile(repoRoot .. "modules/loops/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")

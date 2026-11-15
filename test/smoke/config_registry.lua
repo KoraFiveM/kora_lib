@@ -27,6 +27,7 @@ local bridge = {
 _G.exports = { sample = bridge }
 
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'modules/config/server.lua')
 
 H.test('catalog records a resource only from its own bridge', function()

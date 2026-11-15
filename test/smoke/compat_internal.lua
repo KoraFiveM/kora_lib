@@ -6,6 +6,7 @@ package.path = testDir .. '?.lua;' .. package.path
 local harness = require('harness')
 require('mocks').install()
 dofile(repoRoot .. 'build/initiate.lua')
+dofile(repoRoot .. 'modules/logging/shared.lua')
 
 harness.test('internal callable detection accepts native and Cfx funcref shapes', function()
     harness.assertTrue(Kora.compat.isCallable(function() end))
