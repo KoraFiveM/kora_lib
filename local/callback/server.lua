@@ -19,14 +19,14 @@ local HANDSHAKE_LIMIT = { max = 5, window = 60000 }
 
 local function normalizeRateLimit(opts)
     if opts == nil then return nil end
-    assert(type(opts) == 'table', 'Callback registration options must be a table.')
+    assert(type(opts) == 'table', KoraLang('Local.Callback.registration_options_must_be_table'))
     local limit = opts.rateLimit
     if limit == nil or limit == false then return nil end
-    assert(type(limit) == 'table', 'Callback rateLimit must be a table or false.')
+    assert(type(limit) == 'table', KoraLang('Local.Callback.rate_limit_table_or_false'))
     assert(isInteger(limit.max) and limit.max >= 1 and limit.max <= MAX_RATE_LIMIT,
-        ('Callback rateLimit.max must be a positive integer no greater than %d.'):format(MAX_RATE_LIMIT))
+        KoraLang('Local.Callback.rate_limit_max', MAX_RATE_LIMIT))
     assert(isInteger(limit.window) and limit.window > 0 and limit.window <= MAX_RATE_WINDOW,
-        ('Callback rateLimit.window must be a positive integer no greater than %d milliseconds.'):format(MAX_RATE_WINDOW))
+        KoraLang('Local.Callback.rate_limit_window', MAX_RATE_WINDOW))
     return { max = limit.max, window = limit.window }
 end
 
@@ -122,7 +122,7 @@ local envelope = KoraLibCallbackEnvelope
 ---@param opts? KoraRegistrationOptions
 function Kora.callback.register(name, handler, opts)
     Kora.callback.assertName(name)
-    assert(isCallable(handler), "Callback handler must be a function.")
+    assert(isCallable(handler), KoraLang('Local.Callback.handler_must_be_function'))
     local rateLimit = normalizeRateLimit(opts)
     local replace = opts and opts.replace == true
 
@@ -130,8 +130,8 @@ function Kora.callback.register(name, handler, opts)
 
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner and not replace then
-        Kora.logging.warn('lib.server.diagnostic', ("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
-            :format(name, previousOwner, owner))
+        Kora.logging.warn('lib.server.diagnostic', KoraLang(
+            'Local.Callback.overwritten', name, previousOwner, owner))
     end
 
     registry[name] = { handler = handler, rateLimit = rateLimit }
@@ -154,7 +154,7 @@ end
 
 local function request(target, name, ...)
     Kora.callback.assertName(name)
-    assert(isInteger(target) and target >= 1, "target must be a positive finite player server ID.")
+    assert(isInteger(target) and target >= 1, KoraLang('Local.Callback.target_positive_server_id'))
 
     local p = promise.new()
 
@@ -168,7 +168,7 @@ local function request(target, name, ...)
         if pending == nil then return end
 
         pendingClientCallbacks[requestId] = nil
-        pending.promise:reject("Callback timed out.")
+        pending.promise:reject(KoraLang('Local.Callback.timed_out'))
     end)
 
     TriggerClientEvent(events.clientInvoke, target, requestId, name, ...)
@@ -234,13 +234,13 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     local definition = registry[name]
     if definition == nil then
         TriggerClientEvent(events.response, src, requestId, false,
-            ("Callback '%s' is not registered on the server."):format(name))
+            KoraLang('Local.Callback.not_registered', name))
         return
     end
     local allowed, retryAfter = consumeRateLimit(name, src, definition.rateLimit)
     if not allowed then
         TriggerClientEvent(events.response, src, requestId, false,
-            ('Callback rate limit exceeded; retry in %dms.'):format(retryAfter))
+            KoraLang('Local.Callback.rate_limit_exceeded', retryAfter))
         return
     end
 
@@ -248,7 +248,8 @@ RegisterNetEvent(events.invoke, function(token, requestId, name, ...)
     local ok = results[1]
 
     if not ok then
-        Kora.logging.error('lib.server.handler_for', ("[kora_lib:callback] handler for '%s' (player %d) errored: %s"):format(name, src, tostring(results[2])))
+        Kora.logging.error('lib.server.handler_for', KoraLang(
+            'Local.Callback.handler_errored_for_player', name, src, tostring(results[2])))
         if type(results[2]) == 'string' then
             results[2] = (results[2]:gsub('^[^%s:]+%.lua:%d+: ', '', 1))
         end
@@ -291,7 +292,7 @@ AddEventHandler('playerDropped', function()
     for requestId, pending in pairs(pendingClientCallbacks) do
         if pending.target == src then
             pendingClientCallbacks[requestId] = nil
-            pending.promise:reject("Player disconnected before answering the callback.")
+            pending.promise:reject(KoraLang('Local.Callback.player_disconnected'))
         end
     end
 end)

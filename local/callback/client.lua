@@ -58,14 +58,14 @@ local envelope = KoraLibCallbackEnvelope
 ---@param handler fun(...: any): any
 function Kora.callback.register(name, handler)
     Kora.callback.assertName(name)
-    assert(isCallable(handler), "Callback handler must be a function.")
+    assert(isCallable(handler), KoraLang('Local.Callback.handler_must_be_function'))
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
     local previousOwner = callbackOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        Kora.logging.warn('lib.client.diagnostic', ("[kora_lib:callback] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your callback names.")
-            :format(name, previousOwner, owner))
+        Kora.logging.warn('lib.client.diagnostic', KoraLang(
+            'Local.Callback.overwritten', name, previousOwner, owner))
     end
 
     registry[name] = handler
@@ -90,7 +90,7 @@ local function request(name, ...)
     local p = promise.new()
 
     if not awaitToken() then
-        p:reject("Callback handshake did not complete in time.")
+        p:reject(KoraLang('Local.Callback.handshake_timeout'))
         return p
     end
 
@@ -103,7 +103,7 @@ local function request(name, ...)
         if pending[requestId] == nil then return end
 
         pending[requestId] = nil
-        p:reject("Callback timed out.")
+        p:reject(KoraLang('Local.Callback.timed_out'))
     end)
 
     TriggerServerEvent(events.invoke, token, requestId, name, ...)

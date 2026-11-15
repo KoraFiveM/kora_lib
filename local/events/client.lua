@@ -28,7 +28,8 @@ RegisterNetEvent(events.push, function(name, ...)
 
     local ok, err = pcall(handler, ...)
     if not ok then
-        Kora.logging.error('lib.client.push_handler_for', ("[kora_lib:events] push handler for '%s' errored: %s"):format(name, tostring(err)))
+        Kora.logging.error('lib.client.push_handler_for', KoraLang(
+            'Local.Events.push_handler_errored', name, tostring(err)))
     end
 end)
 
@@ -52,7 +53,7 @@ function Kora.events.trigger(name, ...)
     Kora.events.assertName(name)
 
     if not awaitToken() then
-        return false, "Event handshake did not complete in time."
+        return false, KoraLang('Local.Events.handshake_timeout')
     end
 
     TriggerServerEvent(events.gateway, token, name, ...)
@@ -68,14 +69,14 @@ end
 ---@param handler fun(...: any)
 function Kora.events.onPush(name, handler)
     Kora.events.assertName(name)
-    assert(isCallable(handler), "Push handler must be a function.")
+    assert(isCallable(handler), KoraLang('Local.Events.push_handler_must_be_function'))
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
     local previousOwner = pushOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        Kora.logging.warn('lib.client.push_handler', ("[kora_lib:events] push handler '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your push names.")
-            :format(name, previousOwner, owner))
+        Kora.logging.warn('lib.client.push_handler', KoraLang(
+            'Local.Events.push_handler_overwritten', name, previousOwner, owner))
     end
 
     pushRegistry[name] = handler

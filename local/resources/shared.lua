@@ -1,6 +1,6 @@
 local function assertResourceName(resourceName, label)
     assert(type(resourceName) == 'string' and resourceName ~= '' and #resourceName <= 256,
-        label .. ' requires a resource name up to 256 bytes.')
+        KoraLang('Local.Resources.function_requires_resource_name', label))
 end
 
 ---Returns whether a resource is currently started.
@@ -18,7 +18,7 @@ end
 ---@return string? reason
 function Kora.resources.awaitStarted(resourceName, options)
     assertResourceName(resourceName, 'Kora.resources.awaitStarted')
-    assert(options == nil or type(options) == 'table', 'Kora.resources.awaitStarted options must be a table.')
+    assert(options == nil or type(options) == 'table', KoraLang('Local.Resources.await_started_options_must_be_table'))
     options = options or {}
 
     local timeout = options.timeout
@@ -26,9 +26,9 @@ function Kora.resources.awaitStarted(resourceName, options)
     local interval = options.interval
     if interval == nil then interval = 100 end
     assert(Kora.util.isFiniteNumber(timeout) and timeout >= 0,
-        'Kora.resources.awaitStarted timeout must be a non-negative finite number.')
+        KoraLang('Local.Resources.await_started_timeout_invalid'))
     assert(Kora.util.isFiniteNumber(interval) and interval >= 0,
-        'Kora.resources.awaitStarted interval must be a non-negative finite number.')
+        KoraLang('Local.Resources.await_started_interval_invalid'))
 
     local startedAt = GetGameTimer()
     repeat
