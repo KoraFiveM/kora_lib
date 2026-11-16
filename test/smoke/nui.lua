@@ -8,9 +8,20 @@ local mocks = require("mocks")
 
 local net = mocks.install()
 
+_G.LoadResourceFile = function(resource, path)
+    if resource ~= "kora_lib" and resource ~= GetCurrentResourceName() then return end
+    if path ~= "locales/en.lua" then return end
+    local file = assert(io.open(repoRoot .. path, "rb"))
+    local source = file:read("*a")
+    file:close()
+    return source
+end
+
+dofile(repoRoot .. "local/locales/shared.lua")
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")
 dofile(repoRoot .. "modules/logging/shared.lua")
+dofile(repoRoot .. "modules/locales/shared.lua")
 dofile(repoRoot .. "local/resources/client.lua")
 dofile(repoRoot .. "modules/util/shared.lua")
 
@@ -782,6 +793,27 @@ harness.test("registerApp stores a headless definition and openApp opens it by i
     harness.assertEqual(sentMessages[#sentMessages].data, playerAccent, "closing should restore the player's /theme colour")
     harness.assertFalse(focusCalls[#focusCalls].mouse, "settling openApp should release NUI focus")
     harness.assertEqual(handled, nil, "opening the app should not invoke its action handler")
+end)
+
+harness.test("openApp sends English chat labels and omits missing locale text", function()
+    local translate = Kora.locale.translate
+    Kora.locale.translate = function(resource, key)
+        if key == "app.cancel" then return key end
+        if key == "app.close" then return " " end
+        return translate(resource, key)
+    end
+    local id = "smoke:app-locale"
+    Kora.nui.registerApp({ id = id, title = "Labels", navigation = { { id = "home", label = "Home" } } })
+    Kora.nui.openApp(id)
+    Kora.locale.translate = translate
+
+    local labels = lastMessage("openApp").data.payload.app.labels
+    respondOk(lastRequestId(), { closed = true, reason = "close" })
+    harness.assertEqual(labels.cancel, nil, "the browser must retain its English default")
+    harness.assertEqual(labels.close, nil, "blank labels must leave the browser default in place")
+    harness.assertEqual(labels.statusSent, "Sent")
+    harness.assertEqual(labels.statusDelivered, "Delivered")
+    harness.assertEqual(labels.statusSeen, "Seen")
 end)
 
 harness.test("openApp validates navigation identifiers before creating a request", function()

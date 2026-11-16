@@ -728,7 +728,7 @@ return {
                 config_unavailable = 'Configuration unavailable', restart_reopen = 'Restart the resource and reopen the editor.',
                 editable_options = '%d editable configuration option%s.', loading_config = 'Loading configuration',
                 loading_values = 'The latest saved and running values are being requested from this resource.',
-                key = 'Key', setting_key = 'Key: %s', saved_restart = 'Saved; restart needed',
+                setting_key = 'Key: %s', saved_restart = 'Saved; restart needed',
                 settings_count = '%d settings. Choose a setting to change it.',
                 advanced_on = 'Advanced: on', advanced_off = 'Advanced: off',
                 description = 'Description', value_column = 'Value', applies = 'Applies',
@@ -980,7 +980,7 @@ return {
 
         whole_number = [=[Must be a whole number.]=],
         coordinate_finite = [=[Every coordinate must be a finite number.]=],
-},
+    },
     Compat = {
         input = {
             warning_icons = "[qb-input-bridge] WARNING: input 'icon' fields (Font Awesome classes) "

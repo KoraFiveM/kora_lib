@@ -1,3 +1,5 @@
+local KoraLang = type((...)) == 'function' and (...) or KoraLang
+
 ---Projects a world position onto normalised 0..1 screen space (as FiveM's draw natives use), NOT pixels.
 ---The third return says whether the point is on screen; `x`/`y` are meaningless when it isn't, so gate on it.
 ---@param coords vector3 | {x: number, y: number, z: number}

@@ -1,3 +1,5 @@
+local KoraLang = type((...)) == 'function' and (...) or KoraLang
+
 ---Recursively copies a plain table (nested tables included). Non-table
 ---values are returned as-is. Shared and circular table references are
 ---preserved; metatables and function values are not copied specially.

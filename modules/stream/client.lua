@@ -1,3 +1,5 @@
+local KoraLang = type((...)) == 'function' and (...) or KoraLang
+
 ---Generic request -> poll-until-loaded -> callback -> cleanup driver for every `Kora.stream.load*` function.
 ---Skips the request if already loaded and polls once per frame up to a 10s timeout. Cleanup runs on failure and
 ---after a callback returns; with NO callback the asset is left loaded and the caller must release it.

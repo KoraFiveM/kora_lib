@@ -9,20 +9,6 @@ local focusLeases = {}
 local nextFocusLease = 0
 local focusBaseKeepInput
 
-local APP_LABEL_FALLBACKS = {
-    cancel = KoraLang('Modules.Nui.app.cancel'), confirm = KoraLang('Modules.Nui.app.confirm'), working = KoraLang('Modules.Nui.app.working'), run_action = KoraLang('Modules.Nui.app.run_action'),
-    search = KoraLang('Modules.Nui.app.search'), previous = KoraLang('Modules.Nui.app.previous'), next = KoraLang('Modules.Nui.app.next'), no_records = KoraLang('Modules.Nui.app.no_records'),
-    nothing_here = KoraLang('Modules.Nui.app.nothing_here'), empty_title = KoraLang('Modules.Nui.app.empty_title'),
-    empty_description = KoraLang('Modules.Nui.app.empty_description'), close = KoraLang('Modules.Nui.app.close'),
-    select = KoraLang('Modules.Nui.app.select'), required = KoraLang('Modules.Nui.app.required'), invalid_format = KoraLang('Modules.Nui.app.invalid_format'),
-    whole_number = KoraLang('Modules.Nui.app.whole_number'), coordinate_finite = KoraLang('Modules.Nui.app.coordinate_finite'),
-    min_value = KoraLang('Modules.Nui.app.min_value'), max_value = KoraLang('Modules.Nui.app.max_value'),
-    min_length = KoraLang('Modules.Nui.app.min_length'), max_length = KoraLang('Modules.Nui.app.max_length'),
-    page = KoraLang('Modules.Nui.app.page'), recenter = KoraLang('Modules.Nui.app.recenter'), clear = KoraLang('Modules.Nui.app.clear'), backspace = KoraLang('Modules.Nui.app.backspace'),
-    back = KoraLang('Modules.Nui.app.back'), open = KoraLang('Modules.Nui.app.open'), yes = KoraLang('Modules.Nui.app.yes'), no = KoraLang('Modules.Nui.app.no'), map = KoraLang('Modules.Nui.app.map'), zoom_in = KoraLang('Modules.Nui.app.zoom_in'), zoom_out = KoraLang('Modules.Nui.app.zoom_out'),
-    value = KoraLang('Modules.Nui.app.value'), decrease = KoraLang('Modules.Nui.app.decrease'), increase = KoraLang('Modules.Nui.app.increase'),
-    send = KoraLang('Modules.Nui.app.send'), new_messages = KoraLang('Modules.Nui.app.new_messages'), new_divider = KoraLang('Modules.Nui.app.new_divider'), message = KoraLang('Modules.Nui.app.message'),
-}
 local MENU_ITEM_STRING_FIELDS = { 'description', 'icon', 'image' }
 local MENU_SIZE_FIELDS = { 'maxWidth', 'maxHeight' }
 local MENU_OFFSET_FIELDS = { 'offsetX', 'offsetY' }
@@ -41,8 +27,11 @@ local function assertAppId(id)
 end
 
 local function translateAppLabel(key)
-    if Kora.locale and Kora.locale.translate then return Kora.locale.translate('kora_lib', 'app.' .. key) end
-    return APP_LABEL_FALLBACKS[key]
+    local localeKey = 'app.' .. key
+    local translated = Kora.locale and Kora.locale.translate and Kora.locale.translate('kora_lib', localeKey)
+    if type(translated) == 'string' and translated ~= localeKey and translated:match('%S') then return translated end
+    -- Omit an unresolved label so the browser retains its English default.
+    return nil
 end
 
 local function appLabels()

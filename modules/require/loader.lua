@@ -1,4 +1,5 @@
-return function(currentResource)
+return function(currentResource, translateLabel)
+    local KoraLang = translateLabel or KoraLang
     assert(type(currentResource) == 'string' and currentResource ~= '', KoraLang('Modules.Require.validation_current_resource_name_not_found'))
 
     local LOADING = {}

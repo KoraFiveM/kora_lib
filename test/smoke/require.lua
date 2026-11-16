@@ -20,7 +20,11 @@ end
 _G.AddEventHandler = function(name, handler) handlers[name] = handler end
 
 local factory = assert(loadfile(repoRoot .. 'modules/require/loader.lua'))()
-local requireApi = factory('consumer')
+local catalog = dofile(repoRoot .. 'locales/en.lua')
+local requireApi = factory('consumer', function(key)
+    local phrase = key:match('^Modules%.Require%.(.+)$')
+    return assert(phrase and catalog.Modules.Require[phrase], key)
+end)
 
 harness.test('loads and caches one explicit module', function()
     local first = requireApi.load('sample', 'config.lua')

@@ -94,6 +94,7 @@
       "init.lua",
       "local/callback/shared.lua",
       "local/events/shared.lua",
+      "local/locales/shared.lua",
       "local/resources/shared.lua",
       "modules/blips/shared.lua",
       "modules/config/consumer.lua",

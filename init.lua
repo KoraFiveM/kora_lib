@@ -16,6 +16,18 @@ if not isServer then
     consumerModuleFiles.util[#consumerModuleFiles.util + 1] = 'modules/util/client.lua'
 end
 
+local consumerLabels = {}
+
+-- Only the bundled chunks that need Kora's validation text receive this helper.
+local function translateConsumerLabel(key, ...)
+    if select('#', ...) > 0 then return library:locale_translate('kora_lib', key, ...) end
+    local text = consumerLabels[key]
+    if text then return text end
+    text = library:locale_translate('kora_lib', key)
+    if type(text) == 'string' and text ~= key then consumerLabels[key] = text end
+    return text
+end
+
 local function compileKoraFile(path)
     local source = assert(LoadResourceFile('kora_lib', path), ('Unable to load @kora_lib/%s'):format(path))
     local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
@@ -31,7 +43,7 @@ local function loadConsumerModule(namespace, name, paths)
 
     local ok, loadError = pcall(function()
         for index = 1, #paths do
-            compileKoraFile(paths[index])()
+            compileKoraFile(paths[index])(translateConsumerLabel)
         end
 
         assert(next(module), ('Consumer module Kora.%s did not register any functions.'):format(name))
@@ -52,7 +64,7 @@ local function getRequireModule()
     local createRequire = compileKoraFile(path)()
     assert(type(createRequire) == 'function', ('@kora_lib/%s must return a factory function'):format(path))
 
-    requireModule = createRequire(GetCurrentResourceName())
+    requireModule = createRequire(GetCurrentResourceName(), translateConsumerLabel)
     return requireModule
 end
 
@@ -183,7 +195,12 @@ Kora = setmetatable({}, {
 })
 
 
+AddEventHandler('kora_lib:client:localeChanged', function()
+    consumerLabels = {}
+end)
+
 AddEventHandler(isServer and 'kora_lib:server:updated' or 'kora_lib:client:updated', function()
+    consumerLabels = {}
     for name, paths in pairs(consumerModuleFiles) do
         local current = rawget(Kora, name)
         if current then

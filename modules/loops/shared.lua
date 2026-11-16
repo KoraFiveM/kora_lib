@@ -1,3 +1,5 @@
+local KoraLang = type((...)) == 'function' and (...) or KoraLang
+
 ---Repeatedly invokes `call` until it returns a truthy value (returned first), or tries/timeout run out. `false`/`nil` means not ready yet.
 ---@param call fun(): any Predicate to poll. Truthy return ends the loop.
 ---@param tries? integer | false Max attempts, or false to disable. Defaults to 10.
