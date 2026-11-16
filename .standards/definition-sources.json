@@ -1,6 +1,6 @@
 {
   "fiveM": "ef5f08e5e1d4a176586a5befbe0a9ff8400c58fc",
-  "koraLibTypesSha256": "f8e6a19aada04467961f5891c1650b0af8253a918ea52b3873d7518d3049b266",
+  "koraLibTypesSha256": "a3fd2beb307116e9cf8214cad45d6a2835ce87ea8aee5ec31d7e4f9ecf5633fc",
   "addonFilesSha256": {
     "LICENSE": "9e34d5efeba04be09dec582c80780c3a0263162b2d62346f296d941cc7ce6439",
     "library/natives/CFX-NATIVE/CFX.lua": "1ae4fe948b953a6d1b7fbb86bb6c256a23758d98761ba511a07e69fe07dc5392",

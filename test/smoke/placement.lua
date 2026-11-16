@@ -6,6 +6,7 @@ package.path = testDir .. "?.lua;" .. package.path
 local harness = require("harness")
 local mocks = require("mocks")
 local net = mocks.install()
+_G.GetResourceState = function() return "missing" end
 
 local currentResource = "kora_lib_test"
 _G.GetCurrentResourceName = function() return currentResource end
@@ -202,6 +203,13 @@ Kora.zones = {
     isCreatorActive = function() return zoneCreatorActive end,
 }
 
+local translate = KoraLang
+KoraLang = function(key, ...)
+    if key:match('^Modules%.Placement%.axis_[a-z]+$') and key ~= 'Modules.Placement.axis_label' then
+        return 'translated-' .. key:match('([^_]+)$')
+    end
+    return translate(key, ...)
+end
 dofile(repoRoot .. "modules/placement/client.lua")
 
 local function press(name)
@@ -373,7 +381,7 @@ harness.test("arrow and Page keys move relative to camera yaw with frame-time sc
     harness.assertEqual(p.state, "resolved", "movement test placement should cancel")
 end)
 
-harness.test("Tab cycles yaw, pitch, and roll while brackets rotate the active axis", function()
+harness.test("localized labels leave yaw, pitch, and roll controls unchanged", function()
     gameplayCamRotation.z = 0.0
     local p = Kora.placement.start(OBJECT_MODEL)
     local entity = lastEntity

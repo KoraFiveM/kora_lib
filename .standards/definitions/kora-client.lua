@@ -1072,6 +1072,7 @@
 ---@field getLanguages fun(): string[] [shared]
 ---@field setLanguage fun(language: string): boolean, string|nil [client]
 ---@field translate fun(resource: string, key: string, ...: any): any [shared]
+---@field getResourceLocale fun(resource?: string): table|nil [shared]
 
 ---@class KoraLibActions
 ---@field run fun(options: KoraActionsOptions, ...: any): boolean, any [client]

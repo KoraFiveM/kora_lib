@@ -1,4 +1,5 @@
 local koraLocaleFiles = {}
+local koraLocalePhrases = {}
 local koraLocaleResource = GetCurrentResourceName()
 
 local function validKoraLanguage(language)
@@ -73,7 +74,18 @@ function KoraLang(key, ...)
     local language = GetConvar('kora_locale', 'en')
     if not validKoraLanguage(language) then language = 'en' end
 
-    local translated = koraLocalePhrase(loadKoraLocale(language), key)
-        or koraLocalePhrase(loadKoraLocale('en'), key)
-    return translated == nil and key or koraLocaleInterpolate(translated, ...)
+    local phrases = koraLocalePhrases[language]
+    if not phrases then
+        phrases = {}
+        koraLocalePhrases[language] = phrases
+    end
+    local translated = phrases[key]
+    if translated == nil then
+        translated = koraLocalePhrase(loadKoraLocale(language), key)
+            or koraLocalePhrase(loadKoraLocale('en'), key)
+            or key
+        phrases[key] = translated
+    end
+    if select('#', ...) == 0 then return translated end
+    return koraLocaleInterpolate(translated, ...)
 end

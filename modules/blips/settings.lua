@@ -134,7 +134,7 @@ end
 
 local function colourMetadata(index)
     local colour = blipColours[index]
-    if colour then return KoraLang('Modules.Blips.ui.colour_value', index, colour.hex) end
+    if colour then return KoraLang('Modules.Blips.ui.colour_value', colour.name, index, colour.hex) end
     return KoraLang('Modules.Blips.ui.unlisted_colour', tostring(index))
 end
 

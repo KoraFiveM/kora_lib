@@ -30,3 +30,6 @@ resource-name characters: letters, numbers, `_`, and `-`.
 - `Kora.locale.translate(resource, key, ...)` resolves an explicit resource;
   kora_core uses it to localize server-originated legacy notifications at the
   recipient.
+- `Kora.locale.getResourceLocale(resource?)` returns the selected language's
+  catalog for the specified resource, or the caller by default. It returns
+  `nil` when that specific catalog is unavailable.

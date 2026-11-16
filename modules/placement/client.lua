@@ -1,5 +1,5 @@
 local ROTATION_ORDER = 2
-local ROTATION_AXES = { KoraLang('Modules.Placement.axis_yaw'), KoraLang('Modules.Placement.axis_pitch'), KoraLang('Modules.Placement.axis_roll') }
+local ROTATION_AXES = { 'yaw', 'pitch', 'roll' }
 local PLACEMENT_CONTROLS = {
     172, 173, 174, 175,
     187, 188, 189, 190,
@@ -368,6 +368,7 @@ end
 local function updatePlacementInstructions(state)
     if not state.instructions then return end
     local movementLabel = state.movementMode == 'camera' and KoraLang('Modules.Placement.camera') or KoraLang('Modules.Placement.grid')
+    local axisLabel = KoraLang('Modules.Placement.axis_' .. ROTATION_AXES[state.axisIndex])
     local buttons = {
         { control = 32, label = KoraLang('Modules.Placement.move_forward'), group = KoraLang('Modules.Placement.camera') },
         { control = 33, label = KoraLang('Modules.Placement.move_backward'), group = KoraLang('Modules.Placement.camera') },
@@ -378,9 +379,9 @@ local function updatePlacementInstructions(state)
         { keybind = bindingHandles.backward, label = KoraLang('Modules.Placement.move_entity_backward') },
         { keybind = bindingHandles.up, label = KoraLang('Modules.Placement.move_entity_up') },
         { keybind = bindingHandles.down, label = KoraLang('Modules.Placement.move_entity_down') },
-        { keybind = bindingHandles.rotateLeft, label = KoraLang('Modules.Placement.rotate_left', ROTATION_AXES[state.axisIndex]) },
-        { keybind = bindingHandles.rotateRight, label = KoraLang('Modules.Placement.rotate_right', ROTATION_AXES[state.axisIndex]) },
-        { keybind = bindingHandles.cycle, label = KoraLang('Modules.Placement.axis_label', ROTATION_AXES[state.axisIndex]) },
+        { keybind = bindingHandles.rotateLeft, label = KoraLang('Modules.Placement.rotate_left', axisLabel) },
+        { keybind = bindingHandles.rotateRight, label = KoraLang('Modules.Placement.rotate_right', axisLabel) },
+        { keybind = bindingHandles.cycle, label = KoraLang('Modules.Placement.axis_label', axisLabel) },
         { keybind = bindingHandles.confirm, label = "Confirm" },
         { keybind = bindingHandles.cancel, label = "Cancel" },
     }

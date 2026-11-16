@@ -527,6 +527,26 @@ harness.test("wordguess: succeeds once every letter of the word is found", funct
     harness.assertTrue(p.value.success, "guessing every letter of the word should succeed")
 end)
 
+harness.test("each new round reads minigame labels in the current player language", function()
+    local cancelLabel = "First translation"
+    Kora.locale.translate = function(_, key)
+        if key == "Modules.Minigames.ui.cancel_instruction" then return cancelLabel end
+        return key
+    end
+    local seen = {}
+    roundResponder = function(data)
+        seen[#seen + 1] = data.labels.cancelInstruction
+        return { cancelled = true }
+    end
+
+    Kora.minigames.playAsync("mash", { attempts = 1 })
+    cancelLabel = "Second translation"
+    Kora.minigames.playAsync("mash", { attempts = 1 })
+    roundResponder = nil
+    Kora.locale.translate = nil
+    harness.assertEqual(table.concat(seen, ","), "First translation,Second translation")
+end)
+
 harness.test("wordguess: fails once wrong guesses exceed the allowance", function()
     roundResponder = function()
         local letters = { "x", "y", "z" }

@@ -225,4 +225,3 @@ RegisterCommand(command, function(_, args)
         end
     end)
 end, isServer)
-

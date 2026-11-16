@@ -7,6 +7,7 @@ local harness = require("harness")
 local mocks = require("mocks")
 
 local net = mocks.install()
+_G.GetResourceState = function() return "missing" end
 
 dofile(repoRoot .. "config.lua")
 dofile(repoRoot .. "build/initiate.lua")

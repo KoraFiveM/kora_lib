@@ -3,6 +3,7 @@ local repoRoot = scriptDir .. '../../'
 package.path = scriptDir .. '../?.lua;' .. package.path
 
 local harness = require('harness')
+_G.KoraLang = nil -- Simulate a separate consuming resource.
 local handlers = {}
 
 _G.exports = {

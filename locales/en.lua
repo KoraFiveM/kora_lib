@@ -867,7 +867,7 @@ return {
                 visible_description = 'Visible on your map', hidden = 'Hidden', visible = 'Visible',
                 unlisted_sprite = '%d · Unlisted sprite',
                 unlisted_colour = 'Unlisted blip colour · %s · Hex unavailable',
-                colour_value = 'Color %d · %s', blip_label = 'Blip %s',
+                colour_value = '%s · %d · %s', blip_label = 'Blip %s',
                 category = 'Category', category_count_one = '1 registered blip',
                 category_count_many = '%d registered blips', hide_category = 'Hide category',
                 show_category = 'Show category', uncategorised = 'Uncategorised', individual = 'Individual',

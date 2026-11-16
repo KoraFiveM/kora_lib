@@ -1,23 +1,29 @@
 local activeSession = nil
 local activeRoundRequest
 local nextSessionToken = 0
-local minigameLabels = {
-    titleAttempt = KoraLang('Modules.Minigames.ui.title_attempt'),
-    titleLockpick = KoraLang('Modules.Minigames.ui.title_lockpick'), titleSkillbar = KoraLang('Modules.Minigames.ui.title_skillbar'),
-    titleCircuit = KoraLang('Modules.Minigames.ui.title_circuit'), titleMash = KoraLang('Modules.Minigames.ui.title_mash'),
-    titleFishing = KoraLang('Modules.Minigames.ui.title_fishing'), titlePinpad = KoraLang('Modules.Minigames.ui.title_pinpad'),
-    titleQuiz = KoraLang('Modules.Minigames.ui.title_quiz'), titleWordguess = KoraLang('Modules.Minigames.ui.title_wordguess'),
-    titleWordscramble = KoraLang('Modules.Minigames.ui.title_wordscramble'), titleKeys = KoraLang('Modules.Minigames.ui.title_keys'),
-    titleHacking = KoraLang('Modules.Minigames.ui.title_hacking'),
-    lastAttemptFailed = KoraLang('Modules.Minigames.ui.last_attempt_failed'), cancelInstruction = KoraLang('Modules.Minigames.ui.cancel_instruction'),
-    submit = KoraLang('Modules.Minigames.ui.submit'), fishingSlipped = KoraLang('Modules.Minigames.ui.fishing_slipped'),
-    keepMarker = KoraLang('Modules.Minigames.ui.keep_marker'), gameCount = KoraLang('Modules.Minigames.ui.game_count'),
-    fishingInstruction = KoraLang('Modules.Minigames.ui.fishing_instruction'), lockpickInstruction = KoraLang('Modules.Minigames.ui.lockpick_instruction'),
-    mashInstruction = KoraLang('Modules.Minigames.ui.mash_instruction'), keysInstruction = KoraLang('Modules.Minigames.ui.keys_instruction'),
-    skillbarInstruction = KoraLang('Modules.Minigames.ui.skillbar_instruction'), typeLetterInstruction = KoraLang('Modules.Minigames.ui.type_letter_instruction'),
-    hintPrefix = KoraLang('Modules.Minigames.ui.hint_prefix'), guessedPrefix = KoraLang('Modules.Minigames.ui.guessed_prefix'),
-    guessesLeft = KoraLang('Modules.Minigames.ui.guesses_left'), secondsLeft = KoraLang('Modules.Minigames.ui.seconds_left'),
-}
+local function minigameLabels()
+    local function translate(key)
+        local text = Kora.locale.translate and Kora.locale.translate('kora_lib', key)
+        return type(text) == 'string' and text ~= key and text:match('%S') and text or KoraLang(key)
+    end
+    return {
+        titleAttempt = translate('Modules.Minigames.ui.title_attempt'),
+        titleLockpick = translate('Modules.Minigames.ui.title_lockpick'), titleSkillbar = translate('Modules.Minigames.ui.title_skillbar'),
+        titleCircuit = translate('Modules.Minigames.ui.title_circuit'), titleMash = translate('Modules.Minigames.ui.title_mash'),
+        titleFishing = translate('Modules.Minigames.ui.title_fishing'), titlePinpad = translate('Modules.Minigames.ui.title_pinpad'),
+        titleQuiz = translate('Modules.Minigames.ui.title_quiz'), titleWordguess = translate('Modules.Minigames.ui.title_wordguess'),
+        titleWordscramble = translate('Modules.Minigames.ui.title_wordscramble'), titleKeys = translate('Modules.Minigames.ui.title_keys'),
+        titleHacking = translate('Modules.Minigames.ui.title_hacking'),
+        lastAttemptFailed = translate('Modules.Minigames.ui.last_attempt_failed'), cancelInstruction = translate('Modules.Minigames.ui.cancel_instruction'),
+        submit = translate('Modules.Minigames.ui.submit'), fishingSlipped = translate('Modules.Minigames.ui.fishing_slipped'),
+        keepMarker = translate('Modules.Minigames.ui.keep_marker'), gameCount = translate('Modules.Minigames.ui.game_count'),
+        fishingInstruction = translate('Modules.Minigames.ui.fishing_instruction'), lockpickInstruction = translate('Modules.Minigames.ui.lockpick_instruction'),
+        mashInstruction = translate('Modules.Minigames.ui.mash_instruction'), keysInstruction = translate('Modules.Minigames.ui.keys_instruction'),
+        skillbarInstruction = translate('Modules.Minigames.ui.skillbar_instruction'), typeLetterInstruction = translate('Modules.Minigames.ui.type_letter_instruction'),
+        hintPrefix = translate('Modules.Minigames.ui.hint_prefix'), guessedPrefix = translate('Modules.Minigames.ui.guessed_prefix'),
+        guessesLeft = translate('Modules.Minigames.ui.guesses_left'), secondsLeft = translate('Modules.Minigames.ui.seconds_left'),
+    }
+end
 
 local function newSessionToken()
     nextSessionToken = nextSessionToken + 1
@@ -58,7 +64,7 @@ local function beginPlay(gameType, opts, authorization, resource)
                         attempts = round.attempts,
                         timeLimit = round.timeLimit,
                         lastResult = lastResult,
-                        labels = minigameLabels,
+                        labels = minigameLabels(),
                         puzzle = round.public,
                     }, round.timeLimit + Config.minigames.roundTimeoutBuffer, resource)
                     if activeSession == token then activeRoundRequest = roundRequest end
