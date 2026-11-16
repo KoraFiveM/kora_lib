@@ -95,7 +95,8 @@ shared_scripts {
     'modules/util/shared.lua',
     'modules/vehicle/shared.lua',
     -- Shared so compatibility providers can register aliases in either realm.
-    'compat/shared.lua'
+    'compat/shared.lua',
+    'modules/qa/audit.lua'
 }
 
 -- local/resources must load before every other local/ module: callback and events call

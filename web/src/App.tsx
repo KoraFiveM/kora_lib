@@ -25,6 +25,7 @@ import { CameraHud } from "@/components/camera/CameraHud"
 import { InstructionalKeysSource, StandaloneKeyHints } from "@/components/editor/InstructionalKeys"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { OxLocaleProvider } from "@/lib/oxLocale"
+import { AppLocaleProvider } from "@/lib/appLocale"
 
 /**
  * Headless root every top-level NUI component mounts under. Each of these
@@ -36,32 +37,34 @@ import { OxLocaleProvider } from "@/lib/oxLocale"
  */
 export default function App() {
     return (
-        <OxLocaleProvider>
-            <ErrorBoundary surface="interaction selector"><InteractSelect /></ErrorBoundary>
-            <ErrorBoundary surface="target HUD"><TargetHud /></ErrorBoundary>
-            <ErrorBoundary surface="text UI"><TextUi /></ErrorBoundary>
-            <ErrorBoundary surface="dispatch feed"><DispatchFeed /></ErrorBoundary>
-            <ErrorBoundary surface="app shell"><AppShell /></ErrorBoundary>
-            <ErrorBoundary surface="menu"><MenuContainer /></ErrorBoundary>
-            <ErrorBoundary surface="menu header"><MenuHeader /></ErrorBoundary>
-            <ErrorBoundary surface="context menu"><ContextMenuContainer /></ErrorBoundary>
-            <ErrorBoundary surface="radial menu"><RadialMenuContainer /></ErrorBoundary>
-            <ErrorBoundary surface="skill check"><OxSkillCheck /></ErrorBoundary>
-            <ErrorBoundary surface="input dialog"><InputDialogContainer /></ErrorBoundary>
-            <ErrorBoundary surface="alert dialog"><AlertDialogContainer /></ErrorBoundary>
-            <ErrorBoundary surface="clipboard"><ClipboardHandler /></ErrorBoundary>
-            <ErrorBoundary surface="screenshot capture"><ScreenshotCapture /></ErrorBoundary>
-            <ErrorBoundary surface="camera HUD"><CameraHud /></ErrorBoundary>
-            <ErrorBoundary surface="notifications"><Toast /></ErrorBoundary>
-            <ErrorBoundary surface="progress bar"><ProgressBar /></ErrorBoundary>
-            <ErrorBoundary surface="zone creator HUD"><ZoneCreatorHud /></ErrorBoundary>
-            <ErrorBoundary surface="noclip HUD"><NoclipHud /></ErrorBoundary>
-            <ErrorBoundary surface="zone dialog"><ZoneConfirmDialog /></ErrorBoundary>
-            <ErrorBoundary surface="placement HUD"><PlacementHud /></ErrorBoundary>
-            <ErrorBoundary surface="placement dialog"><PlacementConfirmDialog /></ErrorBoundary>
-            <ErrorBoundary surface="minigames"><MinigameContainer /></ErrorBoundary>
-            <ErrorBoundary surface="instructional keys"><InstructionalKeysSource /><StandaloneKeyHints /></ErrorBoundary>
-            <ErrorBoundary surface="development harness"><DevHarness /></ErrorBoundary>
-        </OxLocaleProvider>
+        <AppLocaleProvider>
+            <OxLocaleProvider>
+                <ErrorBoundary surface="interaction selector"><InteractSelect /></ErrorBoundary>
+                <ErrorBoundary surface="target HUD"><TargetHud /></ErrorBoundary>
+                <ErrorBoundary surface="text UI"><TextUi /></ErrorBoundary>
+                <ErrorBoundary surface="dispatch feed"><DispatchFeed /></ErrorBoundary>
+                <ErrorBoundary surface="app shell"><AppShell /></ErrorBoundary>
+                <ErrorBoundary surface="menu"><MenuContainer /></ErrorBoundary>
+                <ErrorBoundary surface="menu header"><MenuHeader /></ErrorBoundary>
+                <ErrorBoundary surface="context menu"><ContextMenuContainer /></ErrorBoundary>
+                <ErrorBoundary surface="radial menu"><RadialMenuContainer /></ErrorBoundary>
+                <ErrorBoundary surface="skill check"><OxSkillCheck /></ErrorBoundary>
+                <ErrorBoundary surface="input dialog"><InputDialogContainer /></ErrorBoundary>
+                <ErrorBoundary surface="alert dialog"><AlertDialogContainer /></ErrorBoundary>
+                <ErrorBoundary surface="clipboard"><ClipboardHandler /></ErrorBoundary>
+                <ErrorBoundary surface="screenshot capture"><ScreenshotCapture /></ErrorBoundary>
+                <ErrorBoundary surface="camera HUD"><CameraHud /></ErrorBoundary>
+                <ErrorBoundary surface="notifications"><Toast /></ErrorBoundary>
+                <ErrorBoundary surface="progress bar"><ProgressBar /></ErrorBoundary>
+                <ErrorBoundary surface="zone creator HUD"><ZoneCreatorHud /></ErrorBoundary>
+                <ErrorBoundary surface="noclip HUD"><NoclipHud /></ErrorBoundary>
+                <ErrorBoundary surface="zone dialog"><ZoneConfirmDialog /></ErrorBoundary>
+                <ErrorBoundary surface="placement HUD"><PlacementHud /></ErrorBoundary>
+                <ErrorBoundary surface="placement dialog"><PlacementConfirmDialog /></ErrorBoundary>
+                <ErrorBoundary surface="minigames"><MinigameContainer /></ErrorBoundary>
+                <ErrorBoundary surface="instructional keys"><InstructionalKeysSource /><StandaloneKeyHints /></ErrorBoundary>
+                <ErrorBoundary surface="development harness"><DevHarness /></ErrorBoundary>
+            </OxLocaleProvider>
+        </AppLocaleProvider>
     )
 }

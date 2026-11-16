@@ -11,6 +11,19 @@ Everything is a no-op unless kora_qa is started **and** the player has an
 active run: each wrapper tests one boolean first, so leaving marks in
 production code is free.
 
+## Runtime audit commands
+
+Run `kora_lib_audit_client` in the FiveM F8 console and
+`kora_lib_audit_server` in the FXServer console. The server command uses
+FiveM's restricted command permission (`command.kora_lib_audit_server`).
+
+Each command lists the callable Kora entries in its realm, runs the available
+fixtures, and prints the English catalog keys and resolved text. The final
+line separates passed fixtures, failed fixtures, untested functions, and
+locale results. Append `summary` to print only failures and totals.
+An `UNTESTED` function has no runtime fixture. Use the existing smoke tests and
+`kora_qa` scenarios for APIs that need game, network, or resource state.
+
 ## API
 
 ### `Kora.qa.mark(name, data?)` -- client

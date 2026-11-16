@@ -1728,3 +1728,15 @@ Kora.nui.registerCallback("kora_lib:app:action", function(data)
 
     return { ok = true, result = result }
 end)
+
+local function sendAppLocales()
+    Kora.nui.send('kora_lib:nui:locales', appLabels())
+end
+
+Kora.nui.registerCallback('kora_lib:nui:locales', appLabels)
+AddEventHandler('kora_lib:client:localeChanged', sendAppLocales)
+
+CreateThread(function()
+    Wait(2000)
+    sendAppLocales()
+end)

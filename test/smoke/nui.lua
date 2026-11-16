@@ -89,6 +89,20 @@ local function lastMessage(action)
     end
 end
 
+harness.test("React can fetch current labels and receives the delayed locale push", function()
+    harness.assertEqual(lastMessage("kora_lib:nui:locales"), nil)
+    local labels
+    nuiCallbacks["kora_lib:nui:locales"]({}, function(result) labels = result end)
+    harness.assertEqual(labels.cancel, "Cancel")
+    harness.assertEqual(labels.statusSeen, "Seen")
+
+    net.step()
+    local sent = lastMessage("kora_lib:nui:locales")
+    harness.assertTrue(sent, "startup thread should send labels after waiting")
+    harness.assertEqual(sent.data.cancel, labels.cancel)
+    harness.assertEqual(sent.data.statusSeen, labels.statusSeen)
+end)
+
 harness.test("finalise exposes every registered-app lifecycle export", function()
     harness.assertEqual(registeredExports.nui_registerApp, Kora.nui.registerApp,
         "registerApp should cross the kora_lib export boundary")

@@ -5,6 +5,7 @@ import { FormFields, createFieldValues, submissionValues, validateFields } from 
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppLocale } from "@/lib/appLocale"
 import { cn } from "@/lib/cn"
 import { copyToClipboard } from "@/lib/clipboard"
 import { fetchNui } from "@/lib/fetchNui"
@@ -353,7 +354,8 @@ export function AppShell() {
         applyApp(open.app); setViewId(view?.id ?? ""); setTabId(selectedTabId(view, open.tabId)); setHistory([]); setBusy(undefined); setError(undefined); setNotice(undefined); setActiveForm(undefined); setDrafts({})
     }, [applyApp]), unmountedAppResult)
     useEffect(() => { changeVersion.current += 1; return () => { changeVersion.current += 1 } }, [isOpen, token])
-    const labels = useMemo(() => ({ ...defaultLabels, ...app?.labels }), [app?.labels])
+    const locale = useAppLocale()
+    const labels = useMemo(() => ({ ...defaultLabels, ...app?.labels, ...locale }), [app?.labels, locale])
     const panelRef = useRef<HTMLElement>(null)
     const draggable = app?.draggable === true
     const { offset, dragging, handleProps } = useDraggablePanel(panelRef, {
