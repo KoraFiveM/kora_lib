@@ -90,7 +90,8 @@ local function lastMessage(action)
 end
 
 harness.test("React can fetch current labels and receives the delayed locale push", function()
-    harness.assertEqual(lastMessage("kora_lib:nui:locales"), nil)
+    net.fire("kora_lib:client:localeChanged")
+    harness.assertEqual(lastMessage("kora_lib:nui:locales"), nil, "skip sends before React is ready")
     local labels
     nuiCallbacks["kora_lib:nui:locales"]({}, function(result) labels = result end)
     harness.assertEqual(labels.cancel, "Cancel")

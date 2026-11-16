@@ -1729,11 +1729,16 @@ Kora.nui.registerCallback("kora_lib:app:action", function(data)
     return { ok = true, result = result }
 end)
 
+local appLocaleFrameReady = false
+
 local function sendAppLocales()
-    Kora.nui.send('kora_lib:nui:locales', appLabels())
+    if appLocaleFrameReady then Kora.nui.send('kora_lib:nui:locales', appLabels()) end
 end
 
-Kora.nui.registerCallback('kora_lib:nui:locales', appLabels)
+RegisterNUICallback('kora_lib:nui:locales', function(_, cb)
+    appLocaleFrameReady = true
+    cb(appLabels())
+end)
 AddEventHandler('kora_lib:client:localeChanged', sendAppLocales)
 
 CreateThread(function()

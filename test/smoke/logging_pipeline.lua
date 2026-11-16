@@ -395,14 +395,19 @@ h.test('consumer-local NUI bridge validates, responds and rate limits', function
         h.assertEqual(name, 'kora_logging')
         callback = fn
     end
-    e.SendNUIMessage = function() end
+    local pushes = 0
+    e.SendNUIMessage = function() pushes = pushes + 1 end
     assert(loadfile(root .. 'modules/logging/nui.lua', 't', e))()
+    f.fire('kora_lib:client:updated', 0)
+    h.assertEqual(pushes, 0, 'no browser state push before the ready callback')
     local reply
     local function respond(value)
         reply = value
     end
     callback({ action = 'ready' }, respond)
     h.assertFalse(reply.enabled)
+    f.fire('kora_lib:client:updated', 0)
+    h.assertEqual(pushes, 1, 'a ready browser receives subsequent state updates')
     callback({ level = 'warn', event = 'nui.test', message = 'test', fields = { token = 'never' } }, respond)
     h.assertTrue(reply.ok)
     h.assertFalse(f.lines[1]:find('never', 1, true))

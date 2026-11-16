@@ -1,6 +1,7 @@
 -- Consumer-local NUI transport. Include as a client_script after @kora_lib/init.lua.
 -- NUI callbacks must live in the page-owning resource, not the library's frame.
 local budget, at = 40, GetGameTimer()
+local frameReady = false
 local function allowed()
     local now = GetGameTimer()
     budget = math.min(40, budget + math.max(0, now - at) * 0.02)
@@ -23,6 +24,7 @@ RegisterNUICallback('kora_logging', function(data, cb)
         return
     end
     if data.action == 'ready' then
+        frameReady = true
         cb(state())
         return
     end
@@ -43,12 +45,13 @@ RegisterNUICallback('kora_logging', function(data, cb)
     cb({ ok = ok and result == true })
 end)
 local function sendState()
+    if not frameReady then return end
     SendNUIMessage({ action = 'kora_logging:state', data = state() })
 end
 AddEventHandler('kora_lib:logging:state', sendState)
 AddEventHandler('kora_lib:client:updated', sendState)
 AddEventHandler('onClientResourceStop', function(name)
-    if name == 'kora_lib' then
+    if frameReady and name == 'kora_lib' and name ~= GetCurrentResourceName() then
         SendNUIMessage({ action = 'kora_logging:state', data = { enabled = false } })
     end
 end)
