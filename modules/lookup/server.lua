@@ -37,15 +37,15 @@ local function readResourceFile(resource, relativePath, maxBytes)
     local raw = LoadResourceFile(resource, relativePath)
     if type(raw) == 'string' then
         if #raw <= maxBytes then return raw end
-        return nil, 'file is too large'
+        return nil, KoraLang('Modules.Lookup.file_too_large')
     end
 
     local ok, handle = pcall(io.open, ('@%s/%s'):format(resource, relativePath), 'rb')
-    if not ok or handle == nil then return nil, 'file is unreadable' end
+    if not ok or handle == nil then return nil, KoraLang('Modules.Lookup.file_unreadable') end
     local readOk, contents = pcall(function() return handle:read(maxBytes + 1) end)
     pcall(function() handle:close() end)
-    if not readOk or type(contents) ~= 'string' then return nil, 'file is unreadable' end
-    if #contents > maxBytes then return nil, 'file is too large' end
+    if not readOk or type(contents) ~= 'string' then return nil, KoraLang('Modules.Lookup.file_unreadable') end
+    if #contents > maxBytes then return nil, KoraLang('Modules.Lookup.file_too_large') end
     return contents
 end
 
@@ -253,7 +253,7 @@ local function decodeOverride(resource)
     local fileName = 'kora_lib.lookup.json'
     local raw, readError = readResourceFile(resource, fileName, MAX_OVERRIDE_BYTES)
     if raw == nil then
-        if readError == 'file is too large' then
+        if readError == KoraLang('Modules.Lookup.file_too_large') then
             warn(('%s/%s is too large and was ignored'):format(resource, fileName))
         end
         return nil

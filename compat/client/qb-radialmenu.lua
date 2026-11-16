@@ -2,8 +2,7 @@ local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
     warnedIcon = true
-    Kora.logging.warn('lib.qb_radialmenu.warning_option', "[qb-radialmenu-bridge] WARNING: option 'icon' fields (Font Awesome classes) are not translated to "
-        .. "Kora.nui's lucide icon names -- icons are dropped. Only shown once per session.")
+    Kora.logging.warn('lib.qb_radialmenu.warning_option', KoraLang('Compat.radial.warning_icons'))
 end
 
 local order = {}
@@ -64,8 +63,8 @@ local function dispatch(option)
     if option.onSelect then
         local ok, err = pcall(option.onSelect, option)
         if not ok then
-            Kora.logging.error('lib.qb_radialmenu.warning_onselect_for_option_errored', ("[qb-radialmenu-bridge] WARNING: onSelect for option %q errored: %s"):format(
-                tostring(option.id), tostring(err)))
+        Kora.logging.error('lib.qb_radialmenu.warning_onselect_for_option_errored', KoraLang(
+            'Compat.radial.on_select_error', tostring(option.id), tostring(err)))
         end
         return
     end
@@ -84,7 +83,7 @@ local function dispatch(option)
 end
 
 local function addOption(option, second)
-    assert(type(option) == "table", "qb-radialmenu compat: AddOption requires an option table.")
+    assert(type(option) == "table", KoraLang('Compat.radial.add_option_required'))
 
     local id
     if type(second) == "boolean" then
@@ -152,15 +151,20 @@ local function getCurrentOrNearestVeh(ped)
 end
 
 local VEHICLE_DOOR_ITEMS = {
-    { id = "door0", title = "Driver Door", doorIndex = 0 },
-    { id = "door4", title = "Hood", doorIndex = 4 },
-    { id = "door1", title = "Passenger Door", doorIndex = 1 },
-    { id = "door3", title = "Right Rear", doorIndex = 3 },
-    { id = "door5", title = "Trunk", doorIndex = 5 },
-    { id = "door2", title = "Left Rear", doorIndex = 2 },
+    { id = "door0", title = KoraLang('Compat.radial.driver_door'), doorIndex = 0 },
+    { id = "door4", title = KoraLang('Compat.radial.hood'), doorIndex = 4 },
+    { id = "door1", title = KoraLang('Compat.radial.passenger_door'), doorIndex = 1 },
+    { id = "door3", title = KoraLang('Compat.radial.right_rear_door'), doorIndex = 3 },
+    { id = "door5", title = KoraLang('Compat.radial.trunk'), doorIndex = 5 },
+    { id = "door2", title = KoraLang('Compat.radial.left_rear_door'), doorIndex = 2 },
 }
 local VEHICLE_EXTRA_COUNT = 13
-local VEHICLE_SEAT_LABELS = { [1] = "Driver Seat", [2] = "Passenger Seat", [3] = "Rear Left Seat", [4] = "Rear Right Seat" }
+local VEHICLE_SEAT_LABELS = {
+    [1] = KoraLang('Compat.radial.driver_seat'),
+    [2] = KoraLang('Compat.radial.passenger_seat'),
+    [3] = KoraLang('Compat.radial.rear_left_seat'),
+    [4] = KoraLang('Compat.radial.rear_right_seat'),
+}
 
 RegisterNetEvent("kora_lib:radialmenuCompat:client:openDoor", function(data)
     local ped = PlayerPedId()
@@ -203,7 +207,7 @@ end)
 
 RegisterNetEvent("kora_lib:radialmenuCompat:client:flipVehicle", function()
     local completed = Kora.progressbar.start({
-        label = "Flipping vehicle...",
+        label = KoraLang('Compat.radial.flipping_vehicle'),
         duration = Config.radialmenuCompat.flipVehicleTime,
         disable = { move = true, car = true, combat = true },
         anim = { dict = "mini@repair", clip = "fixing_a_ped" },
@@ -238,22 +242,22 @@ local function setupVehicleMenu()
             type = "client", event = "kora_lib:radialmenuCompat:client:openDoor", shouldClose = false,
         }
     end
-    local items = { { id = "vehicledoors", title = "Vehicle Doors", items = doorItems } }
+    local items = { { id = "vehicledoors", title = KoraLang('Compat.radial.vehicle_doors'), items = doorItems } }
 
     if Config.radialmenuCompat.enableVehicleExtras then
         local extraItems = {}
         for i = 1, VEHICLE_EXTRA_COUNT do
             extraItems[#extraItems + 1] = {
-                id = ("extra%d"):format(i), title = ("Extra %d"):format(i), extraIndex = i,
+                id = ("extra%d"):format(i), title = KoraLang('Compat.radial.extra', i), extraIndex = i,
                 type = "client", event = "kora_lib:radialmenuCompat:client:setExtra", shouldClose = false,
             }
         end
-        items[#items + 1] = { id = "vehicleextras", title = "Vehicle Extras", items = extraItems }
+        items[#items + 1] = { id = "vehicleextras", title = KoraLang('Compat.radial.vehicle_extras'), items = extraItems }
     end
 
     if not IsVehicleOnAllWheels(vehicle) then
         items[#items + 1] = {
-            id = "vehicle-flip", title = "Flip Vehicle",
+            id = "vehicle-flip", title = KoraLang('Compat.radial.flip_vehicle'),
             type = "client", event = "kora_lib:radialmenuCompat:client:flipVehicle", shouldClose = true,
         }
     end
@@ -264,16 +268,16 @@ local function setupVehicleMenu()
         for i = 1, seatCount do
             local seatIndex = i - 2
             seatItems[#seatItems + 1] = {
-                id = tostring(seatIndex), title = VEHICLE_SEAT_LABELS[i] or "Other Seat", seatIndex = seatIndex,
+                id = tostring(seatIndex), title = VEHICLE_SEAT_LABELS[i] or KoraLang('Compat.radial.other_seat'), seatIndex = seatIndex,
                 type = "client", event = "kora_lib:radialmenuCompat:client:changeSeat", shouldClose = false,
             }
         end
         if #seatItems > 0 then
-            items[#items + 1] = { id = "vehicleseats", title = "Vehicle Seats", items = seatItems }
+            items[#items + 1] = { id = "vehicleseats", title = KoraLang('Compat.radial.vehicle_seats'), items = seatItems }
         end
     end
 
-    addOption({ id = VEHICLE_SLOT_ID, title = "Vehicle", items = items }, VEHICLE_SLOT_ID)
+    addOption({ id = VEHICLE_SLOT_ID, title = KoraLang('Compat.radial.vehicle'), items = items }, VEHICLE_SLOT_ID)
     vehicleMenuRegistered = true
 end
 
@@ -292,7 +296,7 @@ local function setupJobMenu(job, jobType)
         return
     end
 
-    addOption({ id = JOB_SLOT_ID, title = "Work", items = entries }, JOB_SLOT_ID)
+    addOption({ id = JOB_SLOT_ID, title = KoraLang('Compat.radial.work'), items = entries }, JOB_SLOT_ID)
     jobMenuRegistered = true
 end
 
@@ -366,7 +370,7 @@ end)
 
 Kora.keybind.add({
     name = 'kora_lib_radialmenu_open',
-    description = 'Open Radial Menu',
+    description = KoraLang('Compat.radial.open_menu'),
     defaultMapper = 'keyboard',
     defaultKey = 'F1',
     onPressed = openRegisteredRadial,

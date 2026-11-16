@@ -30,19 +30,18 @@ local isCallable = Kora.compat.isCallable
 ---@param label string
 ---@return integer
 local function assertInterval(interval, label)
-    assert(Kora.util.isInteger(interval) and interval >= 0,
-        ("%s requires a non-negative integer millisecond interval."):format(label))
+    assert(Kora.util.isInteger(interval) and interval >= 0, KoraLang('Modules.Timers.s_non_negative', label))
     return interval
 end
 
 local function assertCooldownKey(key)
     local keyType = type(key)
     if keyType == 'number' then
-        assert(Kora.util.isFiniteNumber(key), 'Kora.timers cooldown keys must be finite scalars.')
+        assert(Kora.util.isFiniteNumber(key), KoraLang('Modules.Timers.timers_cooldown_keys'))
     elseif keyType == 'string' then
-        assert(#key <= 256, 'Kora.timers cooldown string keys must be at most 256 bytes.')
+        assert(#key <= 256, KoraLang('Modules.Timers.timers_cooldown_keys_2'))
     else
-        assert(keyType == 'boolean', 'Kora.timers cooldown keys must be finite scalars.')
+        assert(keyType == 'boolean', KoraLang('Modules.Timers.timers_cooldown_keys'))
     end
     return key
 end
@@ -166,7 +165,7 @@ end
 function Kora.timers.debounce(fn, wait)
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
-    assert(isCallable(fn), "Kora.timers.debounce requires a callable.")
+    assert(isCallable(fn), KoraLang('Modules.Timers.timers_debounce_callable'))
     wait = assertInterval(wait, "Kora.timers.debounce")
 
     local pendingId
@@ -219,7 +218,7 @@ end
 ---@param interval number Minimum milliseconds between runs.
 ---@return table throttled In-resource, call it like a function; from another resource use `.run(...)`. Either returns whether it ran. `.reset()` clears the cooldown.
 function Kora.timers.throttle(fn, interval)
-    assert(isCallable(fn), "Kora.timers.throttle requires a callable.")
+    assert(isCallable(fn), KoraLang('Modules.Timers.timers_throttle_callable'))
     interval = assertInterval(interval, "Kora.timers.throttle")
 
     local lastRun

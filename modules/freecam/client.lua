@@ -6,14 +6,14 @@ local isFinite = Kora.util.isFiniteNumber
 local function copyCoords(value, label)
     assert((type(value) == 'table' or type(value) == 'vector3' or type(value) == 'vector4')
         and isFinite(value.x) and isFinite(value.y) and isFinite(value.z),
-        ('Freecam %s must contain finite x, y, and z values.'):format(label))
+        KoraLang('Modules.Freecam.coords_invalid', label))
     return { x = value.x, y = value.y, z = value.z }
 end
 
 local function optionNumber(value, fallback, label, allowZero)
     value = value == nil and fallback or value
     assert(isFinite(value) and (allowZero and value >= 0 or value > 0),
-        ('Freecam %s must be a %sfinite number.'):format(label, allowZero and 'non-negative ' or 'positive '))
+        KoraLang('Modules.Freecam.number_invalid', label, allowZero and 'non-negative ' or 'positive '))
     return value
 end
 
@@ -61,7 +61,7 @@ local function makeHandle(state)
         getCamera = function() return active == state and state.cam or nil end,
         getMovementMode = function() return active == state and state.movementMode or nil end,
         setMovementMode = function(mode)
-            assert(mode == 'camera' or mode == 'grid', 'Freecam movementMode must be camera or grid.')
+            assert(mode == 'camera' or mode == 'grid', KoraLang('Modules.Freecam.movement_mode_invalid'))
             if active ~= state then return false end
             state.movementMode = mode
             return true
@@ -116,7 +116,7 @@ local function run(state)
         end
     end)
     if not ok then
-        Kora.logging.error('lib.client.stopped_after_an_error', ('[kora_lib:freecam] stopped after an error: %s'):format(tostring(err)))
+        Kora.logging.error('lib.client.stopped_after_an_error', KoraLang('Modules.Freecam.stopped_after_error', tostring(err)))
         stop(state, true)
     end
 end
@@ -124,20 +124,20 @@ end
 ---@param options? KoraFreecamOptions
 ---@return KoraFreecamHandle|false, string?
 function Kora.freecam.start(options)
-    if active then return false, 'A freecam session is already active.' end
+    if active then return false, KoraLang('Modules.Freecam.already_active') end
     options = options or {}
-    assert(type(options) == 'table', 'Freecam options must be a table.')
-    assert(options.maxDistance == nil or (isFinite(options.maxDistance) and options.maxDistance > 0), 'Freecam maxDistance must be a positive finite number.')
-    assert(options.movementMode == nil or options.movementMode == 'camera' or options.movementMode == 'grid', 'Freecam movementMode must be camera or grid.')
-    assert(options.zone == nil or (type(options.zone) == 'table' and Kora.compat.isCallable(options.zone.contains)), 'Freecam zone must be a Kora.zones handle.')
-    assert(options.freezePlayer == nil or type(options.freezePlayer) == 'boolean', 'Freecam freezePlayer must be a boolean.')
-    assert(options.upControl == nil or Kora.util.isInteger(options.upControl) and options.upControl >= 0, 'Freecam upControl must be a non-negative integer.')
-    assert(options.downControl == nil or Kora.util.isInteger(options.downControl) and options.downControl >= 0, 'Freecam downControl must be a non-negative integer.')
+    assert(type(options) == 'table', KoraLang('Modules.Freecam.options_invalid'))
+    assert(options.maxDistance == nil or (isFinite(options.maxDistance) and options.maxDistance > 0), KoraLang('Modules.Freecam.max_distance_invalid'))
+    assert(options.movementMode == nil or options.movementMode == 'camera' or options.movementMode == 'grid', KoraLang('Modules.Freecam.movement_mode_invalid'))
+    assert(options.zone == nil or (type(options.zone) == 'table' and Kora.compat.isCallable(options.zone.contains)), KoraLang('Modules.Freecam.zone_invalid'))
+    assert(options.freezePlayer == nil or type(options.freezePlayer) == 'boolean', KoraLang('Modules.Freecam.freeze_player_invalid'))
+    assert(options.upControl == nil or Kora.util.isInteger(options.upControl) and options.upControl >= 0, KoraLang('Modules.Freecam.up_control_invalid'))
+    assert(options.downControl == nil or Kora.util.isInteger(options.downControl) and options.downControl >= 0, KoraLang('Modules.Freecam.down_control_invalid'))
     local gameplayCoords, gameplayRot = GetGameplayCamCoord(), GetGameplayCamRot(2)
     local coords = options.coords and copyCoords(options.coords, 'coords') or copyCoords(gameplayCoords, 'gameplay coords')
     local rotation = options.rotation and copyCoords(options.rotation, 'rotation') or copyCoords(gameplayRot, 'gameplay rotation')
     local fov = options.fov or GetGameplayCamFov()
-    assert(isFinite(fov) and fov >= 10.0 and fov <= 120.0, 'Freecam fov must be between 10 and 120.')
+    assert(isFinite(fov) and fov >= 10.0 and fov <= 120.0, KoraLang('Modules.Freecam.fov_invalid'))
     local state = {
         coords = coords, origin = { x = coords.x, y = coords.y, z = coords.z }, pitch = rotation.x, yaw = rotation.z,
         maxDistance = options.maxDistance, zone = options.zone, focus = options.focusCoords and copyCoords(options.focusCoords, 'focusCoords') or nil,
@@ -152,7 +152,7 @@ function Kora.freecam.start(options)
         freezePlayer = options.freezePlayer == nil and Config.freecam.freezePlayer ~= false or options.freezePlayer == true,
     }
     state.cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', coords.x, coords.y, coords.z, state.pitch, 0.0, state.yaw, fov, false, 0)
-    assert(state.cam and state.cam ~= 0 and DoesCamExist(state.cam), 'Freecam could not be created.')
+    assert(state.cam and state.cam ~= 0 and DoesCamExist(state.cam), KoraLang('Modules.Freecam.create_failed'))
     local controls = { 1, 2, 30, 31 }
     if state.upControl then controls[#controls + 1] = state.upControl end
     if state.downControl then controls[#controls + 1] = state.downControl end

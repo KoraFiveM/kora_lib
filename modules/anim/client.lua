@@ -10,7 +10,7 @@ local function bumpGeneration(entity)
 end
 
 local function resolveBlendOutSpeed(value)
-    assert(value == nil or Kora.util.isFiniteNumber(value), 'Animation blendOutSpeed must be finite.')
+    assert(value == nil or Kora.util.isFiniteNumber(value), KoraLang('Modules.Anim.blend_out_speed_finite'))
     return value or 8.0
 end
 
@@ -35,32 +35,32 @@ end)
 ---@return KoraAnimHandle | false handle False if `dict` never streamed in time.
 ---@return string? error
 function Kora.anim.play(entity, dict, clip, opts)
-    assert(type(entity) == "number" and entity ~= 0, ("Invalid entity: %s"):format(entity))
-    assert(type(dict) == "string" and type(clip) == "string", "Kora.anim.play requires string dict/clip.")
+    assert(type(entity) == "number" and entity ~= 0, KoraLang('Modules.Anim.invalid_entity', entity))
+    assert(type(dict) == "string" and type(clip) == "string", KoraLang('Modules.Anim.dict_clip_strings'))
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
-    assert(opts == nil or type(opts) == "table", "Animation options must be a table.")
+    assert(opts == nil or type(opts) == "table", KoraLang('Modules.Anim.options_table'))
     opts = opts or {}
     local duration = opts.duration
     assert(duration == nil or (isInteger(duration) and duration >= -1),
-        "Animation duration must be -1 or a non-negative finite integer.")
-    assert(opts.flag == nil or isInteger(opts.flag), 'Animation flag must be a finite integer.')
+        KoraLang('Modules.Anim.duration_invalid'))
+    assert(opts.flag == nil or isInteger(opts.flag), KoraLang('Modules.Anim.flag_integer'))
     assert(opts.blendInSpeed == nil or Kora.util.isFiniteNumber(opts.blendInSpeed),
-        'Animation blendInSpeed must be finite.')
+        KoraLang('Modules.Anim.blend_in_finite'))
     assert(opts.blendOutSpeed == nil or Kora.util.isFiniteNumber(opts.blendOutSpeed),
-        'Animation blendOutSpeed must be finite.')
+        KoraLang('Modules.Anim.blend_out_speed_finite'))
     assert(opts.playbackRate == nil or Kora.util.isFiniteNumber(opts.playbackRate),
-        'Animation playbackRate must be finite.')
+        KoraLang('Modules.Anim.playback_rate_finite'))
     for _, field in ipairs({ 'lockX', 'lockY', 'lockZ' }) do
         assert(opts[field] == nil or type(opts[field]) == 'boolean',
-            ('Animation %s must be a boolean.'):format(field))
+            KoraLang('Modules.Anim.field_boolean', field))
     end
-    assert(opts.onFinish == nil or isCallable(opts.onFinish), "Animation onFinish must be callable.")
+    assert(opts.onFinish == nil or isCallable(opts.onFinish), KoraLang('Modules.Anim.on_finish_callable'))
 
     local currentOwner = animRegistry.owner(entity)
     if currentOwner and currentOwner ~= invokingResource then
-        return false, "Animation is owned by another resource."
+        return false, KoraLang('Modules.Anim.owned_by_another_resource')
     end
 
     local loadedDict, loadErr = Kora.stream.loadAnimDict(dict)
@@ -93,7 +93,8 @@ function Kora.anim.play(entity, dict, clip, opts)
             if opts.onFinish then
                 local ok, err = pcall(opts.onFinish, entity)
                 if not ok then
-                    Kora.logging.error('lib.client.kora_anim_onfinish_errored', ("[kora_lib] Kora.anim onFinish (%s) errored: %s"):format(invokingResource, tostring(err)))
+                    Kora.logging.error('lib.client.kora_anim_onfinish_errored', KoraLang(
+                        'Modules.Anim.on_finish_errored', invokingResource, tostring(err)))
                 end
             end
         end)
@@ -163,9 +164,9 @@ local PED_BONE_IDS = {
 local function resolveBone(entity, bone)
     local isPed = IsEntityAPed(entity)
     if type(bone) == "number" then
-        if not isPed then return false, ("Numeric bone %d is a ped bone id but the target entity is not a ped."):format(bone) end
+        if not isPed then return false, KoraLang('Modules.Anim.numeric_bone_requires_ped', bone) end
         local index = GetPedBoneIndex(entity, bone)
-        if index == nil or index < 0 then return false, ("Ped bone id %d does not exist on the target ped."):format(bone) end
+        if index == nil or index < 0 then return false, KoraLang('Modules.Anim.ped_bone_missing', bone) end
         return index
     end
 
@@ -173,7 +174,7 @@ local function resolveBone(entity, bone)
     if index == -1 and isPed and PED_BONE_IDS[bone] then
         index = GetPedBoneIndex(entity, PED_BONE_IDS[bone])
     end
-    if index == nil or index < 0 then return false, ("Bone '%s' does not exist on the target entity."):format(bone) end
+    if index == nil or index < 0 then return false, KoraLang('Modules.Anim.bone_missing', bone) end
     return index
 end
 
@@ -189,9 +190,9 @@ end
 ---@return number | false prop The created, attached prop entity, or false if the model never streamed or `entity`/`bone` was invalid.
 ---@return string? error
 function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)
-    assert(type(entity) == "number" and DoesEntityExist(entity), ("Invalid entity: %s"):format(entity))
+    assert(type(entity) == "number" and DoesEntityExist(entity), KoraLang('Modules.Anim.invalid_entity', entity))
     assert((type(bone) == "string" and #bone > 0) or (isInteger(bone) and bone >= 0),
-        "Kora.anim.attachProp requires a bone name or a non-negative integer ped bone id.")
+        KoraLang('Modules.Anim.bone_required'))
 
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
@@ -199,17 +200,17 @@ function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)
     if rotation == nil then rotation = { x = 0.0, y = 0.0, z = 0.0 } end
     assert((type(offset) == 'table' or type(offset) == 'vector3')
         and Kora.util.isFiniteNumber(offset.x) and Kora.util.isFiniteNumber(offset.y) and Kora.util.isFiniteNumber(offset.z),
-        'Animation prop offset must contain finite x, y, and z values.')
+        KoraLang('Modules.Anim.offset_invalid'))
     assert((type(rotation) == 'table' or type(rotation) == 'vector3')
         and Kora.util.isFiniteNumber(rotation.x) and Kora.util.isFiniteNumber(rotation.y) and Kora.util.isFiniteNumber(rotation.z),
-        'Animation prop rotation must contain finite x, y, and z values.')
-    assert(opts == nil or type(opts) == 'table', 'Animation prop options must be a table.')
+        KoraLang('Modules.Anim.rotation_invalid'))
+    assert(opts == nil or type(opts) == 'table', KoraLang('Modules.Anim.prop_options_table'))
     opts = opts or {}
-    assert(opts.softPin == nil or type(opts.softPin) == 'boolean', 'Animation prop softPin must be a boolean.')
-    assert(opts.collision == nil or type(opts.collision) == 'boolean', 'Animation prop collision must be a boolean.')
-    assert(opts.fixedRot == nil or type(opts.fixedRot) == 'boolean', 'Animation prop fixedRot must be a boolean.')
+    assert(opts.softPin == nil or type(opts.softPin) == 'boolean', KoraLang('Modules.Anim.prop_option_boolean', 'softPin'))
+    assert(opts.collision == nil or type(opts.collision) == 'boolean', KoraLang('Modules.Anim.prop_option_boolean', 'collision'))
+    assert(opts.fixedRot == nil or type(opts.fixedRot) == 'boolean', KoraLang('Modules.Anim.prop_option_boolean', 'fixedRot'))
     assert(opts.vertexIndex == nil or (isInteger(opts.vertexIndex) and opts.vertexIndex >= 0 and opts.vertexIndex <= 5),
-        'Animation prop vertexIndex must be an integer from 0 to 5.')
+        KoraLang('Modules.Anim.vertex_index_invalid'))
 
     local boneIndex, boneErr = resolveBone(entity, bone)
     if not boneIndex then
@@ -236,7 +237,7 @@ function Kora.anim.attachProp(entity, model, bone, offset, rotation, opts)
     end
 
     if not prop then
-        return false, "Failed to create prop."
+        return false, KoraLang('Modules.Anim.prop_create_failed')
     end
 
     return prop
@@ -248,20 +249,20 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.anim.detachProp(prop)
-    assert(type(prop) == "number", ("Invalid prop: %s"):format(prop))
+    assert(type(prop) == "number", KoraLang('Modules.Anim.prop_invalid', prop))
 
     local owner = propRegistry.owner(prop)
     if not owner then
-        return false, "Prop is not tracked by Kora.anim."
+        return false, KoraLang('Modules.Anim.prop_not_tracked')
     end
 
     local invoker = GetInvokingResource()
-    if invoker and owner ~= invoker then return false, "Prop is owned by another resource." end
+    if invoker and owner ~= invoker then return false, KoraLang('Modules.Anim.prop_owned_by_another_resource') end
 
     propRegistry.untrack(prop)
 
     if not DoesEntityExist(prop) then
-        return false, "Prop does not exist."
+        return false, KoraLang('Modules.Anim.prop_missing')
     end
 
     DetachEntity(prop, true, false)
@@ -276,15 +277,15 @@ end
 ---@param scenario string
 ---@param enterVehicle? boolean Defaults to false.
 function Kora.anim.playScenario(entity, scenario, enterVehicle)
-    assert(type(entity) == 'number' and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
-    assert(type(scenario) == 'string' and #scenario > 0, 'Kora.anim.playScenario requires a scenario.')
+    assert(type(entity) == 'number' and DoesEntityExist(entity), KoraLang('Modules.Anim.invalid_entity', entity))
+    assert(type(scenario) == 'string' and #scenario > 0, KoraLang('Modules.Anim.scenario_required'))
     TaskStartScenarioInPlace(entity, scenario, 0, enterVehicle == true)
 end
 
 ---@param entity number
 ---@param immediate? boolean Defaults to false.
 function Kora.anim.clear(entity, immediate)
-    assert(type(entity) == 'number' and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
+    assert(type(entity) == 'number' and DoesEntityExist(entity), KoraLang('Modules.Anim.invalid_entity', entity))
     Kora.anim.stop(entity)
     if immediate then ClearPedTasksImmediately(entity) else ClearPedTasks(entity) end
 end

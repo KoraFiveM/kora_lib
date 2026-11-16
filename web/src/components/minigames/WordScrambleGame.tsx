@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useRef, useState } from "react"
 
 import type { CancelledAttempt, WordScrambleAttempt, WordScramblePuzzle } from "@/lib/types"
@@ -21,6 +22,7 @@ interface WordScrambleGameProps {
  * it with a timestamp; the server alone compares it against the real word.
  */
 export function WordScrambleGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: WordScrambleGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const valueRef = useRef("")
@@ -46,19 +48,19 @@ export function WordScrambleGame({ puzzle, attempt, attempts, timeLimit, lastRes
             <DialogContent hideClose className="max-w-sm">
                 <DialogHeader>
                     <DialogTitle>
-                        Word Scramble &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleWordscramble, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
-                <p className="text-sm text-muted-foreground">Hint: {puzzle.hint}</p>
+                <p className="text-sm text-muted-foreground">{labels.hintPrefix} {puzzle.hint}</p>
                 <p className="text-center text-2xl font-semibold tracking-widest text-foreground">
                     {puzzle.scrambled.toUpperCase()}
                 </p>
-                <p className="text-center text-xs tabular-nums text-muted-foreground">{secondsLeft}s left</p>
+                <p className="text-center text-xs tabular-nums text-muted-foreground">{formatMinigameLabel(labels.secondsLeft, secondsLeft)}</p>
 
                 <div className="flex gap-2">
                     <Input
@@ -71,10 +73,10 @@ export function WordScrambleGame({ puzzle, attempt, attempts, timeLimit, lastRes
                         onKeyDown={(e) => { if (e.key === "Enter") finish(value) }}
                         placeholder="Unscramble the word..."
                     />
-                    <Button onClick={() => finish(value)}>Submit</Button>
+                    <Button onClick={() => finish(value)}>{labels.submit}</Button>
                 </div>
 
-                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.cancelInstruction, "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

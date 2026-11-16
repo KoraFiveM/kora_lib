@@ -2,8 +2,7 @@ local warnedIcon = false
 local function warnIconOnce()
     if warnedIcon then return end
     warnedIcon = true
-    Kora.logging.warn('lib.qb_input.warning_input', "[qb-input-bridge] WARNING: input 'icon' fields (Font Awesome classes) have no equivalent on "
-        .. "Kora.nui.openInputDialog's fields -- icons are dropped. Only shown once per session.")
+    Kora.logging.warn('lib.qb_input.warning_input', KoraLang('Compat.input.warning_icons'))
 end
 
 local warnedTypes = {}
@@ -11,8 +10,7 @@ local inputOpen = false
 local function warnUnknownTypeOnce(inputType)
     if warnedTypes[inputType] then return end
     warnedTypes[inputType] = true
-    Kora.logging.warn('lib.qb_input.warning_input_type_is_not_recognized_falling_back', ("[qb-input-bridge] WARNING: input type %q is not recognized -- falling back to a plain text field. "
-        .. "Only shown once per type per session."):format(tostring(inputType)))
+    Kora.logging.warn('lib.qb_input.warning_input_type_is_not_recognized_falling_back', KoraLang('Compat.input.warning_type', tostring(inputType)))
 end
 
 local function translateOptions(options)
@@ -44,7 +42,7 @@ local function translateCheckboxOptions(input, fields)
 end
 
 local function translateField(input)
-    assert(type(input.name) == "string" and #input.name > 0, "qb-input compat: every input needs a string 'name'.")
+    assert(type(input.name) == "string" and #input.name > 0, KoraLang('Compat.input.name_required'))
 
     if input.icon then warnIconOnce() end
 

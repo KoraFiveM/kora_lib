@@ -16,13 +16,18 @@ local files = {
     ['legacy/locales/en.lua'] = "local Translations = { greeting = 'Legacy English' }\nLang = Lang or Locale:new({ warnOnMissing = true })\nLang:addLocale('en', Translations)\nreturn Translations",
 }
 
+local englishFile = assert(io.open(repoRoot .. 'locales/en.lua', 'rb'))
+files['kora_lib/locales/en.lua'] = englishFile:read('*a')
+englishFile:close()
+
 _G.GetConvar = function(name, fallback) return convars[name] or fallback end
 _G.GetResourceKvpString = function(key) return kvps[key] end
 _G.SetResourceKvp = function(key, value) kvps[key] = value end
 _G.TriggerEvent = function(name, ...) events[#events + 1] = { name = name, ... } end
 _G.LoadResourceFile = function(resource, path) return files[resource .. '/' .. path] end
+_G.GetCurrentResourceName = function() return 'kora_lib' end
+dofile(repoRoot .. 'local/locales/shared.lua')
 _G.GetCurrentResourceName = function() return 'example' end
-
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/logging/shared.lua')
 dofile(repoRoot .. 'modules/locales/shared.lua')
@@ -70,6 +75,23 @@ end)
 
 harness.test('loads compatibility locale tables without executing their side effects', function()
     harness.assertEqual(Kora.locale.translate('legacy', 'greeting'), 'Legacy English')
+end)
+
+harness.test('every bundled English key resolves through both Lua loaders', function()
+    local catalog = dofile(repoRoot .. 'locales/en.lua')
+    local function check(values, prefix)
+        for name, value in pairs(values) do
+            local key = prefix .. name
+            if type(value) == 'table' then
+                check(value, key .. '.')
+            else
+                harness.assertTrue(type(value) == 'string' and value:match('%S') ~= nil and value ~= key, key)
+                harness.assertEqual(KoraLang(key), value, key)
+                harness.assertEqual(Kora.locale.translate('kora_lib', key), value, key)
+            end
+        end
+    end
+    check(catalog, '')
 end)
 
 harness.report('locales')

@@ -459,8 +459,9 @@ An action handler may combine these result fields:
 - `close = true` — close AppShell after the action.
 
 Shell-owned copy (Cancel, Confirm, Working, paging, search/empty defaults, map
-controls, and accessibility labels) comes from `kora_lib/locales/*.json` through
-the normal locale fallback system. Consumer titles, action labels, field
+controls, and accessibility labels) comes from the `kora_lib` locale catalog. The client sends these labels to React after two seconds
+and whenever the player changes language. React also requests the labels when
+it mounts. Consumer titles, action labels, field
 labels, and content remain the consumer's responsibility.
 
 #### Content blocks

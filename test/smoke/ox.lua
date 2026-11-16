@@ -170,6 +170,16 @@ exports = setmetatable({}, {
     end,
 })
 
+function GetConvar(_, default) return default end
+function LoadResourceFile(resource, path)
+    if resource ~= 'kora_lib' or path ~= 'locales/en.lua' then return end
+    local file = assert(io.open(path, 'rb'))
+    local text = file:read('*a')
+    file:close()
+    return text
+end
+
+dofile('local/locales/shared.lua')
 dofile('modules/ox/shared.lua')
 dofile(arg[1] or 'modules/ox/client.lua')
 

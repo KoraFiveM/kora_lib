@@ -5,7 +5,7 @@ local function isStarted()
 end
 
 local function assertSkill(skill)
-    assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
+    assert(type(skill) == 'string' and skill ~= '', KoraLang('Modules.Skills.validation_skill_must_be_a_non_empty_string'))
 end
 
 ---@return boolean
@@ -32,7 +32,7 @@ end
 ---@return boolean
 function Kora.skills.hasLevel(skill, level)
     assertSkill(skill)
-    assert(Kora.util.isInteger(level) and level > 0, 'level must be a positive integer.')
+    assert(Kora.util.isInteger(level) and level > 0, KoraLang('Modules.Skills.validation_level_must_be_a_positive_integer'))
     if not isStarted() then return false end
     return exports[RESOURCE]:isLevel(skill, level) == true
 end
@@ -43,8 +43,8 @@ end
 ---@return table|nil
 function Kora.skills.adjustMinigame(skill, gameType, opts)
     assertSkill(skill)
-    assert(type(gameType) == 'string' and gameType ~= '', 'gameType must be a non-empty string.')
-    assert(opts == nil or type(opts) == 'table', 'opts must be a table.')
+    assert(type(gameType) == 'string' and gameType ~= '', KoraLang('Modules.Skills.validation_gametype_must_be_a_non_empty_string'))
+    assert(opts == nil or type(opts) == 'table', KoraLang('Modules.Skills.validation_opts_must_be_a_table'))
     if not isStarted() then return opts end
     local adjusted = exports[RESOURCE]:getSkillCheckOptions(skill, gameType, opts)
     return type(adjusted) == 'table' and adjusted or opts

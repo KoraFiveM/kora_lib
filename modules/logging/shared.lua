@@ -114,10 +114,10 @@ function L.enabled(level, owner)
 end
 
 function L.record(level, event, message, fields, owner, realm)
-    assert(L.levels[level], 'Unknown logging severity.')
-    assert(type(event) == 'string' and #event > 0 and #event <= 128, 'Log event must be 1-128 bytes.')
-    assert(type(message) == 'string', 'Log message must be a string.')
-    assert(fields == nil or type(fields) == 'table', 'Log fields must be a table or nil.')
+    assert(L.levels[level], KoraLang('Modules.Logging.severity_invalid'))
+    assert(type(event) == 'string' and #event > 0 and #event <= 128, KoraLang('Modules.Logging.event_invalid'))
+    assert(type(message) == 'string', KoraLang('Modules.Logging.message_invalid'))
+    assert(fields == nil or type(fields) == 'table', KoraLang('Modules.Logging.fields_invalid'))
     return {
         schemaVersion = 1,
         severity = level,
@@ -138,7 +138,7 @@ function L.encode(record)
         record.message = L.text(record.message, 256)
         encoded = json.encode(record)
     end
-    assert(#encoded <= max, 'Log record exceeds byte limit.')
+    assert(#encoded <= max, KoraLang('Modules.Logging.record_too_large'))
     return encoded
 end
 

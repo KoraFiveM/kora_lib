@@ -13,12 +13,12 @@ end
 
 local function copyHeaders(headers)
     if headers == nil then return {} end
-    assert(type(headers) == 'table', 'Screenshot headers must be a table.')
+    assert(type(headers) == 'table', KoraLang('Modules.Screenshot.validation_screenshot_headers_must_be_a_table'))
 
     local result = {}
     for key, value in pairs(headers) do
-        assert(type(key) == 'string' and key ~= '', 'Screenshot header names must be non-empty strings.')
-        assert(type(value) == 'string' or type(value) == 'number', 'Screenshot header values must be strings or numbers.')
+        assert(type(key) == 'string' and key ~= '', KoraLang('Modules.Screenshot.validation_screenshot_header_names_must_be_non_empty_st'))
+        assert(type(value) == 'string' or type(value) == 'number', KoraLang('Modules.Screenshot.validation_screenshot_header_values_must_be_strings_or'))
         result[key] = tostring(value)
     end
     return result
@@ -26,29 +26,25 @@ end
 
 local function normalizeOptions(options)
     if options == nil then options = {} end
-    assert(type(options) == 'table', 'Screenshot options must be a table.')
+    assert(type(options) == 'table', KoraLang('Modules.Screenshot.validation_screenshot_options_must_be_a_table'))
 
     local config = screenshotConfig()
     local encoding = options.encoding
     if encoding == nil then encoding = config.defaultEncoding or 'jpg' end
-    assert(type(encoding) == 'string' and validEncodings[encoding], 'Screenshot encoding must be jpg, png, or webp.')
+    assert(type(encoding) == 'string' and validEncodings[encoding], KoraLang('Modules.Screenshot.validation_screenshot_encoding_must_be_jpg_png_or_webp'))
 
     local quality = options.quality
     if quality == nil then quality = config.defaultQuality or 0.92 end
-    assert(type(quality) == 'number' and quality >= 0 and quality <= 1,
-        'Screenshot quality must be a number from 0 to 1.')
+    assert(type(quality) == 'number' and quality >= 0 and quality <= 1, KoraLang('Modules.Screenshot.validation_screenshot_quality_must_be_a_number_from_0_t'))
 
     local maxWidth = options.maxWidth
     if maxWidth == nil then maxWidth = config.maxWidth end
     local maxHeight = options.maxHeight
     if maxHeight == nil then maxHeight = config.maxHeight end
-    assert(maxWidth == false or (isInteger(maxWidth) and maxWidth >= 1),
-        'Screenshot maxWidth must be a positive integer or false.')
-    assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1),
-        'Screenshot maxHeight must be a positive integer or false.')
+    assert(maxWidth == false or (isInteger(maxWidth) and maxWidth >= 1), KoraLang('Modules.Screenshot.validation_screenshot_maxwidth_must_be_a_positive_integ'))
+    assert(maxHeight == false or (isInteger(maxHeight) and maxHeight >= 1), KoraLang('Modules.Screenshot.validation_screenshot_maxheight_must_be_a_positive_inte'))
 
-    assert(options.includeNui == nil or type(options.includeNui) == 'boolean',
-        'Screenshot includeNui must be a boolean.')
+    assert(options.includeNui == nil or type(options.includeNui) == 'boolean', KoraLang('Modules.Screenshot.validation_screenshot_includenui_must_be_a_boolean'))
 
     return {
         encoding = encoding,
@@ -63,8 +59,7 @@ local function beginCapture(options, timeout)
     local p = promise.new()
     local normalized = normalizeOptions(options)
     if timeout == nil then timeout = screenshotConfig().requestTimeout or 30000 end
-    assert(isInteger(timeout) and timeout > 0,
-        'Screenshot timeout must be a positive integer.')
+    assert(isInteger(timeout) and timeout > 0, KoraLang('Modules.Screenshot.validation_screenshot_timeout_must_be_a_positive_intege'))
 
     CreateThread(function()
         local ok, result = pcall(function()
@@ -96,7 +91,7 @@ end
 
 local function normalizeUploadOptions(options)
     if options == nil then options = {} end
-    assert(type(options) == 'table', 'Screenshot upload options must be a table.')
+    assert(type(options) == 'table', KoraLang('Modules.Screenshot.validation_screenshot_upload_options_must_be_a_table'))
 
     local capture = normalizeOptions(options)
     capture.headers = copyHeaders(options.headers)
@@ -104,14 +99,13 @@ local function normalizeUploadOptions(options)
 end
 
 local function beginUpload(url, field, options, timeout)
-    assert(type(url) == 'string' and url:match('^https?://'), 'Screenshot upload URL must be an absolute HTTP(S) URL.')
-    assert(field == nil or type(field) == 'string', 'Screenshot upload field must be a string or nil.')
+    assert(type(url) == 'string' and url:match('^https?://'), KoraLang('Modules.Screenshot.validation_screenshot_upload_url_must_be_an_absolute_ht'))
+    assert(field == nil or type(field) == 'string', KoraLang('Modules.Screenshot.validation_screenshot_upload_field_must_be_a_string_or'))
 
     local p = promise.new()
     local normalized = normalizeUploadOptions(options)
     if timeout == nil then timeout = screenshotConfig().requestTimeout or 30000 end
-    assert(isInteger(timeout) and timeout > 0,
-        'Screenshot timeout must be a positive integer.')
+    assert(isInteger(timeout) and timeout > 0, KoraLang('Modules.Screenshot.validation_screenshot_timeout_must_be_a_positive_intege'))
 
     CreateThread(function()
         local ok, result = pcall(function()
@@ -149,7 +143,7 @@ function Kora.screenshot.requestScreenshot(options, callback)
         callback = options
         options = { encoding = 'jpg' }
     end
-    assert(isCallable(callback), 'requestScreenshot requires a callback.')
+    assert(isCallable(callback), KoraLang('Modules.Screenshot.validation_requestscreenshot_requires_a_callback'))
 
     local p = beginCapture(options)
     p:next(function(data)
@@ -164,7 +158,7 @@ function Kora.screenshot.requestScreenshotUpload(url, field, options, callback)
         callback = options
         options = { headers = {}, encoding = 'jpg' }
     end
-    assert(isCallable(callback), 'requestScreenshotUpload requires a callback.')
+    assert(isCallable(callback), KoraLang('Modules.Screenshot.validation_requestscreenshotupload_requires_a_callback'))
 
     local p = beginUpload(url, field, options)
     p:next(function(response)

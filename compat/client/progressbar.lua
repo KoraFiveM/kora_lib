@@ -20,7 +20,7 @@ local function start(action, onStart, onTick, onFinish, owner)
     if active or manuallyBusy or Kora.progressbar.isActive() then return end
     if type(action) ~= 'table' or (IsEntityDead(PlayerPedId()) and not action.useWhileDead) then return end
     for _, callback in pairs({ onStart = onStart, onTick = onTick, onFinish = onFinish }) do
-        assert(isCallable(callback), 'Progressbar callbacks must be callable.')
+        assert(isCallable(callback), KoraLang('Compat.progress.callback_not_callable'))
     end
     local payload = {
         label = action.label == '' and ' ' or action.label,
@@ -47,7 +47,7 @@ local function start(action, onStart, onTick, onFinish, owner)
     Kora.progressbar.validate(payload)
     local invoker = GetInvokingResource() or GetCurrentResourceName()
     owner = invoker == 'kora_core' and owner or nil
-    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progressbar owner must be a resource name.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), KoraLang('Compat.progress.owner_invalid'))
     local session = { owner = owner or invoker, leases = {},
         previousBusy = LocalPlayer.state.inv_busy }
     active = session

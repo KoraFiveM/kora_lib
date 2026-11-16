@@ -1,13 +1,15 @@
 local isFiniteNumber = Kora.util.isFiniteNumber
 
 local function toVec3(v)
-    assert(v and isFiniteNumber(v.x) and isFiniteNumber(v.y) and isFiniteNumber(v.z),
-        "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
+    assert(
+        v and isFiniteNumber(v.x) and isFiniteNumber(v.y) and isFiniteNumber(v.z),
+        KoraLang('Modules.World.coordinates_vector3_glm')
+    )
     return { x = v.x, y = v.y, z = v.z }
 end
 
 local function assertRadius(radius)
-    assert(isFiniteNumber(radius) and radius > 0, "radius must be a positive finite number.")
+    assert(isFiniteNumber(radius) and radius > 0, KoraLang('Modules.World.radius_positive_finite'))
 end
 
 local function distSq(a, b)
@@ -62,32 +64,40 @@ local function buildExcludeSet(entities)
 end
 
 local function assertQueryOptions(options)
-    assert(options == nil or type(options) == 'table', 'World query options must be a table.')
+    assert(options == nil or type(options) == 'table', KoraLang('Modules.World.world_query_options'))
     if not options then return end
 
-    assert(options.models == nil or type(options.models) == 'table', 'World query models must be an array.')
+    assert(options.models == nil or type(options.models) == 'table', KoraLang('Modules.World.world_query_models'))
     if options.models then
         local count = 0
         for index, model in pairs(options.models) do
-            assert(isInteger(index) and index >= 1 and (type(model) == 'string' or isInteger(model)),
-                'World query models must be a dense array of model names or hashes.')
+            assert(
+                isInteger(index) and index >= 1 and (type(model) == 'string' or isInteger(model)),
+                KoraLang('Modules.World.world_query_models_2')
+            )
             count = count + 1
         end
-        assert(count == #options.models, 'World query models must be a dense array.')
+        assert(count == #options.models, KoraLang('Modules.World.world_query_models_3'))
     end
-    assert(options.excludeEntities == nil or type(options.excludeEntities) == 'table',
-        'World query excludeEntities must be an array.')
+    assert(
+        options.excludeEntities == nil or type(options.excludeEntities) == 'table',
+        KoraLang('Modules.World.world_query_excludeentit')
+    )
     if options.excludeEntities then
         local count = 0
         for index, entity in pairs(options.excludeEntities) do
-            assert(isInteger(index) and index >= 1 and isInteger(entity) and entity > 0,
-                'World query excludeEntities must be a dense array of positive entity handles.')
+            assert(
+                isInteger(index) and index >= 1 and isInteger(entity) and entity > 0,
+                KoraLang('Modules.World.world_query_excludee_2')
+            )
             count = count + 1
         end
-        assert(count == #options.excludeEntities, 'World query excludeEntities must be a dense array.')
+        assert(count == #options.excludeEntities, KoraLang('Modules.World.world_query_excludee_3'))
     end
-    assert(options.predicate == nil or Kora.compat.isCallable(options.predicate),
-        'World query predicate must be callable.')
+    assert(
+        options.predicate == nil or Kora.compat.isCallable(options.predicate),
+        KoraLang('Modules.World.world_query_predicate')
+    )
 end
 
 local function visitCandidates(entityType, coords, radiusSq, options, visit)
@@ -144,7 +154,7 @@ end
 ---@param options? KoraWorldQueryOptions
 ---@return {entity: number, coords: table, distance: number}[] matches Sorted ascending by distance.
 function Kora.world.getNearbyEntities(entityType, coords, radius, options)
-    assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
+    assert(ENTITY_TYPES[entityType], KoraLang('Modules.World.entitytype_ped_vehicle'))
     assertRadius(radius)
 
     local matches = collectCandidates(entityType, coords, radius * radius, options)
@@ -160,7 +170,7 @@ end
 ---@return table? coords Only present when an entity was found.
 ---@return number? distance Only present when an entity was found.
 function Kora.world.getClosestEntity(entityType, coords, options)
-    assert(ENTITY_TYPES[entityType], "entityType must be 'ped', 'vehicle', 'object', or 'player'.")
+    assert(ENTITY_TYPES[entityType], KoraLang('Modules.World.entitytype_ped_vehicle'))
     assertQueryOptions(options)
 
     local radius = options and options.radius
@@ -198,22 +208,31 @@ end
 ---@return integer|false entity
 ---@return string|nil reason
 function Kora.world.resolveNetworkEntity(src, networkId, options)
-    assert(options == nil or type(options) == "table", "Network entity options must be a table.")
+    assert(options == nil or type(options) == "table", KoraLang('Modules.World.network_entity_options'))
     options = options or {}
 
-    assert(isInteger(src) and src > 0,
-        "Kora.world.resolveNetworkEntity requires a player source.")
-    assert(options.entityType == nil or ENTITY_TYPE_IDS[options.entityType],
-        "entityType must be 'ped', 'vehicle', or 'object'.")
-    assert(options.maxDistance == nil or (type(options.maxDistance) == "number"
+    assert(isInteger(src) and src > 0, KoraLang('Modules.World.world_resolvenetworkenti'))
+    assert(
+        options.entityType == nil or ENTITY_TYPE_IDS[options.entityType],
+        KoraLang('Modules.World.entitytype_ped_vehic_2')
+    )
+    assert(
+        options.maxDistance == nil or (type(options.maxDistance) == "number"
         and options.maxDistance >= 0 and options.maxDistance < math.huge),
-        "maxDistance must be a non-negative number.")
-    assert(options.sameBucket == nil or type(options.sameBucket) == "boolean",
-        "sameBucket must be a boolean.")
-    assert(options.requireDriver == nil or type(options.requireDriver) == "boolean",
-        "requireDriver must be a boolean.")
-    assert(not options.requireDriver or options.entityType == "vehicle",
-        "requireDriver requires entityType = 'vehicle'.")
+        KoraLang('Modules.World.maxdistance_non_negative')
+    )
+    assert(
+        options.sameBucket == nil or type(options.sameBucket) == "boolean",
+        KoraLang('Modules.World.samebucket_boolean')
+    )
+    assert(
+        options.requireDriver == nil or type(options.requireDriver) == "boolean",
+        KoraLang('Modules.World.requiredriver_boolean')
+    )
+    assert(
+        not options.requireDriver or options.entityType == "vehicle",
+        KoraLang('Modules.World.requiredriver_entitytype')
+    )
 
     if not isInteger(networkId) or networkId < 1 then
         return false, "invalid_network_id"
@@ -253,16 +272,21 @@ end
 ---@return integer|nil targetPed
 ---@return number|string reasonOrDistance Distance on success; stable reason code on failure.
 function Kora.world.resolveNearbyPlayer(src, targetSrc, options)
-    assert(isInteger(src) and src > 0,
-        "Kora.world.resolveNearbyPlayer requires a player source.")
-    assert(type(options) == "table", "Kora.world.resolveNearbyPlayer requires an options table.")
-    assert(type(options.maxDistance) == "number" and options.maxDistance >= 0
+    assert(isInteger(src) and src > 0, KoraLang('Modules.World.world_resolvenearbyplaye'))
+    assert(type(options) == "table", KoraLang('Modules.World.world_resolvenearbyp_2'))
+    assert(
+        type(options.maxDistance) == "number" and options.maxDistance >= 0
         and options.maxDistance < math.huge,
-        "maxDistance must be a non-negative finite number.")
-    assert(options.sameBucket == nil or type(options.sameBucket) == "boolean",
-        "sameBucket must be a boolean.")
-    assert(options.allowSelf == nil or type(options.allowSelf) == "boolean",
-        "allowSelf must be a boolean.")
+        KoraLang('Modules.World.maxdistance_non_nega_2')
+    )
+    assert(
+        options.sameBucket == nil or type(options.sameBucket) == "boolean",
+        KoraLang('Modules.World.samebucket_boolean')
+    )
+    assert(
+        options.allowSelf == nil or type(options.allowSelf) == "boolean",
+        KoraLang('Modules.World.allowself_boolean')
+    )
 
     if not isInteger(targetSrc) or targetSrc < 1 then
         return nil, "invalid_player"

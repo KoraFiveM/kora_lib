@@ -14,17 +14,17 @@ end
 ---@return boolean started False when another action is already active or begin declined.
 ---@return any result The value returned by `complete`, or the begin failure reason.
 function Kora.actions.run(options, ...)
-    assert(type(options) == 'table', 'Kora.actions.run requires an options table.')
-    assert(isCallable(options.begin), 'Kora.actions.run requires a begin function.')
-    assert(isCallable(options.complete), 'Kora.actions.run requires a complete function.')
-    assert(type(options.label) == 'string' and #options.label > 0, 'Kora.actions.run requires a label.')
+    assert(type(options) == 'table', KoraLang('Modules.Actions.options_table'))
+    assert(isCallable(options.begin), KoraLang('Modules.Actions.begin_function'))
+    assert(isCallable(options.complete), KoraLang('Modules.Actions.complete_function'))
+    assert(type(options.label) == 'string' and #options.label > 0, KoraLang('Modules.Actions.label_required'))
     assert(options.duration == nil or isPositiveInteger(options.duration),
-        'Kora.actions.run duration must be a positive integer.')
+        KoraLang('Modules.Actions.duration_positive_integer'))
     assert(options.minigame == nil or type(options.minigame) == 'string'
         and Kora.minigames.GAME_TYPES[options.minigame],
-        'Kora.actions.run minigame must be a supported game type.')
+        KoraLang('Modules.Actions.minigame_unsupported'))
     assert(options.canCancel == nil or type(options.canCancel) == 'boolean',
-        'Kora.actions.run canCancel must be a boolean.')
+        KoraLang('Modules.Actions.can_cancel_boolean'))
 
     local progressPayload
     if not options.minigame then
@@ -38,7 +38,7 @@ function Kora.actions.run(options, ...)
         Kora.progressbar.validate(progressPayload)
     end
 
-    if active then return false, 'Another action is already active.' end
+    if active then return false, KoraLang('Modules.Actions.already_active') end
     active = true
 
     local args = table.pack(...)
@@ -78,7 +78,8 @@ function Kora.actions.run(options, ...)
                 authorization = authorization,
             }, table.unpack(args, 1, args.n))
             if not abortOk then
-                Kora.logging.error('lib.client.action_abort_callback_failed', ('^1[kora_lib:actions]^7 action abort callback failed: %s'):format(tostring(abortErr)))
+                Kora.logging.error('lib.client.action_abort_callback_failed', KoraLang(
+                    'Modules.Actions.abort_callback_failed', tostring(abortErr)))
             end
         end
         error(started, 0)

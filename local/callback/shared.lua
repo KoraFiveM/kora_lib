@@ -35,7 +35,7 @@ end
 ---consumer resources can pre-validate names before registering.)
 ---@param name string
 function Kora.callback.assertName(name)
-    assert(type(name) == "string", "Callback name must be a string.")
-    assert(#name > 0, "Callback name must not be empty.")
-    assert(#name <= 128, "Callback name must be at most 128 bytes.")
+    assert(type(name) == "string", KoraLang('Local.Callback.name_must_be_string'))
+    assert(#name > 0, KoraLang('Local.Callback.name_must_not_be_empty'))
+    assert(#name <= 128, KoraLang('Local.Callback.name_too_long', 128))
 end

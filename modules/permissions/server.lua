@@ -5,35 +5,35 @@ local function resolveOptions(prefixOrOptions)
         return prefixOrOptions, nil
     end
 
-    assert(type(prefixOrOptions) == 'table', 'Permission options must be a prefix string, table, or nil.')
+    assert(type(prefixOrOptions) == 'table', KoraLang('Modules.Permissions.options_invalid'))
     local prefix = prefixOrOptions.prefix
     local discordRoles = prefixOrOptions.discordRoles
     assert(prefix == nil or (type(prefix) == 'string' and prefix ~= ''),
-        'Permission options.prefix must be a non-empty string or nil.')
+        KoraLang('Modules.Permissions.prefix_invalid'))
     assert(discordRoles == nil or type(discordRoles) == 'table',
-        'Permission options.discordRoles must be a table or nil.')
+        KoraLang('Modules.Permissions.discord_roles_invalid'))
     return prefix, discordRoles
 end
 
 local function assertPlayerSource(src)
     assert(type(src) == 'number' and src >= 1 and src % 1 == 0 and src == src
         and src ~= math.huge and src ~= -math.huge,
-        'Permission source must be a positive finite player server ID.')
+        KoraLang('Modules.Permissions.source_invalid'))
 end
 
 local function assertLevels(levels)
-    assert(type(levels) == 'table' and #levels > 0, 'Permission levels must be a non-empty array.')
+    assert(type(levels) == 'table' and #levels > 0, KoraLang('Modules.Permissions.levels_invalid'))
     local count = 0
     for index, level in pairs(levels) do
         assert(type(index) == 'number' and index >= 1 and index % 1 == 0
             and index == index and index < math.huge,
-            'Permission levels must be a dense array.')
+            KoraLang('Modules.Permissions.levels_dense_invalid'))
         assert(type(level) == 'string' and level ~= '',
-            'Each permission level must be a non-empty string.')
+            KoraLang('Modules.Permissions.level_invalid'))
         count = count + 1
-        assert(count <= MAX_LEVELS, ('Permission levels cannot exceed %d entries.'):format(MAX_LEVELS))
+        assert(count <= MAX_LEVELS, KoraLang('Modules.Permissions.levels_max', MAX_LEVELS))
     end
-    assert(count == #levels, 'Permission levels must be a dense array.')
+    assert(count == #levels, KoraLang('Modules.Permissions.levels_dense_invalid'))
 end
 
 local function aceAllowed(src, object)
@@ -54,19 +54,19 @@ local function discordAllows(src, permission, discordRoles)
     if roles == nil then return false end
 
     assert(type(roles) == 'string' or type(roles) == 'table',
-        ('Discord roles for permission %q must be a role string or array.'):format(permission))
+        KoraLang('Modules.Permissions.discord_role_type', permission))
     if type(roles) == 'string' then
-        assert(roles ~= '', ('Discord role for permission %q cannot be empty.'):format(permission))
+        assert(roles ~= '', KoraLang('Modules.Permissions.discord_role_empty', permission))
     else
         local count = 0
         for index, role in pairs(roles) do
             assert(type(index) == 'number' and index >= 1 and index % 1 == 0
                 and index == index and index < math.huge and type(role) == 'string' and role ~= '',
-                ('Discord roles for permission %q must be a dense string array.'):format(permission))
+                KoraLang('Modules.Permissions.discord_roles_dense', permission))
             count = count + 1
         end
         assert(count > 0 and count == #roles,
-            ('Discord roles for permission %q must be a non-empty dense string array.'):format(permission))
+            KoraLang('Modules.Permissions.discord_roles_nonempty', permission))
     end
 
     local hasAnyRole = Kora.discord and Kora.discord.hasAnyRole
@@ -103,7 +103,7 @@ end
 ---@return boolean
 function Kora.permissions.hasLevel(src, required, levels, prefixOrOptions)
     assertPlayerSource(src)
-    assert(type(required) == 'string' and required ~= '', 'Required permission level must be a non-empty string.')
+    assert(type(required) == 'string' and required ~= '', KoraLang('Modules.Permissions.required_invalid'))
     assertLevels(levels)
 
     local held = Kora.permissions.getLevel(src, levels, prefixOrOptions)
@@ -122,7 +122,7 @@ end
 ---@return boolean
 function Kora.permissions.hasPermission(src, permission, prefixOrOptions)
     assertPlayerSource(src)
-    assert(type(permission) == 'string' and permission ~= '', 'Permission must be a non-empty string.')
+    assert(type(permission) == 'string' and permission ~= '', KoraLang('Modules.Permissions.permission_invalid'))
     if permission == 'user' then return true end
     local prefix, discordRoles = resolveOptions(prefixOrOptions)
     return aceAllows(src, permission, prefix, true) == true

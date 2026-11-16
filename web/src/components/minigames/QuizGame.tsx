@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useRef, useState } from "react"
 
 import type { CancelledAttempt, QuizAnswer, QuizAttempt, QuizPuzzle } from "@/lib/types"
@@ -20,6 +21,7 @@ interface QuizGameProps {
  * chosen are reported, so grading happens entirely server-side.
  */
 export function QuizGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: QuizGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const answersRef = useRef<QuizAnswer[]>([])
@@ -57,12 +59,12 @@ export function QuizGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Quiz &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleQuiz, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <p className="text-xs text-muted-foreground">
@@ -78,7 +80,7 @@ export function QuizGame({ puzzle, attempt, attempts, timeLimit, lastResult, res
                     ))}
                 </div>
 
-                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.cancelInstruction, "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

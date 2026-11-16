@@ -125,14 +125,14 @@ end
 ---@param ... any
 ---@return any
 function Kora.locale.translate(resource, key, ...)
-    assert(validResource(resource), 'locale resource must be a valid resource name.')
-    assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')
+    assert(validResource(resource), KoraLang('Modules.Locales.resource_invalid'))
+    assert(type(key) == 'string' and key ~= '', KoraLang('Modules.Locales.key_invalid'))
     return translate(resource, key, ...)
 end
 
 function Kora.lang(key, ...)
     local resource = GetInvokingResource() or GetCurrentResourceName()
-    assert(type(key) == 'string' and key ~= '', 'locale key must be a non-empty string.')
+    assert(type(key) == 'string' and key ~= '', KoraLang('Modules.Locales.key_invalid'))
     return translate(resource, key, ...)
 end
 

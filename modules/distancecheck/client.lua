@@ -4,17 +4,17 @@ local isFiniteNumber = Kora.util.isFiniteNumber
 local function assertRadius(distance)
     if distance == nil then distance = 5.0 end
     assert(isFiniteNumber(distance) and distance >= 0,
-        'Distance must be a finite non-negative number.')
+        KoraLang('Modules.Distancecheck.distance_invalid'))
     return distance
 end
 
 local function assertCoords(coords, label)
     assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
-        label .. ' must include finite x, y, and z values.')
+        KoraLang('Modules.Distancecheck.coords_invalid', label))
 end
 
 local function assertEntity(entity)
-    assert(Kora.util.isInteger(entity) and entity > 0, 'Entity must be a positive integer handle.')
+    assert(Kora.util.isInteger(entity) and entity > 0, KoraLang('Modules.Distancecheck.entity_invalid'))
 end
 
 local function withinRadius(dx, dy, dz, distance)
@@ -56,7 +56,7 @@ end
 ---@param distance? number
 ---@return boolean
 function Kora.distance.x(point, distance)
-    assert(point and isFiniteNumber(point.x), 'Point must include a finite x value.')
+    assert(point and isFiniteNumber(point.x), KoraLang('Modules.Distancecheck.point_x_invalid'))
     local playerCoords = Kora.cache.get('coords')
     return withinRadius(playerCoords.x - point.x, 0, 0, distance)
 end
@@ -65,7 +65,7 @@ end
 ---@param distance? number
 ---@return boolean
 function Kora.distance.y(point, distance)
-    assert(point and isFiniteNumber(point.y), 'Point must include a finite y value.')
+    assert(point and isFiniteNumber(point.y), KoraLang('Modules.Distancecheck.point_y_invalid'))
     local playerCoords = Kora.cache.get('coords')
     return withinRadius(0, playerCoords.y - point.y, 0, distance)
 end

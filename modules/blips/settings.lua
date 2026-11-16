@@ -134,8 +134,8 @@ end
 
 local function colourMetadata(index)
     local colour = blipColours[index]
-    if colour then return ('%s · %d · %s'):format(colour.name, index, colour.hex) end
-    return ('Unlisted blip colour · %s · Hex unavailable'):format(tostring(index))
+    if colour then return KoraLang('Modules.Blips.ui.colour_value', colour.name, index, colour.hex) end
+    return KoraLang('Modules.Blips.ui.unlisted_colour', tostring(index))
 end
 
 local function blipLabel(blip, category)
@@ -143,7 +143,7 @@ local function blipLabel(blip, category)
     local categoryName = normaliseLookup(category.name or category.key)
     if type(name) == 'string' and name ~= '' and normaliseLookup(name) ~= categoryName then return name end
     if type(blip.label) == 'string' and blip.label ~= '' then return blip.label end
-    return ('Blip %s'):format(tostring(blip.handle or '?'))
+    return KoraLang('Modules.Blips.ui.blip_label', tostring(blip.handle or '?'))
 end
 
 local function blipItem(blip, category, sequence)
@@ -152,23 +152,25 @@ local function blipItem(blip, category, sequence)
     local spriteInfo = spriteDocs[sprite]
     local metadata = {
         {
-            label = 'Sprite',
+            label = KoraLang('Modules.Blips.ui.sprite'),
             value = spriteInfo and ('%d · %s'):format(sprite, spriteInfo.name)
-                or ('%d · Unlisted sprite'):format(sprite),
+                or KoraLang('Modules.Blips.ui.unlisted_sprite', sprite),
         },
-        { label = 'Blip colour', value = colourMetadata(colourIndex) },
-        { label = 'Display mode', value = tonumber(blip.display) or 'Default' },
-        { label = 'FiveM docs', value = BLIP_DOCS_URL },
+        { label = KoraLang('Modules.Blips.ui.blip_colour'), value = colourMetadata(colourIndex) },
+        { label = KoraLang('Modules.Blips.ui.display_mode'), value = tonumber(blip.display) or KoraLang('Modules.Blips.ui.default') },
+        { label = KoraLang('Modules.Blips.ui.docs'), value = BLIP_DOCS_URL },
     }
     if viewerIsAdmin and type(blip.resource) == 'string' and blip.resource ~= '' then
-        metadata[#metadata + 1] = { label = 'Owner resource', value = blip.resource }
+        metadata[#metadata + 1] = { label = KoraLang('Modules.Blips.ui.owner_resource'), value = blip.resource }
     end
 
     local item = {
         id = ('blip:%s:%d'):format(tostring(blip.handle or 'unknown'), sequence),
         label = blipLabel(blip, category),
-        description = blip.visible == false and 'Hidden from your map' or 'Visible on your map',
-        badge = blip.visible == false and 'Hidden' or 'Visible',
+        description = blip.visible == false and KoraLang('Modules.Blips.ui.hidden_description')
+            or KoraLang('Modules.Blips.ui.visible_description'),
+        badge = blip.visible == false and KoraLang('Modules.Blips.ui.hidden')
+            or KoraLang('Modules.Blips.ui.visible'),
         tone = blip.visible == false and 'neutral' or 'success',
         metadata = metadata,
     }
@@ -243,13 +245,15 @@ local function buildNavigation()
             local item = {
                 id = itemId,
                 label = tostring(category.label or category.name or category.key or ('Category ' .. key)),
-                description = count == 1 and '1 registered blip' or ('%d registered blips'):format(count),
-                badge = visible and 'Visible' or 'Hidden',
+                description = count == 1 and KoraLang('Modules.Blips.ui.category_count_one')
+                    or KoraLang('Modules.Blips.ui.category_count_many', count),
+                badge = visible and KoraLang('Modules.Blips.ui.visible') or KoraLang('Modules.Blips.ui.hidden'),
                 tone = visible and 'success' or 'neutral',
-                metadata = { { label = 'Category', value = category.id or category.name or category.key or key } },
+                metadata = { { label = KoraLang('Modules.Blips.ui.category'), value = category.id or category.name or category.key or key } },
                 actions = { {
                     id = TOGGLE_ACTION,
-                    label = visible and 'Hide category' or 'Show category',
+                    label = visible and KoraLang('Modules.Blips.ui.hide_category')
+                        or KoraLang('Modules.Blips.ui.show_category'),
                     icon = visible and 'X' or 'Check',
                     variant = 'outline',
                     state = visible,
@@ -262,13 +266,14 @@ local function buildNavigation()
 
     if #unmatched > 0 then
         local children = {}
-        local fallbackCategory = { name = 'Uncategorised' }
+        local fallbackCategory = { name = KoraLang('Modules.Blips.ui.uncategorised') }
         for index = 1, #unmatched do children[#children + 1] = blipItem(unmatched[index], fallbackCategory, index) end
         items[#items + 1] = {
             id = 'category:unmatched',
-            label = 'Uncategorised',
-            description = #children == 1 and '1 registered blip' or ('%d registered blips'):format(#children),
-            badge = 'Individual',
+            label = KoraLang('Modules.Blips.ui.uncategorised'),
+            description = #children == 1 and KoraLang('Modules.Blips.ui.category_count_one')
+                or KoraLang('Modules.Blips.ui.category_count_many', #children),
+            badge = KoraLang('Modules.Blips.ui.individual'),
             icon = 'MapPin',
             children = children,
         }
@@ -277,12 +282,12 @@ local function buildNavigation()
     if #items == 0 then
         return { {
             id = 'categories',
-            label = 'Categories',
+            label = KoraLang('Modules.Blips.ui.categories'),
             icon = 'MapPin',
             content = { blocks = { {
                 type = 'empty',
-                title = 'No blip categories available',
-                description = 'Registered kora_lib blips will appear here automatically.',
+                title = KoraLang('Modules.Blips.ui.no_categories'),
+                description = KoraLang('Modules.Blips.ui.no_categories_description'),
                 icon = 'MapPin',
             } } },
         } }
@@ -290,16 +295,16 @@ local function buildNavigation()
 
     return { {
         id = 'categories',
-        label = 'Categories',
+        label = KoraLang('Modules.Blips.ui.categories'),
         icon = 'MapPin',
         content = {
-            title = 'Map blips',
-            description = 'Choose which categories appear on your map. Your choices are saved on this client.',
+            title = KoraLang('Modules.Blips.ui.map_blips'),
+            description = KoraLang('Modules.Blips.ui.map_description'),
             blocks = { {
                 type = 'list',
                 id = 'blip-categories',
                 searchable = true,
-                searchPlaceholder = 'Search categories or blips…',
+                searchPlaceholder = KoraLang('Modules.Blips.ui.search'),
                 pageSize = 12,
                 items = items,
             } },
@@ -316,17 +321,17 @@ local function actionError(message)
 end
 
 local function onAction(actionId, context)
-    if actionId ~= TOGGLE_ACTION then return actionError('That blip action is no longer available.') end
+    if actionId ~= TOGGLE_ACTION then return actionError(KoraLang('Modules.Blips.ui.unavailable_action')) end
     local target = type(context) == 'table' and categoryTargetByItem[context.itemId] or nil
-    if target == nil then return actionError('That blip category is no longer available.') end
+    if target == nil then return actionError(KoraLang('Modules.Blips.ui.unavailable_category')) end
 
     local visibleOk, visible = pcall(Kora.blips.isCategoryVisible, target)
-    if not visibleOk then return actionError('The category state could not be read.') end
+    if not visibleOk then return actionError(KoraLang('Modules.Blips.ui.state_read_failed')) end
     local operation = visible and Kora.blips.hideCategory or Kora.blips.showCategory
-    if type(operation) ~= 'function' then return actionError('Category visibility is not available.') end
+    if type(operation) ~= 'function' then return actionError(KoraLang('Modules.Blips.ui.visibility_unavailable')) end
 
     local changedOk, _, err = pcall(operation, target)
-    if not changedOk then return actionError('The category could not be updated.') end
+    if not changedOk then return actionError(KoraLang('Modules.Blips.ui.update_failed')) end
     if err ~= nil then return actionError(tostring(err)) end
 
     refreshApp()
@@ -335,22 +340,23 @@ local function onAction(actionId, context)
     return {
         notice = {
             tone = 'success',
-            message = ('%s blips %s.'):format(tostring(label), visible and 'hidden' or 'shown'),
+            message = KoraLang('Modules.Blips.ui.toggle_notice', tostring(label), KoraLang(
+                visible and 'Modules.Blips.ui.hidden_verb' or 'Modules.Blips.ui.shown_verb')),
         },
     }
 end
 
 Kora.nui.registerApp({
     id = APP_ID,
-    title = 'Blip settings',
-    description = 'Personalise the map without affecting other players.',
+    title = KoraLang('Modules.Blips.ui.title'),
+    description = KoraLang('Modules.Blips.ui.app_description'),
     icon = 'MapPin',
     layout = 'compact',
     placement = 'center',
     width = 760,
     height = 760,
     navigation = buildNavigation(),
-    footer = 'Press X or Escape to close',
+    footer = KoraLang('Modules.Blips.ui.footer'),
     onAction = onAction,
 })
 
@@ -372,6 +378,7 @@ RegisterCommand('blips', function()
 
         local opened, err = pcall(Kora.nui.openApp, APP_ID)
         opening = false
-        if not opened then Kora.logging.warn('lib.settings.settings_could_not_open', ('[kora_lib:blips] settings could not open: %s'):format(tostring(err))) end
+        if not opened then Kora.logging.warn('lib.settings.settings_could_not_open', KoraLang(
+            'Modules.Blips.ui.open_failed', tostring(err))) end
     end)
 end, false)

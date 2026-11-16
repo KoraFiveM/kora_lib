@@ -4,23 +4,23 @@ local activeIds = {}
 
 local function token(button)
     if button.control ~= nil then
-        assert(type(button.control) == 'number', 'Instructional button control must be a number.')
+        assert(type(button.control) == 'number', KoraLang('Modules.Instructional.control_invalid'))
         return GetControlInstructionalButton(0, button.control, true)
     end
     local name = button.command or (button.keybind and button.keybind.name)
-    assert(type(name) == 'string' and name ~= '', 'Instructional button requires control, command, or keybind.')
+    assert(type(name) == 'string' and name ~= '', KoraLang('Modules.Instructional.source_required'))
     if name:sub(1, 1) ~= '+' then name = '+' .. name end
     return GetControlInstructionalButton(0, joaat(name) | 0x80000000, true)
 end
 
 local function validate(buttons)
-    assert(type(buttons) == 'table' and #buttons > 0, 'Instructional buttons must be a non-empty array.')
+    assert(type(buttons) == 'table' and #buttons > 0, KoraLang('Modules.Instructional.buttons_invalid'))
     for index = 1, #buttons do
         local button = buttons[index]
-        assert(type(button) == 'table' and type(button.label) == 'string' and button.label ~= '', ('Instructional button %d requires a non-empty label.'):format(index))
+        assert(type(button) == 'table' and type(button.label) == 'string' and button.label ~= '', KoraLang('Modules.Instructional.label_invalid', index))
         local count = (button.control ~= nil and 1 or 0) + (button.command ~= nil and 1 or 0) + (button.keybind ~= nil and 1 or 0)
-        assert(button.group == nil or (type(button.group) == 'string' and button.group ~= ''), ('Instructional button %d group must be a non-empty string.'):format(index))
-        assert(count == 1, ('Instructional button %d requires exactly one input source.'):format(index))
+        assert(button.group == nil or (type(button.group) == 'string' and button.group ~= ''), KoraLang('Modules.Instructional.group_invalid', index))
+        assert(count == 1, KoraLang('Modules.Instructional.source_count_invalid', index))
         token(button)
     end
 end

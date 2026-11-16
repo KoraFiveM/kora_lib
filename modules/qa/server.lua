@@ -34,7 +34,7 @@ internal.emit = emit
 ---@param target? integer
 function Kora.qa.mark(name, data, target)
     if activeCount == 0 or internal.handlerCount == 0 then return end
-    assert(internal.validName(name), 'Kora.qa.mark name must be 1-64 characters of [A-Za-z0-9_:.-/ ].')
+    assert(internal.validName(name), KoraLang('Modules.Qa.validation_kora_qa_mark_name_must_be_1_64_characters_of'))
     if target ~= nil then
         if not activePlayers[target] then return end
         emit(target, 'mark', name, data)
@@ -57,8 +57,8 @@ end
 ---@return boolean active
 function Kora.qa.setActive(src, state)
     local invoker = GetInvokingResource()
-    assert(internal.isRunner(invoker), 'Only kora_qa may change the QA run state.')
-    assert(isPlayer(src), 'Kora.qa.setActive needs a player server id.')
+    assert(internal.isRunner(invoker), KoraLang('Modules.Qa.validation_only_kora_qa_may_change_the_qa_run_state'))
+    assert(isPlayer(src), KoraLang('Modules.Qa.validation_kora_qa_setactive_needs_a_player_server_id'))
     local was = activePlayers[src] == true
     local now = state == true
     if was ~= now then

@@ -21,13 +21,13 @@ local function validRevision(revision)
 end
 
 local function assertRegistered(resource)
-    assert(validResource(resource), 'Configuration resource must be a resource name.')
+    assert(validResource(resource), KoraLang('Modules.Config.errors.resource_name_required'))
     local entry = registry[resource]
     if not entry and discoverRegistrations then
         discoverRegistrations()
         entry = registry[resource]
     end
-    assert(entry, ('Resource %q has not registered a kora_lib configuration.'):format(resource))
+    assert(entry, KoraLang('Modules.Config.errors.resource_not_registered', resource))
     return entry
 end
 
@@ -59,12 +59,12 @@ end
 
 local function callResource(resource, method, request)
     local target = exports[resource]
-    assert(target, ('Resource %q is unavailable.'):format(resource))
+    assert(target, KoraLang('Modules.Config.errors.resource_unavailable', resource))
     local ok, result = pcall(function()
         if method == 'kora_lib_configRead' then return target:kora_lib_configRead() end
         if method == 'kora_lib_configCommit' then return target:kora_lib_configCommit(request) end
         if method == 'kora_lib_configReset' then return target:kora_lib_configReset(request) end
-        error(('Unknown configuration bridge method %q.'):format(method), 0)
+        error(KoraLang('Modules.Config.errors.bridge_method_unknown', method), 0)
     end)
     if ok then return result end
     if not tostring(result):find('No such export', 1, true) then error(result, 0) end
@@ -75,17 +75,17 @@ end
 
 ---@param definition table `{resource, schema, configured, client, revision}`
 local function register(definition, caller)
-    assert(type(definition) == 'table', 'Configuration registration must be a table.')
-    assert(validResource(definition.resource), 'Configuration registration needs a valid resource name.')
-    assert(type(definition.schema) == 'table', 'Configuration registration needs a schema.')
-    assert(type(definition.configured) == 'table', 'Configuration registration needs configured values.')
-    assert(type(definition.client) == 'table', 'Configuration registration needs client values.')
+    assert(type(definition) == 'table', KoraLang('Modules.Config.errors.registration_table'))
+    assert(validResource(definition.resource), KoraLang('Modules.Config.errors.registration_resource'))
+    assert(type(definition.schema) == 'table', KoraLang('Modules.Config.errors.registration_schema'))
+    assert(type(definition.configured) == 'table', KoraLang('Modules.Config.errors.registration_configured'))
+    assert(type(definition.client) == 'table', KoraLang('Modules.Config.errors.registration_client'))
     assert(validRevision(definition.revision),
-        'Configuration registration needs a positive integer revision.')
+        KoraLang('Modules.Config.errors.registration_revision'))
 
     local selfRegistration = caller == nil and definition.resource == GetCurrentResourceName()
     assert(caller == definition.resource or selfRegistration,
-        ('Resource %q cannot register configuration for %q.'):format(tostring(caller), definition.resource))
+        KoraLang('Modules.Config.errors.registration_owner', tostring(caller), definition.resource))
 
     registry[definition.resource] = copy(definition)
     return true
@@ -128,11 +128,13 @@ end
 ---@return table
 function Kora.config.commit(resource, request)
     local entry = assertRegistered(resource)
-    assert(type(request) == 'table', 'Configuration commit must be a table.')
+    assert(type(request) == 'table', KoraLang('Modules.Config.errors.commit_table'))
     local result = callResource(resource, 'kora_lib_configCommit', request)
-    if type(result) ~= 'table' then return { ok = false, error = 'The resource returned an invalid configuration response.' } end
+    if type(result) ~= 'table' then
+        return { ok = false, error = KoraLang('Modules.Config.errors.response_invalid') }
+    end
     if result.ok and not validRevision(result.revision) then
-        return { ok = false, error = 'The resource returned an invalid configuration revision.' }
+        return { ok = false, error = KoraLang('Modules.Config.errors.revision_invalid') }
     end
 
     if result.ok then
@@ -149,11 +151,13 @@ end
 ---@return table
 function Kora.config.reset(resource, request)
     local entry = assertRegistered(resource)
-    assert(type(request) == 'table', 'Configuration reset must be a table.')
+    assert(type(request) == 'table', KoraLang('Modules.Config.errors.reset_table'))
     local result = callResource(resource, 'kora_lib_configReset', request)
-    if type(result) ~= 'table' then return { ok = false, error = 'The resource returned an invalid configuration response.' } end
+    if type(result) ~= 'table' then
+        return { ok = false, error = KoraLang('Modules.Config.errors.response_invalid') }
+    end
     if result.ok and not validRevision(result.revision) then
-        return { ok = false, error = 'The resource returned an invalid configuration revision.' }
+        return { ok = false, error = KoraLang('Modules.Config.errors.revision_invalid') }
     end
 
     if result.ok then
@@ -218,14 +222,14 @@ local function registerKoraLibConfig()
     if type(Config.notify) == 'table' then
         Config.notify.defaultType = bridge.enum(Config.notify.defaultType, {
             live = true,
-            label = 'Default notification type',
-            description = 'Selects the semantic style used when a notification caller does not provide a type. The choice controls its icon, status colour, and accessibility wording without changing explicitly typed notifications.',
+            label = KoraLang('Modules.Config.editor.schema_notify_type'),
+            description = KoraLang('Modules.Config.editor.schema_notify_type_description'),
             options = { 'info', 'success', 'warning', 'error' },
         })
         Config.notify.defaultPosition = bridge.enum(Config.notify.defaultPosition, {
             live = true,
-            label = 'Default notification position',
-            description = 'Selects where notifications appear when a caller does not request a position. Choose an area that does not overlap the server HUD, inventory, phone, or dispatch feed.',
+            label = KoraLang('Modules.Config.editor.schema_notify_position'),
+            description = KoraLang('Modules.Config.editor.schema_notify_position_description'),
             options = { 'top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right' },
         })
     end

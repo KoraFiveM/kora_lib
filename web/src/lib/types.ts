@@ -485,6 +485,8 @@ export interface AppShellLabels {
     select: string
     required: string
     invalidFormat: string
+    wholeNumber: string
+    coordinateFinite: string
     minValue: string
     maxValue: string
     minLength: string
@@ -683,8 +685,20 @@ export type PlacementConfirmResult = { confirmed: boolean }
 
 export type ZoneType = "box" | "sphere" | "poly"
 
+export interface ZoneCreatorLabels {
+    types: Record<ZoneType, string>
+    building: string; starting: string; shiftFast: string; enterConfirm: string
+    pointOne: string; pointMany: string; centerPlaced: string; aimPlace: string
+    editingPoint: string; editingPointsEmpty: string; editingPointsAim: string
+    params: Record<string, string>; stepScroll: string
+    confirmTitle: string; generatedData: string; clipboardFailed: string; keepEditing: string
+    copied: string; copyFailed: string; copyCode: string; copyConfirm: string
+    copiedAnnouncement: string; copyFailedAnnouncement: string
+}
+
 export interface ZoneCreatorStartPayload {
     type: ZoneType
+    labels?: ZoneCreatorLabels
 }
 
 export type ZoneCreatorParam = "size" | "height" | "rotation" | "radius" | "thickness" | "zOffset" | "editPoint"
@@ -714,6 +728,7 @@ export interface ZoneCreatorHudSnapshot {
 export interface ZoneCreatorConfirmPayload {
     type: ZoneType
     snippet: string
+    labels?: ZoneCreatorLabels
 }
 
 export type ZoneCreatorConfirmResult = { confirmed: boolean }
@@ -987,6 +1002,36 @@ export type MinigameAttempt =
     | HackingAttempt
     | CancelledAttempt
 
+export interface MinigameUiLabels {
+    titleAttempt: string
+    titleLockpick: string
+    titleSkillbar: string
+    titleCircuit: string
+    titleMash: string
+    titleFishing: string
+    titlePinpad: string
+    titleQuiz: string
+    titleWordguess: string
+    titleWordscramble: string
+    titleKeys: string
+    titleHacking: string
+    lastAttemptFailed: string
+    cancelInstruction: string
+    submit: string
+    fishingSlipped: string
+    keepMarker: string
+    gameCount: string
+    fishingInstruction: string
+    lockpickInstruction: string
+    mashInstruction: string
+    keysInstruction: string
+    skillbarInstruction: string
+    typeLetterInstruction: string
+    hintPrefix: string
+    guessedPrefix: string
+    guessesLeft: string
+    secondsLeft: string
+}
 export interface MinigamesRoundPayload {
     type: MinigameType
     sessionId: number
@@ -998,6 +1043,7 @@ export interface MinigamesRoundPayload {
     timeLimit: number
     /** Set from the second round on, when the previous attempt failed; absent on the first round. */
     lastResult?: "fail"
+    labels: MinigameUiLabels
     puzzle: MinigamePuzzle
 }
 

@@ -27,9 +27,11 @@ const MAX_PATTERN_INPUT_LENGTH = 256
 const KEY_VALUE_PAGE_SIZE = 50
 const TEXTUAL_TYPES = new Set<InputField["type"]>(["text", "password", "textarea", "combobox"])
 
-export const defaultFormLabels: Pick<AppShellLabels, "required" | "invalidFormat" | "minValue" | "maxValue" | "minLength" | "maxLength" | "select"> = {
+export const defaultFormLabels: Pick<AppShellLabels, "required" | "invalidFormat" | "wholeNumber" | "coordinateFinite" | "minValue" | "maxValue" | "minLength" | "maxLength" | "select"> = {
     required: "Required.",
     invalidFormat: "Invalid format.",
+    wholeNumber: "Must be a whole number.",
+    coordinateFinite: "Every coordinate must be a finite number.",
     minValue: "Must be at least %{value}.",
     maxValue: "Must be at most %{value}.",
     minLength: "Must be at least %{value} characters.",
@@ -257,7 +259,7 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
         }
         if ((field.type === "number" || field.type === "range") && !empty) {
             if (typeof value !== "number" || !Number.isFinite(value)) errors[field.id] = labels.invalidFormat
-            else if (field.wholeNumber && !Number.isInteger(value)) errors[field.id] = "Must be a whole number."
+            else if (field.wholeNumber && !Number.isInteger(value)) errors[field.id] = labels.wholeNumber
             else if (field.min !== undefined && value < field.min) errors[field.id] = interpolate(labels.minValue, field.min)
             else if (field.max !== undefined && value > field.max) errors[field.id] = interpolate(labels.maxValue, field.max)
         }
@@ -268,7 +270,7 @@ export function validateFields(fields: InputField[], values: Record<string, Fiel
             const vector = vectorFieldValue(value)
             const axes = ["x", "y", "z", "w"].slice(0, field.dimensions ?? 3) as Array<keyof VectorFieldValue>
             if (!vector || axes.some((axis) => typeof vector[axis] !== "number" || !Number.isFinite(vector[axis]))) {
-                errors[field.id] = "Every coordinate must be a finite number."
+                errors[field.id] = labels.coordinateFinite
             }
         }
         if (TEXTUAL_TYPES.has(field.type) && typeof value === "string") {

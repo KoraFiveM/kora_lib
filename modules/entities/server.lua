@@ -14,19 +14,19 @@ local vehicleTypes = {
 ---@param model string | number
 ---@return number
 local function resolveModel(model)
-    assert(type(model) == 'string' or type(model) == 'number', 'Vehicle model must be a name or hash.')
+    assert(type(model) == 'string' or type(model) == 'number', KoraLang('Modules.Entities.vehicle_model_invalid'))
     return type(model) == 'string' and joaat(model) or model
 end
 
 ---@param coords table
 ---@return number, number, number, number
 local function resolveCoords(coords)
-    assert(type(coords) == 'table', 'Vehicle coords must be a table.')
+    assert(type(coords) == 'table', KoraLang('Modules.Entities.vehicle_coords_table'))
     assert(isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
-        'Vehicle coords must contain finite x, y, and z values.')
+        KoraLang('Modules.Entities.vehicle_coords_invalid'))
 
     local heading = coords.w or coords.heading or 0.0
-    assert(isFiniteNumber(heading), 'Vehicle heading must be finite.')
+    assert(isFiniteNumber(heading), KoraLang('Modules.Entities.vehicle_heading_invalid'))
     return coords.x, coords.y, coords.z, heading
 end
 
@@ -39,16 +39,16 @@ end
 function Kora.entities.createVehicle(model, coords, vehicleType)
     local modelHash = resolveModel(model)
     local typeName = vehicleType or 'automobile'
-    assert(vehicleTypes[typeName], ('Invalid server vehicle type: %s'):format(tostring(typeName)))
+    assert(vehicleTypes[typeName], KoraLang('Modules.Entities.vehicle_type_invalid', tostring(typeName)))
 
     local x, y, z, heading = resolveCoords(coords)
     if not Kora.lookup.model(modelHash, 'vehicle') then
-        return false, 'Vehicle model is invalid.'
+        return false, KoraLang('Modules.Entities.vehicle_model_missing')
     end
 
     local vehicle = CreateVehicleServerSetter(modelHash, typeName, x, y, z, heading)
     if vehicle == 0 or not DoesEntityExist(vehicle) then
-        return false, 'Vehicle creation failed.'
+        return false, KoraLang('Modules.Entities.vehicle_create_failed')
     end
 
     return NetworkGetNetworkIdFromEntity(vehicle)

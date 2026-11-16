@@ -117,15 +117,19 @@ end
 ---@return boolean success
 function Kora.status.apply(name, opts)
     Kora.status.assertName(name)
-    assert(opts == nil or type(opts) == "table", "Kora.status.apply options must be a table.")
+    assert(opts == nil or type(opts) == "table", KoraLang('Modules.Status.status_apply_options'))
     opts = opts or {}
-    assert(opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
-        "duration must be a non-negative integer.")
-    assert(opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
-        "severity must be a positive integer.")
+    assert(
+        opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
+        KoraLang('Modules.Status.duration_non_negative')
+    )
+    assert(
+        opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
+        KoraLang('Modules.Status.severity_positive_intege')
+    )
 
     local def = Kora.status.getEffectDef(name)
-    assert(def, ("Unknown status effect: %s"):format(name))
+    assert(def, KoraLang('Modules.Status.unknown_status_effect', name))
 
     local invokingResource = GetInvokingResource()
     local owner = invokingResource or GetCurrentResourceName()
@@ -244,7 +248,7 @@ end
 ---@param handler fun(name: string, applied: boolean)
 ---@return integer listenerId Pass to Kora.status.offChange to unregister.
 function Kora.status.onChange(handler)
-    assert(isCallable(handler), "Kora.status.onChange requires a function.")
+    assert(isCallable(handler), KoraLang('Modules.Status.status_onchange_function'))
     local owner = GetInvokingResource() or GetCurrentResourceName()
     nextListenerId = nextListenerId + 1
     changeListeners[nextListenerId] = handler

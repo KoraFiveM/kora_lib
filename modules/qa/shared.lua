@@ -89,7 +89,7 @@ end
 ---@param fn function
 ---@return integer id
 function Kora.qa.onEvent(fn)
-    assert(Kora.compat.isCallable(fn), 'Kora.qa.onEvent handler must be a function.')
+    assert(Kora.compat.isCallable(fn), KoraLang('Modules.Qa.validation_kora_qa_onevent_handler_must_be_a_function'))
     local owner = GetInvokingResource() or GetCurrentResourceName()
     internal.nextHandlerId = internal.nextHandlerId + 1
     local id = internal.nextHandlerId

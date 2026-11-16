@@ -18,9 +18,9 @@ local ownership = Kora.resources.serverRegistry(removeListener)
 ---@param handler fun(context: KoraStateChange)
 ---@return integer listenerId
 function Kora.state.onChange(keyFilter, bagFilter, handler)
-    assert(keyFilter == nil or type(keyFilter) == 'string', 'State keyFilter must be a string or nil.')
-    assert(bagFilter == nil or type(bagFilter) == 'string', 'State bagFilter must be a string or nil.')
-    assert(isCallable(handler), 'State change handler must be callable.')
+    assert(keyFilter == nil or type(keyFilter) == 'string', KoraLang('Modules.State.validation_state_keyfilter_must_be_a_string_or_nil'))
+    assert(bagFilter == nil or type(bagFilter) == 'string', KoraLang('Modules.State.validation_state_bagfilter_must_be_a_string_or_nil'))
+    assert(isCallable(handler), KoraLang('Modules.State.validation_state_change_handler_must_be_callable'))
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
     local cookie
@@ -55,7 +55,7 @@ end
 ---@param listenerId integer
 ---@return boolean removed
 function Kora.state.offChange(listenerId)
-    assert(Kora.util.isInteger(listenerId) and listenerId > 0, 'State listenerId must be a positive integer.')
+    assert(Kora.util.isInteger(listenerId) and listenerId > 0, KoraLang('Modules.State.validation_state_listenerid_must_be_a_positive_integer'))
     local invoker = GetInvokingResource()
     if invoker and ownership.owner(listenerId) ~= invoker then return false end
 

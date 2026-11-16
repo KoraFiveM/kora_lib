@@ -15,14 +15,14 @@ local HANDSHAKE_LIMIT = { max = 5, window = 60000 }
 
 local function normalizeRateLimit(opts)
     if opts == nil then return nil end
-    assert(type(opts) == 'table', 'Event registration options must be a table.')
+    assert(type(opts) == 'table', KoraLang('Local.Events.registration_options_must_be_table'))
     local limit = opts.rateLimit
     if limit == nil or limit == false then return nil end
-    assert(type(limit) == 'table', 'Event rateLimit must be a table or false.')
+    assert(type(limit) == 'table', KoraLang('Local.Events.rate_limit_table_or_false'))
     assert(isInteger(limit.max) and limit.max >= 1 and limit.max <= MAX_RATE_LIMIT,
-        ('Event rateLimit.max must be a positive integer no greater than %d.'):format(MAX_RATE_LIMIT))
+        KoraLang('Local.Events.rate_limit_max', MAX_RATE_LIMIT))
     assert(isInteger(limit.window) and limit.window > 0 and limit.window <= MAX_RATE_WINDOW,
-        ('Event rateLimit.window must be a positive integer no greater than %d milliseconds.'):format(MAX_RATE_WINDOW))
+        KoraLang('Local.Events.rate_limit_window', MAX_RATE_WINDOW))
     return { max = limit.max, window = limit.window }
 end
 
@@ -102,15 +102,15 @@ local isCallable = Kora.compat.isCallable
 ---@param opts? KoraRegistrationOptions
 function Kora.events.register(name, handler, opts)
     Kora.events.assertName(name)
-    assert(isCallable(handler), "Event handler must be a function.")
+    assert(isCallable(handler), KoraLang('Local.Events.handler_must_be_function'))
     local rateLimit = normalizeRateLimit(opts)
 
     local owner = GetInvokingResource() or GetCurrentResourceName()
 
     local previousOwner = eventOwnership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        Kora.logging.warn('lib.server.diagnostic', ("[kora_lib:events] '%s' was registered by '%s' and is being overwritten by '%s' -- namespace your event names.")
-            :format(name, previousOwner, owner))
+        Kora.logging.warn('lib.server.diagnostic', KoraLang(
+            'Local.Events.overwritten', name, previousOwner, owner))
     end
 
     registry[name] = { handler = handler, rateLimit = rateLimit }
@@ -163,7 +163,8 @@ local function dispatchGateway(token, name, ...)
 
     local ok, err = pcall(definition.handler, src, ...)
     if not ok then
-        Kora.logging.error('lib.server.handler_for', ("[kora_lib:events] handler for '%s' errored: %s"):format(name, tostring(err)))
+        Kora.logging.error('lib.server.handler_for', KoraLang(
+            'Local.Events.handler_errored', name, tostring(err)))
     end
 end
 
@@ -186,7 +187,7 @@ end)
 function Kora.events.push(target, name, ...)
     Kora.events.assertName(name)
     assert(target == -1 or (isInteger(target) and target >= 1),
-        'target must be -1 or a positive finite player server ID.')
+        KoraLang('Local.Events.target_must_be_valid'))
 
     TriggerClientEvent(events.push, target, name, ...)
 end

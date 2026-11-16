@@ -17,7 +17,7 @@ local hoverBlip = nil
 local hoverSince = 0
 local legendSuppressUntil = 0
 local textureRefcounts = {}
-local categoryCatalog = assert(Kora.blips._categoryCatalog, 'Kora.blips category catalogue did not load.')
+local categoryCatalog = assert(Kora.blips._categoryCatalog, KoraLang('Modules.Blips.category_catalog_missing'))
 local registeredByBlip = {}
 local categoryVisibility = {}
 local infoThreadRunning = false
@@ -63,14 +63,14 @@ end)
 ---@return string
 local function normaliseText(value, field)
     assert(value == nil or type(value) == "string" or type(value) == "number",
-        ("Invalid %s: expected a string or number."):format(field))
+        KoraLang('Modules.Blips.text_invalid', field))
     return value == nil and "" or tostring(value)
 end
 
 ---@param info KoraBlipInfo
 ---@return KoraBlipInfo
 local function normaliseInfo(info)
-    assert(type(info) == "table", "Invalid info: expected a table.")
+    assert(type(info) == "table", KoraLang('Modules.Blips.info_table_invalid'))
 
     local normalised = {
         title = normaliseText(info.title, "info.title"),
@@ -81,21 +81,21 @@ local function normaliseInfo(info)
     }
 
     if info.image then
-        assert(type(info.image) == "table", "Invalid info.image: expected a table.")
+        assert(type(info.image) == "table", KoraLang('Modules.Blips.image_table_invalid'))
         assert(type(info.image.dictionary) == "string" and info.image.dictionary ~= "",
-            "Invalid info.image.dictionary: expected a non-empty string.")
+            KoraLang('Modules.Blips.image_dictionary_invalid'))
         assert(type(info.image.texture) == "string" and info.image.texture ~= "",
-            "Invalid info.image.texture: expected a non-empty string.")
+            KoraLang('Modules.Blips.image_texture_invalid'))
         normalised.image = { dictionary = info.image.dictionary, texture = info.image.texture }
     end
 
-    assert(info.rows == nil or type(info.rows) == "table", "Invalid info.rows: expected an array.")
+    assert(info.rows == nil or type(info.rows) == "table", KoraLang('Modules.Blips.rows_invalid'))
     local rows = info.rows or {}
     for index = 1, #rows do
         local row = rows[index]
-        assert(type(row) == "table", ("Invalid info.rows[%d]: expected a table."):format(index))
+        assert(type(row) == "table", KoraLang('Modules.Blips.row_table_invalid', index))
         local style = INFO_ROW_STYLE[row.kind]
-        assert(style, ("Invalid info.rows[%d].kind: expected text, icon, name, header, or wrappedText."):format(index))
+        assert(style, KoraLang('Modules.Blips.row_kind_invalid', index))
 
         local normalisedRow = {
             kind = row.kind,
@@ -105,11 +105,11 @@ local function normaliseInfo(info)
 
         if row.kind == "icon" then
             assert(row.icon == nil or type(row.icon) == "number",
-                ("Invalid info.rows[%d].icon: expected a number."):format(index))
+                KoraLang('Modules.Blips.row_icon_invalid', index))
             assert(row.color == nil or type(row.color) == "number",
-                ("Invalid info.rows[%d].color: expected a number."):format(index))
+                KoraLang('Modules.Blips.row_color_invalid', index))
             assert(row.checked == nil or type(row.checked) == "boolean",
-                ("Invalid info.rows[%d].checked: expected a boolean."):format(index))
+                KoraLang('Modules.Blips.row_checked_invalid', index))
             normalisedRow.icon = row.icon or 0
             normalisedRow.color = row.color or 0
             normalisedRow.checked = row.checked == true
@@ -164,9 +164,9 @@ end
 ---@param caller string
 ---@return boolean, string?
 local function canManageInfo(blip, caller)
-    if not DoesBlipExist(blip) then return false, "Blip does not exist." end
+    if not DoesBlipExist(blip) then return false, KoraLang('Modules.Blips.missing') end
     if blipRegistry.owner(blip) ~= caller then
-        return false, "Blip is not owned by the calling resource."
+        return false, KoraLang('Modules.Blips.not_owned')
     end
     return true
 end
@@ -465,10 +465,10 @@ function Kora.blips.create(coords, options)
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
 
     if options == nil then options = {} end
-    assert(type(options) == "table", "Blip options must be a table.")
+    assert(type(options) == "table", KoraLang('Modules.Blips.options_table'))
 
     assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
-        "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
+        KoraLang('Modules.Blips.coords_invalid'))
 
     local category = resolveCategory(options.category)
     local name, label = resolveNameAndLabel(options, category)
@@ -483,19 +483,19 @@ function Kora.blips.create(coords, options)
     local shortRange = options.shortRange
     if shortRange == nil then shortRange = Config.blips.defaultShortRange end
 
-    assert(Kora.util.isInteger(sprite) and sprite >= 0, 'Blip sprite must be a non-negative integer.')
-    assert(Kora.util.isInteger(color) and color >= 0, 'Blip color must be a non-negative integer.')
-    assert(Kora.util.isFiniteNumber(scale) and scale > 0, 'Blip scale must be a positive finite number.')
+    assert(Kora.util.isInteger(sprite) and sprite >= 0, KoraLang('Modules.Blips.sprite_invalid'))
+    assert(Kora.util.isInteger(color) and color >= 0, KoraLang('Modules.Blips.color_invalid'))
+    assert(Kora.util.isFiniteNumber(scale) and scale > 0, KoraLang('Modules.Blips.scale_invalid'))
     assert(Kora.util.isInteger(display) and display >= 0,
-        'Blip display must be a non-negative integer.')
-    assert(type(shortRange) == 'boolean', 'Blip shortRange must be a boolean.')
-    assert(options.route == nil or type(options.route) == 'boolean', 'Blip route must be a boolean.')
-    assert(options.info == nil or type(options.info) == 'table', 'Blip info must be a table.')
+        KoraLang('Modules.Blips.display_invalid'))
+    assert(type(shortRange) == 'boolean', KoraLang('Modules.Blips.short_range_boolean'))
+    assert(options.route == nil or type(options.route) == 'boolean', KoraLang('Modules.Blips.route_boolean'))
+    assert(options.info == nil or type(options.info) == 'table', KoraLang('Modules.Blips.info_table'))
 
     local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
 
     if not blip or blip == 0 then
-        return false, "Failed to create blip."
+        return false, KoraLang('Modules.Blips.create_failed')
     end
 
     SetBlipSprite(blip, sprite)
@@ -637,13 +637,13 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.blips.hide(blip)
-    assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
+    assert(type(blip) == 'number', KoraLang('Modules.Blips.invalid_handle', blip))
     local record = registeredByBlip[blip]
-    if not record then return false, 'Blip is not tracked by Kora.blips.' end
+    if not record then return false, KoraLang('Modules.Blips.not_tracked') end
     if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
-        return false, 'Blip is not owned by the calling resource.'
+        return false, KoraLang('Modules.Blips.not_owned')
     end
-    if not DoesBlipExist(blip) then return false, 'Blip does not exist.' end
+    if not DoesBlipExist(blip) then return false, KoraLang('Modules.Blips.missing') end
     record.hidden = true
     applyVisibility(record)
     return true
@@ -653,13 +653,13 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.blips.show(blip)
-    assert(type(blip) == 'number', ('Invalid blip: %s'):format(blip))
+    assert(type(blip) == 'number', KoraLang('Modules.Blips.invalid_handle', blip))
     local record = registeredByBlip[blip]
-    if not record then return false, 'Blip is not tracked by Kora.blips.' end
+    if not record then return false, KoraLang('Modules.Blips.not_tracked') end
     if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
-        return false, 'Blip is not owned by the calling resource.'
+        return false, KoraLang('Modules.Blips.not_owned')
     end
-    if not DoesBlipExist(blip) then return false, 'Blip does not exist.' end
+    if not DoesBlipExist(blip) then return false, KoraLang('Modules.Blips.missing') end
     record.hidden = false
     applyVisibility(record)
     return true
@@ -673,7 +673,7 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.blips.setInfo(blip, info)
-    assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
+    assert(type(blip) == "number", KoraLang('Modules.Blips.invalid_handle', blip))
 
     local caller = GetInvokingResource() or GetCurrentResourceName()
     local canManage, err = canManageInfo(blip, caller)
@@ -689,7 +689,7 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.blips.clearInfo(blip)
-    assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
+    assert(type(blip) == "number", KoraLang('Modules.Blips.invalid_handle', blip))
 
     local caller = GetInvokingResource() or GetCurrentResourceName()
     local canManage, err = canManageInfo(blip, caller)
@@ -706,13 +706,13 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.blips.remove(blip)
-    assert(type(blip) == "number", ("Invalid blip: %s"):format(blip))
+    assert(type(blip) == "number", KoraLang('Modules.Blips.invalid_handle', blip))
 
     if not blipRegistry.owner(blip) then
-        return false, "Blip is not tracked by Kora.blips."
+        return false, KoraLang('Modules.Blips.not_tracked')
     end
     if blipRegistry.owner(blip) ~= (GetInvokingResource() or GetCurrentResourceName()) then
-        return false, "Blip is not owned by the calling resource."
+        return false, KoraLang('Modules.Blips.not_owned')
     end
 
     blipRegistry.untrack(blip)
@@ -723,6 +723,6 @@ function Kora.blips.remove(blip)
     local exists = DoesBlipExist(blip)
     if exists then RemoveBlip(blip) end
     notifyBlipsChanged()
-    if not exists then return false, "Blip does not exist." end
+    if not exists then return false, KoraLang('Modules.Blips.missing') end
     return true
 end

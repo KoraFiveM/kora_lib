@@ -1,10 +1,10 @@
 local function assertId(id)
-    assert(id ~= nil, 'Registry id must not be nil.')
+    assert(id ~= nil, KoraLang('Local.Resources.id_must_not_be_nil'))
 end
 
 local function assertResourceName(resource)
     assert(type(resource) == 'string' and resource ~= '' and #resource <= 256,
-        'Registry resource must be a non-empty string up to 256 bytes.')
+        KoraLang('Local.Resources.resource_name_invalid'))
 end
 
 ---Creates an isolated ownership registry: a `resource -> {id set}` forward
@@ -14,14 +14,14 @@ end
 ---@param onDispose fun(id: any) Called for each id still owned when its resource stops.
 ---@return KoraResourcesRegistry
 function Kora.resources.serverRegistry(onDispose)
-    assert(Kora.compat.isCallable(onDispose), 'Kora.resources.serverRegistry requires a callable disposer.')
+    assert(Kora.compat.isCallable(onDispose), KoraLang('Local.Resources.server_registry_requires_callable'))
     local byResource = {}
     local ownerOf = {}
     local sweeping = {}
     local function track(resource, id)
         assertResourceName(resource)
         assertId(id)
-        assert(not sweeping[resource], 'Cannot track an id for a resource while it is stopping.')
+        assert(not sweeping[resource], KoraLang('Local.Resources.cannot_track_while_stopping'))
         local previousOwner = ownerOf[id]
 
         if previousOwner and previousOwner ~= resource then
@@ -69,8 +69,8 @@ function Kora.resources.serverRegistry(onDispose)
             ownerOf[id] = nil
             local ok, err = pcall(onDispose, id)
             if not ok then
-                Kora.logging.error('lib.server.cleanup_for_id_failed', ("^3[kora_lib:resources]^7 cleanup for %s id %s failed: %s")
-                    :format(resource, tostring(id), tostring(err)))
+                Kora.logging.error('lib.server.cleanup_for_id_failed', KoraLang(
+                    'Local.Resources.server_cleanup_failed', resource, tostring(id), tostring(err)))
             end
         end
         sweeping[resource] = nil

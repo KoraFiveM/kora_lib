@@ -4,8 +4,7 @@ local ensureExpirySweep
 local isInteger = Kora.util.isInteger
 
 local function assertPlayerTarget(target, operation)
-    assert(isInteger(target) and target >= 1,
-        ("Kora.status.%s requires a positive integer target server id."):format(operation))
+    assert(isInteger(target) and target >= 1, KoraLang('Modules.Status.status_s_positive', operation))
 end
 
 local function bucketFor(target)
@@ -25,12 +24,16 @@ end
 function Kora.status.apply(target, name, opts)
     assertPlayerTarget(target, "apply")
     Kora.status.assertName(name)
-    assert(opts == nil or type(opts) == "table", "Kora.status.apply options must be a table.")
+    assert(opts == nil or type(opts) == "table", KoraLang('Modules.Status.status_apply_options'))
     opts = opts or {}
-    assert(opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
-        "duration must be a non-negative integer.")
-    assert(opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
-        "severity must be a positive integer.")
+    assert(
+        opts.duration == nil or (isInteger(opts.duration) and opts.duration >= 0),
+        KoraLang('Modules.Status.duration_non_negative')
+    )
+    assert(
+        opts.severity == nil or (isInteger(opts.severity) and opts.severity >= 1),
+        KoraLang('Modules.Status.severity_positive_intege')
+    )
 
     local def = Kora.status.getEffectDef(name)
     if not def then
@@ -38,8 +41,10 @@ function Kora.status.apply(target, name, opts)
     end
 
     if def.severityLevels and opts.severity ~= nil then
-        assert(opts.severity <= def.severityLevels,
-            ("severity must be between 1 and %s for '%s'."):format(tostring(def.severityLevels), name))
+        assert(
+            opts.severity <= def.severityLevels,
+            KoraLang('Modules.Status.severity_between_1', tostring(def.severityLevels), name)
+        )
     end
 
     local bucket = bucketFor(target)

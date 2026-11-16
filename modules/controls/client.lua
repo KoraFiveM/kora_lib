@@ -39,7 +39,8 @@ local function ensureThread()
         threadRunning = false
 
         if not ok then
-            Kora.logging.error('lib.client.control_loop_stopped_after_an_error', ("[kora_lib:controls] control loop stopped after an error: %s"):format(tostring(err)))
+            Kora.logging.error('lib.client.control_loop_stopped_after_an_error', KoraLang(
+                'Modules.Controls.loop_error', tostring(err)))
         end
     end)
 end
@@ -78,21 +79,21 @@ end
 
 local function acquire(controlIds, options, owner)
     options = options == nil and {} or options
-    assert(type(options) == "table", "Control lease options must be a table.")
-    assert(type(controlIds) == "table", "Control lease IDs must be an array.")
+    assert(type(options) == "table", KoraLang('Modules.Controls.options_table'))
+    assert(type(controlIds) == "table", KoraLang('Modules.Controls.ids_array'))
 
     local inputGroup = options.inputGroup == nil and 0 or options.inputGroup
-    assertInteger(inputGroup, "Control lease inputGroup must be a non-negative integer.")
+    assertInteger(inputGroup, KoraLang('Modules.Controls.input_group'))
     assert(options.disablePlayerFiring == nil or type(options.disablePlayerFiring) == "boolean",
-        "Control lease disablePlayerFiring must be a boolean.")
+        KoraLang('Modules.Controls.firing_boolean'))
     assert(options.ignoreWeaponWheel == nil or type(options.ignoreWeaponWheel) == "boolean",
-        "Control lease ignoreWeaponWheel must be a boolean.")
+        KoraLang('Modules.Controls.weapon_wheel_boolean'))
 
     local controls = {}
     local seen = {}
     for index = 1, #controlIds do
         local control = controlIds[index]
-        assertInteger(control, ("Control lease ID at index %d must be a non-negative integer."):format(index))
+        assertInteger(control, KoraLang('Modules.Controls.id_invalid', index))
         if not seen[control] then
             seen[control] = true
             controls[#controls + 1] = control
@@ -102,15 +103,15 @@ local function acquire(controlIds, options, owner)
     local keyCount = 0
     for key in pairs(controlIds) do
         assert(type(key) == "number" and key % 1 == 0 and key >= 1,
-            "Control lease IDs must be a dense array.")
+            KoraLang('Modules.Controls.ids_dense'))
         keyCount = keyCount + 1
     end
-    assert(keyCount == #controlIds, "Control lease IDs must be a dense array.")
+    assert(keyCount == #controlIds, KoraLang('Modules.Controls.ids_dense'))
 
     local disablePlayerFiring = options.disablePlayerFiring == true
     local ignoreWeaponWheel = options.ignoreWeaponWheel == true
     assert(#controls > 0 or disablePlayerFiring or ignoreWeaponWheel,
-        "Control lease requires a control ID or an active suppression option.")
+        KoraLang('Modules.Controls.suppression_required'))
 
     nextLeaseId = nextLeaseId + 1
     local leaseId = nextLeaseId
@@ -164,7 +165,7 @@ end
 ---@param owner string
 ---@return integer leaseId
 function Kora.compat.acquireControls(controlIds, options, owner)
-    assert(type(owner) == 'string' and owner ~= '', 'Control lease owner must be a non-empty string.')
+    assert(type(owner) == 'string' and owner ~= '', KoraLang('Modules.Controls.owner_invalid'))
     return acquire(controlIds, options, owner)
 end
 
@@ -184,7 +185,7 @@ end
 ---@param owner string
 ---@return boolean released
 function Kora.compat.releaseControlLease(leaseId, owner)
-    assert(type(owner) == 'string' and owner ~= '', 'Control lease owner must be a non-empty string.')
+    assert(type(owner) == 'string' and owner ~= '', KoraLang('Modules.Controls.owner_invalid'))
     if not isInteger(leaseId) or leaseId < 1 or leaseRegistry.owner(leaseId) ~= owner then return false end
     return releaseLease(leaseId)
 end

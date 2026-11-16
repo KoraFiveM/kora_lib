@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useEffect, useRef, useState } from "react"
 
 import type { CancelledAttempt, FishingAttempt, FishingPuzzle, FishingReel } from "@/lib/types"
@@ -20,6 +21,7 @@ interface FishingGameProps {
  * happened; the server independently recomputes the marker position.
  */
 export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: FishingGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const reelsRef = useRef<FishingReel[]>([])
@@ -77,10 +79,10 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
         <Dialog open onOpenChange={(open) => { if (!open) cancel() }}>
             <DialogContent hideClose className="right-4 left-auto max-w-sm translate-x-0 sm:right-8">
                 <DialogHeader>
-                    <DialogTitle>Fishing &mdash; attempt {attempt} of {attempts}</DialogTitle>
+                    <DialogTitle>{formatMinigameLabel(labels.titleAttempt, labels.titleFishing, attempt, attempts)}</DialogTitle>
                 </DialogHeader>
 
-                {lastResult === "fail" && <p className="text-sm text-destructive">The line slipped &mdash; cast again.</p>}
+                {lastResult === "fail" && <p className="text-sm text-destructive">{labels.fishingSlipped}</p>}
 
                 <div className="flex items-center justify-center gap-5 py-2">
                     <div className="relative h-64 w-16 overflow-hidden rounded-full border border-border-strong bg-secondary shadow-inner">
@@ -101,17 +103,17 @@ export function FishingGame({ puzzle, attempt, attempts, timeLimit, lastResult, 
                         <div className="absolute inset-x-0 top-1/2 h-px bg-border/50" />
                     </div>
                     <div className="flex flex-col gap-2 text-sm">
-                        <p className="font-medium">Keep the marker in the bite zone.</p>
+                        <p className="font-medium">{labels.keepMarker}</p>
                         <div className="flex gap-1.5">
                             {Array.from({ length: puzzle.gameCount }, (_, index) => (
                                 <span key={index} className={cn("h-2 w-8 rounded-full bg-secondary", index < caught.length && (caught[index] ? "bg-success" : "bg-destructive"))} />
                             ))}
                         </div>
-                        <p className="text-xs text-muted-foreground">Game {Math.min(biteIndex + 1, puzzle.gameCount)} of {puzzle.gameCount}</p>
+                        <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.gameCount, Math.min(biteIndex + 1, puzzle.gameCount), puzzle.gameCount)}</p>
                     </div>
                 </div>
 
-                <p className="text-xs text-muted-foreground">Press <span className="font-medium text-foreground">Space</span> when the marker is in the highlighted zone. Press <span className="font-medium text-foreground">Esc</span> to cancel.</p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.fishingInstruction, "Space", "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

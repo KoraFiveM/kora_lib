@@ -50,6 +50,8 @@ files {
     'modules/lookup/data/*.lua',
     'modules/lookup/data/source.json',
     'locales/*.json',
+    'locales/en.lua',
+    'locales/*.lua',
     'web/build/index.html',
     -- A bare trailing '**' does NOT match files in FiveM's resource globber; it needs '/*'
     -- (otherwise the hashed JS/CSS bundles are never served and the NUI never mounts).
@@ -61,6 +63,7 @@ files {
 ui_page 'web/build/index.html'
 
 -- Load order is significant:
+--   0. local/locales/shared.lua makes KoraLang available to both realms
 --   1. build/initiate.lua  creates the empty Kora table
 --   2. local/** + modules/**  populate Kora.<module>.<function>
 --   3. build/finalise.lua  turns every entry into a `<module>_<function>` export
@@ -69,6 +72,7 @@ ui_page 'web/build/index.html'
 -- client_scripts/server_scripts rather than shared_scripts (shared always
 -- loads before the environment-specific block).
 shared_scripts {
+    'local/locales/shared.lua',
     'config.lua',
     'build/initiate.lua',
     'modules/logging/shared.lua',
@@ -91,7 +95,8 @@ shared_scripts {
     'modules/util/shared.lua',
     'modules/vehicle/shared.lua',
     -- Shared so compatibility providers can register aliases in either realm.
-    'compat/shared.lua'
+    'compat/shared.lua',
+    'modules/qa/audit.lua'
 }
 
 -- local/resources must load before every other local/ module: callback and events call

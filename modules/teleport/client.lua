@@ -1,13 +1,19 @@
 local function assertCoords(coords)
-    assert(type(coords) == 'table' or type(coords) == 'vector3' or type(coords) == 'vector4',
-        'Teleport coordinates must be vector-like.')
-    assert(Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y) and Kora.util.isFiniteNumber(coords.z),
-        'Teleport coordinates require finite x, y, and z.')
+    assert(
+        type(coords) == 'table' or type(coords) == 'vector3' or type(coords) == 'vector4',
+        KoraLang('Modules.Teleport.teleport_coordinates_vec')
+    )
+    assert(
+        Kora.util.isFiniteNumber(coords.x)
+                    and Kora.util.isFiniteNumber(coords.y)
+                    and Kora.util.isFiniteNumber(coords.z),
+        KoraLang('Modules.Teleport.teleport_coordinates_req')
+    )
 end
 
 local function finiteOrDefault(value, default, label)
     if value == nil then return default end
-    assert(Kora.util.isFiniteNumber(value), ('%s must be a finite number.'):format(label))
+    assert(Kora.util.isFiniteNumber(value), KoraLang('Modules.Teleport.s_finite', label))
     return value
 end
 
@@ -17,16 +23,24 @@ end
 ---@param opts? KoraTeleportOptions
 ---@return boolean success
 function Kora.teleport.entity(entity, coords, opts)
-    assert(Kora.util.isInteger(entity) and entity > 0 and DoesEntityExist(entity), ('Invalid entity: %s'):format(entity))
+    assert(
+        Kora.util.isInteger(entity) and entity > 0 and DoesEntityExist(entity),
+        KoraLang('Modules.Teleport.invalid_entity_s', entity)
+    )
     assertCoords(coords)
-    assert(opts == nil or type(opts) == 'table', 'Teleport options must be a table.')
+    assert(opts == nil or type(opts) == 'table', KoraLang('Modules.Teleport.teleport_options'))
     opts = opts or {}
-    assert(opts.fade == nil or opts.fade == false or opts.fade == true or Kora.util.isFiniteNumber(opts.fade),
-        'Teleport fade must be false, true, or a finite number.')
+    assert(
+        opts.fade == nil
+                    or opts.fade == false
+                    or opts.fade == true
+                    or Kora.util.isFiniteNumber(opts.fade),
+        KoraLang('Modules.Teleport.teleport_fade_false')
+    )
     local heading = coords.w
     if heading == nil then heading = coords.heading end
     if heading ~= nil then
-        assert(Kora.util.isFiniteNumber(heading), 'Teleport heading must be a finite number.')
+        assert(Kora.util.isFiniteNumber(heading), KoraLang('Modules.Teleport.teleport_heading_finite'))
     end
 
     local function move()
@@ -63,10 +77,15 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.teleport.toWaypoint(opts)
-    assert(opts == nil or type(opts) == 'table', 'Waypoint teleport options must be a table.')
+    assert(opts == nil or type(opts) == 'table', KoraLang('Modules.Teleport.waypoint_teleport_option'))
     opts = opts or {}
-    assert(opts.fade == nil or opts.fade == false or opts.fade == true or Kora.util.isFiniteNumber(opts.fade),
-        'Waypoint teleport fade must be false, true, or a finite number.')
+    assert(
+        opts.fade == nil
+                    or opts.fade == false
+                    or opts.fade == true
+                    or Kora.util.isFiniteNumber(opts.fade),
+        KoraLang('Modules.Teleport.waypoint_teleport_fade')
+    )
 
     local waypoint, waypointError = Kora.world.getWaypointCoords()
     if not waypoint then return false, waypointError end

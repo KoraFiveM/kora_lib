@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useEffect, useRef, useState } from "react"
 
 import type { CancelledAttempt, WordGuessAttempt, WordGuessLetter, WordGuessPuzzle } from "@/lib/types"
@@ -21,6 +22,7 @@ interface WordGuessGameProps {
  * the end of the round.
  */
 export function WordGuessGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: WordGuessGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const guessesRef = useRef<WordGuessLetter[]>([])
@@ -61,15 +63,15 @@ export function WordGuessGame({ puzzle, attempt, attempts, timeLimit, lastResult
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Word Guess &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleWordguess, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
-                <p className="text-sm text-muted-foreground">Hint: {puzzle.hint}</p>
+                <p className="text-sm text-muted-foreground">{labels.hintPrefix} {puzzle.hint}</p>
 
                 <div className="flex flex-wrap justify-center gap-1">
                     {Array.from({ length: puzzle.length }).map((_, i) => (
@@ -78,12 +80,10 @@ export function WordGuessGame({ puzzle, attempt, attempts, timeLimit, lastResult
                 </div>
 
                 <p className="text-center text-xs text-muted-foreground">
-                    Guessed: {guessed.join(", ").toUpperCase() || "—"} ({Math.max(0, puzzle.guesses - guessed.length)} guesses left)
+                    {labels.guessedPrefix} {guessed.join(", ").toUpperCase() || "—"} ({formatMinigameLabel(labels.guessesLeft, Math.max(0, puzzle.guesses - guessed.length))})
                 </p>
 
-                <p className="text-xs text-muted-foreground">
-                    Type a letter to guess it. Press <span className="font-medium text-foreground">Esc</span> to cancel.
-                </p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.typeLetterInstruction, "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

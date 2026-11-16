@@ -72,27 +72,24 @@ end
 ---@param payload KoraProgressBarPayload
 local function assertPayload(payload)
     assert(type(payload) == "table", "Progress bar payload must be a table.")
-    assert(type(payload.label) == "string" and #payload.label > 0, "Progress bar requires a label string.")
-    assert(isInteger(payload.duration) and payload.duration > 0, "Progress bar duration must be a positive integer.")
+    assert(type(payload.label) == "string" and #payload.label > 0, KoraLang('Modules.Progressbar.validation_progress_bar_requires_a_label_string'))
+    assert(isInteger(payload.duration) and payload.duration > 0, KoraLang('Modules.Progressbar.validation_progress_bar_duration_must_be_a_positive_int'))
     assert(payload.maxDuration == nil or payload.maxDuration == false
-        or (isInteger(payload.maxDuration) and payload.maxDuration > 0),
-        "Progress bar maxDuration must be a positive integer or false.")
+        or (isInteger(payload.maxDuration) and payload.maxDuration > 0), KoraLang('Modules.Progressbar.validation_progress_bar_maxduration_must_be_a_positive'))
     local maxDuration = payload.maxDuration == nil and Config.progressbar.maxDuration or payload.maxDuration
     assert(maxDuration == false or payload.duration <= maxDuration,
         ("Progress bar duration must be at most %d ms."):format(maxDuration or Config.progressbar.maxDuration))
     assert(payload.canCancel == nil or type(payload.canCancel) == "boolean",
         "Progress bar canCancel must be a boolean.")
-    assert(payload.cancelControls == nil or payload.cancelControls == false or type(payload.cancelControls) == 'table',
-        'Progress bar cancelControls must be an array or false.')
+    assert(payload.cancelControls == nil or payload.cancelControls == false or type(payload.cancelControls) == 'table', KoraLang('Modules.Progressbar.validation_progress_bar_cancelcontrols_must_be_an_array'))
     if type(payload.cancelControls) == 'table' then
         local count = 0
         for key, control in pairs(payload.cancelControls) do
-            assert(type(key) == 'number' and key >= 1 and key % 1 == 0,
-                'Progress bar cancelControls must be a dense array.')
-            assert(isInteger(control) and control >= 0, 'Progress bar cancelControls entries must be non-negative integers.')
+            assert(type(key) == 'number' and key >= 1 and key % 1 == 0, KoraLang('Modules.Progressbar.validation_progress_bar_cancelcontrols_must_be_a_dense'))
+            assert(isInteger(control) and control >= 0, KoraLang('Modules.Progressbar.validation_progress_bar_cancelcontrols_entries_must_be'))
             count = count + 1
         end
-        assert(count == #payload.cancelControls, 'Progress bar cancelControls must be a dense array.')
+        assert(count == #payload.cancelControls, KoraLang('Modules.Progressbar.validation_progress_bar_cancelcontrols_must_be_a_dense'))
     end
     for i = 1, #BEHAVIOUR_FIELDS do
         local field = BEHAVIOUR_FIELDS[i]
@@ -101,10 +98,9 @@ local function assertPayload(payload)
     end
     assert(payload.presentation == nil or payload.presentation == 'bar' or payload.presentation == 'circle',
         "Progress bar presentation must be 'bar' or 'circle'.")
-    assert(payload.position == nil or payload.position == 'middle' or payload.position == 'bottom',
-        "Progress bar position must be 'middle' or 'bottom'.")
+    assert(payload.position == nil or payload.position == 'middle' or payload.position == 'bottom', KoraLang('Modules.Progressbar.validation_progress_bar_position_must_be_middle_or_bott'))
     if payload.disable then
-        assert(type(payload.disable) == 'table', 'Progress bar disable must be a table.')
+        assert(type(payload.disable) == 'table', KoraLang('Modules.Progressbar.validation_progress_bar_disable_must_be_a_table'))
         for i = 1, #DISABLE_FIELDS do
             local field = DISABLE_FIELDS[i]
             assert(payload.disable[field] == nil or type(payload.disable[field]) == 'boolean',
@@ -113,18 +109,14 @@ local function assertPayload(payload)
         assert(payload.disable.moveMode == nil or payload.disable.moveMode == 'freeze' or payload.disable.moveMode == 'controls',
             "Progress bar disable.moveMode must be 'freeze' or 'controls'.")
         assert(payload.disable.controlProfile == nil or payload.disable.controlProfile == 'kora_lib'
-            or payload.disable.controlProfile == 'kora_lib' or payload.disable.controlProfile == 'ox',
-            "Progress bar disable.controlProfile must be 'kora_lib' or 'ox'.")
+            or payload.disable.controlProfile == 'kora_lib' or payload.disable.controlProfile == 'ox', KoraLang('Modules.Progressbar.validation_progress_bar_disable_controlprofile_must_be'))
     end
 
     if payload.anim then
-        assert(type(payload.anim) == "table" and type(payload.anim.dict) == "string" and type(payload.anim.clip) == "string",
-            "Progress bar anim requires string dict/clip fields.")
-        assert(payload.anim.duration == nil or isInteger(payload.anim.duration), 'Progress bar anim duration must be an integer.')
-        assert(payload.anim.playbackRate == nil or isFiniteNumber(payload.anim.playbackRate),
-            'Progress bar anim playbackRate must be a finite number.')
-        assert(payload.anim.stopBlendOut == nil or isFiniteNumber(payload.anim.stopBlendOut),
-            'Progress bar anim stopBlendOut must be a finite number.')
+        assert(type(payload.anim) == "table" and type(payload.anim.dict) == "string" and type(payload.anim.clip) == "string", KoraLang('Modules.Progressbar.validation_progress_bar_anim_requires_string_dict_clip'))
+        assert(payload.anim.duration == nil or isInteger(payload.anim.duration), KoraLang('Modules.Progressbar.validation_progress_bar_anim_duration_must_be_an_intege'))
+        assert(payload.anim.playbackRate == nil or isFiniteNumber(payload.anim.playbackRate), KoraLang('Modules.Progressbar.validation_progress_bar_anim_playbackrate_must_be_a_fin'))
+        assert(payload.anim.stopBlendOut == nil or isFiniteNumber(payload.anim.stopBlendOut), KoraLang('Modules.Progressbar.validation_progress_bar_anim_stopblendout_must_be_a_fin'))
         for i = 1, #ANIM_LOCK_FIELDS do
             local field = ANIM_LOCK_FIELDS[i]
             assert(payload.anim[field] == nil or type(payload.anim[field]) == 'boolean',
@@ -133,19 +125,17 @@ local function assertPayload(payload)
     end
     assert(payload.strictAnim == nil or type(payload.strictAnim) == 'boolean',
         'Progress bar strictAnim must be a boolean.')
-    assert(payload.emote == nil or type(payload.emote) == 'string', 'Progress bar emote must be a string.')
+    assert(payload.emote == nil or type(payload.emote) == 'string', KoraLang('Modules.Progressbar.validation_progress_bar_emote_must_be_a_string'))
 
     if payload.scenario then
-        assert(type(payload.scenario) == "table" and type(payload.scenario.name) == "string" and #payload.scenario.name > 0,
-            "Progress bar scenario requires a string name field.")
+        assert(type(payload.scenario) == "table" and type(payload.scenario.name) == "string" and #payload.scenario.name > 0, KoraLang('Modules.Progressbar.validation_progress_bar_scenario_requires_a_string_name'))
     end
 
-    assert(not (payload.anim and payload.scenario), "Progress bar cannot play both anim and scenario -- pick one.")
+    assert(not (payload.anim and payload.scenario), KoraLang('Modules.Progressbar.validation_progress_bar_cannot_play_both_anim_and_scena'))
 
     if payload.props ~= nil then
-        assert(type(payload.props) == "table", "Progress bar props must be an array.")
-        assert(payload.maxProps == nil or payload.maxProps == false or (isInteger(payload.maxProps) and payload.maxProps > 0),
-            "Progress bar maxProps must be a positive integer or false.")
+        assert(type(payload.props) == "table", KoraLang('Modules.Progressbar.validation_progress_bar_props_must_be_an_array'))
+        assert(payload.maxProps == nil or payload.maxProps == false or (isInteger(payload.maxProps) and payload.maxProps > 0), KoraLang('Modules.Progressbar.validation_progress_bar_maxprops_must_be_a_positive_int'))
         local maxProps = payload.maxProps == nil and Config.progressbar.maxProps or payload.maxProps
         assert(maxProps == false or #payload.props <= maxProps,
             ("Progress bar supports at most %d props."):format(maxProps or Config.progressbar.maxProps))
@@ -156,7 +146,7 @@ local function assertPayload(payload)
                 "Progress bar props must be a dense array.")
             propCount = propCount + 1
         end
-        assert(propCount == #payload.props, "Progress bar props must be a dense array.")
+        assert(propCount == #payload.props, KoraLang('Modules.Progressbar.validation_progress_bar_props_must_be_a_dense_array'))
 
         for index = 1, #payload.props do assertProp(payload.props[index], index, false) end
     end
@@ -340,9 +330,9 @@ function Kora.progressbar.start(payload, owner, hooks)
     Kora.progressbar.validate(payload)
     assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Progress bar owner must be a non-empty string.')
     if hooks then
-        assert(hooks.networkedProps == nil or type(hooks.networkedProps) == 'boolean', 'Networked props flag must be boolean.')
+        assert(hooks.networkedProps == nil or type(hooks.networkedProps) == 'boolean', KoraLang('Modules.Progressbar.validation_networked_props_flag_must_be_boolean'))
         for _, name in ipairs({ 'onStart', 'onTick', 'isFinished' }) do
-            assert(hooks[name] == nil or Kora.compat.isCallable(hooks[name]), 'Progress hook must be callable.')
+            assert(hooks[name] == nil or Kora.compat.isCallable(hooks[name]), KoraLang('Modules.Progressbar.validation_progress_hook_must_be_callable'))
         end
     end
     local cancelControls = payload.cancelControls == nil and Config.progressbar.cancelControls or payload.cancelControls

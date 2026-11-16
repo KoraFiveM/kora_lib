@@ -111,7 +111,10 @@ local function reset()
 end
 
 local function lastMessage()
-    return nuiMessages[#nuiMessages]
+    for index = #nuiMessages, 1, -1 do
+        local message = nuiMessages[index]
+        if message.action ~= "kora_lib:nui:locales" then return message end
+    end
 end
 
 harness.test("open sends compact labels without taking NUI focus", function()

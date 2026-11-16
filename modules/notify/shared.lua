@@ -59,34 +59,34 @@ local ICON_ANIMATIONS = {
 ---Validates a notify payload, raising an assertion error if it's malformed.
 ---@param payload KoraNotifyPayload
 function Kora.notify.assert(payload)
-    assert(type(payload) == "table", "Notify payload must be a table.")
+    assert(type(payload) == "table", KoraLang('Modules.Notify.payload_invalid'))
 
     local title = payload.title
     local message = payload.message
     local duration = payload.duration
     if duration == nil then duration = Config.notify.defaultDuration end
 
-    assert(title == nil or type(title) == "string", "Notification title must be a string.")
-    assert(message == nil or type(message) == "string", "Notification message must be a string.")
-    assert(title or message, "Notifications require a title or message.")
-    assert(Kora.util.isInteger(duration), "Duration must be a finite integer.")
-    assert(duration > 0, "Duration must be greater than 0.")
+    assert(title == nil or type(title) == "string", KoraLang('Modules.Notify.title_invalid'))
+    assert(message == nil or type(message) == "string", KoraLang('Modules.Notify.message_invalid'))
+    assert(title or message, KoraLang('Modules.Notify.content_required'))
+    assert(Kora.util.isInteger(duration), KoraLang('Modules.Notify.duration_invalid'))
+    assert(duration > 0, KoraLang('Modules.Notify.duration_positive'))
     assert(duration <= Config.notify.maxDuration,
-        ("Duration must be at most %d ms (Config.notify.maxDuration)."):format(Config.notify.maxDuration))
+        KoraLang('Modules.Notify.duration_max', Config.notify.maxDuration))
 
     assert(payload.type == nil or NOTIFY_TYPES[Kora.notify.normalizeType(payload.type)],
-        ("Notification type must be one of info/success/warning/error, got: %s"):format(tostring(payload.type)))
+        KoraLang('Modules.Notify.type_invalid', tostring(payload.type)))
     assert(payload.position == nil or NOTIFY_POSITIONS[payload.position],
-        ("Notification position must be one of top/bottom + left/center/right, got: %s"):format(tostring(payload.position)))
-    assert(payload.icon == nil or type(payload.icon) == "string", "Notification icon must be a string.")
+        KoraLang('Modules.Notify.position_invalid', tostring(payload.position)))
+    assert(payload.icon == nil or type(payload.icon) == "string", KoraLang('Modules.Notify.icon_invalid'))
     assert(payload.id == nil or Kora.util.isFiniteNumber(payload.id) or (type(payload.id) == "string" and payload.id ~= ""),
-        "Notification id must be a finite number or non-empty string.")
-    assert(payload.iconColor == nil or type(payload.iconColor) == "string", "Notification iconColor must be a string.")
-    assert(payload.iconAnimation == nil or ICON_ANIMATIONS[payload.iconAnimation], "Notification iconAnimation is unsupported.")
+        KoraLang('Modules.Notify.id_invalid'))
+    assert(payload.iconColor == nil or type(payload.iconColor) == "string", KoraLang('Modules.Notify.icon_color_invalid'))
+    assert(payload.iconAnimation == nil or ICON_ANIMATIONS[payload.iconAnimation], KoraLang('Modules.Notify.icon_animation_invalid'))
     assert(payload.alignIcon == nil or payload.alignIcon == "top" or payload.alignIcon == "center",
-        "Notification alignIcon must be top or center.")
-    assert(payload.style == nil or type(payload.style) == "table", "Notification style must be a table.")
-    assert(payload.showDuration == nil or type(payload.showDuration) == "boolean", "Notification showDuration must be a boolean.")
+        KoraLang('Modules.Notify.align_invalid'))
+    assert(payload.style == nil or type(payload.style) == "table", KoraLang('Modules.Notify.style_invalid'))
+    assert(payload.showDuration == nil or type(payload.showDuration) == "boolean", KoraLang('Modules.Notify.show_duration_invalid'))
 end
 
 ---Fills in configured defaults so the NUI always receives a resolved `type`/`position`.

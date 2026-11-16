@@ -5,21 +5,19 @@ local function isStarted()
 end
 
 local function assertSource(src)
-    assert(Kora.util.isInteger(src) and src > 0, 'src must be a positive integer player ID.')
+    assert(Kora.util.isInteger(src) and src > 0, KoraLang('Modules.Skills.validation_src_must_be_a_positive_integer_player_id'))
 end
 
 local function assertSkill(skill)
-    assert(type(skill) == 'string' and skill ~= '', 'skill must be a non-empty string.')
+    assert(type(skill) == 'string' and skill ~= '', KoraLang('Modules.Skills.validation_skill_must_be_a_non_empty_string'))
 end
 
 local function assertLocation(location, distance)
     if location ~= nil then
         assert(location and Kora.util.isFiniteNumber(location.x)
-            and Kora.util.isFiniteNumber(location.y) and Kora.util.isFiniteNumber(location.z),
-            'location must have finite x, y, and z values.')
+            and Kora.util.isFiniteNumber(location.y) and Kora.util.isFiniteNumber(location.z), KoraLang('Modules.Skills.validation_location_must_have_finite_x_y_and_z_values'))
     end
-    assert(distance == nil or (Kora.util.isFiniteNumber(distance) and distance > 0),
-        'distance must be a positive finite number.')
+    assert(distance == nil or (Kora.util.isFiniteNumber(distance) and distance > 0), KoraLang('Modules.Skills.validation_distance_must_be_a_positive_finite_number'))
 end
 
 ---@return boolean
@@ -52,7 +50,7 @@ end
 function Kora.skills.hasLevel(src, skill, level)
     assertSource(src)
     assertSkill(skill)
-    assert(Kora.util.isInteger(level) and level > 0, 'level must be a positive integer.')
+    assert(Kora.util.isInteger(level) and level > 0, KoraLang('Modules.Skills.validation_level_must_be_a_positive_integer'))
     if not isStarted() then return false end
     return exports[RESOURCE]:isLevel(src, skill, level) == true
 end
@@ -66,7 +64,7 @@ end
 function Kora.skills.add(src, skill, amount, location, distance)
     assertSource(src)
     assertSkill(skill)
-    assert(Kora.util.isInteger(amount) and amount > 0, 'amount must be a positive integer.')
+    assert(Kora.util.isInteger(amount) and amount > 0, KoraLang('Modules.Skills.validation_amount_must_be_a_positive_integer'))
     assertLocation(location, distance)
     if not isStarted() then return false, 'kora_skills is not started' end
     return exports[RESOURCE]:addRep(src, skill, amount, location, distance)
@@ -80,8 +78,8 @@ end
 function Kora.skills.adjustMinigame(src, skill, gameType, resolvedOptions)
     assertSource(src)
     assertSkill(skill)
-    assert(type(gameType) == 'string' and gameType ~= '', 'gameType must be a non-empty string.')
-    assert(type(resolvedOptions) == 'table', 'resolvedOptions must be a table.')
+    assert(type(gameType) == 'string' and gameType ~= '', KoraLang('Modules.Skills.validation_gametype_must_be_a_non_empty_string'))
+    assert(type(resolvedOptions) == 'table', KoraLang('Modules.Skills.validation_resolvedoptions_must_be_a_table'))
     if not isStarted() then return resolvedOptions, nil end
 
     local adjusted, skillData = exports[RESOURCE]:getSkillCheckOptions(src, skill, gameType, resolvedOptions)

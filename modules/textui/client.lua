@@ -22,23 +22,37 @@ local ICON_ANIMATIONS = {
 }
 
 local function normalize(text, options)
-    assert(type(text) == 'string' and #text > 0, 'Text UI text must be a non-empty string.')
-    assert(options == nil or type(options) == 'table', 'Text UI options must be a table.')
+    assert(type(text) == 'string' and #text > 0, KoraLang('Modules.Textui.text_ui_text'))
+    assert(options == nil or type(options) == 'table', KoraLang('Modules.Textui.text_ui_options'))
     options = options or {}
 
     local position = options.position
     if position == nil then position = 'right-center' end
-    assert(POSITIONS[position], 'Text UI position must be left-center, right-center, top-center, or bottom-center.')
-    assert(options.key == nil or (type(options.key) == 'string' and #options.key > 0),
-        'Text UI key must be a non-empty string.')
-    assert(options.icon == nil or (type(options.icon) == 'string' and #options.icon > 0),
-        'Text UI icon must be a non-empty string.')
-    assert(options.iconColor == nil or type(options.iconColor) == 'string', 'Text UI iconColor must be a string.')
-    assert(options.iconAnimation == nil or ICON_ANIMATIONS[options.iconAnimation], 'Text UI iconAnimation is unsupported.')
-    assert(options.alignIcon == nil or options.alignIcon == 'top' or options.alignIcon == 'center',
-        'Text UI alignIcon must be top or center.')
-    assert(options.style == nil or type(options.style) == 'table' or type(options.style) == 'string',
-        'Text UI style must be a table or CSS declaration string.')
+    assert(POSITIONS[position], KoraLang('Modules.Textui.text_ui_position'))
+    assert(
+        options.key == nil or (type(options.key) == 'string' and #options.key > 0),
+        KoraLang('Modules.Textui.text_ui_key')
+    )
+    assert(
+        options.icon == nil or (type(options.icon) == 'string' and #options.icon > 0),
+        KoraLang('Modules.Textui.text_ui_icon')
+    )
+    assert(
+        options.iconColor == nil or type(options.iconColor) == 'string',
+        KoraLang('Modules.Textui.text_ui_iconcolor')
+    )
+    assert(
+        options.iconAnimation == nil or ICON_ANIMATIONS[options.iconAnimation],
+        KoraLang('Modules.Textui.text_ui_iconanimation')
+    )
+    assert(
+        options.alignIcon == nil or options.alignIcon == 'top' or options.alignIcon == 'center',
+        KoraLang('Modules.Textui.text_ui_alignicon')
+    )
+    assert(
+        options.style == nil or type(options.style) == 'table' or type(options.style) == 'string',
+        KoraLang('Modules.Textui.text_ui_style')
+    )
 
     return {
         text = text,
@@ -106,7 +120,7 @@ end)
 ---@return integer id
 function Kora.textui.show(text, opts, owner)
     local entry = normalize(text, opts)
-    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), 'Text UI owner must be a non-empty string.')
+    assert(owner == nil or (type(owner) == 'string' and owner ~= ''), KoraLang('Modules.Textui.text_ui_owner'))
     nextId = nextId + 1
     local id = nextId
 
@@ -123,7 +137,7 @@ end
 ---@param opts? KoraTextUIOptions
 ---@return boolean updated
 function Kora.textui.update(id, text, opts)
-    assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')
+    assert(type(id) == 'number' and id % 1 == 0, KoraLang('Modules.Textui.text_ui_id'))
     if not entries[id] then return false end
     local caller = GetInvokingResource()
     if caller and registry.owner(id) ~= caller then return false end
@@ -137,7 +151,7 @@ end
 ---@param id integer
 ---@return boolean removed
 function Kora.textui.hide(id)
-    assert(type(id) == 'number' and id % 1 == 0, 'Text UI id must be an integer.')
+    assert(type(id) == 'number' and id % 1 == 0, KoraLang('Modules.Textui.text_ui_id'))
     local caller = GetInvokingResource()
     if caller and registry.owner(id) ~= caller then return false end
     return remove(id, true)

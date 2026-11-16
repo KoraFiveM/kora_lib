@@ -65,13 +65,13 @@ local function resolveHeading(options, coords)
 end
 
 local function assertCreateOptions(options)
-    assert(type(options) == "table", "Entity options must be a table.")
+    assert(type(options) == "table", KoraLang('Modules.Entities.options_invalid'))
     assert(options.preset == nil or presets[options.preset] ~= nil,
-        ("Unknown entities preset: %s"):format(tostring(options.preset)))
-    assert(options.freeze == nil or type(options.freeze) == "boolean", "Entity freeze must be a boolean.")
+        KoraLang('Modules.Entities.preset_invalid', tostring(options.preset)))
+    assert(options.freeze == nil or type(options.freeze) == "boolean", KoraLang('Modules.Entities.freeze_invalid'))
     assert(options.blockNonTempEvents == nil or type(options.blockNonTempEvents) == "boolean",
-        "Entity blockNonTempEvents must be a boolean.")
-    assert(options.invincible == nil or type(options.invincible) == "boolean", "Entity invincible must be a boolean.")
+        KoraLang('Modules.Entities.events_invalid'))
+    assert(options.invincible == nil or type(options.invincible) == "boolean", KoraLang('Modules.Entities.invincible_invalid'))
 end
 
 ---Spawns a local, non-networked entity visible only to the calling client. Type (ped/vehicle/object)
@@ -82,12 +82,12 @@ end
 ---@return number | false entity The created entity handle, or false if the model never loaded or the entity failed to create.
 ---@return string? error
 local function createForResource(model, coords, options, invokingResource)
-    assert(options == nil or type(options) == "table", "Entity options must be a table.")
+    assert(options == nil or type(options) == "table", KoraLang('Modules.Entities.options_invalid'))
     options = options or {}
     assertCreateOptions(options)
 
     assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
-        "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
+        KoraLang('Modules.Entities.coords_invalid'))
 
     local preset = options.preset and presets[options.preset]
 
@@ -95,7 +95,7 @@ local function createForResource(model, coords, options, invokingResource)
     local blockNonTempEvents = resolveOverride(options.blockNonTempEvents, preset and preset.blockNonTempEvents)
     local invincible = resolveOverride(options.invincible, preset and preset.invincible)
     local heading = resolveHeading(options, coords)
-    assert(isFiniteNumber(heading), "Entity heading must be a finite number.")
+    assert(isFiniteNumber(heading), KoraLang('Modules.Entities.heading_invalid'))
 
     local entity
 
@@ -119,7 +119,7 @@ local function createForResource(model, coords, options, invokingResource)
     end
 
     if not entity then
-        return false, "Failed to create entity."
+        return false, KoraLang('Modules.Entities.create_failed')
     end
 
     return entity
@@ -166,14 +166,14 @@ end)
 ---@return KoraScopedEntityHandle scope A persistent scope handle. Read `scope.entity` for the current entity handle, or nil while outside the radius.
 function Kora.entities.createScoped(model, coords, options)
     local invokingResource = GetInvokingResource() or GetCurrentResourceName()
-    assert(options == nil or type(options) == "table", "Scoped entity options must be a table.")
+    assert(options == nil or type(options) == "table", KoraLang('Modules.Entities.scoped_options_invalid'))
     options = options or {}
     assertCreateOptions(options)
 
     assert(isFiniteNumber(options.radius) and options.radius > 0,
-        "Scoped entity radius must be a finite number greater than zero.")
+        KoraLang('Modules.Entities.radius_invalid'))
     assert(coords and isFiniteNumber(coords.x) and isFiniteNumber(coords.y) and isFiniteNumber(coords.z),
-        "Invalid coords: expected a vector3/vector4 or {x, y, z} table.")
+        KoraLang('Modules.Entities.coords_invalid'))
     nextScopeId = nextScopeId + 1
 
     local scope = {
@@ -218,11 +218,11 @@ function Kora.entities.createScoped(model, coords, options)
                 scope.spawning = false
 
                 if not ok then
-                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', ("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(entity)))
+                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', KoraLang('Modules.Entities.scoped_spawn_failed', scope.id, tostring(entity)))
                     return
                 end
                 if not entity and createErr then
-                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', ("[kora_lib:entities] scoped entity %d failed to spawn: %s"):format(scope.id, tostring(createErr)))
+                    Kora.logging.error('lib.client.scoped_entity_failed_to_spawn', KoraLang('Modules.Entities.scoped_spawn_failed', scope.id, tostring(createErr)))
                 end
 
                 if scope.removed or not scope.inside then
@@ -257,20 +257,20 @@ end
 ---@return boolean success
 ---@return string? error
 function Kora.entities.remove(entity)
-    assert(type(entity) == "number", ("Invalid entity: %s"):format(entity))
+    assert(type(entity) == "number", KoraLang('Modules.Entities.entity_invalid', entity))
 
     local owner = entityRegistry.owner(entity)
     if not owner then
-        return false, "Entity is not tracked by Kora.entities."
+        return false, KoraLang('Modules.Entities.not_tracked')
     end
     if owner ~= (GetInvokingResource() or GetCurrentResourceName()) then
-        return false, "Entity is not owned by the calling resource."
+        return false, KoraLang('Modules.Entities.not_owned')
     end
 
     entityRegistry.untrack(entity)
 
     if not DoesEntityExist(entity) then
-        return false, "Entity does not exist."
+        return false, KoraLang('Modules.Entities.entity_missing')
     end
 
     DeleteEntity(entity)
@@ -286,10 +286,10 @@ end
 ---@return boolean controlled
 ---@return string? error
 function Kora.entities.requestControl(entity, timeout)
-    assert(type(entity) == 'number' and entity ~= 0, ('Invalid entity: %s'):format(entity))
+    assert(type(entity) == 'number' and entity ~= 0, KoraLang('Modules.Entities.entity_invalid', entity))
     if timeout == nil then timeout = 1000 end
-    assert(Kora.util.isInteger(timeout) and timeout >= 0, 'Entity control timeout must be a non-negative integer.')
-    if not DoesEntityExist(entity) then return false, 'Entity does not exist.' end
+    assert(Kora.util.isInteger(timeout) and timeout >= 0, KoraLang('Modules.Entities.control_timeout_invalid'))
+    if not DoesEntityExist(entity) then return false, KoraLang('Modules.Distancecheck.entity_missing') end
     if NetworkHasControlOfEntity(entity) then return true end
 
     local controlled, err = Kora.loops.controlled(function()
@@ -308,8 +308,8 @@ end
 ---@return string? error
 function Kora.entities.delete(entity, timeout)
     local controlled, err = Kora.entities.requestControl(entity, timeout)
-    if not controlled then return false, err or 'Could not acquire entity control.' end
+    if not controlled then return false, err or KoraLang('Modules.Entities.control_failed') end
     SetEntityAsMissionEntity(entity, true, true)
     DeleteEntity(entity)
-    return not DoesEntityExist(entity), DoesEntityExist(entity) and 'Entity deletion failed.' or nil
+    return not DoesEntityExist(entity), DoesEntityExist(entity) and KoraLang('Modules.Entities.delete_failed') or nil
 end

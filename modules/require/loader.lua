@@ -1,5 +1,6 @@
-return function(currentResource)
-    assert(type(currentResource) == 'string' and currentResource ~= '', 'Current resource name not found')
+return function(currentResource, translateLabel)
+    local KoraLang = translateLabel or KoraLang
+    assert(type(currentResource) == 'string' and currentResource ~= '', KoraLang('Modules.Require.validation_current_resource_name_not_found'))
 
     local LOADING = {}
     local loaded = {}
@@ -104,7 +105,7 @@ return function(currentResource)
 
         local results = {}
         for i = 1, count do
-            assert(rawget(paths, i) ~= nil, 'paths must be a dense array of strings')
+            assert(rawget(paths, i) ~= nil, KoraLang('Modules.Require.validation_paths_must_be_a_dense_array_of_strings'))
             results[i] = requireOne(resource, paths[i])
         end
 

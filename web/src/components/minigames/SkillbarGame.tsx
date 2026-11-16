@@ -1,3 +1,4 @@
+import { useMinigameLabels, formatMinigameLabel } from '@/lib/minigameLocale'
 import { useEffect, useRef } from "react"
 
 import type { CancelledAttempt, SkillbarAttempt, SkillbarPuzzle } from "@/lib/types"
@@ -20,6 +21,7 @@ interface SkillbarGameProps {
  * triangleWave formula (see modules/minigames/AGENTS.md).
  */
 export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult, respond }: SkillbarGameProps) {
+    const labels = useMinigameLabels()
     const startRef = useRef(performance.now())
     const doneRef = useRef(false)
     const indicatorRef = useRef<HTMLDivElement>(null)
@@ -68,12 +70,12 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
             <DialogContent hideClose className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        Skill check &mdash; attempt {attempt} of {attempts}
+                        {formatMinigameLabel(labels.titleAttempt, labels.titleSkillbar, attempt, attempts)}
                     </DialogTitle>
                 </DialogHeader>
 
                 {lastResult === "fail" && (
-                    <p className="text-sm text-destructive">Last attempt failed &mdash; try again.</p>
+                    <p className="text-sm text-destructive">{labels.lastAttemptFailed}</p>
                 )}
 
                 <div className="relative h-4 overflow-hidden rounded-full bg-secondary">
@@ -88,10 +90,7 @@ export function SkillbarGame({ puzzle, attempt, attempts, timeLimit, lastResult,
                     />
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                    Press <span className="font-medium text-foreground">{puzzle.input?.toUpperCase() ?? "Space"}</span> when the indicator is inside the zone.
-                    Press <span className="font-medium text-foreground">Esc</span> to cancel.
-                </p>
+                <p className="text-xs text-muted-foreground">{formatMinigameLabel(labels.skillbarInstruction, puzzle.input?.toUpperCase() ?? "Space", "Esc")}</p>
             </DialogContent>
         </Dialog>
     )

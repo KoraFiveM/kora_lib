@@ -1,16 +1,14 @@
 local function toVec3(v)
-    assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z),
-        "Coordinates must have finite x, y, and z values.")
+    assert(v and Kora.util.isFiniteNumber(v.x) and Kora.util.isFiniteNumber(v.y) and Kora.util.isFiniteNumber(v.z), KoraLang('Modules.Raycast.validation_coordinates_must_have_finite_x_y_and_z_value'))
     return { x = v.x, y = v.y, z = v.z }
 end
 
 local function assertDistance(maxDistance)
-    assert(Kora.util.isFiniteNumber(maxDistance) and maxDistance > 0,
-        "Raycast maxDistance must be a positive finite number.")
+    assert(Kora.util.isFiniteNumber(maxDistance) and maxDistance > 0, KoraLang('Modules.Raycast.validation_raycast_maxdistance_must_be_a_positive_finit'))
 end
 
 local function assertInteger(value, name)
-    assert(Kora.util.isInteger(value), name .. " must be a finite integer.")
+    assert(Kora.util.isInteger(value), KoraLang('Modules.Raycast.integer_invalid', name))
 end
 
 ---@param rot table Euler angles in degrees, { x = pitch, y = roll, z = yaw } (GetGameplayCamRot's shape).
@@ -76,7 +74,7 @@ end
 function Kora.raycast.start(startCoords, endCoords, flags, ignoreEntity)
     startCoords = toVec3(startCoords)
     endCoords = toVec3(endCoords)
-    if flags == nil then flags = -1 else assertInteger(flags, "Raycast flags") end
+    if flags == nil then flags = -1 else assertInteger(flags, KoraLang('Modules.Raycast.validation_raycast_flags')) end
     if ignoreEntity == nil then ignoreEntity = PlayerPedId() else assertInteger(ignoreEntity, "Ignored entity") end
 
     return StartShapeTestRay(
@@ -221,7 +219,7 @@ local function runCoordGrabber(state)
                         preset = "static",
                         heading = state.heading,
                     })
-                    assert(ent, createErr or "Failed to create coordinate preview.")
+                    assert(ent, createErr or KoraLang('Modules.Raycast.preview_failed'))
 
                     state.entity = ent
                     SetEntityCollision(ent, false, false)
@@ -259,16 +257,13 @@ end
 ---@return { coords: { x: number, y: number, z: number, w?: number }, object: string|number|false }? result
 function Kora.raycast.getCoords(data)
     if data == nil then data = {} end
-    assert(type(data) == "table", "Coordinate grabber options must be a table.")
-    assert(data.type == nil or data.type == "object", "Coordinate grabber type must be 'object' when provided.")
-    assert(data.type ~= "object" or type(data.object) == "string" or Kora.util.isInteger(data.object),
-        "Coordinate grabber object must be a model name or finite integer hash.")
-    assert(data.heading == nil or Kora.util.isFiniteNumber(data.heading),
-        "Coordinate grabber heading must be a finite number.")
-    assert(data.maxDistance == nil or Kora.util.isFiniteNumber(data.maxDistance) and data.maxDistance > 0,
-        "Coordinate grabber maxDistance must be a positive finite number.")
-    assert(data.flags == nil or Kora.util.isInteger(data.flags), "Coordinate grabber flags must be a finite integer.")
-    assert(not activeCoordGrabber, "A coordinate grabber is already active.")
+    assert(type(data) == 'table', KoraLang('Modules.Raycast.options_invalid'))
+    assert(data.type == nil or data.type == "object", KoraLang('Modules.Raycast.validation_coordinate_grabber_type_must_be_object_when'))
+    assert(data.type ~= "object" or type(data.object) == "string" or Kora.util.isInteger(data.object), KoraLang('Modules.Raycast.validation_coordinate_grabber_object_must_be_a_model_na'))
+    assert(data.heading == nil or Kora.util.isFiniteNumber(data.heading), KoraLang('Modules.Raycast.validation_coordinate_grabber_heading_must_be_a_finite'))
+    assert(data.maxDistance == nil or Kora.util.isFiniteNumber(data.maxDistance) and data.maxDistance > 0, KoraLang('Modules.Raycast.validation_coordinate_grabber_maxdistance_must_be_a_pos'))
+    assert(data.flags == nil or Kora.util.isInteger(data.flags), KoraLang('Modules.Raycast.validation_coordinate_grabber_flags_must_be_a_finite_in'))
+    assert(not activeCoordGrabber, KoraLang('Modules.Raycast.validation_a_coordinate_grabber_is_already_active'))
 
     local state = {
         owner = GetInvokingResource() or GetCurrentResourceName(),

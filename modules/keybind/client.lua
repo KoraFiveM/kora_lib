@@ -13,25 +13,25 @@ local commandEvents = {
 local isCallable = Kora.compat.isCallable
 
 local function assertOptions(options)
-    assert(type(options) == 'table', 'Kora.keybind.add requires an options table.')
+    assert(type(options) == 'table', KoraLang('Modules.Keybind.options_invalid'))
     assert(type(options.name) == 'string' and options.name:match('^[%w_:%.%-]+$'),
-        'Keybind name must be a non-empty command name without whitespace.')
+        KoraLang('Modules.Keybind.name_invalid'))
     assert(type(options.description) == 'string' and options.description ~= '',
-        'Keybind description must be a non-empty string.')
+        KoraLang('Modules.Keybind.description_invalid'))
     assert(options.defaultKey == nil or type(options.defaultKey) == 'string',
-        'Keybind defaultKey must be a string.')
+        KoraLang('Modules.Keybind.default_key_invalid'))
     assert(options.defaultMapper == nil or (type(options.defaultMapper) == 'string' and options.defaultMapper ~= ''),
-        'Keybind defaultMapper must be a non-empty string.')
+        KoraLang('Modules.Keybind.default_mapper_invalid'))
     assert(options.secondaryKey == nil or type(options.secondaryKey) == 'string',
-        'Keybind secondaryKey must be a string.')
+        KoraLang('Modules.Keybind.secondary_key_invalid'))
     assert(options.secondaryMapper == nil or (type(options.secondaryMapper) == 'string' and options.secondaryMapper ~= ''),
-        'Keybind secondaryMapper must be a non-empty string.')
+        KoraLang('Modules.Keybind.secondary_mapper_invalid'))
     assert(options.disabled == nil or type(options.disabled) == 'boolean',
-        'Keybind disabled must be a boolean.')
-    assert(options.onPressed == nil or isCallable(options.onPressed), 'Keybind onPressed must be callable.')
-    assert(options.onReleased == nil or isCallable(options.onReleased), 'Keybind onReleased must be callable.')
+        KoraLang('Modules.Keybind.disabled_invalid'))
+    assert(options.onPressed == nil or isCallable(options.onPressed), KoraLang('Modules.Keybind.on_pressed_invalid'))
+    assert(options.onReleased == nil or isCallable(options.onReleased), KoraLang('Modules.Keybind.on_released_invalid'))
     assert(options.onPressed ~= nil or options.onReleased ~= nil,
-        'Keybind requires onPressed, onReleased, or both.')
+        KoraLang('Modules.Keybind.callback_required'))
 end
 
 local function safeCall(definition, phase)
@@ -40,7 +40,7 @@ local function safeCall(definition, phase)
 
     local ok, err = pcall(handler, definition.handle)
     if not ok then
-        Kora.logging.error('lib.client.diagnostic', ("^3[kora_lib:keybind]^7 '%s' %s callback errored: %s")
+        Kora.logging.error('lib.client.diagnostic', KoraLang('Modules.Keybind.callback_error')
             :format(definition.name, phase, tostring(err)))
     end
 end
@@ -75,7 +75,7 @@ local function createHandle(definition)
     }
 
     handle.disable = function(toggle)
-        assert(type(toggle) == 'boolean', 'Keybind disabled state must be a boolean.')
+        assert(type(toggle) == 'boolean', KoraLang('Modules.Keybind.disabled_state_invalid'))
         if bindings[definition.name] ~= definition then return false end
         definition.disabled = toggle
         if toggle then definition.pressed = false end
@@ -146,7 +146,7 @@ local function add(options, resourceOverride)
     local owner = resourceOverride or GetInvokingResource() or GetCurrentResourceName()
     local previousOwner = ownership.owner(name)
     if previousOwner and previousOwner ~= owner then
-        Kora.logging.warn('lib.client.diagnostic', ("^3[kora_lib:keybind]^7 '%s' was registered by '%s' and is being overwritten by '%s'.")
+        Kora.logging.warn('lib.client.diagnostic', KoraLang('Modules.Keybind.overwritten')
             :format(name, previousOwner, owner))
     end
 
@@ -182,7 +182,7 @@ end
 ---@param name string
 ---@return boolean removed
 function Kora.keybind.remove(name)
-    assert(type(name) == 'string' and name ~= '', 'Keybind name must be a non-empty string.')
+    assert(type(name) == 'string' and name ~= '', KoraLang('Modules.Keybind.remove_name_invalid'))
     if ownership.owner(name) ~= (GetInvokingResource() or GetCurrentResourceName()) then return false end
     return removeDefinition(name)
 end
@@ -225,7 +225,7 @@ local function addCommandBinding(name, options)
     }, options.resource or GetCurrentResourceName())
 
     if not ok then
-        Kora.logging.warn('lib.client.could_not_register_key_mapping_for', ("^3[kora_lib:commands]^7 could not register key mapping for /%s: %s"):format(name, tostring(handle)))
+        Kora.logging.warn('lib.client.could_not_register_key_mapping_for', KoraLang('Modules.Keybind.mapping_failed', name, tostring(handle)))
         return
     end
     commandBindings[name] = handle

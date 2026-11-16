@@ -22,8 +22,13 @@ local debugThreadStarted = false
 
 local function toVec3(v)
     local ok, x, y, z = pcall(function() return v.x, v.y, v.z end)
-    assert(ok and Kora.util.isFiniteNumber(x) and Kora.util.isFiniteNumber(y) and Kora.util.isFiniteNumber(z),
-        "Coordinates must be a vector3, glm.vec3, or {x=,y=,z=} table.")
+    assert(
+        ok
+                    and Kora.util.isFiniteNumber(x)
+                    and Kora.util.isFiniteNumber(y)
+                    and Kora.util.isFiniteNumber(z),
+        KoraLang('Modules.Zones.coordinates_vector3_glm')
+    )
     return { x = x, y = y, z = z }
 end
 
@@ -204,7 +209,7 @@ local function buildHandle(zone)
         contains = function(coords) return containsFn[zone.type](zone, toVec3(coords)) end,
         isInside = function() return zone.isInside end,
         setDebug = function(enabled)
-            assert(type(enabled) == "boolean", "enabled must be a boolean.")
+            assert(type(enabled) == "boolean", KoraLang('Modules.Zones.enabled_boolean'))
             if not canManageZone(zone) then return false end
             setZoneDebug(zone, enabled)
             return true
@@ -213,39 +218,30 @@ local function buildHandle(zone)
 end
 
 local function editZone(handle, opts)
-    assert(type(handle) == "table", "Zone handle must be a table.")
-    assert(type(opts) == "table", "Zone edit options must be a table.")
+    assert(type(handle) == "table", KoraLang('Modules.Zones.zone_handle'))
+    assert(type(opts) == "table", KoraLang('Modules.Zones.zone_edit_options'))
 
     local zone = zoneRegistry[handle.id]
 
-    assert(zone and not zone.removed, "Zone handle is invalid or the zone has been removed.")
+    assert(zone and not zone.removed, KoraLang('Modules.Zones.zone_handle_invalid'))
     if not canManageZone(zone) then return nil, "Zone is owned by another resource." end
 
     for key in pairs(opts) do
-        assert(
-            key == "coords" or key == "onEnter" or key == "onExit",
-            ("Zone edit does not allow changing '%s'. Only coords, onEnter, and onExit can be edited."):format(key)
-        )
+        assert(key == "coords" or key == "onEnter" or key == "onExit", KoraLang('Modules.Zones.zone_edit_does', key))
     end
 
     local coords
     if opts.coords ~= nil then
-        assert(zone.type ~= "poly", "Poly zones do not have editable coords; edit their points instead.")
+        assert(zone.type ~= "poly", KoraLang('Modules.Zones.poly_zones_do'))
         coords = toVec3(opts.coords)
     end
 
     if opts.onEnter ~= nil then
-        assert(
-            opts.onEnter == false or isCallable(opts.onEnter),
-            "onEnter must be a function or false."
-        )
+        assert(opts.onEnter == false or isCallable(opts.onEnter), KoraLang('Modules.Zones.onenter_function_false'))
     end
 
     if opts.onExit ~= nil then
-        assert(
-            opts.onExit == false or isCallable(opts.onExit),
-            "onExit must be a function or false."
-        )
+        assert(opts.onExit == false or isCallable(opts.onExit), KoraLang('Modules.Zones.onexit_function_false'))
     end
 
     if coords ~= nil and (coords.x ~= zone.coords.x or coords.y ~= zone.coords.y or coords.z ~= zone.coords.z) then
@@ -304,24 +300,27 @@ local function safeCall(zone, label, fn, ...)
 end
 
 local function assertCommonOptions(opts)
-    assert(type(opts) == "table", "Zone options must be a table.")
-    assert(opts.onEnter == nil or isCallable(opts.onEnter), "onEnter must be a function.")
-    assert(opts.onExit == nil or isCallable(opts.onExit), "onExit must be a function.")
-    assert(opts.inside == nil or isCallable(opts.inside), "inside must be a function.")
-    assert(opts.debug == nil or type(opts.debug) == "boolean", "debug must be a boolean.")
-    assert(opts.trackPlayer == nil or type(opts.trackPlayer) == "boolean", "trackPlayer must be a boolean.")
+    assert(type(opts) == "table", KoraLang('Modules.Zones.zone_options'))
+    assert(opts.onEnter == nil or isCallable(opts.onEnter), KoraLang('Modules.Zones.onenter_function'))
+    assert(opts.onExit == nil or isCallable(opts.onExit), KoraLang('Modules.Zones.onexit_function'))
+    assert(opts.inside == nil or isCallable(opts.inside), KoraLang('Modules.Zones.inside_function'))
+    assert(opts.debug == nil or type(opts.debug) == "boolean", KoraLang('Modules.Zones.debug_boolean'))
+    assert(
+        opts.trackPlayer == nil or type(opts.trackPlayer) == "boolean",
+        KoraLang('Modules.Zones.trackplayer_boolean')
+    )
 end
 
 local function initBox(zone, opts)
-    assert(opts.coords, "Box zone requires coords.")
-    assert(opts.size, "Box zone requires size.")
-    assert(opts.rotation == nil or Kora.util.isFiniteNumber(opts.rotation), "rotation must be a finite number.")
-    assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", "ignoreZ must be a boolean.")
+    assert(opts.coords, KoraLang('Modules.Zones.box_zone_coords'))
+    assert(opts.size, KoraLang('Modules.Zones.box_zone_size'))
+    assert(opts.rotation == nil or Kora.util.isFiniteNumber(opts.rotation), KoraLang('Modules.Zones.rotation_finite'))
+    assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", KoraLang('Modules.Zones.ignorez_boolean'))
 
     local coords = toVec3(opts.coords)
     local size = toVec3(opts.size)
 
-    assert(size.x > 0 and size.y > 0 and size.z > 0, "Box zone size must be positive on every axis.")
+    assert(size.x > 0 and size.y > 0 and size.z > 0, KoraLang('Modules.Zones.box_zone_size_2'))
 
     local radians = -math.rad(opts.rotation or 0)
 
@@ -343,9 +342,12 @@ local function initBox(zone, opts)
 end
 
 local function initSphere(zone, opts)
-    assert(opts.coords, "Sphere zone requires coords.")
-    assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Sphere zone requires a positive finite radius.")
-    assert(opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean", "includeBoundary must be a boolean.")
+    assert(opts.coords, KoraLang('Modules.Zones.sphere_zone_coords'))
+    assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, KoraLang('Modules.Zones.sphere_zone_positive'))
+    assert(
+        opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean",
+        KoraLang('Modules.Zones.includeboundary_boolean')
+    )
 
     local coords = toVec3(opts.coords)
 
@@ -362,9 +364,12 @@ local function initSphere(zone, opts)
 end
 
 local function initCircle(zone, opts)
-    assert(opts.coords, "Circle zone requires coords.")
-    assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, "Circle zone requires a positive finite radius.")
-    assert(opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean", "includeBoundary must be a boolean.")
+    assert(opts.coords, KoraLang('Modules.Zones.circle_zone_coords'))
+    assert(Kora.util.isFiniteNumber(opts.radius) and opts.radius > 0, KoraLang('Modules.Zones.circle_zone_positive'))
+    assert(
+        opts.includeBoundary == nil or type(opts.includeBoundary) == "boolean",
+        KoraLang('Modules.Zones.includeboundary_boolean')
+    )
 
     local coords = toVec3(opts.coords)
 
@@ -381,16 +386,19 @@ local function initCircle(zone, opts)
 end
 
 local function initPoly(zone, opts)
-    assert(type(opts.points) == "table", "Poly zone points must be a dense array.")
+    assert(type(opts.points) == "table", KoraLang('Modules.Zones.poly_zone_points'))
     local pointCount = 0
     for index in pairs(opts.points) do
-        assert(Kora.util.isInteger(index) and index >= 1, "Poly zone points must be a dense array.")
+        assert(Kora.util.isInteger(index) and index >= 1, KoraLang('Modules.Zones.poly_zone_points'))
         pointCount = pointCount + 1
     end
-    assert(pointCount >= 3 and pointCount == #opts.points, "Poly zone requires at least 3 dense points.")
-    assert(opts.thickness == nil or Kora.util.isFiniteNumber(opts.thickness), "thickness must be a finite number.")
-    assert((opts.minZ == nil) == (opts.maxZ == nil), "minZ and maxZ must both be given, or neither.")
-    assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", "ignoreZ must be a boolean.")
+    assert(pointCount >= 3 and pointCount == #opts.points, KoraLang('Modules.Zones.poly_zone_at'))
+    assert(
+        opts.thickness == nil or Kora.util.isFiniteNumber(opts.thickness),
+        KoraLang('Modules.Zones.thickness_finite')
+    )
+    assert((opts.minZ == nil) == (opts.maxZ == nil), KoraLang('Modules.Zones.minz_maxz_both'))
+    assert(opts.ignoreZ == nil or type(opts.ignoreZ) == "boolean", KoraLang('Modules.Zones.ignorez_boolean'))
 
     local points = {}
     local minX, maxX = math.huge, -math.huge
@@ -408,15 +416,15 @@ local function initPoly(zone, opts)
 
     local minZ, maxZ = opts.minZ, opts.maxZ
 
-    assert(minZ == nil or Kora.util.isFiniteNumber(minZ), "minZ must be a finite number.")
-    assert(maxZ == nil or Kora.util.isFiniteNumber(maxZ), "maxZ must be a finite number.")
+    assert(minZ == nil or Kora.util.isFiniteNumber(minZ), KoraLang('Modules.Zones.minz_finite'))
+    assert(maxZ == nil or Kora.util.isFiniteNumber(maxZ), KoraLang('Modules.Zones.maxz_finite'))
 
     if minZ == nil then
         local thickness = opts.thickness or Config.zones.defaultPolyThickness
         minZ, maxZ = lowestZ, lowestZ + thickness
     end
 
-    assert(maxZ > minZ, "maxZ must be greater than minZ.")
+    assert(maxZ > minZ, KoraLang('Modules.Zones.maxz_greater_minz'))
 
     zone.points = points
     zone.minZ = minZ
@@ -653,7 +661,7 @@ end
 ---@param opts KoraZoneSphereOptions `radius` defaults to Config.zones.defaultPointRadius.
 ---@return KoraZoneHandle zone
 function Kora.zones.point(opts)
-    assert(type(opts) == "table", "Point zone options must be a table.")
+    assert(type(opts) == "table", KoraLang('Modules.Zones.point_zone_options'))
     if opts.radius == nil then
         local pointOpts = {}
         for key, value in pairs(opts) do pointOpts[key] = value end
@@ -668,7 +676,7 @@ end
 ---@param resource? string Only return zones owned by this resource. Omit for all of them.
 ---@return KoraZoneHandle[] zones Unordered -- the registry is a hash, not a list.
 function Kora.zones.getInside(resource)
-    assert(resource == nil or type(resource) == "string", "resource filter must be a string.")
+    assert(resource == nil or type(resource) == "string", KoraLang('Modules.Zones.resource_filter'))
 
     local inside = {}
 
@@ -687,8 +695,8 @@ end
 ---@param enabled boolean
 ---@return boolean changed
 function Kora.zones.setDebug(id, enabled)
-    assert(id == nil or Kora.util.isInteger(id), "id must be a zone id or nil.")
-    assert(type(enabled) == "boolean", "enabled must be a boolean.")
+    assert(id == nil or Kora.util.isInteger(id), KoraLang('Modules.Zones.id_zone_id'))
+    assert(type(enabled) == "boolean", KoraLang('Modules.Zones.enabled_boolean'))
 
     if id ~= nil then
         local zone = zoneRegistry[id]
@@ -852,7 +860,7 @@ local function creatorLog(msg)
 end
 
 local function formatNumber(n)
-    assert(Kora.util.isFiniteNumber(n), "Zone snippets require finite numeric values.")
+    assert(Kora.util.isFiniteNumber(n), KoraLang('Modules.Zones.zone_snippets_require'))
     return ("%.2f"):format(n)
 end
 
@@ -865,8 +873,8 @@ end
 ---@param opts table
 ---@return string
 function Kora.zones.generateSnippet(zoneType, opts)
-    assert(ZONE_TYPES[zoneType], "generateSnippet type must be 'box', 'sphere', or 'poly'.")
-    assert(type(opts) == "table", "generateSnippet options must be a table.")
+    assert(ZONE_TYPES[zoneType], KoraLang('Modules.Zones.generatesnippet_type_box'))
+    assert(type(opts) == "table", KoraLang('Modules.Zones.generatesnippet_options'))
 
     if zoneType == "box" then
         return ("Kora.zones.box({\n    coords = %s,\n    size = %s,\n    rotation = %s,\n})")
@@ -885,7 +893,7 @@ function Kora.zones.generateSnippet(zoneType, opts)
     end
 
     if opts.minZ ~= nil or opts.maxZ ~= nil then
-        assert(opts.minZ ~= nil and opts.maxZ ~= nil, "Poly snippets require both minZ and maxZ.")
+        assert(opts.minZ ~= nil and opts.maxZ ~= nil, KoraLang('Modules.Zones.poly_snippets_require'))
         return ("Kora.zones.poly({\n    points = {\n%s\n    },\n    minZ = %s,\n    maxZ = %s,\n})")
             :format(table.concat(pointLines, "\n"), formatNumber(opts.minZ), formatNumber(opts.maxZ))
     end
@@ -1129,6 +1137,33 @@ local function hudSnapshotsEqual(a, b)
         and a.stepSize == b.stepSize
 end
 
+local function creatorLabels()
+    return {
+        types = {
+            box = KoraLang('Modules.Zones.ui.type_box'), sphere = KoraLang('Modules.Zones.ui.type_sphere'),
+            poly = KoraLang('Modules.Zones.ui.type_poly'),
+        },
+        building = KoraLang('Modules.Zones.ui.building'), starting = KoraLang('Modules.Zones.ui.starting'),
+        shiftFast = KoraLang('Modules.Zones.ui.shift_fast'), enterConfirm = KoraLang('Modules.Zones.ui.enter_confirm'),
+        pointOne = KoraLang('Modules.Zones.ui.point_one'), pointMany = KoraLang('Modules.Zones.ui.point_many'),
+        centerPlaced = KoraLang('Modules.Zones.ui.center_placed'), aimPlace = KoraLang('Modules.Zones.ui.aim_place'),
+        editingPoint = KoraLang('Modules.Zones.ui.editing_point'),
+        editingPointsEmpty = KoraLang('Modules.Zones.ui.editing_points_empty'), editingPointsAim = KoraLang('Modules.Zones.ui.editing_points_aim'),
+        params = {
+            size = KoraLang('Modules.Zones.ui.param_size'), height = KoraLang('Modules.Zones.ui.param_height'),
+            rotation = KoraLang('Modules.Zones.ui.param_rotation'), radius = KoraLang('Modules.Zones.ui.param_radius'),
+            thickness = KoraLang('Modules.Zones.ui.param_thickness'), zOffset = KoraLang('Modules.Zones.ui.param_z_offset'),
+            editPoint = KoraLang('Modules.Zones.ui.param_edit_point'),
+        },
+        stepScroll = KoraLang('Modules.Zones.ui.step_scroll'), confirmTitle = KoraLang('Modules.Zones.ui.confirm_title'),
+        generatedData = KoraLang('Modules.Zones.ui.generated_data'), clipboardFailed = KoraLang('Modules.Zones.ui.clipboard_failed'),
+        keepEditing = KoraLang('Modules.Zones.ui.keep_editing'), copied = KoraLang('Modules.Zones.ui.copied'),
+        copyFailed = KoraLang('Modules.Zones.ui.copy_failed'), copyCode = KoraLang('Modules.Zones.ui.copy_code'),
+        copyConfirm = KoraLang('Modules.Zones.ui.copy_confirm'), copiedAnnouncement = KoraLang('Modules.Zones.ui.copied_announcement'),
+        copyFailedAnnouncement = KoraLang('Modules.Zones.ui.copy_failed_announcement'),
+    }
+end
+
 local function openConfirmDialog(state)
     local opts = creatorOpts(state)
     local snippet = Kora.zones.generateSnippet(state.type, opts)
@@ -1136,7 +1171,7 @@ local function openConfirmDialog(state)
     local ok, response = pcall(function()
         return Kora.nui.withFocus(true, true, function()
             return Citizen.Await(Kora.nui.request("zoneCreator:confirm",
-                { type = state.type, snippet = snippet }, Config.zones.creator.confirmTimeout, state.resource))
+                { type = state.type, snippet = snippet, labels = creatorLabels() }, Config.zones.creator.confirmTimeout, state.resource))
         end, state.resource)
     end)
 
@@ -1249,45 +1284,47 @@ local function registerCreatorKeybind(command, label, key, handler, mapper)
     return handle
 end
 
-registerCreatorKeybind("kora_lib_zonecreator_place", "Zone Creator: Place Point", "E", creatorPlace)
-registerCreatorKeybind("kora_lib_zonecreator_undo", "Zone Creator: Undo Last Point", "BACK", creatorUndo)
-registerCreatorKeybind("kora_lib_zonecreator_place_click", "Zone Creator: Place Point (Mouse)", "MOUSE_LEFT", creatorPlace, "MOUSE_BUTTON")
-registerCreatorKeybind("kora_lib_zonecreator_undo_click", "Zone Creator: Undo Last Point (Mouse)", "MOUSE_RIGHT", creatorUndo, "MOUSE_BUTTON")
-registerCreatorKeybind("kora_lib_zonecreator_cycle", "Zone Creator: Cycle Adjustable Parameter (Shift reverses)", "TAB", creatorCycleParam)
+registerCreatorKeybind("kora_lib_zonecreator_place", KoraLang('Modules.Zones.ui.key_place'), "E", creatorPlace)
+registerCreatorKeybind("kora_lib_zonecreator_undo", KoraLang('Modules.Zones.ui.key_undo'), "BACK", creatorUndo)
+registerCreatorKeybind("kora_lib_zonecreator_place_click", KoraLang('Modules.Zones.ui.key_place_mouse'), "MOUSE_LEFT", creatorPlace, "MOUSE_BUTTON")
+registerCreatorKeybind("kora_lib_zonecreator_undo_click", KoraLang('Modules.Zones.ui.key_undo_mouse'), "MOUSE_RIGHT", creatorUndo, "MOUSE_BUTTON")
+registerCreatorKeybind("kora_lib_zonecreator_cycle", KoraLang('Modules.Zones.ui.key_cycle'), "TAB", creatorCycleParam)
 
-registerCreatorKeybind("kora_lib_zonecreator_confirm", "Zone Creator: Confirm / Open Summary", "RETURN", function(state)
+registerCreatorKeybind("kora_lib_zonecreator_confirm", KoraLang('Modules.Zones.ui.key_confirm'), "RETURN", function(state)
     if creatorCanConfirm(state) then openConfirmDialog(state) end
 end)
 
-registerCreatorKeybind("kora_lib_zonecreator_cancel", "Zone Creator: Cancel", "X", function() resolveCreator(nil) end)
+registerCreatorKeybind("kora_lib_zonecreator_cancel", KoraLang('Modules.Zones.ui.key_cancel'), "X", function() resolveCreator(nil) end)
 
 local function updateCreatorInstructions(state)
     if not state.instructions then return end
     local param = activeParamName(state)
-    local paramLabel = ({ zOffset = "height offset", editPoint = "point editing" })[param] or param
-    local movementLabel = state.movementMode == "camera" and "Camera" or "Grid"
-    local placeLabel = "Place point"
-    if param == "editPoint" then placeLabel = state.grabbing and "Drop point" or "Grab point" end
+    local paramLabel = KoraLang("Modules.Zones.ui.param_" .. (param == "zOffset" and "z_offset" or param == "editPoint" and "edit_point" or param))
+    local movementLabel = KoraLang(state.movementMode == "camera" and "Modules.Zones.ui.camera" or "Modules.Zones.ui.grid")
+    local placeLabel = KoraLang("Modules.Zones.ui.place_point")
+    if param == "editPoint" then
+        placeLabel = KoraLang(state.grabbing and "Modules.Zones.ui.drop_point" or "Modules.Zones.ui.grab_point")
+    end
     local key = table.concat({ state.movementMode, param, placeLabel, tostring(creatorCanConfirm(state)) }, ":")
     if state.lastInstructionKey == key then return end
     state.lastInstructionKey = key
     state.instructions.setButtons({
-        { control = 32, label = "Move forward", group = "Move" },
-        { control = 33, label = "Move backward", group = "Move" },
-        { control = 34, label = "Move left", group = "Move" },
-        { control = 35, label = "Move right", group = "Move" },
-        { keybind = creatorBindings.kora_lib_zonecreator_movement, label = "Movement: " .. movementLabel },
+        { control = 32, label = KoraLang("Modules.Zones.ui.move_forward"), group = KoraLang("Modules.Zones.ui.movement_group") },
+        { control = 33, label = KoraLang("Modules.Zones.ui.move_backward"), group = KoraLang("Modules.Zones.ui.movement_group") },
+        { control = 34, label = KoraLang("Modules.Zones.ui.move_left"), group = KoraLang("Modules.Zones.ui.movement_group") },
+        { control = 35, label = KoraLang("Modules.Zones.ui.move_right"), group = KoraLang("Modules.Zones.ui.movement_group") },
+        { keybind = creatorBindings.kora_lib_zonecreator_movement, label = KoraLang("Modules.Zones.ui.movement", movementLabel) },
         { keybind = creatorBindings.kora_lib_zonecreator_place, label = placeLabel },
         { keybind = creatorBindings.kora_lib_zonecreator_place_click, label = placeLabel },
-        { keybind = creatorBindings.kora_lib_zonecreator_undo, label = "Undo" },
-        { keybind = creatorBindings.kora_lib_zonecreator_undo_click, label = "Undo" },
-        { keybind = creatorBindings.kora_lib_zonecreator_cycle, label = "Adjust: " .. paramLabel },
-        { keybind = creatorBindings.kora_lib_zonecreator_confirm, label = "Confirm" },
-        { keybind = creatorBindings.kora_lib_zonecreator_cancel, label = "Cancel" },
+        { keybind = creatorBindings.kora_lib_zonecreator_undo, label = KoraLang("Modules.Zones.ui.undo") },
+        { keybind = creatorBindings.kora_lib_zonecreator_undo_click, label = KoraLang("Modules.Zones.ui.undo") },
+        { keybind = creatorBindings.kora_lib_zonecreator_cycle, label = KoraLang("Modules.Zones.ui.adjust", paramLabel) },
+        { keybind = creatorBindings.kora_lib_zonecreator_confirm, label = KoraLang("Modules.Zones.ui.confirm") },
+        { keybind = creatorBindings.kora_lib_zonecreator_cancel, label = KoraLang("Modules.Zones.ui.cancel") },
     })
 end
 
-registerCreatorKeybind("kora_lib_zonecreator_movement", "Zone Creator: Toggle Camera / Grid Movement", "G", function(state)
+registerCreatorKeybind("kora_lib_zonecreator_movement", KoraLang('Modules.Zones.ui.key_movement'), "G", function(state)
     state.movementMode = state.movementMode == "camera" and "grid" or "camera"
     state.freecam.setMovementMode(state.movementMode)
     state.lastInstructionKey = nil
@@ -1298,7 +1335,7 @@ local function ensureCreatorThread(state)
     CreateThread(function()
         local ok, err = pcall(function()
         while creatorState == state do
-            assert(state.freecam and state.freecam.isActive(), "The zone creator freecam stopped unexpectedly.")
+            assert(state.freecam and state.freecam.isActive(), KoraLang('Modules.Zones.ui.freecam_stopped'))
             local hit, aimCoords = Kora.raycast.fromCam(state.cam, Config.zones.creator.raycastDistance)
 
             if IsControlJustPressed(0, 14) then adjustActiveParam(state, 1) end
@@ -1438,7 +1475,7 @@ local function beginCreator(zoneType, resource, existingOpts)
     end
 
     ensureCreatorThread(state)
-    Kora.nui.send("zoneCreator:start", { type = zoneType })
+    Kora.nui.send("zoneCreator:start", { type = zoneType, labels = creatorLabels() })
 
     return state.promise
 end
@@ -1453,24 +1490,24 @@ end
 ---above for the same-VM-vs-cross-resource distinction. An invalid zoneType or malformed existingOpts raises a
 ---synchronous error instead (like the zone constructors themselves), same for both kinds of caller.
 function Kora.zones.startCreator(zoneType, existingOpts)
-    assert(ZONE_TYPES[zoneType], "startCreator type must be 'box', 'sphere', or 'poly'.")
+    assert(ZONE_TYPES[zoneType], KoraLang('Modules.Zones.startcreator_type_box'))
 
     if Config.zones.creator.enabled == false then
         local p = promise.new()
-        p:reject("The zone creator is disabled on this server (Config.zones.creator.enabled).")
+        p:reject(KoraLang('Modules.Zones.ui.creator_disabled'))
         return settleForExport(p)
     end
 
     local placement = rawget(Kora, "placement")
     if placement and type(placement.isActive) == "function" and placement.isActive() then
         local p = promise.new()
-        p:reject("Entity placement is already active.")
+        p:reject(KoraLang('Modules.Zones.ui.placement_active'))
         return settleForExport(p)
     end
 
     if creatorState then
         local p = promise.new()
-        p:reject("A zone creator is already running.")
+        p:reject(KoraLang('Modules.Zones.ui.already_running'))
         return settleForExport(p)
     end
 

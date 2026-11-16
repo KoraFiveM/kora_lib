@@ -36,10 +36,10 @@ L.writeRecord = writeRecord
 local function assertEvent(category, src, data)
     assert(
         type(category) == 'string' and category ~= '' and #category <= 64,
-        'Log category must be a non-empty string of at most 64 bytes.'
+        KoraLang('Modules.Logging.category_invalid')
     )
-    assert(Kora.util.isInteger(src) and src >= 0, 'Log source must be zero or a positive integer player ID.')
-    assert(data == nil or type(data) == 'table', 'Log data must be a table or nil.')
+    assert(Kora.util.isInteger(src) and src >= 0, KoraLang('Modules.Logging.source_invalid'))
+    assert(data == nil or type(data) == 'table', KoraLang('Modules.Logging.data_invalid'))
 end
 
 ---Log a gameplay/admin event; category groups them, src is the acting player (0 for system).

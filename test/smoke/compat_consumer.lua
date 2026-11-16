@@ -3,6 +3,7 @@ local repoRoot = scriptDir .. '../../'
 package.path = scriptDir .. '../?.lua;' .. package.path
 
 local harness = require('harness')
+_G.KoraLang = nil -- Simulate a separate consuming resource.
 local handlers = {}
 
 _G.exports = {
@@ -13,6 +14,9 @@ _G.exports = {
 _G.GetCurrentResourceName = function() return 'consumer' end
 _G.AddEventHandler = function(name, handler) handlers[name] = handler end
 _G.LoadResourceFile = function(resource, path)
+    if resource == 'consumer' and path == 'locale_scope.lua' then
+        return 'return type(KoraLang)'
+    end
     if resource ~= 'kora_lib' then return nil end
     local file = assert(io.open(repoRoot .. path, 'r'))
     local source = file:read('*a')
@@ -45,6 +49,32 @@ harness.test('Kora.callback.trigger unpacks the packed export so a reason after 
     harness.assertEqual(value, nil)
     harness.assertEqual(reason, 'not allowed')
     harness.assertEqual(select('#', Kora.callback.trigger('consumer:refuse')), 2)
+end)
+
+harness.test('consumer-local util resolves kora_lib validation text', function()
+    local catalog = dofile(repoRoot .. 'locales/en.lua')
+    exports.kora_lib.locale_translate = function(_, resource, key)
+        harness.assertEqual(resource, 'kora_lib')
+        harness.assertEqual(key, 'Modules.Util.util_fnv1a')
+        return catalog.Modules.Util.util_fnv1a
+    end
+
+    local ok, err = pcall(Kora.util.fnv1a, false)
+    harness.assertFalse(ok)
+    harness.assertTrue(tostring(err):find(catalog.Modules.Util.util_fnv1a, 1, true) ~= nil)
+end)
+
+harness.test('init does not expose the internal helper to consumer scripts or required modules', function()
+    local catalog = dofile(repoRoot .. 'locales/en.lua')
+    exports.kora_lib.locale_translate = function(_, resource, key)
+        harness.assertEqual(resource, 'kora_lib')
+        harness.assertEqual(key, 'Modules.Require.validation_current_resource_name_not_found')
+        return catalog.Modules.Require.validation_current_resource_name_not_found
+    end
+
+    harness.assertEqual(rawget(_G, 'KoraLang'), nil)
+    harness.assertEqual(Kora.require.current('locale_scope'), 'nil')
+    harness.assertEqual(rawget(_G, 'KoraLang'), nil)
 end)
 
 harness.report('compat_consumer')

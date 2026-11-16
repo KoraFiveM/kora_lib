@@ -5,8 +5,7 @@ local function parseDuration(duration, default)
     duration = tonumber(duration)
     if duration == nil then return default end
 
-    assert(Kora.util.isFiniteNumber(duration) and duration >= 0,
-        'Visual effect duration must be a finite non-negative number.')
+    assert(Kora.util.isFiniteNumber(duration) and duration >= 0, KoraLang('Modules.Visuals.visual_effect_duration'))
     return duration
 end
 

@@ -5,6 +5,14 @@ folder. Clients use their own saved language, fall back to English, interpolate
 both legacy `%{name}` and positional `%s` placeholders, and return the key when
 no translation exists.
 
+`KoraLang(key, ...)` is the internal kora_lib helper. It is defined in the
+`local/locales/shared.lua` bootstrap, which the resource manifest loads first. It reads
+`kora_lib/locales/<language>.lua` using
+`GetConvar('kora_locale', 'en')`, and falls back to `locales/en.lua`. Use it
+inside kora_lib. Importing `init.lua` does not define `KoraLang` in the
+consumer's scripts or in modules that it loads through `Kora.require`.
+Consumers should use `Kora.lang` or `Kora.locale.translate` for their own locale files.
+
 Named placeholder keys and replacement values are treated literally, so values
 such as `50%` and keys such as `%{item.id}` are safe to use.
 
@@ -22,3 +30,6 @@ resource-name characters: letters, numbers, `_`, and `-`.
 - `Kora.locale.translate(resource, key, ...)` resolves an explicit resource;
   kora_core uses it to localize server-originated legacy notifications at the
   recipient.
+- `Kora.locale.getResourceLocale(resource?)` returns the selected language's
+  catalog for the specified resource, or the caller by default. It returns
+  `nil` when that specific catalog is unavailable.

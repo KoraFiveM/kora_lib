@@ -12,14 +12,14 @@ end
 local function resolveCoords(coords)
     if coords == nil then coords = Kora.cache.get('coords') end
     assert(coords and Kora.util.isFiniteNumber(coords.x) and Kora.util.isFiniteNumber(coords.y)
-        and Kora.util.isFiniteNumber(coords.z), 'Closest-search coordinates must be a finite vector3.')
+        and Kora.util.isFiniteNumber(coords.z), KoraLang('Modules.Closest.coords_invalid'))
     return coords
 end
 
 local function resolveDistance(distance)
     if distance == nil then return 15.0 end
     assert(Kora.util.isFiniteNumber(distance) and distance > 0,
-        'Closest-search distance must be a positive finite number.')
+        KoraLang('Modules.Closest.distance_invalid'))
     return distance
 end
 
