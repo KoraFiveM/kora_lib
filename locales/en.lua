@@ -64,7 +64,7 @@ return {
             validation_items_must_be_a_dense_array_of_tables = [=[items must be a dense array of tables]=],
             validation_items_must_be_a_non_empty_dense_array = [=[items must be a non-empty dense array]=],
             validation_opts_must_be_a_table = [=[opts must be a table]=],
-            validation_opts_mode_must_be_weighted_or_percent = [=[opts.mode must be \"weighted\" or \"percent\"]=],
+            validation_opts_mode_must_be_weighted_or_percent = [=[opts.mode must be "weighted" or "percent"]=],
         },
         Screenshot = {
             validation_screenshot_headers_must_be_a_table = [=[Screenshot headers must be a table.]=],
@@ -752,6 +752,7 @@ return {
                 choose_resource = 'Choose a resource here or directly from the sidebar.', resource = 'Resource',
                 settings = 'Settings', status = 'Status', unavailable = 'Unavailable', ready = 'Ready', registered = 'Registered',
                 resources_group = 'Resources',
+                search_settings = 'Search settings…', search_resources = 'Search resources…',
                 command_help = 'Open the kora_lib configuration editor',
                 editable_settings = '%d editable settings', server_settings = 'Server settings',
                 choose_customize = 'Choose a resource to customise your server.',
