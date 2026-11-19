@@ -442,7 +442,7 @@ local function settingsContent(entry)
             icon = 'sliders-horizontal', variant = showAdvanced and 'primary' or 'outline' } },
         blocks = { {
             id = 'config-settings', type = 'table', searchable = true, pageSize = 20,
-            searchPlaceholder = 'Search settings…',
+            searchPlaceholder = KoraLang('Modules.Config.editor.search_settings'),
             columns = {
                 { key = 'label', label = KoraLang('Modules.Config.editor.setting'), sortable = true, width = '24%' },
                 { key = 'description', label = KoraLang('Modules.Config.editor.description'), width = '42%' },
@@ -537,7 +537,7 @@ local function buildDefinition()
                     icon = 'sliders-horizontal', variant = showAdvanced and 'primary' or 'outline' } },
                 blocks = { {
                     id = 'config-resources', type = 'table', searchable = true, pageSize = 18,
-                    searchPlaceholder = 'Search resources…',
+                    searchPlaceholder = KoraLang('Modules.Config.editor.search_resources'),
                     columns = {
                         { key = 'resource', label = KoraLang('Modules.Config.editor.resource'), sortable = true },
                         { key = 'settings', label = KoraLang('Modules.Config.editor.settings'),

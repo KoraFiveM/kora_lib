@@ -204,8 +204,8 @@ end
 local function runCoordGrabber(state)
     state.controlLease = Kora.compat.acquireControls(COORD_GRABBER_CONTROLS, nil, state.owner)
     state.textui = Kora.textui.show(state.model
-        and "**Left / Right:** rotate  ·  **E:** confirm  ·  **Backspace:** cancel"
-        or "**E:** confirm  ·  **Backspace:** cancel", {
+        and KoraLang('Modules.Raycast.rotate_confirm_cancel')
+        or KoraLang('Modules.Raycast.confirm_cancel'), {
         icon = state.model and "Box" or "Crosshair",
     }, state.owner)
     while activeCoordGrabber == state do
