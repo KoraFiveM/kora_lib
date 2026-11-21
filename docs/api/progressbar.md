@@ -25,7 +25,7 @@ Pass one table to start or validate. Required fields have no ?. Omitted optional
 | `position?` | string | middle or bottom; controls circle placement. |
 | `useWhileDead? / allowRagdoll? / allowCuffed? / allowFalling? / allowSwimming?` | boolean | Allow the bar during that player state; each defaults false. |
 | `strictAnim?` | boolean | Compatibility switch: raise if animation dictionary fails. Normal calls continue the bar without animation. |
-| `emote?` | string | Optional kora_emotemenu emote; ignored when anim or scenario is supplied. |
+| `emote?` | string | Optional kora_emotemenu emote, played with no emote cancel hint and stopped exactly once when the bar ends for any reason. Skipped with a warning if kora_emotemenu is not started or the emote cannot play (unknown, shared or refused). Ignored when anim or scenario is supplied. |
 | `maxProps?` | integer \| false | Overrides the local props limit. Defaults to Config.progressbar.maxProps (2); false removes this limit. |
 
 ### disable? table
@@ -99,7 +99,16 @@ Only one bar can run at a time. Starting another does not replace or queue it; i
 
 ## What happens to animations and props?
 
-Models and dictionaries are loaded before the bar begins. If a cosmetic animation or prop cannot load, the bar can still run without it. Props are local to this client and are deleted when the bar completes, cancels, errors, or its resource stops.
+Models and dictionaries are loaded before the bar begins. If a cosmetic animation or prop cannot load, the bar can still run without it. Props are local to this client and are deleted when the bar completes, cancels, errors, or its resource stops. An `emote` is owned by the bar the same way: the bar starts it, the emote menu shows no cancel hint for it, and the bar stops it on every exit path.
+
+```lua
+local completed = Kora.progressbar.start({
+    label = 'Checking the paperwork...',
+    duration = 5000,
+    canCancel = true,
+    emote = 'clipboard',
+})
+```
 
 ## Movement and server actions
 

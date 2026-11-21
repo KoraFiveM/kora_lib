@@ -41,7 +41,7 @@ Runs a progress bar for `payload.duration` ms.
   - `scenario?: table` — Alternative to `anim`; the two cannot be combined.
     - `name: string` — Scenario name, such as `WORLD_HUMAN_HAMMERING`.
     - `playEnter?: boolean` — Whether to play its enter animation. Defaults to `true`.
-  - `emote?: string` — Plays `exports.kora_emotemenu:playEmote(emote)` for the duration and cancels it during cleanup. Ignored when `anim` or `scenario` is supplied.
+  - `emote?: string` — A kora_emotemenu emote name, such as `clipboard`. Started with the local event `kora_emotemenu:client:playProgressEmote` when the bar begins, with no emote cancel hint and no emote cancel-key monitor, and stopped with `exports.kora_emotemenu:cancelEmote(true)` exactly once when the bar ends for any reason. Optional: if kora_emotemenu is not started, or the emote is unknown, shared (`sync`) or refused, a warning is logged and the bar runs without it. Ignored when `anim` or `scenario` is supplied.
   - `prop?: table`, `proptwo?: table` — Legacy singular local cosmetic props. Each requires `model: string|integer`, `coords: vector3`, `bone: integer`, and `rotation: vector3`. Both may be supplied and are attached and deleted with the same lifecycle as `props`.
   - `props?: table[]` — Up to `Config.progressbar.maxProps` local cosmetic objects (2 by default), with finite transform components, created before the timer begins and deleted when it ends.
     - `model: string | integer` — Model name or hash. Required.
