@@ -16,6 +16,13 @@ local ANIM_LOCK_FIELDS = { 'lockX', 'lockY', 'lockZ' }
 local PROP_BOOLEAN_FIELDS = { 'softPinning', 'collision', 'syncRotation' }
 local LEASE_FIELDS = { 'carLease', 'combatLease', 'sprintLease', 'mouseLease', 'movementLease' }
 
+local EMOTE_RESOURCE = 'kora_emotemenu'
+
+-- kora_emotemenu is optional: an emote is only requested while it is running.
+local function emoteMenuStarted()
+    return GetResourceState(EMOTE_RESOURCE) == 'started'
+end
+
 local function deleteProgressProp(entity)
     if not entity or not DoesEntityExist(entity) then return end
     DetachEntity(entity, true, true)
@@ -226,7 +233,9 @@ local function cleanupSession(session, cancelled)
     end
 
     if session.emoteStarted then
-        safeCleanup("emote", function() exports.kora_emotemenu:cancelEmote(true) end)
+        if emoteMenuStarted() then
+            safeCleanup("emote", function() exports[EMOTE_RESOURCE]:cancelEmote(true) end)
+        end
         session.emoteStarted = false
     end
 
@@ -388,8 +397,16 @@ function Kora.progressbar.start(payload, owner, hooks)
             TaskStartScenarioInPlace(session.ped, payload.scenario.name, 0, payload.scenario.playEnter ~= false)
             session.scenarioStarted = true
         elseif payload.emote then
-            exports.kora_emotemenu:playEmote(payload.emote)
-            session.emoteStarted = true
+            if emoteMenuStarted() then
+                -- Local handlers run synchronously, so the emote menu's state bag already
+                -- says whether the emote started. Only a started emote is cancelled later.
+                TriggerEvent('kora_emotemenu:client:playProgressEmote', payload.emote)
+                session.emoteStarted = LocalPlayer.state['kora_emotemenu:active'] == payload.emote:lower()
+            end
+            if not session.emoteStarted then
+                Kora.logging.warn('lib.client.emote', ("[kora_lib:progressbar] emote '%s' could not be started -- continuing without it.")
+                    :format(payload.emote))
+            end
         end
 
         if payload.disable and payload.disable.move then

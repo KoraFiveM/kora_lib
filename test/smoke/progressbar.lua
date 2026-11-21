@@ -59,10 +59,26 @@ local deadError = false
 local playedEmotes = {}
 local cancelledEmotes = {}
 
+local emoteMenuState = "started"
+local knownEmotes = { clipboard = true, mechanic = true }
+
+-- Stand-in for kora_emotemenu: the local playProgressEmote event sets the active state
+-- bag key synchronously, like the real resource; cancelEmote is the existing export.
+_G.LocalPlayer = { state = {} }
+function _G.GetResourceState(name)
+    if name == "kora_emotemenu" then return emoteMenuState end
+    return "missing"
+end
+AddEventHandler("kora_emotemenu:client:playProgressEmote", function(emote)
+    playedEmotes[#playedEmotes + 1] = emote
+    if knownEmotes[emote:lower()] then LocalPlayer.state["kora_emotemenu:active"] = emote:lower() end
+end)
 _G.exports = {
     kora_emotemenu = {
-        playEmote = function(_, emote) playedEmotes[#playedEmotes + 1] = emote end,
-        cancelEmote = function(_, forced) cancelledEmotes[#cancelledEmotes + 1] = forced end,
+        cancelEmote = function(_, silent)
+            cancelledEmotes[#cancelledEmotes + 1] = silent
+            LocalPlayer.state["kora_emotemenu:active"] = false
+        end,
     },
 }
 
@@ -189,6 +205,8 @@ local function reset()
     deadError = false
     playedEmotes = {}
     cancelledEmotes = {}
+    emoteMenuState = "started"
+    LocalPlayer.state["kora_emotemenu:active"] = false
 end
 
 harness.test("start rejects a missing label", function()
@@ -574,6 +592,75 @@ harness.test("emotes are cleaned up and animation takes priority", function()
     }), "an animation-backed bar should complete")
     harness.assertEqual(#playedEmotes, 0, "an animation should suppress the emote")
     harness.assertEqual(#stoppedAnims, 1, "cancellation should stop the animation")
+end)
+
+harness.test("emotes are optional and only a started emote is cancelled, exactly once", function()
+    reset()
+    harness.assertTrue(Kora.progressbar.start({ label = "Fixing", duration = 100, emote = "Mechanic" }),
+        "a bar with an emote should complete")
+    harness.assertEqual(playedEmotes[1], "Mechanic", "the emote name is passed through to the emote menu")
+    harness.assertEqual(#cancelledEmotes, 1, "a completed bar cancels its emote exactly once")
+    harness.assertTrue(cancelledEmotes[1], "the emote is cancelled silently")
+
+    reset()
+    harness.assertTrue(Kora.progressbar.start({ label = "Fixing", duration = 100, emote = "not_an_emote" }),
+        "an unknown emote must not fail or stall the bar")
+    harness.assertEqual(#playedEmotes, 1, "the unknown emote is still requested")
+    harness.assertEqual(#cancelledEmotes, 0, "an emote that never started is not cancelled")
+
+    reset()
+    emoteMenuState = "missing"
+    harness.assertTrue(Kora.progressbar.start({ label = "Fixing", duration = 100, emote = "clipboard" }),
+        "a bar with an emote should still complete without kora_emotemenu")
+    harness.assertEqual(#playedEmotes, 0, "no emote is requested while kora_emotemenu is not started")
+    harness.assertEqual(#cancelledEmotes, 0, "nothing to cancel without kora_emotemenu")
+
+    reset()
+    emoteMenuState = "missing"
+    harness.assertTrue(Kora.progressbar.start({ label = "Plain", duration = 100 }),
+        "a bar without an emote is unaffected by kora_emotemenu being unavailable")
+
+    reset()
+    harness.assertTrue(Kora.progressbar.start({ label = "Plain", duration = 100 }))
+    harness.assertEqual(#playedEmotes + #cancelledEmotes, 0, "a bar without an emote never touches the emote menu")
+end)
+
+harness.test("forced cancellation and resource stop stop the emote once", function()
+    reset()
+    local result
+    local co = coroutine.create(function()
+        result = Kora.progressbar.start({ label = "Fixing", duration = 5000, emote = "mechanic" })
+    end)
+    _G.CreateThread(function() coroutine.resume(co) end)
+    mockHandle.step()
+    harness.assertEqual(LocalPlayer.state["kora_emotemenu:active"], "mechanic", "the emote plays while the bar runs")
+    harness.assertTrue(Kora.progressbar.cancel(GetCurrentResourceName()), "the owner can force-cancel the bar")
+    for _ = 1, 3 do
+        mockHandle.step()
+        if coroutine.status(co) ~= "dead" then coroutine.resume(co) end
+    end
+    harness.assertFalse(result, "a force-cancelled bar reports incomplete")
+    harness.assertEqual(#cancelledEmotes, 1, "force-cancel stops the emote exactly once")
+
+    reset()
+    co = coroutine.create(function()
+        Kora.progressbar.start({ label = "Fixing", duration = 5000, emote = "mechanic" }, "consumer")
+    end)
+    _G.CreateThread(function() coroutine.resume(co) end)
+    mockHandle.step()
+    mockHandle.fire("onClientResourceStop", "consumer")
+    for _ = 1, 3 do
+        mockHandle.step()
+        if coroutine.status(co) ~= "dead" then coroutine.resume(co) end
+    end
+    harness.assertEqual(#cancelledEmotes, 1, "stopping the owning resource stops the emote exactly once")
+    harness.assertFalse(Kora.progressbar.isActive(), "the bar is no longer active")
+
+    reset()
+    harness.assertTrue(Kora.progressbar.start({ label = "One", duration = 100, emote = "clipboard" }))
+    harness.assertTrue(Kora.progressbar.start({ label = "Two", duration = 100, emote = "mechanic" }))
+    harness.assertEqual(#playedEmotes, 2, "back-to-back bars each start their emote")
+    harness.assertEqual(#cancelledEmotes, 2, "back-to-back bars each cancel their emote once")
 end)
 
 harness.test("a prop creation failure is cosmetic and cleans up earlier props", function()
