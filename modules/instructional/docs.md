@@ -15,4 +15,10 @@ buttons.setButtons({
 })
 ```
 
+Optional `keyFallback` (non-empty string) is the text shown when GTA has no named glyph for the input, which happens for controls such as `200` (Esc). Without it, such a button shows no key. The bare control number is never displayed.
+
+```lua
+{ control = 200, label = 'Close inventory', keyFallback = 'Esc' },
+```
+
 `setButtons(buttons)` atomically replaces the displayed list. `hide()` removes the display and `isVisible()` reports whether it is still active. Displays are cleaned up when their owning resource stops.
