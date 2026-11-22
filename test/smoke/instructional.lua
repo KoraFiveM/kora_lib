@@ -23,7 +23,7 @@ harness.test('instructional buttons publish to the NUI and replace their labels'
     harness.assertTrue(display.isVisible())
     harness.assertEqual(sent[#sent].action, 'instructional:set')
     harness.assertEqual(last()[1].label, 'Movement: Camera')
-    harness.assertEqual(last()[1].keys[1], '32')
+    harness.assertEqual(#last()[1].keys, 0, 'an unnamed control shows no key, never its number')
     display.setButtons({ { command = 'freecam_grid', label = 'Movement: Grid' } })
     harness.assertEqual(last()[1].label, 'Movement: Grid')
     harness.assertTrue(display.hide())
@@ -38,8 +38,8 @@ harness.test('buttons sharing a label merge into one row and icon codes get name
         { control = 177, label = 'Cancel' },
     })
     harness.assertEqual(#last(), 2)
-    harness.assertEqual(#last()[1].keys, 2)
-    harness.assertEqual(last()[1].keys[2], 'LMB')
+    harness.assertEqual(#last()[1].keys, 1, 'unnamed control 38 contributes no key')
+    harness.assertEqual(last()[1].keys[1], 'LMB')
     local count = #sent
     display.setButtons({
         { control = 38, label = 'Place point' }, { control = 99, label = 'Place point' }, { control = 177, label = 'Cancel' },
@@ -76,6 +76,17 @@ harness.test('multiple displays keep their order across removals and owners', fu
     harness.assertEqual(#last(), 0)
 end)
 
+harness.test('unnamed controls use keyFallback text, and named glyphs win over it', function()
+    local display = Kora.instructional.show({
+        { control = 200, label = 'Close inventory', keyFallback = 'Esc' },
+        { control = 99, label = 'Use', keyFallback = 'Enter' },
+    })
+    harness.assertEqual(last()[1].keys[1], 'Esc')
+    harness.assertEqual(last()[2].keys[1], 'LMB', 'a named glyph ignores keyFallback')
+    harness.assertThrows(function() Kora.instructional.show({ { control = 1, label = 'x', keyFallback = '' } }) end)
+    display.hide()
+end)
+
 harness.test('grouped buttons collapse into one row', function()
     local display = Kora.instructional.show({
         { control = 32, label = 'Move forward', group = 'Move' },
@@ -84,7 +95,7 @@ harness.test('grouped buttons collapse into one row', function()
     })
     harness.assertEqual(#last(), 2)
     harness.assertEqual(last()[1].label, 'Move')
-    harness.assertEqual(#last()[1].keys, 2)
+    harness.assertEqual(#last()[1].keys, 0, 'unnamed controls 32 and 33 add no keys to the merged row')
     harness.assertThrows(function() Kora.instructional.show({ { control = 1, label = 'x', group = '' } }) end)
     display.hide()
 end)

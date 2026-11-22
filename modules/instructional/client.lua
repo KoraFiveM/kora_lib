@@ -20,6 +20,7 @@ local function validate(buttons)
         assert(type(button) == 'table' and type(button.label) == 'string' and button.label ~= '', KoraLang('Modules.Instructional.label_invalid', index))
         local count = (button.control ~= nil and 1 or 0) + (button.command ~= nil and 1 or 0) + (button.keybind ~= nil and 1 or 0)
         assert(button.group == nil or (type(button.group) == 'string' and button.group ~= ''), KoraLang('Modules.Instructional.group_invalid', index))
+        assert(button.keyFallback == nil or (type(button.keyFallback) == 'string' and button.keyFallback ~= ''), 'Instructional button keyFallback must be a non-empty string.')
         assert(count == 1, KoraLang('Modules.Instructional.source_count_invalid', index))
         token(button)
     end
@@ -31,9 +32,13 @@ local ICONS = {
     b_194 = '↑', b_195 = '↓', b_1009 = 'PgUp', b_1010 = 'PgDn',
 }
 
+-- GetControlInstructionalButton returns `t_<n>` (the bare control id) when a
+-- control has no named glyph. That number is not a key name, so it is never
+-- shown: the button's `keyFallback` text is used instead, or no key at all.
 local function keyLabel(button)
     local value = token(button)
-    if type(value) ~= 'string' or value == '' then return '?' end
+    if type(value) ~= 'string' or value == '' then return button.keyFallback or '?' end
+    if value:match('^t_%d+$') then return button.keyFallback end
     local name = value:gsub('^t_', '', 1)
     return ICONS[name] or ICONS[value] or (name:gsub('^b_', '', 1))
 end
@@ -54,7 +59,7 @@ local function publish()
                     rows[#rows + 1] = row
                 end
                 local key = keyLabel(button)
-                local seen = false
+                local seen = key == nil
                 for _, existing in ipairs(row.keys) do if existing == key then seen = true break end end
                 if not seen then row.keys[#row.keys + 1] = key end
             end
