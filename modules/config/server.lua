@@ -217,6 +217,19 @@ local function registerKoraLibConfig()
             return register(definition, 'kora_lib')
         end,
     })
+    if type(Config.bridge) == 'table' then
+        for _, area in ipairs({ 'banking', 'bossmenu', 'clothing', 'dispatch', 'doorlock', 'fuel', 'helptext', 'notify', 'vehiclekeys' }) do
+            local provider = Config.bridge[area]
+            if type(provider) == 'string' then
+                Config.bridge[area] = bridge.string(provider, {
+                    live = true,
+                    minLength = 1,
+                    maxLength = 128,
+                    pattern = '^[%w_.%-]+$',
+                })
+            end
+        end
+    end
     local discord = Config.discord
     Config.discord = nil
     if type(Config.notify) == 'table' then

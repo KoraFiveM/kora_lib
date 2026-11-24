@@ -1,6 +1,17 @@
 Config = {}
 
 Config.third_party_notify = false
+Config.bridge = {
+    banking = 'auto',
+    bossmenu = 'auto',
+    clothing = 'auto',
+    dispatch = 'auto',
+    doorlock = 'auto',
+    fuel = 'auto',
+    helptext = 'auto',
+    notify = 'auto',
+    vehiclekeys = 'auto',
+}
 
 Config.nui = {
     clipboardFocus = true,

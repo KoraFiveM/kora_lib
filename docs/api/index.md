@@ -10,6 +10,7 @@ sidebar_position: 1
 | [Actions](./actions.md) | `Kora.actions` | client |
 | [Anim](./anim.md) | `Kora.anim` | client |
 | [Blips](./blips.md) | `Kora.blips` | shared, client |
+| [Bridge](./bridge.md) | `Kora.bridge` | shared, client, server |
 | [Cache](./cache.md) | `Kora.cache` | client |
 | [Callback](./callback.md) | `Kora.callback` | client, server |
 | [Camera](./camera.md) | `Kora.camera` | client |

@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'kora_lib'
 author 'Jamie'
-version '0.2.2'
+version '0.3.0'
 description 'Lightweight Lua library exposing a shared Kora namespace over FiveM exports'
 
 dependency 'kora_theme'
@@ -76,6 +76,8 @@ shared_scripts {
     'config.lua',
     'build/initiate.lua',
     'modules/logging/shared.lua',
+    'modules/bridge/shared.lua',
+    'modules/bridge/providers/*/*.lua',
     'local/**/shared.lua',
     'modules/blips/shared.lua',
     'modules/locales/shared.lua',
