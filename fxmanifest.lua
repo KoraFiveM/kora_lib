@@ -30,7 +30,7 @@ files {
     'modules/logging/adapters/browser.d.ts',
     -- Kora.require executes in each consumer's Lua environment rather than as a
     -- kora_lib export, so init.lua loads this small factory on demand.
-    'modules/require/loader.lua',
+    'local/require/loader.lua',
     -- Like Kora.require, Kora.config executes in each consuming resource so it
     -- can safely own that resource's Config table and config.local.lua.
     'modules/config/consumer.lua',
