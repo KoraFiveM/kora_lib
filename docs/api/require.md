@@ -8,7 +8,7 @@ sidebar_position: 51
 
 Require lets a resource load a Lua file from itself or another resource and use the value that file returns. Each file runs once per consuming resource; later loads return the saved result. This is useful for sharing configuration tables or helper functions without copying the file.
 
-Namespace: `Kora.require` · Source: `modules/require/loader.lua · init.lua`
+Namespace: `Kora.require` · Source: `local/require/loader.lua · init.lua`
 
 ## What goes inside a module file?
 
@@ -113,7 +113,7 @@ When a loaded resource stops, its cached module values are cleared. Avoid module
 
 ## Additional notes from the module guide
 
-Behaviour, validation and ownership details from the guide kept beside the implementation (`modules/require/docs.md` or `local/require/docs.md`) that the reference above does not state.
+Behaviour, validation and ownership details from the guide kept beside the implementation (`local/require/docs.md`) that the reference above does not state.
 
 `Kora.require` loads Lua modules from resource files on both the client and
 server. Paths are relative to the target resource root. A missing `.lua`

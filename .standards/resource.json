@@ -110,7 +110,7 @@
       "modules/qa/audit.lua",
       "modules/qa/shared.lua",
       "modules/random/shared.lua",
-      "modules/require/loader.lua",
+      "local/require/loader.lua",
       "modules/rewards/shared.lua",
       "modules/state/shared.lua",
       "modules/status/shared.lua",

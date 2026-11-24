@@ -19,7 +19,7 @@ _G.LoadResourceFile = function(resource, path)
 end
 _G.AddEventHandler = function(name, handler) handlers[name] = handler end
 
-local factory = assert(loadfile(repoRoot .. 'modules/require/loader.lua'))()
+local factory = assert(loadfile(repoRoot .. 'local/require/loader.lua'))()
 local catalog = dofile(repoRoot .. 'locales/en.lua')
 local requireApi = factory('consumer', function(key)
     local phrase = key:match('^Modules%.Require%.(.+)$')

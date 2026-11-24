@@ -60,7 +60,7 @@ end
 local function getRequireModule()
     if requireModule then return requireModule end
 
-    local path = 'modules/require/loader.lua'
+    local path = 'local/require/loader.lua'
     local createRequire = compileKoraFile(path)()
     assert(type(createRequire) == 'function', ('@kora_lib/%s must return a factory function'):format(path))
 
