@@ -52,6 +52,7 @@ The following vehicle-key adapter is a **template only**. The export name is a p
 
 ```lua
 -- modules/bridge/modules/vehiclekeys/example_resource/server.lua
+
 function Kora.bridge.giveKeys(src, plate, allowWhenDisabled)
     -- Replace with the verified server export for this resource.
     return exports.example_resource:GiveKeys(src, plate, allowWhenDisabled)

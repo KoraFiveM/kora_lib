@@ -23,8 +23,11 @@ _G.LoadResourceFile = function(resource, path)
     if path == 'modules/bridge/modules/vehiclekeys/kora_vehiclekeys/server.lua' then
         loadedPaths[#loadedPaths + 1] = path
         return [[
+
             function Kora.bridge.giveKeys(src, plate) return src, plate, 'kora' end
+
             function Kora.bridge.removeKeys() return true end
+
             function Kora.bridge.hasKeys() return true end
         ]]
     end
