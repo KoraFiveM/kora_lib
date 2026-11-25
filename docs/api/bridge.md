@@ -17,7 +17,7 @@ Namespace: `Kora.bridge` · Source: `modules/bridge/bridge_init.lua`
 Config.Bridge = {
     banking = 'kora_banking',
     bossmenu = 'kora_bossmenu',
-    clothing = 'kora_clothing',
+    clothing = 'illenium-appearance',
     dispatch = 'kora_dispatch',
     doorlock = 'kora_doorlock',
     fuel = 'kora_fuel',
@@ -42,5 +42,7 @@ The loaded provider defines the available functions for its area and realm. Curr
 - Help text, client: `showHelpText`, `updateHelpText`, `hideHelpText`
 - Notify, client: `sendNotification`
 - Vehicle keys, server: `giveKeys`, `removeKeys`, `hasKeys`
+
+For clothing, choose `kora_clothing` or `illenium-appearance` with `Config.Bridge.clothing`. The iLLenium adapter maps wardrobe and service menus to its client events and uses its appearance exports for applying appearance data. Its `applyAppearanceToPed` input must use iLLenium's appearance format.
 
 The provider functions' return values and errors pass through directly. If a provider file is absent for the current realm, its functions are not available in that realm.

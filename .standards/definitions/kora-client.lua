@@ -1013,7 +1013,7 @@
 ---@class KoraBridgeConfig
 ---@field banking string Provider folder name, such as 'kora_banking'. [live]
 ---@field bossmenu string Provider folder name, such as 'kora_bossmenu'. [live]
----@field clothing string Provider folder name, such as 'kora_clothing'. [live]
+---@field clothing string Provider folder name, such as 'illenium-appearance'. [live]
 ---@field dispatch string Provider folder name, such as 'kora_dispatch'. [live]
 ---@field doorlock string Provider folder name, such as 'kora_doorlock'. [live]
 ---@field fuel string Provider folder name, such as 'kora_fuel'. [live]

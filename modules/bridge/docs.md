@@ -36,6 +36,8 @@ Provider functions are called directly, so their return values and errors pass t
 
 The current vehicle key resource exposes server exports only, so this version does not add client key functions. `sendNotification` delegates to `Kora.notify.send`, retaining `Config.third_party_notify` behavior. `helptext` delegates to `Kora.textui`.
 
+The clothing area includes both `kora_clothing` and `illenium-appearance` providers. Set `Config.Bridge.clothing = 'illenium-appearance'` to select iLLenium. Its appearance application expects iLLenium-format appearance data; `applyStarterAppearance` and `reloadSkin` both request iLLenium's saved-skin reload. `openClothingRoom` accepts an iLLenium customization config table or a supported service name (`clothing`, `barber`, `tattoo`, `surgeon`, `creation`, or `wardrobe`).
+
 The `bossmenuAddMoney` and `bossmenuRemoveMoney` names keep legacy boss-menu operations distinct from the society banking methods.
 
 ## Selecting providers
