@@ -17,7 +17,6 @@
       "modules/anim/client.lua",
       "modules/blips/client.lua",
       "modules/blips/settings.lua",
-      "modules/bridge/client.lua",
       "modules/bridge/modules/bossmenu/kora_bossmenu/client.lua",
       "modules/bridge/modules/clothing/kora_clothing/client.lua",
       "modules/bridge/modules/doorlock/kora_doorlock/client.lua",
@@ -76,7 +75,6 @@
       "modules/bridge/modules/dispatch/kora_dispatch/server.lua",
       "modules/bridge/modules/doorlock/kora_doorlock/server.lua",
       "modules/bridge/modules/vehiclekeys/kora_vehiclekeys/server.lua",
-      "modules/bridge/server.lua",
       "modules/closest/server.lua",
       "modules/commands/server.lua",
       "modules/config/editor_server.lua",
@@ -299,5 +297,5 @@
     "types.lua"
   ],
   "project": "Kora Framework",
-  "copyright": "Copyright © 2026 Kora Framework"
+  "copyright": "Copyright \u00c2\u00a9 2026 Kora Framework"
 }

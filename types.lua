@@ -1086,7 +1086,6 @@
 ---@field hasKeys fun(src:integer, plate:string):boolean [server]
 
 ---@class KoraBridge
----@field register fun(area:KoraBridgeArea, providerName:string, adapter:table):boolean [shared]
 ---@field getProvider fun(area:KoraBridgeArea):string? [shared]
 ---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
 ---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
