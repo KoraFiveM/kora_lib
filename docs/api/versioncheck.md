@@ -4,21 +4,17 @@ title: Version check
 
 # Version check
 
-Server-side helper for checking a resource's installed version against the latest value in a raw GitHub version file and printing the patch notes the resource is missing.
+Server-side helper for comparing a resource's installed version against a raw GitHub version file and printing a link to the patch-notes page when an update is available.
 
-See the [module guide](../../modules/versioncheck/docs.md) for setup and the expected patch-note format.
+See the module guide (../../modules/versioncheck/docs.md) for setup.
 
 ## Functions
 
-### `Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)` -- server
+### Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl) -- server
 
-Starts asynchronous requests for a raw version file and, if the caller's installed version differs, a raw Markdown patch-notes file. The calling resource is identified through the export invocation; its installed `version` comes from its parsed `fxmanifest.lua` metadata.
+Starts an asynchronous request for the remote version file. If the caller's installed version differs, it prints the version comparison and converts the raw patch-notes URL into a GitHub page URL. The calling resource is identified through the export invocation; its installed version comes from its fxmanifest.lua metadata.
 
-Patch-note headings should be top-level version bullets in oldest-to-newest order. Nested details after the installed version through the latest version are printed without their Markdown bullet markers; pre-release suffixes are supported.
-
-```lua
-Kora.versioncheck.check(
-    'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/version.txt',
-    'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/PATCHNOTES.md'
-)
-```
+    Kora.versioncheck.check(
+        'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/version.txt',
+        'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/PATCHNOTES.md'
+    )

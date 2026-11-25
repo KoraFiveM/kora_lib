@@ -19,50 +19,14 @@ local function readRemoteVersion(versionText)
     end
 end
 
-local function getMissingPatchNotes(patchNotes, installedVersion, latestVersion)
-    local sections = {}
-    local currentSection
+local function toGitHubPageUrl(rawUrl)
+    local owner, repository, branch, filePath = rawUrl:match(
+        '^https://raw%.githubusercontent%.com/([^/]+)/([^/]+)/([^/]+)/(.*)$'
+    )
 
-    for line in patchNotes:gmatch('[^\r\n]+') do
-        local indent, _, heading = line:match('^(%s*)([%-%*])%s+(.+)$')
-        if indent == '' then
-            local version = normalizeVersion(heading)
-            if version then
-                currentSection = { version = version, details = {} }
-                sections[#sections + 1] = currentSection
-            else
-                currentSection = nil
-            end
-        elseif currentSection then
-            local detail = line:match('^%s+(.+)$')
-            if detail then
-                detail = detail:gsub('^[%-%*]%s+', '')
-                if detail ~= '' then
-                    currentSection.details[#currentSection.details + 1] = detail
-                end
-            end
-        end
-    end
+    if not owner then return rawUrl end
 
-    local installedIndex
-    local latestIndex
-    for index, section in ipairs(sections) do
-        if section.version == installedVersion then installedIndex = index end
-        if section.version == latestVersion then latestIndex = index end
-    end
-
-    installedIndex = installedIndex or 0
-    latestIndex = latestIndex or #sections
-    if latestIndex <= installedIndex then return {} end
-
-    local missing = {}
-    for index = installedIndex + 1, latestIndex do
-        for _, detail in ipairs(sections[index].details) do
-            missing[#missing + 1] = detail
-        end
-    end
-
-    return missing
+    return ('https://github.com/%s/%s/blob/%s/%s'):format(owner, repository, branch, filePath)
 end
 
 local function printFailure(resource, message)
@@ -70,7 +34,7 @@ local function printFailure(resource, message)
 end
 
 --- Checks the invoking resource's manifest version against a raw GitHub version file.
---- If versions differ, it prints patch-note details newer than the installed version.
+--- When it is out of date, prints a link to the corresponding GitHub patch-notes page.
 ---@param remoteVersionUrl string Raw URL containing the latest version number.
 ---@param patchNotesUrl string Raw URL for a Markdown patch-notes file.
 ---@return boolean started Whether the asynchronous version request was started.
@@ -106,25 +70,10 @@ function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
 
         if installedVersion == latestVersion then return end
 
-        PerformHttpRequest(patchNotesUrl, function(notesStatus, notesBody, _, notesError)
-            if notesStatus ~= 200 or type(notesBody) ~= 'string' then
-                print(('%s is out of date: your version %s | current version %s'):format(
-                    resource, installedVersion, latestVersion
-                ))
-                printFailure(resource, ('could not fetch patch notes (HTTP %s): %s'):format(
-                    tostring(notesStatus), tostring(notesError or 'no response body')
-                ))
-                return
-            end
-
-            print(('%s is out of date: your version %s | current version %s'):format(
-                resource, installedVersion, latestVersion
-            ))
-
-            for _, detail in ipairs(getMissingPatchNotes(notesBody, installedVersion, latestVersion)) do
-                print(detail)
-            end
-        end, 'GET')
+        print(('%s is out of date: your version %s | current version %s'):format(
+            resource, installedVersion, latestVersion
+        ))
+        print(('Update notes: %s'):format(toGitHubPageUrl(patchNotesUrl)))
     end, 'GET')
 
     return true
