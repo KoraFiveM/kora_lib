@@ -1007,10 +1007,136 @@
 ---@class KoraLibCompat
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
+---@class KoraBridgeConfig
+---@field banking string Provider folder name, such as 'kora_banking'. [live]
+---@field bossmenu string Provider folder name, such as 'kora_bossmenu'. [live]
+---@field clothing string Provider folder name, such as 'illenium-appearance'. [live]
+---@field dispatch string Provider folder name, such as 'kora_dispatch'. [live]
+---@field doorlock string Provider folder name, such as 'kora_doorlock'. [live]
+---@field fuel string Provider folder name, such as 'kora_fuel'. [live]
+---@field helptext string Provider folder name, such as 'kora_lib'. [live]
+---@field notify string Provider folder name, such as 'kora_lib'. [live]
+---@field vehiclekeys string Provider folder name, such as 'kora_vehiclekeys'. [live]
+
+---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
+
+---@class KoraBridgeBankingAdapter
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field getSocietyAccountBalance fun(name:string):number [server]
+---@field executeSocietyTransaction fun(key:string, request:table):any ... [server]
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ... [server]
+
+---@class KoraBridgeBossMenuAdapter
+---@field openBossMenu fun(roleType?:string) [client]
+---@field openApplication fun(jobName:string, roleType?:string) [client]
+---@field addBossMenuItem fun(data:table, id?:string|integer):string|integer [client]
+---@field removeBossMenuItem fun(id:string|integer) [client]
+---@field addGangMenuItem fun(data:table, id?:string|integer):string|integer [client]
+---@field removeGangMenuItem fun(id:string|integer) [client]
+---@field addBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string? [server]
+---@field removeBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string? [server]
+---@field getBusinessBalance fun(jobName:string):number?, string? [server]
+---@field addMoney fun(jobName:string, amount:number):boolean [server]
+---@field removeMoney fun(jobName:string, amount:number):boolean [server]
+---@field addGangMoney fun(gangName:string, amount:number):boolean [server]
+---@field removeGangMoney fun(gangName:string, amount:number):boolean [server]
+---@field getGangBalance fun(gangName:string):number [server]
+
+---@class KoraBridgeClothingAdapter
+---@field openWardrobe fun() [client]
+---@field openClothingRoom fun(options?:table|number|string) [client]
+---@field applyAppearanceToPed fun(ped:integer, model:string, skin:table):boolean, string? [client]
+---@field applyStarterAppearance fun():boolean [client]
+---@field reloadSkin fun() [client]
+---@field openAdminSession fun(targetSrc:integer, service:string):boolean, string? [server]
+
+---@class KoraBridgeDispatchAdapter
+---@field createCall fun(payload:table):integer, integer|string [server]
+---@field updateCall fun(id:integer, patch:table):boolean, string? [server]
+---@field closeCall fun(id:integer, reason?:string):boolean, string? [server]
+---@field getCalls fun(filter?:table):table [server]
+---@field registerPlayerAlert fun(key:string, definition:table):boolean, string? [server]
+---@field createPlayerCall fun(src:integer, key:string):integer|false, integer|string, integer? [server]
+
+---@class KoraBridgeDoorlockAdapter
+---@field getClosestDoor fun():table? [client]
+---@field getDoorState fun(id:string):boolean? [client/server]
+---@field pickClosestDoor fun():boolean? [client]
+---@field setDoorState fun(id:string, state:boolean|0|1):boolean [server]
+---@field createDoor fun(raw:table):string|false, string? [server]
+---@field registerDoorPolicy fun(id:string, callback:function):boolean [server]
+
+---@class KoraBridgeFuelAdapter
+---@field getFuel fun(vehicle:integer):number [client]
+---@field setFuel fun(vehicle:integer, level:number):boolean [client]
+---@field isElectricVehicle fun(vehicle:integer):boolean [client]
+
+---@class KoraBridgeHelpTextAdapter
+---@field show fun(text:string, options?:KoraTextUIOptions):integer [client]
+---@field update fun(id:integer, text:string, options?:KoraTextUIOptions):boolean [client]
+---@field hide fun(id:integer):boolean [client]
+
+---@class KoraBridgeNotifyAdapter
+---@field send fun(payload:KoraNotifyPayload) [client]
+
+---@class KoraBridgeVehicleKeysAdapter
+---@field giveKeys fun(src:integer, plate:string, allowWhenDisabled?:boolean):boolean [server]
+---@field removeKeys fun(src:integer, plate:string):boolean [server]
+---@field hasKeys fun(src:integer, plate:string):boolean [server]
+
+---@class KoraBridge
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field getSocietyAccountBalance fun(name:string):number [server]
+---@field executeSocietyTransaction fun(key:string, request:table):any ... [server]
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ... [server]
+---@field openBossMenu fun(roleType?:string) [client]
+---@field openApplication fun(jobName:string, roleType?:string) [client]
+---@field addBossMenuItem fun(data:table, id?:string|integer):string|integer [client]
+---@field removeBossMenuItem fun(id:string|integer) [client]
+---@field addGangMenuItem fun(data:table, id?:string|integer):string|integer [client]
+---@field removeGangMenuItem fun(id:string|integer) [client]
+---@field addBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string? [server]
+---@field removeBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string? [server]
+---@field getBusinessBalance fun(jobName:string):number?, string? [server]
+---@field bossmenuAddMoney fun(jobName:string, amount:number):boolean [server]
+---@field bossmenuRemoveMoney fun(jobName:string, amount:number):boolean [server]
+---@field addGangMoney fun(gangName:string, amount:number):boolean [server]
+---@field removeGangMoney fun(gangName:string, amount:number):boolean [server]
+---@field getGangBalance fun(gangName:string):number [server]
+---@field openWardrobe fun() [client]
+---@field openClothingRoom fun(options?:table|number|string) [client]
+---@field applyAppearanceToPed fun(ped:integer, model:string, skin:table):boolean, string? [client]
+---@field applyStarterAppearance fun():boolean [client]
+---@field reloadSkin fun() [client]
+---@field openAdminSession fun(targetSrc:integer, service:string):boolean, string? [server]
+---@field createCall fun(payload:table):integer, any [server]
+---@field updateCall fun(id:integer, patch:table):boolean, string? [server]
+---@field closeCall fun(id:integer, reason?:string):boolean, string? [server]
+---@field getCalls fun(filter?:table):table [server]
+---@field registerPlayerAlert fun(key:string, definition:table):boolean, string? [server]
+---@field createPlayerCall fun(src:integer, key:string):integer|false, any [server]
+---@field getClosestDoor fun():table? [client]
+---@field getDoorState fun(id:string):boolean? [client/server]
+---@field pickClosestDoor fun():boolean? [client]
+---@field setDoorState fun(id:string, state:boolean|0|1):boolean [server]
+---@field createDoor fun(raw:table):string|false, string? [server]
+---@field registerDoorPolicy fun(id:string, callback:function):boolean [server]
+---@field getFuel fun(vehicle:integer):number [client]
+---@field setFuel fun(vehicle:integer, level:number):boolean [client]
+---@field isElectricVehicle fun(vehicle:integer):boolean [client]
+---@field showHelpText fun(text:string, options?:KoraTextUIOptions):integer? [client]
+---@field updateHelpText fun(id:integer, text:string, options?:KoraTextUIOptions):boolean [client]
+---@field hideHelpText fun(id:integer):boolean [client]
+---@field sendNotification fun(payload:KoraNotifyPayload) [client]
+---@class KoraLibVersioncheck
+---@field check fun(remoteVersionUrl:string, patchNotesUrl:string): boolean [server]
 ---@class kora_lib
 ---@field actions KoraLibActions
 ---@field anim KoraLibAnim
 ---@field blips KoraLibBlips
+---@field bridge KoraBridge
 ---@field camera KoraLibCamera
 ---@field cache KoraLibCache
 ---@field callback KoraLibCallback
@@ -1058,6 +1184,7 @@
 ---@field timers KoraLibTimers
 ---@field util KoraLibUtil
 ---@field vehicle KoraLibVehicle
+---@field versioncheck KoraLibVersioncheck
 ---@field visuals KoraLibVisuals
 ---@field world KoraLibWorld
 ---@field zones KoraLibZones

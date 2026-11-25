@@ -1010,7 +1010,91 @@
 ---@class KoraLibCompat
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
+---@class KoraBridgeConfig
+---@field banking string Provider folder name, such as 'kora_banking'. [live]
+---@field bossmenu string Provider folder name, such as 'kora_bossmenu'. [live]
+---@field clothing string Provider folder name, such as 'illenium-appearance'. [live]
+---@field dispatch string Provider folder name, such as 'kora_dispatch'. [live]
+---@field doorlock string Provider folder name, such as 'kora_doorlock'. [live]
+---@field fuel string Provider folder name, such as 'kora_fuel'. [live]
+---@field helptext string Provider folder name, such as 'kora_lib'. [live]
+---@field notify string Provider folder name, such as 'kora_lib'. [live]
+---@field vehiclekeys string Provider folder name, such as 'kora_vehiclekeys'. [live]
+
+---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
+
+---@class KoraBridgeBankingAdapter
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field getSocietyAccountBalance fun(name:string):number
+---@field executeSocietyTransaction fun(key:string, request:table):any ...
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ...
+
+---@class KoraBridgeBossMenuAdapter
+---@field addBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
+---@field removeBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
+---@field getBusinessBalance fun(jobName:string):number?, string?
+---@field addMoney fun(jobName:string, amount:number):boolean
+---@field removeMoney fun(jobName:string, amount:number):boolean
+---@field addGangMoney fun(gangName:string, amount:number):boolean
+---@field removeGangMoney fun(gangName:string, amount:number):boolean
+---@field getGangBalance fun(gangName:string):number
+
+---@class KoraBridgeClothingAdapter
+---@field openAdminSession fun(targetSrc:integer, service:string):boolean, string?
+
+---@class KoraBridgeDispatchAdapter
+---@field createCall fun(payload:table):integer, integer|string
+---@field updateCall fun(id:integer, patch:table):boolean, string?
+---@field closeCall fun(id:integer, reason?:string):boolean, string?
+---@field getCalls fun(filter?:table):table
+---@field registerPlayerAlert fun(key:string, definition:table):boolean, string?
+---@field createPlayerCall fun(src:integer, key:string):integer|false, integer|string, integer?
+
+---@class KoraBridgeDoorlockAdapter
+---@field getDoorState fun(id:string):boolean?
+---@field setDoorState fun(id:string, state:boolean|0|1):boolean
+---@field createDoor fun(raw:table):string|false, string?
+---@field registerDoorPolicy fun(id:string, callback:function):boolean
+
+---@class KoraBridgeFuelAdapter
+
+---@class KoraBridgeHelpTextAdapter
+
+---@class KoraBridgeNotifyAdapter
+
+---@class KoraBridgeVehicleKeysAdapter
+---@field giveKeys fun(src:integer, plate:string, allowWhenDisabled?:boolean):boolean
+---@field removeKeys fun(src:integer, plate:string):boolean
+---@field hasKeys fun(src:integer, plate:string):boolean
+
+---@class KoraBridge
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field getSocietyAccountBalance fun(name:string):number
+---@field executeSocietyTransaction fun(key:string, request:table):any ...
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ...
+---@field addBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
+---@field removeBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
+---@field getBusinessBalance fun(jobName:string):number?, string?
+---@field bossmenuAddMoney fun(jobName:string, amount:number):boolean
+---@field bossmenuRemoveMoney fun(jobName:string, amount:number):boolean
+---@field addGangMoney fun(gangName:string, amount:number):boolean
+---@field removeGangMoney fun(gangName:string, amount:number):boolean
+---@field getGangBalance fun(gangName:string):number
+---@field openAdminSession fun(targetSrc:integer, service:string):boolean, string?
+---@field createCall fun(payload:table):integer, any
+---@field updateCall fun(id:integer, patch:table):boolean, string?
+---@field closeCall fun(id:integer, reason?:string):boolean, string?
+---@field getCalls fun(filter?:table):table
+---@field registerPlayerAlert fun(key:string, definition:table):boolean, string?
+---@field createPlayerCall fun(src:integer, key:string):integer|false, any
+---@field getDoorState fun(id:string):boolean?
+---@field setDoorState fun(id:string, state:boolean|0|1):boolean
+---@field createDoor fun(raw:table):string|false, string?
+---@field registerDoorPolicy fun(id:string, callback:function):boolean
 ---@class kora_lib
+---@field bridge KoraBridge
 ---@field actions KoraLibActions
 ---@field anim KoraLibAnim
 ---@field blips KoraLibBlips

@@ -23,7 +23,7 @@ kora_lib is the shared utility layer for the Kora resource set. It provides a ty
 | [Installation](./installation.md) | Install order, adding the proxy to a resource, step-by-step example, start-up problems, optional legacy imports. |
 | [How to use](./how-to-use.md) | Loading kora_lib in a manifest and making your first call. |
 | [Commands and key mappings](./commands.md) | Commands and default keys registered by kora_lib. |
-| [API reference](./api/index.md) | Every `Kora` module with its realms; one page per module (`./api/<module>.md`, 54 pages). |
+| [API reference](./api/index.md) | Every `Kora` module with its realms; one page per module (`./api/<module>.md`, 55 pages). |
 | [API module map](./reference.md) | Modules grouped by area with a summary and published path. |
 | [Using the API](./using-the-api.md) | Namespaces, realms, results, ownership, security boundary. |
 | [Configuration](./configuration.md) | `config.lua`, `server/config.lua` and convars. |

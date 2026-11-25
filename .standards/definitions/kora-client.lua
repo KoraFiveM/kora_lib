@@ -1010,7 +1010,82 @@
 ---@class KoraLibCompat
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
+---@class KoraBridgeConfig
+---@field banking string Provider folder name, such as 'kora_banking'. [live]
+---@field bossmenu string Provider folder name, such as 'kora_bossmenu'. [live]
+---@field clothing string Provider folder name, such as 'illenium-appearance'. [live]
+---@field dispatch string Provider folder name, such as 'kora_dispatch'. [live]
+---@field doorlock string Provider folder name, such as 'kora_doorlock'. [live]
+---@field fuel string Provider folder name, such as 'kora_fuel'. [live]
+---@field helptext string Provider folder name, such as 'kora_lib'. [live]
+---@field notify string Provider folder name, such as 'kora_lib'. [live]
+---@field vehiclekeys string Provider folder name, such as 'kora_vehiclekeys'. [live]
+
+---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
+
+---@class KoraBridgeBankingAdapter
+
+---@class KoraBridgeBossMenuAdapter
+---@field openBossMenu fun(roleType?:string)
+---@field openApplication fun(jobName:string, roleType?:string)
+---@field addBossMenuItem fun(data:table, id?:string|integer):string|integer
+---@field removeBossMenuItem fun(id:string|integer)
+---@field addGangMenuItem fun(data:table, id?:string|integer):string|integer
+---@field removeGangMenuItem fun(id:string|integer)
+
+---@class KoraBridgeClothingAdapter
+---@field openWardrobe fun()
+---@field openClothingRoom fun(options?:table|number|string)
+---@field applyAppearanceToPed fun(ped:integer, model:string, skin:table):boolean, string?
+---@field applyStarterAppearance fun():boolean
+---@field reloadSkin fun()
+
+---@class KoraBridgeDispatchAdapter
+
+---@class KoraBridgeDoorlockAdapter
+---@field getClosestDoor fun():table?
+---@field getDoorState fun(id:string):boolean?
+---@field pickClosestDoor fun():boolean?
+
+---@class KoraBridgeFuelAdapter
+---@field getFuel fun(vehicle:integer):number
+---@field setFuel fun(vehicle:integer, level:number):boolean
+---@field isElectricVehicle fun(vehicle:integer):boolean
+
+---@class KoraBridgeHelpTextAdapter
+---@field show fun(text:string, options?:KoraTextUIOptions):integer
+---@field update fun(id:integer, text:string, options?:KoraTextUIOptions):boolean
+---@field hide fun(id:integer):boolean
+
+---@class KoraBridgeNotifyAdapter
+---@field send fun(payload:KoraNotifyPayload)
+
+---@class KoraBridgeVehicleKeysAdapter
+
+---@class KoraBridge
+---@field openBossMenu fun(roleType?:string)
+---@field openApplication fun(jobName:string, roleType?:string)
+---@field addBossMenuItem fun(data:table, id?:string|integer):string|integer
+---@field removeBossMenuItem fun(id:string|integer)
+---@field addGangMenuItem fun(data:table, id?:string|integer):string|integer
+---@field removeGangMenuItem fun(id:string|integer)
+---@field openWardrobe fun()
+---@field openClothingRoom fun(options?:table|number|string)
+---@field applyAppearanceToPed fun(ped:integer, model:string, skin:table):boolean, string?
+---@field applyStarterAppearance fun():boolean
+---@field reloadSkin fun()
+---@field getClosestDoor fun():table?
+---@field getDoorState fun(id:string):boolean?
+---@field pickClosestDoor fun():boolean?
+---@field getFuel fun(vehicle:integer):number
+---@field setFuel fun(vehicle:integer, level:number):boolean
+---@field isElectricVehicle fun(vehicle:integer):boolean
+---@field showHelpText fun(text:string, options?:KoraTextUIOptions):integer?
+---@field updateHelpText fun(id:integer, text:string, options?:KoraTextUIOptions):boolean
+---@field hideHelpText fun(id:integer):boolean
+---@field sendNotification fun(payload:KoraNotifyPayload)
 ---@class kora_lib
+---@field bridge KoraBridge
 ---@field actions KoraLibActions
 ---@field anim KoraLibAnim
 ---@field blips KoraLibBlips

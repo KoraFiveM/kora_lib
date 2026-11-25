@@ -1010,7 +1010,40 @@
 ---@class KoraLibCompat
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
+---@class KoraBridgeConfig
+---@field banking string Provider folder name, such as 'kora_banking'. [live]
+---@field bossmenu string Provider folder name, such as 'kora_bossmenu'. [live]
+---@field clothing string Provider folder name, such as 'illenium-appearance'. [live]
+---@field dispatch string Provider folder name, such as 'kora_dispatch'. [live]
+---@field doorlock string Provider folder name, such as 'kora_doorlock'. [live]
+---@field fuel string Provider folder name, such as 'kora_fuel'. [live]
+---@field helptext string Provider folder name, such as 'kora_lib'. [live]
+---@field notify string Provider folder name, such as 'kora_lib'. [live]
+---@field vehiclekeys string Provider folder name, such as 'kora_vehiclekeys'. [live]
+
+---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
+
+---@class KoraBridgeBankingAdapter
+
+---@class KoraBridgeBossMenuAdapter
+
+---@class KoraBridgeClothingAdapter
+
+---@class KoraBridgeDispatchAdapter
+
+---@class KoraBridgeDoorlockAdapter
+
+---@class KoraBridgeFuelAdapter
+
+---@class KoraBridgeHelpTextAdapter
+
+---@class KoraBridgeNotifyAdapter
+
+---@class KoraBridgeVehicleKeysAdapter
+
+---@class KoraBridge
 ---@class kora_lib
+---@field bridge KoraBridge
 ---@field actions KoraLibActions
 ---@field anim KoraLibAnim
 ---@field blips KoraLibBlips

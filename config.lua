@@ -1,6 +1,18 @@
 Config = {}
 
 Config.third_party_notify = false
+-- Each key is a bridge area; each value is its provider folder under modules/bridge/modules/.
+Config.Bridge = {
+    banking = 'kora_banking',
+    bossmenu = 'kora_bossmenu',
+    clothing = 'kora_clothing',
+    dispatch = 'kora_dispatch',
+    doorlock = 'kora_doorlock',
+    fuel = 'kora_fuel',
+    helptext = 'kora_lib',
+    notify = 'ox_lib',
+    vehiclekeys = 'MrNewbVehicleKeys',
+}
 
 Config.nui = {
     clipboardFocus = true,
