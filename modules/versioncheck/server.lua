@@ -19,8 +19,7 @@ end
 
 local function readManifestVersion(manifest)
     for line in manifest:gmatch('[^\r\n]+') do
-        local version = line:match([[^%s*version%s*['"]([^'"]+)['"]])
-            or line:match([[^%s*version%s*%(%s*['"]([^'"]+)['"]%s*%)])
+        local version = line:match([[^%s*version%s*['"]([^'"]+)['"]]) or line:match([[^%s*version%s*%(%s*['"]([^'"]+)['"]%s*%)]])
         if version then return version end
     end
 end
