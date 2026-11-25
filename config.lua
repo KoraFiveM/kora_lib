@@ -10,7 +10,7 @@ Config.Bridge = {
     doorlock = 'kora_doorlock',
     fuel = 'kora_fuel',
     helptext = 'kora_lib',
-    notify = 'kora_lib',
+    notify = 'ox_lib',
     vehiclekeys = 'MrNewbVehicleKeys',
 }
 
