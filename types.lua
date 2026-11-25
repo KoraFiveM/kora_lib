@@ -1131,7 +1131,7 @@
 ---@field hideHelpText fun(id:integer):boolean [client]
 ---@field sendNotification fun(payload:KoraNotifyPayload) [client]
 ---@class KoraLibVersioncheck
----@field check fun(remoteManifestUrl:string, patchNotesUrl:string): boolean [server]
+---@field check fun(remoteVersionUrl:string, patchNotesUrl:string): boolean [server]
 ---@class kora_lib
 ---@field actions KoraLibActions
 ---@field anim KoraLibAnim

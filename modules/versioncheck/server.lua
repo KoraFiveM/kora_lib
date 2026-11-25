@@ -17,10 +17,13 @@ local function compareVersions(left, right)
     return 0
 end
 
-local function readManifestVersion(manifest)
-    for line in manifest:gmatch('[^\r\n]+') do
-        local version = line:match([[^%s*version%s*['"]([^'"]+)['"]]) or line:match([[^%s*version%s*%(%s*['"]([^'"]+)['"]%s*%)]])
-        if version then return version end
+local function readRemoteVersion(versionText)
+    local value = versionText:match('^%s*([vV]?%d+%.%d+%.%d+)%s*$')
+    if value then return value end
+
+    for line in versionText:gmatch('[^\r\n]+') do
+        value = line:match([[^%s*version%s*[:=]?%s*['"]?([vV]?%d+%.%d+%.%d+)['"]?%s*$]])
+        if value then return value end
     end
 end
 
@@ -34,9 +37,9 @@ local function getMissingPatchNotes(patchNotes, installedVersion, latestVersion)
     local sectionIsMissing = false
 
     for line in patchNotes:gmatch('[^\r\n]+') do
-        local indent, bullet = line:match('^(%s*)([-*]%s+)(.+)$')
+        local indent, bullet = line:match('^(%s*)([%-%*]%s+)(.+)$')
         if indent == '' and bullet then
-            local versionText = line:match('^[-*]%s+[vV]?(%d+%.%d+%.%d+)%s*$')
+            local versionText = line:match('^[%-%*]%s+[vV]?(%d+%.%d+%.%d+)%s*$')
             sectionVersion = versionText and parseVersion(versionText) or nil
             sectionIsMissing = sectionVersion ~= nil
                 and compareVersions(sectionVersion, installed) > 0
@@ -44,7 +47,7 @@ local function getMissingPatchNotes(patchNotes, installedVersion, latestVersion)
         elseif sectionIsMissing then
             local detail = line:match('^%s+(.+)$')
             if detail then
-                detail = detail:gsub('^[-*]%s+', '')
+                detail = detail:gsub('^[%-%*]%s+', '')
                 if detail ~= '' then missing[#missing + 1] = detail end
             end
         end
@@ -57,16 +60,16 @@ local function printFailure(resource, message)
     print(('[kora_lib/versioncheck] %s: %s'):format(resource or 'unknown resource', message))
 end
 
---- Checks the invoking resource's manifest version against a raw GitHub fxmanifest.lua.
+--- Checks the invoking resource's manifest version against a raw GitHub version file.
 --- If versions differ, it prints patch-note details newer than the installed version.
----@param remoteManifestUrl string Raw URL for the latest fxmanifest.lua.
+---@param remoteVersionUrl string Raw URL containing the latest version number.
 ---@param patchNotesUrl string Raw URL for a Markdown patch-notes file.
 ---@return boolean started Whether the asynchronous version request was started.
-function Kora.versioncheck.check(remoteManifestUrl, patchNotesUrl)
-    assert(type(remoteManifestUrl) == 'string' and remoteManifestUrl ~= '', 'remoteManifestUrl must be a non-empty string.')
+function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
+    assert(type(remoteVersionUrl) == 'string' and remoteVersionUrl ~= '', 'remoteVersionUrl must be a non-empty string.')
     assert(type(patchNotesUrl) == 'string' and patchNotesUrl ~= '', 'patchNotesUrl must be a non-empty string.')
 
-    local resource = GetInvokingResource()
+    local resource = GetInvokingResource() or GetCurrentResourceName()
     if not resource then
         printFailure(nil, 'check must be called from another resource.')
         return false
@@ -78,20 +81,19 @@ function Kora.versioncheck.check(remoteManifestUrl, patchNotesUrl)
         return false
     end
 
-    PerformHttpRequest(remoteManifestUrl, function(statusCode, body, _, errorData)
+    PerformHttpRequest(remoteVersionUrl, function(statusCode, body, _, errorData)
         if statusCode ~= 200 or type(body) ~= 'string' then
-            printFailure(resource, ('could not fetch remote fxmanifest.lua (HTTP %s): %s'):format(
+            printFailure(resource, ('could not fetch remote version file (HTTP %s): %s'):format(
                 tostring(statusCode), tostring(errorData or 'no response body')
             ))
             return
         end
 
-        local latestVersion = readManifestVersion(body)
+        local latestVersion = readRemoteVersion(body)
         if not latestVersion then
-            printFailure(resource, 'remote fxmanifest.lua does not declare a version.')
+            printFailure(resource, 'remote version file does not contain a version.')
             return
         end
-
         if installedVersion == latestVersion then return end
 
         PerformHttpRequest(patchNotesUrl, function(notesStatus, notesBody, _, notesError)
@@ -117,3 +119,4 @@ function Kora.versioncheck.check(remoteManifestUrl, patchNotesUrl)
 
     return true
 end
+Kora.versioncheck.check('https://raw.githubusercontent.com/KoraFiveM/kora_lib/refs/heads/codex/bridge/version.txt',     'https://raw.githubusercontent.com/KoraFiveM/kora_lib/refs/heads/codex/bridge/patchnotes.md')

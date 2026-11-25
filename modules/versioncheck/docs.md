@@ -1,12 +1,12 @@
 # Version check module
 
-Compares the version in the calling resource's `fxmanifest.lua` with a remote raw GitHub `fxmanifest.lua`. If the versions differ, it fetches a Markdown patch-notes file and prints details for versions newer than the installed version, up to the remote version.
+Compares the version in the calling resource's `fxmanifest.lua` with a remote raw GitHub version file. The first URL returns just a version such as `0.1.2`; the local version is read from the invoking resource's `fxmanifest.lua`. If the versions differ, it fetches a Markdown patch-notes file and prints details for versions newer than the installed version, up to the remote version.
 
 ## API
 
-### `Kora.versioncheck.check(remoteManifestUrl, patchNotesUrl)` -- server
+### `Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)` -- server
 
-Call this from the resource's server-side code. Both URLs must be publicly readable raw file URLs. The remote manifest must declare a `version` value, and the caller's manifest must also have a `version` value. Version values and patch-note headings must use `major.minor.patch` numbers (an optional leading `v` is accepted).
+Call this from the resource's server-side code. Both URLs must be publicly readable raw file URLs. The first must contain a plain version such as `0.1.2`; the caller's `fxmanifest.lua` must declare a `version` value. Version values and patch-note headings must use `major.minor.patch` numbers (an optional leading `v` is accepted).
 
 Patch-note versions use top-level bullets. Detail lines are indented beneath their version:
 
@@ -21,7 +21,7 @@ Patch-note versions use top-level bullets. Detail lines are indented beneath the
 
 ```lua
 Kora.versioncheck.check(
-    'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/fxmanifest.lua',
+    'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/version.txt',
     'https://raw.githubusercontent.com/KoraFiveM/server-checker/main/PATCHNOTES.md'
 )
 ```
