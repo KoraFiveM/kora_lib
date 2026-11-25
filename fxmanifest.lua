@@ -198,6 +198,7 @@ server_scripts {
     'modules/skills/server.lua',
     'modules/state/server.lua',
     'modules/status/server.lua',
+    'modules/versioncheck/server.lua',
     'modules/world/server.lua',
     'modules/config/editor_server.lua',
     'build/finalise.lua'

@@ -74,6 +74,7 @@ Every public kora_lib namespace has a reference page under `docs/api/` (see the 
 | [Screenshot](./api/screenshot.md) | `/reference/screenshot/` | Game-view screenshot capture and upload |
 | [Skills bridge](./api/skills.md) | `/reference/skills/` | Optional bridge to kora_skills |
 | [Status effects module](./api/status.md) | `/reference/status/` | Shared status-effect definitions and application |
+| [Version check](./api/versioncheck.md) | `/reference/versioncheck/` | Compare installed resource versions and print missing patch notes |
 
 ## Utilities and compatibility
 

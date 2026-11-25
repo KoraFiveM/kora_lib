@@ -57,6 +57,7 @@ sidebar_position: 1
 | [Timers](./timers.md) | `Kora.timers` | shared |
 | [Util](./util.md) | `Kora.util` | shared, client |
 | [Vehicle](./vehicle.md) | `Kora.vehicle` | shared, client |
+| [Version check](./versioncheck.md) | `Kora.versioncheck` | server |
 | [Visuals](./visuals.md) | `Kora.visuals` | client |
 | [World](./world.md) | `Kora.world` | client, server |
 | [Zones](./zones.md) | `Kora.zones` | client |

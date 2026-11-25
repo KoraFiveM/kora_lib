@@ -1130,6 +1130,8 @@
 ---@field updateHelpText fun(id:integer, text:string, options?:KoraTextUIOptions):boolean [client]
 ---@field hideHelpText fun(id:integer):boolean [client]
 ---@field sendNotification fun(payload:KoraNotifyPayload) [client]
+---@class KoraLibVersioncheck
+---@field check fun(remoteManifestUrl:string, patchNotesUrl:string): boolean [server]
 ---@class kora_lib
 ---@field actions KoraLibActions
 ---@field anim KoraLibAnim
@@ -1182,6 +1184,7 @@
 ---@field timers KoraLibTimers
 ---@field util KoraLibUtil
 ---@field vehicle KoraLibVehicle
+---@field versioncheck KoraLibVersioncheck
 ---@field visuals KoraLibVisuals
 ---@field world KoraLibWorld
 ---@field zones KoraLibZones

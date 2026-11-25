@@ -96,6 +96,7 @@
       "modules/skills/server.lua",
       "modules/state/server.lua",
       "modules/status/server.lua",
+      "modules/versioncheck/server.lua",
       "modules/world/server.lua",
       "server/config.lua"
     ],
