@@ -5,13 +5,13 @@ Config.third_party_notify = false
 Config.Bridge = {
     banking = 'kora_banking',
     bossmenu = 'kora_bossmenu',
-    clothing = 'illenium-appearance',
+    clothing = 'kora_clothing',
     dispatch = 'kora_dispatch',
     doorlock = 'kora_doorlock',
     fuel = 'kora_fuel',
     helptext = 'kora_lib',
     notify = 'kora_lib',
-    vehiclekeys = 'kora_vehiclekeys',
+    vehiclekeys = 'MrNewbVehicleKeys',
 }
 
 Config.nui = {
