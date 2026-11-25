@@ -1,55 +1,64 @@
-local function parseVersion(value)
+local function normalizeVersion(value)
     if type(value) ~= 'string' then return nil end
 
-    local major, minor, patch = value:match('^[vV]?(%d+)%.(%d+)%.(%d+)')
-    if not major then return nil end
+    local version = value:match('^%s*(.-)%s*$')
+    version = version and version:gsub('^[vV]', '')
+    if not version or not version:match('^%d+%.%d+%.%d+[%w%.%+%-]*$') then return nil end
 
-    return { tonumber(major), tonumber(minor), tonumber(patch) }
-end
-
-local function compareVersions(left, right)
-    for index = 1, 3 do
-        if left[index] ~= right[index] then
-            return left[index] < right[index] and -1 or 1
-        end
-    end
-
-    return 0
+    return version
 end
 
 local function readRemoteVersion(versionText)
-    local value = versionText:match('^%s*([vV]?%d+%.%d+%.%d+)%s*$')
-    if value then return value end
+    local version = normalizeVersion(versionText)
+    if version then return version end
 
     for line in versionText:gmatch('[^\r\n]+') do
-        value = line:match([[^%s*version%s*[:=]?%s*['"]?([vV]?%d+%.%d+%.%d+)['"]?%s*$]])
-        if value then return value end
+        local declared = line:match([[^%s*version%s*[:=]?%s*['"]?([^'"]+)['"]?%s*$]])
+        version = normalizeVersion(declared)
+        if version then return version end
     end
 end
 
 local function getMissingPatchNotes(patchNotes, installedVersion, latestVersion)
-    local installed = parseVersion(installedVersion)
-    local latest = parseVersion(latestVersion)
-    if not installed or not latest then return {} end
-
-    local missing = {}
-    local sectionVersion
-    local sectionIsMissing = false
+    local sections = {}
+    local currentSection
 
     for line in patchNotes:gmatch('[^\r\n]+') do
-        local indent, bullet = line:match('^(%s*)([%-%*]%s+)(.+)$')
-        if indent == '' and bullet then
-            local versionText = line:match('^[%-%*]%s+[vV]?(%d+%.%d+%.%d+)%s*$')
-            sectionVersion = versionText and parseVersion(versionText) or nil
-            sectionIsMissing = sectionVersion ~= nil
-                and compareVersions(sectionVersion, installed) > 0
-                and compareVersions(sectionVersion, latest) <= 0
-        elseif sectionIsMissing then
+        local indent, _, heading = line:match('^(%s*)([%-%*])%s+(.+)$')
+        if indent == '' then
+            local version = normalizeVersion(heading)
+            if version then
+                currentSection = { version = version, details = {} }
+                sections[#sections + 1] = currentSection
+            else
+                currentSection = nil
+            end
+        elseif currentSection then
             local detail = line:match('^%s+(.+)$')
             if detail then
                 detail = detail:gsub('^[%-%*]%s+', '')
-                if detail ~= '' then missing[#missing + 1] = detail end
+                if detail ~= '' then
+                    currentSection.details[#currentSection.details + 1] = detail
+                end
             end
+        end
+    end
+
+    local installedIndex
+    local latestIndex
+    for index, section in ipairs(sections) do
+        if section.version == installedVersion then installedIndex = index end
+        if section.version == latestVersion then latestIndex = index end
+    end
+
+    installedIndex = installedIndex or 0
+    latestIndex = latestIndex or #sections
+    if latestIndex <= installedIndex then return {} end
+
+    local missing = {}
+    for index = installedIndex + 1, latestIndex do
+        for _, detail in ipairs(sections[index].details) do
+            missing[#missing + 1] = detail
         end
     end
 
@@ -75,9 +84,9 @@ function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
         return false
     end
 
-    local installedVersion = GetResourceMetadata(resource, 'version', 0)
-    if type(installedVersion) ~= 'string' or installedVersion == '' then
-        printFailure(resource, 'no version metadata was found in its fxmanifest.lua.')
+    local installedVersion = normalizeVersion(GetResourceMetadata(resource, 'version', 0))
+    if not installedVersion then
+        printFailure(resource, 'no valid version metadata was found in its fxmanifest.lua.')
         return false
     end
 
@@ -91,14 +100,15 @@ function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
 
         local latestVersion = readRemoteVersion(body)
         if not latestVersion then
-            printFailure(resource, 'remote version file does not contain a version.')
+            printFailure(resource, 'remote version file does not contain a valid version.')
             return
         end
+
         if installedVersion == latestVersion then return end
 
         PerformHttpRequest(patchNotesUrl, function(notesStatus, notesBody, _, notesError)
             if notesStatus ~= 200 or type(notesBody) ~= 'string' then
-                printFailure(resource, ('%s is out of date: your version %s | current version %s'):format(
+                print(('%s is out of date: your version %s | current version %s'):format(
                     resource, installedVersion, latestVersion
                 ))
                 printFailure(resource, ('could not fetch patch notes (HTTP %s): %s'):format(
@@ -119,4 +129,3 @@ function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
 
     return true
 end
-Kora.versioncheck.check('https://raw.githubusercontent.com/KoraFiveM/kora_lib/refs/heads/codex/bridge/version.txt',     'https://raw.githubusercontent.com/KoraFiveM/kora_lib/refs/heads/codex/bridge/patchnotes.md')

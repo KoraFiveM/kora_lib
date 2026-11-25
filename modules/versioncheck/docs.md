@@ -6,7 +6,7 @@ Compares the version in the calling resource's `fxmanifest.lua` with a remote ra
 
 ### `Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)` -- server
 
-Call this from the resource's server-side code. Both URLs must be publicly readable raw file URLs. The first must contain a plain version such as `0.1.2`; the caller's `fxmanifest.lua` must declare a `version` value. Version values and patch-note headings must use `major.minor.patch` numbers (an optional leading `v` is accepted).
+Call this from the resource's server-side code. Both URLs must be publicly readable raw file URLs. The first must contain a plain version such as `0.1.2`; the caller's `fxmanifest.lua` must declare a `version` value. Version values and patch-note headings must use `major.minor.patch` numbers; optional `v`, pre-release, and build suffixes are accepted. Keep patch-note sections in oldest-to-newest order.
 
 Patch-note versions use top-level bullets. Detail lines are indented beneath their version:
 
