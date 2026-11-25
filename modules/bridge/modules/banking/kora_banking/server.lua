@@ -1,15 +1,16 @@
-Kora.bridge.addSocietyMoney = function(name, amount, reason)
+
+function Kora.bridge.addSocietyMoney(name, amount, reason)
     return exports.kora_banking:AddMoney(name, amount, reason)
 end
-Kora.bridge.removeSocietyMoney = function(name, amount, reason)
+function Kora.bridge.removeSocietyMoney(name, amount, reason)
     return exports.kora_banking:RemoveMoney(name, amount, reason)
 end
-Kora.bridge.getSocietyAccountBalance = function(name)
+function Kora.bridge.getSocietyAccountBalance(name)
     return exports.kora_banking:GetAccountBalance(name)
 end
-Kora.bridge.executeSocietyTransaction = function(key, request)
+function Kora.bridge.executeSocietyTransaction(key, request)
     return exports.kora_banking:ExecuteTransaction(key, request)
 end
-Kora.bridge.createSocietyBankStatement = function(playerId, account, amount, reason, kind, accountType)
+function Kora.bridge.createSocietyBankStatement(playerId, account, amount, reason, kind, accountType)
     return exports.kora_banking:CreateBankStatement(playerId, account, amount, reason, kind, accountType)
 end

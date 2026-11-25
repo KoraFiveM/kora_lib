@@ -1,12 +1,12 @@
-Kora.bridge.getDoorState = function(id)
+function Kora.bridge.getDoorState(id)
     return exports.kora_doorlock:getDoorState(id)
 end
-Kora.bridge.setDoorState = function(id, state)
+function Kora.bridge.setDoorState(id, state)
     return exports.kora_doorlock:setDoorState(id, state)
 end
-Kora.bridge.createDoor = function(raw)
+function Kora.bridge.createDoor(raw)
     return exports.kora_doorlock:createDoor(raw)
 end
-Kora.bridge.registerDoorPolicy = function(id, callback)
+function Kora.bridge.registerDoorPolicy(id, callback)
     return exports.kora_doorlock:RegisterDoorPolicy(id, callback)
 end

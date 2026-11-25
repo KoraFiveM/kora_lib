@@ -1,9 +1,9 @@
-Kora.bridge.getFuel = function(vehicle)
+function Kora.bridge.getFuel(vehicle)
     return exports.kora_fuel:GetFuel(vehicle)
 end
-Kora.bridge.setFuel = function(vehicle, level)
+function Kora.bridge.setFuel(vehicle, level)
     return exports.kora_fuel:SetFuel(vehicle, level)
 end
-Kora.bridge.isElectricVehicle = function(vehicle)
+function Kora.bridge.isElectricVehicle(vehicle)
     return exports.kora_fuel:isElectricVehicle(vehicle)
 end

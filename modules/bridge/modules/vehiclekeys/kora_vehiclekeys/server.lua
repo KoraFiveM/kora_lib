@@ -1,9 +1,9 @@
-Kora.bridge.giveKeys = function(src, plate, allowWhenDisabled)
+function Kora.bridge.giveKeys(src, plate, allowWhenDisabled)
     return exports.kora_vehiclekeys:giveKeys(src, plate, allowWhenDisabled)
 end
-Kora.bridge.removeKeys = function(src, plate)
+function Kora.bridge.removeKeys(src, plate)
     return exports.kora_vehiclekeys:removeKeys(src, plate)
 end
-Kora.bridge.hasKeys = function(src, plate)
+function Kora.bridge.hasKeys(src, plate)
     return exports.kora_vehiclekeys:hasKeys(src, plate)
 end

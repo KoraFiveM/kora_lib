@@ -1,18 +1,18 @@
-Kora.bridge.createCall = function(payload)
+function Kora.bridge.createCall(payload)
     return exports.kora_dispatch:createCall(payload)
 end
-Kora.bridge.updateCall = function(id, patch)
+function Kora.bridge.updateCall(id, patch)
     return exports.kora_dispatch:updateCall(id, patch)
 end
-Kora.bridge.closeCall = function(id, reason)
+function Kora.bridge.closeCall(id, reason)
     return exports.kora_dispatch:closeCall(id, reason)
 end
-Kora.bridge.getCalls = function(filter)
+function Kora.bridge.getCalls(filter)
     return exports.kora_dispatch:getCalls(filter)
 end
-Kora.bridge.registerPlayerAlert = function(key, definition)
+function Kora.bridge.registerPlayerAlert(key, definition)
     return exports.kora_dispatch:registerPlayerAlert(key, definition)
 end
-Kora.bridge.createPlayerCall = function(src, key)
+function Kora.bridge.createPlayerCall(src, key)
     return exports.kora_dispatch:createPlayerCall(src, key)
 end

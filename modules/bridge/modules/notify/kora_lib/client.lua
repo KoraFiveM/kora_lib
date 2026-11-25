@@ -1,3 +1,3 @@
-Kora.bridge.sendNotification = function(payload)
+function Kora.bridge.sendNotification(payload)
     return Kora.notify.send(payload)
 end

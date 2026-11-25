@@ -46,23 +46,23 @@ Provider modules live under `modules/bridge/modules/<area>/<provider_name>/`, wi
 
 ## Writing a bridge adapter
 
-Create `modules/bridge/modules/<area>/<provider_name>/` and add the needed `shared.lua`, `client.lua`, and `server.lua` files. Each file assigns its functions directly to `Kora.bridge` (for example, `Kora.bridge.giveKeys = function(...) ... end`); the loader stages those assignments, merges shared and realm functions, validates the required methods, then publishes them on `Kora.bridge`. Verify the third-party export name, arguments, and return values from that resource's source or official documentation; do not infer them from a familiar resource name.
+Create `modules/bridge/modules/<area>/<provider_name>/` and add the needed `shared.lua`, `client.lua`, and `server.lua` files. Each file assigns its functions directly to `Kora.bridge` (for example, `function Kora.bridge.giveKeys(...) ... end`); the loader stages those assignments, merges shared and realm functions, validates the required methods, then publishes them on `Kora.bridge`. Verify the third-party export name, arguments, and return values from that resource's source or official documentation; do not infer them from a familiar resource name.
 
 The following vehicle-key adapter is a **template only**. The export name is a placeholder and must be replaced with a verified call before submission; it is not shipped as a real provider.
 
 ```lua
 -- modules/bridge/modules/vehiclekeys/example_resource/server.lua
-Kora.bridge.giveKeys = function(src, plate, allowWhenDisabled)
+function Kora.bridge.giveKeys(src, plate, allowWhenDisabled)
     -- Replace with the verified server export for this resource.
     return exports.example_resource:GiveKeys(src, plate, allowWhenDisabled)
 end
 
-Kora.bridge.removeKeys = function(src, plate)
+function Kora.bridge.removeKeys(src, plate)
     -- Replace with the verified server export for this resource.
     return exports.example_resource:RemoveKeys(src, plate)
 end
 
-Kora.bridge.hasKeys = function(src, plate)
+function Kora.bridge.hasKeys(src, plate)
     -- Replace with the verified server export for this resource.
     return exports.example_resource:HasKeys(src, plate)
 end

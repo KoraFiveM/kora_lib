@@ -1,9 +1,9 @@
-Kora.bridge.getClosestDoor = function()
+function Kora.bridge.getClosestDoor()
     return exports.kora_doorlock:getClosestDoor()
 end
-Kora.bridge.getDoorState = function(id)
+function Kora.bridge.getDoorState(id)
     return exports.kora_doorlock:getDoorState(id)
 end
-Kora.bridge.pickClosestDoor = function()
+function Kora.bridge.pickClosestDoor()
     return exports.kora_doorlock:pickClosestDoor()
 end

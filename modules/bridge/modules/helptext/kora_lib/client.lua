@@ -1,9 +1,9 @@
-Kora.bridge.showHelpText = function(text, options)
+function Kora.bridge.showHelpText(text, options)
     return Kora.textui.show(text, options)
 end
-Kora.bridge.updateHelpText = function(id, text, options)
+function Kora.bridge.updateHelpText(id, text, options)
     return Kora.textui.update(id, text, options)
 end
-Kora.bridge.hideHelpText = function(id)
+function Kora.bridge.hideHelpText(id)
     return Kora.textui.hide(id)
 end

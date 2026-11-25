@@ -1,18 +1,18 @@
-Kora.bridge.openBossMenu = function(roleType)
+function Kora.bridge.openBossMenu(roleType)
     return exports.kora_bossmenu:openBossMenu(roleType)
 end
-Kora.bridge.openApplication = function(jobName, roleType)
+function Kora.bridge.openApplication(jobName, roleType)
     return exports.kora_bossmenu:openApplication(jobName, roleType)
 end
-Kora.bridge.addBossMenuItem = function(data, id)
+function Kora.bridge.addBossMenuItem(data, id)
     return exports.kora_bossmenu:AddBossMenuItem(data, id)
 end
-Kora.bridge.removeBossMenuItem = function(id)
+function Kora.bridge.removeBossMenuItem(id)
     return exports.kora_bossmenu:RemoveBossMenuItem(id)
 end
-Kora.bridge.addGangMenuItem = function(data, id)
+function Kora.bridge.addGangMenuItem(data, id)
     return exports.kora_bossmenu:AddGangMenuItem(data, id)
 end
-Kora.bridge.removeGangMenuItem = function(id)
+function Kora.bridge.removeGangMenuItem(id)
     return exports.kora_bossmenu:RemoveGangMenuItem(id)
 end

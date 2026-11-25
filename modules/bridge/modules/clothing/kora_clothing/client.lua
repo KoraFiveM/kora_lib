@@ -1,15 +1,15 @@
-Kora.bridge.openWardrobe = function()
+function Kora.bridge.openWardrobe()
     return exports.kora_clothing:OpenWardrobe()
 end
-Kora.bridge.openClothingRoom = function(options)
+function Kora.bridge.openClothingRoom(options)
     return exports.kora_clothing:OpenClothingRoom(options)
 end
-Kora.bridge.applyAppearanceToPed = function(ped, model, skin)
+function Kora.bridge.applyAppearanceToPed(ped, model, skin)
     return exports.kora_clothing:ApplyAppearanceToPed(ped, model, skin)
 end
-Kora.bridge.applyStarterAppearance = function()
+function Kora.bridge.applyStarterAppearance()
     return exports.kora_clothing:applyStarterAppearance()
 end
-Kora.bridge.reloadSkin = function()
+function Kora.bridge.reloadSkin()
     return exports.kora_clothing:reloadSkin()
 end
