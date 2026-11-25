@@ -1008,15 +1008,15 @@
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
 ---@class KoraBridgeConfig
----@field banking string 'auto' or a provider resource name. [live]
----@field bossmenu string 'auto' or a provider resource name. [live]
----@field clothing string 'auto' or a provider resource name. [live]
----@field dispatch string 'auto' or a provider resource name. [live]
----@field doorlock string 'auto' or a provider resource name. [live]
----@field fuel string 'auto' or a provider resource name. [live]
----@field helptext string 'auto' or a provider resource name. [live]
----@field notify string 'auto' or a provider resource name. [live]
----@field vehiclekeys string 'auto' or a provider resource name. [live]
+---@field banking string 'auto' or a provider module name. [live]
+---@field bossmenu string 'auto' or a provider module name. [live]
+---@field clothing string 'auto' or a provider module name. [live]
+---@field dispatch string 'auto' or a provider module name. [live]
+---@field doorlock string 'auto' or a provider module name. [live]
+---@field fuel string 'auto' or a provider module name. [live]
+---@field helptext string 'auto' or a provider module name. [live]
+---@field notify string 'auto' or a provider module name. [live]
+---@field vehiclekeys string 'auto' or a provider module name. [live]
 
 ---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
 

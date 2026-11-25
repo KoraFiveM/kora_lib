@@ -7,17 +7,17 @@ sidebar_position: 52
 
 `Kora.bridge` forwards calls to a started provider for each replaceable resource area. See the [module guide](../../modules/bridge/docs.md) for provider selection, safe fallbacks, and the adapter PR checklist.
 
-Namespace: `Kora.bridge` · Source: `modules/bridge/shared.lua`, `modules/bridge/client.lua`, `modules/bridge/server.lua`
+Namespace: `Kora.bridge` · Source: `modules/bridge/bridge_init.lua`, `modules/bridge/client.lua`, `modules/bridge/server.lua`
 
 ## Provider registry
 
 ### `Kora.bridge.register(area, providerName, adapter)`
 
-Registers one provider adapter in the current realm. It asserts that the area and resource name are valid and that every required function in the area contract is callable. Returns `true` after registration.
+Registers one provider adapter in the current realm. It asserts that the area and provider module name are valid and that every required function in the area contract is callable. Returns `true` after registration.
 
 ### `Kora.bridge.getProvider(area) -> string?`
 
-Returns the selected started provider resource name. It returns `nil` when the configured provider is not registered or not started, or when auto selection finds no available provider.
+Returns the selected started provider module name. It returns `nil` when the configured provider is not registered or not started, or when auto selection finds no available provider.
 
 Configure one provider per area in kora_lib's `config.lua`:
 
@@ -28,7 +28,7 @@ Config.bridge = {
 }
 ```
 
-`'auto'` prefers a started Kora provider and then sorts remaining started adapters by resource name. A named value forces that provider. Start and stop events invalidate the cached choice.
+`'auto'` prefers a started Kora provider and then sorts remaining started adapters by resource name. A named value forces that provider module. Start and stop events invalidate the cached choice.
 
 ## Client functions
 

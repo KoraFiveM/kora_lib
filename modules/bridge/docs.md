@@ -2,7 +2,7 @@
 
 `Kora.bridge` is a provider registry for APIs that may be supplied by different resources. It keeps provider-specific export calls inside kora_lib so consumers can call one stable Kora function.
 
-The registry is selected per area. `Config.bridge` in `config.lua` accepts `'auto'` or a provider resource name for each area. Auto mode uses a started Kora provider first, then the first started registered provider by name. A forced name selects only that adapter. Provider state is cached and invalidated when the resource starts or stops.
+The registry is selected per area. `Config.bridge` in `config.lua` accepts `'auto'` or a provider module name for each area. `bridge_init.lua` selects a started module during initialization, then loads only its `shared.lua` and current realm file. If the configured provider starts later or the live setting changes, it loads the newly selected module on the next bridge call. Auto mode uses a started Kora provider first, then the first started catalog provider by name. A forced name loads only that adapter module. Provider state is cached and invalidated when the resource starts or stops.
 
 ```lua
 Config.bridge = {
@@ -40,34 +40,32 @@ The `bossmenuAddMoney` and `bossmenuRemoveMoney` names keep the legacy boss-menu
 
 ## Registering and selecting providers
 
-Provider adapters are shared scripts under `modules/bridge/providers/<area>/<resource_name>.lua`. The manifest loads that folder, and each adapter registers its own resource name. Each realm registers only the functions that exist in that realm. `Kora.bridge.register(area, providerName, adapter)` checks that every required function for that area and realm exists. `Kora.bridge.getProvider(area)` returns the selected started provider name or `nil`.
+Provider modules live under `modules/bridge/modules/<area>/<provider_name>/`, with optional `shared.lua` and realm-specific `client.lua` and `server.lua` files. Each file returns a table of adapter functions. `bridge_init.lua` merges the shared table with the current realm table, validates the complete contract, and registers it. Adapter Lua is shipped in the resource but only the selected provider files are loaded. Add the provider module and its resource-name mapping to `providerCatalog` in `bridge_init.lua`; that catalog lets auto mode check which provider resources are started. `Kora.bridge.register(area, providerName, adapter)` checks that every required function for the current realm exists. `Kora.bridge.getProvider(area)` returns the selected started provider name or `nil`.
 
-`'auto'` considers only registered adapters whose resource state is `'started'`. It prefers names beginning with `kora_`, then sorts remaining provider names alphabetically. A forced provider name never falls back to another adapter. Start and stop events invalidate the cached resource state and area selection.
+`'auto'` considers cataloged modules and registered runtime adapters whose resource state is `'started'`. It prefers names beginning with `kora_`, then sorts remaining provider names alphabetically. A forced provider name never falls back to another adapter. Start and stop events invalidate the cached resource state and area selection.
 
 ## Writing a bridge adapter
 
-Create one adapter file at `modules/bridge/providers/<area>/<resource_name>.lua` and register an adapter table with every function required by that area and realm. Verify the third-party export name, arguments, and return values from that resource's source or official documentation; do not infer them from a familiar resource name.
+Create `modules/bridge/modules/<area>/<provider_name>/` and add the needed `shared.lua`, `client.lua`, and `server.lua` files. Each file returns a table containing the functions for its realm; the loader merges and validates the selected module. Verify the third-party export name, arguments, and return values from that resource's source or official documentation; do not infer them from a familiar resource name.
 
 The following vehicle-key adapter is a **template only**. The export name is a placeholder and must be replaced with a verified call before submission; it is not shipped as a real provider.
 
 ```lua
--- modules/bridge/providers/vehiclekeys/example_resource.lua
-if IsDuplicityVersion() then
-    Kora.bridge.register('vehiclekeys', 'example_resource', {
-        giveKeys = function(src, plate, allowWhenDisabled)
-            -- Replace with the verified server export for this resource.
-            return exports.example_resource:GiveKeys(src, plate, allowWhenDisabled)
-        end,
-        removeKeys = function(src, plate)
-            -- Replace with the verified server export for this resource.
-            return exports.example_resource:RemoveKeys(src, plate)
-        end,
-        hasKeys = function(src, plate)
-            -- Replace with the verified server export for this resource.
-            return exports.example_resource:HasKeys(src, plate)
-        end,
-    })
-end
+-- modules/bridge/modules/vehiclekeys/example_resource/server.lua
+return {
+    giveKeys = function(src, plate, allowWhenDisabled)
+        -- Replace with the verified server export for this resource.
+        return exports.example_resource:GiveKeys(src, plate, allowWhenDisabled)
+    end,
+    removeKeys = function(src, plate)
+        -- Replace with the verified server export for this resource.
+        return exports.example_resource:RemoveKeys(src, plate)
+    end,
+    hasKeys = function(src, plate)
+        -- Replace with the verified server export for this resource.
+        return exports.example_resource:HasKeys(src, plate)
+    end,
+}
 ```
 
 ### Provider adapter PR checklist
@@ -75,11 +73,12 @@ end
 - Confirm each adapter method against the provider's source or official docs and preserve its actual argument and return behavior.
 - Register only in valid realms and provide every required contract function for that realm.
 - Add a smoke test for provider selection and the adapter mapping where practical.
-- Include the provider's resource name as the adapter key; do not add runtime export hijacks or consumer edits.
+- Add the adapter folder and provider-to-resource mapping in `providerCatalog`; make the config value match the folder name.
+- Keep exports in the matching realm file; do not add runtime export hijacks or consumer edits.
 - Document any API divergence or safe fallback.
 
 ## Failure behavior
 
-A provider that is stopped or missing is unavailable. Provider call errors are caught so they do not escape into the consumer. Failures are logged through `Kora.logging` as `bridge.provider_unavailable` or `bridge.provider_call_failed`, with only area, provider name, and method metadata. No call arguments are logged.
+A provider that is stopped or missing is unavailable. Provider call errors are caught so they do not escape into the consumer. Failures are logged through `Kora.logging` as `bridge.provider_unavailable`, `bridge.provider_load_failed`, or `bridge.provider_call_failed`, with only area, provider name, and method metadata. No call arguments are logged.
 
 The bridge does not migrate consumer resources. When migrating, replace their direct provider export calls with the corresponding `Kora.bridge` method in a separate change.
