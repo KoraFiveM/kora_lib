@@ -8,13 +8,12 @@ local function normalizeVersion(value)
     return version
 end
 
-local function readRemoteVersion(versionText)
-    local version = normalizeVersion(versionText)
-    if version then return version end
-
-    for line in versionText:gmatch('[^\r\n]+') do
-        local declared = line:match([[^%s*version%s*[:=]?%s*['"]?([^'"]+)['"]?%s*$]])
-        version = normalizeVersion(declared)
+local function readManifestVersion(manifest)
+    for line in manifest:gmatch('[^\r\n]+') do
+        local declared = line:match([[^%s*version%s+['"]([^'"]+)['"]%s*$]])
+            or line:match([[^%s*version%s*%(%s*['"]([^'"]+)['"]%s*%)%s*$]])
+            or line:match([[^%s*version%s*=%s*['"]([^'"]+)['"]%s*$]])
+        local version = normalizeVersion(declared)
         if version then return version end
     end
 end
@@ -33,13 +32,13 @@ local function printFailure(resource, message)
     print(('[kora_lib/versioncheck] %s: %s'):format(resource or 'unknown resource', message))
 end
 
---- Checks the invoking resource's manifest version against a raw GitHub version file.
+--- Checks the invoking resource's manifest version against a raw GitHub fxmanifest.lua.
 --- When it is out of date, prints a link to the corresponding GitHub patch-notes page.
----@param remoteVersionUrl string Raw URL containing the latest version number.
+---@param remoteManifestUrl string Raw URL for the latest fxmanifest.lua.
 ---@param patchNotesUrl string Raw URL for a Markdown patch-notes file.
 ---@return boolean started Whether the asynchronous version request was started.
-function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
-    assert(type(remoteVersionUrl) == 'string' and remoteVersionUrl ~= '', 'remoteVersionUrl must be a non-empty string.')
+function Kora.versioncheck.check(remoteManifestUrl, patchNotesUrl)
+    assert(type(remoteManifestUrl) == 'string' and remoteManifestUrl ~= '', 'remoteManifestUrl must be a non-empty string.')
     assert(type(patchNotesUrl) == 'string' and patchNotesUrl ~= '', 'patchNotesUrl must be a non-empty string.')
 
     local resource = GetInvokingResource() or GetCurrentResourceName()
@@ -54,17 +53,17 @@ function Kora.versioncheck.check(remoteVersionUrl, patchNotesUrl)
         return false
     end
 
-    PerformHttpRequest(remoteVersionUrl, function(statusCode, body, _, errorData)
+    PerformHttpRequest(remoteManifestUrl, function(statusCode, body, _, errorData)
         if statusCode ~= 200 or type(body) ~= 'string' then
-            printFailure(resource, ('could not fetch remote version file (HTTP %s): %s'):format(
+            printFailure(resource, ('could not fetch remote fxmanifest.lua (HTTP %s): %s'):format(
                 tostring(statusCode), tostring(errorData or 'no response body')
             ))
             return
         end
 
-        local latestVersion = readRemoteVersion(body)
+        local latestVersion = readManifestVersion(body)
         if not latestVersion then
-            printFailure(resource, 'remote version file does not contain a valid version.')
+            printFailure(resource, 'remote fxmanifest.lua does not contain a valid version declaration.')
             return
         end
 
