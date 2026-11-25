@@ -28,7 +28,7 @@ files {
     'modules/logging/nui.lua',
     'modules/logging/adapters/browser.js',
     'modules/logging/adapters/browser.d.ts',
-    -- Adapter Lua is read and executed only for the provider selected by Config.bridge.
+    -- Adapter Lua is read and executed only for the provider selected by Config.Bridge.
     'modules/bridge/modules/*/*/*.lua',
     -- Kora.require executes in each consumer's Lua environment rather than as a
     -- kora_lib export, so init.lua loads this small factory on demand.

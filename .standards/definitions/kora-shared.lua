@@ -1011,15 +1011,15 @@
 ---@field provideExport fun(providedResource: string, exportName: string, func: function|table) [shared]
 
 ---@class KoraBridgeConfig
----@field banking string 'auto' or a provider module name. [live]
----@field bossmenu string 'auto' or a provider module name. [live]
----@field clothing string 'auto' or a provider module name. [live]
----@field dispatch string 'auto' or a provider module name. [live]
----@field doorlock string 'auto' or a provider module name. [live]
----@field fuel string 'auto' or a provider module name. [live]
----@field helptext string 'auto' or a provider module name. [live]
----@field notify string 'auto' or a provider module name. [live]
----@field vehiclekeys string 'auto' or a provider module name. [live]
+---@field banking string Provider folder name, such as 'kora_banking'. [live]
+---@field bossmenu string Provider folder name, such as 'kora_bossmenu'. [live]
+---@field clothing string Provider folder name, such as 'kora_clothing'. [live]
+---@field dispatch string Provider folder name, such as 'kora_dispatch'. [live]
+---@field doorlock string Provider folder name, such as 'kora_doorlock'. [live]
+---@field fuel string Provider folder name, such as 'kora_fuel'. [live]
+---@field helptext string Provider folder name, such as 'kora_lib'. [live]
+---@field notify string Provider folder name, such as 'kora_lib'. [live]
+---@field vehiclekeys string Provider folder name, such as 'kora_vehiclekeys'. [live]
 
 ---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
 
@@ -1042,7 +1042,6 @@
 ---@class KoraBridgeVehicleKeysAdapter
 
 ---@class KoraBridge
----@field getProvider fun(area:KoraBridgeArea):string?
 ---@class kora_lib
 ---@field bridge KoraBridge
 ---@field actions KoraLibActions

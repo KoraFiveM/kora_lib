@@ -2,11 +2,11 @@ if type(Config) == 'table' and type(GetCurrentResourceName) == 'function' and Ge
     local source = assert(LoadResourceFile('kora_lib', 'modules/config/consumer.lua'))
     local factory = assert(load(source, '@@kora_lib/modules/config/consumer.lua', 't', _ENV))()
     local bridge = factory(exports.kora_lib)
-    if type(Config.bridge) == 'table' then
+    if type(Config.Bridge) == 'table' then
         for _, area in ipairs({ 'banking', 'bossmenu', 'clothing', 'dispatch', 'doorlock', 'fuel', 'helptext', 'notify', 'vehiclekeys' }) do
-            local provider = Config.bridge[area]
+            local provider = Config.Bridge[area]
             if type(provider) == 'string' then
-                Config.bridge[area] = bridge.string(provider, {
+                Config.Bridge[area] = bridge.string(provider, {
                     live = true,
                     minLength = 1,
                     maxLength = 128,

@@ -217,11 +217,11 @@ local function registerKoraLibConfig()
             return register(definition, 'kora_lib')
         end,
     })
-    if type(Config.bridge) == 'table' then
+    if type(Config.Bridge) == 'table' then
         for _, area in ipairs({ 'banking', 'bossmenu', 'clothing', 'dispatch', 'doorlock', 'fuel', 'helptext', 'notify', 'vehiclekeys' }) do
-            local provider = Config.bridge[area]
+            local provider = Config.Bridge[area]
             if type(provider) == 'string' then
-                Config.bridge[area] = bridge.string(provider, {
+                Config.Bridge[area] = bridge.string(provider, {
                     live = true,
                     minLength = 1,
                     maxLength = 128,

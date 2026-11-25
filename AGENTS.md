@@ -55,7 +55,7 @@ The standalone `qb-menu`, `qb-input` and `qb-minigames` resources are deprecated
 
 ## Bridge
 
-`modules/bridge/bridge_init.lua` selects one provider module per area from `Config.bridge` and loads only its `shared.lua` plus the current realm file from `modules/bridge/modules/<area>/<provider>/`. Each adapter file assigns public methods directly to `Kora.bridge.<method>`; bridge_init validates and publishes the selected provider assignments during initialization. Add its provider-to-resource mapping to `providerCatalog` so auto selection can check resource state. Keep export calls in these adapter files; consumers use `Kora.bridge`. Update config descriptors in both realms, types, docs, and `.standards/resource.json` when adding an area or provider. The selected provider is refreshed when its resource starts or stops. Provider function errors pass through to the caller.
+`modules/bridge/bridge_init.lua` loads each configured provider folder from `Config.Bridge` and loads only its `shared.lua` plus the current realm file from `modules/bridge/modules/<area>/<provider>/`. Each adapter file assigns public methods directly to `Kora.bridge.<method>`; bridge_init loads the configured provider files during initialization. Use the area key and provider folder name from `Config.Bridge`; no provider catalog is needed. Keep export calls in these adapter files; consumers use `Kora.bridge`. Update config descriptors in both realms, types, docs, and `.standards/resource.json` when adding an area or provider. Provider functions are declared and exported from the selected module files.
 
 ## Naming guidance
 - Module names should be nouns or domain names such as `stream`, `inventory`, `player`, `vehicle`.

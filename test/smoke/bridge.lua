@@ -9,23 +9,22 @@ if _VERSION == 'Lua 5.1' then
     end
 end
 
-local config = { bridge = { vehiclekeys = 'auto' } }
-local states = { kora_vehiclekeys = 'started' }
-local handlers = {}
-local loadedPaths = {}
+local config = {
+    Bridge = {
+        vehiclekeys = 'kora_vehiclekeys',
+    },
+}
+local paths = {}
 local registeredExports = {}
 
 _G.Config = config
 _G.IsDuplicityVersion = function() return true end
-_G.GetResourceState = function(resource) return states[resource] or 'missing' end
-_G.AddEventHandler = function(name, callback) handlers[name] = callback end
 _G.exports = function(name, callback) registeredExports[name] = callback end
 _G.LoadResourceFile = function(resource, path)
     assert(resource == 'kora_lib')
+    paths[#paths + 1] = path
     if path == 'modules/bridge/modules/vehiclekeys/kora_vehiclekeys/server.lua' then
-        loadedPaths[#loadedPaths + 1] = path
         return [[
-
             function Kora.bridge.giveKeys(src, plate) return src, plate, 'kora' end
             exports('bridge_giveKeys', Kora.bridge.giveKeys)
 
@@ -37,44 +36,17 @@ _G.LoadResourceFile = function(resource, path)
         ]]
     end
 end
-_G.Kora = { bridge = {}, logging = { error = function() end } }
+_G.Kora = { bridge = {} }
 
 assert(loadfile(root .. 'modules/bridge/bridge_init.lua'))()
 
-local function test(name, callback)
-    local ok, err = pcall(callback)
-    if not ok then error(('bridge smoke test failed: %s: %s'):format(name, tostring(err)), 0) end
-    print(('PASS bridge: %s'):format(name))
-end
+assert(paths[1] == 'modules/bridge/modules/vehiclekeys/kora_vehiclekeys/shared.lua')
+assert(paths[2] == 'modules/bridge/modules/vehiclekeys/kora_vehiclekeys/server.lua')
+assert(#paths == 2)
 
-test('loads configured provider functions directly onto Kora.bridge', function()
-    local src, plate, provider = Kora.bridge.giveKeys(12, 'ABC123')
-    assert(src == 12 and plate == 'ABC123' and provider == 'kora')
-    assert(Kora.bridge.getProvider('vehiclekeys') == 'kora_vehiclekeys')
-    assert(#loadedPaths == 1)
-    assert(registeredExports.bridge_giveKeys == Kora.bridge.giveKeys)
-    assert(type(registeredExports.bridge_getProvider) == 'function')
-end)
-
-test('removes provider functions when the provider stops', function()
-    states.kora_vehiclekeys = 'stopped'
-    handlers.onResourceStop('kora_vehiclekeys')
-    assert(Kora.bridge.getProvider('vehiclekeys') == nil)
-    assert(Kora.bridge.giveKeys == nil)
-end)
-
-test('loads provider functions again when the provider starts', function()
-    states.kora_vehiclekeys = 'started'
-    handlers.onResourceStart('kora_vehiclekeys')
-    assert(Kora.bridge.getProvider('vehiclekeys') == 'kora_vehiclekeys')
-    assert(Kora.bridge.giveKeys(7, 'XYZ789') == 7)
-    assert(#loadedPaths == 2)
-end)
-
-test('does not load a forced provider that is not in the catalog', function()
-    config.bridge.vehiclekeys = 'unknown'
-    handlers.onResourceStop('kora_vehiclekeys')
-    assert(Kora.bridge.getProvider('vehiclekeys') == nil)
-    assert(Kora.bridge.giveKeys == nil)
-    assert(#loadedPaths == 2)
-end)
+local src, plate, provider = Kora.bridge.giveKeys(12, 'ABC123')
+assert(src == 12 and plate == 'ABC123' and provider == 'kora')
+assert(registeredExports.bridge_giveKeys == Kora.bridge.giveKeys)
+assert(registeredExports.bridge_removeKeys == Kora.bridge.removeKeys)
+assert(registeredExports.bridge_hasKeys == Kora.bridge.hasKeys)
+print('PASS bridge: Config.Bridge loads the selected provider folder and its realm functions')
