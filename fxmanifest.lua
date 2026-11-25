@@ -28,8 +28,9 @@ files {
     'modules/logging/nui.lua',
     'modules/logging/adapters/browser.js',
     'modules/logging/adapters/browser.d.ts',
-    -- Adapter Lua is read and executed only for the provider selected by Config.Bridge.
-    'modules/bridge/modules/*/*/*.lua',
+    -- Bridge adapters are loaded on demand; recursively include them in the resource packfile.
+    'modules/bridge/modules/**/client.lua',
+    'modules/bridge/modules/**/server.lua',
     -- Kora.require executes in each consumer's Lua environment rather than as a
     -- kora_lib export, so init.lua loads this small factory on demand.
     'local/require/loader.lua',
@@ -105,7 +106,7 @@ shared_scripts {
 -- local/resources must load before every other local/ module: callback and events call
 -- Kora.resources.registry()/serverRegistry() at load time. A `local/**/client.lua` glob would sort
 -- "resources" after them alphabetically, so local/ is listed explicitly; add new local/ modules here, after resources.
--- compat/client/* load after modules/*/client.lua (they call Kora.nui.*/Kora.minigames.* directly) and before
+-- compat/client/* load after the explicit modules client list (they call Kora.nui.*/Kora.minigames.* directly) and before
 -- finalise. Calling those modules directly, not via exports.kora_lib, keeps GetInvokingResource() pointing at
 -- the real external caller.
 client_scripts {
@@ -113,9 +114,48 @@ client_scripts {
     'local/resources/client.lua',
     'local/callback/client.lua',
     'local/events/client.lua',
-    'modules/*/client.lua',
-    -- The configuration editor needs the config consumer and AppShell, both
-    -- supplied by the preceding module glob.
+    -- Explicit top-level module paths avoid runtime glob expansion differences.
+    'modules/actions/client.lua',
+    'modules/anim/client.lua',
+    'modules/blips/client.lua',
+    'modules/cache/client.lua',
+    'modules/camera/client.lua',
+    'modules/closest/client.lua',
+    'modules/config/client.lua',
+    'modules/controls/client.lua',
+    'modules/distancecheck/client.lua',
+    'modules/drawing/client.lua',
+    'modules/entities/client.lua',
+    'modules/freecam/client.lua',
+    'modules/fx/client.lua',
+    'modules/instructional/client.lua',
+    'modules/interact/client.lua',
+    'modules/keybind/client.lua',
+    'modules/locales/client.lua',
+    'modules/logging/client.lua',
+    'modules/lookup/client.lua',
+    'modules/minigames/client.lua',
+    'modules/notify/client.lua',
+    'modules/nui/client.lua',
+    'modules/ox/client.lua',
+    'modules/placement/client.lua',
+    'modules/progressbar/client.lua',
+    'modules/qa/client.lua',
+    'modules/raycast/client.lua',
+    'modules/screenshot/client.lua',
+    'modules/skills/client.lua',
+    'modules/sound/client.lua',
+    'modules/state/client.lua',
+    'modules/status/client.lua',
+    'modules/stream/client.lua',
+    'modules/teleport/client.lua',
+    'modules/textui/client.lua',
+    'modules/theme/client.lua',
+    'modules/util/client.lua',
+    'modules/vehicle/client.lua',
+    'modules/visuals/client.lua',
+    'modules/world/client.lua',
+    'modules/zones/client.lua',
     'modules/config/editor_client.lua',
     'modules/logging/nui.lua',
     -- Loaded after every module client so the built-in settings app can use
@@ -138,7 +178,27 @@ server_scripts {
     'local/resources/server.lua',
     'local/callback/server.lua',
     'local/events/server.lua',
-    'modules/*/server.lua',
+    -- Explicit top-level module paths avoid runtime glob expansion differences.
+    'modules/blips/server.lua',
+    'modules/closest/server.lua',
+    'modules/commands/server.lua',
+    'modules/config/server.lua',
+    'modules/discord/server.lua',
+    'modules/distancecheck/server.lua',
+    'modules/editor/server.lua',
+    'modules/entities/server.lua',
+    'modules/logging/server.lua',
+    'modules/lookup/server.lua',
+    'modules/minigames/server.lua',
+    'modules/notify/server.lua',
+    'modules/ox/server.lua',
+    'modules/permissions/server.lua',
+    'modules/qa/server.lua',
+    'modules/screenshot/server.lua',
+    'modules/skills/server.lua',
+    'modules/state/server.lua',
+    'modules/status/server.lua',
+    'modules/world/server.lua',
     'modules/config/editor_server.lua',
     'build/finalise.lua'
 }
