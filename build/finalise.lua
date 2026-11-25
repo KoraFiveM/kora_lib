@@ -2,7 +2,8 @@ for key, value in pairs(Kora) do
     -- compat/ is internal wiring used by kora_lib's legacy bridges. It must be
     -- loaded into the shared Kora table so separate Lua chunks can reuse it,
     -- but it is not part of kora_lib's consumer-facing export API.
-    if key ~= "compat" then
+    -- Bridge provider files register their explicit `bridge_<method>` exports.
+    if key ~= "compat" and key ~= "bridge" then
         local kind = type(value)
 
         if kind == "function" then

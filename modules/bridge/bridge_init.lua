@@ -159,6 +159,7 @@ function Kora.bridge.getProvider(area)
     assert(type(area) == 'string' and providerCatalog[area], ('Unknown bridge area %q.'):format(tostring(area)))
     return selectedProviders[area]
 end
+exports("bridge_getProvider", Kora.bridge.getProvider)
 
 local function resourceChanged(resource)
     resourceStates[resource] = nil

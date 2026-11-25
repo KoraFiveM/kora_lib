@@ -29,3 +29,12 @@ end
 function Kora.bridge.getGangBalance(gangName)
     return exports.kora_bossmenu:GetGangAccount(gangName)
 end
+
+exports("bridge_addBusinessMoney", Kora.bridge.addBusinessMoney)
+exports("bridge_removeBusinessMoney", Kora.bridge.removeBusinessMoney)
+exports("bridge_getBusinessBalance", Kora.bridge.getBusinessBalance)
+exports("bridge_bossmenuAddMoney", Kora.bridge.bossmenuAddMoney)
+exports("bridge_bossmenuRemoveMoney", Kora.bridge.bossmenuRemoveMoney)
+exports("bridge_addGangMoney", Kora.bridge.addGangMoney)
+exports("bridge_removeGangMoney", Kora.bridge.removeGangMoney)
+exports("bridge_getGangBalance", Kora.bridge.getGangBalance)

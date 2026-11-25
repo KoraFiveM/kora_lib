@@ -17,3 +17,9 @@ end
 function Kora.bridge.reloadSkin()
     return exports.kora_clothing:reloadSkin()
 end
+
+exports("bridge_openWardrobe", Kora.bridge.openWardrobe)
+exports("bridge_openClothingRoom", Kora.bridge.openClothingRoom)
+exports("bridge_applyAppearanceToPed", Kora.bridge.applyAppearanceToPed)
+exports("bridge_applyStarterAppearance", Kora.bridge.applyStarterAppearance)
+exports("bridge_reloadSkin", Kora.bridge.reloadSkin)

@@ -9,3 +9,7 @@ end
 function Kora.bridge.hasKeys(src, plate)
     return exports.kora_vehiclekeys:hasKeys(src, plate)
 end
+
+exports("bridge_giveKeys", Kora.bridge.giveKeys)
+exports("bridge_removeKeys", Kora.bridge.removeKeys)
+exports("bridge_hasKeys", Kora.bridge.hasKeys)

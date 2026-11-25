@@ -17,3 +17,9 @@ end
 function Kora.bridge.createSocietyBankStatement(playerId, account, amount, reason, kind, accountType)
     return exports.kora_banking:CreateBankStatement(playerId, account, amount, reason, kind, accountType)
 end
+
+exports("bridge_addSocietyMoney", Kora.bridge.addSocietyMoney)
+exports("bridge_removeSocietyMoney", Kora.bridge.removeSocietyMoney)
+exports("bridge_getSocietyAccountBalance", Kora.bridge.getSocietyAccountBalance)
+exports("bridge_executeSocietyTransaction", Kora.bridge.executeSocietyTransaction)
+exports("bridge_createSocietyBankStatement", Kora.bridge.createSocietyBankStatement)

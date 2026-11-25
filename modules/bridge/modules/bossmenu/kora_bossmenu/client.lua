@@ -21,3 +21,10 @@ end
 function Kora.bridge.removeGangMenuItem(id)
     return exports.kora_bossmenu:RemoveGangMenuItem(id)
 end
+
+exports("bridge_openBossMenu", Kora.bridge.openBossMenu)
+exports("bridge_openApplication", Kora.bridge.openApplication)
+exports("bridge_addBossMenuItem", Kora.bridge.addBossMenuItem)
+exports("bridge_removeBossMenuItem", Kora.bridge.removeBossMenuItem)
+exports("bridge_addGangMenuItem", Kora.bridge.addGangMenuItem)
+exports("bridge_removeGangMenuItem", Kora.bridge.removeGangMenuItem)

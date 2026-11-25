@@ -21,3 +21,10 @@ end
 function Kora.bridge.createPlayerCall(src, key)
     return exports.kora_dispatch:createPlayerCall(src, key)
 end
+
+exports("bridge_createCall", Kora.bridge.createCall)
+exports("bridge_updateCall", Kora.bridge.updateCall)
+exports("bridge_closeCall", Kora.bridge.closeCall)
+exports("bridge_getCalls", Kora.bridge.getCalls)
+exports("bridge_registerPlayerAlert", Kora.bridge.registerPlayerAlert)
+exports("bridge_createPlayerCall", Kora.bridge.createPlayerCall)

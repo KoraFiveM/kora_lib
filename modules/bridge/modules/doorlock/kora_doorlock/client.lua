@@ -9,3 +9,7 @@ end
 function Kora.bridge.pickClosestDoor()
     return exports.kora_doorlock:pickClosestDoor()
 end
+
+exports("bridge_getClosestDoor", Kora.bridge.getClosestDoor)
+exports("bridge_getDoorState", Kora.bridge.getDoorState)
+exports("bridge_pickClosestDoor", Kora.bridge.pickClosestDoor)

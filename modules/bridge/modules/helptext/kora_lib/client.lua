@@ -9,3 +9,7 @@ end
 function Kora.bridge.hideHelpText(id)
     return Kora.textui.hide(id)
 end
+
+exports("bridge_showHelpText", Kora.bridge.showHelpText)
+exports("bridge_updateHelpText", Kora.bridge.updateHelpText)
+exports("bridge_hideHelpText", Kora.bridge.hideHelpText)

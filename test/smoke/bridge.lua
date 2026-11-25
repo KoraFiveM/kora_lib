@@ -13,11 +13,13 @@ local config = { bridge = { vehiclekeys = 'auto' } }
 local states = { kora_vehiclekeys = 'started' }
 local handlers = {}
 local loadedPaths = {}
+local registeredExports = {}
 
 _G.Config = config
 _G.IsDuplicityVersion = function() return true end
 _G.GetResourceState = function(resource) return states[resource] or 'missing' end
 _G.AddEventHandler = function(name, callback) handlers[name] = callback end
+_G.exports = function(name, callback) registeredExports[name] = callback end
 _G.LoadResourceFile = function(resource, path)
     assert(resource == 'kora_lib')
     if path == 'modules/bridge/modules/vehiclekeys/kora_vehiclekeys/server.lua' then
@@ -25,10 +27,13 @@ _G.LoadResourceFile = function(resource, path)
         return [[
 
             function Kora.bridge.giveKeys(src, plate) return src, plate, 'kora' end
+            exports('bridge_giveKeys', Kora.bridge.giveKeys)
 
             function Kora.bridge.removeKeys() return true end
+            exports('bridge_removeKeys', Kora.bridge.removeKeys)
 
             function Kora.bridge.hasKeys() return true end
+            exports('bridge_hasKeys', Kora.bridge.hasKeys)
         ]]
     end
 end
@@ -47,6 +52,8 @@ test('loads configured provider functions directly onto Kora.bridge', function()
     assert(src == 12 and plate == 'ABC123' and provider == 'kora')
     assert(Kora.bridge.getProvider('vehiclekeys') == 'kora_vehiclekeys')
     assert(#loadedPaths == 1)
+    assert(registeredExports.bridge_giveKeys == Kora.bridge.giveKeys)
+    assert(type(registeredExports.bridge_getProvider) == 'function')
 end)
 
 test('removes provider functions when the provider stops', function()

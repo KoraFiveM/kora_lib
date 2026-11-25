@@ -105,7 +105,7 @@ shared_scripts {
 -- local/resources must load before every other local/ module: callback and events call
 -- Kora.resources.registry()/serverRegistry() at load time. A `local/**/client.lua` glob would sort
 -- "resources" after them alphabetically, so local/ is listed explicitly; add new local/ modules here, after resources.
--- compat/client/* load after modules/**/client.lua (they call Kora.nui.*/Kora.minigames.* directly) and before
+-- compat/client/* load after modules/*/client.lua (they call Kora.nui.*/Kora.minigames.* directly) and before
 -- finalise. Calling those modules directly, not via exports.kora_lib, keeps GetInvokingResource() pointing at
 -- the real external caller.
 client_scripts {
@@ -113,7 +113,7 @@ client_scripts {
     'local/resources/client.lua',
     'local/callback/client.lua',
     'local/events/client.lua',
-    'modules/**/client.lua',
+    'modules/*/client.lua',
     -- The configuration editor needs the config consumer and AppShell, both
     -- supplied by the preceding module glob.
     'modules/config/editor_client.lua',
@@ -138,7 +138,7 @@ server_scripts {
     'local/resources/server.lua',
     'local/callback/server.lua',
     'local/events/server.lua',
-    'modules/**/server.lua',
+    'modules/*/server.lua',
     'modules/config/editor_server.lua',
     'build/finalise.lua'
 }

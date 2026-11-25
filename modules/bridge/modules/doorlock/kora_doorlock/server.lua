@@ -13,3 +13,8 @@ end
 function Kora.bridge.registerDoorPolicy(id, callback)
     return exports.kora_doorlock:RegisterDoorPolicy(id, callback)
 end
+
+exports("bridge_getDoorState", Kora.bridge.getDoorState)
+exports("bridge_setDoorState", Kora.bridge.setDoorState)
+exports("bridge_createDoor", Kora.bridge.createDoor)
+exports("bridge_registerDoorPolicy", Kora.bridge.registerDoorPolicy)

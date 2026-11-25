@@ -9,3 +9,7 @@ end
 function Kora.bridge.isElectricVehicle(vehicle)
     return exports.kora_fuel:isElectricVehicle(vehicle)
 end
+
+exports("bridge_getFuel", Kora.bridge.getFuel)
+exports("bridge_setFuel", Kora.bridge.setFuel)
+exports("bridge_isElectricVehicle", Kora.bridge.isElectricVehicle)
