@@ -20,11 +20,11 @@ end
 ---@param amount number
 ---@param reason? string
 ---@return boolean ok
-function Kora.bridge.addAccountMoney(name, amount, reason)
+function Kora.bridge.addSocietyMoney(name, amount, reason)
     assertString(name, 'name')
     assertFiniteNumber(amount, 'amount')
     assert(reason == nil or type(reason) == 'string', 'reason must be a string or nil.')
-    return call('banking', 'addMoney', table.pack(false), name, amount, reason)
+    return call('banking', 'addSocietyMoney', table.pack(false), name, amount, reason)
 end
 
 ---Debits a named account.
@@ -32,29 +32,29 @@ end
 ---@param amount number
 ---@param reason? string
 ---@return boolean ok
-function Kora.bridge.removeAccountMoney(name, amount, reason)
+function Kora.bridge.removeSocietyMoney(name, amount, reason)
     assertString(name, 'name')
     assertFiniteNumber(amount, 'amount')
     assert(reason == nil or type(reason) == 'string', 'reason must be a string or nil.')
-    return call('banking', 'removeMoney', table.pack(false), name, amount, reason)
+    return call('banking', 'removeSocietyMoney', table.pack(false), name, amount, reason)
 end
 
 ---Returns a named account's cached balance.
 ---@param name string
 ---@return number balance
-function Kora.bridge.getAccountBalance(name)
+function Kora.bridge.getSocietyAccountBalance(name)
     assertString(name, 'name')
-    return call('banking', 'getAccountBalance', table.pack(0), name)
+    return call('banking', 'getSocietyAccountBalance', table.pack(0), name)
 end
 
 ---Executes an idempotent multi-party transaction.
 ---@param key string
 ---@param request table
 ---@return any ...
-function Kora.bridge.executeBankTransaction(key, request)
+function Kora.bridge.executeSocietyTransaction(key, request)
     assertString(key, 'key')
     assertTable(request, 'request')
-    return call('banking', 'executeTransaction', table.pack(nil, 'unavailable'), key, request)
+    return call('banking', 'executeSocietyTransaction', table.pack(nil, 'unavailable'), key, request)
 end
 
 ---Creates a bank statement entry.
@@ -65,7 +65,7 @@ end
 ---@param kind 'deposit'|'withdraw'
 ---@param accountType? string
 ---@return any ...
-function Kora.bridge.createBankStatement(playerId, account, amount, reason, kind, accountType)
+function Kora.bridge.createSocietyBankStatement(playerId, account, amount, reason, kind, accountType)
     assert(type(playerId) == 'number' and playerId % 1 == 0, 'playerId must be an integer.')
     assertString(account, 'account')
     assertFiniteNumber(amount, 'amount')
@@ -73,7 +73,7 @@ function Kora.bridge.createBankStatement(playerId, account, amount, reason, kind
     assert(kind == 'deposit' or kind == 'withdraw', "kind must be 'deposit' or 'withdraw'.")
     assert(accountType == nil or type(accountType) == 'string', 'accountType must be a string or nil.')
     return call(
-        'banking', 'createBankStatement', table.pack(false), playerId, account, amount, reason, kind, accountType
+        'banking', 'createSocietyBankStatement', table.pack(false), playerId, account, amount, reason, kind, accountType
     )
 end
 

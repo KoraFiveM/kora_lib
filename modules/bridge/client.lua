@@ -157,7 +157,7 @@ end
 function Kora.bridge.showHelpText(text, options)
     assertString(text, 'text')
     assert(options == nil or type(options) == 'table', 'options must be a table or nil.')
-    return call('helptext', 'show', table.pack(nil), text, options)
+    return call('helptext', 'showHelpText', table.pack(nil), text, options)
 end
 
 ---Updates a live help prompt.
@@ -169,7 +169,7 @@ function Kora.bridge.updateHelpText(id, text, options)
     assert(type(id) == 'number' and id % 1 == 0, 'id must be an integer.')
     assertString(text, 'text')
     assert(options == nil or type(options) == 'table', 'options must be a table or nil.')
-    return call('helptext', 'update', table.pack(false), id, text, options)
+    return call('helptext', 'updateHelpText', table.pack(false), id, text, options)
 end
 
 ---Hides a live help prompt.
@@ -177,12 +177,12 @@ end
 ---@return boolean hidden
 function Kora.bridge.hideHelpText(id)
     assert(type(id) == 'number' and id % 1 == 0, 'id must be an integer.')
-    return call('helptext', 'hide', table.pack(false), id)
+    return call('helptext', 'hideHelpText', table.pack(false), id)
 end
 
 ---Sends a notification through Kora Notify or the configured third-party notify path.
 ---@param payload KoraNotifyPayload
 function Kora.bridge.sendNotification(payload)
     assertTable(payload, 'payload')
-    return call('notify', 'send', table.pack(nil), payload)
+    return call('notify', 'sendNotification', table.pack(nil), payload)
 end

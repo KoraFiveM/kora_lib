@@ -1,5 +1,3 @@
-return {
-    openAdminSession = function(targetSrc, service)
-        return exports.kora_clothing:OpenAdminSession(targetSrc, service)
-    end,
-}
+Kora.bridge.openAdminSession = function(targetSrc, service)
+    return exports.kora_clothing:OpenAdminSession(targetSrc, service)
+end

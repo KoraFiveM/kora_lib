@@ -1021,11 +1021,11 @@
 ---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
 
 ---@class KoraBridgeBankingAdapter
----@field addMoney fun(name:string, amount:number, reason?:string):boolean [server]
----@field removeMoney fun(name:string, amount:number, reason?:string):boolean [server]
----@field getAccountBalance fun(name:string):number [server]
----@field executeTransaction fun(key:string, request:table):any ... [server]
----@field createBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ... [server]
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field getSocietyAccountBalance fun(name:string):number [server]
+---@field executeSocietyTransaction fun(key:string, request:table):any ... [server]
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ... [server]
 
 ---@class KoraBridgeBossMenuAdapter
 ---@field openBossMenu fun(roleType?:string) [client]
@@ -1088,11 +1088,11 @@
 ---@class KoraBridge
 ---@field register fun(area:KoraBridgeArea, providerName:string, adapter:table):boolean [shared]
 ---@field getProvider fun(area:KoraBridgeArea):string? [shared]
----@field addAccountMoney fun(name:string, amount:number, reason?:string):boolean [server]
----@field removeAccountMoney fun(name:string, amount:number, reason?:string):boolean [server]
----@field getAccountBalance fun(name:string):number [server]
----@field executeBankTransaction fun(key:string, request:table):any ... [server]
----@field createBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ... [server]
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean [server]
+---@field getSocietyAccountBalance fun(name:string):number [server]
+---@field executeSocietyTransaction fun(key:string, request:table):any ... [server]
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ... [server]
 ---@field openBossMenu fun(roleType?:string) [client]
 ---@field openApplication fun(jobName:string, roleType?:string) [client]
 ---@field addBossMenuItem fun(data:table, id?:string|integer):string|integer [client]

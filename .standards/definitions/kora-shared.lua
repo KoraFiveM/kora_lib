@@ -1044,8 +1044,6 @@
 ---@class KoraBridge
 ---@field register fun(area:KoraBridgeArea, providerName:string, adapter:table):boolean
 ---@field getProvider fun(area:KoraBridgeArea):string?
-
-
 ---@class kora_lib
 ---@field bridge KoraBridge
 ---@field actions KoraLibActions

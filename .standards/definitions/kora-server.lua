@@ -1024,11 +1024,11 @@
 ---@alias KoraBridgeArea 'banking'|'bossmenu'|'clothing'|'dispatch'|'doorlock'|'fuel'|'helptext'|'notify'|'vehiclekeys'
 
 ---@class KoraBridgeBankingAdapter
----@field addMoney fun(name:string, amount:number, reason?:string):boolean
----@field removeMoney fun(name:string, amount:number, reason?:string):boolean
----@field getAccountBalance fun(name:string):number
----@field executeTransaction fun(key:string, request:table):any ...
----@field createBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ...
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field getSocietyAccountBalance fun(name:string):number
+---@field executeSocietyTransaction fun(key:string, request:table):any ...
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ...
 
 ---@class KoraBridgeBossMenuAdapter
 ---@field addBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
@@ -1069,13 +1069,11 @@
 ---@field hasKeys fun(src:integer, plate:string):boolean
 
 ---@class KoraBridge
----@field register fun(area:KoraBridgeArea, providerName:string, adapter:table):boolean
----@field getProvider fun(area:KoraBridgeArea):string?
----@field addAccountMoney fun(name:string, amount:number, reason?:string):boolean
----@field removeAccountMoney fun(name:string, amount:number, reason?:string):boolean
----@field getAccountBalance fun(name:string):number
----@field executeBankTransaction fun(key:string, request:table):any ...
----@field createBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ...
+---@field addSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field removeSocietyMoney fun(name:string, amount:number, reason?:string):boolean
+---@field getSocietyAccountBalance fun(name:string):number
+---@field executeSocietyTransaction fun(key:string, request:table):any ...
+---@field createSocietyBankStatement fun(playerId:integer, account:string, amount:number, reason:string, kind:'deposit'|'withdraw', accountType?:string):any ...
 ---@field addBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
 ---@field removeBusinessMoney fun(jobName:string, amount:number, reason?:string):boolean, string?
 ---@field getBusinessBalance fun(jobName:string):number?, string?
@@ -1095,8 +1093,6 @@
 ---@field setDoorState fun(id:string, state:boolean|0|1):boolean
 ---@field createDoor fun(raw:table):string|false, string?
 ---@field registerDoorPolicy fun(id:string, callback:function):boolean
-
-
 ---@class kora_lib
 ---@field bridge KoraBridge
 ---@field actions KoraLibActions

@@ -1063,8 +1063,6 @@
 ---@class KoraBridgeVehicleKeysAdapter
 
 ---@class KoraBridge
----@field register fun(area:KoraBridgeArea, providerName:string, adapter:table):boolean
----@field getProvider fun(area:KoraBridgeArea):string?
 ---@field openBossMenu fun(roleType?:string)
 ---@field openApplication fun(jobName:string, roleType?:string)
 ---@field addBossMenuItem fun(data:table, id?:string|integer):string|integer
@@ -1086,8 +1084,6 @@
 ---@field updateHelpText fun(id:integer, text:string, options?:KoraTextUIOptions):boolean
 ---@field hideHelpText fun(id:integer):boolean
 ---@field sendNotification fun(payload:KoraNotifyPayload)
-
-
 ---@class kora_lib
 ---@field bridge KoraBridge
 ---@field actions KoraLibActions

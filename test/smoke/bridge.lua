@@ -29,14 +29,12 @@ _G.LoadResourceFile = function(resource, path)
     if path == 'modules/bridge/modules/vehiclekeys/kora_vehiclekeys/server.lua' then
         loadedPaths[#loadedPaths + 1] = path
         return [[
-            return {
-                giveKeys = function()
-                    if shouldThrow then error('private provider error') end
-                    return 'kora'
-                end,
-                removeKeys = function() return true end,
-                hasKeys = function() return true end,
-            }
+            Kora.bridge.giveKeys = function()
+                if shouldThrow then error('private provider error') end
+                return 'kora'
+            end
+            Kora.bridge.removeKeys = function() return true end
+            Kora.bridge.hasKeys = function() return true end
         ]]
     end
 end

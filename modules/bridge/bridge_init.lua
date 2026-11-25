@@ -23,7 +23,10 @@ local providerCatalog = {
 
 local contracts = {
     banking = {
-        server = { 'addMoney', 'removeMoney', 'getAccountBalance', 'executeTransaction', 'createBankStatement' },
+        server = {
+            'addSocietyMoney', 'removeSocietyMoney', 'getSocietyAccountBalance', 'executeSocietyTransaction',
+            'createSocietyBankStatement',
+        },
     },
     bossmenu = {
         client = {
@@ -31,7 +34,7 @@ local contracts = {
             'removeGangMenuItem',
         },
         server = {
-            'addBusinessMoney', 'removeBusinessMoney', 'getBusinessBalance', 'addMoney', 'removeMoney',
+            'addBusinessMoney', 'removeBusinessMoney', 'getBusinessBalance', 'bossmenuAddMoney', 'bossmenuRemoveMoney',
             'addGangMoney', 'removeGangMoney', 'getGangBalance',
         },
     },
@@ -50,10 +53,10 @@ local contracts = {
         client = { 'getFuel', 'setFuel', 'isElectricVehicle' },
     },
     helptext = {
-        client = { 'show', 'update', 'hide' },
+        client = { 'showHelpText', 'updateHelpText', 'hideHelpText' },
     },
     notify = {
-        client = { 'send' },
+        client = { 'sendNotification' },
     },
     vehiclekeys = {
         server = { 'giveKeys', 'removeKeys', 'hasKeys' },
@@ -120,6 +123,34 @@ local function getProviderCandidates(area)
     return candidates
 end
 
+local function loadModuleFile(path, adapter)
+    local readOk, source = pcall(LoadResourceFile, 'kora_lib', path)
+    if not readOk then return false, source, false end
+    if not source then return true, nil, false end
+
+    local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
+    if not chunk then return false, compileError, true end
+
+    local originalBridge = Kora.bridge
+    local stagedBridge = setmetatable({}, { __index = originalBridge })
+    Kora.bridge = stagedBridge
+    local ok, loadError = pcall(chunk)
+    Kora.bridge = originalBridge
+    if not ok then return false, loadError, true end
+
+    local loadedAny = false
+    for method, callback in pairs(stagedBridge) do
+        if type(callback) == 'function' then
+            if adapter[method] then
+                return false, ('Duplicate bridge method %q in %s.'):format(method, path), true
+            end
+            adapter[method] = callback
+            loadedAny = true
+        end
+    end
+    return true, nil, loadedAny
+end
+
 local function loadProvider(area, providerName)
     if providers[area] and providers[area][providerName] then return true end
     if failedProviders[area] and failedProviders[area][providerName] then return false end
@@ -130,41 +161,14 @@ local function loadProvider(area, providerName)
     local pathRoot = ('modules/bridge/modules/%s/%s/'):format(area, providerName)
     local adapter = {}
     local loadedAny = false
-    local files = { 'shared.lua', realm .. '.lua' }
-
-    for _, fileName in ipairs(files) do
-        local path = pathRoot .. fileName
-        local readOk, source = pcall(LoadResourceFile, 'kora_lib', path)
-        if not readOk then
+    for _, fileName in ipairs({ 'shared.lua', realm .. '.lua' }) do
+        local ok, loadError, loadedFile = loadModuleFile(pathRoot .. fileName, adapter)
+        if not ok then
             failedProviders[area] = failedProviders[area] or {}
             failedProviders[area][providerName] = true
-            return false, source
+            return false, loadError
         end
-        if source then
-            local chunk, compileError = load(source, ('@@kora_lib/%s'):format(path), 't', _ENV)
-            if not chunk then
-                failedProviders[area] = failedProviders[area] or {}
-                failedProviders[area][providerName] = true
-                return false, compileError
-            end
-
-            local ok, exportsTable = pcall(chunk)
-            if not ok or type(exportsTable) ~= 'table' then
-                failedProviders[area] = failedProviders[area] or {}
-                failedProviders[area][providerName] = true
-                return false, ok and 'Adapter module must return a table.' or exportsTable
-            end
-
-            for method, callback in pairs(exportsTable) do
-                if adapter[method] then
-                    failedProviders[area] = failedProviders[area] or {}
-                    failedProviders[area][providerName] = true
-                    return false, ('Duplicate bridge method %q in %s.'):format(method, path)
-                end
-                adapter[method] = callback
-            end
-            loadedAny = true
-        end
+        loadedAny = loadedAny or loadedFile
     end
 
     if not loadedAny then
