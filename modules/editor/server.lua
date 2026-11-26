@@ -73,7 +73,7 @@ AddEventHandler('playerJoining', function()
     end)
 end)
 
-AddEventHandler('chat:init', function()
+RegisterNetEvent('chat:init', function()
     local src = source
     if src and src > 0 then suggest(src) end
 end)
