@@ -6,6 +6,7 @@ function Kora.bridge.sendNotify(payload)
         title = payload.title,
         description = payload.message,
         type = payload.type,
+        duration = payload.time,
     })
 end
 exports('bridge_sendNotify', Kora.bridge.sendNotify)

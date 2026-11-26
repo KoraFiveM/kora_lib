@@ -33,10 +33,10 @@ Provider functions are called directly, so their return values and errors pass t
 | `doorlock` | client/server | `getClosestDoor()`, `getDoorState(id)`, `pickClosestDoor()`, `setDoorState(id, state)`, `createDoor(raw)`, `registerDoorPolicy(id, callback)` |
 | `fuel` | client | `getFuel(vehicle)`, `setFuel(vehicle, level)`, `isElectricVehicle(vehicle)` |
 | `helptext` | client | `drawText(text, options?, owner?)`, `updateText(id, text, options?)`, `hideText(id)` |
-| `notify` | client | `sendNotification(payload)` |
+| `notify` | client/server | `sendNotify(payload)` / `sendNotify(source, payload)` |
 | `vehiclekeys` | server | `giveKeys(src, plate, allowWhenDisabled?)`, `removeKeys(src, plate)`, `hasKeys(src, plate)` |
 
-The current vehicle key resource exposes server exports only, so this version does not add client key functions. `sendNotification` delegates to `Kora.notify.send`, retaining `Config.third_party_notify` behavior. Non-Kora helptext providers preserve prompt handles and stack bridge-owned prompts, so each resource can update or hide only its own prompt.
+The current vehicle key resource exposes server exports only, so this version does not add client key functions. Client `sendNotify(payload)` and server `sendNotify(source, payload)` delegate to the selected notify provider. Non-Kora helptext providers preserve prompt handles and stack bridge-owned prompts, so each resource can update or hide only its own prompt.
 
 The clothing area includes both `kora_clothing` and `illenium-appearance` providers. Set `Config.Bridge.clothing = 'illenium-appearance'` to select iLLenium. Its appearance application expects iLLenium-format appearance data; `applyStarterAppearance` and `reloadSkin` both request iLLenium's saved-skin reload. `openClothingRoom` accepts an iLLenium customization config table or a supported service name (`clothing`, `barber`, `tattoo`, `surgeon`, `creation`, or `wardrobe`).
 

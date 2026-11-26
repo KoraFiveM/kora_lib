@@ -40,7 +40,7 @@ The loaded provider defines the available functions for its area and realm. Curr
 - Doorlock, client/server: door lookup and state functions
 - Fuel, client: fuel and electric vehicle functions
 - Help text, client: `showHelpText`, `updateHelpText`, `hideHelpText`
-- Notify, client: `sendNotification`
+- Notify, client: `sendNotify(payload)`; server: `sendNotify(source, payload)`
 - Vehicle keys, server: `giveKeys`, `removeKeys`, `hasKeys`
 
 For clothing, choose `kora_clothing` or `illenium-appearance` with `Config.Bridge.clothing`. The iLLenium adapter maps wardrobe and service menus to its client events and uses its appearance exports for applying appearance data. Its `applyAppearanceToPed` input must use iLLenium's appearance format.
