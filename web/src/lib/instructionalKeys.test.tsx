@@ -15,8 +15,16 @@ describe("instructional keys", () => {
         send([{ label: "Place point", keys: ["E", "LMB"] }])
         expect(screen.getByText("Place point")).toBeTruthy()
         expect(screen.getByText("LMB").tagName).toBe("KBD")
+        expect(screen.getByText("+").textContent).toBe("+")
         send([])
         expect(screen.queryByText("Place point")).toBeNull()
+    })
+
+    it("does not show a plus between keys for a single-key row", () => {
+        render(<><InstructionalKeysSource /><StandaloneKeyHints /></>)
+        send([{ label: "Close", keys: ["Esc"] }])
+        expect(screen.queryByText("+")).toBeNull()
+        send([])
     })
 
     it("renders inside the editor HUD instead of the standalone pill", () => {
