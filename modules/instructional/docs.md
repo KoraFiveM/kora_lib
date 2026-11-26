@@ -21,4 +21,6 @@ Optional `keyFallback` (non-empty string) is the text shown when GTA has no name
 { control = 200, label = 'Close inventory', keyFallback = 'Esc' },
 ```
 
+Rows that share a label (or `group`) merge their keys into one line. The overlay draws a `+` between those keycaps (for example Shift + LMB) so a chord reads as press-both.
+
 `setButtons(buttons)` atomically replaces the displayed list. `hide()` removes the display and `isVisible()` reports whether it is still active. Displays are cleaned up when their owning resource stops.

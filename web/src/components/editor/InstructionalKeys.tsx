@@ -47,8 +47,15 @@ export function KeyHints() {
                 <li key={row.label} className="contents text-xs text-card-foreground/80">
                     <span className="min-w-0 text-xs leading-4">{row.label}</span>
                     <KbdGroup className="justify-self-end">
-                        {row.keys.map((k) => (
-                            <Kbd key={k}>{k}</Kbd>
+                        {row.keys.map((k, index) => (
+                            <span key={k} className="inline-flex items-center gap-1">
+                                {index > 0 && (
+                                    <span className="text-[11px] leading-none text-card-foreground/50" aria-hidden>
+                                        +
+                                    </span>
+                                )}
+                                <Kbd>{k}</Kbd>
+                            </span>
                         ))}
                     </KbdGroup>
                 </li>
