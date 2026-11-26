@@ -15,7 +15,9 @@ local ok = Kora.bridge.giveKeys(source, plate)
 local balance = Kora.bridge.getSocietyAccountBalance('police')
 
 -- Client
-local promptId = Kora.bridge.showHelpText('Open the door', { key = 'E' })
+local promptId = Kora.bridge.drawText('Open the door', { key = 'E' })
+Kora.bridge.updateText(promptId, 'Close the door', { key = 'E' })
+Kora.bridge.hideText(promptId)
 ```
 
 ## Provider areas and contracts
@@ -24,17 +26,17 @@ Provider functions are called directly, so their return values and errors pass t
 
 | Area | Realm | Public functions |
 | --- | --- | --- | --- |
-| `banking` | server | `addSocietyMoney(name, amount, reason?)`, `removeSocietyMoney(name, amount, reason?)`, `getSocietyAccountBalance(name)`, `executeSocietyTransaction(key, request)`, `createSocietyBankStatement(playerId, account, amount, reason, kind, accountType?)` |
+| `banking` | server | `addSocietyMoney(name, amount, reason?)`, `removeSocietyMoney(name, amount, reason?)`, `getSocietyAccountBalance(name)`, `executeSocietyTransaction(key, request)`, `executeBankTransaction(key, request)`, `createSocietyBankStatement(playerId, account, amount, reason, kind, accountType?)` |
 | `bossmenu` | client/server | `openBossMenu(roleType?)`, `openApplication(jobName, roleType?)`, `addBossMenuItem(data, id?)`, `removeBossMenuItem(id)`, `addGangMenuItem(data, id?)`, `removeGangMenuItem(id)`, `addBusinessMoney(jobName, amount, reason?)`, `removeBusinessMoney(jobName, amount, reason?)`, `getBusinessBalance(jobName)`, `bossmenuAddMoney(jobName, amount)`, `bossmenuRemoveMoney(jobName, amount)`, `addGangMoney(gangName, amount)`, `removeGangMoney(gangName, amount)`, `getGangBalance(gangName)` |
 | `clothing` | client/server | `openWardrobe()`, `openClothingRoom(options?)`, `applyAppearanceToPed(ped, model, skin)`, `applyStarterAppearance()`, `reloadSkin()`, `openAdminSession(targetSrc, service)` |
 | `dispatch` | server | `createCall(payload)`, `updateCall(id, patch)`, `closeCall(id, reason?)`, `getCalls(filter?)`, `registerPlayerAlert(key, definition)`, `createPlayerCall(src, key)` |
 | `doorlock` | client/server | `getClosestDoor()`, `getDoorState(id)`, `pickClosestDoor()`, `setDoorState(id, state)`, `createDoor(raw)`, `registerDoorPolicy(id, callback)` |
 | `fuel` | client | `getFuel(vehicle)`, `setFuel(vehicle, level)`, `isElectricVehicle(vehicle)` |
-| `helptext` | client | `showHelpText(text, options?)`, `updateHelpText(id, text, options?)`, `hideHelpText(id)` |
+| `helptext` | client | `drawText(text, options?, owner?)`, `updateText(id, text, options?)`, `hideText(id)` |
 | `notify` | client | `sendNotification(payload)` |
 | `vehiclekeys` | server | `giveKeys(src, plate, allowWhenDisabled?)`, `removeKeys(src, plate)`, `hasKeys(src, plate)` |
 
-The current vehicle key resource exposes server exports only, so this version does not add client key functions. `sendNotification` delegates to `Kora.notify.send`, retaining `Config.third_party_notify` behavior. `helptext` delegates to `Kora.textui`.
+The current vehicle key resource exposes server exports only, so this version does not add client key functions. `sendNotification` delegates to `Kora.notify.send`, retaining `Config.third_party_notify` behavior. Non-Kora helptext providers preserve prompt handles and stack bridge-owned prompts, so each resource can update or hide only its own prompt.
 
 The clothing area includes both `kora_clothing` and `illenium-appearance` providers. Set `Config.Bridge.clothing = 'illenium-appearance'` to select iLLenium. Its appearance application expects iLLenium-format appearance data; `applyStarterAppearance` and `reloadSkin` both request iLLenium's saved-skin reload. `openClothingRoom` accepts an iLLenium customization config table or a supported service name (`clothing`, `barber`, `tattoo`, `surgeon`, `creation`, or `wardrobe`).
 
