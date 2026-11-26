@@ -28,19 +28,24 @@ end
 
 local ICONS = {
     b_100 = 'LMB', b_101 = 'RMB', b_102 = 'MMB',
+    b_199 = 'Esc', b_1000 = 'Shift', b_1013 = 'Ctrl', b_1015 = 'Alt',
     b_1002 = '⇥', b_1003 = '↵', b_1004 = '⌫',
     b_194 = '↑', b_195 = '↓', b_1009 = 'PgUp', b_1010 = 'PgDn',
 }
 
--- GetControlInstructionalButton returns `t_<n>` (the bare control id) when a
--- control has no named glyph. That number is not a key name, so it is never
--- shown: the button's `keyFallback` text is used instead, or no key at all.
+-- GetControlInstructionalButton returns `t_<n>` (bare control id) or `b_<n>`
+-- (glyph slot with no friendly name in our map). Neither number is a key name:
+-- prefer ICONS, then the button's `keyFallback`, and never show the raw id.
 local function keyLabel(button)
     local value = token(button)
     if type(value) ~= 'string' or value == '' then return button.keyFallback or '?' end
     if value:match('^t_%d+$') then return button.keyFallback end
     local name = value:gsub('^t_', '', 1)
-    return ICONS[name] or ICONS[value] or (name:gsub('^b_', '', 1))
+    local icon = ICONS[name] or ICONS[value]
+    if icon then return icon end
+    if button.keyFallback then return button.keyFallback end
+    if name:match('^b_%d+$') or value:match('^b_%d+$') then return nil end
+    return name
 end
 
 local lastPayload

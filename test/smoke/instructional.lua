@@ -7,7 +7,16 @@ local mocks = require('mocks')
 local net = mocks.install()
 
 local sent = {}
-function _G.GetControlInstructionalButton(_, control) return control == 99 and 'b_100' or 't_' .. tostring(control) end
+-- Mirror production tokens: mouse is b_100, Esc/Shift/Ctrl/Alt are b_199 /
+-- b_1000 / b_1013 / b_1015, and everything else is the bare t_<id> form.
+function _G.GetControlInstructionalButton(_, control)
+    if control == 99 then return 'b_100' end
+    if control == 200 then return 'b_199' end
+    if control == 21 then return 'b_1000' end
+    if control == 36 then return 'b_1013' end
+    if control == 19 then return 'b_1015' end
+    return 't_' .. tostring(control)
+end
 
 dofile(repoRoot .. 'build/initiate.lua')
 dofile(repoRoot .. 'modules/logging/shared.lua')
@@ -80,11 +89,31 @@ harness.test('unnamed controls use keyFallback text, and named glyphs win over i
     local display = Kora.instructional.show({
         { control = 200, label = 'Close inventory', keyFallback = 'Esc' },
         { control = 99, label = 'Use', keyFallback = 'Enter' },
+        { control = 21, label = 'Quick transfer', keyFallback = 'Shift' },
+        { control = 36, label = 'Move half', keyFallback = 'Ctrl' },
+        { control = 19, label = 'Move one', keyFallback = 'Alt' },
     })
-    harness.assertEqual(last()[1].keys[1], 'Esc')
+    harness.assertEqual(last()[1].keys[1], 'Esc', 'Esc b_199 maps to a name, not 199')
     harness.assertEqual(last()[2].keys[1], 'LMB', 'a named glyph ignores keyFallback')
+    harness.assertEqual(last()[3].keys[1], 'Shift', 'Shift b_1000 maps to a name, not 1000')
+    harness.assertEqual(last()[4].keys[1], 'Ctrl', 'Ctrl b_1013 maps to a name, not 1013')
+    harness.assertEqual(last()[5].keys[1], 'Alt', 'Alt b_1015 maps to a name, not 1015')
     harness.assertThrows(function() Kora.instructional.show({ { control = 1, label = 'x', keyFallback = '' } }) end)
     display.hide()
+end)
+
+harness.test('unknown b_ codes prefer keyFallback and never show the raw id', function()
+    local previous = GetControlInstructionalButton
+    GetControlInstructionalButton = function() return 'b_9999' end
+    local display = Kora.instructional.show({
+        { control = 1, label = 'Custom', keyFallback = 'F13' },
+    })
+    harness.assertEqual(last()[1].keys[1], 'F13')
+    display.hide()
+    display = Kora.instructional.show({ { control = 1, label = 'No fallback' } })
+    harness.assertEqual(#last()[1].keys, 0, 'unknown b_ without keyFallback shows no key')
+    display.hide()
+    GetControlInstructionalButton = previous
 end)
 
 harness.test('grouped buttons collapse into one row', function()
