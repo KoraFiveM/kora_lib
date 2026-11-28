@@ -268,6 +268,7 @@
       "test/smoke/timers.lua",
       "test/smoke/util.lua",
       "test/smoke/vehicle.lua",
+      "test/smoke/versioncheck.lua",
       "test/smoke/visuals.lua",
       "test/smoke/world.lua",
       "test/smoke/zones.lua",
